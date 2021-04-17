@@ -179,7 +179,7 @@
             <dependency>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest_${scala.binary.version}</artifactId>
-                <version>3.0.5</version>
+                <version>3.2.7</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -307,7 +307,6 @@
                         <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                         <junitxml>.</junitxml>
                         <filereports>scala-test-output.txt</filereports>
-                        <argLine>${argLine} -ea -Xmx4g -Xss4m</argLine>
                         <stderr/>
                         <systemProperties>
                             <java.awt.headless>true</java.awt.headless>
