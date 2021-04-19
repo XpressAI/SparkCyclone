@@ -1,13 +1,22 @@
-package com.nec.spark
+package com.nec.spark.agile
 
-import org.scalatest.freespec.AnyFreeSpec
-
-import org.apache.spark.{SparkConf, SparkContext}
+import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.{SparkConf, SparkContext}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.freespec.AnyFreeSpec
 
-final class SqlPluginTest extends AnyFreeSpec {
+final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
+
+  override protected def beforeAll(): Unit = {
+    val rootLogger = Logger.getRootLogger
+    rootLogger.setLevel(Level.ERROR)
+
+    super.beforeAll()
+  }
 
   "It is not launched if not specified" in {
     val conf = new SparkConf()
@@ -144,6 +153,34 @@ final class SqlPluginTest extends AnyFreeSpec {
     } finally sparkSession.close()
   }
 
+  "From the execution plan, we get the inputted numbers" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkPlanSavingPlugin].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+      Seq(BigDecimal(1), BigDecimal(2), BigDecimal(3))
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      val result =
+        sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal].head()
+
+      assert(
+        SparkPlanSavingPlugin.savedSparkPlan.getClass.getCanonicalName == "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
+      )
+
+      assert(
+        SumPlanExtractor
+          .matchPlan(SparkPlanSavingPlugin.savedSparkPlan)
+          .contains(List(BigDecimal(1), BigDecimal(2), BigDecimal(3)))
+      )
+    } finally sparkSession.close()
+  }
+
   "We can do a pretend plug-in that will return 6" in {
     info("""
       This enables us to be confident this is the right place to do the rewriting.
@@ -160,7 +197,7 @@ final class SqlPluginTest extends AnyFreeSpec {
       import sparkSession.implicits._
 
       DummyShortCircuitSqlPlugin.applyShortCircuit = false
-      Seq(1, 2, 3)
+      List[BigDecimal](1, 2, 3)
         .toDS()
         .createOrReplaceTempView("nums")
       val sumDataSet =
@@ -190,7 +227,7 @@ final class SqlPluginTest extends AnyFreeSpec {
         import sparkSession.implicits._
         DummyShortCircuitSqlPlugin.applyShortCircuit = false
 
-        Seq(1, 2, 3, 4)
+        Seq[BigDecimal](1, 2, 3, 4)
           .toDS()
           .createOrReplaceTempView("nums")
 
@@ -204,5 +241,45 @@ final class SqlPluginTest extends AnyFreeSpec {
         assert(result == BigDecimal(10))
       } finally sparkSession.close()
     }
+
+  /**
+   * this test is ignored because it's currently failing as our computation engine returns only a
+   * static/stubbed value.
+   */
+  "We call VE over SSH using the Python script, and get the right sum back from it" taggedAs AcceptanceTest in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SumOverNecSshPlugin].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+      SumOverNecSshPlugin.enable = false
+
+      val nums = List(
+        BigDecimal(1),
+        BigDecimal(2),
+        BigDecimal(3),
+        BigDecimal(4),
+        BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
+      )
+      info(s"Input: ${nums}")
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      val sumDataSet =
+        sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+
+      SumOverNecSshPlugin.enable = true
+      sumDataSet.explain(true)
+      val result = sumDataSet.head()
+
+      info(s"Result of sum = $result")
+      assert(result == BigDecimalSummer.scalaSummer.sum(nums))
+    } finally sparkSession.close()
+  }
 
 }
