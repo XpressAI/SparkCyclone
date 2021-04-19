@@ -171,7 +171,7 @@ final class SqlPluginTest extends AnyFreeSpec {
   }
 
   /** this test is ignored because it's currently failing as our computation engine returns only a static/stubbed value. */
-  "We can do a pretend plug-in that will return 6, however it should return 10" ignore {
+  "We can do a pretend plug-in that will return 6, however it should return 10" taggedAs AcceptanceTest in {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.set("spark.ui.enabled", "false")

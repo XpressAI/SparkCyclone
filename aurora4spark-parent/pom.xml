@@ -31,12 +31,15 @@
     </modules>
 
     <properties>
+        <skipUnitTests>false</skipUnitTests>
+        <spotless.version>2.10.1</spotless.version>
+        <skipIntegrationTests>true</skipIntegrationTests>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <spark.version>3.1.1</spark.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <scala.version>2.12.8</scala.version>
+        <scala.version>2.12.13</scala.version>
         <orc.version>1.5.8</orc.version>
         <orc.classifier></orc.classifier>
         <slf4j.version>1.7.30</slf4j.version>
@@ -321,9 +324,25 @@
                     <executions>
                         <execution>
                             <id>test</id>
+                            <phase>test</phase>
                             <goals>
                                 <goal>test</goal>
                             </goals>
+                            <configuration>
+                                <skipTests>${skipUnitTests}</skipTests>
+                                <tagsToExclude>com.nec.spark.AcceptanceTest</tagsToExclude>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>integration-test</id>
+                            <phase>integration-test</phase>
+                            <goals>
+                                <goal>test</goal>
+                            </goals>
+                            <configuration>
+                                <skipTests>${skipIntegrationTests}</skipTests>
+                                <tagsToInclude>com.nec.spark.AcceptanceTest</tagsToInclude>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
@@ -334,7 +353,7 @@
                     <configuration>
                         <verbose>false</verbose>
                         <failOnViolation>true</failOnViolation>
-                        <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
                         <failOnWarning>false</failOnWarning>
                         <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
                         <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
