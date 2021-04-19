@@ -1,4 +1,4 @@
-package com.nec.spark
+package com.nec.spark.agile
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
