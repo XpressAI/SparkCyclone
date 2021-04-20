@@ -12,23 +12,21 @@ import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
  * This is not how we will do it in production, however it is very important to do this for the
  * proof of concept.
  */
-object SumOverNecSshPlugin {
+object SummingPlugin {
   var enable: Boolean = false
+  var summer: BigDecimalSummer = BigDecimalSummer.ScalaSummer
 }
 
-final class SumOverNecSshPlugin extends (SparkSessionExtensions => Unit) with Logging {
+final class SummingPlugin extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectColumnar({ sparkSession =>
       new ColumnarRule {
         override def preColumnarTransitions: Rule[SparkPlan] =
           sparkPlan =>
-            if (SumOverNecSshPlugin.enable)
+            if (SummingPlugin.enable)
               SumPlanExtractor
-                .matchPlan(sparkPlan)
-                .map(numsToSum =>
-                  SingleValueStubPlan
-                    .forNumber(BigDecimalSummer.pythonNecSummer.sum(numsToSum))
-                )
+                .matchSumChildPlan(sparkPlan)
+                .map(numsToSumPlan => SummingSparkPlan(numsToSumPlan, SummingPlugin.summer))
                 .getOrElse(sys.error(s"Could not match the plan: ${sparkPlan}"))
             else sparkPlan
       }
