@@ -1,10 +1,10 @@
 package com.nec.spark
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.{DriverPlugin, PluginContext}
 import org.apache.spark.internal.Logging
-
-import scala.collection.JavaConverters._
 
 object Aurora4SparkDriver {
 
@@ -14,11 +14,14 @@ object Aurora4SparkDriver {
 
 class Aurora4SparkDriver extends DriverPlugin with Logging {
   override def init(
-      sc: SparkContext,
-      pluginContext: PluginContext
+    sc: SparkContext,
+    pluginContext: PluginContext
   ): java.util.Map[String, String] = {
-    logInfo("Aurura4Spark DriverPlugin is launched.")
+    logInfo("Aurora4Spark DriverPlugin is launched.")
     Aurora4SparkDriver.launched = true
-    Map.empty[String, String].asJava
+    // Just to test that the arguments are passed correctly as a starting point.
+    // We gonna change this to actual params as soon as we know them.
+    val testArgs: Map[String, String] = Map("testArgument" -> "test")
+    testArgs.asJava
   }
 }
