@@ -1,12 +1,12 @@
 package com.nec.spark
 
+import org.scalatest.freespec.AnyFreeSpec
+
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.freespec.AnyFreeSpec
 
-object SqlPluginTest {}
 final class SqlPluginTest extends AnyFreeSpec {
 
   "It is not launched if not specified" in {
@@ -16,9 +16,10 @@ final class SqlPluginTest extends AnyFreeSpec {
     val sparkContext = new SparkContext(conf)
 
     try {
+      assert(!Aurora4SparkDriver.launched, "Expect the driver to have not been launched")
       assert(
-        !Aurora4SparkDriver.launched,
-        "Expect the driver to have not been launched"
+        !Aurora4SparkExecutorPlugin.launched && Aurora4SparkExecutorPlugin.params.isEmpty,
+        "Expect the executor plugin to have not been launched"
       )
     } finally sparkContext.stop()
   }
@@ -27,15 +28,27 @@ final class SqlPluginTest extends AnyFreeSpec {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
-    conf.set(
-      "spark.plugins",
-      classOf[SqlPlugin].getName
-    )
+    conf.set("spark.plugins", classOf[SqlPlugin].getName)
+    val sparkContext = new SparkContext(conf)
+    try {
+      assert(Aurora4SparkDriver.launched, "Expect the driver to have been launched")
+      assert(
+        Aurora4SparkExecutorPlugin.launched && !Aurora4SparkExecutorPlugin.params.isEmpty,
+        "Expect the executor plugin to have been launched"
+      )
+    } finally sparkContext.stop()
+  }
+
+  "It properly passes aruments to spark executor plugin" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.setAppName("local-test")
+    conf.set("spark.plugins", classOf[SqlPlugin].getName)
     val sparkContext = new SparkContext(conf)
     try {
       assert(
-        Aurora4SparkDriver.launched,
-        "Expect the driver to have been launched"
+        Aurora4SparkExecutorPlugin.params == Map("testArgument" -> "test"),
+        "Expect arguments to be passed from driver to executor plugin"
       )
     } finally sparkContext.stop()
   }
@@ -54,20 +67,15 @@ final class SqlPluginTest extends AnyFreeSpec {
   }
 
   "We can get an execution plan for a sum of rows and dissect the programmatic structure" in {
-    info(
-      """
-        |We do this so that we know exactly what we need to optimize/rewrite for GPU processing
-        |
-        |We will get there more quickly by doing this sort of use case based reverse engineering.
-        |""".stripMargin
-    )
+    info("""
+           |We do this so that we know exactly what we need to optimize/rewrite for GPU processing
+           |
+           |We will get there more quickly by doing this sort of use case based reverse engineering.
+           |""".stripMargin)
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.set("spark.ui.enabled", "false")
-    conf.set(
-      "spark.sql.extensions",
-      classOf[SparkPlanSavingPlugin].getCanonicalName
-    )
+    conf.set("spark.sql.extensions", classOf[SparkPlanSavingPlugin].getCanonicalName)
     conf.setAppName("local-test")
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
@@ -80,7 +88,8 @@ final class SqlPluginTest extends AnyFreeSpec {
         sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal].head()
 
       assert(
-        SparkPlanSavingPlugin.savedSparkPlan.getClass.getCanonicalName == "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
+        SparkPlanSavingPlugin.savedSparkPlan.getClass.getCanonicalName ==
+          "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
       )
       SparkPlanSavingPlugin.savedSparkPlan match {
         case first @ HashAggregateExec(
@@ -94,18 +103,16 @@ final class SqlPluginTest extends AnyFreeSpec {
             ) =>
           info(s"First root of the plan: ${first}")
           assert(
-            child.getClass.getCanonicalName == "org.apache.spark.sql.execution.exchange.ShuffleExchangeExec"
+            child.getClass.getCanonicalName ==
+              "org.apache.spark.sql.execution.exchange.ShuffleExchangeExec"
           )
           child match {
             case second @ org.apache.spark.sql.execution.exchange
-                  .ShuffleExchangeExec(
-                    outputPartitioning,
-                    child2,
-                    shuffleOrigin
-                  ) =>
+                  .ShuffleExchangeExec(outputPartitioning, child2, shuffleOrigin) =>
               info(s"Second root of the plan: ${second}")
               assert(
-                child2.getClass.getCanonicalName == "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
+                child2.getClass.getCanonicalName ==
+                  "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
               )
               child2 match {
                 case third @ org.apache.spark.sql.execution.aggregate
@@ -120,7 +127,8 @@ final class SqlPluginTest extends AnyFreeSpec {
                       ) =>
                   info(s"Third root of the plan: ${third}")
                   assert(
-                    child3.getClass.getCanonicalName == "org.apache.spark.sql.execution.LocalTableScanExec"
+                    child3.getClass.getCanonicalName ==
+                      "org.apache.spark.sql.execution.LocalTableScanExec"
                   )
                   child3 match {
                     case fourth @ LocalTableScanExec(output, rows) =>
@@ -137,19 +145,15 @@ final class SqlPluginTest extends AnyFreeSpec {
   }
 
   "We can do a pretend plug-in that will return 6" in {
-    info(
-      """
+    info("""
       This enables us to be confident this is the right place to do the rewriting.
-      The significance of this is that from here, we will be able to compare expected results with actual results after we apply the plug-in
-      """
-    )
+      The significance of this is that from here,
+      we will be able to compare expected results with actual results after we apply the plug-in
+      """)
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.set("spark.ui.enabled", "false")
-    conf.set(
-      "spark.sql.extensions",
-      classOf[DummyShortCircuitSqlPlugin].getCanonicalName
-    )
+    conf.set("spark.sql.extensions", classOf[DummyShortCircuitSqlPlugin].getCanonicalName)
     conf.setAppName("local-test")
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
@@ -170,34 +174,35 @@ final class SqlPluginTest extends AnyFreeSpec {
     } finally sparkSession.close()
   }
 
-  /** this test is ignored because it's currently failing as our computation engine returns only a static/stubbed value. */
-  "We can do a pretend plug-in that will return 6, however it should return 10" taggedAs AcceptanceTest in {
-    val conf = new SparkConf()
-    conf.setMaster("local")
-    conf.set("spark.ui.enabled", "false")
-    conf.set(
-      "spark.sql.extensions",
-      classOf[DummyShortCircuitSqlPlugin].getCanonicalName
-    )
-    conf.setAppName("local-test")
-    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
-    try {
-      import sparkSession.implicits._
-      DummyShortCircuitSqlPlugin.applyShortCircuit = false
+  /**
+   * this test is ignored because it's currently failing as our computation engine returns only a
+   * static/stubbed value.
+   */
+  "We can do a pretend plug-in that will return 6, however it should return 10" taggedAs
+    AcceptanceTest in {
+      val conf = new SparkConf()
+      conf.setMaster("local")
+      conf.set("spark.ui.enabled", "false")
+      conf.set("spark.sql.extensions", classOf[DummyShortCircuitSqlPlugin].getCanonicalName)
+      conf.setAppName("local-test")
+      val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+      try {
+        import sparkSession.implicits._
+        DummyShortCircuitSqlPlugin.applyShortCircuit = false
 
-      Seq(1, 2, 3, 4)
-        .toDS()
-        .createOrReplaceTempView("nums")
+        Seq(1, 2, 3, 4)
+          .toDS()
+          .createOrReplaceTempView("nums")
 
-      val sumDataSet =
-        sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+        val sumDataSet =
+          sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
 
-      DummyShortCircuitSqlPlugin.applyShortCircuit = true
-      sumDataSet.explain(true)
-      val result = sumDataSet.head()
+        DummyShortCircuitSqlPlugin.applyShortCircuit = true
+        sumDataSet.explain(true)
+        val result = sumDataSet.head()
 
-      assert(result == BigDecimal(10))
-    } finally sparkSession.close()
-  }
+        assert(result == BigDecimal(10))
+      } finally sparkSession.close()
+    }
 
 }
