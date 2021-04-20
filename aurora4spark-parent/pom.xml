@@ -347,6 +347,35 @@
                     </executions>
                 </plugin>
                 <plugin>
+                    <groupId>org.antipathy</groupId>
+                    <artifactId>mvn-scalafmt_2.12</artifactId>
+                    <version>1.0.1614576627.86a5663</version>
+                    <configuration>
+                        <configLocation>.scalafmt.conf</configLocation> <!-- path to config -->
+                        <skipTestSources>false</skipTestSources>
+                        <skipSources>false</skipSources>
+                        <respectVersion>true</respectVersion>
+                        <sourceDirectories>
+                            <param>${basedir}/src/main/scala</param>
+                        </sourceDirectories>
+                        <testSourceDirectories>
+                            <param>${basedir}/src/test/scala</param>
+                        </testSourceDirectories>
+                        <validateOnly>false</validateOnly>
+                        <onlyChangedFiles>true</onlyChangedFiles>
+                        <branch>: git rev-parse --abbrev-ref HEAD</branch> <!-- the current branch-->
+                        <useSpecifiedRepositories>false</useSpecifiedRepositories>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>test</phase>
+                            <goals>
+                                <goal>format</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
                     <groupId>org.scalastyle</groupId>
                     <artifactId>scalastyle-maven-plugin</artifactId>
                     <version>1.0.0</version>

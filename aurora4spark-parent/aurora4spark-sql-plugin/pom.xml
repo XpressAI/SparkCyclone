@@ -131,6 +131,13 @@
                 <artifactId>scalastyle-maven-plugin</artifactId>
             </plugin>
             <plugin>
+                <groupId>org.antipathy</groupId>
+                <artifactId>mvn-scalafmt_2.12</artifactId>
+                <configuration>
+                    <configLocation>${project.parent.basedir}/.scalafmt.conf</configLocation>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.rat</groupId>
                 <artifactId>apache-rat-plugin</artifactId>
                 <version>0.13</version>
