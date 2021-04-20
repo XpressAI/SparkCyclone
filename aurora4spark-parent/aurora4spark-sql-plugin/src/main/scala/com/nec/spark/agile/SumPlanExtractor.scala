@@ -13,6 +13,22 @@ import org.apache.spark.sql.types.{Decimal, DecimalType}
  */
 object SumPlanExtractor {
   def matchPlan(sparkPlan: SparkPlan): Option[List[BigDecimal]] = {
+    matchSumChildPlan(sparkPlan).collectFirst {
+      case LocalTableScanExec(
+            Seq(AttributeReference(name, dataType: DecimalType, nullable, metadata)),
+            rows
+          ) =>
+        dataType match {
+          case DecimalType(precision, scale) =>
+            rows
+              .map(_.get(0, dataType).asInstanceOf[Decimal])
+              .map(_.toBigDecimal)
+              .toList
+        }
+    }
+  }
+
+  def matchSumChildPlan(sparkPlan: SparkPlan): Option[SparkPlan] = {
     PartialFunction.condOpt(sparkPlan) {
       case first @ HashAggregateExec(
             requiredChildDistributionExpressions,
@@ -32,21 +48,12 @@ object SumPlanExtractor {
                     _aggregateAttributes,
                     _initialInputBufferOffset,
                     _resultExpressions,
-                    fourth @ LocalTableScanExec(
-                      Seq(AttributeReference(name, dataType: DecimalType, nullable, metadata)),
-                      rows
-                    )
+                    fourth
                   ),
                 shuffleOrigin
               )
           ) =>
-        dataType match {
-          case DecimalType(precision, scale) =>
-            rows
-              .map(_.get(0, dataType).asInstanceOf[Decimal])
-              .map(_.toBigDecimal)
-              .toList
-        }
+        fourth
     }
   }
 

@@ -3,9 +3,9 @@ package com.nec.spark.agile
 import com.nec.spark.AcceptanceTest
 import com.nec.spark.agile.BigDecimalSummer.{
   directVeSummer,
-  pythonNecSummer,
   readBigDecimal,
-  scalaSummer
+  PythonNecSSHSummer,
+  ScalaSummer
 }
 import com.nec.spark.agile.BigDecimalSummerSpec.stubSummer
 import org.scalatest.freespec.AnyFreeSpec
@@ -25,19 +25,19 @@ final class BigDecimalSummerSpec extends AnyFreeSpec {
     assert(summer.sum(List(1, 2, 3, 4)) == BigDecimal(10))
 
   "It works in-JVM" in {
-    sumTest(scalaSummer)
+    sumTest(ScalaSummer)
   }
 
-  "It works (echo stub)" taggedAs AcceptanceTest in {
+  "It works (echo stub)" in {
     sumTest(stubSummer(fakeResult = 10))
   }
 
   "It works (Python)" taggedAs AcceptanceTest in {
-    sumTest(pythonNecSummer)
+    sumTest(PythonNecSSHSummer)
   }
 
   "It works with a larger number" taggedAs AcceptanceTest in {
-    assert(pythonNecSummer.sum(List(1, 2, 3, 4, 1031858758.000)) == 1031858768)
+    assert(PythonNecSSHSummer.sum(List(1, 2, 3, 4, 1031858758.000)) == 1031858768)
   }
 
   "It works (VE)" taggedAs AcceptanceTest in {
