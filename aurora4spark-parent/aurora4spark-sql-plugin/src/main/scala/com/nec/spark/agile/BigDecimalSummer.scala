@@ -23,7 +23,7 @@ object BigDecimalSummer {
   object PythonNecSSHSummer extends BigDecimalSummer {
     override def sum(nums: List[BigDecimal]): BigDecimal = {
       val cmd =
-        (Seq("ssh", "a6", "/root/sum.sh") ++ nums.map(_.toBigInt().toString))
+        (Seq("ssh", "a6", "/root/d/sum.sh") ++ nums.map(_.toBigInt().toString))
       try readBigDecimal(cmd.!!)
       catch {
         case e: Throwable =>
@@ -32,7 +32,9 @@ object BigDecimalSummer {
     }
   }
 
-  /** TODO this would actually compile our own app onto VE */
-  def directVeSummer: BigDecimalSummer = _ => sys.error("Not yet implemented")
+  object BundleNecSSHSummer extends BigDecimalSummer {
+    override def sum(nums: List[BigDecimal]): BigDecimal =
+      BundleExecutor.returningBigDecimal.executeBundle(Bundle.sumBigDecimals(nums))
+  }
 
 }
