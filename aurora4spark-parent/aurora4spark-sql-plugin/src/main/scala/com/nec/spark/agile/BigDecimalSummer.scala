@@ -37,4 +37,9 @@ object BigDecimalSummer {
       BundleExecutor.returningBigDecimal.executeBundle(Bundle.sumBigDecimals(nums))
   }
 
+  object BundleNecSSHSummerPurePython extends BigDecimalSummer {
+    override def sum(nums: List[BigDecimal]): BigDecimal =
+      BundleExecutor.returningBigDecimal.executeBundle(Bundle.sumBigDecimalsPurePython(nums))
+  }
+
 }
