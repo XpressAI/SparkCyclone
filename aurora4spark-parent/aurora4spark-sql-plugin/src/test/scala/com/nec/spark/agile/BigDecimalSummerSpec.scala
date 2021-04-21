@@ -2,8 +2,8 @@ package com.nec.spark.agile
 
 import com.nec.spark.AcceptanceTest
 import com.nec.spark.agile.BigDecimalSummer.{
-  directVeSummer,
   readBigDecimal,
+  BundleNecSSHSummer,
   PythonNecSSHSummer,
   ScalaSummer
 }
@@ -41,7 +41,7 @@ final class BigDecimalSummerSpec extends AnyFreeSpec {
   }
 
   "It works (VE)" taggedAs AcceptanceTest in {
-    sumTest(directVeSummer)
+    sumTest(BundleNecSSHSummer)
   }
 
 }
