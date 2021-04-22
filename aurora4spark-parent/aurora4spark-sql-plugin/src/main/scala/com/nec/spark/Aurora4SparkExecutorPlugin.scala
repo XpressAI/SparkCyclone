@@ -1,11 +1,13 @@
 package com.nec.spark
 
+import java.util
+
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import com.nec.spark.Aurora4SparkExecutorPlugin.{launched, params}
+
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
-
-import java.util
-import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 object Aurora4SparkExecutorPlugin {
 

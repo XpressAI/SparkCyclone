@@ -7,11 +7,12 @@ final class BundleExecutorSpec extends AnyFreeSpec {
   "It runs a basic Python script" taggedAs AcceptanceTest in {
     assert(
       BundleExecutor
-        .executePython("print('hey')\n")
+        .executePython(Seq("print('hey')\n"))
         .mkString
         .trim == "hey"
     )
   }
+
   "We can run our bundle of sums and it returns the expected output" taggedAs AcceptanceTest in {
     assert(
       BundleExecutor.returningBigDecimal

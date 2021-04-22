@@ -1,16 +1,17 @@
 package com.nec.spark.agile
 
+import java.nio.file.Paths
+
 import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
 import org.apache.log4j.{Level, Logger}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.freespec.AnyFreeSpec
+
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.types.{DecimalType, StructField, StructType}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.freespec.AnyFreeSpec
-
-import java.nio.file.Paths
 
 final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
 
@@ -173,7 +174,8 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
         sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal].head()
 
       assert(
-        SparkPlanSavingPlugin.savedSparkPlan.getClass.getCanonicalName == "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
+        SparkPlanSavingPlugin.savedSparkPlan.getClass.getCanonicalName
+          == "org.apache.spark.sql.execution.aggregate.HashAggregateExec"
       )
 
       assert(
@@ -213,80 +215,85 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
     } finally sparkSession.close()
   }
 
-  "We call VE over SSH using the Python script, and get the right sum back from it" taggedAs AcceptanceTest in {
-    val conf = new SparkConf()
-    conf.setMaster("local")
-    conf.set("spark.ui.enabled", "false")
-    conf.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    conf.setAppName("local-test")
-    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
-    try {
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
+  "We call VE over SSH using the Python script, and get the right sum back from it" taggedAs
+    AcceptanceTest in {
+      val conf = new SparkConf()
+      conf.setMaster("local")
+      conf.set("spark.ui.enabled", "false")
+      conf.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
+      conf.setAppName("local-test")
+      val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+      try {
+        import sparkSession.implicits._
+        SummingPlugin.enable = false
 
-      val nums = List(
-        BigDecimal(1),
-        BigDecimal(2),
-        BigDecimal(3),
-        BigDecimal(4),
-        BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
-      )
-      info(s"Input: ${nums}")
+        val nums = List(
+          BigDecimal(1),
+          BigDecimal(2),
+          BigDecimal(3),
+          BigDecimal(4),
+          BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
+        )
+        info(s"Input: ${nums}")
 
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
+        nums
+          .toDS()
+          .createOrReplaceTempView("nums")
 
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.PythonNecSSHSummer
+        SummingPlugin.enable = true
+        SummingPlugin.summer = BigDecimalSummer.PythonNecSSHSummer
 
-      val sumDataSet =
-        sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
-      val result = sumDataSet.head()
+        val sumDataSet =
+          sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+        val result = sumDataSet.head()
 
-      info(s"Result of sum = $result")
-      assert(result == BigDecimalSummer.ScalaSummer.sum(nums))
-    } finally sparkSession.close()
-  }
+        info(s"Result of sum = $result")
+        assert(result == BigDecimalSummer.ScalaSummer.sum(nums))
+      } finally sparkSession.close()
+    }
 
-  "We call VE over SSH using a Bundle, and get the right sum back from it" taggedAs AcceptanceTest in {
-    val conf = new SparkConf()
-    conf.setMaster("local")
-    conf.set("spark.ui.enabled", "false")
-    conf.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    conf.setAppName("local-test")
-    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
-    try {
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
+  "We call VE over SSH using a Bundle, and get the right sum back from it" taggedAs
+    AcceptanceTest in {
+      val conf = new SparkConf()
+      conf.setMaster("local")
+      conf.set("spark.ui.enabled", "false")
+      conf.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
+      conf.setAppName("local-test")
+      val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+      try {
+        import sparkSession.implicits._
+        SummingPlugin.enable = false
 
-      val nums = List(
-        BigDecimal(1),
-        BigDecimal(2),
-        BigDecimal(3),
-        BigDecimal(4),
-        BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
-      )
-      info(s"Input: ${nums}")
+        val nums = List(
+          BigDecimal(1),
+          BigDecimal(2),
+          BigDecimal(3),
+          BigDecimal(4),
+          BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
+        )
+        info(s"Input: ${nums}")
 
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
+        nums
+          .toDS()
+          .createOrReplaceTempView("nums")
 
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
+        SummingPlugin.enable = true
+        SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
 
-      val sumDataSet =
-        sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
-      val result = sumDataSet.head()
+        val sumDataSet =
+          sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+        val result = sumDataSet.head()
 
-      info(s"Result of sum = $result")
-      assert(result == BigDecimalSummer.ScalaSummer.sum(nums))
-    } finally sparkSession.close()
-  }
+        info(s"Result of sum = $result")
+        assert(result == BigDecimalSummer.ScalaSummer.sum(nums))
+      } finally sparkSession.close()
+    }
 
   "We call the Scala summer, with a CSV input" in {
-    info("The goal here is to verify that we can read from different input sources for our evaluations.")
+    info(
+      "The goal here is to verify that we can read from " +
+        "different input sources for our evaluations."
+    )
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.set("spark.ui.enabled", "false")
