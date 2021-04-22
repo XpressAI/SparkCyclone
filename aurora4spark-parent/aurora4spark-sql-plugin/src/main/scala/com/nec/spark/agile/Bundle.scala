@@ -32,16 +32,16 @@ object Bundle {
   def sumBigDecimalsPurePython(nums: List[BigDecimal]): Bundle = new Bundle {
     override def asPythonScript: String = {
       s"""
-             |
-             |import os
-             |
-             |${envs}
-             |
-             |import nlcpy
-             |import sys
-             |numbers = [${nums.map(_.toBigInt().toString()).mkString(", ")}]
-             |print(int(nlcpy.sum(numbers)))
-             |""".stripMargin
+         |
+         |import os
+         |
+         |${envs}
+         |
+         |import nlcpy
+         |import sys
+         |numbers = [${nums.map(_.toBigInt().toString()).mkString(", ")}]
+         |print(int(nlcpy.sum(numbers)))
+         |""".stripMargin
     }
   }
 
@@ -50,9 +50,9 @@ object Bundle {
     def asPythonScript: String = {
       val script = new String(Files.readAllBytes(Paths.get(getClass.getResource("/sum.py").toURI)))
 
-      val numbersDeclaration = s"numbers = [${numbers.map(_.toInt.toString).mkString(", ")}] \n"
+      val numbersDeclaration = s"numbers = [${numbers.map(_.toFloat.toString).mkString(", ")}] \n"
       val full = (numbersDeclaration ++ script)
       full
     }
   }
-}
+}8
