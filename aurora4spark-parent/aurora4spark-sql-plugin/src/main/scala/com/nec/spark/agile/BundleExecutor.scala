@@ -20,12 +20,12 @@ object BundleExecutor {
 
   def lines: BundleExecutor[List[String]] = bundle => executePython(bundle.asPythonScript)
 
-  def executePython(data: Seq[String]): List[String] = {
-    val inputStream = new ByteArrayInputStream(data.head.getBytes("UTF-8"))
-    val arguments = data.tail.mkString(" ")
+  def executePython(data: String): List[String] = {
+    val inputStream = new ByteArrayInputStream(data.getBytes("UTF-8"))
+
     import scala.sys.process._
     try {
-      (Seq("ssh", "a6", "python3", "-", arguments) #< inputStream).lineStream_!.toList
+      (Seq("ssh", "a6", "python3", "-") #< inputStream).lineStream_!.toList
     } finally inputStream.close()
   }
 

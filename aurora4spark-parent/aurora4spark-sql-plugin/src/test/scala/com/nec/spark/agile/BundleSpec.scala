@@ -8,6 +8,6 @@ object BundleSpec {
 }
 final class BundleSpec extends AnyFreeSpec {
   "The summing bundle contains 'print'" in {
-    assert(sumBundle.asPythonScript.head.contains("print"))
+    assert(sumBundle.asPythonScript.contains("print"))
   }
 }

@@ -3,7 +3,7 @@ package com.nec.spark.agile
 import java.nio.file.{Files, Paths}
 
 trait Bundle {
-  def asPythonScript: Seq[String]
+  def asPythonScript: String
 }
 
 object Bundle {
@@ -27,12 +27,11 @@ object Bundle {
     .map { case (k, v) =>
       s"""os.environ["${k}"] = "${v}""""
     }
-    .toList
     .mkString("\n")
 
   def sumBigDecimalsPurePython(nums: List[BigDecimal]): Bundle = new Bundle {
-    override def asPythonScript: Seq[String] = {
-      Seq(s"""
+    override def asPythonScript: String = {
+      s"""
              |
              |import os
              |
@@ -42,16 +41,18 @@ object Bundle {
              |import sys
              |numbers = [${nums.map(_.toBigInt().toString()).mkString(", ")}]
              |print(int(nlcpy.sum(numbers)))
-             |""".stripMargin)
+             |""".stripMargin
     }
   }
 
   def sumBigDecimals(numbers: List[BigDecimal]): Bundle = new Bundle {
     // todo use actual numbers
-    def asPythonScript: Seq[String] = {
+    def asPythonScript: String = {
       val script = new String(Files.readAllBytes(Paths.get(getClass.getResource("/sum.py").toURI)))
 
-      Seq(script) ++ numbers.map(_.toString())
+      val numbersDeclaration = s"numbers = [${numbers.map(_.toInt.toString).mkString(", ")}] \n"
+      val full = (numbersDeclaration ++ script)
+      full
     }
   }
 }

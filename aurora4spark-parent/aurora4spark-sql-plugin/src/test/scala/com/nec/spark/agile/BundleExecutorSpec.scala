@@ -7,7 +7,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
   "It runs a basic Python script" taggedAs AcceptanceTest in {
     assert(
       BundleExecutor
-        .executePython(Seq("print('hey')\n"))
+        .executePython("print('hey')\n")
         .mkString
         .trim == "hey"
     )
