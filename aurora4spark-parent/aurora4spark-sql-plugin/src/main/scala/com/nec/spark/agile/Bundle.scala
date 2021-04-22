@@ -31,18 +31,18 @@ object Bundle {
     .mkString("\n")
 
   def sumBigDecimalsPurePython(nums: List[BigDecimal]): Bundle = new Bundle {
-    override def asPythonScript: String = {
-      s"""
-         |
-         |import os
-         |
-         |${envs}
-         |
-         |import nlcpy
-         |import sys
-         |numbers = [${nums.map(_.toBigInt().toString()).mkString(", ")}]
-         |print(int(nlcpy.sum(numbers)))
-         |""".stripMargin
+    override def asPythonScript: Seq[String] = {
+      Seq(s"""
+             |
+             |import os
+             |
+             |${envs}
+             |
+             |import nlcpy
+             |import sys
+             |numbers = [${nums.map(_.toBigInt().toString()).mkString(", ")}]
+             |print(int(nlcpy.sum(numbers)))
+             |""".stripMargin)
     }
   }
 
