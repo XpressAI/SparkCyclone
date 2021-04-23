@@ -27,7 +27,6 @@ object Bundle {
     .map { case (k, v) =>
       s"""os.environ["${k}"] = "${v}""""
     }
-    .toList
     .mkString("\n")
 
   def sumBigDecimalsPurePython(nums: List[BigDecimal]): Bundle = new Bundle {
@@ -48,8 +47,12 @@ object Bundle {
 
   def sumBigDecimals(numbers: List[BigDecimal]): Bundle = new Bundle {
     // todo use actual numbers
-    def asPythonScript: String = new String(
-      Files.readAllBytes(Paths.get(getClass.getResource("/sum-with-kernel.py").toURI))
-    )
+    def asPythonScript: String = {
+      val script = new String(Files.readAllBytes(Paths.get(getClass.getResource("/sum.py").toURI)))
+
+      val numbersDeclaration = s"numbers = [${numbers.map(_.toFloat.toString).mkString(", ")}] \n"
+      val full = (numbersDeclaration ++ script)
+      full
+    }
   }
-}
+}8

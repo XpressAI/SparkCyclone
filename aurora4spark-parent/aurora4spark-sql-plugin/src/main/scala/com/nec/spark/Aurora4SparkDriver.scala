@@ -1,10 +1,10 @@
 package com.nec.spark
 
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.{DriverPlugin, PluginContext}
 import org.apache.spark.internal.Logging
-
-import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 object Aurora4SparkDriver {
 

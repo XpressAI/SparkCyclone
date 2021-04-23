@@ -23,12 +23,12 @@ final class SummingPlugin extends (SparkSessionExtensions => Unit) with Logging 
       new ColumnarRule {
         override def preColumnarTransitions: Rule[SparkPlan] =
           sparkPlan =>
-            if (SummingPlugin.enable)
+            if (SummingPlugin.enable) {
               SumPlanExtractor
                 .matchSumChildPlan(sparkPlan)
                 .map(numsToSumPlan => SummingSparkPlan(numsToSumPlan, SummingPlugin.summer))
                 .getOrElse(sys.error(s"Could not match the plan: ${sparkPlan}"))
-            else sparkPlan
+            } else sparkPlan
       }
     })
   }

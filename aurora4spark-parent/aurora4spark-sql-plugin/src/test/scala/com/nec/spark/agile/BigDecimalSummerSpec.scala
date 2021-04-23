@@ -1,5 +1,7 @@
 package com.nec.spark.agile
 
+import scala.sys.process._
+
 import com.nec.spark.AcceptanceTest
 import com.nec.spark.agile.BigDecimalSummer.{
   readBigDecimal,
@@ -9,8 +11,6 @@ import com.nec.spark.agile.BigDecimalSummer.{
 }
 import com.nec.spark.agile.BigDecimalSummerSpec.stubSummer
 import org.scalatest.freespec.AnyFreeSpec
-
-import scala.sys.process._
 
 object BigDecimalSummerSpec {
 

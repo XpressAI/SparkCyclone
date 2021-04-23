@@ -12,6 +12,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
         .trim == "hey"
     )
   }
+
   "We can run our bundle of sums and it returns the expected output" taggedAs AcceptanceTest in {
     assert(
       BundleExecutor.returningBigDecimal
@@ -19,17 +20,19 @@ final class BundleExecutorSpec extends AnyFreeSpec {
     )
   }
 
-  "We can run our bundle of sums and it returns the expected output (2)" taggedAs AcceptanceTest in {
-    assert(
-      BundleExecutor.returningBigDecimal
-        .executeBundle(Bundle.sumBigDecimals(List(1, 2, 3, 4))) == BigDecimal(10)
-    )
-  }
+  "We can run our bundle of sums and it returns the expected output (2)" taggedAs
+    AcceptanceTest in {
+      assert(
+        BundleExecutor.returningBigDecimal
+          .executeBundle(Bundle.sumBigDecimals(List(1, 2, 3, 4))) == BigDecimal(10)
+      )
+    }
 
-  "We can run our bundle of sums in pure Python and it returns the expected output" taggedAs AcceptanceTest in {
-    assert(
-      BundleExecutor.returningBigDecimal
-        .executeBundle(Bundle.sumBigDecimalsPurePython(List(1, 2, 3, 4))) == BigDecimal(10)
-    )
-  }
+  "We can run our bundle of sums in pure Python and it returns the expected output" taggedAs
+    AcceptanceTest in {
+      assert(
+        BundleExecutor.returningBigDecimal
+          .executeBundle(Bundle.sumBigDecimalsPurePython(List(1, 2, 3, 4))) == BigDecimal(10)
+      )
+    }
 }

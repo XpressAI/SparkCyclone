@@ -1,9 +1,10 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.BigDecimalSummer.ScalaSummer
+import org.scalatest.freespec.AnyFreeSpec
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.freespec.AnyFreeSpec
 
 final class SummingSparkPlanSpec extends AnyFreeSpec {
   "We can sum a general RDD" in {

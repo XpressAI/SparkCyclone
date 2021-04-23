@@ -21,9 +21,9 @@ final class DummyShortCircuitSqlPlugin extends (SparkSessionExtensions => Unit) 
       new ColumnarRule {
         override def preColumnarTransitions: Rule[SparkPlan] =
           sparkPlan => {
-            if (DummyShortCircuitSqlPlugin.applyShortCircuit)
+            if (DummyShortCircuitSqlPlugin.applyShortCircuit) {
               DummyShortCircuitSqlPlugin.StubPlan
-            else sparkPlan
+            } else sparkPlan
           }
       }
     })
