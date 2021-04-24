@@ -27,16 +27,6 @@ lib.sum.args_type(b"double*", "int")
 lib.sum.ret_type("double")
 np = veo.np
 
-numbers = []
-
-for arg in sys.argv[1:]:
-    try:
-        number = float(arg)
-        numbers.append(number)
-    except:
-        print("Provided argument is not a number {}".format(arg))
-        exit(1)
-
 np_numbers = np.array(numbers)
 a_ve = proc.alloc_mem(len(numbers) * 8)
 proc.write_mem(a_ve, np_numbers, len(numbers) * 8)
