@@ -171,3 +171,5 @@ target
 # Intelij gitignore things
 .idea
 *.iml
+.bsp
+/hadoop-*

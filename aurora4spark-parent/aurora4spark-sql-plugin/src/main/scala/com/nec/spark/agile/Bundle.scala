@@ -46,7 +46,6 @@ object Bundle {
   }
 
   def sumBigDecimals(numbers: List[BigDecimal]): Bundle = new Bundle {
-    // todo use actual numbers
     def asPythonScript: String = {
       val script = new String(Files.readAllBytes(Paths.get(getClass.getResource("/sum.py").toURI)))
 
@@ -55,4 +54,4 @@ object Bundle {
       full
     }
   }
-}8
+}
