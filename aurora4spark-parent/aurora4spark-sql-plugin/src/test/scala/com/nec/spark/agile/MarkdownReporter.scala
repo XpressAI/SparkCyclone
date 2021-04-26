@@ -17,7 +17,8 @@ class MarkdownReporter extends Reporter {
     case TestSucceeded(_, _, _, _, _, _, recordedEvents, _, _, _, _, _, _, _) =>
       markdownDescriptions = markdownDescriptions ++ extractMarkdown(recordedEvents)
     case RunCompleted(_, _, _, _, _, _, _, _) => writeSummaryToReadme()
-    case _                                    => ()
+    // format:off
+    case _ => ()
   }
 
   def extractMarkdown(recordedEvents: Seq[RecordableEvent]): Seq[MarkdownQueryDescription] = {
