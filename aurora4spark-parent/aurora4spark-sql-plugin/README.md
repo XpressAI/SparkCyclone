@@ -20,3 +20,7 @@ Within sbt:
 
 https://docs.rackspace.com/blog/speeding-up-ssh-session-creation/
 
+## Currently supported queries
+* SUM() of single column
+
+## Other 

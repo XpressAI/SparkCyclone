@@ -252,6 +252,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
 
   "We call VE over SSH using a Bundle, and get the right sum back from it" taggedAs
     AcceptanceTest in {
+      markup("SUM() of single column")
       val conf = new SparkConf()
       conf.setMaster("local")
       conf.set("spark.ui.enabled", "false")

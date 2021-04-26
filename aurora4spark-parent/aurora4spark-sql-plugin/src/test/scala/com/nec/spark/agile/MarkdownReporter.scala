@@ -1,6 +1,5 @@
 package com.nec.spark.agile
 
-
 import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
 import java.nio.file.Files
 
@@ -15,10 +14,10 @@ class MarkdownReporter extends Reporter {
   private val supportedFeaturesTitle = "## Currently supported queries"
 
   override def apply(event: Event): Unit = event match {
-      case TestSucceeded(_, _, _, _, _, _, recordedEvents, _, _, _, _, _, _, _) =>
-        markdownDescriptions = markdownDescriptions ++ extractMarkdown(recordedEvents)
-
-      case RunCompleted(_, _, _, _, _, _, _, _) => writeSummaryToReadme()
+    case TestSucceeded(_, _, _, _, _, _, recordedEvents, _, _, _, _, _, _, _) =>
+      markdownDescriptions = markdownDescriptions ++ extractMarkdown(recordedEvents)
+    case RunCompleted(_, _, _, _, _, _, _, _) => writeSummaryToReadme()
+    case _                                    => ()
   }
 
   def extractMarkdown(recordedEvents: Seq[RecordableEvent]): Seq[MarkdownQueryDescription] = {
@@ -31,24 +30,27 @@ class MarkdownReporter extends Reporter {
   }
 
   def writeSummaryToReadme(): Unit = {
-    val supportedFeaturesList = markdownDescriptions.map(description => "* " + description)
+    val supportedFeaturesList = markdownDescriptions.map(description => "* " + description.value)
     try {
       val file = new File("README.md")
       val lines = Files.readAllLines(file.toPath)
-      val (rewrittenPart, toUpdatePart) = lines
-        .asScala
-        .span(line => line == supportedFeaturesTitle)
+      val splitAtIndex = lines.indexOf(supportedFeaturesTitle)
 
-      val rewrittenPart2 = toUpdatePart.dropWhile(line => line == supportedFeaturesTitle
-        || line.startsWith("*") || line.length ==0)
+      val (rewrittenPart, toUpdatePart) = lines.asScala.splitAt(splitAtIndex)
 
-      val writer = new BufferedWriter(new FileWriter(file, true))
+      val rewrittenPart2 = toUpdatePart.drop(2).dropWhile(line => line.startsWith("*"))
+
+      val writer = new BufferedWriter(new FileWriter(file))
 
       val readMeLines =
         (rewrittenPart.toSeq :+ supportedFeaturesTitle) ++ supportedFeaturesList ++ rewrittenPart2
 
-      readMeLines.foreach(line => writer.write(line))
-
+      readMeLines.foreach(line => {
+        writer.write(line)
+        writer.write("\n")
+      })
+      writer.flush()
+      writer.close()
     }
   }
 }

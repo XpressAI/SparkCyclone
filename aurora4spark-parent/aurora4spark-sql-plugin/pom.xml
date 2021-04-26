@@ -119,6 +119,7 @@
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <junitxml>.</junitxml>
                     <filereports>WDF TestSuite.txt</filereports>
+                    <reporters>com.nec.spark.agile.MarkdownReporter</reporters>
                 </configuration>
             </plugin>
 

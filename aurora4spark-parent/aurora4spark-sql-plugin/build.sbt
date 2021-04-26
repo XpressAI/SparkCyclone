@@ -23,12 +23,12 @@ inConfig(AcceptanceTest)(Defaults.testTasks)
 /** Acceptance tests basically run against external/SSH/etc */
 val AcceptanceTestTag = "com.nec.spark.AcceptanceTest"
 val excludeAcceptanceTestOption = Tests.Argument("-l", AcceptanceTestTag)
-val includeAcceptanceTestOption = Tests.Argument("-n", AcceptanceTestTag)
+val includeAcceptanceTestOption = Tests.Argument()
 Test / testOptions += excludeAcceptanceTestOption
-AcceptanceTest / testOptions := (AcceptanceTest / testOptions).value.map {
-  case `excludeAcceptanceTestOption` => includeAcceptanceTestOption
-  case other                         => other
-}
+AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.spark.agile.MarkdownReporter")
+AcceptanceTest / testOptions := (AcceptanceTest / testOptions)
+  .value
+  .filter(_ != `excludeAcceptanceTestOption`)
 
 /** in SBT, run: AcceptanceTest / test; Test / test * */
 
