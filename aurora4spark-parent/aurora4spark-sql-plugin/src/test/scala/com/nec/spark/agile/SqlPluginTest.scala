@@ -1,12 +1,10 @@
 package com.nec.spark.agile
 
 import java.nio.file.Paths
-
 import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.LocalTableScanExec
@@ -310,9 +308,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
       val sumDataSet = sparkSession.read
         .format("csv")
         .schema(StructType(Seq(StructField("value", DecimalType.SYSTEM_DEFAULT, nullable = false))))
-        .load(
-          Paths.get(this.getClass.getResource("/sample.csv").toURI.getPath).toAbsolutePath.toString
-        )
+        .load(Paths.get(this.getClass.getResource("/sample.csv").toURI).toAbsolutePath.toString)
         .as[BigDecimal]
         .selectExpr("SUM(value)")
         .as[BigDecimal]
@@ -322,6 +318,132 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
 
       info(s"Result of sum = $result")
       assert(result == BigDecimal(62))
+    } finally sparkSession.close()
+  }
+
+  import SparkPlanSavingPlugin.savedSparkPlan
+
+  "We match the averaging plan" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkPlanSavingPlugin].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+      Seq[BigDecimal](1, 2, 3)
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      sparkSession.sql("SELECT AVG(value) FROM nums").as[BigDecimal].head()
+      info("\n" + savedSparkPlan.toString())
+      assert(AveragingPlanner.matchPlan(savedSparkPlan).isDefined, savedSparkPlan.toString())
+    } finally sparkSession.close()
+  }
+
+  "Summing plan does not match in the averaging plan" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkPlanSavingPlugin].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+      Seq[BigDecimal](1, 2, 3)
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal].head()
+
+      assert(AveragingPlanner.matchPlan(savedSparkPlan).isEmpty, savedSparkPlan.toString())
+    } finally sparkSession.close()
+  }
+
+  "Summing plan does not match the averaging plan" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkPlanSavingPlugin].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+      Seq[BigDecimal](1, 2, 3)
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      sparkSession.sql("SELECT AVG(value) FROM nums").as[BigDecimal].head()
+
+      assert(SumPlanExtractor.matchPlan(savedSparkPlan).isEmpty, savedSparkPlan.toString())
+    } finally sparkSession.close()
+  }
+
+  "We call VE with our Averaging plan" taggedAs
+    AcceptanceTest in {
+      val conf = new SparkConf()
+      conf.setMaster("local")
+      conf.set("spark.ui.enabled", "false")
+      conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      conf.setAppName("local-test")
+      val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+      try {
+        import sparkSession.implicits._
+
+        val nums = List[Double](1, 2, 3, 4, Math.abs(scala.util.Random.nextInt() % 200))
+        info(s"Input: ${nums}")
+
+        nums
+          .toDS()
+          .createOrReplaceTempView("nums")
+
+        SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
+          AveragingPlanner
+            .matchPlan(sparkPlan)
+            .map { childPlan =>
+              AveragingSparkPlan(childPlan, AveragingSparkPlan.averageLocal)
+            }
+            .getOrElse(fail("Not expected to be here"))
+        }
+
+        val sumDataSet =
+          sparkSession.sql("SELECT AVG(value) FROM nums").as[Double]
+
+        val result = sumDataSet.head()
+
+        assert(result == nums.sum / nums.length)
+      } finally sparkSession.close()
+    }
+
+  "Spark's AVG() function returns a different Scale from SUM()" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+
+    try {
+      import sparkSession.implicits._
+
+      val nums = List.empty[BigDecimal]
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { _ => StaticNumberPlan(5) }
+
+      val sumQuery = sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+      val avgQuery = sparkSession.sql("SELECT AVG(value) FROM nums").as[BigDecimal]
+
+      assert(
+        sumQuery.head() == BigDecimal(5) && avgQuery.head() == BigDecimal(0.0005)
+          && sumQuery.schema.head.dataType.asInstanceOf[DecimalType] == DecimalType(38, 18)
+          && avgQuery.schema.head.dataType.asInstanceOf[DecimalType] == DecimalType(38, 22)
+      )
+
     } finally sparkSession.close()
   }
 

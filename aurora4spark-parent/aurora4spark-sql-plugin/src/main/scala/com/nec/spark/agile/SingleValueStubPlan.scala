@@ -5,7 +5,7 @@ import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
 import org.apache.spark.sql.types.DecimalType
 
 object SingleValueStubPlan {
-  private val SparkDefaultColumnName = "value"
+  val SparkDefaultColumnName = "value"
 
   val NumDecimalType = DecimalType.SYSTEM_DEFAULT
 
