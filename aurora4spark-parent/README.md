@@ -26,3 +26,5 @@ Nonetheless, these are the relevant options in Maven:
 - Make a PR -> Reviewer approves & if happy, merges with rebase
 - Aim for 1 commit per distinct feature
 
+## Currently supported queries
+List of currently supported and tested queries can be found [in this file](FEATURES.md).
