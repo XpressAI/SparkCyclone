@@ -1,23 +1,29 @@
 package com.nec.spark.agile
 
 import java.nio.file.Paths
+
 import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
 import org.apache.log4j.{Level, Logger}
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.types.{DecimalType, StructField, StructType}
 
-final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
+final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
   override protected def beforeAll(): Unit = {
     val rootLogger = Logger.getRootLogger
     rootLogger.setLevel(Level.ERROR)
 
     super.beforeAll()
+  }
+
+  after{
+    SparkSqlPlanExtension.rulesToApply.clear()
   }
 
   "It is not launched if not specified" in {
@@ -383,6 +389,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll {
 
   "We call VE with our Averaging plan" taggedAs
     AcceptanceTest in {
+      markup("AVG()")
       val conf = new SparkConf()
       conf.setMaster("local")
       conf.set("spark.ui.enabled", "false")
