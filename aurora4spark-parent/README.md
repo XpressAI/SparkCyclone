@@ -19,7 +19,8 @@ Nonetheless, these are the relevant options in Maven:
 - Integration/Acceptance test w/o unit tests: `mvn verify -DskipUnitTests=true -DskipIntegrationTests=false`
 - Run specific integration test: `mvn integration-test '-DwildcardSuites=com.nec.spark.agile.BigDecimalSummerSpec' '-DskipIntegrationTests=false'`
 - Scalafmt auto-formatting: `mvn mvn-scalafmt_2.12:format`
-
+- After adding new query type, when implementing the query tests add `markup([QUERY])`,
+  so that it will automatically added to `FEATURES.md`.
 
 ### Collaboration
 

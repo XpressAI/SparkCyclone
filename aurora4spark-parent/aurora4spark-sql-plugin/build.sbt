@@ -23,9 +23,11 @@ inConfig(AcceptanceTest)(Defaults.testTasks)
 /** Acceptance tests basically run against external/SSH/etc */
 val AcceptanceTestTag = "com.nec.spark.AcceptanceTest"
 val excludeAcceptanceTestOption = Tests.Argument("-l", AcceptanceTestTag)
-val includeAcceptanceTestOption = Tests.Argument()
+
 Test / testOptions += excludeAcceptanceTestOption
 AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.spark.agile.MarkdownReporter")
+AcceptanceTest / testOptions += Tests.Argument("-o")
+
 AcceptanceTest / testOptions := (AcceptanceTest / testOptions)
   .value
   .filter(_ != `excludeAcceptanceTestOption`)

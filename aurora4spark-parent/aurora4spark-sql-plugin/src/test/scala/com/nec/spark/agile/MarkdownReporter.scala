@@ -1,10 +1,10 @@
 package com.nec.spark.agile
 
-import java.io.{BufferedReader, BufferedWriter, File, FileReader, FileWriter}
-import java.nio.file.Files
+import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.charset.Charset
+import java.nio.file.{Files, Paths}
 
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-
+import org.apache.commons.io.Charsets
 import org.scalatest.Reporter
 import org.scalatest.events.{Event, MarkupProvided, RecordableEvent, RunCompleted, TestSucceeded}
 
@@ -26,29 +26,15 @@ class MarkdownReporter extends Reporter {
 
   def extractMarkdown(recordedEvents: Seq[RecordableEvent]): Seq[MarkdownQueryDescription] = {
     recordedEvents
-      .filter(event => event.isInstanceOf[MarkupProvided])
-      .map(event => {
-        val markupProvided = event.asInstanceOf[MarkupProvided]
-        MarkdownQueryDescription(markupProvided.text)
-      })
+      .collect {
+        case MarkupProvided(_, text, _, _, _, _, _, _) => MarkdownQueryDescription(text)}
   }
 
   def writeSummaryToReadme(): Unit = {
     val supportedFeaturesList = markdownDescriptions.map(description => "* " + description.value)
-    val file = new File("../FEATURES.md")
-
-    val writer = new BufferedWriter(new FileWriter(file))
-    try {
-      val toWriteData = Seq(
-        autogenerationWarn, " ", supportedFeaturesTitle, " ") ++ supportedFeaturesList
-      toWriteData.foreach(line => {
-        writer.write(line)
-        writer.write("\n")
-      })
-      writer.flush()
-      writer.close()
-    } finally {
-      writer.close()
-    }
+    val toWriteData = Seq(
+      autogenerationWarn, " ", supportedFeaturesTitle, " ") ++ supportedFeaturesList
+    Files.write(Paths.get("..").resolve("FEATURES.md"),
+      toWriteData.mkString("\n").getBytes(Charsets.UTF_8))
   }
 }
