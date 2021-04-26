@@ -1,5 +1,8 @@
 package com.nec.spark.agile
 
+import com.google.common.io.Resources
+
+import java.nio.charset.Charset
 import java.nio.file.{Files, Paths}
 
 trait Bundle {
@@ -57,8 +60,7 @@ object Bundle {
 
   def avgBigDecimals(numbers: List[BigDecimal]): Bundle = new Bundle {
     def asPythonScript: String = {
-      val script = new String(Files.readAllBytes(Paths.get(getClass.getResource("/avg.py").toURI)))
-
+      val script = Resources.toString(getClass.getResource("/avg.py"), Charset.defaultCharset())
       val numbersDeclaration = s"numbers = [${numbers.map(_.toFloat.toString).mkString(", ")}] \n"
       numbersDeclaration ++ script
     }

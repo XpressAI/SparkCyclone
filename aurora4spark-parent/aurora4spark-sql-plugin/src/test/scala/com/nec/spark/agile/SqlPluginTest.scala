@@ -410,7 +410,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
           AveragingPlanner
             .matchPlan(sparkPlan)
             .map { childPlan =>
-              AveragingSparkPlan(childPlan, AveragingSparkPlan.averageLocal)
+              AveragingSparkPlan(childPlan, AveragingSparkPlan.averageLocalScala)
             }
             .getOrElse(fail("Not expected to be here"))
         }
