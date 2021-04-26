@@ -22,4 +22,4 @@ Within sbt:
 https://docs.rackspace.com/blog/speeding-up-ssh-session-creation/
 
 ## Currently supported queries
-* SUM() of single column
+List of currently supported and tested queries can be found [in this file](../FEATURES.md).

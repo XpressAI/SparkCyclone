@@ -11,6 +11,9 @@ import org.scalatest.events.{Event, MarkupProvided, RecordableEvent, RunComplete
 case class MarkdownQueryDescription(value: String) extends AnyVal
 class MarkdownReporter extends Reporter {
   var markdownDescriptions = Set.empty[MarkdownQueryDescription]
+  private val autogenerationWarn =
+    """## This file has been generated automatically.
+      |Do not modify it manually.""".stripMargin
   private val supportedFeaturesTitle = "## Currently supported queries"
 
   override def apply(event: Event): Unit = event match {
@@ -32,25 +35,19 @@ class MarkdownReporter extends Reporter {
 
   def writeSummaryToReadme(): Unit = {
     val supportedFeaturesList = markdownDescriptions.map(description => "* " + description.value)
+    val file = new File("../FEATURES.md")
+
+    val writer = new BufferedWriter(new FileWriter(file))
     try {
-      val file = new File("README.md")
-      val lines = Files.readAllLines(file.toPath)
-      val splitAtIndex = lines.indexOf(supportedFeaturesTitle)
-
-      val (rewrittenPart, toUpdatePart) = lines.asScala.splitAt(splitAtIndex)
-
-      val rewrittenPart2 = toUpdatePart.drop(2).dropWhile(line => line.startsWith("*"))
-
-      val writer = new BufferedWriter(new FileWriter(file))
-
-      val readMeLines =
-        (rewrittenPart.toSeq :+ supportedFeaturesTitle) ++ supportedFeaturesList ++ rewrittenPart2
-
-      readMeLines.foreach(line => {
+      val toWriteData = Seq(
+        autogenerationWarn, " ", supportedFeaturesTitle, " ") ++ supportedFeaturesList
+      toWriteData.foreach(line => {
         writer.write(line)
         writer.write("\n")
       })
       writer.flush()
+      writer.close()
+    } finally {
       writer.close()
     }
   }
