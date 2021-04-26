@@ -54,4 +54,13 @@ object Bundle {
       full
     }
   }
+
+  def avgBigDecimals(numbers: List[BigDecimal]): Bundle = new Bundle {
+    def asPythonScript: String = {
+      val script = new String(Files.readAllBytes(Paths.get(getClass.getResource("/avg.py").toURI)))
+
+      val numbersDeclaration = s"numbers = [${numbers.map(_.toFloat.toString).mkString(", ")}] \n"
+      numbersDeclaration ++ script
+    }
+  }
 }

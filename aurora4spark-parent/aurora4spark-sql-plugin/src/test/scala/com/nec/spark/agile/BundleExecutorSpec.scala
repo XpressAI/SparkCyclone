@@ -35,4 +35,21 @@ final class BundleExecutorSpec extends AnyFreeSpec {
           .executeBundle(Bundle.sumBigDecimalsPurePython(List(1, 2, 3, 4))) == BigDecimal(10)
       )
     }
+
+  "We can average some numbers" taggedAs
+    AcceptanceTest in {
+      assert(
+        BundleExecutor.returningBigDecimal
+          .executeBundle(Bundle.avgBigDecimals(List(1, 2, 5, 200))) == (BigDecimal(208) / 4)
+      )
+    }
+
+  "Putting no data in gives 0 when averaging" taggedAs
+    AcceptanceTest in {
+      assert(
+        BundleExecutor.returningBigDecimal
+          .executeBundle(Bundle.avgBigDecimals(List.empty)) == BigDecimal(0)
+      )
+    }
+
 }

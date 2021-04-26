@@ -1,6 +1,7 @@
 package com.nec.spark.agile
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Sum}
 import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.types.{Decimal, DecimalType}
@@ -33,7 +34,7 @@ object SumPlanExtractor {
       case first @ HashAggregateExec(
             requiredChildDistributionExpressions,
             groupingExpressions,
-            aggregateExpressions,
+            Seq(AggregateExpression(Sum(_), _, _, _, _)),
             aggregateAttributes,
             initialInputBufferOffset,
             resultExpressions,
