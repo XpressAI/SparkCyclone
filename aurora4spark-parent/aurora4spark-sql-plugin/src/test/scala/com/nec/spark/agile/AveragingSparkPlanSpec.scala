@@ -15,7 +15,7 @@ final class AveragingSparkPlanSpec extends AnyFreeSpec {
       import sparkSession.implicits._
       val result =
         AveragingSparkPlan
-          .averagingRdd(Seq[Double](100, 200).toDS().rdd, AveragingSparkPlan.averageLocal)
+          .averagingRdd(Seq[Double](100, 200).toDS().rdd, AveragingSparkPlan.averageLocalScala)
           .collect()
           .head
       assert(result == 150d)

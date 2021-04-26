@@ -34,12 +34,12 @@ object BigDecimalSummer {
 
   object BundleNecSSHSummer extends BigDecimalSummer {
     override def sum(nums: List[BigDecimal]): BigDecimal =
-      BundleExecutor.returningBigDecimal.executeBundle(Bundle.sumBigDecimals(nums))
+      BundleExecutor.returningBigDecimalRemote.executeBundle(Bundle.sumBigDecimals(nums))
   }
 
   object BundleNecSSHSummerPurePython extends BigDecimalSummer {
     override def sum(nums: List[BigDecimal]): BigDecimal =
-      BundleExecutor.returningBigDecimal.executeBundle(Bundle.sumBigDecimalsPurePython(nums))
+      BundleExecutor.returningBigDecimalRemote.executeBundle(Bundle.sumBigDecimalsPurePython(nums))
   }
 
 }

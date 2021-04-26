@@ -15,7 +15,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
 
   "We can run our bundle of sums and it returns the expected output" taggedAs AcceptanceTest in {
     assert(
-      BundleExecutor.returningBigDecimal
+      BundleExecutor.returningBigDecimalRemote
         .executeBundle(Bundle.sumBigDecimals(List(1, 2, 3))) == BigDecimal(6)
     )
   }
@@ -23,7 +23,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
   "We can run our bundle of sums and it returns the expected output (2)" taggedAs
     AcceptanceTest in {
       assert(
-        BundleExecutor.returningBigDecimal
+        BundleExecutor.returningBigDecimalRemote
           .executeBundle(Bundle.sumBigDecimals(List(1, 2, 3, 4))) == BigDecimal(10)
       )
     }
@@ -31,7 +31,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
   "We can run our bundle of sums in pure Python and it returns the expected output" taggedAs
     AcceptanceTest in {
       assert(
-        BundleExecutor.returningBigDecimal
+        BundleExecutor.returningBigDecimalRemote
           .executeBundle(Bundle.sumBigDecimalsPurePython(List(1, 2, 3, 4))) == BigDecimal(10)
       )
     }
@@ -39,7 +39,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
   "We can average some numbers" taggedAs
     AcceptanceTest in {
       assert(
-        BundleExecutor.returningBigDecimal
+        BundleExecutor.returningBigDecimalRemote
           .executeBundle(Bundle.avgBigDecimals(List(1, 2, 5, 200))) == (BigDecimal(208) / 4)
       )
     }
@@ -47,7 +47,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
   "Putting no data in gives 0 when averaging" taggedAs
     AcceptanceTest in {
       assert(
-        BundleExecutor.returningBigDecimal
+        BundleExecutor.returningBigDecimalRemote
           .executeBundle(Bundle.avgBigDecimals(List.empty)) == BigDecimal(0)
       )
     }

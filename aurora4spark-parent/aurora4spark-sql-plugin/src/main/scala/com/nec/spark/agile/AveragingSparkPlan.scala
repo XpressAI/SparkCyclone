@@ -1,25 +1,34 @@
 package com.nec.spark.agile
 
+import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.DoubleType
 
 object AveragingSparkPlan {
 
-  val averageRemote: List[Double] => Double = l =>
-    BundleExecutor.returningBigDecimal
+  val averageLocalVeo: List[Double] => Double = l =>
+    BundleExecutor.returningBigDecimalLocal
       .executeBundle(Bundle.avgBigDecimals(l.map(double => BigDecimal(double))))
       .toDouble
 
-  val averageLocal: List[Double] => Double = l => if (l.nonEmpty) l.sum / l.size else 0
+  val averageRemote: List[Double] => Double = l =>
+    BundleExecutor.returningBigDecimalRemote
+      .executeBundle(Bundle.avgBigDecimals(l.map(double => BigDecimal(double))))
+      .toDouble
+
+  val averageLocalScala: List[Double] => Double = l => if (l.nonEmpty) l.sum / l.size else 0
 
   /** Coalesces all the data into one partition, and then averages it lazily */
   def averagingRdd(parentRdd: RDD[Double], f: List[Double] => Double): RDD[Double] =
     parentRdd
       .coalesce(1)
-      .mapPartitions(its => Iterator(f(its.toList)))
+      .mapPartitions(its => {
+        Iterator(f(its.toList))
+      })
 }
 
 final case class AveragingSparkPlan(child: SparkPlan, f: List[Double] => Double) extends SparkPlan {
@@ -46,7 +55,9 @@ final case class AveragingSparkPlan(child: SparkPlan, f: List[Double] => Double)
 
   private[agile] def compute(): RDD[InternalRow] = doExecute()
 
-  override def output: Seq[Attribute] = Seq(child.output.head)
+  override def output: Seq[Attribute] = Seq(
+    AttributeReference(name = SparkDefaultColumnName, dataType = DoubleType, nullable = false)()
+  )
 
   override def children: Seq[SparkPlan] = Seq(child)
 }
