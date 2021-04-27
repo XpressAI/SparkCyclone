@@ -16,16 +16,19 @@ object SumPlanExtractor {
   def matchPlan(sparkPlan: SparkPlan): Option[List[BigDecimal]] = {
     matchSumChildPlan(sparkPlan).collectFirst {
       case LocalTableScanExec(
-            Seq(AttributeReference(name, dataType: DecimalType, nullable, metadata)),
-            rows
-          ) =>
-        dataType match {
-          case DecimalType(precision, scale) =>
-            rows
-              .map(_.get(0, dataType).asInstanceOf[Decimal])
-              .map(_.toBigDecimal)
-              .toList
-        }
+      attributes,
+      rows
+      ) =>
+        attributes
+          .toList
+          .zipWithIndex
+          .flatMap {
+            case (AttributeReference(_, dataType: DecimalType, _, _), index) =>
+              rows
+                .map(_.get(index, dataType).asInstanceOf[Decimal])
+                .map(_.toBigDecimal)
+                .toList
+          }
     }
   }
 
