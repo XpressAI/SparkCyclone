@@ -11,7 +11,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.types.{DecimalType, StructField, StructType}
+import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 
 final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
@@ -170,12 +170,12 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
       import sparkSession.implicits._
-      Seq(BigDecimal(1), BigDecimal(2), BigDecimal(3))
+      Seq(1D, 2D, 3D)
         .toDS()
         .createOrReplaceTempView("nums")
 
       val result =
-        sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal].head()
+        sparkSession.sql("SELECT SUM(value) FROM nums").as[Double].head()
 
       assert(
         SparkPlanSavingPlugin.savedSparkPlan.getClass.getCanonicalName
@@ -185,7 +185,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
       assert(
         SumPlanExtractor
           .matchPlan(SparkPlanSavingPlugin.savedSparkPlan)
-          .contains(List(BigDecimal(1), BigDecimal(2), BigDecimal(3)))
+          .contains(List(1, 2, 3))
       )
     } finally sparkSession.close()
   }
@@ -231,13 +231,9 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
         import sparkSession.implicits._
         SummingPlugin.enable = false
 
-        val nums = List(
-          BigDecimal(1),
-          BigDecimal(2),
-          BigDecimal(3),
-          BigDecimal(4),
-          BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
+        val nums: List[Double] = List(1, 2, 3, 4, (Math.abs(scala.util.Random.nextInt() % 200))
         )
+
         info(s"Input: ${nums}")
 
         nums
@@ -248,11 +244,11 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
         SummingPlugin.summer = BigDecimalSummer.PythonNecSSHSummer
 
         val sumDataSet =
-          sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+          sparkSession.sql("SELECT SUM(value) FROM nums").as[Double]
         val result = sumDataSet.head()
 
         info(s"Result of sum = $result")
-        assert(result == BigDecimalSummer.ScalaSummer.sum(nums))
+        assert(result == BigDecimalSummer.ScalaSummer.sum(nums.map(BigDecimal(_))))
       } finally sparkSession.close()
     }
 
@@ -269,13 +265,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
         import sparkSession.implicits._
         SummingPlugin.enable = false
 
-        val nums = List(
-          BigDecimal(1),
-          BigDecimal(2),
-          BigDecimal(3),
-          BigDecimal(4),
-          BigDecimal(Math.abs(scala.util.Random.nextInt() % 200))
-        )
+        val nums: List[Double] = List(1, 2, 3, 4, (Math.abs(scala.util.Random.nextInt() % 200)))
         info(s"Input: ${nums}")
 
         nums
@@ -286,11 +276,11 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
         SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
 
         val sumDataSet =
-          sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal]
+          sparkSession.sql("SELECT SUM(value) FROM nums").as[Double]
         val result = sumDataSet.head()
 
         info(s"Result of sum = $result")
-        assert(result == BigDecimalSummer.ScalaSummer.sum(nums))
+        assert(result == BigDecimalSummer.ScalaSummer.sum(nums.map(BigDecimal(_))).toDouble)
       } finally sparkSession.close()
     }
 
@@ -314,17 +304,17 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
 
       val sumDataSet = sparkSession.read
         .format("csv")
-        .schema(StructType(Seq(StructField("value", DecimalType.SYSTEM_DEFAULT, nullable = false))))
+        .schema(StructType(Seq(StructField("value", DoubleType, nullable = false))))
         .load(Paths.get(this.getClass.getResource("/sample.csv").toURI).toAbsolutePath.toString)
-        .as[BigDecimal]
+        .as[Double]
         .selectExpr("SUM(value)")
-        .as[BigDecimal]
+        .as[Double]
 
       sumDataSet.explain(true)
       val result = sumDataSet.head()
 
       info(s"Result of sum = $result")
-      assert(result == BigDecimal(62))
+      assert(result == 62D)
     } finally sparkSession.close()
   }
 
@@ -339,11 +329,12 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
       import sparkSession.implicits._
-      Seq[BigDecimal](1, 2, 3)
+      Seq[Double](1, 2, 3)
         .toDS()
         .createOrReplaceTempView("nums")
 
-      sparkSession.sql("SELECT AVG(value) FROM nums").as[BigDecimal].head()
+      sparkSession.sql("SELECT AVG(value) FROM nums").as[Double].head()
+
       info("\n" + savedSparkPlan.toString())
       assert(AveragingPlanner.matchPlan(savedSparkPlan).isDefined, savedSparkPlan.toString())
     } finally sparkSession.close()
@@ -358,11 +349,11 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
       import sparkSession.implicits._
-      Seq[BigDecimal](1, 2, 3)
+      Seq[Double](1, 2, 3)
         .toDS()
         .createOrReplaceTempView("nums")
 
-      sparkSession.sql("SELECT SUM(value) FROM nums").as[BigDecimal].head()
+      sparkSession.sql("SELECT SUM(value) FROM nums").as[Double].head()
 
       assert(AveragingPlanner.matchPlan(savedSparkPlan).isEmpty, savedSparkPlan.toString())
     } finally sparkSession.close()
@@ -377,11 +368,11 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
       import sparkSession.implicits._
-      Seq[BigDecimal](1, 2, 3)
+      Seq[Double](1, 2, 3)
         .toDS()
         .createOrReplaceTempView("nums")
 
-      sparkSession.sql("SELECT AVG(value) FROM nums").as[BigDecimal].head()
+      sparkSession.sql("SELECT AVG(value) FROM nums").as[Double].head()
 
       assert(SumPlanExtractor.matchPlan(savedSparkPlan).isEmpty, savedSparkPlan.toString())
     } finally sparkSession.close()
@@ -464,11 +455,11 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
       import sparkSession.implicits._
-      Seq[(BigDecimal, BigDecimal)]((1, 2), (3, 4), (5, 6))
+      Seq[(Double, Double)]((1, 2), (3, 4), (5, 6))
         .toDS()
         .createOrReplaceTempView("nums")
 
-      sparkSession.sql("SELECT SUM(_1 + _2) FROM nums").as[BigDecimal].head()
+      sparkSession.sql("SELECT SUM(_1 + _2) FROM nums").as[Double].head()
       info("\n" + savedSparkPlan.toString())
       assert(SumPlanExtractor.matchPlan(savedSparkPlan).isDefined, savedSparkPlan.toString())
     } finally sparkSession.close()
@@ -483,11 +474,11 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
       import sparkSession.implicits._
-      Seq[(BigDecimal, BigDecimal, BigDecimal)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
+      Seq[(Double, Double, Double)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
         .toDS()
         .createOrReplaceTempView("nums")
 
-      sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums").as[BigDecimal].head()
+      sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums").as[Double].head()
       info("\n" + savedSparkPlan.toString())
       assert(SumPlanExtractor.matchPlan(savedSparkPlan).isDefined, savedSparkPlan.toString())
     } finally sparkSession.close()
@@ -523,6 +514,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
 
       val sumDataSet =
         sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums")
+        .as[Double]
       val result = sumDataSet.head()
 
       val flattened = nums.flatMap{
@@ -565,11 +557,13 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
       SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
 
       val sumDataSet =
-        sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums").as[BigDecimal]
+        sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums")
+          .as[Double]
+
       val result = sumDataSet.head()
 
       val flattened = nums.flatMap {
-        case (first, second, third) => Seq(first, second, third)
+        case (first, second, third) => Seq(BigDecimal(first), BigDecimal(second), BigDecimal(third))
       }
 
       info(s"Result of sum = $result")
@@ -596,8 +590,8 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
       SummingPlugin.enable = true
       val csvSchema = StructType(
         Seq(
-          StructField("a", DecimalType.SYSTEM_DEFAULT, nullable = false),
-          StructField("b", DecimalType.SYSTEM_DEFAULT, nullable = false)
+          StructField("a", DoubleType, nullable = false),
+          StructField("b", DoubleType, nullable = false)
         )
       )
       val sumDataSet = sparkSession.read
@@ -605,18 +599,18 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
         .schema(csvSchema)
         .load(Paths.get(this
           .getClass
-          .getResource("sampleMultiColumn.csv")
+          .getResource("/sampleMultiColumn.csv")
           .toURI).toAbsolutePath.toString
         )
-        .as[(BigDecimal, BigDecimal)]
-        .selectExpr("SUM(_1 + _2)")
-        .as[BigDecimal]
+        .as[(Double, Double)]
+        .selectExpr("SUM(a + b)")
+        .as[Double]
 
       sumDataSet.explain(true)
       val result = sumDataSet.head()
 
       info(s"Result of sum = $result")
-      assert(result == BigDecimal(62))
+      assert(result == 82D)
     } finally sparkSession.close()
   }
 

@@ -17,7 +17,7 @@ final class SummingSparkPlanSpec extends AnyFreeSpec {
       import sparkSession.implicits._
       val result =
         SummingSparkPlan
-          .summingRdd(Seq[BigDecimal](1, 2, 2).toDS().rdd, ScalaSummer)
+          .summingRdd(Seq[Double](1, 2, 2).toDS().rdd, ScalaSummer)
           .collect()
           .head
       assert(result == BigDecimal(5))
