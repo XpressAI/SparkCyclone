@@ -4,7 +4,7 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Sum}
 import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.types.{Decimal, DecimalType}
+import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
 
 /**
  * Basic SparkPlan matcher that will match a plan that sums a bunch of BigDecimals, and gets them
@@ -23,10 +23,10 @@ object SumPlanExtractor {
           .toList
           .zipWithIndex
           .flatMap {
-            case (AttributeReference(_, dataType: DecimalType, _, _), index) =>
+            case (AttributeReference(_, dataType: DoubleType, _, _), index) =>
               rows
-                .map(_.get(index, dataType).asInstanceOf[Decimal])
-                .map(_.toBigDecimal)
+                .map(_.get(index, dataType).asInstanceOf[Double])
+                .map(BigDecimal(_))
                 .toList
           }
     }
