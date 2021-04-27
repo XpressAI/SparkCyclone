@@ -462,6 +462,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
       sparkSession.sql("SELECT SUM(_1 + _2) FROM nums").as[Double].head()
       info("\n" + savedSparkPlan.toString())
       assert(SumPlanExtractor.matchPlan(savedSparkPlan).isDefined, savedSparkPlan.toString())
+
     } finally sparkSession.close()
   }
 
@@ -481,6 +482,28 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
       sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums").as[Double].head()
       info("\n" + savedSparkPlan.toString())
       assert(SumPlanExtractor.matchPlan(savedSparkPlan).isDefined, savedSparkPlan.toString())
+    } finally sparkSession.close()
+  }
+
+
+  "Sum plan extracts correct numbers flattened for three columns" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkPlanSavingPlugin].getCanonicalName)
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+      Seq[(Double, Double, Double)]((1, 2, 3), (4, 5, 6), (7, 8, 9))
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      sparkSession.sql("SELECT SUM(_1 + _2 + _3) FROM nums").as[Double].head()
+      info("\n" + savedSparkPlan.toString())
+      assert(SumPlanExtractor.matchPlan(savedSparkPlan)
+        .contains(List(1D, 4D, 7D, 2D, 5D, 8D, 3D, 6D, 9D))
+      )
     } finally sparkSession.close()
   }
 
