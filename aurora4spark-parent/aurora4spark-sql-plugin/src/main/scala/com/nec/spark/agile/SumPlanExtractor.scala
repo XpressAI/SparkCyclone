@@ -13,7 +13,7 @@ import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
  * This is done so that we have something basic to work with.
  */
 object SumPlanExtractor {
-  def matchPlan(sparkPlan: SparkPlan): Option[List[BigDecimal]] = {
+  def matchPlan(sparkPlan: SparkPlan): Option[List[Double]] = {
     matchSumChildPlan(sparkPlan).collectFirst {
       case LocalTableScanExec(
       attributes,
@@ -26,7 +26,6 @@ object SumPlanExtractor {
             case (AttributeReference(_, dataType: DoubleType, _, _), index) =>
               rows
                 .map(_.get(index, dataType).asInstanceOf[Double])
-                .map(BigDecimal(_))
                 .toList
           }
     }
