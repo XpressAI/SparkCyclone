@@ -5,3 +5,4 @@ Do not modify it manually.
  
 * SUM() of single column
 * AVG()
+* SUM() multiple columns e.g. SUM(a + b)
