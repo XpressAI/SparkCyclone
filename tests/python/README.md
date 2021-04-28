@@ -5,9 +5,9 @@
 spark-submit --master spark://spark-master:7077  generate_csv.py /path/to/test/data/file -r num_rows -p num_partitions
 ```
 
-## Shuffle Benchmark
+## Run Benchmark
 ```py
-spark-submit --master spark://spark-master:7077 shuffle_benchmark.py /path/to/test/data/file -r num_partitions -n 'benchmark-job-name' -o 'output' -sl 11001 -t repart
+spark-submit --master spark://spark-master:7077 run_benchmark.py /path/to/test/data/file -r num_partitions  -o 'output' -sl 11001 -t repart
 ```
 
 ## Pick Level
