@@ -11,7 +11,9 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-catalyst" % sparkVersion % "provided",
-  "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc"
+  "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc",
+  "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
+  "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc"
 )
 
 Test / parallelExecution := false
@@ -28,8 +30,7 @@ Test / testOptions += excludeAcceptanceTestOption
 AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.spark.agile.MarkdownReporter")
 AcceptanceTest / testOptions += Tests.Argument("-o")
 
-AcceptanceTest / testOptions := (AcceptanceTest / testOptions)
-  .value
+AcceptanceTest / testOptions := (AcceptanceTest / testOptions).value
   .filter(_ != `excludeAcceptanceTestOption`)
 
 /** in SBT, run: AcceptanceTest / test; Test / test * */
@@ -53,3 +54,5 @@ deploy := {
     "a6:/opt/aurora4spark/example-avg.py"
   ) ! logger
 }
+
+ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
