@@ -510,6 +510,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
   "We call VE over SSH using the Python script, and get the right sum back from it " +
     "in case of multiple columns sum" taggedAs
     AcceptanceTest in {
+    markup("SUM() multiple columns e.g. SUM(a + b)")
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.set("spark.ui.enabled", "false")
