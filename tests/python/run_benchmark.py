@@ -95,7 +95,11 @@ def column_benchmark(df,log):
     df = df.withColumn("randn", (F.randn()*10).cast(T.LongType())) \
                     .withColumn("randn1", F.randn()) \
                     .withColumn('degree', (F.randn()*360).cast(T.LongType())) \
-                    .withColumn('small_int', (F.rand()*10).cast(T.LongType()))
+                    .withColumn('small_int', (F.rand()*10).cast(T.LongType())) \
+                    .withColumn('sum_two_cols', df['float_val'] + df['integer_val']) \
+                    .withColumn('subtract_two_cols', df['float_val'] - df['integer_val']) \
+                    .withColumn('mul_two_cols', df['float_val'] * df['integer_val']) \
+                    .withColumn('div_two_cols', df['float_val'] / df['integer_val']) 
     df = df.select('*', 
                    F.abs(df['integer_val']), F.acos(df['randn']),  F.acosh(df['randn']), 
                    F.ascii(df['prefix2']), F.asin(df['randn1']), F.asinh(df['randn1']), 
