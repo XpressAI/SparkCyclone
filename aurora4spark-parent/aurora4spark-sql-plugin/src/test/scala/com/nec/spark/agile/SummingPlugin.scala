@@ -26,7 +26,7 @@ final class SummingPlugin extends (SparkSessionExtensions => Unit) with Logging 
             if (SummingPlugin.enable) {
               SumPlanExtractor
                 .matchSumChildPlan(sparkPlan)
-                .map(numsToSumPlan => SummingSparkPlan(numsToSumPlan, SummingPlugin.summer))
+                .map(numsToSumPlan => SummingSparkPlan(numsToSumPlan._1,  numsToSumPlan._2, SummingPlugin.summer))
                 .getOrElse(sys.error(s"Could not match the plan: ${sparkPlan}"))
             } else sparkPlan
       }

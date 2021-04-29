@@ -12,13 +12,15 @@ import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
  *
  * This is done so that we have something basic to work with.
  */
+
+
 object SumPlanExtractor {
+  case class AttributeName(value: String) extends AnyVal
+  case class SparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[Seq[AttributeName]])
+
   def matchPlan(sparkPlan: SparkPlan): Option[List[Double]] = {
     matchSumChildPlan(sparkPlan).collectFirst {
-      case LocalTableScanExec(
-      attributes,
-      rows
-      ) =>
+      case SparkPlanWithMetadata(LocalTableScanExec(attributes, rows), _) =>
         attributes
           .toList
           .zipWithIndex
@@ -31,12 +33,12 @@ object SumPlanExtractor {
     }
   }
 
-  def matchSumChildPlan(sparkPlan: SparkPlan): Option[SparkPlan] = {
+  def matchSumChildPlan(sparkPlan: SparkPlan): Option[SparkPlanWithMetadata] = {
     PartialFunction.condOpt(sparkPlan) {
       case first @ HashAggregateExec(
             requiredChildDistributionExpressions,
             groupingExpressions,
-            Seq(AggregateExpression(Sum(_), _, _, _, _)),
+            exprs @ seq,
             aggregateAttributes,
             initialInputBufferOffset,
             resultExpressions,
@@ -55,9 +57,22 @@ object SumPlanExtractor {
                   ),
                 shuffleOrigin
               )
-          ) =>
-        fourth
+          ) if seq.forall {
+              case AggregateExpression(Sum(_), _, _, _, _) => true
+              case _ => false
+            } =>
+              SparkPlanWithMetadata(fourth, extractExpressions(exprs))
     }
   }
 
+  def extractExpressions(expressions: Seq[AggregateExpression]): Seq[Seq[AttributeName]] = {
+    val attributeNames = expressions.map {
+      case AggregateExpression(sum @ Sum(_), _, _, _, _) => sum
+        .references
+        .map(reference => AttributeName(reference.name))
+        .toSeq// Poor thing this is done on Strings can we do better here?
+    }
+
+    attributeNames
+  }
 }
