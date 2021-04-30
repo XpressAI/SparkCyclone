@@ -5,6 +5,10 @@ Requirements:
 - Hadoop
 - JDK 8
 
+## aveo4j
+
+This is the JavaCPP layer around AVEO. Docs: [aveo4j/README.md](aveo4j/README.md).
+
 ## Development workflow
 
 Like Spark, we separate development workflow from general building.

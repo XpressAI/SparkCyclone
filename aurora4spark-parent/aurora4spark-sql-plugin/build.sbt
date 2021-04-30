@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 /**
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
@@ -13,7 +15,8 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-catalyst" % sparkVersion % "provided",
   "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc",
   "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
-  "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc"
+  "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
+  "com.nec" % "aveo4j" % "0.0.1"
 )
 
 Test / parallelExecution := false
@@ -56,3 +59,4 @@ deploy := {
 }
 
 ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
+ThisBuild / resolvers += "aveo4j-repo" at Paths.get("..", "..", "aveo4j-repo").toUri.toASCIIString

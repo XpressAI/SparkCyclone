@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.nec</groupId>
+  <artifactId>aveo4j</artifactId>
+  <version>0.0.1</version>
+
+  <name>aveo4j</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
+
+  <distributionManagement>
+    <repository>
+      <id>aveo4j-repo</id>
+      <name>Local Aveo4j repo</name>
+      <url>file://${project.basedir}${file.separator}..${file.separator}aveo4j-repo${file.separator}</url>
+    </repository>
+  </distributionManagement>
+
+</project>
