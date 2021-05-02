@@ -1,7 +1,6 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.BigDecimalSummer.ScalaSummer
-import com.nec.spark.agile.SummingSparkPlanMultipleColumns.ColumnWithNumbers
 import org.scalatest.freespec.AnyFreeSpec
 
 import org.apache.spark.SparkConf
@@ -14,9 +13,8 @@ final class SummingSparkPlanMultipleColumnsSpec extends AnyFreeSpec {
     conf.set("spark.ui.enabled", "false")
     conf.setAppName("local-test")
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
-    try {
-      import sparkSession.implicits._
 
+    try {
       val inputData: Seq[ColumnWithNumbers] = Seq(
         (0, Seq(1, 2, 3, 4, 5)),
         (1, Seq(6, 7, 8, 9, 10))
@@ -30,7 +28,7 @@ final class SummingSparkPlanMultipleColumnsSpec extends AnyFreeSpec {
           .collect()
           .toSeq
 
-      assert(result == Seq((0, 15D), (1, 40D)))
+      assert(result == Seq(List(15.0, 40.0)))
     } finally sparkSession.close()
   }
 }

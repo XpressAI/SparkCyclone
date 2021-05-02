@@ -15,12 +15,9 @@ import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
 
 
 object SumPlanExtractor {
-  case class AttributeName(value: String) extends AnyVal
-  case class SparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[Seq[AttributeName]])
-
   def matchPlan(sparkPlan: SparkPlan): Option[List[Double]] = {
     matchSumChildPlan(sparkPlan).collectFirst {
-      case SparkPlanWithMetadata(LocalTableScanExec(attributes, rows), _) =>
+        case SparkPlanWithMetadata(LocalTableScanExec(attributes, rows), _) =>
         attributes
           .toList
           .zipWithIndex

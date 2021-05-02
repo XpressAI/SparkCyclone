@@ -1,31 +1,31 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.SumPlanExtractor.AttributeName
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
+import shapeless._
+import shapeless.syntax.sized._
+import shapeless.syntax.std.product.productOps
+
+import org.apache.spark.sql.types.{DataType, DoubleType}
 
 object SummingSparkPlanMultipleColumns {
 
-  type ColumnIndex = Int
-  type ColumnWithNumbers = (ColumnIndex, Iterable[Double])
-
   /** Coalesces all the data into one partition, and then sums it lazily */
   def summingRdd(parentRdd: RDD[ColumnWithNumbers],
-                 summer: BigDecimalSummer): RDD[(Int, Double)] =
+                 summer: BigDecimalSummer): RDD[Seq[Double]] =
     parentRdd
       .coalesce(1)
       .mapPartitions(its => {
-        val list = its.toList
-        list.map{
-          case (index, values) => (
-            index,
-            summer.sum(values.map(BigDecimal(_)).toList).doubleValue()
-          )
-        }.toIterator
+        val list = its
+        val summed = list.map {
+          case (index, values) => summer.sum(values.map(BigDecimal(_)).toList).doubleValue()
+        }.toList
+        Iterator(summed)
       })
 }
 final case class SummingSparkPlanMultipleColumns(child: SparkPlan,
@@ -46,25 +46,25 @@ final case class SummingSparkPlanMultipleColumns(child: SparkPlan,
         columns => columns.map(attributeName => columnIndicesMap(attributeName))
       )
 
+    lazy val projection = createProjectionForSeq(extractedColumns.size)
     SummingSparkPlanMultipleColumns
       .summingRdd(
         child
           .execute()
           .flatMap(ir => extractRowData(ir, extractedColumns))
           .groupBy(tuple => tuple._1)
-          .map{
+          .map {
             case(index, iterable) => (index, iterable.map(_._2))
           },
         summer
       ).map(bd => {
-      ExpressionEncoder[(Double)]
-        .createSerializer()
-        .apply(bd._2)
-      })
+      projection.apply(InternalRow.fromSeq(bd))
+    }
+    )
   }
 
   private def extractRowData(row: InternalRow,
-                             columns: Seq[Seq[Int]]): Seq[(Int, Double)] = {
+                             columns: Seq[Seq[ColumnIndex]]): Seq[(Int, Double)] = {
     columns.zipWithIndex.flatMap {
       case (cols, index) => cols.map(column => ((index, row.getDouble(column))))
     }
