@@ -22,15 +22,10 @@ final class SummingSparkPlanSpec extends AnyFreeSpec {
       )
       val result =
         SummingSparkPlan
-          .summingRdd(input.toDS().rdd.map(d => (d._1, d._2.toIterable)), ScalaSummer)
+          .summingRdd(Seq[Double](1, 2, 2).toDS().rdd, ScalaSummer)
           .collect()
-          .toList
-
-      val expectedOutput: List[(Int, Double)] = List(
-        (1, 5.0),
-        (3, 9.0)
-      )
-      assert(result == expectedOutput)
+          .head
+      assert(result == BigDecimal(5))
     } finally sparkSession.close()
   }
 }

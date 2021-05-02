@@ -15,7 +15,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
             AveragingPlanner
               .matchPlan(sparkPlan)
               .map { childPlan =>
-                AveragingSparkPlan(childPlan, AveragingSparkPlan.averageLocalScala)
+                AveragingSparkPlan(childPlan.sparkPlan, AveragingSparkPlan.averageLocalScala)
               }
               .getOrElse(sparkPlan)
       }
