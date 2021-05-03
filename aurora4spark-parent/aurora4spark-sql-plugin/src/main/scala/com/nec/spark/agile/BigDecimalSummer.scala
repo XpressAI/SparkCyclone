@@ -10,9 +10,7 @@ trait BigDecimalSummer extends Serializable {
 
 object BigDecimalSummer {
   object ScalaSummer extends BigDecimalSummer {
-    override def sum(nums: List[BigDecimal]): BigDecimal = {
-      nums.sum
-    }
+    override def sum(nums: List[BigDecimal]): BigDecimal = nums.sum
   }
 
   private[agile] def readBigDecimal(result: String): BigDecimal =
@@ -35,14 +33,12 @@ object BigDecimalSummer {
   }
 
   object BundleNecSSHSummer extends BigDecimalSummer {
-    override def sum(nums: List[BigDecimal]): BigDecimal = {
+    override def sum(nums: List[BigDecimal]): BigDecimal =
       BundleExecutor.returningBigDecimalRemote.executeBundle(Bundle.sumBigDecimals(nums))
-    }
   }
 
   object BundleNecSSHSummerPurePython extends BigDecimalSummer {
     override def sum(nums: List[BigDecimal]): BigDecimal =
       BundleExecutor.returningBigDecimalRemote.executeBundle(Bundle.sumBigDecimalsPurePython(nums))
   }
-
 }

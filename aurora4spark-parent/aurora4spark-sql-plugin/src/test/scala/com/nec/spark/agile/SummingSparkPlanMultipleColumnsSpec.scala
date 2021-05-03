@@ -15,16 +15,10 @@ final class SummingSparkPlanMultipleColumnsSpec extends AnyFreeSpec {
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
 
     try {
-      val inputData: Seq[ColumnWithNumbers] = Seq(
-        (0, Seq(1, 2, 3, 4, 5)),
-        (1, Seq(6, 7, 8, 9, 10))
-      )
+      val inputData: Seq[ColumnWithNumbers] = Seq((0, Seq(1, 2, 3, 4, 5)), (1, Seq(6, 7, 8, 9, 10)))
       val result =
         SummingSparkPlanMultipleColumns
-          .summingRdd(
-            sparkSession.sparkContext.parallelize(inputData),
-            ScalaSummer
-          )
+          .summingRdd(sparkSession.sparkContext.parallelize(inputData), ScalaSummer)
           .collect()
           .toSeq
 

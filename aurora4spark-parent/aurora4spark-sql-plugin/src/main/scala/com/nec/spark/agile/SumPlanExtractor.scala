@@ -12,20 +12,15 @@ import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
  *
  * This is done so that we have something basic to work with.
  */
-
-
 object SumPlanExtractor {
   def matchPlan(sparkPlan: SparkPlan): Option[List[Double]] = {
     matchSumChildPlan(sparkPlan).collectFirst {
-        case SparkPlanWithMetadata(LocalTableScanExec(attributes, rows), _) =>
-        attributes
-          .toList
-          .zipWithIndex
-          .flatMap {
-            case (AttributeReference(_, dataType: DoubleType, _, _), index) =>
-              rows
-                .map(_.get(index, dataType).asInstanceOf[Double])
-                .toList
+      case SparkPlanWithMetadata(LocalTableScanExec(attributes, rows), _) =>
+        attributes.toList.zipWithIndex
+          .flatMap { case (AttributeReference(_, dataType: DoubleType, _, _), index) =>
+            rows
+              .map(_.get(index, dataType).asInstanceOf[Double])
+              .toList
           }
     }
   }
@@ -55,19 +50,18 @@ object SumPlanExtractor {
                 shuffleOrigin
               )
           ) if seq.forall {
-              case AggregateExpression(Sum(_), _, _, _, _) => true
-              case _ => false
-            } =>
-              SparkPlanWithMetadata(fourth, extractExpressions(exprs))
+            case AggregateExpression(Sum(_), _, _, _, _) => true
+            case _                                       => false
+          } =>
+        SparkPlanWithMetadata(fourth, extractExpressions(exprs))
     }
   }
 
   def extractExpressions(expressions: Seq[AggregateExpression]): Seq[Seq[AttributeName]] = {
-    val attributeNames = expressions.map {
-      case AggregateExpression(sum @ Sum(_), _, _, _, _) => sum
-        .references
+    val attributeNames = expressions.map { case AggregateExpression(sum @ Sum(_), _, _, _, _) =>
+      sum.references
         .map(reference => AttributeName(reference.name))
-        .toSeq// Poor thing this is done on Strings can we do better here?
+        .toSeq // Poor thing this is done on Strings can we do better here?
     }
 
     attributeNames
