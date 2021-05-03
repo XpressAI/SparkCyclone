@@ -8,6 +8,8 @@ import argparse
 import sys
 from timeit import default_timer as timer
 
+from column_operation_dict import operations, aggregate
+
 def arguments():
     args = argparse.ArgumentParser(description='Run Benchmark. Please generate dataset using generate_data.py first.')
     args.add_argument('inputfile', type=str, metavar='file_url', help='Input file URL')
@@ -17,124 +19,164 @@ def arguments():
     args.add_argument('-d','--driver', type=str, default='3g', help='Set Driver Memory')
     args.add_argument('-sl','--storageLevel', type=str, default='11001', help='Set Storage Level')
     args.add_argument('-t','--type', type=str, default='groupbyagg', help='Set Benchmark Type', choices=['groupbyagg','repart','innerjoin','broadinnerjoin', 'column'])
+    args.add_argument('-n','--ntest', type=int, default=5, help='Number of Tests')
 
     return args.parse_args()
 
-def groupby_agg_benchmark(df, log):
-    log.info("="*64)
-    log.info('Starting Benchmark for GroupBy & Agg')
+def groupby_agg_benchmark(df, log, spark, ntest=5):
+    res = ['groupbyagg']
 
-    start_time = timer()
-    res = (df.groupBy('prefix2').agg(
-        F.count('*').alias('total_count'),
-        F.countDistinct('prefix4').alias('prefix4_count'),
-        F.countDistinct('prefix8').alias('prefix8_count'),
-        F.sum('float_val').alias('float_val_sum'),
-        F.sum('integer_val').alias('integer_val_sum'),
-    ))
+    for i in range(ntest):
+        log.info("="*64)
+        log.info('Starting Benchmark for GroupBy & Agg')
+        spark.sparkContext.setLocalProperty('callSite.short', f'groupby_agg_benchmark()_test_{i}')
 
-    count = res.rdd.count()
+        start_time = timer()
+        res_df = (df.groupBy('prefix2').agg(
+            F.count('*').alias('total_count'),
+            F.countDistinct('prefix4').alias('prefix4_count'),
+            F.countDistinct('prefix8').alias('prefix8_count'),
+            F.sum('float_val').alias('float_val_sum'),
+            F.sum('integer_val').alias('integer_val_sum'),
+        ))
 
-    log.info(f'Count value for groupby_agg_benchmark() = {count}')
-    log.info("="*64)
-    return timer() - start_time
-
-def repartition_benchmark(df, partitions, log):
-    log.info("="*64)
-    log.info('Starting Benchmark for Repartition')
-
-    start_time = timer()
-    res = (df.repartition(partitions,'prefix4'))
-
-    count = res.rdd.count()
-
-    log.info(f'Count value repartition_benchmark() = {count}')
-    log.info(f'Number of partition after repartition_benchmark() = {res.rdd.getNumPartitions()}')
-    log.info("="*64)
-
-    return timer() - start_time
-
-def innerjoin_benchmark(df, log):
-    log.info("="*64)
-    log.info('Starting Benchmark for Inner Join')
-
-    start_time = timer()
-
-    df1 = (df.groupBy('prefix2').agg(F.count('*').alias('total_count')))
-    res = (df.join(df1, on='prefix2', how='inner'))
-
-    count = res.rdd.count()
-
-    log.info(f'Count value for innerjoin_benchmark() = {count}')
-    log.info("="*64)
-
-    return timer() - start_time
-
-def broadcast_innerjoin_benchmark(df, log):
-    log.info("="*64)
-    log.info('Starting Benchmark for Broadcast Inner Join')
-
-    start_time = timer()
-
-    df1 = (df.groupBy('prefix2').agg(F.count('*').alias('total_count')))
-    res = (df.join(F.broadcast(df1), on='prefix2', how='inner'))
-
-    count = res.rdd.count()
-
-    log.info(f'Count value for broadcast_innerjoin_benchmark() = {count}')
-    log.info("="*64)
-
-    return timer() - start_time
+        log.info(f'Count value for groupby_agg_benchmark() = {res_df.rdd.count()}')
+        time_taken = timer() - start_time
+        log.info(f'Running for groupby_agg_benchmark_test_{i} = {time_taken}')
+        res.append(time_taken)
     
-def column_benchmark(df,log):
+    avg = (sum(res[1:]) - max(res[1:]) - min(res[1:])) / (ntest-2)
+    log.info(f'Avg for groupby_agg_benchmark_test = {avg}')
+    log.info("="*64)
 
-    start_time = timer()
+    res.append(avg)
+    
+    return [tuple(res)]
+
+def repartition_benchmark(df, partitions, log, spark, ntest=5):
+    res = ['repart']
+
+    for i in range(ntest):
+        log.info("="*64)
+        log.info('Starting Benchmark for Repartition')
+        spark.sparkContext.setLocalProperty('callSite.short', f'repartition_benchmark()_test_{i}')
+
+        start_time = timer()
+        res_df = (df.repartition(partitions,'prefix4'))
+
+        log.info(f'Count value repartition_benchmark() = {res_df.rdd.count()}')
+        log.info(f'Number of partition after repartition_benchmark() = {res_df.rdd.getNumPartitions()}')
+
+        time_taken = timer() - start_time
+        log.info(f'Running for repartition_benchmark_{i} = {time_taken}')
+        res.append(time_taken)
+    
+    avg = (sum(res[1:]) - max(res[1:]) - min(res[1:])) / (ntest-2)
+    log.info(f'Avg for repartition_benchmark = {avg}')
+    log.info("="*64)
+
+    res.append(avg)
+
+    return [tuple(res)]
+
+def innerjoin_benchmark(df, log, spark, ntest=5):
+    res = ['innerjoin']
+
+    for i in range(ntest):
+        log.info("="*64)
+        log.info('Starting Benchmark for Inner Join')
+        spark.sparkContext.setLocalProperty('callSite.short', f'innerjoin_benchmark()_test_{i}')
+        
+        start_time = timer()
+
+        df1 = (df.groupBy('prefix2').agg(F.count('*').alias('total_count')))
+        res_df = (df.join(df1, on='prefix2', how='inner'))
+
+        log.info(f'Count value for innerjoin_benchmark() = {res_df.rdd.count()}')
+
+        time_taken = timer() - start_time
+        log.info(f'Running for innerjoin_benchmark_{i} = {time_taken}')
+        res.append(time_taken)
+
+    avg = (sum(res[1:]) - max(res[1:]) - min(res[1:])) / (ntest-2)
+    log.info(f'Avg for innerjoin_benchmark = {avg}')
+    log.info("="*64)
+
+    res.append(avg)
+    
+    return [tuple(res)]
+
+def broadcast_innerjoin_benchmark(df, log, spark, ntest=5):
+    res = ['broadinnerjoin']
+    
+    for i in range(ntest):
+        log.info("="*64)
+        log.info('Starting Benchmark for Broadcast Inner Join')
+        spark.sparkContext.setLocalProperty('callSite.short', f'broadcast_innerjoin_benchmark()_test_{i}')
+
+        start_time = timer()
+
+        df1 = (df.groupBy('prefix2').agg(F.count('*').alias('total_count')))
+        res_df = (df.join(F.broadcast(df1), on='prefix2', how='inner'))
+
+        log.info(f'Count value for broadcast_innerjoin_benchmark() = {res_df.rdd.count()}')
+
+        time_taken = timer() - start_time
+        log.info(f'Running for broadcast_innerjoin_benchmark_{i} = {time_taken}')
+        res.append(time_taken)
+
+    avg = (sum(res[1:]) - max(res[1:]) - min(res[1:])) / (ntest-2)
+    log.info(f'Avg for broadcast_innerjoin_benchmark = {avg}')
+    log.info("="*64)
+
+    res.append(avg)
+    return [tuple(res)]
+    
+def column_benchmark(df, log, spark, ntest=5):
+    res = []
+    
     log.info("="*64)
     log.info('Starting Benchmark for column_benchmark()')
 
-    df = df.withColumn("randn", (F.randn()*10).cast(T.LongType())) \
-                    .withColumn("randn1", F.randn()) \
-                    .withColumn('degree', (F.randn()*360).cast(T.LongType())) \
-                    .withColumn('small_int', (F.rand()*10).cast(T.LongType())) \
-                    .withColumn('sum_two_cols', df['float_val'] + df['integer_val']) \
-                    .withColumn('subtract_two_cols', df['float_val'] - df['integer_val']) \
-                    .withColumn('mul_two_cols', df['float_val'] * df['integer_val']) \
-                    .withColumn('div_two_cols', df['float_val'] / df['integer_val']) 
-    df = df.select('*', 
-                   F.abs(df['integer_val']), F.acos(df['randn']),  F.acosh(df['randn']), 
-                   F.ascii(df['prefix2']), F.asin(df['randn1']), F.asinh(df['randn1']), 
-                   F.atan(df['randn1']), F.atanh(df['randn1']), F.atan2(df['randn1'], df['randn']), 
-                   F.base64(df['value']), F.bin(df['integer_val']), F.bitwiseNOT(df['integer_val']), 
-                   F.cbrt(df['randn']), F.concat(df['prefix2'], df['prefix4']), 
-                   F.concat_ws('-', df['prefix2'], df['prefix4'], df['float_val']), 
-                   F.conv(df['integer_val'], 10, 16), F.cos(df['randn']), F.cosh(df['randn']), 
-                   F.crc32(df['value']), F.degrees(df['degree']), F.exp(df['randn']), 
-                   F.expr("length(float_val)"), F.factorial(df['small_int']), F.hash(df['value']), 
-                   F.hex(df['value']), F.hypot(df['integer_val'], df['randn']), F.levenshtein(df['value'],df['integer_val']), 
-                   F.log(df['integer_val']), F.log10(df['float_val']), F.log1p(df['randn']), 
-                   F.log2(df['randn1']), F.md5(df['value']), F.pow(df['randn'], df['small_int']), 
-                   F.radians(df['degree']), F.sha1(df['value']), F.sha2(df['value'], 256), 
-                   F.signum(df['integer_val']), F.sin(df['randn']), F.sinh(df['randn']), 
-                   F.sqrt(df['small_int']), F.tan(df['randn']), F.tanh(df['randn']), 
-                   F.xxhash64(df['value']), df['small_int'].bitwiseAND(df['integer_val']), 
-                   df['small_int'].bitwiseOR(df['integer_val']), df['small_int'].bitwiseXOR(df['integer_val']))
+    for key in operations:
+        col_op = [key]
+
+        for i in range(ntest):
+            spark.sparkContext.setLocalProperty('callSite.short', f'{key}_benchmark_test_{i}')
+            start_time = timer()
+            df = operations[key](df)
+            time_taken = timer() - start_time
+            log.info(f'Running {key}_benchmark_test_{i} = {time_taken}')
+            col_op.append(time_taken)
+
+        avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (ntest-2)
+        log.info(f'Avg for {key}_benchmark_test = {avg}')
+
+        col_op.append(avg)
+        res.append(tuple(col_op))
     
-    df_agg = df.agg(F.approx_count_distinct(df.integer_val), 
-                    F.avg(df.integer_val), F.corr(df['float_val'], df['randn']), 
-                    F.count(df['value']), F.countDistinct(df['value'], df['integer_val']), 
-                    F.covar_pop(df['integer_val'], df['float_val']), F.covar_samp(df['randn'], df['float_val']), 
-                    F.kurtosis(df['randn1']), F.max(df['float_val']), F.mean(df['randn']), 
-                    F.min(df['randn']), F.percentile_approx('randn',[0.25,0.5,0.75], 100000), 
-                    F.skewness(df['randn']), F.stddev(df['randn1']), F.stddev_pop(df['randn1']), 
-                    F.stddev_samp(df['randn1']), F.sum(df['integer_val']), 
-                    F.sumDistinct(df['integer_val']), F.var_pop(df['small_int']), F.var_samp(df['integer_val']))
+    for key in aggregate:
+        col_op = [key]
+        time = 0
+        count = 0
+
+        for i in range(ntest):
+            spark.sparkContext.setLocalProperty('callSite.short', f'{key}_benchmark_test_{i}')
+            start_time = timer()
+            df_agg = aggregate[key](df)
+            time_taken = timer() - start_time
+            log.info(f'Running {key}_benchmark_test_{i} = {time_taken}')
+            col_op.append(time_taken)
+
+        avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (ntest-2)
+        log.info(f'Avg for {key}_benchmark_test = {avg}')
+
+        col_op.append(avg)
+        res.append(tuple(col_op))
     
-    count, count_agg = (df.rdd.count(), len(df.columns)), len(df_agg.columns)
-    
-    log.info(f'Shape of new DF = {count}, total columns in df_agg = {count_agg}')
     log.info("="*64)
 
-    return timer() - start_time, df, df_agg
+    return res
 
 def main(args):
     appName = f'{args.type}_benchmark'
@@ -156,14 +198,17 @@ def main(args):
         T.StructField("prefix4", T.StringType()),
         T.StructField("prefix8", T.StringType()),
         T.StructField("float_val", T.DoubleType()),
-        T.StructField("integer_val", T.LongType())
+        T.StructField("integer_val", T.LongType()),
+        T.StructField("randn", T.LongType()),
+        T.StructField("randn1", T.DoubleType()),
+        T.StructField("degree", T.LongType()),
+        T.StructField("small_int", T.LongType()),
     ])
 
     level = list(tuple(args.storageLevel))
     for i in range(4):
         level[i] = bool(int(level[i]))
     level[4] = int(level[4])
-
 
     # initialize df
     df = None
@@ -177,66 +222,39 @@ def main(args):
 
     assert df, (f"Filetype not found in {args.inputfile}! Ensure that the path dir is correct.")
 
-    TEST = 5
-    result = []
-    for i in range(TEST):
-        if(args.type == 'groupbyagg'):
-            spark.sparkContext.setLocalProperty('callSite.short', f'groupby_agg_benchmark()_test_{i}')
-            groupby_agg_benchmark_time = groupby_agg_benchmark(df, log)
-            result.append(groupby_agg_benchmark_time)
+    result = None
 
-        elif(args.type == 'repart'):
-            spark.sparkContext.setLocalProperty('callSite.short', f'repartition_benchmark()_test_{i}')
-            repartition_benchmark_time = repartition_benchmark(df, args.repartitions, log)
-            result.append(repartition_benchmark_time)
+    if(args.type == 'groupbyagg'):
+        result = groupby_agg_benchmark(df, log, spark, args.ntest)
 
-        elif(args.type == 'innerjoin'):
-            spark.sparkContext.setLocalProperty('callSite.short', f'innerjoin_benchmark()_test_{i}')
-            innerjoin_benchmark_time = innerjoin_benchmark(df, log)
-            result.append(innerjoin_benchmark_time)
+    elif(args.type == 'repart'):
+        result = repartition_benchmark(df, args.repartitions, log, spark, args.ntest)
 
-        elif(args.type == 'broadinnerjoin'):
-            spark.sparkContext.setLocalProperty('callSite.short', f'broadcast_innerjoin_benchmark()_test_{i}')
-            broadcast_innerjoin_benchmark_time = broadcast_innerjoin_benchmark(df, log)
-            result.append(broadcast_innerjoin_benchmark_time)
+    elif(args.type == 'innerjoin'):
+        result = innerjoin_benchmark(df, log, spark, args.ntest)
 
-        elif(args.type == 'column'):
-            spark.sparkContext.setLocalProperty('callSite.short', f'column_benchmark()_test_{i}')
-            column_benchmark_time, _, _ = column_benchmark(df, log)
-            result.append(column_benchmark_time)
+    elif(args.type == 'broadinnerjoin'):
+        result = broadcast_innerjoin_benchmark(df, log, spark, args.ntest)
+
+    elif(args.type == 'column'):
+        result = column_benchmark(df, log, spark, args.ntest)
 
     spark.sparkContext.setLocalProperty('callSite.short', callSiteShortOrig)
     
-    average = 0
     log.info("="*64)
     log.info('RESULTS')
     log.info(f'Test Run = {appName}, StorageLevel = {args.storageLevel}, Operation = {args.type}.')
-    
-    for i in range(TEST):
-        log.info(f'TEST {i} test time : {result[i]} s')
-        if i > 0 and i < 4:
-            average += result[i]
-
-    log.info(f'Average for TEST 1:3 : {average/3} s')
-    log.info("="*64)
 
     if args.outputfile is not None:
         log.info(f'Writing results to {args.outputfile}_{args.storageLevel}_{args.type}')
+        log.info("="*64)
         
-        result.insert(0, args.type)
-        result.insert(len(result), average/3)
-        results_list = [tuple(result)]
-    
-        results_schema = T.StructType([
-            T.StructField("test", T.StringType()),
-            T.StructField("test_0", T.DoubleType()),
-            T.StructField("test_1", T.DoubleType()),
-            T.StructField("test_2", T.DoubleType()),
-            T.StructField("test_3", T.DoubleType()),
-            T.StructField("test_4", T.DoubleType()),
-            T.StructField("average 1:3", T.DoubleType())
-        ])
-        results_df = spark.createDataFrame(results_list, schema=results_schema).coalesce(1)
+        schema = ['test']
+        for i in range(args.ntest):
+            schema.append(f'test_{i}')
+        schema.append('mean_exclude_max_and_min')
+
+        results_df = spark.createDataFrame(result, schema).coalesce(1)
         results_df.write.csv(
             f'{args.outputfile}_{args.storageLevel}_{args.type}',
             header=True,
