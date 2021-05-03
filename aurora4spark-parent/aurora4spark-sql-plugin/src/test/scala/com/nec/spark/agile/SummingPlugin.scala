@@ -26,7 +26,8 @@ final class SummingPlugin extends (SparkSessionExtensions => Unit) with Logging 
             if (SummingPlugin.enable) {
               SumPlanExtractor
                 .matchSumChildPlan(sparkPlan)
-                .map(planWithMetadata => SummingSparkPlanMultipleColumns(
+                .map(planWithMetadata =>
+                  SummingSparkPlanMultipleColumns(
                     planWithMetadata.sparkPlan,
                     planWithMetadata.attributes,
                     SummingPlugin.summer

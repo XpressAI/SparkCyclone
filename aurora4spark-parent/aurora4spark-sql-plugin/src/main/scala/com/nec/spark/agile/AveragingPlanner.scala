@@ -36,19 +36,18 @@ object AveragingPlanner {
                   shuffleOrigin
                 )
             ) if seq.forall {
-                case AggregateExpression(Average(_), _, _, _, _) => true
-                case _ => false
-              } =>
-                SparkPlanWithMetadata(fourth, extractExpressions(exprs))
+              case AggregateExpression(Average(_), _, _, _, _) => true
+              case _                                           => false
+            } =>
+          SparkPlanWithMetadata(fourth, extractExpressions(exprs))
       }
   }
 
   def extractExpressions(expressions: Seq[AggregateExpression]): Seq[Seq[AttributeName]] = {
-    val attributeNames = expressions.map {
-      case AggregateExpression(sum @ Average(_), _, _, _, _) => sum
-        .references
+    val attributeNames = expressions.map { case AggregateExpression(sum @ Average(_), _, _, _, _) =>
+      sum.references
         .map(reference => AttributeName(reference.name))
-        .toSeq// Poor thing this is done on Strings can we do better here?
+        .toSeq // Poor thing this is done on Strings can we do better here?
     }
 
     attributeNames

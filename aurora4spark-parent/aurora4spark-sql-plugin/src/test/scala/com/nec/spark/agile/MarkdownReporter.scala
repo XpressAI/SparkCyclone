@@ -26,15 +26,18 @@ class MarkdownReporter extends Reporter {
 
   def extractMarkdown(recordedEvents: Seq[RecordableEvent]): Seq[MarkdownQueryDescription] = {
     recordedEvents
-      .collect {
-        case MarkupProvided(_, text, _, _, _, _, _, _) => MarkdownQueryDescription(text)}
+      .collect { case MarkupProvided(_, text, _, _, _, _, _, _) =>
+        MarkdownQueryDescription(text)
+      }
   }
 
   def writeSummaryToReadme(): Unit = {
     val supportedFeaturesList = markdownDescriptions.map(description => "* " + description.value)
-    val toWriteData = Seq(
-      autogenerationWarn, " ", supportedFeaturesTitle, " ") ++ supportedFeaturesList
-    Files.write(Paths.get("..").resolve("FEATURES.md"),
-      toWriteData.mkString("\n").getBytes(Charsets.UTF_8))
+    val toWriteData =
+      Seq(autogenerationWarn, " ", supportedFeaturesTitle, " ") ++ supportedFeaturesList
+    Files.write(
+      Paths.get("..").resolve("FEATURES.md"),
+      toWriteData.mkString("\n").getBytes(Charsets.UTF_8)
+    )
   }
 }

@@ -35,21 +35,19 @@ final case class SummingSparkPlan(child: SparkPlan, summer: BigDecimalSummer) ex
           .execute()
           .flatMap(ir => extractRowData(ir, columns)),
         summer
-      ).map(bd => {
-      ExpressionEncoder[Double]
-        .createSerializer()
-        .apply(bd)
+      )
+      .map(bd => {
+        ExpressionEncoder[Double]
+          .createSerializer()
+          .apply(bd)
       })
-
 
   }
 
-  private def extractRowData(row: InternalRow,
-                             columns: Int): Seq[Double] = {
-    Seq.range(0, columns)
-      .map(index =>
-        row.getDouble(index)
-      )
+  private def extractRowData(row: InternalRow, columns: Int): Seq[Double] = {
+    Seq
+      .range(0, columns)
+      .map(index => row.getDouble(index))
   }
 
   private[agile] def compute(): RDD[InternalRow] = doExecute()

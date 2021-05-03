@@ -14,10 +14,7 @@ final class AveragingSparkPlanMultipleColumnsSpec extends AnyFreeSpec {
     val sparkSession = SparkSession.builder().config(conf).getOrCreate()
     try {
 
-      val inputData: Seq[(Int, Seq[Double])] = Seq(
-        (0, Seq(10, 20, 30)),
-        (0, Seq(100, 200, 300)),
-      )
+      val inputData: Seq[(Int, Seq[Double])] = Seq((0, Seq(10, 20, 30)), (1, Seq(100, 200, 300)))
 
       val result =
         AveragingSparkPlanMultipleColumns
@@ -29,7 +26,7 @@ final class AveragingSparkPlanMultipleColumnsSpec extends AnyFreeSpec {
           .collect()
           .head
 
-        assert(result == List(20.0, 200.0))
+      assert(result == List(20.0, 200.0))
     } finally sparkSession.close()
   }
 }
