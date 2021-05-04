@@ -28,6 +28,7 @@
 
     <modules>
         <module>aurora4spark-sql-plugin</module>
+         <module>aurora-presets</module>
     </modules>
 
     <properties>
