@@ -8,6 +8,19 @@ val sparkVersion = "3.1.1"
 ThisBuild / scalaVersion := "2.12.13"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
+
+lazy val root = project
+  .in(file("."))
+  .configs(AcceptanceTest)
+lazy val example = project
+  .dependsOn(root)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+      "org.apache.spark" %% "spark-catalyst" % sparkVersion % "provided"
+    )
+  )
+
 libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
@@ -22,7 +35,6 @@ libraryDependencies ++= Seq(
 Test / parallelExecution := false
 
 lazy val AcceptanceTest = config("acc") extend Test
-configs(AcceptanceTest)
 inConfig(AcceptanceTest)(Defaults.testTasks)
 
 /** Acceptance tests basically run against external/SSH/etc */
@@ -60,3 +72,29 @@ deploy := {
 
 ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
 ThisBuild / resolvers += "aveo4j-repo" at Paths.get("..", "..", "aveo4j-repo").toUri.toASCIIString
+
+lazy val `ve-direct` = project
+  .settings(Defaults.itSettings)
+  .configs(IntegrationTest)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc,it",
+      "me.shadaj" %% "scalapy-core" % "0.4.2",
+      "org.bytedeco" % "javacpp" % "1.5.5"
+    ),
+    IntegrationTest / managedResources := {
+      val resourceBase = (IntegrationTest / resourceManaged).value
+      val assembled = assembly.value
+      val tgt = resourceBase / assembled.name
+      IO.copyFile(assembled, tgt)
+      Seq(tgt)
+    },
+    assembly / assemblyMergeStrategy := {
+      case v if v.contains("module-info.class")   => MergeStrategy.discard
+      case v if v.contains("reflect-config.json") => MergeStrategy.discard
+      case v if v.contains("jni-config.json")     => MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    }
+  )

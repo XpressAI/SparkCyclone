@@ -76,3 +76,11 @@ We've built some JAR files from the Frovedis sources, so they can be easily cons
 through IntelliJ's powerful navigation capabilities. This is to aid exploration of what is available. The repository is
 located in `frovedis-ivy`
 and is available through a default import of SBT. It includes both source and test JARs.
+
+
+## `ve-direct`
+
+This is the first iteration of using `aurora4j` straight from Scala. This uses direct memory access and all that. 
+
+Assuming `ssh ed hostname` returns `XAIJPVE1`, from SBT run: `ve-direct / IntegrationTest / test`.
+

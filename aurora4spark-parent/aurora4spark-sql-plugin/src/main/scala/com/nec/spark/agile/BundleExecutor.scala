@@ -32,7 +32,7 @@ object BundleExecutor {
     import scala.sys.process._
     val inputStream = new ByteArrayInputStream(data.getBytes("UTF-8"))
     try {
-      (Seq("ssh", "a6", "python3", "-") #< inputStream).lineStream_!.toList
+      (Seq("ssh", "ed", "python3", "-") #< inputStream).lineStream_!.toList
     } finally inputStream.close()
   }
 
