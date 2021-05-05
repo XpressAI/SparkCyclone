@@ -1,22 +1,13 @@
 package com.nec.aurora;
 
+import lombok.Getter;
+import org.bytedeco.javacpp.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import lombok.Getter;
-import org.bytedeco.javacpp.BooleanPointer;
-import org.bytedeco.javacpp.BytePointer;
-import org.bytedeco.javacpp.DoublePointer;
-import org.bytedeco.javacpp.FloatPointer;
-import org.bytedeco.javacpp.IntPointer;
-import org.bytedeco.javacpp.Loader;
-import org.bytedeco.javacpp.LongPointer;
-import org.bytedeco.javacpp.Pointer;
-import org.bytedeco.javacpp.PointerPointer;
-import org.bytedeco.javacpp.ShortPointer;
-import org.nd4j.linalg.api.memory.pointers.PagedPointer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static com.nec.aurora.Aurora.*;
 
@@ -24,7 +15,8 @@ import static com.nec.aurora.Aurora.*;
  *
  * @author saudet
  */
-public class AuroraOps implements NativeOps {
+public class AuroraOps  {
+
     private static Logger log = LoggerFactory.getLogger(AuroraOps.class);
     public static final boolean LOAD_SHARED_LIBRARY = true;
 
@@ -291,7 +283,6 @@ public class AuroraOps implements NativeOps {
         return retval[0];
     }
 
-    @Override
     public synchronized int setDevice(int deviceId) {
         this.deviceId = deviceId;
         if (ctx != null) {
@@ -314,12 +305,10 @@ public class AuroraOps implements NativeOps {
         return 1; // ??
     }
 
-    @Override
     public int getDevice() {
         return deviceId;
     }
 
-    @Override
     public synchronized Pointer mallocDevice(long memorySize, int deviceId, int flags) {
         log.debug("mallocDevice(" + memorySize + ")");
         long[] addr = {0};
@@ -332,7 +321,6 @@ public class AuroraOps implements NativeOps {
         return p;
     }
 
-    @Override
     public synchronized int freeDevice(Pointer p, int deviceId) {
         log.debug("freeDevice(" + p + ")");
         int i = veo_free_mem(proc, p.address());
@@ -352,7 +340,6 @@ public class AuroraOps implements NativeOps {
      * @param reserved
      * @return
      */
-    @Override
     public synchronized int memcpySync(Pointer dst, Pointer src, long size, int flags, Pointer reserved) {
         if (log.isDebugEnabled()) {
             log.debug("memcpySync(" + dst + ", " + src + ", " + size + ", " + flags + ")");
@@ -379,7 +366,7 @@ public class AuroraOps implements NativeOps {
         return i;
     }
 
-    @Override
+ /*   @Override
     public void setElementThreshold(int arg0) {
         call("setElementThreshold", arg0);
     }
@@ -1543,5 +1530,5 @@ public class AuroraOps implements NativeOps {
     public void dbExpand(OpaqueDataBuffer dataBuffer, long newLength) {
         call("dbExpand", dataBuffer, newLength);
     }
-
+ */
 }

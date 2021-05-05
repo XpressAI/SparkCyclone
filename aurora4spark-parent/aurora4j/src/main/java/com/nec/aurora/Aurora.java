@@ -6,7 +6,7 @@ import java.nio.*;
 import org.bytedeco.javacpp.*;
 import org.bytedeco.javacpp.annotation.*;
 
-public class Aurora extends org.nd4j.nativeblas.Nd4jAuroraPresets {
+public class Aurora extends AuroraPresets {
     static { Loader.load(); }
 
 // Parsed from ve_offload.h
