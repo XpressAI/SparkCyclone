@@ -1,5 +1,6 @@
 package com.nec
 
+import com.nec.VeCallContext.{IntArgument, ListDoubleArgument}
 import com.nec.VeFunction.StackArgument
 import com.nec.aurora.Aurora
 import org.bytedeco.javacpp.{DoublePointer, LongPointer}
