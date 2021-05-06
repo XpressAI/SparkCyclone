@@ -23,7 +23,7 @@ object VeDirectApp {
       s"""
      
       ${SumSimple.C_Definition} ${SumPairwise.C_Definition} ${AvgSimple.C_Definition}
-        ${SumMultipleColumns.C_Definition}
+       ${SumMultipleColumns.C_Definition} ${AvgMultipleColumns.C_Definition}
        """.getBytes("UTF-8")
     )
     val oFile = buildDir.resolve("_sum.o")
@@ -64,10 +64,15 @@ object VeDirectApp {
           List(2,3,4),
           List(5,4,3)
         )))
-
+        println(AvgMultipleColumns.avg_multiple_doubles(vej, List(
+          List(5, 10, 15),
+          List(3, 27, 30),
+          List(100, 200, 300)
+        )))
         println(
           SumPairwise.pairwise_sum_doubles(vej, List[(Double, Double)]((1, 1), (1, 2), (2, 9)))
         )
+
       } finally Aurora.veo_context_close(ctx)
     } finally Aurora.veo_proc_destroy(proc)
   }
