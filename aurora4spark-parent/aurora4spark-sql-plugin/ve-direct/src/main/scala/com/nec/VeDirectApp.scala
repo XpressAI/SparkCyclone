@@ -23,6 +23,7 @@ object VeDirectApp {
       s"""
      
       ${SumSimple.C_Definition} ${SumPairwise.C_Definition} ${AvgSimple.C_Definition}
+        ${SumMultipleColumns.C_Definition}
        """.getBytes("UTF-8")
     )
     val oFile = buildDir.resolve("_sum.o")
@@ -58,6 +59,11 @@ object VeDirectApp {
         val vej = new VeJavaContext(ctx, lib)
         println(SumSimple.sum_doubles(vej, List(1, 2, 3, 4)))
         println(AvgSimple.avg_doubles(vej, List(1, 2, 3, 10)))
+        println(SumMultipleColumns.sum_multiple_doubles(vej, List(
+          List(1,2,3),
+          List(2,3,4),
+          List(5,4,3)
+        )))
 
         println(
           SumPairwise.pairwise_sum_doubles(vej, List[(Double, Double)]((1, 1), (1, 2), (2, 9)))
