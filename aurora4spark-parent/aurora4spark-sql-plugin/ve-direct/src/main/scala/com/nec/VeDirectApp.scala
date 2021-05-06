@@ -22,7 +22,8 @@ object VeDirectApp {
       cSource,
       s"""
      
-      ${SumSimple.C_Definition} ${SumPairwise.C_Definition} """.getBytes("UTF-8")
+      ${SumSimple.C_Definition} ${SumPairwise.C_Definition} ${AvgSimple.C_Definition}
+       """.getBytes("UTF-8")
     )
     val oFile = buildDir.resolve("_sum.o")
     val soFile = buildDir.resolve("_sum.so")
@@ -56,6 +57,8 @@ object VeDirectApp {
         println(s"Lib = ${lib}")
         val vej = new VeJavaContext(ctx, lib)
         println(SumSimple.sum_doubles(vej, List(1, 2, 3, 4)))
+        println(AvgSimple.avg_doubles(vej, List(1, 2, 3, 10)))
+
         println(
           SumPairwise.pairwise_sum_doubles(vej, List[(Double, Double)]((1, 1), (1, 2), (2, 9)))
         )
