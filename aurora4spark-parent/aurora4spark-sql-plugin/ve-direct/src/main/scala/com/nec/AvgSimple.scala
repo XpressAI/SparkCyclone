@@ -1,5 +1,6 @@
 package com.nec
 
+import com.nec.VeCallContext.{IntArgument, ListDoubleArgument}
 import com.nec.VeFunction.StackArgument
 
 object AvgSimple {
@@ -26,7 +27,6 @@ object AvgSimple {
   def avgSimple(veCallContext: VeCallContext, inputs: List[Double]): Double = {
     veCallContext.execute(
       veFunction = Ve_F,
-      ln = inputs.length,
       uploadData = { poss =>
         inputs.iterator.zipWithIndex.foreach { case (a, idx) =>
           poss.args(0).foreach { Pos_In_1 =>
@@ -36,7 +36,8 @@ object AvgSimple {
       },
       loadData = { (ret, poss) =>
         ret.as[Double]
-      }
+      },
+      arguments = Seq(ListDoubleArgument(inputs.size), IntArgument(inputs.size))
     )
   }
 }
