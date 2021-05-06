@@ -34,7 +34,7 @@ public class AuroraOps  {
             if (s != null) {
                 deviceId = Integer.parseInt(s);
             }
-            File f = Loader.cacheResource(Loader.getPlatform() + (LOAD_SHARED_LIBRARY ? "/libnd4jaurora.so" : "/nd4jaurora"));
+            File f = Loader.cacheResource(Loader.getPlatform() + (LOAD_SHARED_LIBRARY ? "/aurora.so" : "/aurora"));
             f.setExecutable(true);
             veobin = f.getAbsolutePath();
             setDevice(deviceId);
@@ -45,42 +45,91 @@ public class AuroraOps  {
         }
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns an integer.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public int callInt(String symname, Object... args) {
-        int i = (int)(long)call(symname, args);
+        int i = (int) (long)call(symname, args);
         log.debug("return int " + i);
         return i;
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns a long.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public long callLong(String symname, Object... args) {
         long l = (long)call(symname, args);
         log.debug("return long " + l);
         return l;
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns an integer.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public float callFloat(String symname, Object... args) {
         float f = Float.intBitsToFloat((int)((long)call(symname, args) >> 32));
         log.debug("return float " + f);
         return f;
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns a double.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public double callDouble(String symname, Object... args) {
         double d = Double.longBitsToDouble((long)call(symname, args));
         log.debug("return double " + d);
         return d;
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns a boolean.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public boolean callBoolean(String symname, Object... args) {
         boolean b = (long)call(symname, args) != 0;
         log.debug("return boolean " + b);
         return b;
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns a character.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public char callChar(String symname, Object... args) {
         char c = (char)(long)call(symname, args);
         log.debug("return char " + c);
         return c;
     }
 
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns a pointer.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public Pointer callPointer(String symname, Object... args) {
         Pointer p = new PagedPointer((long)call(symname, args));
         if (p.isNull()) {
@@ -90,6 +139,14 @@ public class AuroraOps  {
         return p;
     }
 
+
+    /**
+     * Invokes a function on the aurora device with the given arguments
+     * and returns a string.
+     * @param symname the function name
+     * @param args the arguments to invoke with
+     * @return
+     */
     public synchronized String callString(String symname, Object... args) {
         BytePointer dst = new BytePointer(64 * 1024);
         long src = callLong(symname, args);
@@ -283,6 +340,11 @@ public class AuroraOps  {
         return retval[0];
     }
 
+    /**
+     * Sets the device for use with aurora
+     * @param deviceId the device id to use
+     * @return
+     */
     public synchronized int setDevice(int deviceId) {
         this.deviceId = deviceId;
         if (ctx != null) {
@@ -309,6 +371,13 @@ public class AuroraOps  {
         return deviceId;
     }
 
+    /**
+     * Mallocs memory on the device
+     * @param memorySize the memory size of malloc
+     * @param deviceId the device id to use
+     * @param flags the flags for the device
+     * @return
+     */
     public synchronized Pointer mallocDevice(long memorySize, int deviceId, int flags) {
         log.debug("mallocDevice(" + memorySize + ")");
         long[] addr = {0};
@@ -321,6 +390,12 @@ public class AuroraOps  {
         return p;
     }
 
+    /**
+     * Frees memory on the device
+     * @param p the memory to free
+     * @param deviceId the device id to free on
+     * @return
+     */
     public synchronized int freeDevice(Pointer p, int deviceId) {
         log.debug("freeDevice(" + p + ")");
         int i = veo_free_mem(proc, p.address());
@@ -366,190 +441,7 @@ public class AuroraOps  {
         return i;
     }
 
- /*   @Override
-    public void setElementThreshold(int arg0) {
-        call("setElementThreshold", arg0);
-    }
-
-    @Override
-    public void setTADThreshold(int arg0) {
-        call("setTADThreshold", arg0);
-    }
-
-    @Override
-    public void execIndexReduceScalar(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8) {
-        call("execIndexReduceScalar", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execIndexReduce(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execIndexReduce", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execBroadcast(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, OpaqueDataBuffer arg11, LongPointer arg12, LongPointer arg13) {
-        call("execBroadcast", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
-    }
-
-    @Override
-    public void execBroadcastBool(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11, OpaqueDataBuffer arg12, LongPointer arg13, LongPointer arg14) {
-        call("execBroadcastBool", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
-    }
-
-    @Override
-    public void execPairwiseTransform(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11) {
-        call("execPairwiseTransform", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execPairwiseTransformBool(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11) {
-        call("execPairwiseTransformBool", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduceFloat(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8) {
-        call("execReduceFloat", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execReduceSame(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8) {
-        call("execReduceSame", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execReduceBool(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8) {
-        call("execReduceBool", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execReduceLong(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8) {
-        call("execReduceLong", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execReduceFloat2(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execReduceFloat2", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduceSame2(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execReduceSame2", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduceBool2(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execReduceBool2", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduceLong2(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execReduceLong2", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduce3(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execReduce3", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduce3Scalar(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11) {
-        call("execReduce3Scalar", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execReduce3Tad(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11, OpaqueDataBuffer arg12, LongPointer arg13, LongPointer arg14, LongPointer arg15, LongPointer arg16, LongPointer arg17, LongPointer arg18) {
-        call("execReduce3Tad", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18);
-    }
-
-    @Override
-    public void execReduce3All(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11, OpaqueDataBuffer arg12, LongPointer arg13, LongPointer arg14, LongPointer arg15, LongPointer arg16, LongPointer arg17, LongPointer arg18) {
-        call("execReduce3All", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18);
-    }
-
-    @Override
-    public void execScalar(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11) {
-        call("execScalar", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execScalarBool(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11) {
-        call("execScalarBool", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
-    }
-
-    @Override
-    public void execSummaryStatsScalar(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, boolean arg9) {
-        call("execSummaryStatsScalar", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-    }
-
-    @Override
-    public void execSummaryStats(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, boolean arg9) {
-        call("execSummaryStats", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-    }
-
-    @Override
-    public void execSummaryStatsTad(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, Pointer arg5, OpaqueDataBuffer arg6, LongPointer arg7, LongPointer arg8, OpaqueDataBuffer arg9, LongPointer arg10, LongPointer arg11, boolean arg12, LongPointer arg13, LongPointer arg14) {
-        call("execSummaryStatsTad", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
-    }
-
-    @Override
-    public void execTransformFloat(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, Pointer arg8) {
-        call("execTransformFloat", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execTransformSame(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, Pointer arg8) {
-        call("execTransformSame", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execTransformStrict(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, Pointer arg8) {
-        call("execTransformStrict", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execTransformBool(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, Pointer arg8) {
-        call("execTransformBool", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execTransformAny(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, Pointer arg8) {
-        call("execTransformAny", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public void execScalarTad(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11, OpaqueDataBuffer arg12, LongPointer arg13, LongPointer arg14, LongPointer arg15, LongPointer arg16, LongPointer arg17, LongPointer arg18) {
-        call("execScalarTad", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18);
-    }
-
-    @Override
-    public void execScalarBoolTad(PointerPointer arg0, int arg1, OpaqueDataBuffer arg2, LongPointer arg3, LongPointer arg4, OpaqueDataBuffer arg5, LongPointer arg6, LongPointer arg7, OpaqueDataBuffer arg8, LongPointer arg9, LongPointer arg10, Pointer arg11, OpaqueDataBuffer arg12, LongPointer arg13, LongPointer arg14, LongPointer arg15, LongPointer arg16, LongPointer arg17, LongPointer arg18) {
-        call("execScalarBoolTad", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18);
-    }
-
-    @Override
-    public void specialConcat(PointerPointer arg0, int arg1, int arg2, PointerPointer arg3, PointerPointer arg4, Pointer arg5, LongPointer arg6, PointerPointer arg7, PointerPointer arg8) {
-        call("specialConcat", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    @Override
-    public int ompGetMaxThreads() {
-        return callInt("ompGetMaxThreads");
-    }
-
-    @Override
-    public int ompGetNumThreads() {
-        return callInt("ompGetNumThreads");
-    }
-
-    @Override
-    public void setOmpNumThreads(int arg0) {
-        call("setOmpNumThreads", arg0);
-    }
-
-    @Override
-    public void setOmpMinThreads(int arg0) {
-        call("setOmpMinThreads", arg0);
-    }
+ /*
 
     @Override
     public void initializeDevicesAndFunctions() {

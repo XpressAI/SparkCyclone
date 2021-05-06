@@ -33,7 +33,7 @@ import org.bytedeco.javacpp.tools.*;
             link = "veo@.0",
             includepath = "/opt/nec/ve/veos/include/",
             linkpath = "/opt/nec/ve/veos/lib64/",
-            library = "jnind4jaurora",
+            library = "aurora",
             resource = {"aurora", "libaurora.so"}
         )
     },
