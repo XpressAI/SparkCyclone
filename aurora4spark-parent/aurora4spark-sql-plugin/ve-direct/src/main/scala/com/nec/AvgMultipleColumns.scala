@@ -13,7 +13,7 @@ object AvgMultipleColumns {
                        |    for (i = 0; i < n; i++) {
                        |        double sum = 0;
                        |        for(j = 0; j< m; j++){
-                       |           sum += a[(i*n) + j];
+                       |           sum += a[(i*m) + j];
                        |        }
                        |        b[i] = sum/m;
                        |    }
