@@ -38,6 +38,12 @@ List of currently supported and tested queries can be found [in this file](../FE
 
 Will upload the `.jar` file and the example `.py` file.
 
+To deploy without running unit tests:
+
+```
+> ; set assembly / test := {}; deploy
+```
+
 ### Faster testing over SSH (around 40%) & general log-in to any SSH server
 
 https://docs.rackspace.com/blog/speeding-up-ssh-session-creation/

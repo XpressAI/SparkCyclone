@@ -12,6 +12,8 @@ val slf4jVersion = "1.7.30"
 lazy val root = project
   .in(file("."))
   .configs(AcceptanceTest)
+  .dependsOn(`ve-direct`)
+
 lazy val example = project
   .dependsOn(root)
   .settings(
@@ -60,7 +62,12 @@ lazy val deploy = taskKey[Unit]("Deploy artifacts to a6")
 deploy := {
   val logger = streams.value.log
   import scala.sys.process._
-  val generatedFile = (Compile / packageBin).value
+
+  /**
+   * Because we use `assembly`, it runs unit tests as well. If you are iterating and want to just
+   * assemble without uploading, use: `set assembly / test := {}`
+   */
+  val generatedFile = assembly.value
   Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/") ! logger
   Seq("scp", generatedFile.toString, "a6:/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
   Seq(
@@ -78,8 +85,7 @@ lazy val `ve-direct` = project
   .configs(IntegrationTest)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc,it",
-      "me.shadaj" %% "scalapy-core" % "0.4.2",
+      "org.scalatest" %% "scalatest" % "3.2.7" % "test,it",
       "org.bytedeco" % "javacpp" % "1.5.5"
     ),
     IntegrationTest / managedResources := {

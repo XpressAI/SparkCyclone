@@ -19,6 +19,7 @@ if __name__ == "__main__":
         .builder \
         .appName("aurora4spark example") \
         .config("spark.sql.extensions", "com.nec.spark.LocalVeoExtension") \
+        .config("spark.sql.columnVector.offheap.enabled", "true") \
         .getOrCreate()
 
     basic_df_example(spark)
