@@ -31,8 +31,10 @@ object SumMultipleColumns {
     ret_type = None
   )
 
-  def sum_multiple_doubles(veJavaContext: VeJavaContext,
-                           inputs: List[List[Double]]): List[Double] = {
+  def sum_multiple_doubles(
+    veJavaContext: VeJavaContext,
+    inputs: List[List[Double]]
+  ): List[Double] = {
     import veJavaContext._
     val our_args = Aurora.veo_args_alloc()
     val inputFlattened = inputs.flatten
@@ -41,7 +43,13 @@ object SumMultipleColumns {
     val dataDoublePointerOut = new DoublePointer(inputs.map(_ => 0: Double): _*)
 
     Aurora.veo_args_set_stack(our_args, 0, 0, inputData.asByteBuffer(), 8 * inputFlattened.size)
-    Aurora.veo_args_set_stack(our_args, 1, 1, dataDoublePointerOut.asByteBuffer(), 8 * inputs.length)
+    Aurora.veo_args_set_stack(
+      our_args,
+      1,
+      1,
+      dataDoublePointerOut.asByteBuffer(),
+      8 * inputs.length
+    )
     Aurora.veo_args_set_i64(our_args, 2, inputs.length)
     Aurora.veo_args_set_i64(our_args, 3, inputs.head.length)
 

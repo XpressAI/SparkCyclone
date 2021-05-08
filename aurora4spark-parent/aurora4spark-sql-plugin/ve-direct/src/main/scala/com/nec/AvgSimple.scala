@@ -2,7 +2,8 @@ package com.nec
 
 import com.nec.VeFunction.StackArgument
 import com.nec.aurora.Aurora
-import org.bytedeco.javacpp.{DoublePointer, LongPointer}
+import org.bytedeco.javacpp.{DoublePointer, LongPointer, Pointer}
+import sun.nio.ch.DirectBuffer
 
 object AvgSimple {
   val C_Definition =
@@ -26,14 +27,36 @@ object AvgSimple {
   )
 
   def avg_doubles(veJavaContext: VeJavaContext, doubles: List[Double]): Double = {
+
+    /** Put in the raw data */
+    val dataDoublePointer = new DoublePointer(doubles: _*)
+
+    try avg_doubles_mem(
+      veJavaContext,
+      dataDoublePointer.asByteBuffer().asInstanceOf[DirectBuffer].address(),
+      doubles.length
+    )
+    finally dataDoublePointer.close()
+  }
+
+  class LocationPointer(_addr: Long, _count: Long) extends Pointer {
+    this.address = _addr
+    this.limit = _count
+    this.capacity = _count
+  }
+  def avg_doubles_mem(veJavaContext: VeJavaContext, memoryLocation: Long, count: Int): Double = {
     val our_args = Aurora.veo_args_alloc()
 
     import veJavaContext._
 
-    /** Put in the raw data */
-    val dataDoublePointer = new DoublePointer(doubles: _*)
-    Aurora.veo_args_set_stack(our_args, 0, 0, dataDoublePointer.asByteBuffer(), 8 * doubles.length)
-    Aurora.veo_args_set_i64(our_args, 1, doubles.length)
+    Aurora.veo_args_set_stack(
+      our_args,
+      0,
+      0,
+      new LocationPointer(memoryLocation, count).asByteBuffer(),
+      8 * count
+    )
+    Aurora.veo_args_set_i64(our_args, 1, count)
 
     /** Call */
     try {

@@ -1,17 +1,17 @@
 package com.nec.spark.agile
 
-import java.nio.file.Paths
+import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
 
-import com.nec.spark.agile.BigDecimalSummer.ScalaSummer
+import java.nio.file.Paths
 import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.LocalTableScanExec
+import org.apache.spark.sql.execution.{LocalTableScanExec, RowToColumnarExec}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 
 final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
@@ -398,6 +398,49 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     } finally sparkSession.close()
   }
 
+  "We extract data with RowToColumnarExec" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[Double](1, 2, 3, 4, Math.abs(scala.util.Random.nextInt() % 200))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        AveragingPlanner
+          .matchPlan(sparkPlan)
+          .map { childPlan =>
+            AveragingSparkPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              OffHeapDoubleAverager.UnsafeBased
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession.sql("SELECT AVG(value) FROM nums").as[Double]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().toList
+      info(listOfDoubles.toString())
+
+      val result = listOfDoubles.head
+      assert(result == nums.sum / nums.length)
+    } finally sparkSession.close()
+  }
   "We call VE with our Averaging plan" taggedAs
     AcceptanceTest in {
       markup("AVG()")
@@ -416,7 +459,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
         nums
           .toDS()
           .createOrReplaceTempView("nums")
-
+        SparkSqlPlanExtension.rulesToApply.clear()
         SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
           AveragingPlanner
             .matchPlan(sparkPlan)
