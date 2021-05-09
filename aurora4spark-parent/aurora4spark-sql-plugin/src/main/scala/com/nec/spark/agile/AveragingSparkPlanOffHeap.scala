@@ -1,7 +1,7 @@
 package com.nec.spark.agile
 
-import com.nec.VeDirectApp.compile_c
 import com.nec.aurora.Aurora
+import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.{AvgSimple, VeJavaContext}
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
 import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
@@ -40,17 +40,14 @@ object AveragingSparkPlanOffHeap {
     case class VeoBased(ve_so_name: String) extends OffHeapDoubleAverager {
       override def average(memoryLocation: Long, count: ColumnIndex): Double = {
         println(s"SO name: ${ve_so_name}")
-        val proc = Aurora.veo_proc_create(0)
-        println(s"Created proc = ${proc}")
+        println(s"Reusing proc = ${_veo_proc}")
+        val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(_veo_proc)
+        println(s"Created ctx = ${ctx}")
         try {
-          val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
-          println(s"Created ctx = ${ctx}")
-          try {
-            val lib: Long = Aurora.veo_load_library(proc, ve_so_name)
-            val vej = new VeJavaContext(ctx, lib)
-            AvgSimple.avg_doubles_mem(vej, memoryLocation, count)
-          } finally Aurora.veo_context_close(ctx)
-        } finally Aurora.veo_proc_destroy(proc)
+          val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name)
+          val vej = new VeJavaContext(ctx, lib)
+          AvgSimple.avg_doubles_mem(vej, memoryLocation, count)
+        } finally Aurora.veo_context_close(ctx)
       }
     }
   }

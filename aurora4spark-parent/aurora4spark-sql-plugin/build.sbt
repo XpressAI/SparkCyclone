@@ -67,9 +67,14 @@ deploy := {
    * Because we use `assembly`, it runs unit tests as well. If you are iterating and want to just
    * assemble without uploading, use: `set assembly / test := {}`
    */
+  logger.info("Preparing deployment: assembling.")
   val generatedFile = assembly.value
+  logger.info(s"Assembled file: ${generatedFile}")
   Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
+  logger.info(s"Uploading JAR")
   Seq("scp", generatedFile.toString, "a6:/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
+  logger.info(s"Uploaded JAR")
+
   Seq(
     "scp",
     "-r",
