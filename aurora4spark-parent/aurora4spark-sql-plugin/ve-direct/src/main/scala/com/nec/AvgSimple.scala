@@ -39,11 +39,6 @@ object AvgSimple {
     finally dataDoublePointer.close()
   }
 
-  class LocationPointer(_addr: Long, _count: Long) extends Pointer {
-    this.address = _addr
-    this.limit = _count
-    this.capacity = _count
-  }
   def avg_doubles_mem(veJavaContext: VeJavaContext, memoryLocation: Long, count: Int): Double = {
     val our_args = Aurora.veo_args_alloc()
 
