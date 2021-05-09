@@ -10,7 +10,12 @@ Spark Plugin development documentation: [aurora4spark-parent/README.md](aurora4s
 $ source /opt/nec/ve/nlc/2.1.0/bin/nlcvars.sh
 $ export PATH=/opt/nec/ve/bin/:$PATH
 $ /opt/spark/bin/spark-submit \
-    --name Example \
+    --name AveragingExample \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/example-avg.py
+    /opt/aurora4spark/examples/example-avg.py
+$ /opt/spark/bin/spark-submit \
+    --name PairwiseSumExample \
+    --master 'local[4]' \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-sum-pairwise.py
 ```

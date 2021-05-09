@@ -441,6 +441,46 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
       assert(result == nums.sum / nums.length)
     } finally sparkSession.close()
   }
+  "We Pairwise-sum off the heap" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[(Double, Double)]((1, 2), (4, 6), (10, 20))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        SumPlanExtractor
+          .matchSumChildPlan(sparkPlan)
+          .map { childPlan =>
+            PairwiseSummingPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              PairwiseSummingPlanOffHeap.OffHeapPairwiseSummer.UnsafeBased
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession.sql("SELECT SUM(nums._1 + nums._2) FROM nums").as[Double]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().toList
+      assert(listOfDoubles == List(3, 10, 30))
+    } finally sparkSession.close()
+  }
   "We call VE with our Averaging plan" taggedAs
     AcceptanceTest in {
       markup("AVG()")
