@@ -68,12 +68,13 @@ deploy := {
    * assemble without uploading, use: `set assembly / test := {}`
    */
   val generatedFile = assembly.value
-  Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/") ! logger
+  Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
   Seq("scp", generatedFile.toString, "a6:/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
   Seq(
     "scp",
-    (baseDirectory.value / ".." / ".." / "examples" / "example-avg.py").getAbsolutePath,
-    "a6:/opt/aurora4spark/example-avg.py"
+    "-r",
+    (baseDirectory.value / ".." / ".." / "examples").getAbsolutePath,
+    "a6:/opt/aurora4spark/"
   ) ! logger
 }
 
