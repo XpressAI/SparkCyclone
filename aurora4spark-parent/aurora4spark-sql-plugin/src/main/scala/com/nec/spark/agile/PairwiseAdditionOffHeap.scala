@@ -5,6 +5,7 @@ import com.nec.aurora.Aurora
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}

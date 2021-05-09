@@ -1,15 +1,9 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
-import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 
 import java.nio.file.Paths
-import com.nec.spark.{
-  AcceptanceTest,
-  Aurora4SparkDriver,
-  Aurora4SparkExecutorPlugin,
-  AuroraSqlPlugin
-}
+import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
@@ -495,6 +489,48 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
       assert(listOfDoubles == List(3, 5, 7, 9, 58))
     } finally sparkSession.close()
   }
+
+  "We can sum multiple columns off the heap" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[(Double, Double)]((1, 2), (4, 6), (10, 20))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        SumPlanExtractor
+          .matchSumChildPlan(sparkPlan)
+          .map { childPlan =>
+            SummingPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              SummingPlanOffHeap.OffHeapSummer.UnsafeBased
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession.sql("SELECT SUM(nums._1 + nums._2) FROM nums").as[Double]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().head
+      assert(listOfDoubles == 43.0)
+    } finally sparkSession.close()
+  }
+
   "We call VE with our Averaging plan" taggedAs
     AcceptanceTest in {
       markup("AVG()")

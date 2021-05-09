@@ -30,9 +30,9 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
                 SumPlanExtractor
                   .matchSumChildPlan(sparkPlan)
                   .map { childPlan =>
-                    PairwiseAdditionOffHeap(
+                    SummingPlanOffHeap(
                       RowToColumnarExec(childPlan.sparkPlan),
-                      PairwiseAdditionOffHeap.OffHeapPairwiseSummer.VeoBased(ve_so_name)
+                      SummingPlanOffHeap.OffHeapSummer.VeoBased(ve_so_name)
                     )
                   }
               }

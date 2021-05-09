@@ -3,6 +3,7 @@ package com.nec
 import com.nec.VeFunction.StackArgument
 import com.nec.aurora.Aurora
 import org.bytedeco.javacpp.{DoublePointer, LongPointer}
+import sun.nio.ch.DirectBuffer
 
 object SumSimple {
   val C_Definition =
@@ -25,16 +26,32 @@ object SumSimple {
     ret_type = Some("'int'")
   )
 
-  /** Leaky - todo deallocate */
   def sum_doubles(veJavaContext: VeJavaContext, doubles: List[Double]): Double = {
+
+    val dataDoublePointer = new DoublePointer(doubles: _*)
+
+    try sum_doubles_memory(
+      veJavaContext,
+      dataDoublePointer.asByteBuffer().asInstanceOf[DirectBuffer].address(),
+      doubles.length
+    ) finally dataDoublePointer.close()
+  }
+
+  def sum_doubles_memory(veJavaContext: VeJavaContext,
+                         numbersMemoryAddress: Long,
+                         count: Int): Double = {
     val our_args = Aurora.veo_args_alloc()
 
     import veJavaContext._
 
-    /** Put in the raw data */
-    val dataDoublePointer = new DoublePointer(doubles: _*)
-    Aurora.veo_args_set_stack(our_args, 0, 0, dataDoublePointer.asByteBuffer(), 8 * doubles.length)
-    Aurora.veo_args_set_i64(our_args, 1, doubles.length)
+    Aurora.veo_args_set_stack(
+      our_args,
+      0,
+      0,
+      new LocationPointer(numbersMemoryAddress, count).asByteBuffer(),
+      8 * count
+    )
+    Aurora.veo_args_set_i64(our_args, 1, count)
 
     /** Call */
     try {
