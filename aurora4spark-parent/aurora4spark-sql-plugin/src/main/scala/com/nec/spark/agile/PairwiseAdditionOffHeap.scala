@@ -2,7 +2,8 @@ package com.nec.spark.agile
 
 import com.nec.{SumPairwise, VeJavaContext}
 import com.nec.aurora.Aurora
-import com.nec.spark.agile.PairwiseSummingPlanOffHeap.OffHeapPairwiseSummer
+import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
+import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -13,7 +14,7 @@ import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 
-object PairwiseSummingPlanOffHeap {
+object PairwiseAdditionOffHeap {
 
   trait OffHeapPairwiseSummer extends Serializable {
     def sum(memoryLocationA: Long, memoryLocationB: Long, memoryLocationOut: Long, count: Int): Unit
@@ -52,30 +53,27 @@ object PairwiseSummingPlanOffHeap {
         count: Int
       ): Unit = {
         println(s"SO name: ${ve_so_name}")
-        val proc = Aurora.veo_proc_create(0)
-        println(s"Created proc = ${proc}")
+        println(s"Reusing proc = ${_veo_proc}")
+        val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(_veo_proc)
         try {
-          val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
           println(s"Created ctx = ${ctx}")
-          try {
-            val lib: Long = Aurora.veo_load_library(proc, ve_so_name)
-            println(s"Loaded lib = ${lib}")
-            val vej = new VeJavaContext(ctx, lib)
-            SumPairwise.pairwise_sum_doubles_mem(
-              vej,
-              memoryLocationA,
-              memoryLocationB,
-              memoryLocationOut,
-              count
-            )
-          } finally Aurora.veo_context_close(ctx)
-        } finally Aurora.veo_proc_destroy(proc)
+          val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name)
+          println(s"Loaded lib = ${lib}")
+          val vej = new VeJavaContext(ctx, lib)
+          SumPairwise.pairwise_sum_doubles_mem(
+            vej,
+            memoryLocationA,
+            memoryLocationB,
+            memoryLocationOut,
+            count
+          )
+        } finally Aurora.veo_context_close(ctx)
       }
     }
   }
 
 }
-case class PairwiseSummingPlanOffHeap(child: RowToColumnarExec, summer: OffHeapPairwiseSummer)
+case class PairwiseAdditionOffHeap(child: RowToColumnarExec, summer: OffHeapPairwiseSummer)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true

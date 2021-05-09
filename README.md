@@ -14,8 +14,7 @@ $ /opt/spark/bin/spark-submit \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-avg.py
 $ /opt/spark/bin/spark-submit \
-    --name PairwiseSumExample \
-    --master 'local[4]' \
+    --name PairwiseAddExample \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-sum-pairwise.py
+    /opt/aurora4spark/examples/example-add-pairwise.py
 ```

@@ -1,9 +1,15 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 
 import java.nio.file.Paths
-import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
+import com.nec.spark.{
+  AcceptanceTest,
+  Aurora4SparkDriver,
+  Aurora4SparkExecutorPlugin,
+  AuroraSqlPlugin
+}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
@@ -14,7 +20,7 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 
-final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
+final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
   override protected def beforeAll(): Unit = {
     val rootLogger = Logger.getRootLogger
@@ -46,7 +52,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
-    conf.set("spark.plugins", classOf[SqlPlugin].getName)
+    conf.set("spark.plugins", classOf[AuroraSqlPlugin].getName)
     val sparkContext = new SparkContext(conf)
     try {
       assert(Aurora4SparkDriver.launched, "Expect the driver to have been launched")
@@ -61,7 +67,7 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
-    conf.set("spark.plugins", classOf[SqlPlugin].getName)
+    conf.set("spark.plugins", classOf[AuroraSqlPlugin].getName)
     val sparkContext = new SparkContext(conf)
     try {
       assert(
@@ -452,33 +458,41 @@ final class SqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with Before
     try {
       import sparkSession.implicits._
 
-      val nums = List[(Double, Double)]((1, 2), (4, 6), (10, 20))
-
       SparkSqlPlanExtension.rulesToApply.clear()
 
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-        SumPlanExtractor
-          .matchSumChildPlan(sparkPlan)
-          .map { childPlan =>
-            PairwiseSummingPlanOffHeap(
-              RowToColumnarExec(childPlan.sparkPlan),
-              PairwiseSummingPlanOffHeap.OffHeapPairwiseSummer.UnsafeBased
-            )
-          }
-          .getOrElse(fail("Not expected to be here"))
+        AddPlanExtractor
+          .matchAddPairwisePlan(sparkPlan, OffHeapPairwiseSummer.UnsafeBased)
+          .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
       }
 
-      val sumDataSet =
-        sparkSession.sql("SELECT SUM(nums._1 + nums._2) FROM nums").as[Double]
+      val csvSchema = StructType(
+        Seq(
+          StructField("a", DoubleType, nullable = false),
+          StructField("b", DoubleType, nullable = false)
+        )
+      )
+      val sumDataSet2 = sparkSession.read
+        .format("csv")
+        .schema(csvSchema)
+        .load(
+          Paths
+            .get(
+              this.getClass
+                .getResource("/sampleMultiColumn.csv")
+                .toURI
+            )
+            .toAbsolutePath
+            .toString
+        )
+        .as[(Double, Double)]
+        .selectExpr("a + b")
+        .as[Double]
 
-      sumDataSet.explain(true)
+      sumDataSet2.explain(true)
 
-      val listOfDoubles = sumDataSet.collect().toList
-      assert(listOfDoubles == List(3, 10, 30))
+      val listOfDoubles = sumDataSet2.collect().toList
+      assert(listOfDoubles == List(3, 5, 7, 9, 58))
     } finally sparkSession.close()
   }
   "We call VE with our Averaging plan" taggedAs

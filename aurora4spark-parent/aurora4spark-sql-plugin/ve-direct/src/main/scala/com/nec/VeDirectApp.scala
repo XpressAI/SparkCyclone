@@ -7,9 +7,10 @@ import java.nio.file.{Files, Paths}
 object VeDirectApp {
 
   def compile_c(): String = {
+    val compilationPrefix = "_spark"
     val buildDir = Paths.get("_ve_build").toAbsolutePath
     if (!Files.exists(buildDir)) Files.createDirectory(buildDir)
-    val cSource = buildDir.resolve("_sum.c")
+    val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
     Files.write(
       cSource,
@@ -19,8 +20,8 @@ object VeDirectApp {
        ${SumMultipleColumns.C_Definition} ${AvgMultipleColumns.C_Definition}
        """.getBytes("UTF-8")
     )
-    val oFile = buildDir.resolve("_sum.o")
-    val soFile = buildDir.resolve("_sum.so")
+    val oFile = buildDir.resolve(s"${compilationPrefix}.o")
+    val soFile = buildDir.resolve(s"${compilationPrefix}.so")
     import scala.sys.process._
     Seq(
       "ncc",
