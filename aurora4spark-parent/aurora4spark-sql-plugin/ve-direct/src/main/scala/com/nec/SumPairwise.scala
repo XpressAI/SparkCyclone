@@ -1,6 +1,5 @@
 package com.nec
 
-import com.nec.AvgSimple.LocationPointer
 import com.nec.VeFunction.StackArgument
 import com.nec.aurora.Aurora
 import org.bytedeco.javacpp.{DoublePointer, LongPointer}
