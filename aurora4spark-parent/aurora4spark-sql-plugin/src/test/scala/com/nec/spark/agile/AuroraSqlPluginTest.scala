@@ -441,6 +441,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
       assert(result == nums.sum / nums.length)
     } finally sparkSession.close()
   }
+
   "We Pairwise-sum off the heap" in {
     val conf = new SparkConf()
     conf.setMaster("local")
@@ -531,7 +532,51 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     } finally sparkSession.close()
   }
 
-  "We can sum a single plugin off the heap" in {
+  "We can sum multiple columns separately off the heap" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[(Double, Double, Double)]((1, 2, 3), (4, 6, 7), (10, 20, 30))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        VeoSumPlanExtractor
+          .matchSumChildPlan(sparkPlan)
+          .map { childPlan =>
+            MultipleColumnsSummingPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
+              childPlan.attributes
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession
+          .sql("SELECT SUM(nums._1), SUM(nums._2), SUM(nums._3) FROM nums")
+          .as[(Double, Double, Double)]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().head
+      assert(listOfDoubles == (15.0, 28.0, 40.0))
+    } finally sparkSession.close()
+  }
+
+  "We can sum a single column off the heap" in {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.set("spark.ui.enabled", "false")
