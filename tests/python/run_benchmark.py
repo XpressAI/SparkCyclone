@@ -20,6 +20,7 @@ def arguments():
     args.add_argument('-sl','--storageLevel', type=str, default='11001', help='Set Storage Level')
     args.add_argument('-t','--type', type=str, default='groupbyagg', help='Set Benchmark Type', choices=['groupbyagg','repart','innerjoin','broadinnerjoin', 'column'])
     args.add_argument('-n','--ntest', type=int, default=5, help='Number of Tests')
+    args.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
 
     return args.parse_args()
 
@@ -132,47 +133,34 @@ def broadcast_innerjoin_benchmark(df, log, spark, ntest=5):
     res.append(avg)
     return [tuple(res)]
     
-def column_benchmark(df, log, spark, ntest=5):
+def column_benchmark(df, log, spark, ntest=5, ops=None):
     res = []
+    dicts = {**operations, **aggregate}
+    ops = dicts.keys() if ops is None else ops
     
     log.info("="*64)
-    log.info('Starting Benchmark for column_benchmark()')
+    log.info(f'Starting Benchmark for column_benchmark() : {str(ops)}')
 
-    for key in operations:
-        col_op = [key]
+    for op in ops:
+        col_op = [op]
 
-        for i in range(ntest):
-            spark.sparkContext.setLocalProperty('callSite.short', f'{key}_benchmark_test_{i}')
-            start_time = timer()
-            df = operations[key](df)
-            time_taken = timer() - start_time
-            log.info(f'Running {key}_benchmark_test_{i} = {time_taken}')
-            col_op.append(time_taken)
+        try:
+            for i in range(ntest):
+                spark.sparkContext.setLocalProperty('callSite.short', f'{op}_benchmark_test_{i}')
+                start_time = timer()
+                new_df = dicts[op](df)
+                time_taken = timer() - start_time
+                log.info(f'Running {op}_benchmark_test_{i} = {time_taken}')
+                col_op.append(time_taken)
 
-        avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (ntest-2)
-        log.info(f'Avg for {key}_benchmark_test = {avg}')
+            avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (ntest-2)
+            log.info(f'Avg for {op}_benchmark_test = {avg}')
 
-        col_op.append(avg)
-        res.append(tuple(col_op))
-    
-    for key in aggregate:
-        col_op = [key]
-        time = 0
-        count = 0
+            col_op.append(avg)
+            res.append(tuple(col_op))
 
-        for i in range(ntest):
-            spark.sparkContext.setLocalProperty('callSite.short', f'{key}_benchmark_test_{i}')
-            start_time = timer()
-            df_agg = aggregate[key](df)
-            time_taken = timer() - start_time
-            log.info(f'Running {key}_benchmark_test_{i} = {time_taken}')
-            col_op.append(time_taken)
-
-        avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (ntest-2)
-        log.info(f'Avg for {key}_benchmark_test = {avg}')
-
-        col_op.append(avg)
-        res.append(tuple(col_op))
+        except Exception as e:
+            log.info(f'Error {str(e)}. Skipping operation {op}')
     
     log.info("="*64)
 
@@ -237,7 +225,7 @@ def main(args):
         result = broadcast_innerjoin_benchmark(df, log, spark, args.ntest)
 
     elif(args.type == 'column'):
-        result = column_benchmark(df, log, spark, args.ntest)
+        result = column_benchmark(df, log, spark, args.ntest, args.list)
 
     spark.sparkContext.setLocalProperty('callSite.short', callSiteShortOrig)
     
