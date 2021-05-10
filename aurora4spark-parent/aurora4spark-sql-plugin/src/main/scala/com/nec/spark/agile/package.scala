@@ -7,6 +7,8 @@ import org.apache.spark.sql.types.{DataType, DoubleType}
 package object agile {
   case class AttributeName(value: String) extends AnyVal
   case class SparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[Seq[AttributeName]])
+  case class VeoSparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[Seq[ColumnIndex]])
+
   type ColumnIndex = Int
   type ColumnWithNumbers = (ColumnIndex, Iterable[Double])
 

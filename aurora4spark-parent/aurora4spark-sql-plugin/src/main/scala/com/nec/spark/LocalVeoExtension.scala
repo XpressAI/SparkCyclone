@@ -3,6 +3,8 @@ package com.nec.spark
 import com.nec.VeDirectApp.compile_c
 import com.nec.spark.LocalVeoExtension.ve_so_name
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import com.nec.spark.agile.{AveragingPlanner, AveragingSparkPlanOffHeap, SumPlanExtractor, MultipleColumnsSummingPlanOffHeap, VeoSumPlanExtractor}
+
 import com.nec.spark.agile._
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
@@ -27,12 +29,13 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
                 )
               }
               .orElse {
-                SumPlanExtractor
+                VeoSumPlanExtractor
                   .matchSumChildPlan(sparkPlan)
                   .map { childPlan =>
-                    SummingPlanOffHeap(
+                    MultipleColumnsSummingPlanOffHeap(
                       RowToColumnarExec(childPlan.sparkPlan),
-                      SummingPlanOffHeap.OffHeapSummer.VeoBased(ve_so_name)
+                      MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.VeoBased(ve_so_name),
+                      childPlan.attributes
                     )
                   }
               }
