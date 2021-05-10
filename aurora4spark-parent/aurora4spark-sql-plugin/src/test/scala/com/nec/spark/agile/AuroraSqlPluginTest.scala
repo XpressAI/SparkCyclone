@@ -44,7 +44,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     } finally sparkContext.stop()
   }
 
-  "It is launched if specified" in {
+  "It is launched if specified" ignore {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
@@ -59,7 +59,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     } finally sparkContext.stop()
   }
 
-  "It properly passes aruments to spark executor plugin" in {
+  "It properly passes aruments to spark executor plugin" ignore {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
