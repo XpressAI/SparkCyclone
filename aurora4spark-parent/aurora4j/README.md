@@ -42,3 +42,18 @@ don't happen as often.
 
 A basic example that can be replicated using aurora4j can be found [here](https://www.hpc.nec/documents/veos/en/veoffload/md_GettingStarted.html)
 
+
+
+Please follow the documentation [here](https://www.hpc.nec/documents/veos/en/aveo/group__veoapi.html)
+for a comprehensive overview of the aurora api.
+
+In order to make the examples as close as possible to the c++, you may use static imports in the form of:
+```java
+import static com.nec.aurora.Aurora.*;
+```
+
+This is what the AuroraOps class does. [AuroraOps](./src/main/java/com/nec/aurora/AuroraOps.java)
+contains utility classes for interacting with ve_offload. This is the main interaction point between the host
+and a vector engine device.
+
+
