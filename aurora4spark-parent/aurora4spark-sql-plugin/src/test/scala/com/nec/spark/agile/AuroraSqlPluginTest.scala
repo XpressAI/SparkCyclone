@@ -1,18 +1,20 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
-
 import java.nio.file.Paths
-import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SqlPlugin}
+
+import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
+import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import org.apache.log4j.{Level, Logger}
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
-import org.apache.spark.{SparkConf, SparkContext}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.{LocalTableScanExec, RowToColumnarExec}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.{LocalTableScanExec, RowToColumnarExec}
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
+import org.apache.spark.{SparkConf, SparkContext}
 
 final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
 
@@ -511,12 +513,13 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
         .createOrReplaceTempView("nums")
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-        SumPlanExtractor
+        VeoSumPlanExtractor
           .matchSumChildPlan(sparkPlan)
           .map { childPlan =>
-            SummingPlanOffHeap(
+            MultipleColumnsSummingPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
-              SummingPlanOffHeap.OffHeapSummer.UnsafeBased
+              MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
+              childPlan.attributes
             )
           }
           .getOrElse(fail("Not expected to be here"))
@@ -596,12 +599,13 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
         .createOrReplaceTempView("nums")
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-        SumPlanExtractor
+        VeoSumPlanExtractor
           .matchSumChildPlan(sparkPlan)
           .map { childPlan =>
-            SummingPlanOffHeap(
+            MultipleColumnsSummingPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
-              SummingPlanOffHeap.OffHeapSummer.UnsafeBased
+              MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
+              childPlan.attributes
             )
           }
           .getOrElse(fail("Not expected to be here"))
@@ -614,6 +618,51 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
       val listOfDoubles = sumDataSet.collect().head
       assert(listOfDoubles == 15.0)
+    } finally sparkSession.close()
+  }
+
+  "We can sum off heap" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[Double](1, 2, 3, 4, Math.abs(scala.util.Random.nextInt() % 200))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        VeoSumPlanExtractor
+          .matchSumChildPlan(sparkPlan)
+          .map { childPlan =>
+            MultipleColumnsSummingPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
+              childPlan.attributes
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession.sql("SELECT SUM(value) FROM nums").as[Double]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().toList
+      info(listOfDoubles.toString())
+
+      val result = listOfDoubles.head
+      assert(result == nums.sum)
     } finally sparkSession.close()
   }
 
