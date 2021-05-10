@@ -50,11 +50,7 @@ object SummingPlanOffHeap {
             val lib: Long = Aurora.veo_load_library(proc, ve_so_name)
             println(s"Loaded lib = ${lib}")
             val vej = new VeJavaContext(ctx, lib)
-            SumSimple.sum_doubles_memory(
-              vej,
-              inputMemoryAddress,
-              count
-            )
+            SumSimple.sum_doubles_memory(vej, inputMemoryAddress, count)
           } finally Aurora.veo_context_close(ctx)
         } finally Aurora.veo_proc_destroy(proc)
       }
@@ -63,8 +59,7 @@ object SummingPlanOffHeap {
   }
 }
 
-case class SummingPlanOffHeap(child: RowToColumnarExec, summer: OffHeapSummer)
-  extends SparkPlan {
+case class SummingPlanOffHeap(child: RowToColumnarExec, summer: OffHeapSummer) extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
@@ -72,16 +67,17 @@ case class SummingPlanOffHeap(child: RowToColumnarExec, summer: OffHeapSummer)
     child
       .doExecuteColumnar()
       .map { columnarBatch =>
-        List.range(0, columnarBatch.numCols())
+        List
+          .range(0, columnarBatch.numCols())
           .map(columnIndex => {
             columnarBatch.column(columnIndex).asInstanceOf[OffHeapColumnVector]
           })
-          .map(theCol => summer.sum(theCol.valuesNativeAddress(), columnarBatch.numRows())
-          ).sum
+          .map(theCol => summer.sum(theCol.valuesNativeAddress(), columnarBatch.numRows()))
+          .sum
 
       }
       .coalesce(1)
-      .mapPartitions( its => {
+      .mapPartitions(its => {
         val sum = its.toList.sum
         val vector = new OnHeapColumnVector(1, DoubleType)
         vector.putDouble(0, sum)

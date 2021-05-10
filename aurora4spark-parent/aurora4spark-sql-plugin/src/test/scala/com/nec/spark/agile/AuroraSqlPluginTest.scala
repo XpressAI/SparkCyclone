@@ -4,7 +4,12 @@ import java.nio.file.Paths
 
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.{
+  AcceptanceTest,
+  Aurora4SparkDriver,
+  Aurora4SparkExecutorPlugin,
+  AuroraSqlPlugin
+}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
