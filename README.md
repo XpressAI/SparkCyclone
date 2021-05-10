@@ -22,5 +22,9 @@ $ /opt/spark/bin/spark-submit \
     --master 'local[4]' \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-sum.py
-    
+$ /opt/spark/bin/spark-submit \
+    --name PairwiseSumExample \
+    --master 'local[4]' \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-sum-multiple.py
 ```

@@ -6,6 +6,7 @@ def basic_df_example(spark):
     schema = StructType([
         StructField('_1', DoubleType(), False),
         StructField('_2', DoubleType(), False),
+        StructField('_3', DoubleType(), False),
     ])
     newDF = spark \
         .read \
