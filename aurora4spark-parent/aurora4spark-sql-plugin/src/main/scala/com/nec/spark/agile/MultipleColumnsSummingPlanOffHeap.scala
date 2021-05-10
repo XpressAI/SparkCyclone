@@ -58,9 +58,11 @@ object MultipleColumnsSummingPlanOffHeap {
   }
 }
 
-case class MultipleColumnsSummingPlanOffHeap(child: RowToColumnarExec,
-                                             summer: MultipleColumnsOffHeapSummer,
-                                             attributesMapping: Seq[Seq[Int]]) extends SparkPlan {
+case class MultipleColumnsSummingPlanOffHeap(
+  child: RowToColumnarExec,
+  summer: MultipleColumnsOffHeapSummer,
+  attributesMapping: Seq[Seq[Int]]
+) extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
@@ -68,42 +70,38 @@ case class MultipleColumnsSummingPlanOffHeap(child: RowToColumnarExec,
     child
       .doExecuteColumnar()
       .map { columnarBatch =>
-        val columns = attributesMapping.zipWithIndex.map {
-          case (mappings, idx) => mappings.map(colIndex =>
+        val columns = attributesMapping.zipWithIndex.map { case (mappings, idx) =>
+          mappings.map(colIndex =>
             (idx, columnarBatch.column(colIndex).asInstanceOf[OffHeapColumnVector])
           )
         }
 
-        columns.flatten.map{
-          case (columnIndex, vector) =>
-            (columnIndex, summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
+        columns.flatten.map { case (columnIndex, vector) =>
+          (columnIndex, summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
         }
       }
       .coalesce(1)
       .mapPartitions(its => {
-        val elementsSum = its
-          .toList
-          .flatten
+        val elementsSum = its.toList.flatten
           .groupBy(_._1)
-          .map {
-            case (columnIndex, elements) => (columnIndex, elements.map(_._2).sum)
-          }.toSeq
-          .sortBy(_._1)   //Not entirely sure if we need to do this.
+          .map { case (columnIndex, elements) =>
+            (columnIndex, elements.map(_._2).sum)
+          }
+          .toSeq
+          .sortBy(_._1) //Not entirely sure if we need to do this.
 
+        val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
 
-        val vectors = elementsSum.map(_  => new OnHeapColumnVector(1, DoubleType))
-
-        elementsSum.zip(vectors).foreach{
-          case((_, sum), vector) => vector.putDouble(0, sum)
+        elementsSum.zip(vectors).foreach { case ((_, sum), vector) =>
+          vector.putDouble(0, sum)
         }
-
 
         Iterator(new ColumnarBatch(vectors.toArray, 1))
       })
   }
 
-  override def output: Seq[Attribute] = attributesMapping.zipWithIndex.map{
-    case(_, columnIndex) =>
+  override def output: Seq[Attribute] = attributesMapping.zipWithIndex.map {
+    case (_, columnIndex) =>
       AttributeReference(name = "_" + columnIndex, dataType = DoubleType, nullable = false)()
   }
 

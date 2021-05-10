@@ -28,31 +28,31 @@ object VeoSumPlanExtractor {
   def matchSumChildPlan(sparkPlan: SparkPlan): Option[VeoSparkPlanWithMetadata] = {
     PartialFunction.condOpt(sparkPlan) {
       case first @ HashAggregateExec(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      exprs @ seq,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      org.apache.spark.sql.execution.exchange
-      .ShuffleExchangeExec(
-      outputPartitioning,
-      org.apache.spark.sql.execution.aggregate
-      .HashAggregateExec(
-      _requiredChildDistributionExpressions,
-      _groupingExpressions,
-      _aggregateExpressions,
-      _aggregateAttributes,
-      _initialInputBufferOffset,
-      _resultExpressions,
-      fourth @ LocalTableScanExec(output, rows)
-      ),
-      shuffleOrigin
-      )
-      ) if seq.forall {
-        case AggregateExpression(Sum(_), _, _, _, _) => true
-        case _                                       => false
-      } => {
+            requiredChildDistributionExpressions,
+            groupingExpressions,
+            exprs @ seq,
+            aggregateAttributes,
+            initialInputBufferOffset,
+            resultExpressions,
+            org.apache.spark.sql.execution.exchange
+              .ShuffleExchangeExec(
+                outputPartitioning,
+                org.apache.spark.sql.execution.aggregate
+                  .HashAggregateExec(
+                    _requiredChildDistributionExpressions,
+                    _groupingExpressions,
+                    _aggregateExpressions,
+                    _aggregateAttributes,
+                    _initialInputBufferOffset,
+                    _resultExpressions,
+                    fourth @ LocalTableScanExec(output, rows)
+                  ),
+                shuffleOrigin
+              )
+          ) if seq.forall {
+            case AggregateExpression(Sum(_), _, _, _, _) => true
+            case _                                       => false
+          } => {
         val columnIndices = output.map(_.name).zipWithIndex.toMap
         val columnMappings = extractExpressions(exprs)
           .map(attributes => attributes.map(attribute => columnIndices(attribute.value)))
