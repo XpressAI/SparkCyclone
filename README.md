@@ -18,13 +18,18 @@ $ /opt/spark/bin/spark-submit \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-add-pairwise.py
 $ /opt/spark/bin/spark-submit \
-    --name PairwiseSumExample \
+    --name SumExample \
     --master 'local[4]' \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-sum.py
 $ /opt/spark/bin/spark-submit \
-    --name PairwiseSumExample \
+    --name SumMultipleColumnsExample \
     --master 'local[4]' \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-sum-multiple.py
+$ /opt/spark/bin/spark-submit \
+    --name AveragingMultipleColumns5Example \
+    --master 'local[4]' \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-avg-multiple.py
 ```
