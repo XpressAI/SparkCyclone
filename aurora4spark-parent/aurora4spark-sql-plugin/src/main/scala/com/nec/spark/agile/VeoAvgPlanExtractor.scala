@@ -1,5 +1,8 @@
 package com.nec.spark.agile
 
+import com.nec.spark.agile.VeoSumPlanExtractor.extractExpressions
+
+import org.apache.spark.sql.catalyst.expressions.{Add, AttributeReference, Expression, Subtract}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Sum}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -43,21 +46,38 @@ object VeoAvgPlanExtractor {
             case _                                       => false
           } => {
         val columnIndices = output.map(_.name).zipWithIndex.toMap
-        val columnMappings = extractExpressions(exprs)
-          .map(attributes => attributes.map(attribute => columnIndices(attribute.value)))
+        val columnMappings = extractExpressions(exprs).zipWithIndex
+          .map{
+            case ((operation, attributes), id) => ColumnAggregation(
+              attributes.map(attr => Column(columnIndices(attr.value), attr.value)),
+              operation,
+              id
+            )
+          }
 
         VeoSparkPlanWithMetadata(fourth, columnMappings)
       }
     }
   }
 
-  def extractExpressions(expressions: Seq[AggregateExpression]): Seq[Seq[AttributeName]] = {
-    val attributeNames = expressions.map { case AggregateExpression(sum @ Average(_), _, _, _, _) =>
-      sum.references
-        .map(reference => AttributeName(reference.name))
-        .toSeq // Poor thing this is done on Strings can we do better here?
+  def extractExpressions(expressions: Seq[AggregateExpression]):
+  Seq[(AggregateOperation, Seq[AttributeName])] = {
+    val attributeNames = expressions.map {
+      case AggregateExpression(sum @ Average(expr), _, _, _, _) =>
+        val references = sum.references
+          .map(reference => AttributeName(reference.name))
+          .toSeq // Poor thing this is done on Strings can we do better here?
+        (extractOperation(expr), references)
     }
 
     attributeNames
+  }
+
+  def extractOperation(expression: Expression): AggregateOperation = {
+    expression match {
+      case Add(_, _, _) => Addition
+      case Subtract(_, _, _) => Subtraction
+      case _ => NoAggregation
+    }
   }
 }

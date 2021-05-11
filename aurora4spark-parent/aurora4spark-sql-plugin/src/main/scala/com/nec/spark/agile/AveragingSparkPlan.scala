@@ -22,7 +22,7 @@ object AveragingSparkPlan {
 
   val averageLocalScala: List[Double] => Double = l => if (l.nonEmpty) l.sum / l.size else 0
 
-  /** Coalesces all the data into one partition, and then averages it lazily */
+  /** Coalesces all the columns into one partition, and then averages it lazily */
   def averagingRdd(parentRdd: RDD[Double], f: List[Double] => Double): RDD[Double] =
     parentRdd
       .coalesce(1)

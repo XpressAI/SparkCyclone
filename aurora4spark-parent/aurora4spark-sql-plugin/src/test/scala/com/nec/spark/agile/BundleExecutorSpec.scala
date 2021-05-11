@@ -44,7 +44,7 @@ final class BundleExecutorSpec extends AnyFreeSpec {
       )
     }
 
-  "Putting no data in gives 0 when averaging" taggedAs
+  "Putting no columns in gives 0 when averaging" taggedAs
     AcceptanceTest in {
       assert(
         BundleExecutor.returningBigDecimalRemote
