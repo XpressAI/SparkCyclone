@@ -61,7 +61,7 @@ object MultipleColumnsSummingPlanOffHeap {
 case class MultipleColumnsSummingPlanOffHeap(
   child: RowToColumnarExec,
   summer: MultipleColumnsOffHeapSummer,
-  attributesMapping: Seq[Seq[Int]]
+  columnarAggregations: Seq[ColumnAggregation]
 ) extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
@@ -70,29 +70,35 @@ case class MultipleColumnsSummingPlanOffHeap(
     child
       .doExecuteColumnar()
       .map { columnarBatch =>
-        val columns = attributesMapping.zipWithIndex.map { case (mappings, idx) =>
-          mappings.map(colIndex =>
-            (idx, columnarBatch.column(colIndex).asInstanceOf[OffHeapColumnVector])
-          )
-        }
+       val offHeapAggregations = columnarAggregations.map{
+          case ColumnAggregation(columns, aggregationOperation, outputColumnIndex) => {
+            val dataVectors = columns
+              .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
+              .map(vector => summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
 
-        columns.flatten.map { case (columnIndex, vector) =>
-          (columnIndex, summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
+            DataColumnAggregation(outputColumnIndex,
+              aggregationOperation, dataVectors, columnarBatch.numRows())
+          }
         }
+        offHeapAggregations
       }
       .coalesce(1)
       .mapPartitions(its => {
-        val elementsSum = its.toList.flatten
-          .groupBy(_._1)
-          .map { case (columnIndex, elements) =>
-            (columnIndex, elements.map(_._2).sum)
-          }
-          .toSeq
-          .sortBy(_._1) //Not entirely sure if we need to do this.
+
+        val aggregated = its.toList.flatten.groupBy(_.outputColumnIndex).map {
+          case (idx, columnAggregations) => columnAggregations.reduce((a, b) => a.combine(b)(_+_))
+        }
+
+        val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
+          case DataColumnAggregation(outIndex, NoAggregation, columns, _) => columns.head
+          case DataColumnAggregation(outIndex, Addition, columns, _) => columns.sum
+          case DataColumnAggregation(outIndex, Subtraction, columns, _) =>
+            columns.reduce((a, b) => a - b)
+        }
 
         val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
 
-        elementsSum.zip(vectors).foreach { case ((_, sum), vector) =>
+        elementsSum.zip(vectors).foreach { case (sum, vector) =>
           vector.putDouble(0, sum)
         }
 
@@ -100,7 +106,7 @@ case class MultipleColumnsSummingPlanOffHeap(
       })
   }
 
-  override def output: Seq[Attribute] = attributesMapping.zipWithIndex.map {
+  override def output: Seq[Attribute] = columnarAggregations.zipWithIndex.map {
     case (_, columnIndex) =>
       AttributeReference(name = "_" + columnIndex, dataType = DoubleType, nullable = false)()
   }

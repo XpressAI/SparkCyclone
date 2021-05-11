@@ -10,8 +10,11 @@ import com.nec.spark.{
   Aurora4SparkExecutorPlugin,
   AuroraSqlPlugin
 }
+import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.RowToColumnarExec
@@ -19,7 +22,7 @@ import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 
-final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter {
+final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter with Matchers {
 
   "It is not launched if not specified" in withSpark(identity) { sparkContext =>
     assert(!Aurora4SparkDriver.launched, "Expect the driver to have not been launched")
@@ -287,6 +290,83 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     assert(listOfDoubles == (4.0, 9.0, 12.0))
   }
 
+
+  "We can average added columns" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    val nums = List[(Double, Double, Double)]((1, 2, 3), (1, 5, 3), (10, 20, 30))
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    nums
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      VeoAvgPlanExtractor
+        .matchPlan(sparkPlan)
+        .map { childPlan =>
+          MultipleColumnsAveragingPlanOffHeap(
+            RowToColumnarExec(childPlan.sparkPlan),
+            MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager.UnsafeBased,
+            childPlan.attributes
+          )
+        }
+        .getOrElse(fail("Not expected to be here"))
+    }
+
+    val sumDataSet =
+      sparkSession
+        .sql("SELECT AVG(nums._1 + nums._2 + nums._3) FROM nums")
+        .as[Double]
+
+    sumDataSet.explain(true)
+
+    val listOfDoubles = sumDataSet.collect().head
+    assert(listOfDoubles == 25.0)
+  }
+
+  "We can average subtracted columns" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    val nums = List[(Double, Double, Double)]((1, 2, 6), (1, 4, 11), (10, 20, 33))
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    nums
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      VeoAvgPlanExtractor
+        .matchPlan(sparkPlan)
+        .map { childPlan =>
+          MultipleColumnsAveragingPlanOffHeap(
+            RowToColumnarExec(childPlan.sparkPlan),
+            MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager.UnsafeBased,
+            childPlan.attributes
+          )
+        }
+        .getOrElse(fail("Not expected to be here"))
+    }
+
+    val sumDataSet =
+      sparkSession
+        .sql("SELECT AVG(nums._3 - nums._2 - nums._1) FROM nums")
+        .as[Double]
+
+    sumDataSet.explain(true)
+
+    val listOfDoubles = sumDataSet.collect().head
+    listOfDoubles shouldEqual (4.0 +- (0.00000001))
+  }
+
   "We Pairwise-add off the heap" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
@@ -347,6 +427,53 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     assert(listOfDoubles == List(3, 5, 7, 9, 58))
   }
 
+  "Subtracting columns keeps the order of operations" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    val nums = List[(Double, Double)]((1, 2), (4, 6), (10, 20))
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    nums
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      VeoSumPlanExtractor
+        .matchPlan(sparkPlan)
+        .map { childPlan =>
+          MultipleColumnsSummingPlanOffHeap(
+            RowToColumnarExec(childPlan.sparkPlan),
+            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
+            childPlan.attributes
+          )
+        }
+        .getOrElse(fail("Not expected to be here"))
+    }
+
+    val firstSumWithSubtraction =
+      sparkSession.sql("SELECT SUM(nums._1 - nums._2 - nums._3) FROM nums").as[Double]
+    val secondSumWithSubtraction =
+      sparkSession.sql("SELECT SUM(nums._2 - nums._3 - nums._1) FROM nums").as[Double]
+    val thirdSumWithSubtraction =
+      sparkSession.sql("SELECT SUM(nums._3 - nums._1 - nums._2) FROM nums").as[Double]
+
+    firstSumWithSubtraction.explain(true)
+    secondSumWithSubtraction.explain(true)
+    thirdSumWithSubtraction.explain(true)
+
+    val results = Seq(
+      firstSumWithSubtraction.collect().head,
+      secondSumWithSubtraction.collect().head,
+      thirdSumWithSubtraction.collect().head
+    )
+
+    assert(results == Seq(-53.0, -27.0, -3.0))
+  }
+
   "We can sum multiple columns off the heap" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
@@ -383,7 +510,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     assert(listOfDoubles == 43.0)
   }
 
-  "We can sum multiple columns separately off the heap" in withSparkSession(
+  "We can sum subtracted columns off the heap" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
   ) { sparkSession =>
@@ -411,14 +538,12 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     }
 
     val sumDataSet =
-      sparkSession
-        .sql("SELECT SUM(nums._1), SUM(nums._2), SUM(nums._3) FROM nums")
-        .as[(Double, Double, Double)]
+      sparkSession.sql("SELECT SUM(nums._1 - nums._2) FROM nums").as[Double]
 
     sumDataSet.explain(true)
 
     val listOfDoubles = sumDataSet.collect().head
-    assert(listOfDoubles == (15.0, 28.0, 40.0))
+    assert(listOfDoubles == -13.0)
   }
 
   "We can sum a single column off the heap" in withSparkSession(

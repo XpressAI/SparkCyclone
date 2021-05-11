@@ -11,7 +11,7 @@ import org.apache.spark.sql.types.{DataType, Decimal, DecimalType}
 
 object SummingSparkPlan {
 
-  /** Coalesces all the data into one partition, and then sums it lazily */
+  /** Coalesces all the columns into one partition, and then sums it lazily */
   def summingRdd(parentRdd: RDD[Double], summer: BigDecimalSummer): RDD[Double] =
     parentRdd
       .coalesce(1)

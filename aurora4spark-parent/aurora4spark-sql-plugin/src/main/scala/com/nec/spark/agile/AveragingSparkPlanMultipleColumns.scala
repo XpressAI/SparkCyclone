@@ -27,7 +27,7 @@ object AveragingSparkPlanMultipleColumns {
       case _                                => 0
     }
 
-  /** Coalesces all the data into one partition, and then averages it lazily */
+  /** Coalesces all the columns into one partition, and then averages it lazily */
   def averagingRdd(
     parentRdd: RDD[ColumnWithNumbers],
     f: ColumnWithNumbers => Double
