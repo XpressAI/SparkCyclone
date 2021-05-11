@@ -28,7 +28,10 @@ object AddPlanExtractor {
      */
     PartialFunction
       .condOpt(sparkPlan) { case pe @ ProjectExec(Seq(Alias(Add(_, _, _), name)), child) =>
-        PairwiseAdditionOffHeap(RowToColumnarExec(child), offHeapPairwiseSummer)
+        PairwiseAdditionOffHeap(
+          if (child.supportsColumnar) child else RowToColumnarExec(child),
+          offHeapPairwiseSummer
+        )
       }
   }
 

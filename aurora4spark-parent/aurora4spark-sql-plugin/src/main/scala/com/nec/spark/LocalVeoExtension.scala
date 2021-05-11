@@ -2,11 +2,8 @@ package com.nec.spark
 
 import com.nec.VeDirectApp.compile_c
 import com.nec.spark.LocalVeoExtension.ve_so_name
-import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
 import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
-import com.nec.spark.agile.{AveragingPlanner, AveragingSparkPlanOffHeap, MultipleColumnsSummingPlanOffHeap, SumPlanExtractor, VeoSumPlanExtractor}
-import com.nec.spark.agile._
-
+import com.nec.spark.agile.{MultipleColumnsSummingPlanOffHeap, VeoSumPlanExtractor, _}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -15,6 +12,7 @@ import org.apache.spark.sql.execution.{ColumnarRule, RowToColumnarExec, SparkPla
 object LocalVeoExtension {
   lazy val ve_so_name = compile_c()
 }
+
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectColumnar({ sparkSession =>
