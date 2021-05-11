@@ -3,15 +3,10 @@ package com.nec.spark
 import com.nec.VeDirectApp.compile_c
 import com.nec.spark.LocalVeoExtension.ve_so_name
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
-import com.nec.spark.agile.{
-  AveragingPlanner,
-  AveragingSparkPlanOffHeap,
-  MultipleColumnsSummingPlanOffHeap,
-  SumPlanExtractor,
-  VeoSumPlanExtractor
-}
-
+import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.agile.{AveragingPlanner, AveragingSparkPlanOffHeap, MultipleColumnsSummingPlanOffHeap, SumPlanExtractor, VeoSumPlanExtractor}
 import com.nec.spark.agile._
+
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -26,17 +21,18 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
       new ColumnarRule {
         override def preColumnarTransitions: Rule[SparkPlan] =
           sparkPlan =>
-            AveragingPlanner
+            VeoAvgPlanExtractor
               .matchPlan(sparkPlan)
               .map { childPlan =>
-                AveragingSparkPlanOffHeap(
+                MultipleColumnsAveragingPlanOffHeap(
                   RowToColumnarExec(childPlan.sparkPlan),
-                  OffHeapDoubleAverager.VeoBased(ve_so_name)
+                  MultipleColumnsOffHeapAverager.VeoBased(ve_so_name),
+                  childPlan.attributes
                 )
               }
               .orElse {
                 VeoSumPlanExtractor
-                  .matchSumChildPlan(sparkPlan)
+                  .matchPlan(sparkPlan)
                   .map { childPlan =>
                     MultipleColumnsSummingPlanOffHeap(
                       RowToColumnarExec(childPlan.sparkPlan),

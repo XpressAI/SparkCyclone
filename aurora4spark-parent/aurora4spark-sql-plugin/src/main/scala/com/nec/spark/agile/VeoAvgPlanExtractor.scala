@@ -1,10 +1,10 @@
 package com.nec.spark.agile
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Sum}
-import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Sum}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
+import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
+import org.apache.spark.sql.types.DoubleType
 
 /**
  * Basic SparkPlan matcher that will match a plan that sums a bunch of BigDecimals, and gets them
@@ -12,7 +12,7 @@ import org.apache.spark.sql.types.{Decimal, DecimalType, DoubleType}
  *
  * This is done so that we have something basic to work with.
  */
-object VeoSumPlanExtractor {
+object VeoAvgPlanExtractor {
 
   def matchPlan(sparkPlan: SparkPlan): Option[VeoSparkPlanWithMetadata] = {
     PartialFunction.condOpt(sparkPlan) {
@@ -39,7 +39,7 @@ object VeoSumPlanExtractor {
                 shuffleOrigin
               )
           ) if seq.forall {
-            case AggregateExpression(Sum(_), _, _, _, _) => true
+            case AggregateExpression(Average(_), _, _, _, _) => true
             case _                                       => false
           } => {
         val columnIndices = output.map(_.name).zipWithIndex.toMap
@@ -52,7 +52,7 @@ object VeoSumPlanExtractor {
   }
 
   def extractExpressions(expressions: Seq[AggregateExpression]): Seq[Seq[AttributeName]] = {
-    val attributeNames = expressions.map { case AggregateExpression(sum @ Sum(_), _, _, _, _) =>
+    val attributeNames = expressions.map { case AggregateExpression(sum @ Average(_), _, _, _, _) =>
       sum.references
         .map(reference => AttributeName(reference.name))
         .toSeq // Poor thing this is done on Strings can we do better here?

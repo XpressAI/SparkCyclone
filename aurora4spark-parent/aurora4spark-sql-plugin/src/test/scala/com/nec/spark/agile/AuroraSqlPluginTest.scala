@@ -425,7 +425,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
         .createOrReplaceTempView("nums")
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-        AveragingPlanner
+        VeoAvgPlanExtractor
           .matchPlan(sparkPlan)
           .map { childPlan =>
             AveragingSparkPlanOffHeap(
@@ -446,6 +446,50 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
       val result = listOfDoubles.head
       assert(result == nums.sum / nums.length)
+    } finally sparkSession.close()
+  }
+
+  "We can average multiple columns separately off the heap" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[(Double, Double, Double)]((1, 2, 3), (1, 5, 3), (10, 20, 30))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        VeoAvgPlanExtractor
+          .matchPlan(sparkPlan)
+          .map { childPlan =>
+            MultipleColumnsAveragingPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager.UnsafeBased,
+              childPlan.attributes
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession
+          .sql("SELECT AVG(nums._1), AVG(nums._2), AVG(nums._3) FROM nums")
+          .as[(Double, Double, Double)]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().head
+      assert(listOfDoubles == (4.0, 9.0, 12.0))
     } finally sparkSession.close()
   }
 
@@ -519,7 +563,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
         VeoSumPlanExtractor
-          .matchSumChildPlan(sparkPlan)
+          .matchPlan(sparkPlan)
           .map { childPlan =>
             MultipleColumnsSummingPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
@@ -561,7 +605,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
         VeoSumPlanExtractor
-          .matchSumChildPlan(sparkPlan)
+          .matchPlan(sparkPlan)
           .map { childPlan =>
             MultipleColumnsSummingPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
@@ -605,7 +649,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
         VeoSumPlanExtractor
-          .matchSumChildPlan(sparkPlan)
+          .matchPlan(sparkPlan)
           .map { childPlan =>
             MultipleColumnsSummingPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
@@ -647,7 +691,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
         VeoSumPlanExtractor
-          .matchSumChildPlan(sparkPlan)
+          .matchPlan(sparkPlan)
           .map { childPlan =>
             MultipleColumnsSummingPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
