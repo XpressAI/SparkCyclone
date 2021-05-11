@@ -2,7 +2,7 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.agile.ReferenceData.{SampleCSV, SampleMultiColumnCSV}
+import com.nec.spark.agile.ReferenceData.{SampleCSV, SampleMultiColumnCSV, SampleTwoColumnParquet}
 import com.nec.spark.agile.SparkPlanSavingPlugin.savedSparkPlan
 import com.nec.spark.{
   AcceptanceTest,
@@ -287,7 +287,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     assert(listOfDoubles == (4.0, 9.0, 12.0))
   }
 
-  "We Pairwise-sum off the heap" in withSparkSession(
+  "We Pairwise-add off the heap" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
   ) { sparkSession =>
@@ -311,6 +311,32 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
       .format("csv")
       .schema(csvSchema)
       .load(SampleMultiColumnCSV.toString)
+      .as[(Double, Double)]
+      .selectExpr("a + b")
+      .as[Double]
+
+    sumDataSet2.explain(true)
+
+    val listOfDoubles = sumDataSet2.collect().toList
+    assert(listOfDoubles == List(3, 5, 7, 9, 58))
+  }
+  "We Pairwise-add Parquet off the heap" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      AddPlanExtractor
+        .matchAddPairwisePlan(sparkPlan, OffHeapPairwiseSummer.UnsafeBased)
+        .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
+    }
+
+    val sumDataSet2 = sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
       .as[(Double, Double)]
       .selectExpr("a + b")
       .as[Double]

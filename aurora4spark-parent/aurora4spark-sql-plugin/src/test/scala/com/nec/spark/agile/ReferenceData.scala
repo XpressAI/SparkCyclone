@@ -10,6 +10,13 @@ object ReferenceData {
         .toURI
     )
     .toAbsolutePath
+  lazy val SampleTwoColumnParquet: Path = Paths
+    .get(
+      this.getClass
+        .getResource("/sampleMultiColumnParquet2.parquet")
+        .toURI
+    )
+    .toAbsolutePath
   lazy val SampleCSV: Path = Paths
     .get(
       this.getClass

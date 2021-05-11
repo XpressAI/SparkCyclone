@@ -5,12 +5,11 @@ import com.nec.aurora.Aurora
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
@@ -36,12 +35,11 @@ object PairwiseAdditionOffHeap {
       ): Unit = {
         (0 until count)
           .foreach { i =>
-            getUnsafe.putDouble(
-              memoryLocationOut + i * 8,
-              getUnsafe.getDouble(memoryLocationA + i * 8) + getUnsafe.getDouble(
-                memoryLocationB + i * 8
-              )
-            )
+            val doubleA = getUnsafe.getDouble(memoryLocationA + i * 8)
+            val doubleB = getUnsafe.getDouble(memoryLocationB + i * 8)
+
+            val result = doubleA + doubleB
+            getUnsafe.putDouble(memoryLocationOut + i * 8, result)
           }
       }
     }
@@ -74,14 +72,14 @@ object PairwiseAdditionOffHeap {
   }
 
 }
-case class PairwiseAdditionOffHeap(child: RowToColumnarExec, summer: OffHeapPairwiseSummer)
+case class PairwiseAdditionOffHeap(child: SparkPlan, summer: OffHeapPairwiseSummer)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .doExecuteColumnar()
+      .executeColumnar()
       .map { columnarBatch =>
         val colA = columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
         val colB = columnarBatch.column(1).asInstanceOf[OffHeapColumnVector]
