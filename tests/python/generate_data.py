@@ -12,7 +12,7 @@ def arguments():
     args.add_argument('-r','--rows', type=int, default=100, help='Number of rows')
     args.add_argument('-p','--partitions', type=int, default=100, help='Number of partitions')
     args.add_argument('-n','--name', type=str, default='Generete test data', help='PySpark job name')
-    args.add_argument('-ft','--filetype', type=str, default='csv', help='Output file type. Supports csv, json, parquet')
+    args.add_argument('-ft','--filetype', type=str, default='csv', help='Output file type. Supports csv, json, parquet', choices=['csv', 'parquet', 'json'])
     
     return args.parse_args()
 
