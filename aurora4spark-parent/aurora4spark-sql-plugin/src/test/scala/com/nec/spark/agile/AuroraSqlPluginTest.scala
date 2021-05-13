@@ -433,7 +433,7 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
   ) { sparkSession =>
     import sparkSession.implicits._
 
-    val nums = List[(Double, Double)]((1, 2), (4, 6), (10, 20))
+    val nums = List[(Double, Double, Double)]((1, 2, 3), (4, 6, 7), (10, 20, 30))
 
     SparkSqlPlanExtension.rulesToApply.clear()
 
