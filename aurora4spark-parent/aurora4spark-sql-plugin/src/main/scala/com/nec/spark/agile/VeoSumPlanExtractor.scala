@@ -34,7 +34,7 @@ object VeoSumPlanExtractor {
                     _aggregateAttributes,
                     _initialInputBufferOffset,
                     _resultExpressions,
-                    fourth @ LocalTableScanExec(output, rows)
+                    fourth
                   ),
                 shuffleOrigin
               )
@@ -42,10 +42,10 @@ object VeoSumPlanExtractor {
             case AggregateExpression(Sum(_), _, _, _, _) => true
             case _                                       => false
           } => {
-        val columnIndices = output.map(_.name).zipWithIndex.toMap
+        val columnIndices = fourth.output.map(_.name).zipWithIndex.toMap
         val columnMappings = extractExpressions(exprs).zipWithIndex
-          .map{
-            case ((operation, attributes), id) => ColumnAggregation(
+          .map { case ((operation, attributes), id) =>
+            ColumnAggregation(
               attributes.map(attr => Column(columnIndices(attr.value), attr.value)),
               operation,
               id
@@ -57,14 +57,14 @@ object VeoSumPlanExtractor {
     }
   }
 
-  def extractExpressions(expressions: Seq[AggregateExpression]):
-      Seq[(AggregateOperation, Seq[AttributeName])] = {
-    val attributeNames = expressions.map {
-      case AggregateExpression(sum @ Sum(expr), _, _, _, _) =>
-        val references = sum.references
-          .map(reference => AttributeName(reference.name))
-          .toSeq // Poor thing this is done on Strings can we do better here?
-        (extractOperation(expr), references)
+  def extractExpressions(
+    expressions: Seq[AggregateExpression]
+  ): Seq[(AggregateOperation, Seq[AttributeName])] = {
+    val attributeNames = expressions.map { case AggregateExpression(sum @ Sum(expr), _, _, _, _) =>
+      val references = sum.references
+        .map(reference => AttributeName(reference.name))
+        .toSeq // Poor thing this is done on Strings can we do better here?
+      (extractOperation(expr), references)
     }
 
     attributeNames
@@ -72,9 +72,9 @@ object VeoSumPlanExtractor {
 
   def extractOperation(expression: Expression): AggregateOperation = {
     expression match {
-      case Add(_, _, _) => Addition
+      case Add(_, _, _)      => Addition
       case Subtract(_, _, _) => Subtraction
-      case _ => NoAggregation
+      case _                 => NoAggregation
     }
   }
 }

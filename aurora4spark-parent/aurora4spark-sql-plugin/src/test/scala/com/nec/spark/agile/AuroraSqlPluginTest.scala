@@ -10,7 +10,12 @@ import com.nec.spark.{
   Aurora4SparkExecutorPlugin,
   AuroraSqlPlugin
 }
-import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.{
+  AcceptanceTest,
+  Aurora4SparkDriver,
+  Aurora4SparkExecutorPlugin,
+  AuroraSqlPlugin
+}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
@@ -18,11 +23,18 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
+import org.apache.spark.sql.internal.SQLConf.{
+  COLUMN_VECTOR_OFFHEAP_ENABLED,
+  WHOLESTAGE_CODEGEN_ENABLED
+}
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 
-final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with BeforeAndAfter with Matchers {
+final class AuroraSqlPluginTest
+  extends AnyFreeSpec
+  with BeforeAndAfterAll
+  with BeforeAndAfter
+  with Matchers {
 
   "It is not launched if not specified" in withSpark(identity) { sparkContext =>
     assert(!Aurora4SparkDriver.launched, "Expect the driver to have not been launched")
@@ -290,7 +302,6 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
     assert(listOfDoubles == (4.0, 9.0, 12.0))
   }
 
-
   "We can average added columns" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
@@ -365,6 +376,40 @@ final class AuroraSqlPluginTest extends AnyFreeSpec with BeforeAndAfterAll with 
 
     val listOfDoubles = sumDataSet.collect().head
     listOfDoubles shouldEqual (4.0 +- (0.00000001))
+  }
+
+  "We can sum multiple columns reading from Parquet" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+      .set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      VeoSumPlanExtractor
+        .matchPlan(sparkPlan)
+        .map { childPlan =>
+          MultipleColumnsSummingPlanOffHeap(
+            RowToColumnarExec(childPlan.sparkPlan),
+            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
+            childPlan.attributes
+          )
+        }
+        .getOrElse(fail(s"Not expected to be here: ${sparkPlan}"))
+    }
+
+    val sumDataSet = sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
+      .as[(Double, Double)]
+      .selectExpr("SUM(a)")
+      .as[Double]
+
+    sumDataSet.explain(true)
+
+    assert(sumDataSet.collect().toList == List(62))
   }
 
   "We Pairwise-add off the heap" in withSparkSession(

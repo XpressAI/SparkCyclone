@@ -1,17 +1,15 @@
 package com.nec.spark.agile
 
-import com.nec.{SumPairwise, SumSimple, VeJavaContext}
-import com.nec.aurora.Aurora
-import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
+import com.nec.{SumSimple, VeJavaContext}
+import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan}
-import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
 
 object MultipleColumnsSummingPlanOffHeap {
@@ -36,22 +34,12 @@ object MultipleColumnsSummingPlanOffHeap {
       }
     }
 
-    case class VeoBased(ve_so_name: String) extends MultipleColumnsOffHeapSummer {
+    object VeoBased extends MultipleColumnsOffHeapSummer {
 
       override def sum(inputMemoryAddress: Long, count: Int): Double = {
-        println(s"SO name: ${ve_so_name}")
-        val proc = Aurora.veo_proc_create(0)
-        println(s"Created proc = ${proc}")
-        try {
-          val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
-          println(s"Created ctx = ${ctx}")
-          try {
-            val lib: Long = Aurora.veo_load_library(proc, ve_so_name)
-            println(s"Loaded lib = ${lib}")
-            val vej = new VeJavaContext(ctx, lib)
-            SumSimple.sum_doubles_memory(vej, inputMemoryAddress, count)
-          } finally Aurora.veo_context_close(ctx)
-        } finally Aurora.veo_proc_destroy(proc)
+        val vej =
+          new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
+        SumSimple.sum_doubles_memory(vej, inputMemoryAddress, count)
       }
     }
 
@@ -59,7 +47,7 @@ object MultipleColumnsSummingPlanOffHeap {
 }
 
 case class MultipleColumnsSummingPlanOffHeap(
-  child: RowToColumnarExec,
+  child: SparkPlan,
   summer: MultipleColumnsOffHeapSummer,
   columnarAggregations: Seq[ColumnAggregation]
 ) extends SparkPlan {
@@ -68,7 +56,7 @@ case class MultipleColumnsSummingPlanOffHeap(
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .doExecuteColumnar()
+      .executeColumnar()
       .map { columnarBatch =>
        val offHeapAggregations = columnarAggregations.map{
           case ColumnAggregation(columns, aggregationOperation, outputColumnIndex) => {
