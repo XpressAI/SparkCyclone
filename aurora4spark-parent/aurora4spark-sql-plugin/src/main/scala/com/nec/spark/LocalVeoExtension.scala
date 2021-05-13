@@ -33,9 +33,9 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
                   .matchPlan(sparkPlan)
                   .map { childPlan =>
                     MultipleColumnsSummingPlanOffHeap(
-                      RowToColumnarExec(childPlan.sparkPlan),
-                      MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
-                        .VeoBased(ve_so_name),
+                      if (childPlan.sparkPlan.supportsColumnar) childPlan.sparkPlan
+                      else RowToColumnarExec(childPlan.sparkPlan),
+                      MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.VeoBased,
                       childPlan.attributes
                     )
                   }

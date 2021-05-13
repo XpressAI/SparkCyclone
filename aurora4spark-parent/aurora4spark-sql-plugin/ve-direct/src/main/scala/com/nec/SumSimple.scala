@@ -34,12 +34,15 @@ object SumSimple {
       veJavaContext,
       dataDoublePointer.asByteBuffer().asInstanceOf[DirectBuffer].address(),
       doubles.length
-    ) finally dataDoublePointer.close()
+    )
+    finally dataDoublePointer.close()
   }
 
-  def sum_doubles_memory(veJavaContext: VeJavaContext,
-                         numbersMemoryAddress: Long,
-                         count: Int): Double = {
+  def sum_doubles_memory(
+    veJavaContext: VeJavaContext,
+    numbersMemoryAddress: Long,
+    count: Int
+  ): Double = {
     val our_args = Aurora.veo_args_alloc()
 
     import veJavaContext._
@@ -57,8 +60,12 @@ object SumSimple {
     try {
       val req_id = Aurora.veo_call_async_by_name(ctx, lib, "sum", our_args)
       val longPointer = new LongPointer(8)
-      Aurora.veo_call_wait_result(ctx, req_id, longPointer)
-      longPointer.asByteBuffer().getDouble(0)
-    } finally our_args.close()
+      try {
+        Aurora.veo_call_wait_result(ctx, req_id, longPointer)
+        longPointer.asByteBuffer().getDouble(0)
+      } finally longPointer.close()
+    } finally {
+      Aurora.veo_args_free(our_args)
+    }
   }
 }
