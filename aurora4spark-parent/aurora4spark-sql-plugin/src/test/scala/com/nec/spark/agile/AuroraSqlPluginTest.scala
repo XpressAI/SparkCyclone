@@ -6,8 +6,12 @@ import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffH
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.ReferenceData.{SampleCSV, SampleMultiColumnCSV, SampleTwoColumnParquet}
 import com.nec.spark.agile.SparkPlanSavingPlugin.savedSparkPlan
-import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
-import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.{
+  AcceptanceTest,
+  Aurora4SparkDriver,
+  Aurora4SparkExecutorPlugin,
+  AuroraSqlPlugin
+}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
@@ -15,8 +19,12 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.internal.SQLConf.{COLUMN_VECTOR_OFFHEAP_ENABLED, WHOLESTAGE_CODEGEN_ENABLED}
+import org.apache.spark.sql.internal.SQLConf.{
+  COLUMN_VECTOR_OFFHEAP_ENABLED,
+  WHOLESTAGE_CODEGEN_ENABLED
+}
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -24,6 +32,7 @@ final class AuroraSqlPluginTest
   extends AnyFreeSpec
   with BeforeAndAfterAll
   with BeforeAndAfter
+  with SparkAdditions
   with Matchers {
 
   "It is not launched if not specified" in withSpark(identity) { sparkContext =>
@@ -274,11 +283,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -316,11 +333,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -358,11 +383,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -494,11 +527,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -550,11 +591,19 @@ final class AuroraSqlPluginTest
           .map { childPlan =>
             GenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
-              childPlan.outColumns.map{
-                case OutputColumnPlanDescription(inputColumns,
-                outputColumnIndex, columnAggregation, outputAggregator) =>
-                  OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                    createUnsafeAggregator(outputAggregator))
+              childPlan.outColumns.map {
+                case OutputColumnPlanDescription(
+                      inputColumns,
+                      outputColumnIndex,
+                      columnAggregation,
+                      outputAggregator
+                    ) =>
+                  OutputColumn(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    createUnsafeAggregator(outputAggregator)
+                  )
               }
             )
           }
@@ -598,11 +647,19 @@ final class AuroraSqlPluginTest
           .map { childPlan =>
             GenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
-              childPlan.outColumns.map{
-                case OutputColumnPlanDescription(inputColumns,
-                outputColumnIndex, columnAggregation, outputAggregator) =>
-                  OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                    createUnsafeAggregator(outputAggregator))
+              childPlan.outColumns.map {
+                case OutputColumnPlanDescription(
+                      inputColumns,
+                      outputColumnIndex,
+                      columnAggregation,
+                      outputAggregator
+                    ) =>
+                  OutputColumn(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    createUnsafeAggregator(outputAggregator)
+                  )
               }
             )
           }
@@ -646,11 +703,19 @@ final class AuroraSqlPluginTest
           .map { childPlan =>
             GenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
-              childPlan.outColumns.map{
-                case OutputColumnPlanDescription(inputColumns,
-                outputColumnIndex, columnAggregation, outputAggregator) =>
-                  OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                    createUnsafeAggregator(outputAggregator))
+              childPlan.outColumns.map {
+                case OutputColumnPlanDescription(
+                      inputColumns,
+                      outputColumnIndex,
+                      columnAggregation,
+                      outputAggregator
+                    ) =>
+                  OutputColumn(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    createUnsafeAggregator(outputAggregator)
+                  )
               }
             )
           }
@@ -689,11 +754,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -729,11 +802,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -769,11 +850,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -809,11 +898,19 @@ final class AuroraSqlPluginTest
         .map { childPlan =>
           GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            childPlan.outColumns.map{
-              case OutputColumnPlanDescription(inputColumns,
-              outputColumnIndex, columnAggregation, outputAggregator) =>
-                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
-                  createUnsafeAggregator(outputAggregator))
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+                    inputColumns,
+                    outputColumnIndex,
+                    columnAggregation,
+                    outputAggregator
+                  ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  columnAggregation,
+                  createUnsafeAggregator(outputAggregator)
+                )
             }
           )
         }
@@ -1219,53 +1316,10 @@ final class AuroraSqlPluginTest
       assert(result == expected)
     }
 
-  private def withSpark[T](configure: SparkConf => SparkConf)(f: SparkContext => T): T = {
-    val conf = new SparkConf()
-    conf.setMaster("local")
-    conf.setAppName("local-test")
-    conf.set("spark.ui.enabled", "false")
-    val sparkContext = new SparkContext(configure(conf))
-
-    try {
-      f(sparkContext)
-    } finally sparkContext.stop()
-  }
-
-  private def withSparkSession[T](configure: SparkConf => SparkConf)(f: SparkSession => T): T = {
-    val conf = new SparkConf()
-    conf.setMaster("local")
-    conf.setAppName("local-test")
-    conf.set("spark.ui.enabled", "false")
-    val sparkSession = SparkSession.builder().config(configure(conf)).getOrCreate()
-    try f(sparkSession)
-    finally sparkSession.stop()
-  }
-  private def withSparkSession2[T](
-    configure: SparkSession.Builder => SparkSession.Builder
-  )(f: SparkSession => T): T = {
-    val conf = new SparkConf()
-    conf.setMaster("local")
-    conf.setAppName("local-test")
-    conf.set("spark.ui.enabled", "false")
-    val sparkSession = configure(SparkSession.builder().config(conf)).getOrCreate()
-    try f(sparkSession)
-    finally sparkSession.stop()
-  }
-
   private def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
       case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
       case AvgAggregation => new AvgAggregator(MultipleColumnsOffHeapAverager.UnsafeBased)
     }
-  }
-  override protected def beforeAll(): Unit = {
-    val rootLogger = Logger.getRootLogger
-    rootLogger.setLevel(Level.ERROR)
-
-    super.beforeAll()
-  }
-
-  after {
-    SparkSqlPlanExtension.rulesToApply.clear()
   }
 }

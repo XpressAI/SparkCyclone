@@ -9,15 +9,7 @@ import com.nec.spark.agile.BigDecimalSummer.{
   PythonNecSSHSummer,
   ScalaSummer
 }
-import com.nec.spark.agile.BigDecimalSummerSpec.stubSummer
 import org.scalatest.freespec.AnyFreeSpec
-
-object BigDecimalSummerSpec {
-
-  def stubSummer(fakeResult: BigDecimal): BigDecimalSummer =
-    _ => readBigDecimal(Seq("ssh", "a6", "echo", fakeResult.toString()).!!)
-
-}
 
 final class BigDecimalSummerSpec extends AnyFreeSpec {
 
@@ -26,10 +18,6 @@ final class BigDecimalSummerSpec extends AnyFreeSpec {
 
   "It works in-JVM" in {
     sumTest(ScalaSummer)
-  }
-
-  "It works (echo stub)" in {
-    sumTest(stubSummer(fakeResult = 10))
   }
 
   "It works (Python)" taggedAs AcceptanceTest in {
