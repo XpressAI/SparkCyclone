@@ -3,3 +3,4 @@ _SUCCESS
 *.csv
 *.parquet
 *.json
+*.jar
