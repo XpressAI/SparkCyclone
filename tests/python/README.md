@@ -2,15 +2,32 @@
 
 ## Generate Test Data
 ```py
-spark-submit --master spark://spark-master:7077  generate_csv.py /path/to/test/data/file -r num_rows -p num_partitions
+spark-submit --master spark://spark-master:7077  generate_data.py /path/to/test/data/file -r num_rows -p num_partitions
 ```
+### File Type supported (-ft / --filetype)
+- CSV (default)
+- parquet
+- json
 
-## Shuffle Benchmark
+## Run Benchmark
 ```py
-spark-submit --master spark://spark-master:7077 shuffle_benchmark.py /path/to/test/data/file -r num_partitions -n 'benchmark-job-name' -o 'output' -sl 11001 -t repart
+spark-submit --master spark://spark-master:7077 run_benchmark.py /path/to/test/data/file -r num_partitions  -o 'output' -sl 11001 -t column -l max,min
 ```
+### Benchmark type (-t / --type)
+- groubyagg
+- repart
+- innerjoin
+- broadinnerjoin
+- column
 
-## Pick Level
+### Repartition Notes
+- Need to state partition number (-r / --repartitions)
+- 200 partitions by default
+
+### Column Notes
+- Need to list out operations otherwise it will compute all operations by default (-l / --list)
+- List of operations stated in `column_operation_dict.py`
+### Pick Storage Level (-sl / --storageLevel)
 - DISK_ONLY = 10001
 - DISK_ONLY_2 = 10002
 - MEMORY_AND_DISK = 11001

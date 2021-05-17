@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
-import pyspark.sql.functions as Function
-import pyspark.sql.types as Type
+import pyspark.sql.functions as F
+import pyspark.sql.types as T
 
 import argparse
 import sys
@@ -12,7 +12,7 @@ def arguments():
     args.add_argument('-r','--rows', type=int, default=100, help='Number of rows')
     args.add_argument('-p','--partitions', type=int, default=100, help='Number of partitions')
     args.add_argument('-n','--name', type=str, default='Generete test data', help='PySpark job name')
-    args.add_argument('-ft','--filetype', type=str, default='csv', help='Output file type. Supports csv, json, parquet')
+    args.add_argument('-ft','--filetype', type=str, default='csv', help='Output file type. Supports csv, json, parquet', choices=['csv', 'parquet', 'json'])
     
     return args.parse_args()
 
@@ -31,15 +31,19 @@ def main(args):
     log.info('')
     log.info('='*64)
 
-    udfUUID = Function.udf(get_uuid, Type.StringType())
+    udfUUID = F.udf(get_uuid, T.StringType())
 
     df = (spark.range(0, args.rows, numPartitions=args.partitions)
         .withColumn('value', udfUUID())
-        .withColumn('prefix2', Function.substring(Function.col('value'),1,2))
-        .withColumn('prefix4', Function.substring(Function.col('value'),1,4))
-        .withColumn('prefix8', Function.substring(Function.col('value'),1,8))
-        .withColumn('float_val', Function.rand(seed=8675309)*1000000)
-        .withColumn('integer_val', Function.col('float_val').cast(Type.LongType()))
+        .withColumn('prefix2', F.substring(F.col('value'),1,2))
+        .withColumn('prefix4', F.substring(F.col('value'),1,4))
+        .withColumn('prefix8', F.substring(F.col('value'),1,8))
+        .withColumn('float_val', F.rand(seed=8675309)*1000000)
+        .withColumn('integer_val', F.col('float_val').cast(T.LongType()))
+        .withColumn("randn", (F.randn()*10).cast(T.LongType())) 
+        .withColumn("randn1", F.randn()) 
+        .withColumn('degree', (F.randn()*360).cast(T.LongType())) 
+        .withColumn('small_int', (F.rand()*10).cast(T.LongType()))
         .drop('id'))
 
 
