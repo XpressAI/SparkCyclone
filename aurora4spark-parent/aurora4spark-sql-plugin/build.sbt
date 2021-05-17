@@ -93,7 +93,9 @@ lazy val `ve-direct` = project
   .settings(
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.7" % "test,it",
-      "org.bytedeco" % "javacpp" % "1.5.5"
+      "org.bytedeco" % "javacpp" % "1.5.5",
+      "net.java.dev.jna" % "jna-platform" % "5.8.0",
+      "commons-io" % "commons-io" % "2.8.0" % "it"
     ),
     IntegrationTest / managedResources := {
       val resourceBase = (IntegrationTest / resourceManaged).value
