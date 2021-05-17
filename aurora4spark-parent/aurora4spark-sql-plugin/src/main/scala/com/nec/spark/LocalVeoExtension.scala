@@ -49,7 +49,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
 
   def createAggregator(aggregationFunction: AggregationFunction): Aggregator  = {
     aggregationFunction match {
-      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.VeoBased(ve_so_name))
+      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.VeoBased)
     }
   }
 
