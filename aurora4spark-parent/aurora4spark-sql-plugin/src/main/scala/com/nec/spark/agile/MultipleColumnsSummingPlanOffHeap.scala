@@ -74,7 +74,7 @@ case class MultipleColumnsSummingPlanOffHeap(
       .mapPartitions(its => {
 
         val aggregated = its.toList.flatten.groupBy(_.outputColumnIndex).map {
-          case (idx, columnAggregations) => columnAggregations.reduce((a, b) => a.combine(b)(_+_))
+          case (idx, columnAggregations) => columnAggregations.reduce((a, b) => a.combine(b)(_ + _))
         }
 
         val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {

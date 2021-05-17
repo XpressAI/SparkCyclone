@@ -32,4 +32,9 @@ $ /opt/spark/bin/spark-submit \
     --master 'local[4]' \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-avg-multiple.py
+$ /opt/spark/bin/spark-submit \
+    --name MultipleOperationsExample \
+    --master 'local[4]' \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-multiple-operations.py
 ```
