@@ -10,7 +10,7 @@ import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan}
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class GenericAggregationPlanOffHeap(child: RowToColumnarExec,
+case class GenericAggregationPlanOffHeap(child: SparkPlan,
                                          outputColumns: Seq[OutputColumn]
                                         ) extends SparkPlan {
 
@@ -18,7 +18,7 @@ case class GenericAggregationPlanOffHeap(child: RowToColumnarExec,
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .doExecuteColumnar()
+      .executeColumnar()
       .map { columnarBatch =>
         val offHeapAggregations = outputColumns.map {
           case OutputColumn(inputColumns, outputColumnIndex, columnAggregation, outputAggregator) => {

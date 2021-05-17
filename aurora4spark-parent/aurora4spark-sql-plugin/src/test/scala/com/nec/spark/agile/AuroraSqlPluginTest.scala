@@ -1,32 +1,22 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.ReferenceData.{SampleCSV, SampleMultiColumnCSV, SampleTwoColumnParquet}
 import com.nec.spark.agile.SparkPlanSavingPlugin.savedSparkPlan
-import com.nec.spark.{
-  AcceptanceTest,
-  Aurora4SparkDriver,
-  Aurora4SparkExecutorPlugin,
-  AuroraSqlPlugin
-}
-import com.nec.spark.{
-  AcceptanceTest,
-  Aurora4SparkDriver,
-  Aurora4SparkExecutorPlugin,
-  AuroraSqlPlugin
-}
+import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.{AcceptanceTest, Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.internal.SQLConf.{
-  COLUMN_VECTOR_OFFHEAP_ENABLED,
-  WHOLESTAGE_CODEGEN_ENABLED
-}
+import org.apache.spark.sql.internal.SQLConf.{COLUMN_VECTOR_OFFHEAP_ENABLED, WHOLESTAGE_CODEGEN_ENABLED}
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -628,6 +618,54 @@ final class AuroraSqlPluginTest
 
       val listOfDoubles = sumDataSet.collect().head
       assert(listOfDoubles == (15.0, 10.0, 40.0))
+    } finally sparkSession.close()
+  }
+
+  "We can peform multiple different operations on multiple columns separately off the heap " in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[(Double, Double, Double)]((1, 2, 3), (4, 8, 7), (10, 20, 30))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        VeoGenericPlanExtractor
+          .matchPlan(sparkPlan)
+          .map { childPlan =>
+            GenericAggregationPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              childPlan.outColumns.map{
+                case OutputColumnPlanDescription(inputColumns,
+                outputColumnIndex, columnAggregation, outputAggregator) =>
+                  OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                    createUnsafeAggregator(outputAggregator))
+              }
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession
+          .sql("SELECT SUM(nums._1 + nums._2), AVG(nums._2 - nums._1), SUM(nums._3) FROM nums")
+          .as[(Double, Double, Double)]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().head
+      assert(listOfDoubles == (45.0, 5.0, 40.0))
     } finally sparkSession.close()
   }
 
