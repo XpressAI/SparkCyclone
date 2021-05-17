@@ -57,20 +57,20 @@ object VeoSumPlanExtractor {
     }
   }
 
-  def extractExpressions(
-    expressions: Seq[AggregateExpression]
-  ): Seq[(AggregateOperation, Seq[AttributeName])] = {
-    val attributeNames = expressions.map { case AggregateExpression(sum @ Sum(expr), _, _, _, _) =>
-      val references = sum.references
-        .map(reference => AttributeName(reference.name))
-        .toSeq // Poor thing this is done on Strings can we do better here?
-      (extractOperation(expr), references)
+  def extractExpressions(expressions: Seq[AggregateExpression]):
+      Seq[(ColumnAggregateOperation, Seq[AttributeName])] = {
+    val attributeNames = expressions.map {
+      case AggregateExpression(sum @ Sum(expr), _, _, _, _) =>
+        val references = sum.references
+          .map(reference => AttributeName(reference.name))
+          .toSeq // Poor thing this is done on Strings can we do better here?
+        (extractOperation(expr), references)
     }
 
     attributeNames
   }
 
-  def extractOperation(expression: Expression): AggregateOperation = {
+  def extractOperation(expression: Expression): ColumnAggregateOperation = {
     expression match {
       case Add(_, _, _)      => Addition
       case Subtract(_, _, _) => Subtraction

@@ -241,7 +241,7 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoAvgPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
           AveragingSparkPlanOffHeap(
@@ -279,13 +279,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoAvgPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsAveragingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -317,13 +321,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoAvgPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsAveragingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -355,13 +363,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoAvgPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsAveragingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -487,13 +499,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoSumPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsSummingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -539,13 +555,17 @@ final class AuroraSqlPluginTest
         .createOrReplaceTempView("nums")
 
       SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-        VeoSumPlanExtractor
+        VeoGenericPlanExtractor
           .matchPlan(sparkPlan)
           .map { childPlan =>
-            MultipleColumnsSummingPlanOffHeap(
+            GenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
-              MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-              childPlan.attributes
+              childPlan.outColumns.map{
+                case OutputColumnPlanDescription(inputColumns,
+                outputColumnIndex, columnAggregation, outputAggregator) =>
+                  OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                    createUnsafeAggregator(outputAggregator))
+              }
             )
           }
           .getOrElse(fail("Not expected to be here"))
@@ -560,6 +580,54 @@ final class AuroraSqlPluginTest
 
       val listOfDoubles = sumDataSet.collect().head
       assert(listOfDoubles == (15.0, 28.0, 40.0))
+    } finally sparkSession.close()
+  }
+
+  "We can peform multiple different operations separately off the heap" in {
+    val conf = new SparkConf()
+    conf.setMaster("local")
+    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+    conf.set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+    conf.setAppName("local-test")
+    val sparkSession = SparkSession.builder().config(conf).getOrCreate()
+    try {
+      import sparkSession.implicits._
+
+      val nums = List[(Double, Double, Double)]((1, 2, 3), (4, 8, 7), (10, 20, 30))
+
+      SparkSqlPlanExtension.rulesToApply.clear()
+
+      nums
+        .toDS()
+        .createOrReplaceTempView("nums")
+
+      SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+        VeoGenericPlanExtractor
+          .matchPlan(sparkPlan)
+          .map { childPlan =>
+            GenericAggregationPlanOffHeap(
+              RowToColumnarExec(childPlan.sparkPlan),
+              childPlan.outColumns.map{
+                case OutputColumnPlanDescription(inputColumns,
+                outputColumnIndex, columnAggregation, outputAggregator) =>
+                  OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                    createUnsafeAggregator(outputAggregator))
+              }
+            )
+          }
+          .getOrElse(fail("Not expected to be here"))
+      }
+
+      val sumDataSet =
+        sparkSession
+          .sql("SELECT SUM(nums._1), AVG(nums._2), SUM(nums._3) FROM nums")
+          .as[(Double, Double, Double)]
+
+      sumDataSet.explain(true)
+
+      val listOfDoubles = sumDataSet.collect().head
+      assert(listOfDoubles == (15.0, 10.0, 40.0))
     } finally sparkSession.close()
   }
 
@@ -578,13 +646,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoSumPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsSummingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -614,13 +686,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoSumPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsSummingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -650,13 +726,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoSumPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsSummingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -686,13 +766,17 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoSumPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          MultipleColumnsSummingPlanOffHeap(
+          GenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
-            MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map{
+              case OutputColumnPlanDescription(inputColumns,
+              outputColumnIndex, columnAggregation, outputAggregator) =>
+                OutputColumn(inputColumns, outputColumnIndex, columnAggregation,
+                  createUnsafeAggregator(outputAggregator))
+            }
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -1130,6 +1214,12 @@ final class AuroraSqlPluginTest
     finally sparkSession.stop()
   }
 
+  private def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
+    aggregationFunction match {
+      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
+      case AvgAggregation => new AvgAggregator(MultipleColumnsOffHeapAverager.UnsafeBased)
+    }
+  }
   override protected def beforeAll(): Unit = {
     val rootLogger = Logger.getRootLogger
     rootLogger.setLevel(Level.ERROR)

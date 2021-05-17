@@ -3,7 +3,9 @@ package com.nec.spark
 import com.nec.VeDirectApp.compile_c
 import com.nec.spark.LocalVeoExtension.ve_so_name
 import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.agile.{MultipleColumnsSummingPlanOffHeap, VeoSumPlanExtractor, _}
+
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -19,28 +21,21 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
       new ColumnarRule {
         override def preColumnarTransitions: Rule[SparkPlan] =
           sparkPlan =>
-            VeoAvgPlanExtractor
+            VeoGenericPlanExtractor
               .matchPlan(sparkPlan)
-              .map { childPlan =>
-                MultipleColumnsAveragingPlanOffHeap(
-                  RowToColumnarExec(childPlan.sparkPlan),
-                  MultipleColumnsOffHeapAverager.VeoBased(ve_so_name),
-                  childPlan.attributes
-                )
-              }
-              .orElse {
-                VeoSumPlanExtractor
-                  .matchPlan(sparkPlan)
-                  .map { childPlan =>
-                    MultipleColumnsSummingPlanOffHeap(
-                      if (childPlan.sparkPlan.supportsColumnar) childPlan.sparkPlan
-                      else RowToColumnarExec(childPlan.sparkPlan),
-                      MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.VeoBased,
-                      childPlan.attributes
-                    )
+              .map{
+                case GenericSparkPlanDescription(sparkPlan, outColumns) =>
+                  val outputColumns = outColumns.map{
+                    case desc => OutputColumn(desc.inputColumns, desc.outputColumnIndex,
+                      desc.columnAggregation, createAggregator(desc.outputAggregator))
                   }
-              }
-              .orElse {
+
+                  if(sparkPlan.supportsColumnar) sparkPlan
+                  GenericAggregationPlanOffHeap(
+                    if(sparkPlan.supportsColumnar) sparkPlan
+                    else RowToColumnarExec(sparkPlan) ,
+                    outputColumns)
+              }.orElse {
                 AddPlanExtractor.matchAddPairwisePlan(
                   sparkPlan,
                   PairwiseAdditionOffHeap.OffHeapPairwiseSummer.VeoBased(ve_so_name)
@@ -50,4 +45,12 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
       }
     })
   }
+
+
+  def createAggregator(aggregationFunction: AggregationFunction): Aggregator  = {
+    aggregationFunction match {
+      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.VeoBased(ve_so_name))
+    }
+  }
+
 }
