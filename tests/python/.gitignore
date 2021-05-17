@@ -1,3 +1,5 @@
 _SUCCESS
 *.crc
 *.csv
+*.parquet
+*.json
