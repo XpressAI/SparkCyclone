@@ -13,6 +13,7 @@ import com.sun.jna.ptr.PointerByReference
 import org.bytedeco.javacpp.LongPointer
 import java.nio.LongBuffer
 import java.nio.ByteOrder
+import org.bytedeco.javacpp.IntPointer
 object CountStringsVESpec {
 
   lazy val LibSource: String = new String(Files.readAllBytes(CountStringsCSpec.SortStuffLibC))
@@ -41,14 +42,12 @@ object CountStringsVESpec {
       stringLengths.length * 4
     }
     def stringPositionsBB: ByteBuffer = {
-        val lim = stringPositions.length * 4
+      val lim = stringPositions.length * 4
       val bb = ByteBuffer.allocate(lim)
-      stringPositions.zipWithIndex.foreach { case (v, idx) => 
+      stringPositions.zipWithIndex.foreach { case (v, idx) =>
         val tgt = idx * 4
-        println(s"Trying to put to ${tgt}; ${lim}")
         bb.putInt(tgt, v)
-    
-    }
+      }
       bb.position(0)
       bb
     }
@@ -61,7 +60,7 @@ object CountStringsVESpec {
 }
 
 final class CountStringsVESpec extends AnyFreeSpec {
-  "It works" ignore {
+  "We can get a word count back" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val libPath = VeCompiler("wc", veBuildPath).compile_c(LibSource)
     import Sample._
@@ -77,29 +76,37 @@ final class CountStringsVESpec extends AnyFreeSpec {
           val longPointer = new LongPointer(8)
           val strBb = someStringByteBuffer
           Aurora.veo_args_set_stack(our_args, 0, 0, strBb, arrSize)
-          Aurora.veo_args_set_stack(our_args, 1, 0, stringPositionsBB, sbbLen)
-          Aurora.veo_args_set_stack(our_args, 2, 0, stringLengthsBb, stringLengthsBbSize)
+          Aurora.veo_args_set_stack(our_args, 0, 1, stringPositionsBB, sbbLen)
+          Aurora.veo_args_set_stack(our_args, 0, 2, stringLengthsBb, stringLengthsBbSize)
           Aurora.veo_args_set_i32(our_args, 3, someStrings.length)
-          Aurora.veo_args_set_stack(our_args, 4, 2, longPointer.asByteBuffer(), 8)
-
-          
-
-          val resultsPtr = new PointerByReference()
+          Aurora.veo_args_set_stack(our_args, 2, 4, longPointer.asByteBuffer(), 8)
 
           /** Call */
           try {
-            val req_id = Aurora.veo_call_async_by_name(ctx, lib, "count_strings_ve", our_args)
-            val lengthOfItemsPointer = new LongPointer(8)
+            val req_id = Aurora.veo_call_async_by_name(ctx, lib, "count_strings", our_args)
+            val lengthOfItemsPointer = new LongPointer(1)
             try {
-              val counted_strings = Aurora.veo_call_wait_result(ctx, req_id, lengthOfItemsPointer)
+              println(s"Pre-result ==> ${lengthOfItemsPointer.get()}")
+              val callRes = Aurora.veo_call_wait_result(ctx, req_id, lengthOfItemsPointer)
+              println(s"Call result = $callRes")
+              require(callRes == 0, s"Expected 0, got ${callRes}; means VE call failed")
+              println(s"Got result ==> ${lengthOfItemsPointer.get()}")
+              val counted_strings = lengthOfItemsPointer.get().toInt
 
-              val veLocation = lengthOfItemsPointer.get()
-              val vhTarget = ByteBuffer.allocateDirect(counted_strings * 8)
-              Aurora.veo_read_mem(
+              val veLocation = longPointer.get()
+              val resLen = counted_strings * 8
+              val vhTarget = ByteBuffer.allocateDirect(resLen)
+              println(s"VE Location = ${veLocation}")
+              println(s"Will read: ${resLen}")
+              val rres = Aurora.veo_read_mem(
                 proc,
                 new org.bytedeco.javacpp.Pointer(vhTarget),
                 veLocation,
-                counted_strings * 8
+                resLen
+              )
+              println(s"Read result = ${rres}")
+              val resultsPtr = new PointerByReference(
+                new Pointer(vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address())
               )
               val results = (0 until counted_strings)
                 .map(i =>
@@ -123,7 +130,7 @@ final class CountStringsVESpec extends AnyFreeSpec {
     assert(wordCount == expectedWordCount)
   }
 
-  "It can read some VE-allocated memory" in {
+  "It can read some VE-allocated memory" ignore {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val libPath = VeCompiler("wc", veBuildPath).compile_c(LibSource)
     import Sample._
@@ -137,7 +144,10 @@ final class CountStringsVESpec extends AnyFreeSpec {
           val longPointer = new LongPointer(1)
           longPointer.put(2)
           longPointer.position(0)
+
+          val lengthPointer = new IntPointer(1L)
           Aurora.veo_args_set_stack(our_args, 2, 0, longPointer.asByteBuffer(), 8)
+          Aurora.veo_args_set_stack(our_args, 2, 1, lengthPointer.asByteBuffer(), 4)
           try {
             val req_id = Aurora.veo_call_async_by_name(ctx, lib, "get_veo_data", our_args)
             val rl = new LongPointer(1)
@@ -145,13 +155,14 @@ final class CountStringsVESpec extends AnyFreeSpec {
             longPointer.position(0)
             println(s"lng => ${longPointer.get()}")
             println(s"lng => ${longPointer.get()}")
+            println(s"Items returned => ${lengthPointer.get()}")
             println(s"Result = ${rl.get()}")
             val vhTarget = ByteBuffer.allocateDirect(2 * 4)
             val r2 = Aurora.veo_read_mem(
-                proc,
-                new org.bytedeco.javacpp.Pointer(vhTarget),
-                longPointer.get(),
-                8
+              proc,
+              new org.bytedeco.javacpp.Pointer(vhTarget),
+              longPointer.get(),
+              8
             )
             println(s"R2 = $r2")
             vhTarget.order(ByteOrder.LITTLE_ENDIAN)
