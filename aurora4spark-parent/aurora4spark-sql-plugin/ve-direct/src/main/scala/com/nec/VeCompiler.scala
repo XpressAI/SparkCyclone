@@ -5,7 +5,7 @@ import java.nio.file._
 final case class VeCompiler(compilationPrefix: String, buildDir: Path) {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
   def compile_c(sourceCode: String): Path = {
-    if (!Files.exists(buildDir)) Files.createDirectory(buildDir)
+    if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
     Files.write(cSource, sourceCode.getBytes())

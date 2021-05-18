@@ -19,7 +19,11 @@ typedef struct {
     int count;
 } unique_position_counter;
 
-int count_strings(void* strings, int* string_positions, int* string_lengths, int num_strings, void** rets, int* counted) {
+long count_strings_ve(void* strings, int* string_positions, int* string_lengths, int num_strings, long** ve_data_position) {
+    return count_strings(strings, string_positions, string_lengths, num_strings, ve_data_position);
+}
+
+int count_strings(void* strings, int* string_positions, int* string_lengths, int num_strings, void** rets) {
 
     unique_position_counter* ress = malloc(num_strings * sizeof(unique_position_counter));
     int counted_items_size = 0;
