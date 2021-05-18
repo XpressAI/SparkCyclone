@@ -105,6 +105,7 @@ final class CountStringsCSpec extends AnyFreeSpec {
 
     os match {
       case _ if os.contains("win") => buildAndLinkWin(targetPath)
+      case _ if os.contains("lin") => buildAndLinkLin(targetPath)
       case _ => buildAndLinkMacos(targetPath)
     }
   }
@@ -126,6 +127,14 @@ final class CountStringsCSpec extends AnyFreeSpec {
     assert(cmd.! == 0)
     assert(cmd2.! == 0)
     val libPath = targetPath.getParent.resolve("libsortstuff.dylib")
+    Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary])
+  }
+  private def buildAndLinkLin(targetPath: Path): CountStringsLibrary = {
+    val cmd = List("cmake", targetPath.toString)
+    val cmd2 = List("make", "-C", targetPath.getParent.toString)
+    assert(cmd.! == 0)
+    assert(cmd2.! == 0)
+    val libPath = targetPath.getParent.resolve("libsortstuff.so")
     Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary])
   }
 }
