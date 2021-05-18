@@ -10,6 +10,7 @@ import java.nio.ByteBuffer
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.time.Instant
 import java.util
+import scala.sys.process._
 
 object CountStringsCSpec {
 
@@ -41,7 +42,6 @@ object CountStringsCSpec {
 
 final class CountStringsCSpec extends AnyFreeSpec {
   "It works" in {
-    import scala.sys.process._
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     if (Files.exists(targetDir)) {
       FileUtils.deleteDirectory(targetDir.toFile)
@@ -59,18 +59,8 @@ final class CountStringsCSpec extends AnyFreeSpec {
       targetDir.resolve(SortStuffLibC.getFileName),
       StandardCopyOption.REPLACE_EXISTING
     )
-    val cmd = List("C:\\Program Files\\CMake\\bin\\cmake", "-A", "x64", tgtCl.toString)
-    val cmd2 = List("C:\\Program Files\\CMake\\bin\\cmake", "--build", tgtCl.getParent.toString)
-    val appPath = tgtCl.getParent.resolve("Debug").resolve("HelloWorld.exe")
-    val libPath = tgtCl.getParent.resolve("Debug").resolve("sortstuff.dll")
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
-//    val appOutput = List(appPath.toString).!!
-//    assert(appOutput == "10 20 25 40 90 100 \r\n")
 
-    val opts = new util.HashMap[String, AnyRef](W32APIOptions.DEFAULT_OPTIONS)
-    opts.put(Library.OPTION_CLASSLOADER, null)
-    val thingy = Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary], opts)
+    val thingy = buildAndLink(tgtCl)
 
     assert(thingy.add(1, 2) == 3)
 
@@ -108,5 +98,34 @@ final class CountStringsCSpec extends AnyFreeSpec {
 
     info(s"Got: $result")
     assert(result == expected_results)
+  }
+
+  private def buildAndLink(targetPath: Path): CountStringsLibrary = {
+    val os = System.getProperty("os.name").toLowerCase
+
+    os match {
+      case _ if os.contains("win") => buildAndLinkWin(targetPath)
+      case _ => buildAndLinkMacos(targetPath)
+    }
+  }
+
+  private def buildAndLinkWin(targetPath: Path): CountStringsLibrary = {
+    val cmd = List("C:\\Program Files\\CMake\\bin\\cmake", "-A", "x64", targetPath.toString)
+    val cmd2 = List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
+    assert(cmd.! == 0)
+    assert(cmd2.! == 0)
+    val libPath = targetPath.getParent.resolve("Debug").resolve("sortstuff.dll")
+    val opts = new util.HashMap[String, AnyRef](W32APIOptions.DEFAULT_OPTIONS)
+    opts.put(Library.OPTION_CLASSLOADER, null)
+    Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary], opts)
+  }
+
+  private def buildAndLinkMacos(targetPath: Path): CountStringsLibrary = {
+    val cmd = List("cmake", targetPath.toString)
+    val cmd2 = List("make", "-C", targetPath.getParent.toString)
+    assert(cmd.! == 0)
+    assert(cmd2.! == 0)
+    val libPath = targetPath.getParent.resolve("libsortstuff.dylib")
+    Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary])
   }
 }
