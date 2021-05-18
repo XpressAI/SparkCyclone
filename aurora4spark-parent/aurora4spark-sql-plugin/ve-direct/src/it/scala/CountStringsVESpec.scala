@@ -16,6 +16,24 @@ object CountStringsCSpec {
 
   lazy val LibSource: String = new String(Files.readAllBytes(CountStringsCSpec.SortStuffLibC))
 
+  final case class SomeStrings(strings: String*) {
+      def someStrings: Array[String] = strings.toArray
+      def stringsByteArray = someStrings.flatMap(_.getBytes)
+      def someStringByteBuffer: ByteBuffer = {
+          val bb = ByteBuffer.allocate(stringsByteArray.length)
+          bb.put(stringsByteArray)
+          bb.position(0)
+          bb
+      }
+
+      def stringPositions = someStrings.map(_.length).scanLeft(0)(_ + _).dropRight(1)
+
+    def expected_results: Map[String, Int] = someStrings
+      .groupBy(identity)
+      .mapValues(_.length)
+  }
+
+  val Sample = SomeStrings("hello", "dear", "world", "of", "hello", "of", "hello")
 }
 
 final class CountStringsVESpec extends AnyFreeSpec {
@@ -30,7 +48,8 @@ final class CountStringsVESpec extends AnyFreeSpec {
         int count_strings(void* strings, int* string_positions, int* string_lengths, int num_strings, void** rets, int* counted) {
 
         val our_args = Aurora.veo_args_alloc()
-
+        import Sample._
+        val stringsMemoryAddress = LongPointer
         Aurora.veo_args_set_stack(
             our_args,
             0,
@@ -54,55 +73,9 @@ final class CountStringsVESpec extends AnyFreeSpec {
   }
 }
 
-        val vej = new VeJavaContext(ctx, lib)
-        println(SumSimple.sum_doubles(vej, List(1, 2, 3, 4)))
-        println(AvgSimple.avg_doubles(vej, List(1, 2, 3, 10)))
-        val multiColumnSumResult = SumMultipleColumns.sum_multiple_doubles(
-          vej,
-          List(List(1, 2, 3), List(2, 3, 4), List(5, 4, 3), List(10, 10, 10))
-        )
-        println(multiColumnSumResult)
-        assert(multiColumnSumResult == List(6.0, 9.0, 12.0, 30.0))
-        val multiColumnAvgResult = AvgMultipleColumns.avg_multiple_doubles(
-          vej,
-          List(List(5, 10, 15), List(3, 27, 30), List(100, 200, 300), List(1000, 2000, 3000))
-        )
-        println(multiColumnAvgResult)
-        assert(multiColumnAvgResult == List(10.0, 20.0, 200.0, 2000.0))
-        println(
-          SumPairwise.pairwise_sum_doubles(vej, List[(Double, Double)]((1, 1), (1, 2), (2, 9)))
-        )
-
       } finally Aurora.veo_context_close(ctx)
     } finally Aurora.veo_proc_destroy(proc)
   }
-    Files.createDirectories(targetDir)
-    val tgtCl = targetDir.resolve(CMakeListsTXT.getFileName)
-    Files.copy(CMakeListsTXT, tgtCl, StandardCopyOption.REPLACE_EXISTING)
-    Files.copy(
-      SortStuffC,
-      targetDir.resolve(SortStuffC.getFileName),
-      StandardCopyOption.REPLACE_EXISTING
-    )
-    Files.copy(
-      SortStuffLibC,
-      targetDir.resolve(SortStuffLibC.getFileName),
-      StandardCopyOption.REPLACE_EXISTING
-    )
-
-    val thingy = buildAndLink(tgtCl)
-
-    assert(thingy.add(1, 2) == 3)
-
-    assert(thingy.add_nums(Array(1, 2, 4), 3) == 7)
-
-    val resultsPtr = new PointerByReference()
-    val someStrings = Array("hello", "dear", "world", "of", "hello", "of", "hello")
-    val byteArray = someStrings.flatMap(_.getBytes)
-    val bb = ByteBuffer.allocate(byteArray.length)
-    bb.put(byteArray)
-    bb.position(0)
-
     val stringPositions = someStrings.map(_.length).scanLeft(0)(_ + _).dropRight(1)
     val counted_strings = thingy.count_strings(
       bb,
