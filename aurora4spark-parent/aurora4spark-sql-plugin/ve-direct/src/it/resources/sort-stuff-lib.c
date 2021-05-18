@@ -19,7 +19,16 @@ typedef struct {
     int count;
 } unique_position_counter;
 
+long get_veo_data(long* ve_data_position) {
+    int* x = malloc(4 * 2);
+    x[0] = 910;
+    x[1] = 12345;
+    *ve_data_position = x;
+    return 56;
+}
+
 long count_strings_ve(void* strings, int* string_positions, int* string_lengths, int num_strings, long** ve_data_position) {
+    return 0;
     return count_strings(strings, string_positions, string_lengths, num_strings, ve_data_position);
 }
 
@@ -42,7 +51,7 @@ int count_strings(void* strings, int* string_positions, int* string_lengths, int
             if ( strncmp(str_i, str_right, string_lengths[i]) == 0 ) {
                 ress[j].count++;
                 found = 1;
-                break;
+
             }
         }
 

@@ -97,6 +97,7 @@ lazy val `ve-direct` = project
       "net.java.dev.jna" % "jna-platform" % "5.8.0",
       "commons-io" % "commons-io" % "2.8.0" % "it"
     ),
+    IntegrationTest / fork := true,
     IntegrationTest / managedResources := {
       val resourceBase = (IntegrationTest / resourceManaged).value
       val assembled = assembly.value
