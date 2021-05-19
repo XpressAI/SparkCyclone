@@ -61,7 +61,6 @@ object WordCount {
 
     def computex86(libPath: Path): Map[String, Int] = {
       // will abstract this out later
-      val thingy = Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary])
       import scala.collection.JavaConverters._
       val thingy2 =
         new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
