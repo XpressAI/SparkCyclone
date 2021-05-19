@@ -19,7 +19,13 @@ typedef struct {
     int count;
 } unique_position_counter;
 
-int count_strings(char* strings, int* string_positions, int* string_lengths, int num_strings, void** rets, int* rets_length) {
+typedef struct {
+    void **data;
+    long logical_total;
+    long bytes_total;
+} data_out;
+
+int count_strings(char* strings, int* string_positions, int* string_lengths, int num_strings, data_out* counted_strings) {
     unique_position_counter* ress = malloc(num_strings * sizeof(unique_position_counter));
     long counted_items_size = 0;
     for ( int i = 0; i < num_strings; i++ ) {
@@ -44,7 +50,8 @@ int count_strings(char* strings, int* string_positions, int* string_lengths, int
             counted_items_size++;
         }
     }
-    *rets = ress;
-    rets_length[0] = counted_items_size;
+    counted_strings->data = ress;
+    counted_strings->logical_total = counted_items_size;
+    counted_strings->bytes_total = counted_items_size * sizeof(unique_position_counter);
     return 0;
 }

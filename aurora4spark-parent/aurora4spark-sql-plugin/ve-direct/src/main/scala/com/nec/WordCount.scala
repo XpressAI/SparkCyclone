@@ -105,8 +105,11 @@ object WordCount {
     ): Map[String, Int] = {
       val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
       val our_args = Aurora.veo_args_alloc()
-      val longPointer = new LongPointer(8)
-      val countPointer = new IntPointer(4L)
+      val lgSize = 24
+      val longPointer = new LongPointer(lgSize)
+      longPointer.put(0, 0)
+      longPointer.put(1, 0)
+      longPointer.put(2, 0)
       val strBb = someStringByteBuffer
 
       def copyBufferToVe(byteBuffer: ByteBuffer): Long = {
@@ -128,8 +131,7 @@ object WordCount {
       Aurora.veo_args_set_i64(our_args, 1, copyBufferToVe(stringPositionsBB))
       Aurora.veo_args_set_i64(our_args, 2, copyBufferToVe(stringLengthsBb))
       Aurora.veo_args_set_i32(our_args, 3, someStrings.length)
-      Aurora.veo_args_set_stack(our_args, 2, 4, longPointer.asByteBuffer(), 8)
-      Aurora.veo_args_set_stack(our_args, 2, 5, countPointer.asByteBuffer(), 4)
+      Aurora.veo_args_set_stack(our_args, 1, 4, longPointer.asByteBuffer(), lgSize)
 
       try {
         val req_id = Aurora.veo_call_async_by_name(ctx, lib, count_strings, our_args)
@@ -137,10 +139,10 @@ object WordCount {
         try {
           val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
           require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
-          val counted_strings = countPointer.get()
-
-          val veLocation = longPointer.get()
-          val resLen = counted_strings * 8
+          val veLocation = longPointer.get(0)
+          val counted_strings = longPointer.get(1).toInt
+          val resLen = longPointer.get(2).toInt
+          
           val vhTarget = ByteBuffer.allocateDirect(resLen)
           Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veLocation, resLen)
           val resultsPtr = new PointerByReference(
