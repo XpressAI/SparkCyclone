@@ -57,6 +57,8 @@ object WordCount {
       .groupBy(identity)
       .mapValues(_.length)
 
+    private val count_strings = "count_strings"
+
     def computex86(libPath: Path): Map[String, Int] = {
       // will abstract this out later
       val thingy = Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary])
@@ -64,7 +66,7 @@ object WordCount {
       val thingy2 =
         new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
       val nl = thingy2.getNativeLibrary
-      val fn = nl.getFunction("count_strings")
+      val fn = nl.getFunction(count_strings)
       println(fn)
 
       val resultsPtr = new PointerByReference()
@@ -103,26 +105,30 @@ object WordCount {
       val our_args = Aurora.veo_args_alloc()
       val longPointer = new LongPointer(8)
       val strBb = someStringByteBuffer
-      val veInputPointer = new LongPointer(8)
-      Aurora.veo_alloc_mem(proc, veInputPointer, stringsByteArray.length)
-      Aurora.veo_write_mem(
-        proc,
-        veInputPointer.get(),
-        new org.bytedeco.javacpp.Pointer(strBb),
-        stringsByteArray.length
-      )
-      val inputVePointer = new LongPointer(8)
-      inputVePointer.put(veInputPointer.get())
 
-      Aurora.veo_args_set_i64(our_args, 0, veInputPointer.get())
+      def copyBufferToVe(byteBuffer: ByteBuffer): Long = {
+        val veInputPointer = new LongPointer(8)
+        val size = byteBuffer.capacity()
+        Aurora.veo_alloc_mem(proc, veInputPointer, size)
+        Aurora.veo_write_mem(
+          proc,
+          veInputPointer.get(),
+          new org.bytedeco.javacpp.Pointer(byteBuffer),
+          size
+        )
+        val inputVePointer = new LongPointer(8)
+        inputVePointer.put(veInputPointer.get())
+        inputVePointer.get()
+      }
+
+      Aurora.veo_args_set_i64(our_args, 0, copyBufferToVe(strBb))
       Aurora.veo_args_set_stack(our_args, 0, 1, stringPositionsBB, sbbLen)
       Aurora.veo_args_set_stack(our_args, 0, 2, stringLengthsBb, stringLengthsBbSize)
       Aurora.veo_args_set_i32(our_args, 3, someStrings.length)
       Aurora.veo_args_set_stack(our_args, 2, 4, longPointer.asByteBuffer(), 8)
 
-      /** Call */
       try {
-        val req_id = Aurora.veo_call_async_by_name(ctx, lib, "count_strings", our_args)
+        val req_id = Aurora.veo_call_async_by_name(ctx, lib, count_strings, our_args)
         val lengthOfItemsPointer = new LongPointer(1)
         try {
           val callRes = Aurora.veo_call_wait_result(ctx, req_id, lengthOfItemsPointer)
