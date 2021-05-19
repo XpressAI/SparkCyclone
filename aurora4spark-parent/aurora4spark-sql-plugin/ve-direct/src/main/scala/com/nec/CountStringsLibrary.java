@@ -1,3 +1,5 @@
+package com.nec;
+
 import com.sun.jna.Library;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
@@ -6,7 +8,7 @@ import com.sun.jna.ptr.PointerByReference;
 
 import java.nio.ByteBuffer;
 
-interface CountStringsLibrary extends Library {
+public interface CountStringsLibrary extends Library {
     @Structure.FieldOrder({"string_i", "count"})
     class unique_position_counter extends Structure {
         public int string_i;

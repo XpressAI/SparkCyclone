@@ -19,20 +19,9 @@ typedef struct {
     int count;
 } unique_position_counter;
 
-long get_veo_data(long* ve_data_position, int* items) {
-    int* x = malloc(4 * 2);
-    x[0] = 910;
-    x[1] = 12345;
-    *ve_data_position = x;
-    *items = 2;
-    return 56;
-}
-
 long count_strings(char* strings, int* string_positions, int* string_lengths, int num_strings, void** rets) {
     unique_position_counter* ress = malloc(num_strings * sizeof(unique_position_counter));
     long counted_items_size = 0;
-    printf("0 => %c, 1 => %c, 2 => %c\n", strings[0], strings[1], strings[2]);
-
     for ( int i = 0; i < num_strings; i++ ) {
         int found = 0;
         int string_i_position = string_positions[i];
