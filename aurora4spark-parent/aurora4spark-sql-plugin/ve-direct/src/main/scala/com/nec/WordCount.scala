@@ -86,8 +86,6 @@ object WordCount {
       )
 
       val counted_strings = dc.logical_total.toInt
-
-      println(s"Counted = ${counted_strings}")
       assert(counted_strings == strings.toSet.size)
 
       val results =

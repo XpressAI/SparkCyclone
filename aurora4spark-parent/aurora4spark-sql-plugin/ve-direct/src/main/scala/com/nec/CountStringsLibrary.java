@@ -19,6 +19,10 @@ public interface CountStringsLibrary extends Library {
             super(p);
             read();
         }
+        public static class ByReference extends data_out implements Structure.ByReference {
+            public ByReference() { }
+            public ByReference(Pointer p) { super(p); }
+        }
     }
     @Structure.FieldOrder({"data", "logical_total", "bytes_total"})
     class data_out extends Structure {
