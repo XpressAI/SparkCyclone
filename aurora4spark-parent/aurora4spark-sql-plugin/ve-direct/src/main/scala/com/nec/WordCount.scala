@@ -3,8 +3,8 @@ package com.nec
 import com.nec.CountStringsLibrary.unique_position_counter
 import com.nec.aurora.Aurora
 import com.sun.jna.{Library, Native, Pointer}
-import com.sun.jna.ptr.PointerByReference
-import org.bytedeco.javacpp.LongPointer
+import com.sun.jna.ptr.{IntByReference, PointerByReference}
+import org.bytedeco.javacpp.{IntPointer, LongPointer}
 
 import java.nio.file.Path
 import java.nio.{ByteBuffer, ByteOrder}
@@ -76,15 +76,18 @@ object WordCount {
       bb.position(0)
 
       val stringPositions = someStrings.map(_.length).scanLeft(0)(_ + _).dropRight(1)
-      val counted_strings = fn.invokeInt(
+      val cnt_ptr = new IntByReference()
+      fn.invokeInt(
         Array[java.lang.Object](
           bb,
           stringPositions,
           someStrings.map(_.length),
           java.lang.Integer.valueOf(someStrings.length),
-          resultsPtr
+          resultsPtr,
+          cnt_ptr
         )
       )
+      val counted_strings = cnt_ptr.getValue
 
       assert(counted_strings == strings.toSet.size)
 
@@ -104,6 +107,7 @@ object WordCount {
       val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
       val our_args = Aurora.veo_args_alloc()
       val longPointer = new LongPointer(8)
+      val countPointer = new IntPointer(4L)
       val strBb = someStringByteBuffer
 
       def copyBufferToVe(byteBuffer: ByteBuffer): Long = {
@@ -126,14 +130,15 @@ object WordCount {
       Aurora.veo_args_set_i64(our_args, 2, copyBufferToVe(stringLengthsBb))
       Aurora.veo_args_set_i32(our_args, 3, someStrings.length)
       Aurora.veo_args_set_stack(our_args, 2, 4, longPointer.asByteBuffer(), 8)
+      Aurora.veo_args_set_stack(our_args, 2, 5, countPointer.asByteBuffer(), 4)
 
       try {
         val req_id = Aurora.veo_call_async_by_name(ctx, lib, count_strings, our_args)
-        val lengthOfItemsPointer = new LongPointer(1)
+        val fnCallResult = new LongPointer(8)
         try {
-          val callRes = Aurora.veo_call_wait_result(ctx, req_id, lengthOfItemsPointer)
+          val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
           require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
-          val counted_strings = lengthOfItemsPointer.get().toInt
+          val counted_strings = countPointer.get()
 
           val veLocation = longPointer.get()
           val resLen = counted_strings * 8
