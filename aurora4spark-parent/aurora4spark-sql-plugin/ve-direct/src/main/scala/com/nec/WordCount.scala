@@ -2,14 +2,16 @@ package com.nec
 
 import com.nec.CountStringsLibrary.unique_position_counter
 import com.nec.aurora.Aurora
-import com.sun.jna.{Native, Pointer}
+import com.sun.jna.{Library, Native, Pointer}
 import com.sun.jna.ptr.PointerByReference
 import org.bytedeco.javacpp.LongPointer
 
 import java.nio.file.Path
 import java.nio.{ByteBuffer, ByteOrder}
+import scala.language.higherKinds
 
 object WordCount {
+
   val SourceCode: String = {
     val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/sort-stuff-lib.c"))
     try source.mkString
@@ -58,6 +60,12 @@ object WordCount {
     def computex86(libPath: Path): Map[String, Int] = {
       // will abstract this out later
       val thingy = Native.loadLibrary(libPath.toString, classOf[CountStringsLibrary])
+      import scala.collection.JavaConverters._
+      val thingy2 =
+        new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
+      val nl = thingy2.getNativeLibrary
+      val fn = nl.getFunction("count_strings")
+      println(fn)
 
       val resultsPtr = new PointerByReference()
       val byteArray = someStrings.flatMap(_.getBytes)
@@ -66,12 +74,14 @@ object WordCount {
       bb.position(0)
 
       val stringPositions = someStrings.map(_.length).scanLeft(0)(_ + _).dropRight(1)
-      val counted_strings = thingy.count_strings(
-        bb,
-        stringPositions,
-        someStrings.map(_.length),
-        someStrings.length,
-        resultsPtr
+      val counted_strings = fn.invokeInt(
+        Array[java.lang.Object](
+          bb,
+          stringPositions,
+          someStrings.map(_.length),
+          java.lang.Integer.valueOf(someStrings.length),
+          resultsPtr
+        )
       )
 
       assert(counted_strings == strings.toSet.size)
