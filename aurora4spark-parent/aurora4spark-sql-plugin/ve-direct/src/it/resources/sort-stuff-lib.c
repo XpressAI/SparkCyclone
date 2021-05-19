@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <winsock2.h>
 
 int add(int a, int b) {
     return a + b;
@@ -21,8 +22,8 @@ typedef struct {
 
 typedef struct {
     void **data;
-    long logical_total;
-    long bytes_total;
+    size_t logical_total;
+    size_t bytes_total;
 } data_out;
 
 int count_strings(char* strings, int* string_positions, int* string_lengths, int num_strings, data_out* counted_strings) {
@@ -50,6 +51,7 @@ int count_strings(char* strings, int* string_positions, int* string_lengths, int
             counted_items_size++;
         }
     }
+    printf("\nx->%p\ny->%p\nz->%p\n", &(counted_strings->data), &(counted_strings->logical_total), &(counted_strings->bytes_total));
     counted_strings->data = ress;
     counted_strings->logical_total = counted_items_size;
     counted_strings->bytes_total = counted_items_size * sizeof(unique_position_counter);

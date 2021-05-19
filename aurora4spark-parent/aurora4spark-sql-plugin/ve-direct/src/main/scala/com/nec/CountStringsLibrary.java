@@ -3,8 +3,6 @@ package com.nec;
 import com.sun.jna.Library;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.PointerByReference;
 
 import java.nio.ByteBuffer;
 
@@ -22,10 +20,24 @@ public interface CountStringsLibrary extends Library {
             read();
         }
     }
+    @Structure.FieldOrder({"data", "logical_total", "bytes_total"})
+    class data_out extends Structure {
+        public Pointer data;
+        public long logical_total;
+        public long bytes_total;
 
-    int add(int a, int b);
+        public data_out() {
+        }
 
-    int add_nums(int[] nums, int len);
+        public data_out(Pointer p) {
+            super(p);
+            read();
+        }
+        public static class ByReference extends data_out implements Structure.ByReference {
+            public ByReference() { }
+            public ByReference(Pointer p) { super(p); }
+        }
+    }
 
-    int count_strings(ByteBuffer strings, int[] string_positions,int[] string_lengths, int strings_count, PointerByReference results);
+    int count_strings(ByteBuffer strings, int[] string_positions,int[] string_lengths, int strings_count, data_out.ByReference results);
 }

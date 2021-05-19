@@ -1,10 +1,10 @@
 package com.nec
 
-import com.nec.CountStringsLibrary.unique_position_counter
+import com.nec.CountStringsLibrary.{data_out, unique_position_counter}
 import com.nec.aurora.Aurora
-import com.sun.jna.{Library, Native, Pointer}
-import com.sun.jna.ptr.{IntByReference, PointerByReference}
-import org.bytedeco.javacpp.{IntPointer, LongPointer}
+import com.sun.jna.{Library, Pointer}
+import com.sun.jna.ptr.PointerByReference
+import org.bytedeco.javacpp.LongPointer
 
 import java.nio.file.Path
 import java.nio.{ByteBuffer, ByteOrder}
@@ -68,31 +68,32 @@ object WordCount {
       val fn = nl.getFunction(count_strings)
       println(fn)
 
-      val resultsPtr = new PointerByReference()
       val byteArray = someStrings.flatMap(_.getBytes)
       val bb = ByteBuffer.allocate(byteArray.length)
       bb.put(byteArray)
       bb.position(0)
 
       val stringPositions = someStrings.map(_.length).scanLeft(0)(_ + _).dropRight(1)
-      val cnt_ptr = new IntByReference()
+      val dc = new data_out.ByReference()
       fn.invokeInt(
         Array[java.lang.Object](
           bb,
           stringPositions,
           someStrings.map(_.length),
           java.lang.Integer.valueOf(someStrings.length),
-          resultsPtr,
-          cnt_ptr
+          dc
         )
       )
-      val counted_strings = cnt_ptr.getValue
 
+      val counted_strings = dc.logical_total.toInt
+
+      println(s"Counted = ${counted_strings}")
       assert(counted_strings == strings.toSet.size)
 
-      val results = (0 until counted_strings).map(i =>
-        new unique_position_counter(new Pointer(Pointer.nativeValue(resultsPtr.getValue) + i * 8))
-      )
+      val results =
+        (0 until counted_strings).map { i =>
+          new unique_position_counter(new Pointer(Pointer.nativeValue(dc.data) + i * 8))
+        }
       results.map { unique_position_counter =>
         someStrings(unique_position_counter.string_i) -> unique_position_counter.count
       }.toMap
@@ -142,7 +143,7 @@ object WordCount {
           val veLocation = longPointer.get(0)
           val counted_strings = longPointer.get(1).toInt
           val resLen = longPointer.get(2).toInt
-          
+
           val vhTarget = ByteBuffer.allocateDirect(resLen)
           Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veLocation, resLen)
           val resultsPtr = new PointerByReference(
