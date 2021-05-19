@@ -122,8 +122,8 @@ object WordCount {
       }
 
       Aurora.veo_args_set_i64(our_args, 0, copyBufferToVe(strBb))
-      Aurora.veo_args_set_stack(our_args, 0, 1, stringPositionsBB, sbbLen)
-      Aurora.veo_args_set_stack(our_args, 0, 2, stringLengthsBb, stringLengthsBbSize)
+      Aurora.veo_args_set_i64(our_args, 1, copyBufferToVe(stringPositionsBB))
+      Aurora.veo_args_set_i64(our_args, 2, copyBufferToVe(stringLengthsBb))
       Aurora.veo_args_set_i32(our_args, 3, someStrings.length)
       Aurora.veo_args_set_stack(our_args, 2, 4, longPointer.asByteBuffer(), 8)
 
