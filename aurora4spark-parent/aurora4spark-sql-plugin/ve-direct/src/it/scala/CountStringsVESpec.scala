@@ -22,7 +22,8 @@ object CountStringsVESpec {
     def someStrings: Array[String] = strings.toArray
     def stringsByteArray: Array[Byte] = someStrings.flatMap(_.getBytes)
     def someStringByteBuffer: ByteBuffer = {
-      val bb = ByteBuffer.allocate(stringsByteArray.length)
+      val bb = ByteBuffer.allocateDirect(stringsByteArray.length)
+      bb.order(ByteOrder.LITTLE_ENDIAN)
       bb.put(stringsByteArray)
       bb.position(0)
       bb
@@ -32,7 +33,8 @@ object CountStringsVESpec {
     def sbbLen: Int = stringPositions.length * 4
 
     def stringLengthsBb: ByteBuffer = {
-      val bb = ByteBuffer.allocate(stringLengthsBbSize)
+      val bb = ByteBuffer.allocateDirect(stringLengthsBbSize)
+      bb.order(ByteOrder.LITTLE_ENDIAN)
       stringLengths.zipWithIndex.foreach { case (v, idx) => bb.putInt(idx * 4, v) }
       bb.position(0)
       bb
@@ -43,7 +45,8 @@ object CountStringsVESpec {
     }
     def stringPositionsBB: ByteBuffer = {
       val lim = stringPositions.length * 4
-      val bb = ByteBuffer.allocate(lim)
+      val bb = ByteBuffer.allocateDirect(lim)
+      bb.order(ByteOrder.LITTLE_ENDIAN)
       stringPositions.zipWithIndex.foreach { case (v, idx) =>
         val tgt = idx * 4
         bb.putInt(tgt, v)
@@ -75,7 +78,21 @@ final class CountStringsVESpec extends AnyFreeSpec {
           val our_args = Aurora.veo_args_alloc()
           val longPointer = new LongPointer(8)
           val strBb = someStringByteBuffer
-          Aurora.veo_args_set_stack(our_args, 0, 0, strBb, arrSize)
+
+          val veInputPointer = new LongPointer(8)
+          Aurora.veo_alloc_mem(proc, veInputPointer, stringsByteArray.length)
+          
+          val rres_x = Aurora.veo_write_mem(
+            proc,
+            veInputPointer.get(),
+            new org.bytedeco.javacpp.Pointer(strBb),
+            stringsByteArray.length
+          )
+          println(s"Copy result = ${rres_x}; ptr = ${veInputPointer}; ${veInputPointer.get()}")
+          val inputVePointer = new LongPointer(8)
+          inputVePointer.put(veInputPointer.get())
+
+          Aurora.veo_args_set_i64(our_args, 0, veInputPointer.get())
           Aurora.veo_args_set_stack(our_args, 0, 1, stringPositionsBB, sbbLen)
           Aurora.veo_args_set_stack(our_args, 0, 2, stringLengthsBb, stringLengthsBbSize)
           Aurora.veo_args_set_i32(our_args, 3, someStrings.length)
