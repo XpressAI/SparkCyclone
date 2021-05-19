@@ -106,9 +106,6 @@ object WordCount {
       val our_args = Aurora.veo_args_alloc()
       val lgSize = 24
       val longPointer = new LongPointer(lgSize)
-      longPointer.put(0, 0)
-      longPointer.put(1, 0)
-      longPointer.put(2, 0)
       val strBb = someStringByteBuffer
 
       def copyBufferToVe(byteBuffer: ByteBuffer): Long = {
