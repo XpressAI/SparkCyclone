@@ -62,6 +62,7 @@ addCommandAlias(
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
 
 lazy val deploy = taskKey[Unit]("Deploy artifacts to a6")
+lazy val deployExamples = taskKey[Unit]("Deploy artifacts to a6")
 
 deploy := {
   val logger = streams.value.log
@@ -74,17 +75,25 @@ deploy := {
   logger.info("Preparing deployment: assembling.")
   val generatedFile = assembly.value
   logger.info(s"Assembled file: ${generatedFile}")
-  Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
   logger.info(s"Uploading JAR")
   Seq("scp", generatedFile.toString, "a6:/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
   logger.info(s"Uploaded JAR")
+}
 
+deployExamples := {
+  val logger = streams.value.log
+  import scala.sys.process._
+
+  logger.info("Preparing deployment of examples...")
+  Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
+  logger.info("Created dir.")
   Seq(
     "scp",
     "-r",
     (baseDirectory.value / ".." / ".." / "examples").getAbsolutePath,
     "a6:/opt/aurora4spark/"
   ) ! logger
+  logger.info("Uploaded examples.")
 }
 
 ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
@@ -118,5 +127,4 @@ lazy val `ve-direct` = project
     }
   )
 
-  AcceptanceTest / fork := true
-  
+AcceptanceTest / fork := true
