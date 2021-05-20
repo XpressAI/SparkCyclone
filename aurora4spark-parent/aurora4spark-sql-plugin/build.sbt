@@ -117,3 +117,6 @@ lazy val `ve-direct` = project
         oldStrategy(x)
     }
   )
+
+  AcceptanceTest / fork := true
+  
