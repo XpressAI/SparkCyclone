@@ -39,6 +39,7 @@ object WordCountPlanner {
           )
           if groupingExpressions2 == groupingExpressions && groupingExpressions.size == 1 && child.schema.head.dataType == StringType =>
         wordCounter =>
+        println("..Matched ")
           WordCountPlanner(
             childPlan = child,
             output = resultExpressions.map(_.toAttribute),
@@ -48,6 +49,11 @@ object WordCountPlanner {
 
   def apply(sparkPlan: SparkPlan, wordCounter: WordCounter): SparkPlan = {
     sparkPlan.transform(Function.unlift(transformPlan).andThen(_.apply(wordCounter)))
+  }
+  
+  def applyMaybe(sparkPlan: SparkPlan, wordCounter: WordCounter): Option[SparkPlan] = {
+    val resulting = sparkPlan.transform(Function.unlift(transformPlan).andThen(_.apply(wordCounter)))
+    if ( sparkPlan == resulting ) None else Some(resulting)
   }
 
   object WordCounter {

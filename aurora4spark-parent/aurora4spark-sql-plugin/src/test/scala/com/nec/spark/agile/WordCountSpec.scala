@@ -173,6 +173,16 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
         )
         .as[(String, BigInt)]
 
+    val planStr = wordCountQuery.extractQueryExecution.executedPlan.toString()
+
+    val newPlan = WordCountPlanner.apply(
+      wordCountQuery.extractQueryExecution.executedPlan,
+      WordCounter.PlainJVM
+    )
+
+    assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
+    assert(planStr.contains("CountPlanner"))
+
     val result = wordCountQuery.collect().toMap
     assert(result == Map("ab" -> 2))
   }
