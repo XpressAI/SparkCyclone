@@ -12,7 +12,7 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
 
 object WordCountPlanner {
-  def transformPlan(sparkPlan: SparkPlan): Option[SparkPlan] =
+  def transformPlan(sparkPlan: SparkPlan): Option[WordCounter => SparkPlan] =
     PartialFunction.condOpt(sparkPlan) {
       case hae @ HashAggregateExec(
             requiredChildDistributionExpressions,
@@ -36,15 +36,16 @@ object WordCountPlanner {
             )
           )
           if groupingExpressions2 == groupingExpressions && groupingExpressions.size == 1 && child.schema.head.dataType == StringType =>
-        WordCountPlanner(
-          childPlan = child,
-          output = resultExpressions.map(_.toAttribute),
-          wordCounter = WordCounter.PlainJVM
-        )
+        wordCounter =>
+          WordCountPlanner(
+            childPlan = child,
+            output = resultExpressions.map(_.toAttribute),
+            wordCounter = wordCounter
+          )
     }
 
-  def apply(sparkPlan: SparkPlan): SparkPlan = {
-    sparkPlan.transform(Function.unlift(transformPlan))
+  def apply(sparkPlan: SparkPlan, wordCounter: WordCounter): SparkPlan = {
+    sparkPlan.transform(Function.unlift(transformPlan).andThen(_.apply(wordCounter)))
   }
 
   object WordCounter {
@@ -56,6 +57,12 @@ object WordCountPlanner {
     object PlainJVM extends WordCounter {
       override def countWords(strings: List[String]): Map[String, Long] =
         strings.map(str => Map(str -> 1L)).reduceOption(combine).getOrElse(Map.empty)
+    }
+
+    object VEBased extends WordCounter {
+      override def countWords(strings: List[String]): Map[String, Long] = {
+        ???
+      }
     }
 
   }

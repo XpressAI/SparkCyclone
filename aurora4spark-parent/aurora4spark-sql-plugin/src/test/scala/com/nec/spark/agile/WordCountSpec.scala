@@ -1,5 +1,6 @@
 package com.nec.spark.agile
 
+import com.nec.spark.{AcceptanceTest, AuroraSqlPlugin, LocalVeoExtension}
 import com.nec.spark.agile.WordCountPlanner.WordCounter
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
@@ -86,7 +87,10 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
         )
         .as[(String, BigInt)]
 
-    val newPlan = WordCountPlanner.apply(wordCountQuery.extractQueryExecution.executedPlan)
+    val newPlan = WordCountPlanner.apply(
+      wordCountQuery.extractQueryExecution.executedPlan,
+      WordCounter.PlainJVM
+    )
 
     assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
     info(newPlan.toString)
@@ -111,7 +115,10 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
         )
         .as[(String, BigInt)]
 
-    val newPlan = WordCountPlanner.apply(wordCountQuery.extractQueryExecution.executedPlan)
+    val newPlan = WordCountPlanner.apply(
+      wordCountQuery.extractQueryExecution.executedPlan,
+      WordCounter.PlainJVM
+    )
 
     assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
     info(newPlan.toString)
@@ -144,6 +151,30 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
         "c" -> 3
       )
     )
+  }
+
+  "Word-count on the VE" taggedAs (AcceptanceTest) in withSparkSession(
+    _.set("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
+      .set("spark.sql.extensions", classOf[LocalVeoExtension].getCanonicalName)
+      .set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    List("a", "ab", "bc", "ab")
+      .toDS()
+      .withColumnRenamed("value", "word")
+      .createOrReplaceTempView("words")
+
+    val wordCountQuery =
+      sparkSession
+        .sql(
+          "SELECT word, count(word) AS count FROM words GROUP by word HAVING count > 1 ORDER by count DESC LIMIT 10"
+        )
+        .as[(String, BigInt)]
+
+    val result = wordCountQuery.collect().toMap
+    assert(result == Map("ab" -> 2))
   }
 
 }
