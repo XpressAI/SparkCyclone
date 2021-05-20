@@ -14,6 +14,8 @@ import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 
+import java.nio.file.Path
+
 object PairwiseAdditionOffHeap {
 
   trait OffHeapPairwiseSummer extends Serializable {
@@ -44,7 +46,7 @@ object PairwiseAdditionOffHeap {
       }
     }
 
-    case class VeoBased(ve_so_name: String) extends OffHeapPairwiseSummer {
+    case class VeoBased(ve_so_name: Path) extends OffHeapPairwiseSummer {
       def sum(
         memoryLocationA: Long,
         memoryLocationB: Long,
@@ -56,7 +58,7 @@ object PairwiseAdditionOffHeap {
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(_veo_proc)
         try {
           println(s"Created ctx = ${ctx}")
-          val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name)
+          val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name.toString)
           println(s"Loaded lib = ${lib}")
           val vej = new VeJavaContext(ctx, lib)
           SumPairwise.pairwise_sum_doubles_mem(

@@ -2,48 +2,26 @@ package com.nec
 
 import com.nec.aurora.Aurora
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Path, Paths}
 
 object VeDirectApp {
 
-  def compile_c(): String = {
-    val compilationPrefix = "_spark"
-    val buildDir = Paths.get("_ve_build").toAbsolutePath
-    if (!Files.exists(buildDir)) Files.createDirectory(buildDir)
-    val cSource = buildDir.resolve(s"${compilationPrefix}.c")
-
-    Files.write(
-      cSource,
-      List(
-        WordCount.SourceCode,
-        SumSimple.C_Definition,
-        SumPairwise.C_Definition,
-        AvgSimple.C_Definition,
-        SumMultipleColumns.C_Definition,
-        AvgMultipleColumns.C_Definition
-      ).mkString("\n\n\n").getBytes("UTF-8")
-    )
-    val oFile = buildDir.resolve(s"${compilationPrefix}.o")
-    val soFile = buildDir.resolve(s"${compilationPrefix}.so")
-    import scala.sys.process._
-    Seq(
-      "ncc",
-      "-O2",
-      "-fpic",
-      "-pthread",
-      "-report-all",
-      "-fdiag-vector=2",
-      "-c",
-      cSource.toString,
-      "-o",
-      oFile.toString
-    ).!!
-    Seq("ncc", "-shared", "-pthread", "-o", soFile.toString, oFile.toString).!!
-    soFile.toString
+  def compile_c(): Path = {
+    VeCompiler(compilationPrefix = "_spark", buildDir = Paths.get("_ve_build").toAbsolutePath)
+      .compile_c {
+        List(
+          WordCount.SourceCode,
+          SumSimple.C_Definition,
+          SumPairwise.C_Definition,
+          AvgSimple.C_Definition,
+          SumMultipleColumns.C_Definition,
+          AvgMultipleColumns.C_Definition
+        ).mkString("\n\n\n")
+      }
   }
 
   def main(args: Array[String]): Unit = {
-    val ve_so_name = compile_c()
+    val ve_so_name = compile_c().toString
     println(s"SO name: ${ve_so_name}")
     val proc = Aurora.veo_proc_create(0)
     println(s"Created proc = ${proc}")
