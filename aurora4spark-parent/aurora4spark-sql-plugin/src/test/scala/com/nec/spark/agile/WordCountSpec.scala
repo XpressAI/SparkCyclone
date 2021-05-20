@@ -1,5 +1,6 @@
 package com.nec.spark.agile
 
+import com.nec.spark.agile.WordCountPlanner.WordCounter
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.SparkPlan
@@ -85,7 +86,7 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
         )
         .as[(String, BigInt)]
 
-    val newPlan = CountPlanner.apply(wordCountQuery.extractQueryExecution.executedPlan)
+    val newPlan = WordCountPlanner.apply(wordCountQuery.extractQueryExecution.executedPlan)
 
     assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
     info(newPlan.toString)
@@ -110,7 +111,7 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
         )
         .as[(String, BigInt)]
 
-    val newPlan = CountPlanner.apply(wordCountQuery.extractQueryExecution.executedPlan)
+    val newPlan = WordCountPlanner.apply(wordCountQuery.extractQueryExecution.executedPlan)
 
     assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
     info(newPlan.toString)
@@ -127,6 +128,22 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
       )
       .as[U]
       .collect()
+  }
+
+  "Plain JVM word counter works" in {
+    assert(
+      WordCounter.PlainJVM
+        .countWords(List("a", "bb", "c", "a")) == Map("a" -> 2, "bb" -> 1, "c" -> 1)
+    )
+  }
+  "Word count combiner works" in {
+    assert(
+      WordCounter.combine(Map("a" -> 1, "b" -> 1), Map("b" -> 1, "c" -> 3)) == Map(
+        "a" -> 1,
+        "b" -> 2,
+        "c" -> 3
+      )
+    )
   }
 
 }
