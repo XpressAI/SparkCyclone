@@ -100,9 +100,8 @@ object WordCount {
     def computeVE(
       proc: Aurora.veo_proc_handle,
       ctx: Aurora.veo_thr_ctxt,
-      libPath: Path
-    ): Map[String, Int] = {
-      val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
+      lib: Long
+    ): Map[String, Long] = {
       val our_args = Aurora.veo_args_alloc()
       val lgSize = 24
       val longPointer = new LongPointer(lgSize)
@@ -151,7 +150,7 @@ object WordCount {
               )
             )
             .map { unique_position_counter =>
-              someStrings(unique_position_counter.string_i) -> unique_position_counter.count
+              someStrings(unique_position_counter.string_i) -> unique_position_counter.count.toLong
             }
             .toMap
           results

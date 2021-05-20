@@ -21,7 +21,8 @@ final class CountStringsVESpec extends AnyFreeSpec {
       try {
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
         try {
-          Sample.computeVE(proc, ctx, libPath)
+          val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
+          Sample.computeVE(proc, ctx, lib)
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)
     info(s"Got: $wordCount")

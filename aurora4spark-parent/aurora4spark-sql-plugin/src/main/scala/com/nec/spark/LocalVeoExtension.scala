@@ -46,7 +46,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
                 )
               }
               .orElse {
-                WordCountPlanner.transformPlan(sparkPlan).map(f => f(WordCounter.PlainJVM))
+                WordCountPlanner.transformPlan(sparkPlan).map(f => f(WordCounter.VEBased))
               }
               .getOrElse(sparkPlan)
       }

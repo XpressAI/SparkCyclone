@@ -1,5 +1,7 @@
 package com.nec.spark.agile
 
+import com.nec.WordCount
+import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.WordCountPlanner.WordCounter
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -61,7 +63,13 @@ object WordCountPlanner {
 
     object VEBased extends WordCounter {
       override def countWords(strings: List[String]): Map[String, Long] = {
-        ???
+        WordCount
+          .SomeStrings(strings: _*)
+          .computeVE(
+            Aurora4SparkExecutorPlugin._veo_proc,
+            Aurora4SparkExecutorPlugin._veo_ctx,
+            Aurora4SparkExecutorPlugin.lib
+          )
       }
     }
 

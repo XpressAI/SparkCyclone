@@ -14,11 +14,14 @@ object VeDirectApp {
 
     Files.write(
       cSource,
-      s"""
-     
-      ${SumSimple.C_Definition} ${SumPairwise.C_Definition} ${AvgSimple.C_Definition}
-       ${SumMultipleColumns.C_Definition} ${AvgMultipleColumns.C_Definition}
-       """.getBytes("UTF-8")
+      List(
+        WordCount.SourceCode,
+        SumSimple.C_Definition,
+        SumPairwise.C_Definition,
+        AvgSimple.C_Definition,
+        SumMultipleColumns.C_Definition,
+        AvgMultipleColumns.C_Definition
+      ).mkString("\n\n\n").getBytes("UTF-8")
     )
     val oFile = buildDir.resolve(s"${compilationPrefix}.o")
     val soFile = buildDir.resolve(s"${compilationPrefix}.so")
