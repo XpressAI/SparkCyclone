@@ -56,6 +56,10 @@ AcceptanceTest / testOptions := (AcceptanceTest / testOptions).value
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 addCommandAlias("check", ";scalafmtCheck;scalafmtSbtCheck;testQuick")
+addCommandAlias(
+  "compile-all",
+  "; Test / compile ; ve-direct / Test / compile ; ve-direct / It / compile"
+)
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
 
 lazy val deploy = taskKey[Unit]("Deploy artifacts to a6")
