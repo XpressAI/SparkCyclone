@@ -18,6 +18,7 @@ object WordCount {
     finally source.close()
   }
 
+  /** This is currently messy but will be refactored during Arrow integration */
   final case class SomeStrings(strings: String*) {
     def someStrings: Array[String] = strings.toArray
     def stringsByteArray: Array[Byte] = someStrings.flatMap(_.getBytes)
