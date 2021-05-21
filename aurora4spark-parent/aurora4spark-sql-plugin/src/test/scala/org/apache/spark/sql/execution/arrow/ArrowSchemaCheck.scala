@@ -1,0 +1,81 @@
+package org.apache.spark.sql.execution.arrow
+
+import com.nec.spark.agile.SparkAdditions
+import org.apache.arrow.vector.types.pojo.ArrowType
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.util.ArrowUtils
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.freespec.AnyFreeSpec
+
+final class ArrowSchemaCheck
+  extends AnyFreeSpec
+  with BeforeAndAfterAll
+  with BeforeAndAfter
+  with SparkAdditions {
+
+  private def arrowSchema =
+    ArrowUtils.toArrowSchema(StructType(Array(StructField("value", StringType))), "UTC")
+
+  private def firstField = arrowSchema.getFields.get(0)
+
+  "For a single String column from Spark" - {
+    "There is only one field" in {
+      assert(arrowSchema.getFields.size() == 1)
+    }
+    "First field's name" in {
+      assert(firstField.getName == "value")
+    }
+    "First field is nullable" in {
+      assert(firstField.isNullable)
+    }
+    "Has no children" in {
+      assert(firstField.getChildren.size() == 0)
+    }
+    "Has null dictionary" in {
+      assert(firstField.getDictionary == null)
+    }
+    "Has some field type" in {
+      assert(firstField.getFieldType != null)
+    }
+    "The field type's .getType is the same as .getType on the field" in {
+      assert(firstField.getFieldType.getType == firstField.getType)
+    }
+    "Has no metadata" in {
+      assert(firstField.getMetadata.isEmpty)
+    }
+    "Is not complex" in {
+      assert(!firstField.getType.isComplex)
+    }
+    "The type is Utf8" in {
+      assert(firstField.getType == ArrowType.Utf8.INSTANCE)
+    }
+
+  }
+
+  "We can get a JSON API" in {
+    info(arrowSchema.toJson)
+  }
+
+  "The type can be reconstructed from Arrow's JSON definition schema type" in {
+    info("So that we can build it from our own tests, independent of the Spark APIs")
+    assert(
+      arrowSchema == org.apache.arrow.vector.types.pojo.Schema.fromJSON(
+        """{"fields": [{"name": "value", "nullable" : true, "type": {"name": "utf8"}, "children": []}]}"""
+      )
+    )
+  }
+
+  // this code does some of the writing
+//    val allocator =
+//      ArrowUtils.rootAllocator.newChildAllocator(s"stdout writer for $pythonExec", 0, Long.MaxValue)
+//    val root = VectorSchemaRoot.create(arrowSchema, allocator)
+//      val arrowWriter = ArrowWriter.create(root)
+//      val writer = new ArrowStreamWriter(root, null, dataOut)
+//      writer.start()
+//          arrowWriter.write(nextBatch.next())
+//        writer.writeBatch()
+//        arrowWriter.reset()
+//      writer.end()
+//      root.close()
+//      allocator.close()
+}
