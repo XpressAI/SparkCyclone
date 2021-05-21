@@ -27,7 +27,7 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     _veo_proc = Aurora.veo_proc_create(0)
     _veo_ctx = Aurora.veo_context_open(_veo_proc)
-    Aurora4SparkExecutorPlugin.lib = Aurora.veo_load_library(_veo_proc, ve_so_name)
+    Aurora4SparkExecutorPlugin.lib = Aurora.veo_load_library(_veo_proc, ve_so_name.toString)
     logInfo("Initializing Aurora4SparkExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true

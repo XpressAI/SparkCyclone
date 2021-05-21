@@ -5,3 +5,5 @@ project(HelloWorld)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 add_library(sortstuff SHARED sort-stuff-lib.c)
+
+set_property(TARGET sortstuff PROPERTY C_STANDARD 99)

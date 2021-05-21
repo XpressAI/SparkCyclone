@@ -34,6 +34,7 @@ List of currently supported and tested queries can be found [in this file](../FE
 
 ```
 > deploy
+> deployExamples
 ```
 
 Will upload the `.jar` file and the example `.py` file.

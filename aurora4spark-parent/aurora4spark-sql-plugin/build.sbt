@@ -30,7 +30,6 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-catalyst" % sparkVersion % "provided",
   "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc",
   "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
-  "frovedis-client" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
   "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
   "com.nec" % "aveo4j" % "0.0.1"
 )
@@ -56,9 +55,14 @@ AcceptanceTest / testOptions := (AcceptanceTest / testOptions).value
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 addCommandAlias("check", ";scalafmtCheck;scalafmtSbtCheck;testQuick")
+addCommandAlias(
+  "compile-all",
+  "; Test / compile ; ve-direct / Test / compile ; ve-direct / It / compile"
+)
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
 
 lazy val deploy = taskKey[Unit]("Deploy artifacts to a6")
+lazy val deployExamples = taskKey[Unit]("Deploy artifacts to a6")
 
 deploy := {
   val logger = streams.value.log
@@ -71,17 +75,25 @@ deploy := {
   logger.info("Preparing deployment: assembling.")
   val generatedFile = assembly.value
   logger.info(s"Assembled file: ${generatedFile}")
-  Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
   logger.info(s"Uploading JAR")
   Seq("scp", generatedFile.toString, "a6:/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
   logger.info(s"Uploaded JAR")
+}
 
+deployExamples := {
+  val logger = streams.value.log
+  import scala.sys.process._
+
+  logger.info("Preparing deployment of examples...")
+  Seq("ssh", "a6", "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
+  logger.info("Created dir.")
   Seq(
     "scp",
     "-r",
     (baseDirectory.value / ".." / ".." / "examples").getAbsolutePath,
     "a6:/opt/aurora4spark/"
   ) ! logger
+  logger.info("Uploaded examples.")
 }
 
 ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
@@ -97,13 +109,14 @@ lazy val `ve-direct` = project
       "net.java.dev.jna" % "jna-platform" % "5.8.0",
       "commons-io" % "commons-io" % "2.8.0" % "it"
     ),
-    IntegrationTest / managedResources := {
+    IntegrationTest / fork := true,
+    /*IntegrationTest / managedResources := {
       val resourceBase = (IntegrationTest / resourceManaged).value
       val assembled = assembly.value
       val tgt = resourceBase / assembled.name
       IO.copyFile(assembled, tgt)
       Seq(tgt)
-    },
+    },*/
     assembly / assemblyMergeStrategy := {
       case v if v.contains("module-info.class")   => MergeStrategy.discard
       case v if v.contains("reflect-config.json") => MergeStrategy.discard
@@ -113,3 +126,5 @@ lazy val `ve-direct` = project
         oldStrategy(x)
     }
   )
+
+AcceptanceTest / fork := true

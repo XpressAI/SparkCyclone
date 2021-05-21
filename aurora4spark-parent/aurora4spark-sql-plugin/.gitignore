@@ -1,0 +1,6 @@
+.bloop
+.metals
+.vscode
+*.L
+_ve_build
+metals.sbt
