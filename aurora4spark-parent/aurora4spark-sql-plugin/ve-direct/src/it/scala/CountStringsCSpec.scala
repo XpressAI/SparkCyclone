@@ -80,6 +80,13 @@ final class CountStringsCSpec extends AnyFreeSpec {
         )
       )
 
+      /**
+       * It may be quite smart to return back a vector that can directly become
+       * a VarCharVector as well!
+       *
+       * Then, we have an Aveo which takes VarCharVector => VarCharVector + IntVector or something similar.
+       */
+
       val counted_strings = dc.logical_total.toInt
       assert(counted_strings == someStrings.toSet.size)
 

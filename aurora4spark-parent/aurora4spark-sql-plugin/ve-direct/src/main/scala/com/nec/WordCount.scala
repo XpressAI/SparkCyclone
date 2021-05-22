@@ -4,6 +4,7 @@ import com.nec.CountStringsLibrary.{data_out, unique_position_counter}
 import com.nec.aurora.Aurora
 import com.sun.jna.{Library, Pointer}
 import com.sun.jna.ptr.PointerByReference
+import org.apache.arrow.vector.{BaseVariableWidthVector, VarCharVector}
 import org.bytedeco.javacpp.LongPointer
 
 import java.nio.file.Path
@@ -17,6 +18,52 @@ object WordCount {
     val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/sort-stuff-lib.c"))
     try source.mkString
     finally source.close()
+  }
+
+  def wordCountArrowC(libPath: Path, varCharVector: VarCharVector): Map[String, Long] = {
+    // will abstract this out later
+    import scala.collection.JavaConverters._
+    val thingy2 =
+      new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
+    val nl = thingy2.getNativeLibrary
+    val fn = nl.getFunction(count_strings)
+    val dc = new data_out.ByReference()
+    fn.invokeInt(
+      Array[java.lang.Object](
+        varCharVector.getDataBuffer.nioBuffer(),
+        varCharVector.getOffsetBuffer.nioBuffer(), {
+
+          (0 until varCharVector.getValueCount).map { i =>
+            varCharVector.getOffsetBuffer.getInt(
+              (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+            ) - varCharVector.getStartOffset(i)
+
+          }.toArray
+        },
+        java.lang.Integer.valueOf(varCharVector.getValueCount),
+        dc
+      )
+    )
+
+    /**
+     * It may be quite smart to return back a vector that can directly become
+     * a VarCharVector as well!
+     *
+     * Then, we have an Aveo which takes VarCharVector => VarCharVector + IntVector or something similar.
+     */
+
+    val counted_strings = dc.logical_total.toInt
+
+    val results =
+      (0 until counted_strings).map { i =>
+        new unique_position_counter(new Pointer(Pointer.nativeValue(dc.data) + i * 8))
+      }
+    results.map { unique_position_counter =>
+      new String(
+        varCharVector.get(unique_position_counter.string_i),
+        "UTF-8"
+      ) -> unique_position_counter.count.toLong
+    }.toMap
   }
 
   /** This is currently messy but will be refactored during Arrow integration */
