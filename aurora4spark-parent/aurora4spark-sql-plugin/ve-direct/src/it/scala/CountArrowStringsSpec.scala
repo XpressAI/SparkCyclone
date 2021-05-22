@@ -1,13 +1,12 @@
 import CountArrowStringsSpec.schema
-import org.apache.arrow.flatbuf.{Message, MessageHeader, RecordBatch}
-import org.apache.arrow.vector.{FieldVector, VarCharVector}
-import org.apache.arrow.vector.ipc.ArrowStreamWriter
-import org.apache.commons.codec.binary.Hex
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.{BaseVariableWidthVector, FieldVector, VarCharVector}
+import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 import org.scalatest.freespec.AnyFreeSpec
 
-import java.io.ByteArrayOutputStream
-import java.nio.{ByteBuffer, ByteOrder}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util
+import java.util.UUID
 
 object CountArrowStringsSpec {
   val schema = org.apache.arrow.vector.types.pojo.Schema.fromJSON(
@@ -17,7 +16,7 @@ object CountArrowStringsSpec {
 
 final class CountArrowStringsSpec extends AnyFreeSpec {
 
-  def arrowStrings(strings: String*): Array[Byte] = {
+  def stringsToArrow(strings: String*): Array[Byte] = {
     import org.apache.arrow.memory.RootAllocator
     import org.apache.arrow.vector.VectorSchemaRoot
     val alloc = new RootAllocator(Integer.MAX_VALUE)
@@ -28,15 +27,17 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
       val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
       vcv.allocateNew()
       try {
-        strings.view.zipWithIndex.foreach { case (str, idx) =>
-          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
-        }
-        vcv.setValueCount(strings.length)
         val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
-        root.setRowCount(strings.length)
         val arrowStreamWriter = new ArrowStreamWriter(root, null, baos)
         arrowStreamWriter.start()
-        arrowStreamWriter.writeBatch()
+        strings.grouped(5).foreach { stringBatch =>
+          stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
+            vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+          }
+          vcv.setValueCount(stringBatch.length)
+          root.setRowCount(stringBatch.length)
+          arrowStreamWriter.writeBatch()
+        }
         arrowStreamWriter.end()
         baos.toByteArray
       } finally vcv.close()
@@ -46,129 +47,159 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   "We can get a Byte Array which contains both the Strings" in {
     val string1 = ('A' to 'Z').mkString
     val string2 = "XAY"
-    assert(arrowStrings(string1, string2).containsSlice(string1.getBytes("UTF-8")))
-    assert(arrowStrings(string1, string2).containsSlice(string2.getBytes("UTF-8")))
+    assert(stringsToArrow(string1, string2).containsSlice(string1.getBytes("UTF-8")))
+    assert(stringsToArrow(string1, string2).containsSlice(string2.getBytes("UTF-8")))
   }
 
   def readStrings(bytes: Array[Byte]): List[String] = {
-    Nil
+    val allocator = new RootAllocator()
+    val arrowStreamReader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    val root = arrowStreamReader.getVectorSchemaRoot()
+
+    Iterator
+      .continually {
+        if (!arrowStreamReader.loadNextBatch()) None
+        else
+          Option {
+            import scala.collection.JavaConverters._
+
+            root.getFieldVectors.asScala
+              .collect { case vc: VarCharVector =>
+                (0 until root.getRowCount).map(i => new String(vc.get(i), "utf8"))
+              }
+              .toList
+              .flatten
+          }
+      }
+      .takeWhile(_.isDefined)
+      .flatten
+      .toList
+      .flatten
   }
 
   "We can retrieve the Strings back from a raw Byte Array" in {
     info("We do it in Java so that we can then do it in C")
 
-    assert(readStrings(arrowStrings("ABC", "DEF")) == List("ABC", "DEF"))
+    assert(readStrings(stringsToArrow("ABC", "DEF")) == List("ABC", "DEF"))
   }
 
-  def paddingLocation(size: Int): Int = {
-    if (size % 8 == 0) size
-    else (1 + (size / 8)) * 8
+  def generateCleanString(length: Int): String = {
+    UUID.randomUUID().toString.take(length)
   }
 
-  type BodyOffset = Int
-  // Padding is 8-bytes
-  val ContinuationSize = 4
-  val MetadataSizeSize = 4
-  case class MessageWithBody(message: Message, body: List[Byte]) {
-
-    def recordBatch: Option[RecordBatch] = {}
-
+  "Generate a random String" in {
+    info(generateCleanString(19))
   }
 
-  object MessageWithBody {
-    def unapply(input: List[Byte]): Option[(MessageWithBody, Option[List[Byte]])] = {
-      if (input.isEmpty) None
-      else {
-        val byteBuffer = ByteBuffer
-          .wrap(input.toArray)
-          .order(ByteOrder.LITTLE_ENDIAN)
-        assert(byteBuffer.getInt(0) == 0xffffffff)
-        val metadataSize = byteBuffer.getInt(ContinuationSize)
-        if (metadataSize == 0) None
-        else
-          Option {
-            byteBuffer.position(ContinuationSize + MetadataSizeSize)
-            val message = org.apache.arrow.flatbuf.Message
-              .getRootAsMessage(byteBuffer)
-
-            val bodyOffset = paddingLocation(ContinuationSize + MetadataSizeSize + metadataSize)
-            MessageWithBody(
-              message,
-              input.drop(bodyOffset).take(message.bodyLength().toInt)
-            ) -> Option {
-              input
-                .drop(bodyOffset)
-                .drop(paddingLocation(message.bodyLength().toInt))
-            }.filter(_.nonEmpty)
-          }
-      }
-    }
+  def makeStrings(size: Int): List[String] = {
+    List
+      .fill(size)(generateCleanString(Math.abs(scala.util.Random.nextInt(100))))
   }
 
-  def readMessages(byteArray: Array[Byte]): Iterator[MessageWithBody] = {
-    var remaining = byteArray
+  "We can retrieve many Strings back from a raw Byte Array" in {
+    val Size = 2000
+    val input = makeStrings(Size)
+    val gotResult = readStrings(stringsToArrow(input: _*))
+    assert(gotResult.size == Size)
+    assert(gotResult == input)
+  }
+
+  case class StringInfo(startAddr: Long, position: Int, length: Int, value: String)
+
+  def readStringPositionsValuesLengths(bytes: Array[Byte]): List[StringInfo] = {
+    val allocator = new RootAllocator()
+    val arrowStreamReader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    val root = arrowStreamReader.getVectorSchemaRoot
+
     Iterator
       .continually {
-        val r = MessageWithBody.unapply(remaining.toList)
-        r.flatMap(_._2).foreach(lb => remaining = lb.toArray)
-        r.map(_._1)
+        if (!arrowStreamReader.loadNextBatch()) None
+        else
+          Option {
+            import scala.collection.JavaConverters._
+
+            root.getFieldVectors.asScala
+              .collect { case vc: VarCharVector =>
+                (0 until root.getRowCount).map { i =>
+                  val startOffset = vc.getStartOffset(i)
+                  val dataLength = vc.getOffsetBuffer.getInt(
+                    (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+                  ) - startOffset
+                  val result = new Array[Byte](dataLength)
+                  vc.getDataBuffer.getBytes(startOffset, result, 0, dataLength)
+                  StringInfo(
+                    startAddr = vc.getDataBuffer.memoryAddress(),
+                    position = startOffset,
+                    length = dataLength,
+                    value = new String(result, "utf8")
+                  )
+                }
+              }
+              .toList
+              .flatten
+          }
       }
       .takeWhile(_.isDefined)
       .flatten
+      .toList
+      .flatten
   }
 
-  "The byte array's structure" - {
-    val byteArray = arrowStrings("ABC", "DEF")
-    val byteBuffer = ByteBuffer
-      .wrap(byteArray)
-      .order(ByteOrder.LITTLE_ENDIAN)
-
-    "We can read out a metadata message" in {
-      val MessageWithBody(msg, _) = readMessages(byteArray).next()
-      assert(msg.version() == 4)
-      assert(msg.headerType() == MessageHeader.Schema)
-      // this is the schema -- but it's weird that body length is 0?
-      assert(msg.headerType() == 1)
-      assert(msg.bodyLength() == 0L)
-    }
-
-    "We can read out the second metadata message" in {
-      val MessageWithBody(msg, _) = readMessages(byteArray).drop(1).next()
-
-      assert(msg.version() == 4)
-      assert(msg.headerType() == 3)
-      assert(msg.headerType() == MessageHeader.RecordBatch)
-      assert(msg.bodyLength() == 32L)
-      byteBuffer.position(0)
-    }
-
-    "There are only 2 messages" in {
-      assert(readMessages(byteArray).size == 2)
-    }
-
-    "Padding computation function works" - {
-      "If input is size 2, we get 8" in {
-        assert(paddingLocation(2) == 8)
-      }
-      "If input is size 7, we get 8" in {
-        assert(paddingLocation(7) == 8)
-      }
-      "If input is size 8, we get 8" in {
-        assert(paddingLocation(8) == 8)
-      }
-      "If input is size 9, we get 16" in {
-        assert(paddingLocation(9) == 16)
-      }
-    }
-    "We can get the header in binary format" ignore {
-      info(Hex.encodeHexString(byteArray))
-    }
+  "We can retrieve String positions from the byte array" in {
+    val byteArray = stringsToArrow("ABCG", "DEF")
+    assert(
+      readStringPositionsValuesLengths(byteArray).map(_.copy(startAddr = -1)) == List(
+        StringInfo(startAddr = -1, position = 0, length = 4, value = "ABCG"),
+        StringInfo(startAddr = -1, position = 4, length = 3, value = "DEF")
+      )
+    )
   }
 
-  /**
-   * Rather than passing Arrow to VEO, we should pass buffer locations instead;
-   * this way we can reuse much of the Java infrastructure without breaking the bank
-   * and having to reimplement everything in C; or relying on
-   * including a 600-line C++ header.
-   */
+  "We can get info for a longer set of Strings" in {
+    val someStrings =
+      readStringPositionsValuesLengths(stringsToArrow(makeStrings(100): _*)).toList.take(1)
+    someStrings.foreach { strInfo => info(strInfo.toString) }
+  }
+
+  def writeAndGet(stringBatch: String*): List[StringInfo] = {
+
+    import org.apache.arrow.memory.RootAllocator
+    import org.apache.arrow.vector.VectorSchemaRoot
+    val alloc = new RootAllocator(Integer.MAX_VALUE)
+
+    try {
+      val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+      vcv.allocateNew()
+      try {
+        val root =
+          new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), stringBatch.length)
+        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+        }
+        vcv.setValueCount(stringBatch.length)
+        val vc = vcv
+        (0 until root.getRowCount).map { i =>
+          val startOffset = vc.getStartOffset(i)
+          val dataLength = vc.getOffsetBuffer.getInt(
+            (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+          ) - startOffset
+          val result = new Array[Byte](dataLength)
+          vc.getDataBuffer.getBytes(startOffset, result, 0, dataLength)
+          StringInfo(
+            startAddr = vc.getDataBuffer.memoryAddress(),
+            position = startOffset,
+            length = dataLength,
+            value = new String(result, "utf8")
+          )
+        }.toList
+      } finally vcv.close()
+    } finally alloc.close()
+  }
+
+  "A set of Strings can be turned into an Arrow buffer, and we can just read it back" in {
+    val stringBatch = makeStrings(100)
+    assert(writeAndGet(stringBatch: _*).map(_.value) == stringBatch)
+    writeAndGet(stringBatch: _*).foreach { v => info(s"$v") }
+  }
+
 }
