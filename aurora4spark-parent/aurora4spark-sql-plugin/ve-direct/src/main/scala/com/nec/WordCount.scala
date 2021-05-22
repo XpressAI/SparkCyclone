@@ -20,6 +20,86 @@ object WordCount {
     finally source.close()
   }
 
+  def wordCountArrowVE(
+    proc: Aurora.veo_proc_handle,
+    ctx: Aurora.veo_thr_ctxt,
+    lib: Long,
+    varCharVector: VarCharVector
+  ): Map[String, Long] = {
+    val our_args = Aurora.veo_args_alloc()
+    val lgSize = 24
+    val longPointer = new LongPointer(lgSize)
+
+    def copyBufferToVe(byteBuffer: ByteBuffer): Long = {
+      val veInputPointer = new LongPointer(8)
+      val size = byteBuffer.capacity()
+      Aurora.veo_alloc_mem(proc, veInputPointer, size)
+      Aurora.veo_write_mem(
+        proc,
+        veInputPointer.get(),
+        new org.bytedeco.javacpp.Pointer(byteBuffer),
+        size
+      )
+      val inputVePointer = new LongPointer(8)
+      inputVePointer.put(veInputPointer.get())
+      inputVePointer.get()
+    }
+
+    def stringLengths =
+      (0 until varCharVector.getValueCount).map { i =>
+        varCharVector.getOffsetBuffer.getInt(
+          (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+        ) - varCharVector.getStartOffset(i)
+
+      }.toArray
+
+    def stringLengthsBb: ByteBuffer = {
+      val bb = ByteBuffer.allocateDirect(stringLengthsBbSize)
+      bb.order(ByteOrder.LITTLE_ENDIAN)
+      stringLengths.zipWithIndex.foreach { case (v, idx) => bb.putInt(idx * 4, v) }
+      bb.position(0)
+      bb
+    }
+    def stringLengthsBbSize: Int = stringLengths.length * 4
+
+    Aurora.veo_args_set_i64(our_args, 0, copyBufferToVe(varCharVector.getDataBuffer.nioBuffer()))
+    Aurora.veo_args_set_i64(our_args, 1, copyBufferToVe(varCharVector.getOffsetBuffer.nioBuffer()))
+    Aurora.veo_args_set_i64(our_args, 2, copyBufferToVe(stringLengthsBb))
+    Aurora.veo_args_set_i32(our_args, 3, varCharVector.getValueCount)
+    Aurora.veo_args_set_stack(our_args, 1, 4, longPointer.asByteBuffer(), lgSize)
+
+    try {
+      val req_id = Aurora.veo_call_async_by_name(ctx, lib, count_strings, our_args)
+      val fnCallResult = new LongPointer(8)
+      try {
+        val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
+        require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
+        val veLocation = longPointer.get(0)
+        val counted_strings = longPointer.get(1).toInt
+        val resLen = longPointer.get(2).toInt
+
+        val vhTarget = ByteBuffer.allocateDirect(resLen)
+        Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veLocation, resLen)
+        val resultsPtr = new PointerByReference(
+          new Pointer(vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address())
+        )
+        val results = (0 until counted_strings)
+          .map(i =>
+            new unique_position_counter(
+              new Pointer(Pointer.nativeValue(resultsPtr.getValue) + i * 8)
+            )
+          )
+          .map { unique_position_counter =>
+            new String(
+              varCharVector.get(unique_position_counter.string_i),
+              "UTF-8"
+            ) -> unique_position_counter.count.toLong
+          }
+          .toMap
+        results
+      } finally longPointer.close()
+    } finally Aurora.veo_args_free(our_args)
+  }
   def wordCountArrowC(libPath: Path, varCharVector: VarCharVector): Map[String, Long] = {
     // will abstract this out later
     import scala.collection.JavaConverters._

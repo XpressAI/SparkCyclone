@@ -14,6 +14,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.unsafe.types.UTF8String
+import com.nec.spark.Aurora4SparkExecutorPlugin
 
 object WordCountPlanner {
   def transformPlan(sparkPlan: SparkPlan): Option[WordCounter => SparkPlan] =
@@ -75,7 +76,12 @@ object WordCountPlanner {
 
     object VEBased extends WordCounter {
       override def countWords(strings: VarCharVector): Map[String, Long] = {
-        WordCount.wordCountArrowC(null, strings)
+        WordCount.wordCountArrowVE(
+          Aurora4SparkExecutorPlugin._veo_proc,
+          Aurora4SparkExecutorPlugin._veo_ctx,
+          Aurora4SparkExecutorPlugin.lib,
+          strings
+        )
       }
     }
 
