@@ -2,6 +2,8 @@ package com.nec.spark.agile
 
 import com.nec.spark.{AcceptanceTest, AuroraSqlPlugin, LocalVeoExtension}
 import com.nec.spark.agile.WordCountPlanner.WordCounter
+import com.nec.spark.agile.WordCountSpec.withArrowStringVector
+import org.apache.arrow.vector.{FieldVector, VarCharVector}
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.SparkPlan
@@ -12,6 +14,31 @@ import org.apache.spark.sql.internal.SQLConf.{
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
+import java.util
+
+object WordCountSpec {
+  def withArrowStringVector[T](
+    stringBatch: Seq[String],
+    schema: org.apache.arrow.vector.types.pojo.Schema
+  )(f: VarCharVector => T): T = {
+    import org.apache.arrow.memory.RootAllocator
+    import org.apache.arrow.vector.VectorSchemaRoot
+    val alloc = new RootAllocator(Integer.MAX_VALUE)
+    try {
+      val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+      vcv.allocateNew()
+      try {
+        val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
+        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+        }
+        vcv.setValueCount(stringBatch.length)
+        root.setRowCount(stringBatch.length)
+        f(vcv)
+      } finally vcv.close()
+    } finally alloc.close()
+  }
+}
 final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   "We can do a Word count from memory and split words" in withSparkSession(identity) {
@@ -93,7 +120,7 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
     )
 
     assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
-    info(newPlan.toString)
+//    info(newPlan.toString)
     val result = collectSparkPlan[(String, Long)](newPlan).toList.toMap
     assert(result == Map("ab" -> 2))
   }
@@ -121,7 +148,7 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
     )
 
     assert(newPlan.toString.contains("CountPlanner"), newPlan.toString)
-    info(newPlan.toString)
+//    info(newPlan.toString)
     val result = collectSparkPlan[(String, Long)](newPlan).toList.toMap
     assert(result == Map("some" -> 2, "is" -> 2))
   }
@@ -138,10 +165,17 @@ final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAddi
   }
 
   "Plain JVM word counter works" in {
-    assert(
-      WordCounter.PlainJVM
-        .countWords(List("a", "bb", "c", "a")) == Map("a" -> 2, "bb" -> 1, "c" -> 1)
-    )
+    withArrowStringVector(
+      stringBatch = List("a", "bb", "c", "a"),
+      schema = org.apache.arrow.vector.types.pojo.Schema.fromJSON(
+        """{"fields": [{"name": "value", "nullable" : true, "type": {"name": "utf8"}, "children": []}]}"""
+      )
+    ) { vcv =>
+      assert(
+        WordCounter.PlainJVM
+          .countWords(vcv) == Map("a" -> 2, "bb" -> 1, "c" -> 1)
+      )
+    }
   }
   "Word count combiner works" in {
     assert(

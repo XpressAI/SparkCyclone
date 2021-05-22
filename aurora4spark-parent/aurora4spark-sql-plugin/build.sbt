@@ -107,7 +107,10 @@ lazy val `ve-direct` = project
       "org.scalatest" %% "scalatest" % "3.2.7" % "test,it",
       "org.bytedeco" % "javacpp" % "1.5.5",
       "net.java.dev.jna" % "jna-platform" % "5.8.0",
-      "commons-io" % "commons-io" % "2.8.0" % "it"
+      "commons-io" % "commons-io" % "2.8.0" % "it",
+      "org.apache.arrow" % "arrow-vector" % "2.0.0",
+      "org.apache.arrow" % "arrow-memory-unsafe" % "4.0.0",
+      "com.google.flatbuffers" % "flatbuffers-java" % "1.9.0"
     ),
     IntegrationTest / fork := true,
     /*IntegrationTest / managedResources := {

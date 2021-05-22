@@ -1,10 +1,14 @@
-import CountStringsCSpec.CMakeListsTXT
+import CountArrowStringsSpec.schema
+import CountStringsVESpec.Sample.someStrings
+import com.nec.CountStringsLibrary.{data_out, unique_position_counter}
 import com.nec.WordCount
-import org.apache.commons.io.FileUtils
+import com.nec.WordCount.count_strings
+import com.sun.jna.{Library, Pointer}
+import org.apache.arrow.vector.{BaseVariableWidthVector, FieldVector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
 
-import java.nio.file.{Files, Path, Paths, StandardCopyOption}
-import java.time.Instant
+import java.nio.file.{Path, Paths}
+import java.util
 import scala.sys.process._
 
 object CountStringsCSpec {
@@ -20,52 +24,84 @@ object CountStringsCSpec {
 }
 
 final class CountStringsCSpec extends AnyFreeSpec {
-  "It works" in {
-    val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    if (Files.exists(targetDir)) {
-      FileUtils.deleteDirectory(targetDir.toFile)
-    }
-    Files.createDirectories(targetDir)
-    val tgtCl = targetDir.resolve(CMakeListsTXT.getFileName)
-    Files.copy(CMakeListsTXT, tgtCl, StandardCopyOption.REPLACE_EXISTING)
-    Files.write(targetDir.resolve("sort-stuff-lib.c"), WordCount.SourceCode.getBytes())
 
+  "It works" in {
     val ss = CountStringsVESpec.Sample
-    val result = ss.computex86(buildAndLink(tgtCl))
+    val result = ss.computex86(CBuilder.buildC(WordCount.SourceCode))
     info(s"Got: $result")
     assert(result == ss.expectedWordCount)
   }
 
-  private def buildAndLink(targetPath: Path): Path = {
-    val os = System.getProperty("os.name").toLowerCase
+  def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
+    import org.apache.arrow.memory.RootAllocator
+    import org.apache.arrow.vector.VectorSchemaRoot
+    val alloc = new RootAllocator(Integer.MAX_VALUE)
+    try {
+      val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+      vcv.allocateNew()
+      try {
+        val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
+        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+        }
+        vcv.setValueCount(stringBatch.length)
+        root.setRowCount(stringBatch.length)
+        f(vcv)
+      } finally vcv.close()
+    } finally alloc.close()
+  }
 
-    os match {
-      case _ if os.contains("win") => buildAndLinkWin(targetPath)
-      case _ if os.contains("lin") => buildAndLinkLin(targetPath)
-      case _                       => buildAndLinkMacos(targetPath)
+  "Through Arrow, it works" in {
+    val ss = CountStringsVESpec.Sample
+    val cLib = CBuilder.buildC(WordCount.SourceCode)
+
+    def wordCountArrow(libPath: Path, varCharVector: VarCharVector): Map[String, Int] = {
+      // will abstract this out later
+      import scala.collection.JavaConverters._
+      val thingy2 =
+        new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
+      val nl = thingy2.getNativeLibrary
+      val fn = nl.getFunction(count_strings)
+      val dc = new data_out.ByReference()
+      fn.invokeInt(
+        Array[java.lang.Object](
+          varCharVector.getDataBuffer.nioBuffer(),
+          varCharVector.getOffsetBuffer.nioBuffer(), {
+
+            (0 until varCharVector.getValueCount).map { i =>
+              varCharVector.getOffsetBuffer.getInt(
+                (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+              ) - varCharVector.getStartOffset(i)
+
+            }.toArray
+          },
+          java.lang.Integer.valueOf(varCharVector.getValueCount),
+          dc
+        )
+      )
+
+      /**
+       * It may be quite smart to return back a vector that can directly become
+       * a VarCharVector as well!
+       *
+       * Then, we have an Aveo which takes VarCharVector => VarCharVector + IntVector or something similar.
+       */
+
+      val counted_strings = dc.logical_total.toInt
+      assert(counted_strings == someStrings.toSet.size)
+
+      val results =
+        (0 until counted_strings).map { i =>
+          new unique_position_counter(new Pointer(Pointer.nativeValue(dc.data) + i * 8))
+        }
+      results.map { unique_position_counter =>
+        someStrings(unique_position_counter.string_i) -> unique_position_counter.count
+      }.toMap
+    }
+
+    withArrowStringVector(ss.strings) { vector =>
+      assert(wordCountArrow(cLib, vector) == ss.expectedWordCount)
     }
   }
 
-  private def buildAndLinkWin(targetPath: Path): Path = {
-    val cmd = List("C:\\Program Files\\CMake\\bin\\cmake", "-A", "x64", targetPath.toString)
-    val cmd2 =
-      List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
-    targetPath.getParent.resolve("Debug").resolve("sortstuff.dll")
-  }
-  private def buildAndLinkMacos(targetPath: Path): Path = {
-    val cmd = List("cmake", targetPath.toString)
-    val cmd2 = List("make", "-C", targetPath.getParent.toString)
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
-    targetPath.getParent.resolve("libsortstuff.dylib")
-  }
-  private def buildAndLinkLin(targetPath: Path): Path = {
-    val cmd = List("cmake", targetPath.toString)
-    val cmd2 = List("make", "-C", targetPath.getParent.toString)
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
-    targetPath.getParent.resolve("libsortstuff.so")
-  }
 }
