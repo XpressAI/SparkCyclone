@@ -185,6 +185,8 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
           ) - startOffset
           val result = new Array[Byte](dataLength)
           vc.getDataBuffer.getBytes(startOffset, result, 0, dataLength)
+          // this is the total length of the data buffer.
+          vc.getDataBuffer.readableBytes()
           StringInfo(
             startAddr = vc.getDataBuffer.memoryAddress(),
             position = startOffset,
@@ -200,6 +202,14 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
     val stringBatch = makeStrings(100)
     assert(writeAndGet(stringBatch: _*).map(_.value) == stringBatch)
     writeAndGet(stringBatch: _*).foreach { v => info(s"$v") }
+  }
+
+  "We can pass a VarCharVector to the C program and get an output" in {
+    import org.apache.arrow.memory.RootAllocator
+    val alloc = new RootAllocator(Integer.MAX_VALUE)
+
+    val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+
   }
 
 }

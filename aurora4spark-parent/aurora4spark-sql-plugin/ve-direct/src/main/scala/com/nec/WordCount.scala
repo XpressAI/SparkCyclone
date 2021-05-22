@@ -12,6 +12,7 @@ import scala.language.higherKinds
 
 object WordCount {
 
+  val count_strings = "count_strings"
   val SourceCode: String = {
     val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/sort-stuff-lib.c"))
     try source.mkString
@@ -57,8 +58,6 @@ object WordCount {
     def expectedWordCount: Map[String, Int] = someStrings
       .groupBy(identity)
       .mapValues(_.length)
-
-    private val count_strings = "count_strings"
 
     def computex86(libPath: Path): Map[String, Int] = {
       // will abstract this out later
