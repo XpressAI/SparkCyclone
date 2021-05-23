@@ -6,10 +6,6 @@ import org.apache.arrow.vector.{IntVector, VarCharVector}
 import scala.language.higherKinds
 import com.nec.native.ArrowNativeInterface
 
-trait WordCount {
-  def countWords(varCharVector: VarCharVector): (IntVector, IntVector)
-}
-
 object WordCount {
 
   val WordCountSourceCode: String = {
