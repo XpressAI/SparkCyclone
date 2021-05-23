@@ -4,6 +4,6 @@ project(HelloWorld)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-add_library(sortstuff SHARED sort-stuff-lib.c)
+add_library(aurora4spark SHARED aurora4spark.c)
 
-set_property(TARGET sortstuff PROPERTY C_STANDARD 99)
+set_property(TARGET aurora4spark PROPERTY C_STANDARD 99)

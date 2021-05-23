@@ -1,6 +1,7 @@
 package com.nec
 
 import com.nec.aurora.Aurora
+import com.nec.native.TransferDefinitions
 
 import java.nio.file.{Path, Paths}
 
@@ -10,6 +11,7 @@ object VeDirectApp {
     VeCompiler(compilationPrefix = "_spark", buildDir = Paths.get("_ve_build").toAbsolutePath)
       .compile_c {
         List(
+          TransferDefinitions.TransferDefinitionsSourceCode,
           WordCount.WordCountSourceCode,
           SumSimple.C_Definition,
           SumPairwise.C_Definition,

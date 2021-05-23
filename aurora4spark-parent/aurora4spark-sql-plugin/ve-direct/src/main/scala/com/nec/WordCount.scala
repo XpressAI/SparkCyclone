@@ -13,7 +13,7 @@ trait WordCount {
 object WordCount {
 
   val WordCountSourceCode: String = {
-    val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/sort-stuff-lib.c"))
+    val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/word-count.c"))
     try source.mkString
     finally source.close()
   }
@@ -31,19 +31,12 @@ object WordCount {
       outputArguments = List(None, Some(idVector), Some(frequencyVector))
     )
 
-    new WordCountResults(string_ids_vector = idVector, string_frequencies_vector = frequencyVector)
-      .toMap(varCharVector)
-  }
-
-  final class WordCountResults(string_ids_vector: IntVector, string_frequencies_vector: IntVector) {
-    def toMap(varCharVector: VarCharVector): Map[String, Int] = {
-      (0 until string_ids_vector.getValueCount).map { idx =>
-        val freq = string_frequencies_vector.get(idx)
-        val stringId = string_ids_vector.get(idx)
-        val strValue = new String(varCharVector.get(stringId), "UTF-8")
-        (strValue, freq)
-      }.toMap
-    }
+    (0 until idVector.getValueCount).map { idx =>
+      val freq = frequencyVector.get(idx)
+      val stringId = idVector.get(idx)
+      val strValue = new String(varCharVector.get(stringId), "UTF-8")
+      (strValue, freq)
+    }.toMap
   }
 
   def wordCountJVM(varCharVector: VarCharVector): Map[String, Int] = {
