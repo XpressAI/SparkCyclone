@@ -12,8 +12,22 @@ import sun.nio.ch.DirectBuffer
 import java.nio.file.Path
 import java.nio.ByteBuffer
 import scala.language.higherKinds
+import java.nio.ByteOrder
+import java.nio.Buffer
 
 object WordCount {
+  def wrapAddress(addr: Long, length: Int): ByteBuffer = {
+    val address = classOf[Buffer].getDeclaredField("address")
+    address.setAccessible(true)
+    val capacity = classOf[Buffer].getDeclaredField("capacity")
+    capacity.setAccessible(true)
+
+    val bb = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
+    address.setLong(bb, addr)
+    capacity.setInt(bb, length)
+    bb.clear()
+    bb
+  }
 
   val count_strings = "count_strings"
   val SourceCode: String = {
@@ -25,6 +39,7 @@ object WordCount {
   def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer): Long = {
     val veInputPointer = new LongPointer(8)
     val size = byteBuffer.capacity()
+    println(s"Copying ${size} stuff to the VE.")
     Aurora.veo_alloc_mem(proc, veInputPointer, size)
     Aurora.veo_write_mem(
       proc,
@@ -48,30 +63,27 @@ object WordCount {
       with_veo_varchar_vector(proc, varCharVector) { varchar_vector =>
         val counted_string_ids = new non_null_int_vector()
         val counted_string_frequencies = new non_null_int_vector()
+        println(s"Have set count ${varchar_vector.count}")
         Aurora.veo_args_set_stack(
           our_args,
+          1,
           0,
-          0,
-          new BytePointer(new LocationPointer(Pointer.nativeValue(varchar_vector.getPointer), 24)),
+          wrapAddress(Pointer.nativeValue(varchar_vector.getPointer), 24),
           24
         )
         Aurora.veo_args_set_stack(
           our_args,
           1,
           1,
-          new BytePointer(
-            new LocationPointer(Pointer.nativeValue(counted_string_ids.getPointer), 24)
-          ),
-          24
+          wrapAddress(Pointer.nativeValue(counted_string_ids.getPointer), 16),
+          16
         )
         Aurora.veo_args_set_stack(
           our_args,
           1,
           2,
-          new BytePointer(
-            new LocationPointer(Pointer.nativeValue(counted_string_frequencies.getPointer), 24)
-          ),
-          24
+          wrapAddress(Pointer.nativeValue(counted_string_frequencies.getPointer), 16),
+          16
         )
         val req_id = Aurora.veo_call_async_by_name(ctx, lib, count_strings, our_args)
         val fnCallResult = new LongPointer(8)
@@ -79,6 +91,7 @@ object WordCount {
         require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
         veo_read_non_null_int_vector(proc, counted_string_ids)
         veo_read_non_null_int_vector(proc, counted_string_frequencies)
+        println(counted_string_frequencies.count)
         read_word_count(varCharVector, counted_string_ids, counted_string_frequencies)
           .mapValues(_.toLong)
       }
@@ -110,16 +123,18 @@ object WordCount {
     vc.data = new Pointer(copyBufferToVe(proc, varCharVector.getDataBuffer.nioBuffer()))
     vc.offsets = new Pointer(copyBufferToVe(proc, varCharVector.getOffsetBuffer.nioBuffer()))
     vc.count = varCharVector.getValueCount
-    try f(vc)
-    finally {
-      Aurora.veo_free_mem(proc, Pointer.nativeValue(vc.data))
-      Aurora.veo_free_mem(proc, Pointer.nativeValue(vc.offsets))
-    }
+    println(s"Giving it count of ${vc.count}")
+    f(vc)
+    // finally {
+    // Aurora.veo_free_mem(proc, Pointer.nativeValue(vc.data))
+    // Aurora.veo_free_mem(proc, Pointer.nativeValue(vc.offsets))
+    // }
   }
 
   /** Take a vec, and rewrite the pointer to our local so we can read it */
   /** Todo consider to deallocate from VE! unless we pass it onward */
   def veo_read_non_null_int_vector(proc: Aurora.veo_proc_handle, vec: non_null_int_vector): Unit = {
+    println(s"GOt back: ${vec.byteSize()}")
     val resLen = vec.byteSize().toInt
     val vhTarget = ByteBuffer.allocateDirect(resLen)
     Aurora.veo_read_mem(

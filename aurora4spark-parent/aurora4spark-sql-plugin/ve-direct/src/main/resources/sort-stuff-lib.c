@@ -44,6 +44,7 @@ typedef struct
 
 int count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
 {
+    printf("Got %p %p %i items\n", strings.data,strings.offsets, strings.count);
     /** pre-allocate enough memory to return all the strings at the maximum **/
     counted_string_ids.data = malloc(strings.count * sizeof(int));
     counted_string_ids.count = 0;
