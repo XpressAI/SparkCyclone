@@ -1,7 +1,8 @@
 import CountArrowStringsSpec.schema
 import CountStringsCSpec.withArrowStringVector
 import com.nec.WordCount
-import com.nec.WordCount.wordCountArrowCC
+import com.nec.WordCount.runOn
+import com.nec.native.CArrowNativeInterface
 import org.apache.arrow.vector.{FieldVector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -46,7 +47,7 @@ final class CountStringsCSpec extends AnyFreeSpec {
     val cLib = CBuilder.buildC(WordCount.WordCountSourceCode)
 
     withArrowStringVector(ss) { vector =>
-      assert(wordCountArrowCC(cLib, vector)(_.toMap(vector)) == WordCount.wordCountJVM(vector))
+      assert(runOn(new CArrowNativeInterface(cLib))(vector) == WordCount.wordCountJVM(vector))
     }
   }
 

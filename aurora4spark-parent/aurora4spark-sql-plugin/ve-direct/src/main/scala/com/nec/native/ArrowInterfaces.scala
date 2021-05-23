@@ -9,6 +9,12 @@ import sun.nio.ch.DirectBuffer
 
 object ArrowInterfaces {
 
+  def non_null_int_vector_to_IntVector(input: non_null_int_vector, output: IntVector): Unit = {
+    val nBytes = input.count * 4
+    output.getAllocator.newReservation().reserve(nBytes)
+    non_null_int_vector_to_intVector(input, output, output.getAllocator)
+  }
+
   def c_varchar_vector(varCharVector: VarCharVector): varchar_vector = {
     val vc = new varchar_vector()
     vc.data = new Pointer(

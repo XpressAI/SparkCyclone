@@ -2,16 +2,35 @@ package com.nec.native
 
 import org.apache.arrow.vector.{IntVector, VarCharVector}
 import com.nec.CountStringsLibrary.{non_null_int_vector, varchar_vector_raw}
-import com.nec.WordCount.non_null_int_vector_to_IntVector
 import com.nec.aurora.Aurora
+import com.nec.native.ArrowInterfaces.non_null_int_vector_to_IntVector
 import com.sun.jna.Pointer
 import org.bytedeco.javacpp.LongPointer
 
 import java.nio.ByteBuffer
 
-object VeNativeInterfaces {
+final class VeArrowNativeInterface(
+  proc: Aurora.veo_proc_handle,
+  ctx: Aurora.veo_thr_ctxt,
+  lib: Long
+) extends ArrowNativeInterface {
+  override def callFunction(
+    name: String,
+    inputArguments: List[Option[VarCharVector]],
+    outputArguments: List[Option[IntVector]]
+  ): Unit = VeArrowNativeInterface.executeVe(
+    proc = proc,
+    ctx = ctx,
+    lib = lib,
+    functionName = name,
+    inputArguments = inputArguments,
+    outputArguments = outputArguments
+  )
+}
 
-  def make_veo_varchar_vector[T](
+object VeArrowNativeInterface {
+
+  private def make_veo_varchar_vector[T](
     proc: Aurora.veo_proc_handle,
     varCharVector: VarCharVector
   ): varchar_vector_raw = {
@@ -24,7 +43,7 @@ object VeNativeInterfaces {
 
   /** Take a vec, and rewrite the pointer to our local so we can read it */
   /** Todo deallocate from VE! unless we pass it onward */
-  def veo_read_non_null_int_vector(
+  private def veo_read_non_null_int_vector(
     proc: Aurora.veo_proc_handle,
     vec: non_null_int_vector,
     byteBuffer: ByteBuffer
@@ -61,7 +80,7 @@ object VeNativeInterfaces {
     v_bb
   }
 
-  def executeVe(
+  private def executeVe(
     proc: Aurora.veo_proc_handle,
     ctx: Aurora.veo_thr_ctxt,
     lib: Long,
