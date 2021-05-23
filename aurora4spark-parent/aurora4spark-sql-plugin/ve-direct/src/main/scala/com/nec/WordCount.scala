@@ -66,41 +66,58 @@ object WordCount {
     val our_args = Aurora.veo_args_alloc()
     try {
 
+      val ra = new RootAllocator()
+      val idVector = new IntVector("id", ra)
+      val frequencyVector = new IntVector("frequency", ra)
       val argumentsSpec: ArgumentsSpec = List(InputVarCharVector, OutputIntVector, OutputIntVector)
-      val arguments: List[Any] = List(varCharVector)
+      val inputArguments: List[Option[VarCharVector]] = List(Some(varCharVector), None, None)
+      val outputArguments: List[Option[IntVector]] =
+        List(None, Some(idVector), Some(frequencyVector))
 
-      val varchar_vector_raw = make_veo_varchar_vector(proc, varCharVector)
+      inputArguments.zipWithIndex
+        .collect { case (Some(inputVarChar), idx) =>
+          inputVarChar -> idx
+        }
+        .foreach { case (inputVarChar, index) =>
+          val varchar_vector_raw = make_veo_varchar_vector(proc, inputVarChar)
+          Aurora.veo_args_set_stack(
+            our_args,
+            0,
+            index,
+            varcharVectorRawToByteBuffer(varchar_vector_raw),
+            20L
+          )
+        }
 
-      Aurora.veo_args_set_stack(
-        our_args,
-        0,
-        0,
-        varcharVectorRawToByteBuffer(varchar_vector_raw),
-        20L
-      )
+      val outputArgumentsVectors: List[(IntVector, Int)] = outputArguments.zipWithIndex.collect {
+        case (Some(intVector), index) => intVector -> index
+      }
 
-      val counted_string_ids = new non_null_int_vector()
-      val counted_bb = counted_string_ids.getPointer.getByteBuffer(0, 12)
-      counted_bb.equals()
-      Aurora.veo_args_set_stack(our_args, 1, 1, counted_bb, counted_bb.limit())
+      val outputArgumentsStructs: List[(non_null_int_vector, Int)] = outputArgumentsVectors.map {
+        case (intVector, index) =>
+          new non_null_int_vector() -> index
+      }
 
-      val counted_string_frequencies = new non_null_int_vector()
-      val freq_bb = counted_string_frequencies.getPointer.getByteBuffer(0, 12)
-      Aurora.veo_args_set_stack(our_args, 1, 2, freq_bb, freq_bb.limit())
+      val outputArgumentsByteBuffers: List[(ByteBuffer, Int)] = outputArgumentsStructs.map {
+        case (struct, index) =>
+          struct.getPointer.getByteBuffer(0, 12) -> index
+      }
+
+      outputArgumentsByteBuffers.foreach { case (byteBuffer, index) =>
+        Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
+      }
 
       val req_id = Aurora.veo_call_async_by_name(ctx, lib, CountStringsFunctionName, our_args)
       val fnCallResult = new LongPointer(8)
       val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
       require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
-      veo_read_non_null_int_vector(proc, counted_string_ids, counted_bb)
-      veo_read_non_null_int_vector(proc, counted_string_frequencies, freq_bb)
 
-      val ra = new RootAllocator()
-      val idVector = new IntVector("id", ra)
-      val frequencyVector = new IntVector("frequency", ra)
-      non_null_int_vector_to_IntVector(counted_string_ids, idVector)
-      non_null_int_vector_to_IntVector(counted_string_frequencies, frequencyVector)
+      (outputArgumentsVectors.zip(outputArgumentsStructs).zip(outputArgumentsByteBuffers)).foreach {
+        case (((intVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
+          veo_read_non_null_int_vector(proc, non_null_int_vector, byteBuffer)
+          non_null_int_vector_to_IntVector(non_null_int_vector, intVector)
+      }
       f(
         new WordCountResults(
           string_ids_vector = idVector,
