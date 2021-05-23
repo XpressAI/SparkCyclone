@@ -7,9 +7,9 @@ import com.sun.jna.Structure;
 import java.nio.ByteBuffer;
 
 public interface CountStringsLibrary extends Library {
-    @Structure.FieldOrder({"string_i", "count"})
+    @Structure.FieldOrder({"string_id", "count"})
     class unique_position_counter extends Structure {
-        public int string_i;
+        public int string_id;
         public int count;
 
         public unique_position_counter() {
@@ -24,11 +24,12 @@ public interface CountStringsLibrary extends Library {
             public ByReference(Pointer p) { super(p); }
         }
     }
-    @Structure.FieldOrder({"data", "logical_total", "bytes_total"})
+
+    @Structure.FieldOrder({"data", "count", "size"})
     class data_out extends Structure {
         public Pointer data;
-        public long logical_total;
-        public long bytes_total;
+        public long count;
+        public long size;
 
         public data_out() {
         }
@@ -43,5 +44,39 @@ public interface CountStringsLibrary extends Library {
         }
     }
 
-    int count_strings(ByteBuffer strings, int[] string_positions,int[] string_lengths, int strings_count, data_out.ByReference results);
+    @Structure.FieldOrder({"data", "offsets", "count"})
+    class varchar_vector extends Structure {
+        public Pointer data;
+        public Pointer offsets;
+        public long count;
+
+        public varchar_vector() {
+        }
+
+        public varchar_vector(Pointer p) {
+            super(p);
+            read();
+        }
+        public static class ByReference extends varchar_vector implements Structure.ByReference {
+            public ByReference() { }
+            public ByReference(Pointer p) { super(p); }
+        }
+    }
+    @Structure.FieldOrder({"data", "count"})
+    class non_null_int_vector extends Structure {
+        public Pointer data;
+        public long count;
+
+        public non_null_int_vector() {
+        }
+
+        public non_null_int_vector(Pointer p) {
+            super(p);
+            read();
+        }
+        public static class ByReference extends non_null_int_vector implements Structure.ByReference {
+            public ByReference() { }
+            public ByReference(Pointer p) { super(p); }
+        }
+    }
 }

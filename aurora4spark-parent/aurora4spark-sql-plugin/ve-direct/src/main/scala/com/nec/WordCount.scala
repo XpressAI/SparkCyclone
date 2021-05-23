@@ -1,11 +1,19 @@
 package com.nec
 
-import com.nec.CountStringsLibrary.{data_out, unique_position_counter}
+import com.nec.CountStringsLibrary.{
+  data_out,
+  non_null_int_vector,
+  unique_position_counter,
+  varchar_vector
+}
 import com.nec.aurora.Aurora
 import com.sun.jna.{Library, Pointer}
 import com.sun.jna.ptr.PointerByReference
-import org.apache.arrow.vector.{BaseVariableWidthVector, VarCharVector}
+import org.apache.arrow.memory.{ArrowBuf, RootAllocator}
+import org.apache.arrow.vector.ipc.message.ArrowFieldNode
+import org.apache.arrow.vector.{BaseVariableWidthVector, BitVectorHelper, IntVector, VarCharVector}
 import org.bytedeco.javacpp.LongPointer
+import sun.nio.ch.DirectBuffer
 
 import java.nio.file.Path
 import java.nio.{ByteBuffer, ByteOrder}
@@ -91,7 +99,7 @@ object WordCount {
           )
           .map { unique_position_counter =>
             new String(
-              varCharVector.get(unique_position_counter.string_i),
+              varCharVector.get(unique_position_counter.string_id),
               "UTF-8"
             ) -> unique_position_counter.count.toLong
           }
@@ -99,51 +107,6 @@ object WordCount {
         results
       } finally longPointer.close()
     } finally Aurora.veo_args_free(our_args)
-  }
-  def wordCountArrowC(libPath: Path, varCharVector: VarCharVector): Map[String, Long] = {
-    // will abstract this out later
-    import scala.collection.JavaConverters._
-    val thingy2 =
-      new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
-    val nl = thingy2.getNativeLibrary
-    val fn = nl.getFunction(count_strings)
-    val dc = new data_out.ByReference()
-    fn.invokeInt(
-      Array[java.lang.Object](
-        varCharVector.getDataBuffer.nioBuffer(),
-        varCharVector.getOffsetBuffer.nioBuffer(), {
-
-          (0 until varCharVector.getValueCount).map { i =>
-            varCharVector.getOffsetBuffer.getInt(
-              (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
-            ) - varCharVector.getStartOffset(i)
-
-          }.toArray
-        },
-        java.lang.Integer.valueOf(varCharVector.getValueCount),
-        dc
-      )
-    )
-
-    /**
-     * It may be quite smart to return back a vector that can directly become
-     * a VarCharVector as well!
-     *
-     * Then, we have an Aveo which takes VarCharVector => VarCharVector + IntVector or something similar.
-     */
-
-    val counted_strings = dc.logical_total.toInt
-
-    val results =
-      (0 until counted_strings).map { i =>
-        new unique_position_counter(new Pointer(Pointer.nativeValue(dc.data) + i * 8))
-      }
-    results.map { unique_position_counter =>
-      new String(
-        varCharVector.get(unique_position_counter.string_i),
-        "UTF-8"
-      ) -> unique_position_counter.count.toLong
-    }.toMap
   }
 
   /** This is currently messy but will be refactored during Arrow integration */
@@ -212,7 +175,7 @@ object WordCount {
         )
       )
 
-      val counted_strings = dc.logical_total.toInt
+      val counted_strings = dc.count.toInt
       assert(counted_strings == strings.toSet.size)
 
       val results =
@@ -220,7 +183,7 @@ object WordCount {
           new unique_position_counter(new Pointer(Pointer.nativeValue(dc.data) + i * 8))
         }
       results.map { unique_position_counter =>
-        someStrings(unique_position_counter.string_i) -> unique_position_counter.count
+        someStrings(unique_position_counter.string_id) -> unique_position_counter.count
       }.toMap
     }
 
@@ -277,7 +240,7 @@ object WordCount {
               )
             )
             .map { unique_position_counter =>
-              someStrings(unique_position_counter.string_i) -> unique_position_counter.count.toLong
+              someStrings(unique_position_counter.string_id) -> unique_position_counter.count.toLong
             }
             .toMap
           results
@@ -285,4 +248,69 @@ object WordCount {
       } finally Aurora.veo_args_free(our_args)
     }
   }
+
+  def wordCountArrowCC(libPath: Path, varCharVector: VarCharVector): Map[String, Int] = {
+    // will abstract this out later
+    import scala.collection.JavaConverters._
+    val thingy2 =
+      new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
+    val nl = thingy2.getNativeLibrary
+    val fn = nl.getFunction(count_strings)
+    val counted_string_ids = new non_null_int_vector()
+    val counted_string_frequencies = new non_null_int_vector()
+    val vc = new varchar_vector()
+    vc.data = new Pointer(
+      varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    )
+    vc.offsets = new Pointer(
+      varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    )
+    vc.count = varCharVector.getValueCount
+    fn.invokeInt(Array[java.lang.Object](vc, counted_string_ids, counted_string_frequencies))
+
+    val counted_strings = counted_string_ids.count.toInt
+
+    val ra = new RootAllocator()
+
+    val res = ra.newReservation()
+    res.reserve(counted_strings)
+    val string_ids_vector = new IntVector("id", ra)
+    non_null_int_vector_to_intVector(counted_string_ids, string_ids_vector, ra)
+    val string_frequencies_vector = new IntVector("id", ra)
+    non_null_int_vector_to_intVector(counted_string_frequencies, string_frequencies_vector, ra)
+
+    (0 until string_ids_vector.getValueCount).map { idx =>
+      new String(
+        varCharVector.get(string_ids_vector.get(idx)),
+        "UTF-8"
+      ) -> string_frequencies_vector.get(idx)
+    }.toMap
+  }
+
+  def non_null_int_vector_to_intVector(
+    input: non_null_int_vector,
+    intVector: IntVector,
+    rootAllocator: RootAllocator
+  ): Unit = {
+    val res = rootAllocator.newReservation()
+    res.add(input.count.toInt)
+    val validityBuffer = res.allocateBuffer()
+    validityBuffer.reallocIfNeeded(input.count.toInt)
+    (0 until input.count.toInt).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
+
+    import scala.collection.JavaConverters._
+    intVector.loadFieldBuffers(
+      new ArrowFieldNode(input.count, 0),
+      List(
+        validityBuffer,
+        new ArrowBuf(
+          validityBuffer.getReferenceManager,
+          null,
+          input.count * 4,
+          Pointer.nativeValue(input.data)
+        )
+      ).asJava
+    )
+  }
+
 }
