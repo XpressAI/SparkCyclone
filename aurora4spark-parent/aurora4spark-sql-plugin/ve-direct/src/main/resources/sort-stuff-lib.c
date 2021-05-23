@@ -39,12 +39,12 @@ typedef struct
 typedef struct
 {
     int *data;
-    long count;
+    int count;
 } non_null_int_vector;
 
-int count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
+ count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
 {
-    printf("Got %p %p %i items\n", strings.data,strings.offsets, strings.count);
+    printf("Received %i items in pointers data=%p, offsets=%p \n", strings.offsets, strings.data, strings.count);
     /** pre-allocate enough memory to return all the strings at the maximum **/
     counted_string_ids.data = malloc(strings.count * sizeof(int));
     counted_string_ids.count = 0;
@@ -84,7 +84,6 @@ int count_strings(varchar_vector strings, non_null_int_vector counted_string_ids
             counted_string_frequencies.count++;
         }
     }
-
     /** todo free the excess memory before returning **/
     return 0;
 }

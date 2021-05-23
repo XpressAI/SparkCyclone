@@ -48,7 +48,7 @@ public interface CountStringsLibrary extends Library {
     class varchar_vector extends Structure {
         public Pointer data;
         public Pointer offsets;
-        public long count;
+        public int count;
 
         public varchar_vector() {
         }
@@ -62,14 +62,28 @@ public interface CountStringsLibrary extends Library {
             public ByReference(Pointer p) { super(p); }
         }
     }
+    @Structure.FieldOrder({"data", "offsets", "count"})
+    class varchar_vector_raw extends Structure {
+        public long data;
+        public long offsets;
+        public int count;
+
+        public varchar_vector_raw() {
+        }
+
+        public varchar_vector_raw(Pointer p) {
+            super(p);
+            read();
+        }
+        public static class ByReference extends varchar_vector_raw implements Structure.ByReference {
+            public ByReference() { }
+            public ByReference(Pointer p) { super(p); }
+        }
+    }
     @Structure.FieldOrder({"data", "count"})
     class non_null_int_vector extends Structure {
         public Pointer data;
-        public long count;
-
-        public long byteSize() {
-            return count * 4;
-        }
+        public int count;
 
         public non_null_int_vector() {
         }
