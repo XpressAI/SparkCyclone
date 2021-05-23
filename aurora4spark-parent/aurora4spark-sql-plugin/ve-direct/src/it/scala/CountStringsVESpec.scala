@@ -1,3 +1,4 @@
+import CountStringsCSpec.withArrowStringVector
 import com.nec.aurora.Aurora
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -22,7 +23,9 @@ final class CountStringsVESpec extends AnyFreeSpec {
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
         try {
           val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
-          Sample.computeVE(proc, ctx, lib)
+          withArrowStringVector(Sample.strings) { vcv =>
+            WordCount.wordCountArrowVE(proc, ctx, lib, vcv)
+          }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)
     info(s"Got: $wordCount")

@@ -61,6 +61,15 @@ addCommandAlias(
 )
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
 
+assembly / assemblyMergeStrategy := {
+  case v if v.contains("module-info.class")   => MergeStrategy.discard
+  case v if v.contains("reflect-config.json") => MergeStrategy.discard
+  case v if v.contains("jni-config.json")     => MergeStrategy.discard
+  case v if v.contains("git.properties")      => MergeStrategy.discard
+  case x =>
+    val oldStrategy = (assembly / assemblyMergeStrategy).value
+    oldStrategy(x)
+}
 lazy val deploy = taskKey[Unit]("Deploy artifacts to a6")
 lazy val deployExamples = taskKey[Unit]("Deploy artifacts to a6")
 
@@ -124,6 +133,7 @@ lazy val `ve-direct` = project
       case v if v.contains("module-info.class")   => MergeStrategy.discard
       case v if v.contains("reflect-config.json") => MergeStrategy.discard
       case v if v.contains("jni-config.json")     => MergeStrategy.discard
+      case v if v.contains("git.properties")      => MergeStrategy.discard
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
