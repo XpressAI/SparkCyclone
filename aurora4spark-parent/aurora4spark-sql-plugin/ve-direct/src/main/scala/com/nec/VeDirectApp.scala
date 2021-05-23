@@ -10,7 +10,7 @@ object VeDirectApp {
     VeCompiler(compilationPrefix = "_spark", buildDir = Paths.get("_ve_build").toAbsolutePath)
       .compile_c {
         List(
-          WordCount.SourceCode,
+          WordCount.WordCountSourceCode,
           SumSimple.C_Definition,
           SumPairwise.C_Definition,
           AvgSimple.C_Definition,

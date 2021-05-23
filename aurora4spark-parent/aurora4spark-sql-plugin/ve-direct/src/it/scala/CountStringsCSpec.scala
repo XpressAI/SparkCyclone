@@ -43,10 +43,10 @@ final class CountStringsCSpec extends AnyFreeSpec {
 
   "Through Arrow, it works" in {
     val ss = CountStringsVESpec.Sample
-    val cLib = CBuilder.buildC(WordCount.SourceCode)
+    val cLib = CBuilder.buildC(WordCount.WordCountSourceCode)
 
-    withArrowStringVector(ss.strings) { vector =>
-      assert(wordCountArrowCC(cLib, vector) == ss.expectedWordCount)
+    withArrowStringVector(ss) { vector =>
+      assert(wordCountArrowCC(cLib, vector)(_.toMap(vector)) == WordCount.wordCountJVM(vector))
     }
   }
 
