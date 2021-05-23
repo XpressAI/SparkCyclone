@@ -43,7 +43,7 @@ object WordCount {
     Aurora.veo_alloc_mem(proc, veInputPointer, size)
     Aurora.veo_write_mem(
       proc,
-      /** after allocating, this pointer now contains a value of the VE storage address **/
+      /** after allocating, this pointer now contains a value of the VE storage address * */
       veInputPointer.get(),
       new org.bytedeco.javacpp.Pointer(byteBuffer),
       size
@@ -60,39 +60,19 @@ object WordCount {
     val our_args = Aurora.veo_args_alloc()
     try {
       with_veo_varchar_vector(proc, varCharVector) { varchar_vector_raw =>
-
         val v_bb = varchar_vector_raw.getPointer.getByteBuffer(0, 20)
         v_bb.putLong(0, varchar_vector_raw.data)
         v_bb.putLong(8, varchar_vector_raw.offsets)
         v_bb.putInt(16, varchar_vector_raw.count)
-        Aurora.veo_args_set_stack(
-          our_args,
-          0,
-          0,
-          v_bb,
-          20L
-        )
+        Aurora.veo_args_set_stack(our_args, 0, 0, v_bb, 20L)
 
         val counted_string_ids = new non_null_int_vector()
         val counted_bb = counted_string_ids.getPointer.getByteBuffer(0, 12)
-        Aurora.veo_args_set_stack(
-          our_args,
-          1,
-          1,
-          counted_bb,
-          16
-        )
-
+        Aurora.veo_args_set_stack(our_args, 1, 1, counted_bb, 16)
 
         val counted_string_frequencies = new non_null_int_vector()
         val freq_bb = counted_string_frequencies.getPointer.getByteBuffer(0, 12)
-        Aurora.veo_args_set_stack(
-          our_args,
-          1,
-          2,
-          freq_bb,
-          16
-        )
+        Aurora.veo_args_set_stack(our_args, 1, 2, freq_bb, 16)
 
         val req_id = Aurora.veo_call_async_by_name(ctx, lib, count_strings, our_args)
         val fnCallResult = new LongPointer(8)
@@ -137,17 +117,16 @@ object WordCount {
 
   /** Take a vec, and rewrite the pointer to our local so we can read it */
   /** Todo consider to deallocate from VE! unless we pass it onward */
-  def veo_read_non_null_int_vector(proc: Aurora.veo_proc_handle, vec: non_null_int_vector, byteBuffer: ByteBuffer): Unit = {
+  def veo_read_non_null_int_vector(
+    proc: Aurora.veo_proc_handle,
+    vec: non_null_int_vector,
+    byteBuffer: ByteBuffer
+  ): Unit = {
     val veoPtr = byteBuffer.getLong(0)
     val dataCount = byteBuffer.getInt(8)
     val dataSize = dataCount * 8
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    Aurora.veo_read_mem(
-      proc,
-      new org.bytedeco.javacpp.Pointer(vhTarget),
-      veoPtr,
-      dataSize
-    )
+    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
     vec.count = dataCount
     vec.data = new Pointer(vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address())
   }
@@ -187,10 +166,7 @@ object WordCount {
     (0 until string_ids_vector.getValueCount).map { idx =>
       val freq = string_frequencies_vector.get(idx)
       val stringId = string_ids_vector.get(idx)
-      val strValue = new String(
-        varCharVector.get(stringId),
-        "UTF-8"
-      )
+      val strValue = new String(varCharVector.get(stringId), "UTF-8")
       (strValue, freq)
     }.toMap
   }
@@ -201,7 +177,7 @@ object WordCount {
     rootAllocator: RootAllocator
   ): Unit = {
 
-    /** Set up the validity buffer -- everything is valid here **/
+    /** Set up the validity buffer -- everything is valid here * */
     val res = rootAllocator.newReservation()
     res.add(input.count.toInt)
     val validityBuffer = res.allocateBuffer()

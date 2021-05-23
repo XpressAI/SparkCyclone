@@ -42,7 +42,7 @@ typedef struct
     int count;
 } non_null_int_vector;
 
- count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
+count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
 {
     printf("Received %i items in pointers data=%p, offsets=%p \n", strings.offsets, strings.data, strings.count);
     /** pre-allocate enough memory to return all the strings at the maximum **/
