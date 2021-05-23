@@ -143,20 +143,36 @@ object WordCount {
       new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
     val nl = nativeLibraryHandler.getNativeLibrary
     val fn = nl.getFunction(CountStringsFunctionName)
-    val counted_string_ids = new non_null_int_vector()
-    val counted_string_frequencies = new non_null_int_vector()
-    fn.invokeInt(
-      Array[java.lang.Object](
-        c_varchar_vector(varCharVector),
-        counted_string_ids,
-        counted_string_frequencies
-      )
-    )
+
     val ra = new RootAllocator()
     val idVector = new IntVector("id", ra)
     val frequencyVector = new IntVector("frequency", ra)
-    non_null_int_vector_to_IntVector(counted_string_ids, idVector)
-    non_null_int_vector_to_IntVector(counted_string_frequencies, frequencyVector)
+    val argumentsSpec: ArgumentsSpec = List(InputVarCharVector, OutputIntVector, OutputIntVector)
+    val inputArguments: List[Option[VarCharVector]] = List(Some(varCharVector), None, None)
+    val outputArguments: List[Option[IntVector]] =
+      List(None, Some(idVector), Some(frequencyVector))
+
+    val outputStructs = outputArguments.map(_.map(intVector => new non_null_int_vector()))
+
+    val invokeArgs: Array[java.lang.Object] = inputArguments
+      .zip(outputStructs)
+      .map {
+        case ((Some(vcv), _)) =>
+          c_varchar_vector(vcv)
+        case ((_, Some(structIntVector))) =>
+          structIntVector
+        case other =>
+          sys.error(s"Unexpected state: $other")
+      }
+      .toArray
+
+    fn.invokeLong(invokeArgs)
+
+    outputStructs.zip(outputArguments).foreach {
+      case (Some(struct), Some(vec)) =>
+        non_null_int_vector_to_IntVector(struct, vec)
+      case _ =>
+    }
     f(
       new WordCountResults(
         string_ids_vector = idVector,
