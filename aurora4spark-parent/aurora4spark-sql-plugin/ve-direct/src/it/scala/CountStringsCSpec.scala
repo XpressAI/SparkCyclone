@@ -1,4 +1,5 @@
 import CountArrowStringsSpec.schema
+import CountStringsCSpec.withArrowStringVector
 import com.nec.WordCount
 import com.nec.WordCount.wordCountArrowCC
 import org.apache.arrow.vector.{FieldVector, VarCharVector}
@@ -18,17 +19,6 @@ object CountStringsCSpec {
     )
     .toAbsolutePath
 
-}
-
-final class CountStringsCSpec extends AnyFreeSpec {
-
-  "It works" ignore {
-    val ss = CountStringsVESpec.Sample
-    val result = ss.computex86(CBuilder.buildC(WordCount.SourceCode))
-    info(s"Got: $result")
-    assert(result == ss.expectedWordCount)
-  }
-
   def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
     import org.apache.arrow.memory.RootAllocator
     import org.apache.arrow.vector.VectorSchemaRoot
@@ -47,6 +37,9 @@ final class CountStringsCSpec extends AnyFreeSpec {
       } finally vcv.close()
     } finally alloc.close()
   }
+}
+
+final class CountStringsCSpec extends AnyFreeSpec {
 
   "Through Arrow, it works" in {
     val ss = CountStringsVESpec.Sample

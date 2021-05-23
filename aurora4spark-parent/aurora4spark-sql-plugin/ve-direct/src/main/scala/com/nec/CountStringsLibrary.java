@@ -67,6 +67,10 @@ public interface CountStringsLibrary extends Library {
         public Pointer data;
         public long count;
 
+        public long byteSize() {
+            return count * 4;
+        }
+
         public non_null_int_vector() {
         }
 
