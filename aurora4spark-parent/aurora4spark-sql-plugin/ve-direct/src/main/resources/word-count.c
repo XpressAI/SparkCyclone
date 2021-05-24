@@ -2,47 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int add(int a, int b)
-{
-    return a + b;
-}
-
-int add_nums(int *nums, int size)
-{
-    int sum = 0;
-    for (int i = 0; i < size; i++)
-    {
-        sum += nums[i];
-    }
-    return sum;
-}
-
-typedef struct
-{
-    void **data;
-    size_t count;
-    size_t size;
-} data_out;
-
-typedef struct
-{
-    char *data;
-    int *offsets;
-    long count;
-} varchar_vector;
-
-typedef struct
-{
-    char *data;
-} word_count;
-
-typedef struct
-{
-    int *data;
-    int count;
-} non_null_int_vector;
-
-count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
+long count_strings(varchar_vector strings, non_null_int_vector counted_string_ids, non_null_int_vector counted_string_frequencies)
 {
     printf("Received %i items in pointers data=%p, offsets=%p \n", strings.offsets, strings.data, strings.count);
     /** pre-allocate enough memory to return all the strings at the maximum **/

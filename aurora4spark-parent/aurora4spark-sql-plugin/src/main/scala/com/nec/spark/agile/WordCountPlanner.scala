@@ -76,12 +76,9 @@ object WordCountPlanner {
 
     object VEBased extends WordCounter {
       override def countWords(strings: VarCharVector): Map[String, Long] = {
-        WordCount.wordCountArrowVE(
-          Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin._veo_ctx,
-          Aurora4SparkExecutorPlugin.lib,
-          strings
-        )
+        WordCount
+          .runOn(Aurora4SparkExecutorPlugin.veArrowNativeInterface)(strings)
+          .mapValues(_.toLong)
       }
     }
 

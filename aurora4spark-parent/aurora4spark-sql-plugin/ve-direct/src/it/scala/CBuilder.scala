@@ -15,7 +15,7 @@ object CBuilder {
     Files.createDirectories(targetDir)
     val tgtCl = targetDir.resolve(CMakeListsTXT.getFileName)
     Files.copy(CMakeListsTXT, tgtCl, StandardCopyOption.REPLACE_EXISTING)
-    Files.write(targetDir.resolve("sort-stuff-lib.c"), cSource.getBytes("UTF-8"))
+    Files.write(targetDir.resolve("aurora4spark.c"), cSource.getBytes("UTF-8"))
     buildAndLink(tgtCl)
   }
 
@@ -37,20 +37,20 @@ object CBuilder {
     println(cmd2)
     assert(cmd.! == 0)
     assert(cmd2.! == 0)
-    targetPath.getParent.resolve("Debug").resolve("sortstuff.dll")
+    targetPath.getParent.resolve("Debug").resolve("aurora4spark.dll")
   }
   private def buildAndLinkMacos(targetPath: Path): Path = {
     val cmd = List("cmake", targetPath.toString)
     val cmd2 = List("make", "-C", targetPath.getParent.toString)
     assert(cmd.! == 0)
     assert(cmd2.! == 0)
-    targetPath.getParent.resolve("libsortstuff.dylib")
+    targetPath.getParent.resolve("libaurora4spark.dylib")
   }
   private def buildAndLinkLin(targetPath: Path): Path = {
     val cmd = List("cmake", targetPath.toString)
     val cmd2 = List("make", "-C", targetPath.getParent.toString)
     assert(cmd.! == 0)
     assert(cmd2.! == 0)
-    targetPath.getParent.resolve("libsortstuff.so")
+    targetPath.getParent.resolve("libaurora4spark.so")
   }
 }
