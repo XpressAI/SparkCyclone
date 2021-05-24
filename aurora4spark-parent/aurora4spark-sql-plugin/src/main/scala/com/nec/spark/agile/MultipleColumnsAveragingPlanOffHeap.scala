@@ -2,6 +2,7 @@ package com.nec.spark.agile
 
 import com.nec.{AvgMultipleColumns, AvgSimple, SumPairwise, SumSimple, VeJavaContext}
 import com.nec.aurora.Aurora
+import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
 import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
@@ -39,22 +40,12 @@ object MultipleColumnsAveragingPlanOffHeap {
       }
     }
 
-    case class VeoBased(ve_so_name: String) extends MultipleColumnsOffHeapAverager {
+    case object VeoBased extends MultipleColumnsOffHeapAverager {
 
       override def avg(inputMemoryAddress: Long, count: Int): Double = {
-        println(s"SO name: ${ve_so_name}")
-        val proc = Aurora.veo_proc_create(0)
-        println(s"Created proc = ${proc}")
-        try {
-          val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
-          println(s"Created ctx = ${ctx}")
-          try {
-            val lib: Long = Aurora.veo_load_library(proc, ve_so_name)
-            println(s"Loaded lib = ${lib}")
-            val vej = new VeJavaContext(ctx, lib)
-            AvgSimple.avg_doubles_mem(vej, inputMemoryAddress, count)
-          } finally Aurora.veo_context_close(ctx)
-        } finally Aurora.veo_proc_destroy(proc)
+        val vej =
+          new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
+        AvgSimple.avg_doubles_mem(vej, inputMemoryAddress, count)
       }
     }
 
@@ -79,7 +70,7 @@ case class MultipleColumnsAveragingPlanOffHeap (
               .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
               .map(vector => averager.avg(vector.valuesNativeAddress(), columnarBatch.numRows()))
 
-            DataColumnAggregation(outputColumnIndex,
+            OutputColumnWithData(outputColumnIndex,
               aggregationOperation, dataVectors, columnarBatch.numRows())
           }
         }
@@ -94,10 +85,7 @@ case class MultipleColumnsAveragingPlanOffHeap (
         }
 
         val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case DataColumnAggregation(outIndex, NoAggregation, columns, _) => columns.head
-          case DataColumnAggregation(outIndex, Addition, columns, _) => columns.sum
-          case DataColumnAggregation(outIndex, Subtraction, columns, _) =>
-            columns.reduce((a, b) => a - b)
+          case OutputColumnWithData(outIndex, aggregator, columns, _) => aggregator.aggregate(columns)
         }
 
         val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))

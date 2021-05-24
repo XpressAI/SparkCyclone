@@ -1,7 +1,11 @@
 package com.nec.spark
 
+import java.nio.ByteBuffer
+
 import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import org.bytedeco.javacpp.DoublePointer
+import sun.nio.ch.DirectBuffer
 
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
 import org.apache.spark.sql.execution.SparkPlan
@@ -24,20 +28,57 @@ package object agile {
     UnsafeProjection.create(types)
   }
 
-  sealed trait ColumnAggregateOperation extends Serializable
-  case object Addition extends ColumnAggregateOperation
-  case object Subtraction extends ColumnAggregateOperation
-  case object NoAggregation extends ColumnAggregateOperation
+  sealed trait AggregationExpression
+  case object SumExpression extends AggregationExpression
+  case object SubtractExpression extends AggregationExpression
+  case object NoAggregationExpression extends AggregationExpression
 
-  case class ColumnAggregation(columns: Seq[Column], aggregation: ColumnAggregateOperation,
+  sealed trait ColumnAggregator extends Serializable {
+    def aggregate(inputData: Seq[Double]): Double
+  }
+
+  case class AdditionAggregator(adder: MultipleColumnsOffHeapSummer) extends ColumnAggregator {
+    override def aggregate(inputData: Seq[Double]): Double = {
+      val vector = new OffHeapColumnVector(inputData.size, DoubleType)
+      inputData.zipWithIndex.foreach {
+        case (elem, idx) => vector.putDouble(idx, elem)
+      }
+
+      adder.sum(vector.valuesNativeAddress(), inputData.size)
+    }
+  }
+
+  case class SubtractionAggregator(subtractor: MultipleColumnsOffHeapSubtractor) extends ColumnAggregator {
+    override def aggregate(inputData: Seq[Double]): Double = {
+      val vector = new OffHeapColumnVector(inputData.size, DoubleType)
+      inputData.zipWithIndex.foreach {
+        case (elem, idx) => vector.putDouble(idx, elem)
+      }
+
+      subtractor.subtract(vector.valuesNativeAddress(), inputData.size)
+    }
+  }
+  case object NoAggregationAggregator extends ColumnAggregator {
+    override def aggregate(inputData: Seq[Double]): Double = {
+      if(inputData.size != 1) {
+        throw new RuntimeException("Multiple columns passed to function without aggregation.")
+      }
+      inputData.head
+    }
+  }
+
+  case class ColumnAggregation(columns: Seq[Column], aggregation: ColumnAggregator,
+                               columnIndex: ColumnIndex) extends Serializable
+
+  case class ColumnAggregationExpression(columns: Seq[Column], aggregation: AggregationExpression,
                                columnIndex: ColumnIndex) extends Serializable
   case class Column(index: Int, name: String) extends Serializable
 
-  case class DataColumnAggregation(outputColumnIndex: ColumnIndex,
-                                   aggregation: ColumnAggregateOperation,
-                                   columns: Seq[Double],
-                                   numberOfRows: Int) {
-    def combine(a: DataColumnAggregation)(mergeFunc: (Double, Double) => Double): DataColumnAggregation = {
+  case class OutputColumnWithData(outputColumnIndex: ColumnIndex,
+                                  aggregation: ColumnAggregator,
+                                  columns: Seq[Double],
+                                  numberOfRows: Int) {
+    def combine(a: OutputColumnWithData)(mergeFunc: (Double, Double) => Double): OutputColumnWithData = {
       val columnsCombined = if(a.outputColumnIndex != this.outputColumnIndex) {
         throw new RuntimeException("Can't combine different output columns!")
       } else {
@@ -50,12 +91,12 @@ package object agile {
   }
 
   case class OutputColumn(inputColumns: Seq[Column], outputColumnIndex: ColumnIndex,
-                          columnAggregation: ColumnAggregateOperation,
+                          columnAggregation: ColumnAggregator,
                           outputAggregator: Aggregator) extends Serializable
 
 
   case class OutputColumnPlanDescription(inputColumns: Seq[Column], outputColumnIndex: ColumnIndex,
-                                         columnAggregation: ColumnAggregateOperation,
+                                         columnAggregation: AggregationExpression,
                                          outputAggregator: AggregationFunction) extends Serializable
 
   sealed trait AggregationFunction

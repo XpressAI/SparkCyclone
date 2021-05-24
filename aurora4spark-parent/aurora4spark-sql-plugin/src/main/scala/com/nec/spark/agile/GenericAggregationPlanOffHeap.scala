@@ -19,7 +19,7 @@ case class GenericAggregationPlanOffHeap(child: SparkPlan,
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .executeColumnar()
-      .map { columnarBatch =>
+      .flatMap { columnarBatch =>
         val offHeapAggregations = outputColumns.map {
           case OutputColumn(inputColumns, outputColumnIndex, columnAggregation, outputAggregator) => {
             val dataVectors = inputColumns
@@ -29,7 +29,7 @@ case class GenericAggregationPlanOffHeap(child: SparkPlan,
                   columnarBatch.numRows())
               )
 
-            DataColumnAggregation(outputColumnIndex,
+            OutputColumnWithData(outputColumnIndex,
               columnAggregation,
               dataVectors,
               columnarBatch.numRows()
@@ -42,16 +42,8 @@ case class GenericAggregationPlanOffHeap(child: SparkPlan,
       .coalesce(1)
       .mapPartitions(its => {
 
-        val aggregated = its.toList.flatten.groupBy(_.outputColumnIndex).map {
-          case (idx, columnAggregations) =>
-            columnAggregations.reduce((a, b) => a.combine(b)(_ + _))
-        }
-
-        val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case DataColumnAggregation(outIndex, NoAggregation, columns, _) => columns.head
-          case DataColumnAggregation(outIndex, Addition, columns, _) => columns.sum
-          case DataColumnAggregation(outIndex, Subtraction, columns, _) =>
-            columns.reduce((a, b) => a - b)
+        val elementsSum = its.toList.sortBy(_.outputColumnIndex).map {
+          case OutputColumnWithData(outIndex, aggregator, columns, _) => aggregator.aggregate(columns)
         }
 
         val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
