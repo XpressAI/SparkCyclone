@@ -11,16 +11,6 @@ import org.apache.spark.sql.types.{DataType, DoubleType}
 
 object AveragingSparkPlanMultipleColumns {
 
-  val averageLocalVeo: ColumnWithNumbers => Double = l =>
-    BundleExecutor.returningBigDecimalLocal
-      .executeBundle(Bundle.avgBigDecimals(l._2.map(double => BigDecimal(double)).toList))
-      .toDouble
-
-  val averageRemote: ColumnWithNumbers => Double = l =>
-    BundleExecutor.returningBigDecimalRemote
-      .executeBundle(Bundle.avgBigDecimals(l._2.map(double => BigDecimal(double)).toList))
-      .toDouble
-
   val averageLocalScala: ColumnWithNumbers => Double = l =>
     l match {
       case (_, numbers) if numbers.nonEmpty => numbers.sum / numbers.size

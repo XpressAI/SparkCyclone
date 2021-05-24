@@ -9,17 +9,6 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DoubleType
 
 object AveragingSparkPlan {
-
-  val averageLocalVeo: List[Double] => Double = l =>
-    BundleExecutor.returningBigDecimalLocal
-      .executeBundle(Bundle.avgBigDecimals(l.map(double => BigDecimal(double))))
-      .toDouble
-
-  val averageRemote: List[Double] => Double = l =>
-    BundleExecutor.returningBigDecimalRemote
-      .executeBundle(Bundle.avgBigDecimals(l.map(double => BigDecimal(double))))
-      .toDouble
-
   val averageLocalScala: List[Double] => Double = l => if (l.nonEmpty) l.sum / l.size else 0
 
   /** Coalesces all the columns into one partition, and then averages it lazily */

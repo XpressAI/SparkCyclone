@@ -1,8 +1,9 @@
-import java.nio.file.{Path, Paths}
+package cmake
 
-import SumCSpec.withArrowFloat8Vector
+import cmake.SumCSpec.withArrowFloat8Vector
 import com.nec.Sum
-import com.nec.native.{CArrowNativeInterfaceNumeric, TransferDefinitions}
+import com.nec.native.CArrowNativeInterfaceNumeric
+import com.nec.native.TransferDefinitions
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 

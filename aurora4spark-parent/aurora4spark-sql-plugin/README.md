@@ -6,18 +6,14 @@ Requirements:
 - Hadoop
 - JDK 8
 
-## Development workflow
-
-Within sbt:
+## SBT commands
 
 - Unit tests: `~testQuick`
-- Acceptance tests: `~ AcceptanceTest / testQuick` (or `Acc`)
-- Run once: `Acc/test`
-- Run a specific unit test suite: `~ testOnly *SuiteName*`
-- Scalafmt format: `fmt`
+- Functional tests using CMake: `~ CMake / testQuick`
+- Functional tests on VE (run on a VH): `~ VectorEngine / testQuick`
+- Functional tests on JVM: `testQuick`
+- Acceptance tests, which also generate `../FEATURES.md`: `AcceptanceTest / test` (or `Acc`)
 - Check before committing: `check` (checks scalafmt and runs any outstanding unit tests)
-- After adding new query type, when implementing the query tests add `markup([QUERY])`, so that it will automatically
-  added to `../FEATURES.md`.
 
 ## Currently supported queries
 
@@ -51,7 +47,6 @@ To deploy to `a5`, do:
 ```
 > ;deploy a5; deployExamples a5
 ```
-
 
 ### Faster testing over SSH (around 40%) & general log-in to any SSH server
 
@@ -91,11 +86,4 @@ We've built some JAR files from the Frovedis sources, so they can be easily cons
 through IntelliJ's powerful navigation capabilities. This is to aid exploration of what is available. The repository is
 located in `frovedis-ivy`
 and is available through a default import of SBT. It includes both source and test JARs.
-
-
-## `ve-direct`
-
-This is the first iteration of using `aurora4j` straight from Scala. This uses direct memory access and all that. 
-
-Assuming `ssh ed hostname` returns `XAIJPVE1`, from SBT run: `ve-direct / IntegrationTest / test`.
 

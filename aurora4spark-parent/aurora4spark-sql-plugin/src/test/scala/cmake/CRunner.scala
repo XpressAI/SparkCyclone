@@ -1,6 +1,7 @@
-import com.sun.jna.Library
+package cmake
 
 import java.nio.file.Path
+import com.sun.jna.Library
 
 object CRunner {
   def runC(libPath: Path, functionName: String, args: Array[java.lang.Object]): Int = {

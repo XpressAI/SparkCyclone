@@ -1,15 +1,16 @@
-import CountStringsCSpec.withArrowStringVector
+package ve
+
 import com.nec.aurora.Aurora
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.nio.file.Paths
 import java.time.Instant
 import scala.sys.process._
-import CountStringsVESpec._
+import ve.CountStringsVESpec.Sample
 import com.nec.WordCount.{runOn, wordCountJVM}
-import com.nec.native.VeArrowNativeInterface
 import com.nec.{VeCompiler, WordCount}
-import com.nec.native.TransferDefinitions
+import com.nec.native.{TransferDefinitions, VeArrowNativeInterface}
+import com.nec.spark.WordCountSpec.withArrowStringVector
 object CountStringsVESpec {
   val Sample = List[String]("hello", "dear", "world", "of", "hello", "of", "hello")
 }

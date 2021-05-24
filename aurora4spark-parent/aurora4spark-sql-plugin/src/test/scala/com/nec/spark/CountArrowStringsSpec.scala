@@ -1,4 +1,6 @@
-import CountArrowStringsSpec.schema
+package com.nec.spark
+
+import com.nec.spark.CountArrowStringsSpec.schema
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{BaseVariableWidthVector, FieldVector, VarCharVector}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
