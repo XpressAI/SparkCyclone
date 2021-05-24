@@ -149,6 +149,11 @@ def column_benchmark(df, log, spark, ntest=5, ops=None):
                 spark.sparkContext.setLocalProperty('callSite.short', f'{op}_benchmark_test_{i}')
                 start_time = timer()
                 new_df = dicts[op](df)
+                new_df.write.csv(
+                    f'temp/{op}_{i}',
+                    header=True,
+                    mode='overwrite'
+                )
                 time_taken = timer() - start_time
                 log.info(f'Running {op}_benchmark_test_{i} = {time_taken}')
                 col_op.append(time_taken)
