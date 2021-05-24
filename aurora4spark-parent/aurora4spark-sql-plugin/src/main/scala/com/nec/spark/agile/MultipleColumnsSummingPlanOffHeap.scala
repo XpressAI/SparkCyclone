@@ -64,7 +64,7 @@ case class MultipleColumnsSummingPlanOffHeap(
               .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
               .map(vector => summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
 
-            DataColumnAggregation(outputColumnIndex,
+            OutputColumnWithData(outputColumnIndex,
               aggregationOperation, dataVectors, columnarBatch.numRows())
           }
         }
@@ -78,10 +78,7 @@ case class MultipleColumnsSummingPlanOffHeap(
         }
 
         val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case DataColumnAggregation(outIndex, NoAggregation, columns, _) => columns.head
-          case DataColumnAggregation(outIndex, Addition, columns, _) => columns.sum
-          case DataColumnAggregation(outIndex, Subtraction, columns, _) =>
-            columns.reduce((a, b) => a - b)
+          case OutputColumnWithData(outIndex, aggregator, columns, _) => aggregator.aggregate(columns)
         }
 
         val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))

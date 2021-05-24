@@ -1,5 +1,7 @@
 package com.nec.spark.agile
 
+import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+
 import org.apache.spark.sql.catalyst.expressions.{Add, AttributeSet, Expression, Subtract}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Sum}
 import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
@@ -34,7 +36,7 @@ object VeoGenericPlanExtractor {
         val columnIndices = output.map(_.name).zipWithIndex.toMap
         val columnMappings = extractExpressions(exprs).zipWithIndex
           .map{
-            case ((operation, attributes), id) => ColumnAggregation(
+            case ((operation, attributes), id) => ColumnAggregationExpression(
               attributes.map(attr => Column(columnIndices(attr.value), attr.value)),
               operation,
               id
@@ -53,7 +55,7 @@ object VeoGenericPlanExtractor {
   }
 
   def extractExpressions(expressions: Seq[AggregateExpression]):
-    Seq[(ColumnAggregateOperation, Seq[AttributeName])] = {
+    Seq[(AggregationExpression, Seq[AttributeName])] = {
       expressions.map {
         case AggregateExpression(sum @ Sum(expr), _, _, _, _) =>
           (extractOperation(expr), extractAttributes(sum.references))
@@ -76,11 +78,11 @@ object VeoGenericPlanExtractor {
 
     attributeNames
   }
-  def extractOperation(expression: Expression): ColumnAggregateOperation = {
+  def extractOperation(expression: Expression): AggregationExpression = {
     expression match {
-      case Add(_, _, _) => Addition
-      case Subtract(_, _, _) => Subtraction
-      case _ => NoAggregation
+      case Add(_, _, _) => SumExpression
+      case Subtract(_, _, _) => SubtractExpression
+      case _ => NoAggregationExpression
     }
   }
 }

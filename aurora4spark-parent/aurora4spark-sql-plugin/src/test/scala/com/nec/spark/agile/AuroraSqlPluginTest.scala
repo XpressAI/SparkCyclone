@@ -293,7 +293,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -343,7 +343,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -393,7 +393,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -537,7 +537,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -601,7 +601,7 @@ final class AuroraSqlPluginTest
                   OutputColumn(
                     inputColumns,
                     outputColumnIndex,
-                    columnAggregation,
+                    createUnsafeColumnAggregator(columnAggregation),
                     createUnsafeAggregator(outputAggregator)
                   )
               }
@@ -657,7 +657,7 @@ final class AuroraSqlPluginTest
                   OutputColumn(
                     inputColumns,
                     outputColumnIndex,
-                    columnAggregation,
+                    createUnsafeColumnAggregator(columnAggregation),
                     createUnsafeAggregator(outputAggregator)
                   )
               }
@@ -713,7 +713,7 @@ final class AuroraSqlPluginTest
                   OutputColumn(
                     inputColumns,
                     outputColumnIndex,
-                    columnAggregation,
+                    createUnsafeColumnAggregator(columnAggregation),
                     createUnsafeAggregator(outputAggregator)
                   )
               }
@@ -764,7 +764,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -812,7 +812,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -860,7 +860,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -908,7 +908,7 @@ final class AuroraSqlPluginTest
                 OutputColumn(
                   inputColumns,
                   outputColumnIndex,
-                  columnAggregation,
+                  createUnsafeColumnAggregator(columnAggregation),
                   createUnsafeAggregator(outputAggregator)
                 )
             }
@@ -1320,6 +1320,14 @@ final class AuroraSqlPluginTest
     aggregationFunction match {
       case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
       case AvgAggregation => new AvgAggregator(MultipleColumnsOffHeapAverager.UnsafeBased)
+    }
+  }
+
+  private def createUnsafeColumnAggregator(aggregationFunction: AggregationExpression): ColumnAggregator = {
+    aggregationFunction match {
+      case SumExpression => AdditionAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
+      case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
+      case _ => NoAggregationAggregator
     }
   }
 }

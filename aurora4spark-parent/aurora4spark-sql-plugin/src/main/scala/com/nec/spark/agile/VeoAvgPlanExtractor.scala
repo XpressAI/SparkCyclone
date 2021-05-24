@@ -1,13 +1,11 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.VeoSumPlanExtractor.extractExpressions
+import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 
-import org.apache.spark.sql.catalyst.expressions.{Add, AttributeReference, Expression, Subtract}
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average}
+import org.apache.spark.sql.catalyst.expressions.{Add, Expression, Subtract}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
-import org.apache.spark.sql.types.DoubleType
 
 /**
  * Basic SparkPlan matcher that will match a plan that sums a bunch of BigDecimals, and gets them
@@ -61,7 +59,7 @@ object VeoAvgPlanExtractor {
   }
 
   def extractExpressions(expressions: Seq[AggregateExpression]):
-  Seq[(ColumnAggregateOperation, Seq[AttributeName])] = {
+  Seq[(ColumnAggregator, Seq[AttributeName])] = {
     val attributeNames = expressions.map {
       case AggregateExpression(sum @ Average(expr), _, _, _, _) =>
         sum.toAggregateExpression()
@@ -74,11 +72,11 @@ object VeoAvgPlanExtractor {
     attributeNames
   }
 
-  def extractOperation(expression: Expression): ColumnAggregateOperation = {
+  def extractOperation(expression: Expression): ColumnAggregator = {
     expression match {
-      case Add(_, _, _) => Addition
-      case Subtract(_, _, _) => Subtraction
-      case _ => NoAggregation
+      case Add(_, _, _) => AdditionAggregator(MultipleColumnsOffHeapSummer.VeoBased)
+      case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
+      case _ => NoAggregationAggregator
     }
   }
 }
