@@ -26,9 +26,10 @@ List of currently supported and tested queries can be found [in this file](../FE
 ## Produce the deployable JAR
 
 ```
-> show packageBin
-[info] C:\...\aurora4spark-sql-plugin_2.12-0.1.0-SNAPSHOT.jar
+> show assembly
 ```
+
+This will show the location of a newly produced `.jar` with the necessary dependencies.
 
 ### Deploy the key parts to `a6`
 
