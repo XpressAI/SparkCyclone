@@ -9,6 +9,7 @@ import CountStringsVESpec._
 import com.nec.WordCount.{runOn, wordCountJVM}
 import com.nec.native.VeArrowNativeInterface
 import com.nec.{VeCompiler, WordCount}
+import com.nec.native.TransferDefinitions
 object CountStringsVESpec {
   val Sample = List[String]("hello", "dear", "world", "of", "hello", "of", "hello")
 }
@@ -17,7 +18,10 @@ final class CountStringsVESpec extends AnyFreeSpec {
 
   "We can get a word count back" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    val libPath = VeCompiler("wc", veBuildPath).compile_c(WordCount.WordCountSourceCode)
+    val libPath = VeCompiler("wc", veBuildPath).compile_c(
+      List(TransferDefinitions.TransferDefinitionsSourceCode, WordCount.WordCountSourceCode)
+        .mkString("\n\n")
+    )
     val proc = Aurora.veo_proc_create(0)
     val (wordCount, expectedWordCount) =
       try {
