@@ -44,7 +44,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
               .orElse {
                 AddPlanExtractor.matchAddPairwisePlan(
                   sparkPlan,
-                  PairwiseAdditionOffHeap.OffHeapPairwiseSummer.VeoBased(ve_so_name)
+                  PairwiseAdditionOffHeap.OffHeapPairwiseSummer.VeoBased
                 )
               }
               .orElse {

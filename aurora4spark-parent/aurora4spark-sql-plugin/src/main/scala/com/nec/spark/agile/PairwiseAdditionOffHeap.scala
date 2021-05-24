@@ -1,10 +1,11 @@
 package com.nec.spark.agile
 
-import com.nec.{SumPairwise, VeJavaContext}
+import com.nec.{AvgSimple, SumPairwise, VeJavaContext}
 import com.nec.aurora.Aurora
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
@@ -13,8 +14,9 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
-
 import java.nio.file.Path
+
+import com.nec.spark.Aurora4SparkExecutorPlugin
 
 object PairwiseAdditionOffHeap {
 
@@ -46,30 +48,19 @@ object PairwiseAdditionOffHeap {
       }
     }
 
-    case class VeoBased(ve_so_name: Path) extends OffHeapPairwiseSummer {
+    case object VeoBased extends OffHeapPairwiseSummer {
       def sum(
         memoryLocationA: Long,
         memoryLocationB: Long,
         memoryLocationOut: Long,
         count: Int
       ): Unit = {
-        println(s"SO name: ${ve_so_name}")
-        println(s"Reusing proc = ${_veo_proc}")
-        val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(_veo_proc)
-        try {
-          println(s"Created ctx = ${ctx}")
-          val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name.toString)
-          println(s"Loaded lib = ${lib}")
-          val vej = new VeJavaContext(ctx, lib)
+          val vej =
+            new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
           SumPairwise.pairwise_sum_doubles_mem(
-            vej,
-            memoryLocationA,
-            memoryLocationB,
-            memoryLocationOut,
-            count
+            vej, memoryLocationA, memoryLocationB, memoryLocationOut, count
           )
-        } finally Aurora.veo_context_close(ctx)
-      }
+        }
     }
   }
 
