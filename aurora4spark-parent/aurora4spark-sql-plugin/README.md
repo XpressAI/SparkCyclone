@@ -31,7 +31,7 @@ List of currently supported and tested queries can be found [in this file](../FE
 
 This will show the location of a newly produced `.jar` with the necessary dependencies.
 
-### Deploy the key parts to `a6`
+### Deploy the key parts to an environment
 
 ```
 > deploy
@@ -43,8 +43,15 @@ Will upload the `.jar` file and the example `.py` file.
 To deploy without running unit tests:
 
 ```
-> ; set assembly / test := {}; deploy
+> ; set assembly / test := {}; deploy a6; deployExamples a6
 ```
+
+To deploy to `a5`, do:
+
+```
+> ;deploy a5; deployExamples a5
+```
+
 
 ### Faster testing over SSH (around 40%) & general log-in to any SSH server
 

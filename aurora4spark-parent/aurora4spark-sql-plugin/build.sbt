@@ -1,3 +1,5 @@
+import sbt.Def.spaceDelimited
+
 import java.nio.file.Paths
 
 /**
@@ -70,10 +72,14 @@ assembly / assemblyMergeStrategy := {
     val oldStrategy = (assembly / assemblyMergeStrategy).value
     oldStrategy(x)
 }
-lazy val deploy = taskKey[Unit]("Deploy artifacts to a6")
-lazy val deployExamples = taskKey[Unit]("Deploy artifacts to a6")
+
+lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")
+
+lazy val deployExamples = inputKey[Unit]("Deploy artifacts to `deployTarget`")
 
 deploy := {
+  val args: Seq[String] = spaceDelimited("<arg>").parsed
+  val targetBox = args.headOption.getOrElse(sys.error("Deploy target missing"))
   val logger = streams.value.log
   import scala.sys.process._
 
@@ -90,6 +96,8 @@ deploy := {
 }
 
 deployExamples := {
+  val args: Seq[String] = spaceDelimited("<arg>").parsed
+  val targetBox = args.headOption.getOrElse(sys.error("Deploy target missing"))
   val logger = streams.value.log
   import scala.sys.process._
 
@@ -122,13 +130,13 @@ lazy val `ve-direct` = project
       "com.google.flatbuffers" % "flatbuffers-java" % "1.9.0"
     ),
     IntegrationTest / fork := true,
-    /*IntegrationTest / managedResources := {
+    IntegrationTest / managedResources := {
       val resourceBase = (IntegrationTest / resourceManaged).value
       val assembled = assembly.value
       val tgt = resourceBase / assembled.name
       IO.copyFile(assembled, tgt)
       Seq(tgt)
-    },*/
+    },
     assembly / assemblyMergeStrategy := {
       case v if v.contains("module-info.class")   => MergeStrategy.discard
       case v if v.contains("reflect-config.json") => MergeStrategy.discard
