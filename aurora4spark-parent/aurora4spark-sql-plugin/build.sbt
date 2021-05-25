@@ -130,13 +130,6 @@ lazy val `ve-direct` = project
       "com.google.flatbuffers" % "flatbuffers-java" % "1.9.0"
     ),
     IntegrationTest / fork := true,
-    IntegrationTest / managedResources := {
-      val resourceBase = (IntegrationTest / resourceManaged).value
-      val assembled = assembly.value
-      val tgt = resourceBase / assembled.name
-      IO.copyFile(assembled, tgt)
-      Seq(tgt)
-    },
     assembly / assemblyMergeStrategy := {
       case v if v.contains("module-info.class")   => MergeStrategy.discard
       case v if v.contains("reflect-config.json") => MergeStrategy.discard
