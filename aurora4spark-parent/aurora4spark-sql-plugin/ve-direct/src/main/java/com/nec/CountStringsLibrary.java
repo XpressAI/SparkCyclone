@@ -7,50 +7,14 @@ import com.sun.jna.Structure;
 import java.nio.ByteBuffer;
 
 public interface CountStringsLibrary extends Library {
-    @Structure.FieldOrder({"string_id", "count"})
-    class unique_position_counter extends Structure {
-        public int string_id;
-        public int count;
-
-        public unique_position_counter() {
-        }
-
-        public unique_position_counter(Pointer p) {
-            super(p);
-            read();
-        }
-        public static class ByReference extends data_out implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
-        }
-    }
-
-    @Structure.FieldOrder({"data", "count", "size"})
-    class data_out extends Structure {
-        public Pointer data;
-        public long count;
-        public long size;
-
-        public data_out() {
-        }
-
-        public data_out(Pointer p) {
-            super(p);
-            read();
-        }
-        public static class ByReference extends data_out implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
-        }
-    }
-
     @Structure.FieldOrder({"data", "offsets", "count"})
     class varchar_vector extends Structure {
-        public Pointer data;
-        public Pointer offsets;
-        public int count;
+        public long data;
+        public long offsets;
+        public Integer count;
 
         public varchar_vector() {
+            super();
         }
 
         public varchar_vector(Pointer p) {
@@ -62,7 +26,6 @@ public interface CountStringsLibrary extends Library {
             public ByReference(Pointer p) { super(p); }
         }
     }
-    @Structure.FieldOrder({"data", "offsets", "count"})
     class varchar_vector_raw extends Structure {
         public long data;
         public long offsets;
@@ -83,7 +46,7 @@ public interface CountStringsLibrary extends Library {
     @Structure.FieldOrder({"data", "count"})
     class non_null_int_vector extends Structure {
         public Pointer data;
-        public int count;
+        public Integer count;
 
         public non_null_int_vector() {
         }
