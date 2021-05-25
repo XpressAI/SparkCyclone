@@ -15,8 +15,8 @@ object ArrowInterfaces {
     non_null_int_vector_to_intVector(input, output, output.getAllocator)
   }
 
-  def c_varchar_vector(varCharVector: VarCharVector): varchar_vector = {
-    val vc = new varchar_vector()
+  def c_varchar_vector(varCharVector: VarCharVector): varchar_vector.ByReference = {
+    val vc = new varchar_vector.ByReference()
     vc.data = new Pointer(
       varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     )
