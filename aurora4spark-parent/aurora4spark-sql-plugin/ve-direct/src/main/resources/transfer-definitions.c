@@ -13,16 +13,11 @@ typedef struct
 {
     char *data;
     int *offsets;
-    long count;
+    int count;
 } varchar_vector;
 
 typedef struct
 {
-    char *data;
-} word_count;
-
-typedef struct
-{
     int *data;
-    int count;
+    long count;
 } non_null_int_vector;
