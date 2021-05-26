@@ -16,14 +16,13 @@ long sum(non_null_double_vector* input, non_null_double_vector* output)
 
     for (i = 0; i < output->count; i++) {
        double sum = 0;
-       for(j = 0; j< row_count; j++){
-          sum += input_data.data[(i*row_count) + j];
+       for(j = 0; j < row_count; j++){
+          sum += input_data.data[i + (j * row_count)];
        }
 
        printf("%f \n", sum);
        output->data[i] = sum;
     }
-       printf("DONIECK");
-
+    
     return 0;
 }
