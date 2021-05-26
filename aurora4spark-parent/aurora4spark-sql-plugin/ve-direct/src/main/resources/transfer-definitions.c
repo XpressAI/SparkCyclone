@@ -21,3 +21,9 @@ typedef struct
     int *data;
     long count;
 } non_null_int_vector;
+
+typedef struct
+{
+    double *data;
+    long count;
+} non_null_double_vector;
