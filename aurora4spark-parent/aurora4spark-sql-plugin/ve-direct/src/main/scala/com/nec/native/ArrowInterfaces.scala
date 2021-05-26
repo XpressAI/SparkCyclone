@@ -26,9 +26,7 @@ object ArrowInterfaces {
 
   def c_double_vector(float8Vector: Float8Vector): non_null_double_vector = {
     val vc = new non_null_double_vector()
-    vc.data = new Pointer(
-      float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    )
+    vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
 
     vc.count = float8Vector.getValueCount
     vc
@@ -91,7 +89,7 @@ object ArrowInterfaces {
           validityBuffer.getReferenceManager,
           null,
           input.count * 8,
-          Pointer.nativeValue(input.data)
+          input.data
         )
       ).asJava
     )
