@@ -36,7 +36,7 @@ object VeArrowNativeInterfaceNumeric {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
     vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
-
+    println(vcvr.count)
     vcvr
   }
 
@@ -71,10 +71,10 @@ object VeArrowNativeInterfaceNumeric {
   }
 
   /** Workaround - not sure why it does not work immediately */
-  private def nonNullDoubleVectorToByteBuffer(varchar_vector_raw: non_null_double_vector): ByteBuffer = {
-    val v_bb = varchar_vector_raw.getPointer.getByteBuffer(0, 20)
-    v_bb.putLong(0, varchar_vector_raw.data)
-    v_bb.putInt(16, varchar_vector_raw.count)
+  private def nonNullDoubleVectorToByteBuffer(double_vector: non_null_double_vector): ByteBuffer = {
+    val v_bb = double_vector.getPointer.getByteBuffer(0, 12)
+    v_bb.putLong(0, double_vector.data)
+    v_bb.putInt(7, double_vector.count)
     v_bb
   }
 
@@ -100,7 +100,7 @@ object VeArrowNativeInterfaceNumeric {
             0,
             index,
             nonNullDoubleVectorToByteBuffer(varchar_vector_raw),
-            20L
+            12L
           )
         }
 
