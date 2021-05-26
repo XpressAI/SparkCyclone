@@ -32,11 +32,11 @@ object VeArrowNativeInterfaceNumeric {
   private def make_veo_double_vector(
                                       proc: Aurora.veo_proc_handle,
                                       float8Vector: Float8Vector
-                                        ): non_null_double_vector = {
+                                    ): non_null_double_vector = {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
     vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
-    println(vcvr.count)
+    println("make_veo_double_buffer_size: " + vcvr.count)
     vcvr
   }
 
@@ -74,7 +74,7 @@ object VeArrowNativeInterfaceNumeric {
   private def nonNullDoubleVectorToByteBuffer(double_vector: non_null_double_vector): ByteBuffer = {
     val v_bb = double_vector.getPointer.getByteBuffer(0, 12)
     v_bb.putLong(0, double_vector.data)
-    v_bb.putInt(7, double_vector.count)
+    v_bb.putInt(8, double_vector.count)
     v_bb
   }
 
@@ -90,32 +90,35 @@ object VeArrowNativeInterfaceNumeric {
     val our_args = Aurora.veo_args_alloc()
     try {
       inputArguments.zipWithIndex
-        .collect { case (Some(inputVarChar), idx) =>
-          inputVarChar -> idx
+        .collect { case (Some(doubleVector), idx) =>
+          doubleVector -> idx
         }
-        .foreach { case (inputVarChar, index) =>
-          val varchar_vector_raw = make_veo_double_vector(proc, inputVarChar)
+        .foreach { case (doubleVector, index) =>
+          val double_vector_raw = make_veo_double_vector(proc, doubleVector)
+
           Aurora.veo_args_set_stack(
             our_args,
             0,
             index,
-            nonNullDoubleVectorToByteBuffer(varchar_vector_raw),
+            nonNullDoubleVectorToByteBuffer(double_vector_raw),
             12L
           )
         }
 
-      val outputArgumentsVectors: List[(Float8Vector, Int)] = outputArguments.zipWithIndex.collect {
-        case (Some(intVector), index) => intVector -> index
-      }
+      val outputArgumentsVectors: List[(Float8Vector, Int)] = outputArguments
+        .zipWithIndex
+        .collect {
+          case (Some(doubleVector), index) => doubleVector -> index
+        }
 
       val outputArgumentsStructs: List[(non_null_double_vector, Int)] = outputArgumentsVectors.map {
-        case (intVector, index) =>
-          new non_null_double_vector() -> index
+        case (doubleVector, index) =>
+          new non_null_double_vector(doubleVector.getValueCount) -> index
       }
 
       val outputArgumentsByteBuffers: List[(ByteBuffer, Int)] = outputArgumentsStructs.map {
         case (struct, index) =>
-          struct.getPointer.getByteBuffer(0, 12) -> index
+          nonNullDoubleVectorToByteBuffer(struct)-> index
       }
 
       outputArgumentsByteBuffers.foreach { case (byteBuffer, index) =>
