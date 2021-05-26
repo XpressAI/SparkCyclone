@@ -1,11 +1,18 @@
-import CountStringsCSpec.CMakeListsTXT
-import org.apache.commons.io.FileUtils
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.time.Instant
+
 import scala.sys.process._
 
-object CBuilder {
+import org.apache.commons.io.FileUtils
 
+object CBuilder {
+  lazy val CMakeListsTXT: Path = Paths
+    .get(
+      this.getClass
+        .getResource("/CMakeLists.txt")
+        .toURI
+    )
+    .toAbsolutePath
   def buildC(cSource: String): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     println(targetDir)

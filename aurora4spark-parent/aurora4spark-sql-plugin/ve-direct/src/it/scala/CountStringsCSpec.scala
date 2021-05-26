@@ -12,14 +12,6 @@ import scala.sys.process._
 
 object CountStringsCSpec {
 
-  lazy val CMakeListsTXT: Path = Paths
-    .get(
-      this.getClass
-        .getResource("/CMakeLists.txt")
-        .toURI
-    )
-    .toAbsolutePath
-
   def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
     import org.apache.arrow.memory.RootAllocator
     import org.apache.arrow.vector.VectorSchemaRoot

@@ -1,12 +1,12 @@
 import java.nio.file.Paths
 import java.time.Instant
 
+import SumCSpec.withArrowFloat8Vector
+import com.nec.Sum.{runOn, sumJVM}
 import com.nec.aurora.Aurora
-import com.nec.native.{TransferDefinitions, VeArrowNativeInterface, VeArrowNativeInterfaceNumeric}
+import com.nec.native.{TransferDefinitions, VeArrowNativeInterfaceNumeric}
 import com.nec.{Sum, VeCompiler}
 import org.scalatest.freespec.AnyFreeSpec
-import SumCSpec.withArrowFloat8Vector
-import Sum.{runOn, sumJVM}
 
 final class SumVESpec extends AnyFreeSpec {
 

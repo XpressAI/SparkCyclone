@@ -7,26 +7,16 @@ import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
 object SumCSpec {
-  val schema = org.apache.arrow.vector.types.pojo.Schema.fromJSON(
-    """{"fields": [{"name": "value", "nullable" : true, "type": {"name": "utf8"}, "children": []}]}"""
-  )
-  lazy val CMakeListsTXT: Path = Paths
-    .get(
-      this.getClass
-        .getResource("/CMakeLists.txt")
-        .toURI
-    )
-    .toAbsolutePath
 
-  def withArrowFloat8Vector[T](stringBatch: Seq[Seq[Double]])(f: Float8Vector => T): T = {
+  def withArrowFloat8Vector[T](inputColumns: Seq[Seq[Double]])(f: Float8Vector => T): T = {
     import org.apache.arrow.memory.RootAllocator
     val alloc = new RootAllocator(Integer.MAX_VALUE)
-    val data = stringBatch.flatten
+    val data = inputColumns.flatten
     try {
       val vcv = new Float8Vector("value", alloc)
       vcv.allocateNew()
       try {
-        stringBatch.flatten.zipWithIndex.foreach { case (str, idx) =>
+        inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
           vcv.setSafe(idx, str)
         }
         vcv.setValueCount(data.size)

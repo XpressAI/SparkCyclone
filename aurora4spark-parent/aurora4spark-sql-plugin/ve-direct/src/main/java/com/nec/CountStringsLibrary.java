@@ -34,6 +34,7 @@ public interface CountStringsLibrary extends Library {
         public int count;
 
         public varchar_vector_raw() {
+            super();
         }
 
         public varchar_vector_raw(Pointer p) {
@@ -52,6 +53,7 @@ public interface CountStringsLibrary extends Library {
         public Integer count;
 
         public non_null_int_vector() {
+            super();
         }
 
         public non_null_int_vector(Pointer p) {
@@ -70,10 +72,12 @@ public interface CountStringsLibrary extends Library {
         public Integer count;
 
         public non_null_double_vector() {
+            super();
         }
 
         public non_null_double_vector(int count) {
             this.count = count;
+            super();
         }
 
         public non_null_double_vector(Pointer p) {
