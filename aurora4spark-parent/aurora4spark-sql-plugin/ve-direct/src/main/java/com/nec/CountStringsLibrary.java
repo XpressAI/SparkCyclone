@@ -27,6 +27,7 @@ public interface CountStringsLibrary extends Library {
         }
     }
 
+    @Structure.FieldOrder({"data", "offsets", "count"})
     class varchar_vector_raw extends Structure {
         public long data;
         public long offsets;
