@@ -2,12 +2,14 @@ package com.nec.spark
 
 import com.nec.aurora.Aurora
 import com.nec.aurora.Aurora.veo_proc_handle
-import com.nec.native.VeArrowNativeInterface
-
+import com.nec.native.{VeArrowNativeInterface, VeArrowNativeInterfaceNumeric}
 import java.util
+
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import com.nec.spark.Aurora4SparkExecutorPlugin._
 import com.nec.spark.LocalVeoExtension.ve_so_name
+
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 
@@ -22,6 +24,7 @@ object Aurora4SparkExecutorPlugin {
   var _veo_ctx: Aurora.veo_thr_ctxt = _
   var lib: Long = -1
   var veArrowNativeInterface: VeArrowNativeInterface = _
+  var veArrowNativeInterfaceNumeric: VeArrowNativeInterfaceNumeric = _
 }
 
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
@@ -32,6 +35,8 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
     Aurora4SparkExecutorPlugin.lib = Aurora.veo_load_library(_veo_proc, ve_so_name.toString)
     veArrowNativeInterface =
       new VeArrowNativeInterface(_veo_proc, _veo_ctx, Aurora4SparkExecutorPlugin.lib)
+    veArrowNativeInterfaceNumeric = new VeArrowNativeInterfaceNumeric(_veo_proc,
+      _veo_ctx, Aurora4SparkExecutorPlugin.lib)
     logInfo("Initializing Aurora4SparkExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
