@@ -76,8 +76,8 @@ public interface CountStringsLibrary extends Library {
         }
 
         public non_null_double_vector(int count) {
-            this.count = count;
             super();
+            this.count = count;
         }
 
         public non_null_double_vector(Pointer p) {
