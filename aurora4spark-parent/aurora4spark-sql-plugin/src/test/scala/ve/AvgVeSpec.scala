@@ -1,10 +1,12 @@
+package ve
+
+import cmake.SumCSpec.withArrowFloat8Vector
+
 import java.nio.file.Paths
 import java.time.Instant
-
-import SumCSpec.withArrowFloat8Vector
-import com.nec.Avg.{avgJVM, runOn}
+import com.nec.Avg.{runOn, avgJVM}
 import com.nec.aurora.Aurora
-import com.nec.native.{TransferDefinitions, VeArrowNativeInterfaceNumeric}
+import com.nec.native.{VeArrowNativeInterfaceNumeric, TransferDefinitions}
 import com.nec.{Avg, VeCompiler}
 import org.scalatest.freespec.AnyFreeSpec
 

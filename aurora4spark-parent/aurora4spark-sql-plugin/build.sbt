@@ -46,6 +46,8 @@ libraryDependencies ++= Seq(
 )
 
 Test / parallelExecution := false
+VectorEngine / parallelExecution := false
+AcceptanceTest / parallelExecution := false
 
 inConfig(Test)(Defaults.testTasks)
 
