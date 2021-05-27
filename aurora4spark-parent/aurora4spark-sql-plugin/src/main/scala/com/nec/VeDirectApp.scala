@@ -3,7 +3,8 @@ package com.nec
 import com.nec.aurora.Aurora
 import com.nec.native.TransferDefinitions
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
+import java.nio.file.Paths
 
 object VeDirectApp {
 
@@ -13,6 +14,8 @@ object VeDirectApp {
         List(
           TransferDefinitions.TransferDefinitionsSourceCode,
           WordCount.WordCountSourceCode,
+          Avg.AvgSourceCode,
+          Sum.SumSourceCode,
           SumSimple.C_Definition,
           SumPairwise.C_Definition,
           AvgSimple.C_Definition,
