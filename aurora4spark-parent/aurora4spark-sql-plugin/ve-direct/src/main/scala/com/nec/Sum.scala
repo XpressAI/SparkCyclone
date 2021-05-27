@@ -33,13 +33,14 @@ object Sum {
   }
 
   def sumJVM(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
-    val groupSize = float8Vector.getValueCount/columnsCount;
-    (0 until columnsCount).map{ colIndex =>
-      (0 until groupSize).map { elemIndex =>
-        float8Vector.getValueAsDouble(colIndex  + elemIndex * groupSize)
-
-      }
-    }.map(_.sum)
+    (0 until float8Vector.getValueCount)
+      .map(idx => float8Vector.getValueAsDouble(idx))
+      .zipWithIndex
+      .groupBy{
+        case(elem, idx) => idx % columnsCount
+      }.map{
+      case(idx, seq) => seq.map(_._1).sum
+    }.toSeq
   }
 
 }
