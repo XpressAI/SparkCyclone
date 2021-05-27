@@ -1,22 +1,20 @@
 package com.nec.spark.agile
 
-import com.nec.spark.{AuroraSqlPlugin, LocalVeoExtension}
 import com.nec.spark.agile.WordCountPlanner.WordCounter
-import com.nec.spark.agile.WordCountSpec.withArrowStringVector
-import org.apache.arrow.vector.{FieldVector, VarCharVector}
+import com.nec.spark.agile.SparkWordCountSpec.withArrowStringVector
+import org.apache.arrow.vector.FieldVector
+import org.apache.arrow.vector.VarCharVector
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.internal.SQLConf.{
-  COLUMN_VECTOR_OFFHEAP_ENABLED,
-  WHOLESTAGE_CODEGEN_ENABLED
-}
+import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.util
 
-object WordCountSpec {
+object SparkWordCountSpec {
   def withArrowStringVector[T](
     stringBatch: Seq[String],
     schema: org.apache.arrow.vector.types.pojo.Schema
@@ -39,7 +37,7 @@ object WordCountSpec {
     } finally alloc.close()
   }
 }
-final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
+final class SparkWordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   "We can do a Word count from memory and split words" in withSparkSession(identity) {
     sparkSession =>

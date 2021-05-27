@@ -14,7 +14,7 @@ import org.scalatest.freespec.AnyFreeSpec
 
 import java.util
 
-object WordCountSpec {
+object VEWordCountSpec {
   def withArrowStringVector[T](
     stringBatch: Seq[String],
     schema: org.apache.arrow.vector.types.pojo.Schema
@@ -37,7 +37,7 @@ object WordCountSpec {
     } finally alloc.close()
   }
 }
-final class WordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
+final class VEWordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   "Word-count on the VE" in withSparkSession(
     _.set("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
