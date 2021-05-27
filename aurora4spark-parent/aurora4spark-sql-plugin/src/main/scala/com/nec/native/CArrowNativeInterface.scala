@@ -36,11 +36,11 @@ object CArrowNativeInterface {
 
     val outputStructs = outputArguments.map(_.map(intVector => new non_null_int_vector()))
 
-    val invokeArgs: Array[java.lang.Object] = inputArguments
+    val invokeArgs: Array[AnyRef] = inputArguments
       .zip(outputStructs)
       .map {
         case ((Some(vcv), _)) =>
-          c_varchar_vector(vcv)
+          c_varchar_vector(vcv).asInstanceOf[AnyRef]
         case ((_, Some(structIntVector))) =>
           structIntVector
         case other =>
