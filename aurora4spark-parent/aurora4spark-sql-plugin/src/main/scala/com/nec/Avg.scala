@@ -22,7 +22,7 @@ object Avg {
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(
-      name = "avg",
+      name = "vector_avg",
       inputArguments = List(Some(varCharVector), None),
       outputArguments = List(None, Some(outputVector), None)
     )
