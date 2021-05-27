@@ -6,27 +6,19 @@ import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffH
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.agile.ReferenceData.{SampleCSV, SampleMultiColumnCSV, SampleTwoColumnParquet}
 import com.nec.spark.agile.SparkPlanSavingPlugin.savedSparkPlan
-import com.nec.spark.{
-  AcceptanceTest,
-  Aurora4SparkDriver,
-  Aurora4SparkExecutorPlugin,
-  AuroraSqlPlugin
-}
-import org.apache.log4j.{Level, Logger}
+import com.nec.spark.{Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.internal.SQLConf.{
   COLUMN_VECTOR_OFFHEAP_ENABLED,
   WHOLESTAGE_CODEGEN_ENABLED
 }
 import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkConf
 
 final class AuroraSqlPluginTest
   extends AnyFreeSpec
@@ -90,58 +82,6 @@ final class AuroraSqlPluginTest
         .contains(List(1, 2, 3))
     )
   }
-
-  "We call VE over SSH using the Python script, and get the right sum back from it" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    ) { sparkSession =>
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
-
-      val nums: List[Double] = List(1, 2, 3, 4, (Math.abs(scala.util.Random.nextInt() % 200)))
-
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.PythonNecSSHSummer
-
-      val sumDataSet =
-        sparkSession.sql("SELECT SUM(value) FROM nums").as[Double]
-      val result = sumDataSet.head()
-
-      info(s"Result of sum = $result")
-      assert(result == BigDecimalSummer.ScalaSummer.sum(nums.map(BigDecimal(_))))
-    }
-
-  "We call VE over SSH using a Bundle, and get the right sum back from it" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    ) { sparkSession =>
-      markup("SUM() of single column")
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
-
-      val nums: List[Double] = List(1, 2, 3, 4, (Math.abs(scala.util.Random.nextInt() % 200)))
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
-
-      val sumDataSet =
-        sparkSession.sql("SELECT SUM(value) FROM nums").as[Double]
-      val result = sumDataSet.head()
-
-      info(s"Result of sum = $result")
-      assert(result == BigDecimalSummer.ScalaSummer.sum(nums.map(BigDecimal(_))).toDouble)
-    }
 
   "We call the Scala summer, with a CSV input" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
@@ -929,41 +869,6 @@ final class AuroraSqlPluginTest
     assert(result == nums.sum)
   }
 
-  "We call VE with our Averaging plan" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
-    ) { sparkSession =>
-      markup("AVG()")
-      import sparkSession.implicits._
-
-      val nums = List[Double](1, 2, 3, 4, Math.abs(scala.util.Random.nextInt() % 200))
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-      SparkSqlPlanExtension.rulesToApply.clear()
-      SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
-        AveragingPlanner
-          .matchPlan(sparkPlan)
-          .map { childPlan =>
-            AveragingSparkPlanMultipleColumns(
-              childPlan.sparkPlan,
-              childPlan.attributes,
-              AveragingSparkPlanMultipleColumns.averageLocalScala
-            )
-          }
-          .getOrElse(fail("Not expected to be here"))
-      }
-
-      val sumDataSet =
-        sparkSession.sql("SELECT AVG(value) FROM nums").as[Double]
-
-      val result = sumDataSet.head()
-
-      assert(result == nums.sum / nums.length)
-    }
-
   "Spark's AVG() function returns a different Scale from SUM()" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
   ) { sparkSession =>
@@ -1062,76 +967,6 @@ final class AuroraSqlPluginTest
         .contains(List(1d, 4d, 7d, 2d, 5d, 8d, 3d, 6d, 9d))
     )
   }
-
-  "We call VE over SSH using the Python script, and get the right sum back from it " +
-    "in case of multiple columns sum" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    ) { sparkSession =>
-      markup("SUM() multiple columns e.g. SUM(a + b)")
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
-
-      val nums: List[(Double, Double, Double)] = List((1, 2, 3), (4, 5, 6), (7, 8, 9))
-
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.PythonNecSSHSummer
-
-      val sumDataSet =
-        sparkSession
-          .sql("SELECT SUM(_1 + _2 + _3) FROM nums")
-          .as[Double]
-      val result = sumDataSet.head()
-
-      val flattened = nums.flatMap { case (first, second, third) =>
-        Seq(first, second, third)
-      }
-      info(s"Result of sum = $result")
-
-      assert(result == BigDecimalSummer.ScalaSummer.sum(flattened.map(BigDecimal(_))))
-    }
-
-  "We call VE over SSH using a Bundle, and get the right sum back from it, in case of " +
-    "multiple column sum" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    ) { sparkSession =>
-      markup("SUM() of single column")
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
-
-      val randomNumber = Math.abs(scala.util.Random.nextInt() % 200)
-      val nums: List[(Double, Double, Double)] =
-        List((1, 2, 3), (4, 5, 6), (7, 8, 9), (randomNumber, randomNumber, randomNumber))
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
-
-      val sumDataSet =
-        sparkSession
-          .sql("SELECT SUM(_1 + _2 + _3) FROM nums")
-          .as[Double]
-
-      val result = sumDataSet.head()
-
-      val flattened = nums.flatMap { case (first, second, third) =>
-        Seq(BigDecimal(first), BigDecimal(second), BigDecimal(third))
-      }
-
-      info(s"Result of sum = $result")
-      assert(result == BigDecimalSummer.ScalaSummer.sum(flattened))
-    }
 
   "We call the Scala summer, with a CSV input for data with multiple columns" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
@@ -1234,88 +1069,6 @@ final class AuroraSqlPluginTest
     assert(result == (62d, 20d))
   }
 
-  "We call VE over SSH using a Bundle, and get the right sum back from it, in case of " +
-    "multiple sum operations" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SummingPlugin].getCanonicalName)
-    ) { sparkSession =>
-      markup("SUM() of single column")
-      import sparkSession.implicits._
-      SummingPlugin.enable = false
-
-      val randomNumber = Math.abs(scala.util.Random.nextInt() % 200)
-      val nums: List[(Double, Double, Double)] =
-        List((1, 2, 3), (4, 5, 6), (7, 8, 9), (randomNumber, randomNumber, randomNumber))
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-      SummingPlugin.enable = true
-      SummingPlugin.summer = BigDecimalSummer.BundleNecSSHSummer
-
-      val sumDataSet =
-        sparkSession
-          .sql("SELECT SUM(_1), SUM(_2), SUM(_3), SUM(_1 + _2 + _3) FROM nums")
-          .as[(Double, Double, Double, Double)]
-
-      val result = sumDataSet.head()
-
-      val expected = (
-        nums.map(_._1).sum,
-        nums.map(_._2).sum,
-        nums.map(_._3).sum,
-        nums.flatMap(elem => Seq(elem._1, elem._2, elem._3)).sum
-      )
-
-      info(s"Result of sum = $result")
-
-      assert(result == expected)
-    }
-
-  "We call VE with our Averaging plan for multiple average operations" taggedAs
-    AcceptanceTest in withSparkSession(
-      _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
-    ) { sparkSession =>
-      markup("AVG()")
-      import sparkSession.implicits._
-
-      val nums: List[(Double, Double, Double)] = List((1, 2, 3), (4, 5, 6), (7, 8, 9))
-      info(s"Input: ${nums}")
-
-      nums
-        .toDS()
-        .createOrReplaceTempView("nums")
-
-      SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
-        AveragingPlanner
-          .matchPlan(sparkPlan)
-          .map { childPlan =>
-            AveragingSparkPlanMultipleColumns(
-              childPlan.sparkPlan,
-              childPlan.attributes,
-              AveragingSparkPlanMultipleColumns.averageLocalScala
-            )
-          }
-          .getOrElse(fail("Not expected to be here"))
-      }
-
-      val sumDataSet =
-        sparkSession
-          .sql("SELECT AVG(_1), AVG(_2), AVG(_3) FROM nums")
-          .as[(Double, Double, Double)]
-
-      val expected = (
-        nums.map(_._1).sum / nums.size,
-        nums.map(_._2).sum / nums.size,
-        nums.map(_._3).sum / nums.size
-      )
-
-      val result = sumDataSet.collect().head
-
-      assert(result == expected)
-    }
-
   private def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
       case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
@@ -1323,11 +1076,13 @@ final class AuroraSqlPluginTest
     }
   }
 
-  private def createUnsafeColumnAggregator(aggregationFunction: AggregationExpression): ColumnAggregator = {
+  private def createUnsafeColumnAggregator(
+    aggregationFunction: AggregationExpression
+  ): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression => AdditionAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
+      case SumExpression      => AdditionAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
       case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
-      case _ => NoAggregationAggregator
+      case _                  => NoAggregationAggregator
     }
   }
 }

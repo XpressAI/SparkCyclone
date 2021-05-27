@@ -22,7 +22,7 @@ object Sum {
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(
-      name = "sum",
+      name = "sum_vectors",
       inputArguments = List(Some(varCharVector), None),
       outputArguments = List(None, Some(outputVector), None)
     )

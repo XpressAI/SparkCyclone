@@ -1,7 +1,9 @@
+package ve
+
 import java.nio.file.Paths
 import java.time.Instant
 
-import SumCSpec.withArrowFloat8Vector
+import cmake.SumCSpec.withArrowFloat8Vector
 import com.nec.Sum.{runOn, sumJVM}
 import com.nec.aurora.Aurora
 import com.nec.native.{TransferDefinitions, VeArrowNativeInterfaceNumeric}

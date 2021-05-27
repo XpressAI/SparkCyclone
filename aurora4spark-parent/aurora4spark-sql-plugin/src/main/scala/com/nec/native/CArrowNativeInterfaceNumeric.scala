@@ -1,18 +1,18 @@
 package com.nec.native
 
 import java.nio.file.Path
-
 import com.nec.CountStringsLibrary.non_null_double_vector
-import com.nec.native.ArrowInterfaces.{c_double_vector, non_null_double_vector_to_float8Vector}
+import com.nec.native.ArrowInterfaces.c_double_vector
+import com.nec.native.ArrowInterfaces.non_null_double_vector_to_float8Vector
 import com.sun.jna.Library
 import org.apache.arrow.vector.Float8Vector
 
 final class CArrowNativeInterfaceNumeric(libPath: Path) extends ArrowNativeInterfaceNumeric {
   override def callFunction(
-                             name: String,
-                             inputArguments: List[Option[Float8Vector]],
-                             outputArguments: List[Option[Float8Vector]]
-                           ): Unit = CArrowNativeInterfaceNumeric.executeC(
+    name: String,
+    inputArguments: List[Option[Float8Vector]],
+    outputArguments: List[Option[Float8Vector]]
+  ): Unit = CArrowNativeInterfaceNumeric.executeC(
     libPath = libPath,
     functionName = name,
     inputArguments = inputArguments,
@@ -23,11 +23,11 @@ final class CArrowNativeInterfaceNumeric(libPath: Path) extends ArrowNativeInter
 object CArrowNativeInterfaceNumeric {
 
   private def executeC(
-                        libPath: Path,
-                        functionName: String,
-                        inputArguments: List[Option[Float8Vector]],
-                        outputArguments: List[Option[Float8Vector]]
-                      ): Unit = {
+    libPath: Path,
+    functionName: String,
+    inputArguments: List[Option[Float8Vector]],
+    outputArguments: List[Option[Float8Vector]]
+  ): Unit = {
     import scala.collection.JavaConverters._
     val nativeLibraryHandler =
       new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)

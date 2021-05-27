@@ -1,16 +1,27 @@
-import CountArrowStringsSpec.schema
-import CountStringsCSpec.withArrowStringVector
+package cmake
+
+import cmake.CountStringsCSpec.withArrowStringVector
 import com.nec.WordCount
 import com.nec.WordCount.runOn
 import com.nec.native.{CArrowNativeInterface, TransferDefinitions}
+import com.nec.spark.CountArrowStringsSpec.schema
 import org.apache.arrow.vector.{FieldVector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
+import ve.CountStringsVESpec
 
 import java.nio.file.{Path, Paths}
 import java.util
 import scala.sys.process._
 
 object CountStringsCSpec {
+
+  lazy val CMakeListsTXT: Path = Paths
+    .get(
+      this.getClass
+        .getResource("/CMakeLists.txt")
+        .toURI
+    )
+    .toAbsolutePath
 
   def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
     import org.apache.arrow.memory.RootAllocator

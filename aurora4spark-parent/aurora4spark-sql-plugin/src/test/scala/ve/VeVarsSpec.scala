@@ -1,3 +1,5 @@
+package ve
+
 import com.nec.VeVars
 import org.scalatest.freespec.AnyFreeSpec
 
