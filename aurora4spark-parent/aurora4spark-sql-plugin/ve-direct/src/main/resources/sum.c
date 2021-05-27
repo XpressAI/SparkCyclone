@@ -10,8 +10,8 @@ long sum(non_null_double_vector* input, non_null_double_vector* output)
     non_null_double_vector input_data = input[0];
     int row_count = input_data.count/output->count;
 
-    printf("%d \n", input_data.count);
-    printf("%d \n", row_count);
+    printf("Total number of elements received: %d \n", input_data.count);
+    printf("Row count of received dataset: %d \n", row_count);
     output->data = malloc(output->count * sizeof(double));
 
     for (i = 0; i < output->count; i++) {
@@ -20,7 +20,6 @@ long sum(non_null_double_vector* input, non_null_double_vector* output)
           sum += input_data.data[i + (j * output->count)];
        }
 
-       printf("%f \n", sum);
        output->data[i] = sum;
     }
     

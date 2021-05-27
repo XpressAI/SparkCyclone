@@ -10,7 +10,7 @@ import org.scalatest.freespec.AnyFreeSpec
 
 final class AvgVeSpec extends AnyFreeSpec {
 
-  "We can get a sum back" in {
+  "We can get a avg back" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val libPath = VeCompiler("avg", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, Avg.AvgSourceCode)
