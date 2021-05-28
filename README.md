@@ -74,3 +74,17 @@ $ /opt/spark/bin/spark-submit \
     /opt/aurora4spark/examples/example-multiple-operations.py
 
 ```
+
+## NCC arguments
+
+A good set of NCC defaults is set up, however if further overriding is needed, it can be done with the following Spark config:
+
+```
+--conf spark.com.nec.spark.ncc.debug=true
+--conf spark.com.nec.spark.ncc.o=3
+--conf spark.com.nec.spark.ncc.openmp=false
+--conf spark.com.nec.spark.ncc.extra-argument.0=-X
+--conf spark.com.nec.spark.ncc.extra-argument.1=-Y
+```
+
+For safety, if an argument key is not recognized, it will fail to launch.

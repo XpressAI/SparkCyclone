@@ -9,6 +9,7 @@ import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
+import com.nec.VeCompiler
 
 object Aurora4SparkDriver {
 
@@ -30,7 +31,8 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     val testArgs: Map[String, String] = Map(
       "ve_so_name" -> compile_c(
         sc.getConf.get("spark.com.nec.spark.ncc.path", "ncc"),
-        buildDir = tmpBuildDir
+        buildDir = tmpBuildDir,
+        config = VeCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
       ).toAbsolutePath.toString
     )
     testArgs.asJava
