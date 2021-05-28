@@ -36,7 +36,6 @@ object VeArrowNativeInterfaceNumeric {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
     vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
-    println("make_veo_double_buffer_size: " + vcvr.count)
     vcvr
   }
 

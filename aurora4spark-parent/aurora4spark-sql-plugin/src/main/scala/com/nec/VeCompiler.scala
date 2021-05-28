@@ -12,10 +12,16 @@ final case class VeCompiler(compilationPrefix: String, buildDir: Path) {
     val oFile = buildDir.resolve(s"${compilationPrefix}.o")
     val soFile = buildDir.resolve(s"${compilationPrefix}.so")
     import scala.sys.process._
+    val doDebug: Boolean = false
     val command = Seq(
       nccPath,
-      "-O2",
+      "-O4",
       "-fpic",
+      "-D",
+      s"DEBUG=${if ( doDebug ) 1 else 0 }",
+      "-fopenmp",
+      "-mparallel",
+      "-finline-functions",
       "-pthread",
       "-report-all",
       "-fdiag-vector=2",
