@@ -49,10 +49,6 @@ final class ArrowSchemaCheck extends AnyFreeSpec with BeforeAndAfter with SparkA
 
   }
 
-  "We can get a JSON API" in {
-    info(arrowSchema.toJson)
-  }
-
   "The type can be reconstructed from Arrow's JSON definition schema type" in {
     info("So that we can build it from our own tests, independent of the Spark APIs")
     assert(
