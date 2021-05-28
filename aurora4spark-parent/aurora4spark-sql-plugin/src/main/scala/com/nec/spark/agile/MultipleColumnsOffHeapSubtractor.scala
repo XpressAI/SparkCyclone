@@ -1,7 +1,8 @@
 package com.nec.spark.agile
 
+import com.nec.older.SubSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.{SubSimple, VeJavaContext}
+import com.nec.ve.VeJavaContext
 import sun.misc.Unsafe
 
 

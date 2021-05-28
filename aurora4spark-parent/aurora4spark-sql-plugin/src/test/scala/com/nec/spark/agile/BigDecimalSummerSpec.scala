@@ -1,6 +1,5 @@
 package com.nec.spark.agile
 
-import scala.sys.process._
 import com.nec.spark.agile.BigDecimalSummer.ScalaSummer
 import org.scalatest.freespec.AnyFreeSpec
 

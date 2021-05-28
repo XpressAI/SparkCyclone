@@ -17,15 +17,6 @@ lazy val root = project
   .configs(VectorEngine)
   .configs(CMake)
 
-lazy val example = project
-  .dependsOn(root)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-      "org.apache.spark" %% "spark-catalyst" % sparkVersion % "provided"
-    )
-  )
-
 libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
@@ -48,16 +39,16 @@ inConfig(Test)(Defaults.testTasks)
 
 lazy val AcceptanceTest = config("acc") extend Test
 inConfig(AcceptanceTest)(Defaults.testTasks)
-def accFilter(name: String): Boolean = name.startsWith("acc")
+def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
 
 lazy val VectorEngine = config("ve") extend Test
 inConfig(VectorEngine)(Defaults.testTasks)
-def veFilter(name: String): Boolean = name.startsWith("ve")
+def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
 
 lazy val CMake = config("cmake") extend Test
 inConfig(CMake)(Defaults.testTasks)
-def cmakeFilter(name: String): Boolean = name.startsWith("cmake")
+def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
 CMake / fork := true
 
 def otherFilter(name: String): Boolean = !accFilter(name) && !veFilter(name) && !cmakeFilter(name)
@@ -89,6 +80,20 @@ assembly / assemblyMergeStrategy := {
   case x =>
     val oldStrategy = (assembly / assemblyMergeStrategy).value
     oldStrategy(x)
+}
+
+lazy val debugTestPlans = settingKey[Boolean]("Whether to output Spark plans during testing")
+
+debugTestPlans := false
+
+val debugTestPlansArgument = Tests.Argument(TestFrameworks.ScalaTest, "-Ddebug.spark.plans=true")
+
+Test / testOptions ++= {
+  if ((Test / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
+}
+
+AcceptanceTest / testOptions ++= {
+  if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
 }
 
 lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")

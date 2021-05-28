@@ -1,17 +1,14 @@
 package org.apache.spark.sql.execution.arrow
-
-import com.nec.spark.agile.SparkAdditions
+import com.nec.spark.SparkAdditions
 import org.apache.arrow.vector.types.pojo.ArrowType
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtils
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
-final class ArrowSchemaCheck
-  extends AnyFreeSpec
-  with BeforeAndAfterAll
-  with BeforeAndAfter
-  with SparkAdditions {
+final class ArrowSchemaCheck extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   private def arrowSchema =
     ArrowUtils.toArrowSchema(StructType(Array(StructField("value", StringType))), "UTC")
@@ -64,18 +61,4 @@ final class ArrowSchemaCheck
       )
     )
   }
-
-  // this code does some of the writing
-//    val allocator =
-//      ArrowUtils.rootAllocator.newChildAllocator(s"stdout writer for $pythonExec", 0, Long.MaxValue)
-//    val root = VectorSchemaRoot.create(arrowSchema, allocator)
-//      val arrowWriter = ArrowWriter.create(root)
-//      val writer = new ArrowStreamWriter(root, null, dataOut)
-//      writer.start()
-//          arrowWriter.write(nextBatch.next())
-//        writer.writeBatch()
-//        arrowWriter.reset()
-//      writer.end()
-//      root.close()
-//      allocator.close()
 }

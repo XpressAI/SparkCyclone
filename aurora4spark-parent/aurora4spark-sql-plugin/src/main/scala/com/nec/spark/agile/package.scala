@@ -1,16 +1,12 @@
 package com.nec.spark
 
-import java.nio.ByteBuffer
-
-import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
-import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
-import org.bytedeco.javacpp.DoublePointer
-import sun.nio.ch.DirectBuffer
-
+import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.types.{DataType, DoubleType}
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DoubleType
 
 package object agile {
   case class AttributeName(value: String) extends AnyVal

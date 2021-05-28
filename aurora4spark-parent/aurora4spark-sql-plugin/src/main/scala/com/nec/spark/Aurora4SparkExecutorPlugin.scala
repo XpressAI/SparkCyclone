@@ -1,15 +1,14 @@
 package com.nec.spark
 
+import com.nec.arrow.VeArrowNativeInterface
+import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.aurora.Aurora
 import com.nec.aurora.Aurora.veo_proc_handle
-import com.nec.native.{VeArrowNativeInterface, VeArrowNativeInterfaceNumeric}
+
 import java.util
-
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-
 import com.nec.spark.Aurora4SparkExecutorPlugin._
-
-import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
+import org.apache.spark.api.plugin.{PluginContext, ExecutorPlugin}
 import org.apache.spark.internal.Logging
 
 object Aurora4SparkExecutorPlugin {
