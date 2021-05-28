@@ -4,43 +4,73 @@ Spark Plugin development documentation: [aurora4spark-parent/README.md](aurora4s
 
 ## Usage of the plugin
 
-### on `a6`
+### on Aurora 5 or Aurora 6
 
 ```
-$ source /opt/nec/ve/nlc/2.1.0/bin/nlcvars.sh
-$ export PATH=/opt/nec/ve/bin/:$PATH
-$ /opt/spark/bin/spark-submit \
-    --name AveragingExample \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-avg.py
+
 $ /opt/spark/bin/spark-submit \
     --name PairwiseAddExample \
+    --master yarn \
+    --deploy-mode cluster \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-add-pairwise.py
-$ /opt/spark/bin/spark-submit \
-    --name SumExample \
-    --master 'local[4]' \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-sum.py
-$ /opt/spark/bin/spark-submit \
-    --name SumMultipleColumnsExample \
-    --master 'local[4]' \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-sum-multiple.py
-$ /opt/spark/bin/spark-submit \
-    --name AveragingMultipleColumns5Example \
-    --master 'local[4]' \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-avg-multiple.py
-$ /opt/spark/bin/spark-submit \
-    --name MultipleOperationsExample \
-    --master 'local[4]' \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-multiple-operations.py
+
 $ /opt/spark/bin/spark-submit \
     --name WordCountExample \
-    --master 'local[4]' \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --master yarn \
+    --deploy-mode cluster \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-word-count.py
+
+```
+
+To run in local mode, replace `yarn` with `local[4]` for instance.
+
+Not yet running with our plans (temporary regression):
+
+```
+
+$ /opt/spark/bin/spark-submit \
+    --name AveragingExample \
+    --master yarn \
+    --deploy-mode cluster \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-avg.py
+
+$ /opt/spark/bin/spark-submit \
+    --name SumExample \
+    --master yarn \
+    --deploy-mode cluster \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-sum.py
+
+$ /opt/spark/bin/spark-submit \
+    --name SumMultipleColumnsExample \
+    --master yarn \
+    --deploy-mode cluster \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-sum-multiple.py
+
+
+$ /opt/spark/bin/spark-submit \
+    --name AveragingMultipleColumns5Example \
+    --master yarn \
+    --deploy-mode cluster \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-avg-multiple.py
+
+$ /opt/spark/bin/spark-submit \
+    --name MultipleOperationsExample \
+    --master yarn \
+    --deploy-mode cluster \
+    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    /opt/aurora4spark/examples/example-multiple-operations.py
 
 ```

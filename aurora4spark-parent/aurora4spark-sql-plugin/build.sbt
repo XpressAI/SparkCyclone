@@ -1,6 +1,4 @@
 import sbt.Def.spaceDelimited
-import sbt.librarymanagement.Configuration
-import sbt.librarymanagement.Configurations.Runtime
 
 import java.nio.file.Paths
 
@@ -39,10 +37,7 @@ libraryDependencies ++= Seq(
   "com.nec" % "aveo4j" % "0.0.1",
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
-  "commons-io" % "commons-io" % "2.8.0" % "test",
-  "org.apache.arrow" % "arrow-vector" % "2.0.0",
-  "org.apache.arrow" % "arrow-memory-unsafe" % "4.0.0",
-  "com.google.flatbuffers" % "flatbuffers-java" % "1.9.0"
+  "commons-io" % "commons-io" % "2.8.0" % "test"
 )
 
 Test / parallelExecution := false
@@ -100,6 +95,11 @@ lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")
 
 lazy val deployExamples = inputKey[Unit]("Deploy artifacts to `deployTarget`")
 
+addCommandAlias(
+  "deploy-all",
+  "; deploy a5 ; deployExamples a5; set assembly / test := {}; deploy a6; deployExamples a6"
+)
+
 deploy := {
   val args: Seq[String] = spaceDelimited("<arg>").parsed
   val targetBox = args.headOption.getOrElse(sys.error("Deploy target missing"))
@@ -138,8 +138,15 @@ deployExamples := {
     (baseDirectory.value / ".." / ".." / "examples").getAbsolutePath,
     s"${targetBox}:/opt/aurora4spark/"
   ) ! logger
+  Seq(
+    "scp",
+    (baseDirectory.value / ".." / ".." / "README.md").getAbsolutePath,
+    s"${targetBox}:/opt/aurora4spark/"
+  ) ! logger
   logger.info("Uploaded examples.")
 }
 
 ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
 ThisBuild / resolvers += "aveo4j-repo" at Paths.get("..", "..", "aveo4j-repo").toUri.toASCIIString
+
+Test / testOptions += Tests.Argument("-oD")

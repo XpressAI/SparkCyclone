@@ -8,9 +8,9 @@ import java.nio.file.Paths
 
 object VeDirectApp {
 
-  def compile_c(): Path = {
-    VeCompiler(compilationPrefix = "_spark", buildDir = Paths.get("_ve_build").toAbsolutePath)
-      .compile_c {
+  def compile_c(nccPath: String = "ncc", buildDir: Path = Paths.get("_ve_build")): Path = {
+    VeCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath)
+      .compile_c(
         List(
           TransferDefinitions.TransferDefinitionsSourceCode,
           WordCount.WordCountSourceCode,
@@ -22,7 +22,7 @@ object VeDirectApp {
           SumMultipleColumns.C_Definition,
           AvgMultipleColumns.C_Definition
         ).mkString("\n\n\n")
-      }
+      )(nccPath)
   }
 
   def main(args: Array[String]): Unit = {

@@ -4,10 +4,13 @@ import cmake.SumCSpec.withArrowFloat8Vector
 
 import java.nio.file.Paths
 import java.time.Instant
-import com.nec.Avg.{runOn, avgJVM}
+import com.nec.Avg.avgJVM
+import com.nec.Avg.runOn
 import com.nec.aurora.Aurora
-import com.nec.native.{VeArrowNativeInterfaceNumeric, TransferDefinitions}
-import com.nec.{Avg, VeCompiler}
+import com.nec.native.TransferDefinitions
+import com.nec.native.VeArrowNativeInterfaceNumeric
+import com.nec.Avg
+import com.nec.VeCompiler
 import org.scalatest.freespec.AnyFreeSpec
 
 final class AvgVeSpec extends AnyFreeSpec {
@@ -17,22 +20,16 @@ final class AvgVeSpec extends AnyFreeSpec {
     val libPath = VeCompiler("avg", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, Avg.AvgSourceCode)
         .mkString("\n\n")
-    )
+    )("ncc")
     val proc = Aurora.veo_proc_create(0)
     val (avg, expectedAvg) =
       try {
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
         try {
-          val data: Seq[Seq[Double]] = Seq(
-            Seq(1, 2, 3, 4),
-            Seq(10, 30, 50, 80)
-          )
+          val data: Seq[Seq[Double]] = Seq(Seq(1, 2, 3, 4), Seq(10, 30, 50, 80))
           val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
           withArrowFloat8Vector(data) { vcv =>
-            (
-              runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, 4),
-              avgJVM(vcv,4 )
-            )
+            (runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, 4), avgJVM(vcv, 4))
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)

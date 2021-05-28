@@ -4,7 +4,7 @@ import java.nio.file._
 
 final case class VeCompiler(compilationPrefix: String, buildDir: Path) {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
-  def compile_c(sourceCode: String): Path = {
+  def compile_c(sourceCode: String)(nccPath: String = "ncc"): Path = {
     if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
@@ -12,8 +12,8 @@ final case class VeCompiler(compilationPrefix: String, buildDir: Path) {
     val oFile = buildDir.resolve(s"${compilationPrefix}.o")
     val soFile = buildDir.resolve(s"${compilationPrefix}.so")
     import scala.sys.process._
-    Seq(
-      "ncc",
+    val command = Seq(
+      nccPath,
       "-O2",
       "-fpic",
       "-pthread",
@@ -23,8 +23,14 @@ final case class VeCompiler(compilationPrefix: String, buildDir: Path) {
       cSource.toString,
       "-o",
       oFile.toString
-    ).!!
-    Seq("ncc", "-shared", "-pthread", "-o", soFile.toString, oFile.toString).!!
+    )
+    System.err.println(s"Will execute: ${command.mkString(" ")}")
+    Process(command = command, cwd = buildDir.toFile).!!
+
+    val command2 = Seq(nccPath, "-shared", "-pthread", "-o", soFile.toString, oFile.toString)
+    System.err.println(s"Will execute: ${command2.mkString(" ")}")
+    Process(command = command2, cwd = buildDir.toFile).!!
+
     soFile
   }
 }
