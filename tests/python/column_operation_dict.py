@@ -48,15 +48,16 @@ operations = {
     'bitwiseAND' : lambda df : df.select(df['small_int'].bitwiseAND(df['integer_val'])),
     'bitwiseOR' : lambda df : df.select(df['small_int'].bitwiseOR(df['integer_val'])),
     'bitwiseXOR' : lambda df : df.select(df['small_int'].bitwiseXOR(df['integer_val'])),
-    'sum_two_cols': lambda df : df.select(df['float_val'] + df['integer_val']),
-    'sub_two_cols': lambda df : df.select(df['float_val'] - df['integer_val']),
-    'mul_two_cols': lambda df : df.select(df['float_val'] * df['integer_val']),
-    'div_two_cols': lambda df : df.select(df['float_val'] / df['integer_val'])
+    '(x+y)': lambda df : df.select(df['float_val'] + df['integer_val']),
+    '(x-y)': lambda df : df.select(df['float_val'] - df['integer_val']),
+    '(x*y)': lambda df : df.select(df['float_val'] * df['integer_val']),
+    '(x/y)': lambda df : df.select(df['float_val'] / df['integer_val'])
 }
 
 aggregate = {
     'approx_count_distinct' : lambda df : df.agg(F.approx_count_distinct(df['integer_val'])),
     'avg' : lambda df : df.agg(F.avg(df['integer_val'])), 
+    'avg(x+y)' : lambda df : df.agg(F.avg(df['integer_val'] + df['float_val'])), 
     'corr' : lambda df : df.agg(F.corr(df['float_val'], df['randn'])), 
     'count' : lambda df : df.agg(F.count(df['value'])), 
     'countDistinct' : lambda df : df.agg(F.countDistinct(df['value'], df['integer_val'])), 
@@ -72,6 +73,7 @@ aggregate = {
     'stddev_pop' : lambda df : df.agg(F.stddev_pop(df['randn1'])), 
     'stddev_samp' : lambda df : df.agg(F.stddev_samp(df['randn1'])), 
     'sum' : lambda df : df.agg(F.sum(df['integer_val'])), 
+    'sum(x+y)' : lambda df : df.agg(F.sum(df['integer_val'] + df['float_val'])), 
     'sumDistinct' : lambda df : df.agg(F.sumDistinct(df['integer_val'])), 
     'var_pop' : lambda df : df.agg(F.var_pop(df['small_int'])), 
     'var_samp' : lambda df : df.agg(F.var_samp(df['integer_val']))
