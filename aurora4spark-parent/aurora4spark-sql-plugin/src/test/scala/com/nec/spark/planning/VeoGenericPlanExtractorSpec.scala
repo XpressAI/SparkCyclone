@@ -35,7 +35,7 @@ final class VeoGenericPlanExtractorSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -81,7 +81,7 @@ final class VeoGenericPlanExtractorSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -127,7 +127,7 @@ final class VeoGenericPlanExtractorSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -173,7 +173,7 @@ final class VeoGenericPlanExtractorSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -222,7 +222,7 @@ final class VeoGenericPlanExtractorSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -291,7 +291,7 @@ final class VeoGenericPlanExtractorSpec
         VeoGenericPlanExtractor
           .matchPlan(sparkPlan)
           .map { childPlan =>
-            GenericAggregationPlanOffHeap(
+            ArrowGenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
               childPlan.outColumns.map {
                 case OutputColumnPlanDescription(
@@ -346,7 +346,7 @@ final class VeoGenericPlanExtractorSpec
         VeoGenericPlanExtractor
           .matchPlan(sparkPlan)
           .map { childPlan =>
-            GenericAggregationPlanOffHeap(
+            ArrowGenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
               childPlan.outColumns.map {
                 case OutputColumnPlanDescription(
@@ -401,7 +401,7 @@ final class VeoGenericPlanExtractorSpec
         VeoGenericPlanExtractor
           .matchPlan(sparkPlan)
           .map { childPlan =>
-            GenericAggregationPlanOffHeap(
+            ArrowGenericAggregationPlanOffHeap(
               RowToColumnarExec(childPlan.sparkPlan),
               childPlan.outColumns.map {
                 case OutputColumnPlanDescription(

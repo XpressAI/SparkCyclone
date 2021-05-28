@@ -101,7 +101,7 @@ final class AveragingSparkPlanSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -150,7 +150,7 @@ final class AveragingSparkPlanSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
@@ -199,7 +199,7 @@ final class AveragingSparkPlanSpec
       VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          GenericAggregationPlanOffHeap(
+          ArrowGenericAggregationPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
