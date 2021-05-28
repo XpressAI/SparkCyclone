@@ -1,4 +1,5 @@
 package com.nec.spark.planning
+
 import com.nec.spark.agile.AggregationExpression
 import com.nec.spark.agile.AggregationFunction
 import com.nec.spark.agile.AttributeName

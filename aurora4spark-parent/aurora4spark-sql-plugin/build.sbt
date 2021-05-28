@@ -31,9 +31,14 @@ libraryDependencies ++= Seq(
   "commons-io" % "commons-io" % "2.8.0" % "test"
 )
 
-Test / parallelExecution := false
+/** Because of VE */
 VectorEngine / parallelExecution := false
+
+/** Because of Spark */
 AcceptanceTest / parallelExecution := false
+
+/** Because of Spark */
+Test / parallelExecution := false
 
 inConfig(Test)(Defaults.testTasks)
 
@@ -58,7 +63,7 @@ AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter))
 VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
-AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.spark.agile.MarkdownReporter")
+AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.acceptance.MarkdownReporter")
 AcceptanceTest / testOptions += Tests.Argument("-o")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
@@ -68,6 +73,16 @@ addCommandAlias("check", ";scalafmtCheck;scalafmtSbtCheck;testQuick")
 addCommandAlias(
   "compile-all",
   "; Test / compile ; ve-direct / Test / compile ; ve-direct / It / compile"
+)
+
+addCommandAlias(
+  "testQuick-all",
+  "; Test / testQuick ; CMake / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
+)
+
+addCommandAlias(
+  "test-all",
+  "; Test / test ; CMake / test ; AcceptanceTest / test ; VectorEngine / test"
 )
 
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")

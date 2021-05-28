@@ -1,4 +1,20 @@
 package com.nec.spark
+import com.nec.spark.agile.AdditionAggregator
+import com.nec.spark.agile.AggregationExpression
+import com.nec.spark.agile.AggregationFunction
+import com.nec.spark.agile.Aggregator
+import com.nec.spark.agile.AvgAggregation
+import com.nec.spark.agile.AvgAggregator
+import com.nec.spark.agile.ColumnAggregator
+import com.nec.spark.agile.MultipleColumnsOffHeapSubtractor
+import com.nec.spark.agile.NoAggregationAggregator
+import com.nec.spark.agile.SubtractExpression
+import com.nec.spark.agile.SubtractionAggregator
+import com.nec.spark.agile.SumAggregation
+import com.nec.spark.agile.SumAggregator
+import com.nec.spark.agile.SumExpression
+import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.planning.SparkSqlPlanExtension
 import org.apache.log4j.Level
 import org.apache.spark.sql.SparkSession
@@ -8,6 +24,7 @@ import org.apache.spark.SparkContext
 import org.apache.log4j.Logger
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
+import org.apache.spark.sql.execution.SparkPlan
 import org.scalatest.BeforeAndAfterAllConfigMap
 import org.scalatest.ConfigMap
 import org.scalatest.Informing
@@ -69,6 +86,25 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
       }
 
       dataSet
+    }
+
+    def executionPlan: SparkPlan = dataSet.extractQueryExecution.executedPlan
+  }
+
+  protected def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
+    aggregationFunction match {
+      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
+      case AvgAggregation => new AvgAggregator(MultipleColumnsOffHeapAverager.UnsafeBased)
+    }
+  }
+
+  protected def createUnsafeColumnAggregator(
+    aggregationFunction: AggregationExpression
+  ): ColumnAggregator = {
+    aggregationFunction match {
+      case SumExpression      => AdditionAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
+      case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
+      case _                  => NoAggregationAggregator
     }
   }
 

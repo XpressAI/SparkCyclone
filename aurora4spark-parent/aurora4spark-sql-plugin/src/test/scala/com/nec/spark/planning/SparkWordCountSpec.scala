@@ -1,9 +1,8 @@
-package com.nec.spark.agile
+package com.nec.spark.planning
 
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.spark.SampleTestData
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.WordCountPlanner
 import com.nec.spark.planning.WordCountPlanner.WordCounter
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
