@@ -43,4 +43,21 @@ object ArrowVectorBuilders {
       } finally vcv.close()
     } finally alloc.close()
   }
+
+  def withDirectFloat8Vector[T](data: Seq[Double])(f: Float8Vector => T): T = {
+    import org.apache.arrow.memory.RootAllocator
+    val alloc = new RootAllocator(Integer.MAX_VALUE)
+    try {
+      val vcv = new Float8Vector("value", alloc)
+      vcv.allocateNew()
+      try {
+        data.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str)
+        }
+        vcv.setValueCount(data.size)
+
+        f(vcv)
+      } finally vcv.close()
+    } finally alloc.close()
+  }
 }
