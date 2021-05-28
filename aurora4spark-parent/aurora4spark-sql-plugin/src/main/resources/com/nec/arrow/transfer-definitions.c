@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <omp.h>
-
 typedef struct
 {
     void **data;
