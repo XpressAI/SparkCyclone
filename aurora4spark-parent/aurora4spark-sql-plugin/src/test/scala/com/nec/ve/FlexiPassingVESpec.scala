@@ -19,6 +19,8 @@ import java.nio.ByteBuffer
 import java.nio.file.Paths
 import java.time.Instant
 import scala.language.higherKinds
+import com.nec.LocationPointer
+import org.bytedeco.javacpp.DoublePointer
 
 /**
  * Here, we will enable us to do passing of an output to another input without having to copy
@@ -83,7 +85,7 @@ object FlexiPassingVESpec {
 
       nndv.count = inVe.count.toInt
       nndv.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-
+      val lp = new DoublePointer(new LocationPointer(nndv.data, inVe.size))
       val outputVector = new Float8Vector("count", ra)
       non_null_double_vector_to_float8Vector(nndv, outputVector)
       InVh(outputVector)
@@ -188,11 +190,14 @@ final class FlexiPassingVESpec extends AnyFreeSpec {
                   fnCallResult.get() == 0L,
                   s"Expected 0, got ${fnCallResult.get()} back instead."
                 )
-
+                val veoPtr = ovb.getLong(0)
+                val dataCount = ovb.getInt(8)
+                outVector.count = dataCount
+                outVector.data = veoPtr
                 InVe(
                   vePointer = outVector.data,
                   count = outVector.count.toInt,
-                  size = outVector.count.toInt * 4
+                  size = outVector.size().toInt
                 )
               } finally Aurora.veo_args_free(our_args)
             }
@@ -200,6 +205,7 @@ final class FlexiPassingVESpec extends AnyFreeSpec {
           }
           implicit val veJavaContext = new VeJavaContext(proc, ctx, lib)
           ArrowVectorBuilders.withDirectFloat8Vector(List(1, 2, 3)) { vcv =>
+            assert(InVh(vcv).inVe.inVh.contents.toList == vcv.toList)
             Add1Mul2.call(nativeIf)(InVh(vcv).inVe).inVh.contents.toList
           }
         } finally Aurora.veo_context_close(ctx)
