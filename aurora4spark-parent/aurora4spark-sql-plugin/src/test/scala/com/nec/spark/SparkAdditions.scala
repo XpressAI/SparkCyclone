@@ -1,4 +1,6 @@
 package com.nec.spark
+import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.cmake.CMakeBuilder
 import com.nec.spark.agile.AdditionAggregator
 import com.nec.spark.agile.AggregationExpression
 import com.nec.spark.agile.AggregationFunction
@@ -17,11 +19,14 @@ import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumn
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.planning.SparkSqlPlanExtension
 import org.apache.log4j.Level
+
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfter
+
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.log4j.Logger
+
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.SparkPlan
@@ -93,8 +98,8 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
 
   protected def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
-      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
-      case AvgAggregation => new AvgAggregator(MultipleColumnsOffHeapAverager.UnsafeBased)
+      case SumAggregation => new SumAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+      case AvgAggregation => new AvgAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
     }
   }
 

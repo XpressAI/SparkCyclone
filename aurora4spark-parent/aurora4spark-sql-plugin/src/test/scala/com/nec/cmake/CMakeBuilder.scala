@@ -1,13 +1,17 @@
 package com.nec.cmake
 
 import java.time.Instant
-import org.apache.commons.io.FileUtils
 
+import org.apache.commons.io.FileUtils
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
+
 import scala.sys.process._
+
+import com.nec.arrow.TransferDefinitions
+import com.nec.arrow.functions.{Avg, Sum}
 
 /**
  * Utilities to build C libraries using CMake
@@ -15,6 +19,12 @@ import scala.sys.process._
  * Major OS are supported.
  */
 object CMakeBuilder {
+
+  lazy val CLibPath = buildC(List(
+    TransferDefinitions.TransferDefinitionsSourceCode,
+    Sum.SumSourceCode,
+    Avg.AvgSourceCode
+  ).mkString("\n \n"))
 
   def buildC(cSource: String): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
