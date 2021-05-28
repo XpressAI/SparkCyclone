@@ -20,7 +20,7 @@ final class AvgVeSpec extends AnyFreeSpec {
     val libPath = VeCompiler("avg", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, Avg.AvgSourceCode)
         .mkString("\n\n")
-    )("ncc")
+    )
     val proc = Aurora.veo_proc_create(0)
     val (avg, expectedAvg) =
       try {

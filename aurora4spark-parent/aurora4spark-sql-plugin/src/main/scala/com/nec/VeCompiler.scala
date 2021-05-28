@@ -6,6 +6,7 @@ import org.apache.spark.SparkConf
 object VeCompiler {
   import VeCompilerConfig.ExtraArgumentPrefix
   final case class VeCompilerConfig(
+    nccPath: String = "ncc",
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
     additionalOptions: Map[Int, String] = Map.empty,
@@ -29,6 +30,7 @@ object VeCompiler {
       case "o"      => copy(optimizationLevel = value.toInt)
       case "debug"  => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
       case "openmp" => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
+      case "path" => copy(nccPath = value)
       case key if key.startsWith(ExtraArgumentPrefix) =>
         copy(additionalOptions =
           additionalOptions.updated(key.drop(ExtraArgumentPrefix.length).toInt, value)
@@ -55,7 +57,7 @@ final case class VeCompiler(
   config: VeCompiler.VeCompilerConfig = VeCompiler.VeCompilerConfig.testConfig
 ) {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
-  def compile_c(sourceCode: String)(nccPath: String = "ncc"): Path = {
+  def compile_c(sourceCode: String): Path = {
     if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
