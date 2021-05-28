@@ -1,9 +1,11 @@
 package com.nec.spark.agile
 
+import com.nec.spark.planning.SumPlanExtractor
+import com.nec.spark.planning.SummingSparkPlanMultipleColumns
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
+import org.apache.spark.sql.execution.{SparkPlan, ColumnarRule}
 
 /**
  * This is a test plug-in that rewrites a plan in the form of [[SumPlanExtractor]] into another plan

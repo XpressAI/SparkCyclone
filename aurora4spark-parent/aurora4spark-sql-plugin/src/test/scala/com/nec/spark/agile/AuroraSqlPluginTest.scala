@@ -1,28 +1,44 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
-import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
-import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.SampleTestData.SampleCSV
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.agile.ReferenceData.{SampleCSV, SampleMultiColumnCSV, SampleTwoColumnParquet}
-import com.nec.spark.agile.SparkPlanSavingPlugin.savedSparkPlan
-import com.nec.spark.{Aurora4SparkDriver, Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.planning.SparkPlanSavingPlugin
+import com.nec.spark.planning.SumPlanExtractor
+import com.nec.spark.Aurora4SparkDriver
+import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.AuroraSqlPlugin
+import com.nec.spark.SampleTestData.SampleMultiColumnCSV
+import com.nec.spark.SampleTestData.SampleTwoColumnParquet
+import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.AddPlanExtractor
+import com.nec.spark.planning.AveragingPlanner
+import com.nec.spark.planning.AveragingSparkPlanOffHeap
+import com.nec.spark.planning.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import com.nec.spark.planning.GenericAggregationPlanOffHeap
+import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap
+import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.planning.SparkPlanSavingPlugin.savedSparkPlan
+import com.nec.spark.planning.SparkSqlPlanExtension
+import com.nec.spark.planning.StaticNumberPlan
+import com.nec.spark.planning.VeoGenericPlanExtractor
+import com.nec.spark.planning.VeoSumPlanExtractor
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfter
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.internal.SQLConf.{
-  COLUMN_VECTOR_OFFHEAP_ENABLED,
-  WHOLESTAGE_CODEGEN_ENABLED
-}
-import org.apache.spark.sql.types.{DecimalType, DoubleType, StructField, StructType}
+import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
+import org.apache.spark.sql.types.DecimalType
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.SparkConf
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 final class AuroraSqlPluginTest
   extends AnyFreeSpec
-  with BeforeAndAfterAll
   with BeforeAndAfter
   with SparkAdditions
   with Matchers {

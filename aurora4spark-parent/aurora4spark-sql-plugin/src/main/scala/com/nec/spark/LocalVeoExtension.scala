@@ -1,14 +1,19 @@
 package com.nec.spark
 
-import com.nec.spark.agile.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
-import com.nec.spark.agile.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
-import com.nec.spark.agile.WordCountPlanner.WordCounter
 import com.nec.spark.agile._
-
+import com.nec.spark.planning.AddPlanExtractor
+import com.nec.spark.planning.GenericAggregationPlanOffHeap
+import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.planning.VeoGenericPlanExtractor
+import com.nec.spark.planning.WordCountPlanner
+import com.nec.spark.planning.WordCountPlanner.WordCounter
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.ColumnarRule
+import org.apache.spark.sql.execution.RowToColumnarExec
+import org.apache.spark.sql.execution.SparkPlan
 
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
@@ -58,9 +63,9 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
 
   def createExpressionAggregator(aggregationFunction: AggregationExpression): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression => AdditionAggregator(MultipleColumnsOffHeapSummer.VeoBased)
+      case SumExpression      => AdditionAggregator(MultipleColumnsOffHeapSummer.VeoBased)
       case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
-      case _ => NoAggregationAggregator
+      case _                  => NoAggregationAggregator
     }
   }
 }

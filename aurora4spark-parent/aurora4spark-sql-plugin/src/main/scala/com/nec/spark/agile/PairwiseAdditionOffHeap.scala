@@ -1,22 +1,22 @@
 package com.nec.spark.agile
 
-import com.nec.{AvgSimple, SumPairwise, VeJavaContext}
-import com.nec.aurora.Aurora
-import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
+import com.nec.older.SumPairwise
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.agile.SingleValueStubPlan.SparkDefaultColumnName
-
+import com.nec.spark.planning.SingleValueStubPlan.SparkDefaultColumnName
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.vectorized.ColumnVector
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
-import java.nio.file.Path
-
 import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.ve.VeJavaContext
 
 object PairwiseAdditionOffHeap {
 
