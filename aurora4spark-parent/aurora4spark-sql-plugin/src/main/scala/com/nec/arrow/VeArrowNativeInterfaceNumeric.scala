@@ -1,15 +1,15 @@
 package com.nec.arrow
 
 import java.nio.ByteBuffer
+
 import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
 import com.nec.aurora.Aurora
 import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
+import com.nec.spark.Aurora4SparkExecutorPlugin
 import org.apache.arrow.vector.Float8Vector
 import org.bytedeco.javacpp.LongPointer
 
 final class VeArrowNativeInterfaceNumeric(
-                                    proc: Aurora.veo_proc_handle,
-                                    ctx: Aurora.veo_thr_ctxt,
                                     lib: Long
                                   ) extends ArrowNativeInterfaceNumeric {
   override def callFunction(
@@ -17,8 +17,8 @@ final class VeArrowNativeInterfaceNumeric(
                              inputArguments: List[Option[Float8Vector]],
                              outputArguments: List[Option[Float8Vector]]
                            ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
-    proc = proc,
-    ctx = ctx,
+    proc = Aurora4SparkExecutorPlugin._veo_proc,
+    ctx = Aurora4SparkExecutorPlugin._veo_ctx,
     lib = lib,
     functionName = name,
     inputArguments = inputArguments,
