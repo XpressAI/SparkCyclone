@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
-
-project(HelloWorld)
-
+project(HelloWorld C)
+find_package(OpenMP)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 add_library(aurora4spark SHARED aurora4spark.c)
-
 set_property(TARGET aurora4spark PROPERTY C_STANDARD 99)

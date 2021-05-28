@@ -14,6 +14,7 @@ long sum_vectors(non_null_double_vector* input, non_null_double_vector* output)
     printf("Row count of received dataset: %d \n", row_count);
     output->data = malloc(output->count * sizeof(double));
 
+    #pragma omp parallel
     for (i = 0; i < output->count; i++) {
        double sum = 0;
        for(j = 0; j < row_count; j++){
