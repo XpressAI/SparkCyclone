@@ -55,12 +55,20 @@ object PairwiseAdditionOffHeap {
         memoryLocationOut: Long,
         count: Int
       ): Unit = {
-          val vej =
-            new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
-          SumPairwise.pairwise_sum_doubles_mem(
-            vej, memoryLocationA, memoryLocationB, memoryLocationOut, count
+        val vej =
+          new VeJavaContext(
+            Aurora4SparkExecutorPlugin._veo_proc,
+            Aurora4SparkExecutorPlugin._veo_ctx,
+            Aurora4SparkExecutorPlugin.lib
           )
-        }
+        SumPairwise.pairwise_sum_doubles_mem(
+          vej,
+          memoryLocationA,
+          memoryLocationB,
+          memoryLocationOut,
+          count
+        )
+      }
     }
   }
 

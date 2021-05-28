@@ -50,7 +50,7 @@ object AveragingSparkPlanOffHeap {
         println(s"Created ctx = ${ctx}")
         try {
           val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name)
-          val vej = new VeJavaContext(ctx, lib)
+          val vej = new VeJavaContext(_veo_proc, ctx, lib)
           AvgSimple.avg_doubles_mem(vej, memoryLocation, count)
         } finally Aurora.veo_context_close(ctx)
       }
