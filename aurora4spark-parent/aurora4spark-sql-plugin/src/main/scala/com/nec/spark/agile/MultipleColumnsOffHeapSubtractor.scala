@@ -5,7 +5,6 @@ import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.ve.VeJavaContext
 import sun.misc.Unsafe
 
-
 trait MultipleColumnsOffHeapSubtractor extends Serializable {
   def subtract(inputMemoryAddress: Long, count: Int): Double
 }
@@ -32,7 +31,11 @@ object MultipleColumnsOffHeapSubtractor {
 
     override def subtract(inputMemoryAddress: Long, count: Int): Double = {
       val vej =
-        new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
+        new VeJavaContext(
+          Aurora4SparkExecutorPlugin._veo_proc,
+          Aurora4SparkExecutorPlugin._veo_ctx,
+          Aurora4SparkExecutorPlugin.lib
+        )
       SubSimple.subtract_doubles_mem(vej, inputMemoryAddress, count)
     }
   }

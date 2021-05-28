@@ -46,7 +46,7 @@ object MultipleColumnsAveragingPlanOffHeap {
 
       override def avg(inputMemoryAddress: Long, count: Int): Double = {
         val vej =
-          new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
+          new VeJavaContext(Aurora4SparkExecutorPlugin._veo_proc,Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
         AvgSimple.avg_doubles_mem(vej, inputMemoryAddress, count)
       }
     }

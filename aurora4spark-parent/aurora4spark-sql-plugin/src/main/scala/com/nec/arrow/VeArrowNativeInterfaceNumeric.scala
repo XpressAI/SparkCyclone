@@ -68,8 +68,7 @@ object VeArrowNativeInterfaceNumeric {
     veInputPointer.get()
   }
 
-  /** Workaround - not sure why it does not work immediately */
-  private def nonNullDoubleVectorToByteBuffer(double_vector: non_null_double_vector): ByteBuffer = {
+  def nonNullDoubleVectorToByteBuffer(double_vector: non_null_double_vector): ByteBuffer = {
     val v_bb = double_vector.getPointer.getByteBuffer(0, 12)
     v_bb.putLong(0, double_vector.data)
     v_bb.putInt(8, double_vector.count)

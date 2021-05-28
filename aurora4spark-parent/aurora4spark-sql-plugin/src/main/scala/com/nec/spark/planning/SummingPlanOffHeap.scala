@@ -52,7 +52,7 @@ object SummingPlanOffHeap {
           try {
             val lib: Long = Aurora.veo_load_library(proc, ve_so_name)
             println(s"Loaded lib = ${lib}")
-            val vej = new VeJavaContext(ctx, lib)
+            val vej = new VeJavaContext(proc, ctx, lib)
             SumSimple.sum_doubles_memory(vej, inputMemoryAddress, count)
           } finally Aurora.veo_context_close(ctx)
         } finally Aurora.veo_proc_destroy(proc)

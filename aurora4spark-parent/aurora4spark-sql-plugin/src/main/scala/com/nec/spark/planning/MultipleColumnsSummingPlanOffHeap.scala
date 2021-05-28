@@ -43,7 +43,11 @@ object MultipleColumnsSummingPlanOffHeap {
 
       override def sum(inputMemoryAddress: Long, count: Int): Double = {
         val vej =
-          new VeJavaContext(Aurora4SparkExecutorPlugin._veo_ctx, Aurora4SparkExecutorPlugin.lib)
+          new VeJavaContext(
+            Aurora4SparkExecutorPlugin._veo_proc,
+            Aurora4SparkExecutorPlugin._veo_ctx,
+            Aurora4SparkExecutorPlugin.lib
+          )
         SumSimple.sum_doubles_memory(vej, inputMemoryAddress, count)
       }
     }
@@ -63,14 +67,18 @@ case class MultipleColumnsSummingPlanOffHeap(
     child
       .executeColumnar()
       .map { columnarBatch =>
-       val offHeapAggregations = columnarAggregations.map{
+        val offHeapAggregations = columnarAggregations.map {
           case ColumnAggregation(columns, aggregationOperation, outputColumnIndex) => {
             val dataVectors = columns
               .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
               .map(vector => summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
 
-            OutputColumnWithData(outputColumnIndex,
-              aggregationOperation, dataVectors, columnarBatch.numRows())
+            OutputColumnWithData(
+              outputColumnIndex,
+              aggregationOperation,
+              dataVectors,
+              columnarBatch.numRows()
+            )
           }
         }
         offHeapAggregations
@@ -78,12 +86,14 @@ case class MultipleColumnsSummingPlanOffHeap(
       .coalesce(1)
       .mapPartitions(its => {
 
-        val aggregated = its.toList.flatten.groupBy(_.outputColumnIndex).map {
-          case (idx, columnAggregations) => columnAggregations.reduce((a, b) => a.combine(b)(_ + _))
-        }
+        val aggregated =
+          its.toList.flatten.groupBy(_.outputColumnIndex).map { case (idx, columnAggregations) =>
+            columnAggregations.reduce((a, b) => a.combine(b)(_ + _))
+          }
 
         val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case OutputColumnWithData(outIndex, aggregator, columns, _) => aggregator.aggregate(columns)
+          case OutputColumnWithData(outIndex, aggregator, columns, _) =>
+            aggregator.aggregate(columns)
         }
 
         val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
