@@ -22,7 +22,6 @@ def basic_df_example(spark):
 if __name__ == "__main__":
     spark = SparkSession \
         .builder \
-        .config("spark.sql.extensions", "com.nec.spark.LocalVeoExtension") \
         .config("spark.sql.columnVector.offheap.enabled", "true") \
         .getOrCreate()
 

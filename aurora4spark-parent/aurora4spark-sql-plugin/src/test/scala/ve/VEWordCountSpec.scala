@@ -41,7 +41,6 @@ final class VEWordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
 
   "Word-count on the VE" in withSparkSession(
     _.set("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
-      .set("spark.sql.extensions", classOf[LocalVeoExtension].getCanonicalName)
       .set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
   ) { sparkSession =>

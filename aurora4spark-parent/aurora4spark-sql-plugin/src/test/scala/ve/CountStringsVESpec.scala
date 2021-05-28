@@ -24,7 +24,7 @@ final class CountStringsVESpec extends AnyFreeSpec {
     val libPath = VeCompiler("wc", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, WordCount.WordCountSourceCode)
         .mkString("\n\n")
-    )
+    )("ncc")
     val proc = Aurora.veo_proc_create(0)
     val (wordCount, expectedWordCount) =
       try {

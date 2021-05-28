@@ -27,7 +27,6 @@ if __name__ == "__main__":
         .builder \
         .appName("aurora4spark example") \
         .config("spark.plugins", "com.nec.spark.AuroraSqlPlugin") \
-        .config("spark.sql.extensions", "com.nec.spark.LocalVeoExtension") \
         .config("spark.sql.columnVector.offheap.enabled", "true") \
         .getOrCreate()
 
