@@ -8,8 +8,12 @@ import java.nio.file.Paths
 
 object VeDirectApp {
 
-  def compile_c(nccPath: String = "ncc", buildDir: Path = Paths.get("_ve_build")): Path = {
-    VeCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath)
+  def compile_c(
+    nccPath: String = "ncc",
+    buildDir: Path = Paths.get("_ve_build"),
+    config: VeCompiler.VeCompilerConfig
+  ): Path = {
+    VeCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(
         List(
           TransferDefinitions.TransferDefinitionsSourceCode,
@@ -26,7 +30,7 @@ object VeDirectApp {
   }
 
   def main(args: Array[String]): Unit = {
-    val ve_so_name = compile_c().toString
+    val ve_so_name = compile_c(config = VeCompiler.VeCompilerConfig.testConfig).toString
     println(s"SO name: ${ve_so_name}")
     val proc = Aurora.veo_proc_create(0)
     println(s"Created proc = ${proc}")
