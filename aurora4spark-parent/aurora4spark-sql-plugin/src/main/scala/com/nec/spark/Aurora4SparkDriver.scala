@@ -30,7 +30,6 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     // We gonna change this to actual params as soon as we know them.
     val testArgs: Map[String, String] = Map(
       "ve_so_name" -> compile_c(
-        sc.getConf.get("spark.com.nec.spark.ncc.path", "ncc"),
         buildDir = tmpBuildDir,
         config = VeCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
       ).toAbsolutePath.toString

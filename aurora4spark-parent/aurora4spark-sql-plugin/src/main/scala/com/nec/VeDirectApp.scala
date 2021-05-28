@@ -9,7 +9,6 @@ import java.nio.file.Paths
 object VeDirectApp {
 
   def compile_c(
-    nccPath: String = "ncc",
     buildDir: Path = Paths.get("_ve_build"),
     config: VeCompiler.VeCompilerConfig
   ): Path = {
@@ -26,7 +25,7 @@ object VeDirectApp {
           SumMultipleColumns.C_Definition,
           AvgMultipleColumns.C_Definition
         ).mkString("\n\n\n")
-      )(nccPath)
+      )
   }
 
   def main(args: Array[String]): Unit = {

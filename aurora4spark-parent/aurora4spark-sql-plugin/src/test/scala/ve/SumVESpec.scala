@@ -19,7 +19,7 @@ final class SumVESpec extends AnyFreeSpec {
     val libPath = VeCompiler("sum", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, Sum.SumSourceCode)
         .mkString("\n\n")
-    )("ncc")
+    )
     val proc = Aurora.veo_proc_create(0)
     val (wordCount, expectedWordCount) =
       try {
