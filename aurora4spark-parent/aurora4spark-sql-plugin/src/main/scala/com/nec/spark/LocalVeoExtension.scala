@@ -1,13 +1,12 @@
 package com.nec.spark
 
+import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.agile._
-import com.nec.spark.planning.AddPlanExtractor
-import com.nec.spark.planning.GenericAggregationPlanOffHeap
+import com.nec.spark.planning.{AddPlanExtractor, ArrowGenericAggregationPlanOffHeap, VeoGenericPlanExtractor, WordCountPlanner}
 import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
-import com.nec.spark.planning.VeoGenericPlanExtractor
-import com.nec.spark.planning.WordCountPlanner
 import com.nec.spark.planning.WordCountPlanner.WordCounter
+
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -34,7 +33,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
                 }
 
                 if (sparkPlan.supportsColumnar) sparkPlan
-                GenericAggregationPlanOffHeap(
+                ArrowGenericAggregationPlanOffHeap(
                   if (sparkPlan.supportsColumnar) sparkPlan
                   else RowToColumnarExec(sparkPlan),
                   outputColumns
@@ -56,8 +55,12 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
 
   def createAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
-      case SumAggregation => new SumAggregator(MultipleColumnsOffHeapSummer.VeoBased)
-      case AvgAggregation => new AvgAggregator(MultipleColumnsOffHeapAverager.VeoBased)
+      case SumAggregation => new SumAggregator(
+        new VeArrowNativeInterfaceNumeric(Aurora4SparkExecutorPlugin.lib)
+      )
+      case AvgAggregation => new AvgAggregator(
+        new VeArrowNativeInterfaceNumeric(Aurora4SparkExecutorPlugin.lib)
+      )
     }
   }
 

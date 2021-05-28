@@ -1,7 +1,11 @@
 package com.nec.spark
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.functions.{Avg, Sum}
 import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import org.apache.arrow.vector.Float8Vector
+
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
@@ -100,16 +104,20 @@ package object agile {
   case object AvgAggregation extends AggregationFunction
 
   trait Aggregator extends Serializable {
-    def aggregateOffHeap(memoryAddress: Long, inputSize: Int): Double
+    def aggregateOffHeap(inputVector: Float8Vector): Double
   }
 
-  class SumAggregator(adder: MultipleColumnsOffHeapSummer) extends Aggregator {
-    override def aggregateOffHeap(memoryAddress: Long, inputSize: ColumnIndex): Double =
-      adder.sum(memoryAddress, inputSize)
-  }
+  class SumAggregator(interface: ArrowNativeInterfaceNumeric) extends Aggregator {
+    override def aggregateOffHeap(inputVector: Float8Vector): Double = {
+      Sum.runOn(interface)(inputVector, 1)
+        .head
+    }
+}
 
-  class AvgAggregator(averager: MultipleColumnsOffHeapAverager) extends Aggregator {
-    override def aggregateOffHeap(memoryAddress: Long, inputSize: ColumnIndex): Double =
-      averager.avg(memoryAddress, inputSize)
+  class AvgAggregator(interface: ArrowNativeInterfaceNumeric) extends Aggregator {
+    override def aggregateOffHeap(inputVector: Float8Vector): Double = {
+      Avg.runOn(interface)(inputVector, 1)
+        .head
+    }
   }
 }

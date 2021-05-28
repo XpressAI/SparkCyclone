@@ -28,7 +28,7 @@ final class SumVESpec extends AnyFreeSpec {
           val data: Seq[Seq[Double]] = Seq(Seq(1, 2, 3, 4), Seq(10, 30, 50, 80))
           val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
           ArrowVectorBuilders.withArrowFloat8Vector(data) { vcv =>
-            (runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, 4), sumJVM(vcv, 4))
+            (runOn(new VeArrowNativeInterfaceNumeric(lib))(vcv, 4), sumJVM(vcv, 4))
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)

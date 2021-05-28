@@ -17,7 +17,7 @@ final class AvgCSpec extends AnyFreeSpec {
     )
 
     withArrowFloat8Vector(ss) { vector =>
-      assert(Avg.runOn(new CArrowNativeInterfaceNumeric(cLib))(vector, 3) == Avg.avgJVM(vector, 3))
+      assert(Avg.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, 3) == Avg.avgJVM(vector, 3))
     }
   }
 
