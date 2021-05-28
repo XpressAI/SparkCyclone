@@ -40,9 +40,6 @@ libraryDependencies ++= Seq(
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
-  "org.apache.arrow" % "arrow-vector" % "2.0.0",
-  "org.apache.arrow" % "arrow-memory-unsafe" % "4.0.0",
-  "com.google.flatbuffers" % "flatbuffers-java" % "1.9.0"
 )
 
 Test / parallelExecution := false
