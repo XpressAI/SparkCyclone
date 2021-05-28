@@ -28,12 +28,12 @@ object VeoGenericPlanExtractor {
             _aggregateAttributes,
             _initialInputBufferOffset,
             _resultExpressions,
-            fourth @ LocalTableScanExec(output, rows)
+            fourth @ sparkPlan
           ),
           shuffleOrigin
         )
       ) => {
-        val columnIndices = output.map(_.name).zipWithIndex.toMap
+        val columnIndices = fourth.output.map(_.name).zipWithIndex.toMap
         val columnMappings = extractExpressions(exprs).zipWithIndex
           .map{
             case ((operation, attributes), id) => ColumnAggregationExpression(
