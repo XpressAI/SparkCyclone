@@ -1,6 +1,7 @@
 #!/bin/bash
 
 /opt/spark/bin/spark-submit --master yarn \
+--name VE_Benchmark \
 --deploy-mode cluster \
 --py-files dep.zip \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \

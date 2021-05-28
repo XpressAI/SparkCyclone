@@ -1,6 +1,7 @@
 #!/bin/bash
 
 /opt/spark/bin/spark-submit --master yarn \
+--name CPU_Benchmark \
 --deploy-mode cluster \
 --py-files dep.zip \
 run_benchmark.py data/100M_R100000000_P100_csv \

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 /opt/spark/bin/spark-submit --master yarn \
+--name GPU_Benchmark \
 --deploy-mode cluster \
 --py-files dep.zip \
 --jars 'rapids.jar,cudf.jar' \
