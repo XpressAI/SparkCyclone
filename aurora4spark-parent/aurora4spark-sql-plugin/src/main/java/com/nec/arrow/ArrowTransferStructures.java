@@ -71,6 +71,10 @@ public interface ArrowTransferStructures extends Library {
         public long data;
         public Integer count;
 
+        public int size() {
+            return count * 8;
+        }
+
         public non_null_double_vector() {
             super();
         }
