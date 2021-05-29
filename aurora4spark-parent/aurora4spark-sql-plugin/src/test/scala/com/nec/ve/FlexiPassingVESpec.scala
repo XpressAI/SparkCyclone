@@ -33,24 +33,28 @@ object FlexiPassingVESpec {
    * data fully in the VE
    */
   object Add1Mul2 {
-    def call[Container[_]](nativeIf: Float8GenericNativeIf[Container])(
-      float8Vector: Container[Float8Vector]
-    ): Container[Float8Vector] =
-      Mul2.call(nativeIf)(Add1.call(nativeIf)(float8Vector))
+    def call[Container[_]](
+      nativeIf: Float8GenericNativeIf[Container]
+    )(float8Vector: Container[Float8Vector]): Container[Float8Vector] =
+      MulN
+        .call(nativeIf)(
+          float8Vector = AddN.call(nativeIf)(float8Vector = float8Vector, n = 1),
+          n = 2
+        )
   }
 
-  object Add1 {
-    def call[Container[_]](nativeIf: Float8GenericNativeIf[Container])(
-      float8Vector: Container[Float8Vector]
-    ): Container[Float8Vector] =
-      nativeIf.call("add1", float8Vector)
+  object AddN {
+    def call[Container[_]](
+      nativeIf: Float8GenericNativeIf[Container]
+    )(float8Vector: Container[Float8Vector], n: Double): Container[Float8Vector] =
+      nativeIf.call(functionName = "add_n", input = (float8Vector, n))
   }
 
-  object Mul2 {
-    def call[Container[_]](nativeIf: Float8GenericNativeIf[Container])(
-      float8Vector: Container[Float8Vector]
-    ): Container[Float8Vector] =
-      nativeIf.call("mul2", float8Vector)
+  object MulN {
+    def call[Container[_]](
+      nativeIf: Float8GenericNativeIf[Container]
+    )(float8Vector: Container[Float8Vector], n: Double): Container[Float8Vector] =
+      nativeIf.call(functionName = "mul_n", input = (float8Vector, n))
   }
 
   implicit class RichFloat8(float8Vector: Float8Vector) {

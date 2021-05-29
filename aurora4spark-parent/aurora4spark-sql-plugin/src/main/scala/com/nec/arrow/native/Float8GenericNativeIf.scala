@@ -14,7 +14,7 @@ import java.nio.file.Path
 import scala.language.higherKinds
 
 trait Float8GenericNativeIf[Container[_]] {
-  def call(functionName: String, input: Container[Float8Vector]): Container[Float8Vector]
+  def call(functionName: String, input: (Container[Float8Vector], Double)): Container[Float8Vector]
 }
 
 object Float8GenericNativeIf {
@@ -37,14 +37,17 @@ object Float8GenericNativeIf {
   }
   final case class VeNativeIf(veJavaContext: VeJavaContext) extends Float8GenericNativeIf[InVe] {
     import veJavaContext._
-    override def call(functionName: String, input: InVe[Float8Vector]): InVe[Float8Vector] = {
+    override def call(
+      functionName: String,
+      input: (InVe[Float8Vector], Double)
+    ): InVe[Float8Vector] = {
       val our_args = Aurora.veo_args_alloc()
       try {
 
         def make_veo_double_vector: non_null_double_vector = {
           val vcvr = new non_null_double_vector()
-          vcvr.count = input.count.toInt
-          vcvr.data = input.vePointer
+          vcvr.count = input._1.count.toInt
+          vcvr.data = input._1.vePointer
           vcvr
         }
 
@@ -61,7 +64,8 @@ object Float8GenericNativeIf {
         val outVector = new non_null_double_vector()
         val ovb = nonNullDoubleVectorToByteBuffer(outVector)
 
-        Aurora.veo_args_set_stack(our_args, 1, 1, ovb, ovb.limit())
+        Aurora.veo_args_set_double(our_args, 1, input._2)
+        Aurora.veo_args_set_stack(our_args, 1, 2, ovb, ovb.limit())
 
         val req_id = Aurora.veo_call_async_by_name(ctx, lib, functionName, our_args)
         val fnCallResult = new LongPointer(8)
@@ -79,14 +83,22 @@ object Float8GenericNativeIf {
   }
 
   final case class NativeIf(libPath: Path) extends Float8GenericNativeIf[InVh] {
-    override def call(functionName: String, input: InVh[Float8Vector]): InVh[Float8Vector] = {
+    override def call(
+      functionName: String,
+      input: (InVh[Float8Vector], Double)
+    ): InVh[Float8Vector] = {
       import scala.collection.JavaConverters._
       val nativeLibraryHandler =
         new Library.Handler(libPath.toString, classOf[Library], Map.empty[String, Any].asJava)
       val nl = nativeLibraryHandler.getNativeLibrary
       val fn = nl.getFunction(functionName)
       val outputStruct = new non_null_double_vector()
-      val invokeArgs: Array[AnyRef] = List(c_double_vector(input.contents), outputStruct).toArray
+      val invokeArgs: Array[AnyRef] =
+        List(
+          c_double_vector(input._1.contents),
+          java.lang.Double.valueOf(input._2),
+          outputStruct
+        ).toArray
       fn.invokeLong(invokeArgs)
       val ra = new RootAllocator()
       val outputVector = new Float8Vector("result", ra)
