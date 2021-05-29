@@ -32,7 +32,6 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
                   )
                 }
 
-                if (sparkPlan.supportsColumnar) sparkPlan
                 ArrowGenericAggregationPlanOffHeap(
                   if (sparkPlan.supportsColumnar) sparkPlan
                   else RowToColumnarExec(sparkPlan),
