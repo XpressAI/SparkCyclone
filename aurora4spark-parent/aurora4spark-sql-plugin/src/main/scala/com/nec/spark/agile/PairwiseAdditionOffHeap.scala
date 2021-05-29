@@ -1,8 +1,11 @@
 package com.nec.spark.agile
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.functions.Add
 import com.nec.older.SumPairwise
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.planning.SingleValueStubPlan.SparkDefaultColumnName
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -17,6 +20,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.ve.VeJavaContext
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.Float8Vector
 
 object PairwiseAdditionOffHeap {
 
@@ -73,7 +78,7 @@ object PairwiseAdditionOffHeap {
   }
 
 }
-case class PairwiseAdditionOffHeap(child: SparkPlan, summer: OffHeapPairwiseSummer)
+case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
@@ -82,21 +87,37 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, summer: OffHeapPairwiseSumm
     child
       .executeColumnar()
       .map { columnarBatch =>
+        val rootAllocator = new RootAllocator()
+        val vectorA = new Float8Vector("value", rootAllocator)
+        vectorA.allocateNew()
         val colA = columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+          .getDoubles(0, columnarBatch.numRows())
+          .zipWithIndex
+          .foreach{
+            case (elem, idx) => vectorA.setSafe(idx, elem)
+          }
+        vectorA.setValueCount(columnarBatch.numRows())
         val colB = columnarBatch.column(1).asInstanceOf[OffHeapColumnVector]
-        val outCvs = OffHeapColumnVector.allocateColumns(
-          columnarBatch.numRows(),
-          StructType(Array(StructField("value", DoubleType, nullable = false)))
-        )
+        val vectorB = new Float8Vector("value", rootAllocator)
+        vectorB.allocateNew()
+        columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+          .getDoubles(0, columnarBatch.numRows())
+          .zipWithIndex
+          .foreach{
+            case (elem, idx) => vectorB.setSafe(idx, elem)
+          }
+        vectorB.setValueCount(columnarBatch.numRows())
+        val outputVector = new Float8Vector("value", rootAllocator)
+        outputVector.allocateNew()
+        outputVector.setValueCount(columnarBatch.numRows())
+        val offHeapVector = new OffHeapColumnVector(columnarBatch.numRows(), DoubleType)
 
-        summer.sum(
-          colA.valuesNativeAddress(),
-          colB.valuesNativeAddress(),
-          outCvs.head.valuesNativeAddress(),
-          columnarBatch.numRows()
-        )
+        val result = Add.runOn(arrowInterface)(vectorA, vectorB)
+        result.zipWithIndex.foreach{
+          case(elem, idx) => offHeapVector.putDouble(idx, elem)
+        }
 
-        new ColumnarBatch(outCvs.map(ov => ov: ColumnVector), columnarBatch.numRows())
+        new ColumnarBatch(Array(offHeapVector))
       }
   }
 

@@ -12,7 +12,7 @@ import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.Sum
 import org.scalatest.freespec.AnyFreeSpec
 
-final class SumVESpec extends AnyFreeSpec {
+final class SumVeSpec extends AnyFreeSpec {
 
   "We can get a sum back" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
@@ -21,7 +21,7 @@ final class SumVESpec extends AnyFreeSpec {
         .mkString("\n\n")
     )
     val proc = Aurora.veo_proc_create(0)
-    val (wordCount, expectedWordCount) =
+    val (sum, expectedSum) =
       try {
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
         try {
@@ -33,7 +33,7 @@ final class SumVESpec extends AnyFreeSpec {
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)
 
-    assert(wordCount.nonEmpty)
-    assert(wordCount == expectedWordCount)
+    assert(sum.nonEmpty)
+    assert(sum == expectedSum)
   }
 }
