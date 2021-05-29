@@ -11,7 +11,7 @@ import java.nio.file.StandardCopyOption
 import scala.sys.process._
 
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.functions.{Avg, Sum}
+import com.nec.arrow.functions.{Add, Avg, Sum}
 
 /**
  * Utilities to build C libraries using CMake
@@ -23,7 +23,8 @@ object CMakeBuilder {
   lazy val CLibPath = buildC(List(
     TransferDefinitions.TransferDefinitionsSourceCode,
     Sum.SumSourceCode,
-    Avg.AvgSourceCode
+    Avg.AvgSourceCode,
+    Add.PairwiseSumCode
   ).mkString("\n \n"))
 
   def buildC(cSource: String): Path = {

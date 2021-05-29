@@ -23,6 +23,7 @@ object Add {
     val outputVector = new Float8Vector("count", ra)
     outputVector.allocateNew(firstColumnVector.getValueCount)
     outputVector.setValueCount(firstColumnVector.getValueCount)
+
     nativeInterface.callFunction(
       name = "add",
       inputArguments = List(Some(firstColumnVector), Some(secondColumnvector), None),

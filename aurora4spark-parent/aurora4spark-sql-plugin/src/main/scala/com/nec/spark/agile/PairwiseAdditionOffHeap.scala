@@ -78,7 +78,7 @@ object PairwiseAdditionOffHeap {
   }
 
 }
-case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
+case class  PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
@@ -90,34 +90,34 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
         val rootAllocator = new RootAllocator()
         val vectorA = new Float8Vector("value", rootAllocator)
         vectorA.allocateNew()
-        val colA = columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+        columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
           .getDoubles(0, columnarBatch.numRows())
           .zipWithIndex
           .foreach{
             case (elem, idx) => vectorA.setSafe(idx, elem)
           }
         vectorA.setValueCount(columnarBatch.numRows())
-        val colB = columnarBatch.column(1).asInstanceOf[OffHeapColumnVector]
+
         val vectorB = new Float8Vector("value", rootAllocator)
         vectorB.allocateNew()
-        columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+        columnarBatch.column(1).asInstanceOf[OffHeapColumnVector]
           .getDoubles(0, columnarBatch.numRows())
           .zipWithIndex
           .foreach{
             case (elem, idx) => vectorB.setSafe(idx, elem)
           }
         vectorB.setValueCount(columnarBatch.numRows())
-        val outputVector = new Float8Vector("value", rootAllocator)
-        outputVector.allocateNew()
-        outputVector.setValueCount(columnarBatch.numRows())
-        val offHeapVector = new OffHeapColumnVector(columnarBatch.numRows(), DoubleType)
+
 
         val result = Add.runOn(arrowInterface)(vectorA, vectorB)
-        result.zipWithIndex.foreach{
+
+        val offHeapVector = new OffHeapColumnVector(columnarBatch.numRows(), DoubleType)
+
+        result.zipWithIndex.foreach {
           case(elem, idx) => offHeapVector.putDouble(idx, elem)
         }
 
-        new ColumnarBatch(Array(offHeapVector))
+        new ColumnarBatch(Array(offHeapVector), result.size)
       }
   }
 
