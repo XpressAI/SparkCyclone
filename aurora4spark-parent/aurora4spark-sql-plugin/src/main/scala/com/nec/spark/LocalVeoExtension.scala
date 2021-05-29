@@ -42,7 +42,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
               .orElse {
                 AddPlanExtractor.matchAddPairwisePlan(
                   sparkPlan,
-                  PairwiseAdditionOffHeap.OffHeapPairwiseSummer.VeoBased
+                  new VeArrowNativeInterfaceNumeric(Aurora4SparkExecutorPlugin.lib)
                 )
               }
               .orElse {
