@@ -9,12 +9,15 @@ import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.AddPlanExtractor
 import com.nec.spark.planning.SparkSqlPlanExtension
+import com.nec.spark.planning.VeoGenericPlanExtractor
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.SparkStrategy
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
-import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
@@ -122,6 +125,57 @@ final class SparkSanityTests
 
     val listOfDoubles = sumDataSet2.collect().toList
     assert(listOfDoubles == List(3, 5, 7, 9, 58))
+  }
+
+  "We can join a Parquet dataset with a CSV dataset" in withSparkSession2(
+    _.withExtensions(
+      _.injectPlannerStrategy(sess =>
+        new SparkStrategy {
+          override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+            println(s"\n---\n$plan\n---\n")
+            Seq.empty
+          }
+        }
+      )
+    )
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    val csvSchema = StructType(
+      Seq(
+        StructField("a", DoubleType, nullable = false),
+        StructField("b", DoubleType, nullable = false)
+      )
+    )
+    sparkSession.read
+      .format("csv")
+      .schema(csvSchema)
+      .load(SampleMultiColumnCSV.toString)
+      .as[(Double, Double)]
+      .createOrReplaceTempView("csvs")
+
+    sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
+      .as[(Double, Double)]
+      .createOrReplaceTempView("parquets")
+
+    val result = sparkSession
+      .sql(
+        "select sum(csvs.a - parquets.b), csvs.b from csvs LEFT JOIN parquets on csvs.a = parquets.a" +
+          " group by csvs.b"
+      )
+
+    assert(
+      VeoGenericPlanExtractor
+        .matchPlan(result.executionPlan)
+        .isDefined,
+      result.executionPlan.toString()
+    )
+
+    result.show()
+
+    assert(result.collect().nonEmpty)
   }
 
 }

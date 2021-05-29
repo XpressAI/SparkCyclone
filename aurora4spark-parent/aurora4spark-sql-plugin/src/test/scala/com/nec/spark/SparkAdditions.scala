@@ -87,9 +87,12 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   protected implicit class Richy[T](dataSet: Dataset[T]) {
     def debugConditionally(prefix: String = ""): Dataset[T] = {
       if (debugSparkPlans) {
-        info(prefix + dataSet.extractQueryExecution.toString())
-      }
+        debug(prefix)
+      } else dataSet
+    }
 
+    def debug(prefix: String = ""): Dataset[T] = {
+      info(prefix + dataSet.extractQueryExecution.toString())
       dataSet
     }
 

@@ -24,6 +24,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 object VeoGenericPlanExtractor {
   def matchPlan(sparkPlan: SparkPlan): Option[GenericSparkPlanDescription] = {
+    println(sparkPlan.getClass.getCanonicalName)
     PartialFunction.condOpt(sparkPlan) {
       case first @ HashAggregateExec(
             requiredChildDistributionExpressions,

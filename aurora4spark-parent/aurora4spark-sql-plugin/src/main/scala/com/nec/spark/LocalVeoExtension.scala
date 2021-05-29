@@ -14,6 +14,9 @@ import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.execution.SparkPlan
 
+object LocalVeoExtension {
+
+}
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectColumnar({ sparkSession =>
