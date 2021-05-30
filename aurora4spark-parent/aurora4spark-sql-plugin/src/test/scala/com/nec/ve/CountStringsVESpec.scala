@@ -31,7 +31,7 @@ final class CountStringsVESpec extends AnyFreeSpec {
         try {
           val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
           ArrowVectorBuilders.withArrowStringVector(Sample) { vcv =>
-            (runOn(new VeArrowNativeInterface(lib))(vcv), wordCountJVM(vcv))
+            (runOn(new VeArrowNativeInterface(proc, ctx, lib))(vcv), wordCountJVM(vcv))
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)

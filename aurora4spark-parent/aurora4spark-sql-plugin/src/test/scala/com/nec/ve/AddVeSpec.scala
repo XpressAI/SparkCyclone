@@ -30,7 +30,7 @@ final class AddVeSpec extends AnyFreeSpec {
             withArrowFloat8Vector(firstColumn) { firstVector =>
               withArrowFloat8Vector(secondColumn) { secondVector =>
                 (
-                  runOn(new VeArrowNativeInterfaceNumeric(lib))(firstVector, secondVector),
+                  runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(firstVector, secondVector),
                   addJVM(firstVector, secondVector)
                 )
               }
