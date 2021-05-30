@@ -42,7 +42,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
               .orElse {
                 AddPlanExtractor.matchAddPairwisePlan(
                   sparkPlan,
-                  new VeArrowNativeInterfaceNumeric(Aurora4SparkExecutorPlugin.lib)
+                  Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric
                 )
               }
               .orElse {
@@ -55,12 +55,8 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
 
   def createAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
-      case SumAggregation => new SumAggregator(
-        new VeArrowNativeInterfaceNumeric(Aurora4SparkExecutorPlugin.lib)
-      )
-      case AvgAggregation => new AvgAggregator(
-        new VeArrowNativeInterfaceNumeric(Aurora4SparkExecutorPlugin.lib)
-      )
+      case SumAggregation => new SumAggregator(Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric)
+      case AvgAggregation => new AvgAggregator(Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric)
     }
   }
 

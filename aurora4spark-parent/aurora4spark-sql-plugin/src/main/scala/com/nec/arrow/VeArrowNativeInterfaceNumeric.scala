@@ -10,15 +10,17 @@ import org.apache.arrow.vector.Float8Vector
 import org.bytedeco.javacpp.LongPointer
 
 final class VeArrowNativeInterfaceNumeric(
-                                    lib: Long
+                                           proc: Aurora.veo_proc_handle,
+                                           ctx: Aurora.veo_thr_ctxt,
+                                           lib: Long
                                   ) extends ArrowNativeInterfaceNumeric {
   override def callFunction(
                              name: String,
                              inputArguments: List[Option[Float8Vector]],
                              outputArguments: List[Option[Float8Vector]]
                            ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
-    proc = Aurora4SparkExecutorPlugin._veo_proc,
-    ctx = Aurora4SparkExecutorPlugin._veo_ctx,
+    proc = proc,
+    ctx = ctx,
     lib = lib,
     functionName = name,
     inputArguments = inputArguments,

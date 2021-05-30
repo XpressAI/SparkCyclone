@@ -13,6 +13,8 @@ import java.nio.ByteBuffer
 import com.nec.spark.Aurora4SparkExecutorPlugin
 
 final class VeArrowNativeInterface(
+  proc: Aurora.veo_proc_handle,
+  ctx: Aurora.veo_thr_ctxt,
   lib: Long
 ) extends ArrowNativeInterface {
   override def callFunction(
@@ -20,8 +22,8 @@ final class VeArrowNativeInterface(
     inputArguments: List[Option[VarCharVector]],
     outputArguments: List[Option[IntVector]]
   ): Unit = VeArrowNativeInterface.executeVe(
-    proc = Aurora4SparkExecutorPlugin._veo_proc,
-    ctx = Aurora4SparkExecutorPlugin._veo_ctx,
+    proc = proc,
+    ctx = ctx,
     lib = lib,
     functionName = name,
     inputArguments = inputArguments,
