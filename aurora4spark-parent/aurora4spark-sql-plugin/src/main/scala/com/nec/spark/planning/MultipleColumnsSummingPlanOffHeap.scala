@@ -3,7 +3,7 @@ package com.nec.spark.planning
 import com.nec.older.SumSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.ColumnAggregation
-import com.nec.spark.agile.OutputColumnWithData
+import com.nec.spark.agile.OutputColumnAggregated
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.ve.VeJavaContext
 import org.apache.spark.rdd.RDD
@@ -73,7 +73,7 @@ case class MultipleColumnsSummingPlanOffHeap(
               .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
               .map(vector => summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
 
-            OutputColumnWithData(
+            OutputColumnAggregated(
               outputColumnIndex,
               aggregationOperation,
               dataVectors,
@@ -92,7 +92,7 @@ case class MultipleColumnsSummingPlanOffHeap(
           }
 
         val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case OutputColumnWithData(outIndex, aggregator, columns, _) =>
+          case OutputColumnAggregated(outIndex, aggregator, columns, _) =>
             aggregator.aggregate(columns)
         }
 

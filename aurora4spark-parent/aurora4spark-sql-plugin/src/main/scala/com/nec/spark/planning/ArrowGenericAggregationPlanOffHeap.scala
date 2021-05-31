@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.{OutputColumn, OutputColumnWithData}
+import com.nec.spark.agile.{OutputColumn, OutputColumnAggregated}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 
@@ -21,45 +21,46 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .executeColumnar()
-      .flatMap { columnarBatch =>
+      .mapPartitions { it =>
+        val columnarBatch = it.toList
         val offHeapAggregations = outputColumns.map {
+
           case OutputColumn(inputColumns, outputColumnIndex, columnAggregation, outputAggregator) => {
             val ra = new RootAllocator()
             val dataVectors = inputColumns
-              .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
-              .map(col => {
-                val vector = new Float8Vector("values", ra)
-                vector.allocateNew(columnarBatch.numRows())
-                col.getDoubles(0, columnarBatch.numRows()).zipWithIndex
-                  .foreach {
-                    case (elem, idx) => vector.setSafe(idx, elem)
-                  }
-                vector.setValueCount(columnarBatch.numRows())
-                vector
+              .map(column => {
+                val columns = columnarBatch.flatMap(
+                  batch => batch.column(column.index)
+                    .asInstanceOf[OffHeapColumnVector]
+                    .getDoubles(0, batch.numRows())
+                )
+                columns
               })
-              .map(vector =>
-                outputAggregator.aggregateOffHeap(vector)
-              )
+            val aggregationResults = dataVectors.map(elems => {
+              val vector = new Float8Vector("value", ra)
+              elems.zipWithIndex.foreach{
+                case(elem, idx) => vector.setSafe(idx, elem)
+              }
+              vector.setValueCount(elems.size)
+              outputAggregator.aggregateOffHeap(vector)
+            })
 
-            OutputColumnWithData(outputColumnIndex,
+            OutputColumnAggregated(outputColumnIndex,
               columnAggregation,
-              dataVectors,
-              columnarBatch.numRows()
+              aggregationResults,
+              dataVectors.size
             )
           }
         }
-
-        offHeapAggregations
+        offHeapAggregations.toIterator
       }
       .coalesce(1)
       .mapPartitions(its => {
 
         val elementsSum = its.toList.sortBy(_.outputColumnIndex).map {
-          case OutputColumnWithData(outIndex, aggregator, columns, _) => aggregator.aggregate(columns)
+          case OutputColumnAggregated(outIndex, columnAggregation, columns, _) => columnAggregation.aggregate(columns)
         }
-
         val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
-
         elementsSum.zip(vectors).foreach { case (sum, vector) =>
           vector.putDouble(0, sum)
         }

@@ -107,7 +107,9 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
     aggregationFunction: AggregationExpression
   ): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression      => AdditionAggregator(MultipleColumnsOffHeapSummer.UnsafeBased)
+      case SumExpression      => AdditionAggregator(
+        new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString)
+      )
       case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
       case _                  => NoAggregationAggregator
     }

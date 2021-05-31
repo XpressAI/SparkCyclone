@@ -4,6 +4,7 @@ import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.{Avg, Sum}
 import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
@@ -37,14 +38,20 @@ package object agile {
     def aggregate(inputData: Seq[Double]): Double
   }
 
-  case class AdditionAggregator(adder: MultipleColumnsOffHeapSummer) extends ColumnAggregator {
+  case class AdditionAggregator(interface: ArrowNativeInterfaceNumeric) extends ColumnAggregator {
     override def aggregate(inputData: Seq[Double]): Double = {
-      val vector = new OffHeapColumnVector(inputData.size, DoubleType)
-      inputData.zipWithIndex.foreach {
-        case (elem, idx) => vector.putDouble(idx, elem)
-      }
+      val rootAllocator = new RootAllocator()
+      val vector = new Float8Vector("value", rootAllocator)
+      vector.allocateNew()
+      inputData
+        .zipWithIndex
+        .foreach{
+          case (elem, idx) => vector.setSafe(idx, elem)
+        }
+      vector.setValueCount(inputData.size)
 
-      adder.sum(vector.valuesNativeAddress(), inputData.size)
+      Sum.runOn(interface)(vector, 1)
+        .head
     }
   }
 
@@ -74,11 +81,11 @@ package object agile {
                                columnIndex: ColumnIndex) extends Serializable
   case class Column(index: Int, name: String) extends Serializable
 
-  case class OutputColumnWithData(outputColumnIndex: ColumnIndex,
-                                  aggregation: ColumnAggregator,
-                                  columns: Seq[Double],
-                                  numberOfRows: Int) {
-    def combine(a: OutputColumnWithData)(mergeFunc: (Double, Double) => Double): OutputColumnWithData = {
+  case class OutputColumnAggregated(outputColumnIndex: ColumnIndex,
+                                    aggregation: ColumnAggregator,
+                                    columns: Seq[Double],
+                                    numberOfRows: Int) {
+    def combine(a: OutputColumnAggregated)(mergeFunc: (Double, Double) => Double): OutputColumnAggregated = {
       val columnsCombined = if(a.outputColumnIndex != this.outputColumnIndex) {
         throw new RuntimeException("Can't combine different output columns!")
       } else {
