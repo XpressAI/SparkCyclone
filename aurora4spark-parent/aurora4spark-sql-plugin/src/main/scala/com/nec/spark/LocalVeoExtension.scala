@@ -29,7 +29,10 @@ object LocalVeoExtension {
 
   def createExpressionAggregator(aggregationFunction: AggregationExpression): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression      => AdditionAggregator(MultipleColumnsOffHeapSummer.VeoBased)
+      case SumExpression      => AdditionAggregator(new VeArrowNativeInterfaceNumeric(
+        Aurora4SparkExecutorPlugin._veo_proc, Aurora4SparkExecutorPlugin._veo_ctx,
+        Aurora4SparkExecutorPlugin.lib
+      ))
       case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
       case _                  => NoAggregationAggregator
     }

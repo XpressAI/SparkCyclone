@@ -3,7 +3,7 @@ package com.nec.spark.planning
 import com.nec.older.AvgSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.ColumnAggregation
-import com.nec.spark.agile.OutputColumnWithData
+import com.nec.spark.agile.OutputColumnAggregated
 import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.ve.VeJavaContext
 import org.apache.spark.rdd.RDD
@@ -72,7 +72,7 @@ case class MultipleColumnsAveragingPlanOffHeap(
               .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
               .map(vector => averager.avg(vector.valuesNativeAddress(), columnarBatch.numRows()))
 
-            OutputColumnWithData(
+            OutputColumnAggregated(
               outputColumnIndex,
               aggregationOperation,
               dataVectors,
@@ -91,7 +91,7 @@ case class MultipleColumnsAveragingPlanOffHeap(
           }
 
         val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case OutputColumnWithData(outIndex, aggregator, columns, _) =>
+          case OutputColumnAggregated(outIndex, aggregator, columns, _) =>
             aggregator.aggregate(columns)
         }
 

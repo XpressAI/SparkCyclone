@@ -1,6 +1,9 @@
 package com.nec.spark.planning
+import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.AdditionAggregator
 import com.nec.spark.agile.AttributeName
+
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import com.nec.spark.agile.Column
@@ -11,6 +14,7 @@ import com.nec.spark.agile.NoAggregationAggregator
 import com.nec.spark.agile.SubtractionAggregator
 import com.nec.spark.agile.VeoSparkPlanWithMetadata
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+
 import org.apache.spark.sql.catalyst.expressions.Add
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.Subtract
@@ -83,7 +87,10 @@ object VeoSumPlanExtractor {
 
   def extractOperation(expression: Expression): ColumnAggregator = {
     expression match {
-      case Add(_, _, _)      => AdditionAggregator(MultipleColumnsOffHeapSummer.VeoBased)
+      case Add(_, _, _)      => AdditionAggregator(new VeArrowNativeInterfaceNumeric(
+        Aurora4SparkExecutorPlugin._veo_proc, Aurora4SparkExecutorPlugin._veo_ctx,
+        Aurora4SparkExecutorPlugin.lib
+      ))
       case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
       case _                 => NoAggregationAggregator
     }
