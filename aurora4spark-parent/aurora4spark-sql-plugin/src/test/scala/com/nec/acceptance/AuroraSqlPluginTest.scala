@@ -17,7 +17,7 @@ final class AuroraSqlPluginTest
   "We call VE with our Averaging plan" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
   ) { sparkSession =>
-    markup("AVG()")
+    markup("AVG([Double])")
     import sparkSession.implicits._
 
     val nums = List[Double](1, 2, 3, 4, Math.abs(scala.util.Random.nextInt() % 200))
@@ -51,7 +51,7 @@ final class AuroraSqlPluginTest
   "We call VE with our Averaging plan for multiple average operations" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
   ) { sparkSession =>
-    markup("AVG()")
+    markup("AVG([Double]), AVG([Double]), AVG([Double])")
     import sparkSession.implicits._
 
     val nums: List[(Double, Double, Double)] = List((1, 2, 3), (4, 5, 6), (7, 8, 9))
