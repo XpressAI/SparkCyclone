@@ -40,11 +40,12 @@ def main(args):
         # .withColumn('prefix8', F.substring(F.col('value'),1,8))
         .withColumn('float_x', F.rand(seed=8675309)*1000000)
         .withColumn('float_y', F.rand(seed=8675367)*1000000)
-        # .withColumn('integer_val', F.col('float_x').cast(T.LongType()))
-        # .withColumn("randn", (F.randn()*10).cast(T.LongType())) 
+        .withColumn('int_x', F.col('float_x').cast(T.IntegerType()))
+        .withColumn('int_y', F.col('float_y').cast(T.IntegerType()))
+        # .withColumn("randn", (F.randn()*10).cast(T.IntegerType())) 
         # .withColumn("randn1", F.randn()) 
-        # .withColumn('degree', (F.randn()*360).cast(T.LongType())) 
-        # .withColumn('small_int', (F.rand()*10).cast(T.LongType()))
+        # .withColumn('degree', (F.randn()*360).cast(T.IntegerType())) 
+        # .withColumn('small_int', (F.rand()*10).cast(T.IntegerType()))
         .drop('id'))
 
 
