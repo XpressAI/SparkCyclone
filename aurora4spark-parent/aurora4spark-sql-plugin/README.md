@@ -15,6 +15,12 @@ Requirements:
 - Acceptance tests, which also generate `../FEATURES.md`: `AcceptanceTest / test` (or `Acc`)
 - Check before committing: `check` (checks scalafmt and runs any outstanding unit tests)
 
+### Benchmarks
+
+```
+~ VectorEngine / runMain com.nec.ve.VeBenchmarkApp
+```
+
 ## Currently supported queries
 
 List of currently supported and tested queries can be found [in this file](../FEATURES.md).
