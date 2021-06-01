@@ -41,7 +41,7 @@ def groupby_agg_benchmark(df, log, spark, args):
             F.count('*').alias('total_count'),
             F.countDistinct('prefix4').alias('prefix4_count'),
             F.countDistinct('prefix8').alias('prefix8_count'),
-            F.sum('float_val').alias('float_val_sum'),
+            F.sum('float_x').alias('float_val_sum'),
             F.sum('integer_val').alias('integer_val_sum'),
         ))
 
@@ -212,8 +212,9 @@ def main(args):
         # T.StructField("prefix2", T.StringType()),
         # T.StructField("prefix4", T.StringType()),
         # T.StructField("prefix8", T.StringType()),
-        T.StructField("float_val", T.FloatType()),
-        T.StructField("integer_val", T.IntegerType()),
+        T.StructField("float_x", T.FloatType()),
+        T.StructField("float_y", T.FloatType()),
+        # T.StructField("integer_val", T.IntegerType()),
         # T.StructField("randn", T.IntegerType()),
         # T.StructField("randn1", T.FloatType()),
         # T.StructField("degree", T.IntegerType()),
