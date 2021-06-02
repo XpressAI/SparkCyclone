@@ -2,7 +2,7 @@ package com.nec.spark
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.{Avg, Sum}
-import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.planning.ArrowAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
@@ -15,6 +15,7 @@ import org.apache.spark.sql.types.DoubleType
 
 package object agile {
   case class AttributeName(value: String) extends AnyVal
+  case class SingleColumnSparkPlan(sparkPlan: SparkPlan, column: Column)
   case class SparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[Seq[AttributeName]])
   case class VeoSparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[ColumnAggregation])
   case class GenericSparkPlanDescription(sparkPlan: SparkPlan,

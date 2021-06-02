@@ -3,12 +3,10 @@ package com.nec.spark
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.LocalVeoExtension._enabled
 import com.nec.spark.agile._
-import com.nec.spark.planning.AddPlanExtractor
-import com.nec.spark.planning.ArrowGenericAggregationPlanOffHeap
+import com.nec.spark.planning.{AddPlanExtractor, ArrowGenericAggregationPlanOffHeap, ArrowVeoAvgPlanExtractor, ArrowVeoSumPlanExtractor, VeoGenericPlanExtractor, WordCountPlanner}
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
-import com.nec.spark.planning.VeoGenericPlanExtractor
-import com.nec.spark.planning.WordCountPlanner
 import com.nec.spark.planning.WordCountPlanner.WordCounter
+
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -40,24 +38,29 @@ object LocalVeoExtension {
   }
 
   def preColumnarRule: Rule[SparkPlan] = { sparkPlan =>
-    VeoGenericPlanExtractor
-      .matchPlan(sparkPlan)
-      .map { case GenericSparkPlanDescription(sparkPlan, outColumns) =>
-        val outputColumns = outColumns.map { case desc =>
-          OutputColumn(
-            desc.inputColumns,
-            desc.outputColumnIndex,
-            createExpressionAggregator(desc.columnAggregation),
-            createAggregator(desc.outputAggregator)
-          )
-        }
 
-        if (sparkPlan.supportsColumnar) sparkPlan
-        ArrowGenericAggregationPlanOffHeap(
-          if (sparkPlan.supportsColumnar) sparkPlan
-          else RowToColumnarExec(sparkPlan),
-          outputColumns
-        )
+    ArrowVeoAvgPlanExtractor.matchPlan(sparkPlan, Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric)
+      .orElse(ArrowVeoSumPlanExtractor.matchPlan(sparkPlan, Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric))
+      .orElse {
+        VeoGenericPlanExtractor
+          .matchPlan(sparkPlan)
+          .map { case GenericSparkPlanDescription(sparkPlan, outColumns) =>
+            val outputColumns = outColumns.map { case desc =>
+              OutputColumn(
+                desc.inputColumns,
+                desc.outputColumnIndex,
+                createExpressionAggregator(desc.columnAggregation),
+                createAggregator(desc.outputAggregator)
+              )
+            }
+
+            if (sparkPlan.supportsColumnar) sparkPlan
+            ArrowGenericAggregationPlanOffHeap(
+              if (sparkPlan.supportsColumnar) sparkPlan
+              else RowToColumnarExec(sparkPlan),
+              outputColumns
+            )
+          }
       }
       .orElse {
         AddPlanExtractor.matchAddPairwisePlan(

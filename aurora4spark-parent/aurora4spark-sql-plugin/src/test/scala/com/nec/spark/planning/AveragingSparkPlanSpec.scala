@@ -1,9 +1,12 @@
 package com.nec.spark.planning
+import com.nec.arrow.{ArrowNativeInterfaceNumeric, CArrowNativeInterfaceNumeric}
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.OutputColumn
 import com.nec.spark.agile.OutputColumnPlanDescription
 import com.nec.spark.planning.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
+
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
@@ -42,6 +45,40 @@ final class AveragingSparkPlanSpec
       sparkSession.sql("SELECT AVG(value), AVG(value) FROM nums").as[(Double, Double)].executionPlan
 
     assert(AveragingPlanner.matchPlan(executionPlan).isDefined, executionPlan.toString())
+  }
+
+  "Specific plan matches single column average" in withSparkSession(
+    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+    Seq[Double](1, 2, 3)
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val executionPlan =
+      sparkSession.sql("SELECT AVG(value)  FROM nums").as[(Double)].executionPlan
+
+    assert(
+      ArrowVeoAvgPlanExtractor.matchPlan(executionPlan, (_, _, _) => ???).isDefined,
+      executionPlan.toString()
+    )
+  }
+
+  "Specific plugin does not match average of sum" in withSparkSession(
+    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+    Seq[Double](1, 2, 3)
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val executionPlan =
+      sparkSession.sql("SELECT AVG(value + value) FROM nums").as[(Double)].executionPlan
+
+    assert(
+      ArrowVeoAvgPlanExtractor.matchPlan(executionPlan, (_, _, _) => ???).isDefined,
+      executionPlan.toString()
+    )
   }
 
   "We extract data with RowToColumnarExec" in withSparkSession(
@@ -229,5 +266,6 @@ final class AveragingSparkPlanSpec
     val listOfDoubles = sumDataSet.collect().head
     listOfDoubles shouldEqual (4.0 +- (0.00000001))
   }
+
 
 }
