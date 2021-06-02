@@ -30,7 +30,7 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
           0,
           Long.MaxValue
         )
-        val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+        val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
         val arrowWriter = ArrowWriter.create(root)
         it.foreach(row => arrowWriter.write(row))
@@ -47,8 +47,28 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
               root.getRowCount
             )
           }
-        }
+        }.toIterator
       }
+      .coalesce(1)
+      .mapPartitions(it => {
+        val output = it.toList.groupBy(_.outputColumnIndex)
+          .map {
+            case (columnIndex, columns) =>
+              columns.reduce((a, b) => a.combine(b)(_ + _))
+          }
+
+
+        val vectors = output.toList.sortBy(_.outputColumnIndex)
+          .map{
+            case OutputColumnAggregated(outputColumnIndex, aggregation, columns, numberOfRows) =>
+              aggregation.aggregate(columns)
+          }.map(result => {
+          val vector = new OffHeapColumnVector(1, DoubleType)
+          vector.putDouble(0, result)
+          vector
+        })
+        Iterator(new ColumnarBatch(vectors.toArray, 1))
+      })
   }
 
   override def output: Seq[Attribute] = outputColumns.map {

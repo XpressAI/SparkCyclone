@@ -93,7 +93,7 @@ package object agile {
           case (a, b) => mergeFunc(a, b)
         }
       }
-      this.copy(columns = columnsCombined)
+      this.copy(columns = columnsCombined, numberOfRows = (a.numberOfRows + this.numberOfRows))
     }
   }
 
