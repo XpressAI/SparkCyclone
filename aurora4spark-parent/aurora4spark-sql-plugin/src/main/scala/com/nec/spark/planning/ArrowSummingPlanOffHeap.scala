@@ -1,10 +1,16 @@
 package com.nec.spark.planning
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.functions.Sum
 import com.nec.aurora.Aurora
 import com.nec.older.SumSimple
+import com.nec.spark.agile.Column
 import com.nec.spark.planning.SingleValueStubPlan.SparkDefaultColumnName
-import com.nec.spark.planning.SummingPlanOffHeap.OffHeapSummer
+import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer
 import com.nec.ve.VeJavaContext
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.Float8Vector
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -17,7 +23,7 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
 
-object SummingPlanOffHeap {
+object ArrowSummingPlanOffHeap {
 
   trait OffHeapSummer extends Serializable {
     def sum(inputMemoryAddress: Long, count: Int): Double
@@ -62,30 +68,38 @@ object SummingPlanOffHeap {
   }
 }
 
-case class SummingPlanOffHeap(child: RowToColumnarExec, summer: OffHeapSummer) extends SparkPlan {
+case class ArrowSummingPlanOffHeap(child: SparkPlan,
+                                   nativeInterface: ArrowNativeInterfaceNumeric,
+                                   column: Column) extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .doExecuteColumnar()
-      .map { columnarBatch =>
-        List
-          .range(0, columnarBatch.numCols())
-          .map(columnIndex => {
-            columnarBatch.column(columnIndex).asInstanceOf[OffHeapColumnVector]
-          })
-          .map(theCol => summer.sum(theCol.valuesNativeAddress(), columnarBatch.numRows()))
-          .sum
+      .executeColumnar()
+      .mapPartitions { columnar =>
+        val ra = new RootAllocator()
+        val vector = new Float8Vector("value", ra)
+        val allNumbers = columnar
+          .flatMap(columnar => columnar.column(column.index).getDoubles(0, columnar.numRows()))
+          .toList
+        vector.allocateNew(allNumbers.size)
+        allNumbers.zipWithIndex
+          .foreach{
+            case (elem, idx) => vector.setSafe(idx, elem)
+          }
+        vector.setValueCount(allNumbers.size)
 
+        Iterator(Sum.runOn(nativeInterface)(vector, 1).head)
       }
       .coalesce(1)
-      .mapPartitions(its => {
-        val sum = its.toList.sum
-        val vector = new OnHeapColumnVector(1, DoubleType)
-        vector.putDouble(0, sum)
-        Iterator(new ColumnarBatch(Array(vector), 1))
-      })
+      .mapPartitions{  it =>
+        val result = it.reduce((a, b) => a + b)
+        val outVector = new OffHeapColumnVector(1, DoubleType)
+        outVector.putDouble(0, result)
+
+        Iterator(new ColumnarBatch(Array(outVector), 1))
+      }
   }
 
   override def output: Seq[Attribute] = Seq(

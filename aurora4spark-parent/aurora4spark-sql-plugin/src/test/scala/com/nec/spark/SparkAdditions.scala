@@ -15,7 +15,7 @@ import com.nec.spark.agile.SubtractionAggregator
 import com.nec.spark.agile.SumAggregation
 import com.nec.spark.agile.SumAggregator
 import com.nec.spark.agile.SumExpression
-import com.nec.spark.planning.MultipleColumnsAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
+import com.nec.spark.planning.ArrowAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.planning.SparkSqlPlanExtension
 import org.apache.log4j.Level

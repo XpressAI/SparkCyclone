@@ -13,14 +13,14 @@ object Sum {
 
   def runOn(
     nativeInterface: ArrowNativeInterfaceNumeric
-  )(varCharVector: Float8Vector, columnsCount: Int): Seq[Double] = {
+  )(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
     val ra = new RootAllocator()
     val outputVector = new Float8Vector("count", ra)
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(
       name = "sum_vectors",
-      inputArguments = List(Some(varCharVector), None),
+      inputArguments = List(Some(float8Vector), None),
       outputArguments = List(None, Some(outputVector), None)
     )
 

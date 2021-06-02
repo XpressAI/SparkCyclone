@@ -1,13 +1,17 @@
 package com.nec.spark.planning
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
 import org.scalatest.freespec.AnyFreeSpec
+
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.must.Matchers
+import com.nec.spark.agile.{ColumnAggregation, NoAggregationAggregator}
+import org.apache.arrow.vector.Float8Vector
 
 final class SummingSparkPlanSpec
   extends AnyFreeSpec
@@ -53,6 +57,46 @@ final class SummingSparkPlanSpec
       .as[(Double, Double)]
       .executionPlan
     assert(SumPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
+  }
+
+  "Specific plan matches sum of a single column" in withSparkSession(
+    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+    ) { sparkSession =>
+    import sparkSession.implicits._
+    Seq[(Double, Double, Double)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val executionPlan = sparkSession
+      .sql("SELECT SUM(_1) FROM nums")
+      .as[(Double)]
+      .executionPlan
+    assert(
+      ArrowVeoSumPlanExtractor
+        .matchPlan(executionPlan, (_, _, _) => ???).isDefined,
+
+      executionPlan.toString()
+    )
+  }
+
+  "Specific plan doesn't match sum of two columns" in withSparkSession(
+    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+    Seq[(Double, Double, Double)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val executionPlan = sparkSession
+      .sql("SELECT SUM(_1 + _2) FROM nums")
+      .as[(Double)]
+      .executionPlan
+    assert(
+      ArrowVeoSumPlanExtractor
+        .matchPlan(executionPlan, (_, _, _) => ???).isEmpty,
+
+      executionPlan.toString()
+    )
   }
 
   "Sum plan matches three sum queries" in withSparkSession(
@@ -120,13 +164,15 @@ final class SummingSparkPlanSpec
     SparkSqlPlanExtension.rulesToApply.clear()
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoSumPlanExtractor
+      VeoGenericPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
           MultipleColumnsSummingPlanOffHeap(
             RowToColumnarExec(childPlan.sparkPlan),
             MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.attributes
+            childPlan.outColumns.map(col =>
+              ColumnAggregation(col.inputColumns, NoAggregationAggregator, col.outputColumnIndex)
+            )
           )
         }
         .getOrElse(fail(s"Not expected to be here: ${sparkPlan}"))

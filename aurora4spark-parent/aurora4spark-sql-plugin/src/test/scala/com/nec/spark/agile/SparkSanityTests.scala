@@ -3,14 +3,12 @@ package com.nec.spark.agile
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.planning.SumPlanExtractor
+import com.nec.spark.planning.{AddPlanExtractor, ArrowVeoAvgPlanExtractor, ArrowVeoSumPlanExtractor, SparkSqlPlanExtension, SumPlanExtractor}
 import com.nec.spark.Aurora4SparkDriver
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.AddPlanExtractor
-import com.nec.spark.planning.SparkSqlPlanExtension
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
@@ -125,6 +123,59 @@ final class SparkSanityTests
 
     val listOfDoubles = sumDataSet2.collect().toList
     assert(listOfDoubles == List(3, 5, 7, 9, 58))
+  }
+
+
+  "We handle single column average with specific plan" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      ArrowVeoAvgPlanExtractor
+        .matchPlan(sparkPlan, new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+        .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
+    }
+
+    val sumDataSet2 = sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
+      .as[(Double, Double)]
+      .selectExpr("AVG(a)")
+      .as[Double]
+      .debugConditionally()
+
+    val listOfDoubles = sumDataSet2.collect().toList
+    assert(listOfDoubles == List(12.4))
+  }
+
+  "We handle single column sum with specific plan" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      ArrowVeoSumPlanExtractor
+        .matchPlan(sparkPlan, new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+        .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
+    }
+
+    val sumDataSet2 = sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
+      .as[(Double, Double)]
+      .selectExpr("SUM(a)")
+      .as[Double]
+      .debugConditionally()
+
+    val listOfDoubles = sumDataSet2.collect().toList
+    assert(listOfDoubles == List(62.0))
   }
 
 }
