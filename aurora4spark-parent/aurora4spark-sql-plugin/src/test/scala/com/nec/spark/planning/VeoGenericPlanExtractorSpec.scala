@@ -82,7 +82,7 @@ final class VeoGenericPlanExtractorSpec
         .matchPlan(sparkPlan)
         .map { childPlan =>
           ArrowGenericAggregationPlanOffHeap(
-            RowToColumnarExec(childPlan.sparkPlan),
+            childPlan.sparkPlan,
             childPlan.outColumns.map {
               case OutputColumnPlanDescription(
                     inputColumns,

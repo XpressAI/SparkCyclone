@@ -2,14 +2,16 @@ package com.nec.spark.planning
 
 import com.nec.spark.agile.{OutputColumn, OutputColumnAggregated}
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
 import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
@@ -20,53 +22,33 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .executeColumnar()
+      .execute()
       .mapPartitions { it =>
-        val columnarBatch = it.toList
-        val offHeapAggregations = outputColumns.map {
-
+        val timeZoneId = conf.sessionLocalTimeZone
+        val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+          s"writer for generic aggregation",
+          0,
+          Long.MaxValue
+        )
+        val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+        val root = VectorSchemaRoot.create(arrowSchema, allocator)
+        val arrowWriter = ArrowWriter.create(root)
+        it.foreach(row => arrowWriter.write(row))
+        arrowWriter.finish()
+        outputColumns.map {
           case OutputColumn(inputColumns, outputColumnIndex, columnAggregation, outputAggregator) => {
-            val ra = new RootAllocator()
-            val dataVectors = inputColumns
-              .map(column => {
-                val columns = columnarBatch.flatMap(
-                  batch => batch.column(column.index)
-                    .asInstanceOf[OffHeapColumnVector]
-                    .getDoubles(0, batch.numRows())
-                )
-                columns
-              })
-            val aggregationResults = dataVectors.map(elems => {
-              val vector = new Float8Vector("value", ra)
-              elems.zipWithIndex.foreach{
-                case(elem, idx) => vector.setSafe(idx, elem)
-              }
-              vector.setValueCount(elems.size)
-              outputAggregator.aggregateOffHeap(vector)
-            })
+            val results = inputColumns.map(col => root.getVector(col.index).asInstanceOf[Float8Vector])
+              .map(vector => outputAggregator.aggregateOffHeap(vector))
 
-            OutputColumnAggregated(outputColumnIndex,
+            OutputColumnAggregated(
+              outputColumnIndex,
               columnAggregation,
-              aggregationResults,
-              dataVectors.size
+              results,
+              root.getRowCount
             )
           }
         }
-        offHeapAggregations.toIterator
       }
-      .coalesce(1)
-      .mapPartitions(its => {
-
-        val elementsSum = its.toList.sortBy(_.outputColumnIndex).map {
-          case OutputColumnAggregated(outIndex, columnAggregation, columns, _) => columnAggregation.aggregate(columns)
-        }
-        val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
-        elementsSum.zip(vectors).foreach { case (sum, vector) =>
-          vector.putDouble(0, sum)
-        }
-
-        Iterator(new ColumnarBatch(vectors.toArray, 1))
-      })
   }
 
   override def output: Seq[Attribute] = outputColumns.map {
