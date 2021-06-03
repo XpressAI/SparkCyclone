@@ -10,15 +10,15 @@ import org.apache.arrow.vector.Float8Vector
 import org.bytedeco.javacpp.LongPointer
 
 final class VeArrowNativeInterfaceNumeric(
-                                           proc: Aurora.veo_proc_handle,
-                                           ctx: Aurora.veo_thr_ctxt,
-                                           lib: Long
-                                  ) extends ArrowNativeInterfaceNumeric {
+  proc: Aurora.veo_proc_handle,
+  ctx: Aurora.veo_thr_ctxt,
+  lib: Long
+) extends ArrowNativeInterfaceNumeric {
   override def callFunction(
-                             name: String,
-                             inputArguments: List[Option[Float8Vector]],
-                             outputArguments: List[Option[Float8Vector]]
-                           ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
+    name: String,
+    inputArguments: List[Option[Float8Vector]],
+    outputArguments: List[Option[Float8Vector]]
+  ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
     proc = proc,
     ctx = ctx,
     lib = lib,
@@ -31,9 +31,9 @@ final class VeArrowNativeInterfaceNumeric(
 object VeArrowNativeInterfaceNumeric {
 
   private def make_veo_double_vector(
-                                      proc: Aurora.veo_proc_handle,
-                                      float8Vector: Float8Vector
-                                    ): non_null_double_vector = {
+    proc: Aurora.veo_proc_handle,
+    float8Vector: Float8Vector
+  ): non_null_double_vector = {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
     vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
@@ -43,10 +43,10 @@ object VeArrowNativeInterfaceNumeric {
   /** Take a vec, and rewrite the pointer to our local so we can read it */
   /** Todo deallocate from VE! unless we pass it onward */
   private def veo_read_non_null_double_vector(
-                                            proc: Aurora.veo_proc_handle,
-                                            vec: non_null_double_vector,
-                                            byteBuffer: ByteBuffer
-                                          ): Unit = {
+    proc: Aurora.veo_proc_handle,
+    vec: non_null_double_vector,
+    byteBuffer: ByteBuffer
+  ): Unit = {
     val veoPtr = byteBuffer.getLong(0)
     val dataCount = byteBuffer.getInt(8)
     val dataSize = dataCount * 8
@@ -78,13 +78,13 @@ object VeArrowNativeInterfaceNumeric {
   }
 
   private def executeVe(
-                         proc: Aurora.veo_proc_handle,
-                         ctx: Aurora.veo_thr_ctxt,
-                         lib: Long,
-                         functionName: String,
-                         inputArguments: List[Option[Float8Vector]],
-                         outputArguments: List[Option[Float8Vector]]
-                       ): Unit = {
+    proc: Aurora.veo_proc_handle,
+    ctx: Aurora.veo_thr_ctxt,
+    lib: Long,
+    functionName: String,
+    inputArguments: List[Option[Float8Vector]],
+    outputArguments: List[Option[Float8Vector]]
+  ): Unit = {
 
     val our_args = Aurora.veo_args_alloc()
     try {
@@ -104,10 +104,9 @@ object VeArrowNativeInterfaceNumeric {
           )
         }
 
-      val outputArgumentsVectors: List[(Float8Vector, Int)] = outputArguments
-        .zipWithIndex
-        .collect {
-          case (Some(doubleVector), index) => doubleVector -> index
+      val outputArgumentsVectors: List[(Float8Vector, Int)] = outputArguments.zipWithIndex
+        .collect { case (Some(doubleVector), index) =>
+          doubleVector -> index
         }
 
       val outputArgumentsStructs: List[(non_null_double_vector, Int)] = outputArgumentsVectors.map {
@@ -117,7 +116,7 @@ object VeArrowNativeInterfaceNumeric {
 
       val outputArgumentsByteBuffers: List[(ByteBuffer, Int)] = outputArgumentsStructs.map {
         case (struct, index) =>
-          nonNullDoubleVectorToByteBuffer(struct)-> index
+          nonNullDoubleVectorToByteBuffer(struct) -> index
       }
 
       outputArgumentsByteBuffers.foreach { case (byteBuffer, index) =>

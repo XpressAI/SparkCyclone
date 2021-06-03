@@ -6,7 +6,9 @@ long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_
 {
     varchar_vector input_strings = strings[0];
 
+#if DEBUG
     printf("Received %i items in pointers data=%p, offsets=%p \n", input_strings.count, input_strings.data, input_strings.offsets);
+#endif
     /** pre-allocate enough memory to return all the strings at the maximum **/
     counted_string_ids->data = malloc(input_strings.count * sizeof(int));
     counted_string_ids->count = 0;

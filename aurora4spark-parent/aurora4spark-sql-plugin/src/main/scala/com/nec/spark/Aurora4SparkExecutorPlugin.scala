@@ -8,7 +8,7 @@ import com.nec.aurora.Aurora.veo_proc_handle
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.spark.Aurora4SparkExecutorPlugin._
-import org.apache.spark.api.plugin.{PluginContext, ExecutorPlugin}
+import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 
 object Aurora4SparkExecutorPlugin {
@@ -23,26 +23,45 @@ object Aurora4SparkExecutorPlugin {
   var lib: Long = -1
   var veArrowNativeInterface: VeArrowNativeInterface = _
   var veArrowNativeInterfaceNumeric: VeArrowNativeInterfaceNumeric = _
+
+  /**
+   * https://www.hpc.nec/documents/veos/en/veoffload/md_Restriction.html
+   *
+   * VEO does not support:
+   * to use quadruple precision real number a variable length character string as a return value and an argument of Fortran subroutines and functions,
+   * to use multiple VEs by a VH process,
+   * to re-create a VE process after the destruction of the VE process, and
+   * to call API of VE DMA or VH-VE SHM on the VE side if VEO API is called from child thread on the VH side.
+   *
+   * *
+   */
+  var closeAutomatically: Boolean = false
+  def closeProcAndCtx(): Unit = {
+    Aurora.veo_context_close(_veo_ctx)
+    Aurora.veo_proc_destroy(_veo_proc)
+  }
 }
 
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    _veo_proc = Aurora.veo_proc_create(0)
-    _veo_ctx = Aurora.veo_context_open(_veo_proc)
-    Aurora4SparkExecutorPlugin.lib = Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
-    veArrowNativeInterface =
-      new VeArrowNativeInterface(_veo_proc, _veo_ctx, lib)
-    veArrowNativeInterfaceNumeric =
-      new VeArrowNativeInterfaceNumeric(_veo_proc, _veo_ctx, lib)
+    if (_veo_proc == null) {
+      _veo_proc = Aurora.veo_proc_create(0)
+      _veo_ctx = Aurora.veo_context_open(_veo_proc)
+      Aurora4SparkExecutorPlugin.lib =
+        Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
+      veArrowNativeInterface = new VeArrowNativeInterface(_veo_proc, _veo_ctx, lib)
+      veArrowNativeInterfaceNumeric = new VeArrowNativeInterfaceNumeric(_veo_proc, _veo_ctx, lib)
+    }
     logInfo("Initializing Aurora4SparkExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
   }
 
   override def shutdown(): Unit = {
-    Aurora.veo_context_close(_veo_ctx)
-    Aurora.veo_proc_destroy(_veo_proc)
+    if (closeAutomatically) {
+      closeProcAndCtx()
+    }
     super.shutdown()
   }
 }
