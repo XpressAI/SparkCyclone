@@ -1,6 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.cmake.CMakeBuilder
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
 import org.scalatest.freespec.AnyFreeSpec
@@ -11,6 +12,7 @@ import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.must.Matchers
 import com.nec.spark.agile.{ColumnAggregation, NoAggregationAggregator}
+import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.CBased
 import org.apache.arrow.vector.Float8Vector
 
 final class SummingSparkPlanSpec
@@ -61,7 +63,7 @@ final class SummingSparkPlanSpec
 
   "Specific plan matches sum of a single column" in withSparkSession(
     _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
-    ) { sparkSession =>
+  ) { sparkSession =>
     import sparkSession.implicits._
     Seq[(Double, Double, Double)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
       .toDS()
@@ -73,8 +75,8 @@ final class SummingSparkPlanSpec
       .executionPlan
     assert(
       ArrowVeoSumPlanExtractor
-        .matchPlan(executionPlan, (_, _, _) => ???).isDefined,
-
+        .matchPlan(executionPlan)
+        .isDefined,
       executionPlan.toString()
     )
   }
@@ -93,8 +95,8 @@ final class SummingSparkPlanSpec
       .executionPlan
     assert(
       ArrowVeoSumPlanExtractor
-        .matchPlan(executionPlan, (_, _, _) => ???).isEmpty,
-
+        .matchPlan(executionPlan)
+        .isEmpty,
       executionPlan.toString()
     )
   }

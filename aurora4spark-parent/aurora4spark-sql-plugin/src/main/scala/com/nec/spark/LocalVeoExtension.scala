@@ -3,7 +3,17 @@ package com.nec.spark
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.LocalVeoExtension._enabled
 import com.nec.spark.agile._
-import com.nec.spark.planning.{AddPlanExtractor, ArrowGenericAggregationPlanOffHeap, ArrowVeoAvgPlanExtractor, ArrowVeoSumPlanExtractor, VeoGenericPlanExtractor, WordCountPlanner}
+import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.VeoBased
+import com.nec.spark.planning.{
+  AddPlanExtractor,
+  ArrowAveragingPlanOffHeap,
+  ArrowGenericAggregationPlanOffHeap,
+  ArrowSummingPlanOffHeap,
+  ArrowVeoAvgPlanExtractor,
+  ArrowVeoSumPlanExtractor,
+  VeoGenericPlanExtractor,
+  WordCountPlanner
+}
 import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.planning.WordCountPlanner.WordCounter
 
@@ -28,19 +38,32 @@ object LocalVeoExtension {
 
   def createExpressionAggregator(aggregationFunction: AggregationExpression): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression      => AdditionAggregator(new VeArrowNativeInterfaceNumeric(
-        Aurora4SparkExecutorPlugin._veo_proc, Aurora4SparkExecutorPlugin._veo_ctx,
-        Aurora4SparkExecutorPlugin.lib
-      ))
+      case SumExpression =>
+        AdditionAggregator(
+          new VeArrowNativeInterfaceNumeric(
+            Aurora4SparkExecutorPlugin._veo_proc,
+            Aurora4SparkExecutorPlugin._veo_ctx,
+            Aurora4SparkExecutorPlugin.lib
+          )
+        )
       case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
       case _                  => NoAggregationAggregator
     }
   }
 
   def preColumnarRule: Rule[SparkPlan] = { sparkPlan =>
-
-    ArrowVeoAvgPlanExtractor.matchPlan(sparkPlan, Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric)
-      .orElse(ArrowVeoSumPlanExtractor.matchPlan(sparkPlan, Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric))
+    ArrowVeoAvgPlanExtractor
+      .matchPlan(sparkPlan)
+      .map(singleColumnPlan =>
+        ArrowAveragingPlanOffHeap(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+      )
+      .orElse(
+        ArrowVeoSumPlanExtractor
+          .matchPlan(sparkPlan)
+          .map(singleColumnPlan =>
+            ArrowSummingPlanOffHeap(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+          )
+      )
       .orElse {
         VeoGenericPlanExtractor
           .matchPlan(sparkPlan)

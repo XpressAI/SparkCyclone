@@ -8,13 +8,16 @@ object VeBenchmarkApp extends VeBasedBenchmark {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     Aurora4SparkExecutorPlugin.closeAutomatically = false
     try {
-      runBenchmark("sum") {
+      runBenchmark("ve vs jvm benchmark") {
         val N = 2
         veBenchmark("agg w/o group", N) {
           spark.sql("SELECT SUM(_1 + _2) FROM nums")
         }
         veBenchmark("word count", N) {
           spark.sql(WordCountQuery)
+        }
+        veBenchmark("single column sum", N) {
+          spark.sql("SELECT SUM(_1) FROM nums")
         }
       }
     } finally {

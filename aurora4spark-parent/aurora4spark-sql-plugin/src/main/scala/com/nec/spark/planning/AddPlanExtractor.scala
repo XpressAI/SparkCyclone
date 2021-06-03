@@ -21,8 +21,8 @@ import org.apache.spark.sql.execution.ProjectExec
 object AddPlanExtractor {
 
   def matchAddPairwisePlan(
-                            sparkPlan: SparkPlan,
-                            arrowInterface: ArrowNativeInterfaceNumeric
+    sparkPlan: SparkPlan,
+    arrowInterface: ArrowNativeInterfaceNumeric
   ): Option[SparkPlan] = {
 
     /**

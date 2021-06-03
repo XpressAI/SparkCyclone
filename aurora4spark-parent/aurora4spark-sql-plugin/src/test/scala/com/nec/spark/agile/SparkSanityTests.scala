@@ -3,12 +3,21 @@ package com.nec.spark.agile
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.planning.{AddPlanExtractor, ArrowVeoAvgPlanExtractor, ArrowVeoSumPlanExtractor, SparkSqlPlanExtension, SumPlanExtractor}
+import com.nec.spark.planning.{
+  AddPlanExtractor,
+  ArrowAveragingPlanOffHeap,
+  ArrowSummingPlanOffHeap,
+  ArrowVeoAvgPlanExtractor,
+  ArrowVeoSumPlanExtractor,
+  SparkSqlPlanExtension,
+  SumPlanExtractor
+}
 import com.nec.spark.Aurora4SparkDriver
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.CBased
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
@@ -76,7 +85,10 @@ final class SparkSanityTests
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
       AddPlanExtractor
-        .matchAddPairwisePlan(sparkPlan, new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+        .matchAddPairwisePlan(
+          sparkPlan,
+          new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString)
+        )
         .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
     }
 
@@ -109,7 +121,10 @@ final class SparkSanityTests
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
       AddPlanExtractor
-        .matchAddPairwisePlan(sparkPlan, new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+        .matchAddPairwisePlan(
+          sparkPlan,
+          new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString)
+        )
         .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
     }
 
@@ -125,7 +140,6 @@ final class SparkSanityTests
     assert(listOfDoubles == List(3, 5, 7, 9, 58))
   }
 
-
   "We handle single column average with specific plan" in withSparkSession(
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
@@ -136,20 +150,28 @@ final class SparkSanityTests
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
       ArrowVeoAvgPlanExtractor
-        .matchPlan(sparkPlan, new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+        .matchPlan(sparkPlan)
+        .map(plan =>
+          new ArrowAveragingPlanOffHeap(
+            plan.sparkPlan,
+            new CBased(CMakeBuilder.CLibPath.toString),
+            plan.column
+          )
+        )
         .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
     }
 
-    val sumDataSet2 = sparkSession.read
-      .format("parquet")
-      .load(SampleTwoColumnParquet.toString)
+    val inputData: Seq[(Double, Double)] = Seq((10, 2), (20, 5), (30, 6), (40, 7))
+
+    val sumDataSet2 = inputData
+      .toDS()
       .as[(Double, Double)]
-      .selectExpr("AVG(a)")
+      .selectExpr("AVG(_1)")
       .as[Double]
       .debugConditionally()
 
     val listOfDoubles = sumDataSet2.collect().toList
-    assert(listOfDoubles == List(12.4))
+    assert(listOfDoubles == List(25))
   }
 
   "We handle single column sum with specific plan" in withSparkSession(
@@ -162,20 +184,28 @@ final class SparkSanityTests
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
       ArrowVeoSumPlanExtractor
-        .matchPlan(sparkPlan, new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+        .matchPlan(sparkPlan)
+        .map(plan =>
+          ArrowSummingPlanOffHeap(
+            plan.sparkPlan,
+            CBased(CMakeBuilder.CLibPath.toString),
+            plan.column
+          )
+        )
         .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
     }
 
-    val sumDataSet2 = sparkSession.read
-      .format("parquet")
-      .load(SampleTwoColumnParquet.toString)
+    val inputData: Seq[(Double, Double)] = Seq((10, 2), (20, 5), (30, 6), (40, 7))
+
+    val sumDataSet2 = inputData
+      .toDS()
       .as[(Double, Double)]
-      .selectExpr("SUM(a)")
+      .selectExpr("SUM(_1)")
       .as[Double]
       .debugConditionally()
 
     val listOfDoubles = sumDataSet2.collect().toList
-    assert(listOfDoubles == List(62.0))
+    assert(listOfDoubles == List(100.0))
   }
 
 }
