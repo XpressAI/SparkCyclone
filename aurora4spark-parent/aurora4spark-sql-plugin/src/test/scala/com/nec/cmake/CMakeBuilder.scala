@@ -20,12 +20,14 @@ import com.nec.arrow.functions.{Add, Avg, Sum}
  */
 object CMakeBuilder {
 
-  lazy val CLibPath = buildC(List(
-    TransferDefinitions.TransferDefinitionsSourceCode,
-    Sum.SumSourceCode,
-    Avg.AvgSourceCode,
-    Add.PairwiseSumCode
-  ).mkString("\n \n"))
+  lazy val CLibPath = buildC(
+    List(
+      TransferDefinitions.TransferDefinitionsSourceCode,
+      Sum.SumSourceCode,
+      Avg.AvgSourceCode,
+      Add.PairwiseSumCode
+    ).mkString("\n \n")
+  )
 
   def buildC(cSource: String): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath

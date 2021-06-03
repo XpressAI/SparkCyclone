@@ -10,7 +10,10 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 
 import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.internal.SQLConf.{COLUMN_VECTOR_OFFHEAP_ENABLED, WHOLESTAGE_CODEGEN_ENABLED}
+import org.apache.spark.sql.internal.SQLConf.{
+  COLUMN_VECTOR_OFFHEAP_ENABLED,
+  WHOLESTAGE_CODEGEN_ENABLED
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.must.Matchers
 

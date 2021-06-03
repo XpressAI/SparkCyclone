@@ -27,13 +27,13 @@ final class AddVeSpec extends AnyFreeSpec {
           val secondColumn: Seq[Seq[Double]] = Seq(Seq(10, 20, 30, 40, 50, 60, 70, 80, 90, 100))
 
           val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
-            withArrowFloat8Vector(firstColumn) { firstVector =>
-              withArrowFloat8Vector(secondColumn) { secondVector =>
-                (
-                  runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(firstVector, secondVector),
-                  addJVM(firstVector, secondVector)
-                )
-              }
+          withArrowFloat8Vector(firstColumn) { firstVector =>
+            withArrowFloat8Vector(secondColumn) { secondVector =>
+              (
+                runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(firstVector, secondVector),
+                addJVM(firstVector, secondVector)
+              )
+            }
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)

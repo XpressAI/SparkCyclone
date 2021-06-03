@@ -58,10 +58,7 @@ final class AveragingSparkPlanSpec
     val executionPlan =
       sparkSession.sql("SELECT AVG(value)  FROM nums").as[(Double)].executionPlan
 
-    assert(
-      ArrowVeoAvgPlanExtractor.matchPlan(executionPlan, (_, _, _) => ???).isDefined,
-      executionPlan.toString()
-    )
+    assert(ArrowVeoAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
   }
 
   "Specific plugin does not match average of sum" in withSparkSession(
@@ -75,10 +72,7 @@ final class AveragingSparkPlanSpec
     val executionPlan =
       sparkSession.sql("SELECT AVG(value + value) FROM nums").as[(Double)].executionPlan
 
-    assert(
-      ArrowVeoAvgPlanExtractor.matchPlan(executionPlan, (_, _, _) => ???).isDefined,
-      executionPlan.toString()
-    )
+    assert(ArrowVeoAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
   }
 
   "We extract data with RowToColumnarExec" in withSparkSession(
@@ -266,6 +260,5 @@ final class AveragingSparkPlanSpec
     val listOfDoubles = sumDataSet.collect().head
     listOfDoubles shouldEqual (4.0 +- (0.00000001))
   }
-
 
 }

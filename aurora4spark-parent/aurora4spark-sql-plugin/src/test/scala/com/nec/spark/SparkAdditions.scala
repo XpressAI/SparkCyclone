@@ -1,39 +1,30 @@
 package com.nec.spark
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.AdditionAggregator
-import com.nec.spark.agile.AggregationExpression
-import com.nec.spark.agile.AggregationFunction
-import com.nec.spark.agile.Aggregator
-import com.nec.spark.agile.AvgAggregation
-import com.nec.spark.agile.AvgAggregator
-import com.nec.spark.agile.ColumnAggregator
-import com.nec.spark.agile.MultipleColumnsOffHeapSubtractor
-import com.nec.spark.agile.NoAggregationAggregator
-import com.nec.spark.agile.SubtractExpression
-import com.nec.spark.agile.SubtractionAggregator
-import com.nec.spark.agile.SumAggregation
-import com.nec.spark.agile.SumAggregator
-import com.nec.spark.agile.SumExpression
-import com.nec.spark.planning.ArrowAveragingPlanOffHeap.MultipleColumnsOffHeapAverager
-import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.agile.{
+  AdditionAggregator,
+  AggregationExpression,
+  AggregationFunction,
+  Aggregator,
+  AvgAggregation,
+  AvgAggregator,
+  ColumnAggregator,
+  MultipleColumnsOffHeapSubtractor,
+  NoAggregationAggregator,
+  SubtractExpression,
+  SubtractionAggregator,
+  SumAggregation,
+  SumAggregator,
+  SumExpression
+}
 import com.nec.spark.planning.SparkSqlPlanExtension
-import org.apache.log4j.Level
+import org.apache.log4j.{Level, Logger}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap, Informing, TestSuite}
 
-import org.apache.spark.sql.SparkSession
-import org.scalatest.BeforeAndAfter
-
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.log4j.Logger
-
-import org.apache.spark.sql.Dataset
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.SparkPlan
-import org.scalatest.BeforeAndAfterAllConfigMap
-import org.scalatest.ConfigMap
-import org.scalatest.Informing
-import org.scalatest.TestSuite
 
 trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   this: TestSuite with Informing with BeforeAndAfter =>
@@ -98,8 +89,10 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
 
   protected def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
-      case SumAggregation => new SumAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-      case AvgAggregation => new AvgAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+      case SumAggregation =>
+        new SumAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
+      case AvgAggregation =>
+        new AvgAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
     }
   }
 
@@ -107,9 +100,8 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
     aggregationFunction: AggregationExpression
   ): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression      => AdditionAggregator(
-        new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString)
-      )
+      case SumExpression =>
+        AdditionAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
       case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
       case _                  => NoAggregationAggregator
     }

@@ -17,7 +17,10 @@ final class SumCSpec extends AnyFreeSpec {
     )
 
     withArrowFloat8Vector(ss) { vector =>
-      assert(Sum.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, 3) == Sum.sumJVM(vector, 3))
+      assert(
+        Sum.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, 3) == Sum
+          .sumJVM(vector, 3)
+      )
     }
   }
 

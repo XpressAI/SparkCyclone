@@ -18,14 +18,16 @@ final class AddCSpec extends AnyFreeSpec {
         .mkString("\n\n")
     )
 
-    withArrowFloat8Vector(firstColumnNumbers) { firstColumn => {
-      withArrowFloat8Vector(secondColumnNumbers) { secondColumn =>
-        val pairwiseSum = Add.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(firstColumn, secondColumn)
-        val jvmSum = Add.addJVM(firstColumn, secondColumn)
+    withArrowFloat8Vector(firstColumnNumbers) { firstColumn =>
+      {
+        withArrowFloat8Vector(secondColumnNumbers) { secondColumn =>
+          val pairwiseSum =
+            Add.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(firstColumn, secondColumn)
+          val jvmSum = Add.addJVM(firstColumn, secondColumn)
 
-        assert(pairwiseSum == jvmSum)
+          assert(pairwiseSum == jvmSum)
+        }
       }
-    }
 
     }
   }

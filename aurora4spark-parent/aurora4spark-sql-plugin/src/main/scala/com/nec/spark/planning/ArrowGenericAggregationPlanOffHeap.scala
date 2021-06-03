@@ -14,9 +14,8 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
-                                              outputColumns: Seq[OutputColumn]
-                                             ) extends SparkPlan {
+case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan, outputColumns: Seq[OutputColumn])
+  extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
@@ -36,37 +35,39 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan,
         it.foreach(row => arrowWriter.write(row))
         arrowWriter.finish()
         outputColumns.map {
-          case OutputColumn(inputColumns, outputColumnIndex, columnAggregation, outputAggregator) => {
-            val results = inputColumns.map(col => root.getVector(col.index).asInstanceOf[Float8Vector])
+          case OutputColumn(
+                inputColumns,
+                outputColumnIndex,
+                columnAggregation,
+                outputAggregator
+              ) => {
+            val results = inputColumns
+              .map(col => root.getVector(col.index).asInstanceOf[Float8Vector])
               .map(vector => outputAggregator.aggregateOffHeap(vector))
 
-            OutputColumnAggregated(
-              outputColumnIndex,
-              columnAggregation,
-              results,
-              root.getRowCount
-            )
+            OutputColumnAggregated(outputColumnIndex, columnAggregation, results, root.getRowCount)
           }
         }.toIterator
       }
       .coalesce(1)
       .mapPartitions(it => {
-        val output = it.toList.groupBy(_.outputColumnIndex)
-          .map {
-            case (columnIndex, columns) =>
-              columns.reduce((a, b) => a.combine(b)(_ + _))
+        val output = it.toList
+          .groupBy(_.outputColumnIndex)
+          .map { case (columnIndex, columns) =>
+            columns.reduce((a, b) => a.combine(b)(_ + _))
           }
 
-
-        val vectors = output.toList.sortBy(_.outputColumnIndex)
-          .map{
+        val vectors = output.toList
+          .sortBy(_.outputColumnIndex)
+          .map {
             case OutputColumnAggregated(outputColumnIndex, aggregation, columns, numberOfRows) =>
               aggregation.aggregate(columns)
-          }.map(result => {
-          val vector = new OffHeapColumnVector(1, DoubleType)
-          vector.putDouble(0, result)
-          vector
-        })
+          }
+          .map(result => {
+            val vector = new OffHeapColumnVector(1, DoubleType)
+            vector.putDouble(0, result)
+            vector
+          })
         Iterator(new ColumnarBatch(vectors.toArray, 1))
       })
   }

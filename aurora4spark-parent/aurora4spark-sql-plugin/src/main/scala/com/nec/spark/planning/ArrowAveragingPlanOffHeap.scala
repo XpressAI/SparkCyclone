@@ -15,53 +15,36 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.nec.spark.agile.Column
+import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer
 import org.apache.arrow.memory.RootAllocator
 
-object ArrowAveragingPlanOffHeap {
-
-  trait MultipleColumnsOffHeapAverager extends Serializable {
-    def avg(interface: ArrowNativeInterfaceNumeric, float8Vector: Float8Vector,
-            columns: Int): Double
-  }
-
-  object MultipleColumnsOffHeapAverager extends MultipleColumnsOffHeapAverager {
-    override def avg(interface: ArrowNativeInterfaceNumeric, float8Vector: Float8Vector,
-                     columns: Int): Double = {
-      Sum
-        .runOn(interface)(float8Vector, columns)
-        .head
-    }
-  }
-}
-
-case class ArrowAveragingPlanOffHeap(
-  child: SparkPlan,
-  nativeInterface: ArrowNativeInterfaceNumeric,
-  column: Column
-) extends SparkPlan {
+case class ArrowAveragingPlanOffHeap(child: SparkPlan, offHeapSummer: OffHeapSummer, column: Column)
+  extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .executeColumnar()
-      .mapPartitions { columnar =>
-        val ra = new RootAllocator()
-        val vector = new Float8Vector("value", ra)
-        val allNumbers = columnar
-          .flatMap(columnar => columnar.column(column.index).getDoubles(0, columnar.numRows()))
-          .toList
-        vector.allocateNew(allNumbers.size)
-        allNumbers.zipWithIndex
-          .foreach{
-            case (elem, idx) => vector.setSafe(idx, elem)
-          }
-        vector.setValueCount(allNumbers.size)
-        val result = (Sum.runOn(nativeInterface)(vector, 1).head, vector.getValueCount)
-        Iterator(result)
+      .execute()
+      .mapPartitions { rows =>
+        val timeZoneId = conf.sessionLocalTimeZone
+        val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+          s"writer for word count",
+          0,
+          Long.MaxValue
+        )
+        val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+        val root = VectorSchemaRoot.create(arrowSchema, allocator)
+        val arrowWriter = ArrowWriter.create(root)
+        rows.foreach(row => arrowWriter.write(row))
+        arrowWriter.finish()
+        val vector = root.getVector(0).asInstanceOf[Float8Vector]
+        arrowWriter.finish()
+
+        Iterator((offHeapSummer.sum(vector, 1), vector.getValueCount))
       }
       .coalesce(1)
-      .mapPartitions{  it =>
+      .mapPartitions { it =>
         val result = it.reduce((a, b) => (a._1 + b._1, a._2 + b._2))
         val outVector = new OffHeapColumnVector(1, DoubleType)
         val avg = result._1 / result._2
@@ -72,7 +55,7 @@ case class ArrowAveragingPlanOffHeap(
   }
 
   override def output: Seq[Attribute] = Seq(
-      AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
+    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
   )
 
   override def children: Seq[SparkPlan] = Seq(child)

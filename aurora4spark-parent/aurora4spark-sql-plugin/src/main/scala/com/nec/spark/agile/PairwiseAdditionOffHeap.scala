@@ -78,7 +78,7 @@ object PairwiseAdditionOffHeap {
   }
 
 }
-case class  PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
+case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
@@ -90,31 +90,34 @@ case class  PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativ
         val rootAllocator = new RootAllocator()
         val vectorA = new Float8Vector("value", rootAllocator)
         vectorA.allocateNew()
-        columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+        columnarBatch
+          .column(0)
+          .asInstanceOf[OffHeapColumnVector]
           .getDoubles(0, columnarBatch.numRows())
           .zipWithIndex
-          .foreach{
-            case (elem, idx) => vectorA.setSafe(idx, elem)
+          .foreach { case (elem, idx) =>
+            vectorA.setSafe(idx, elem)
           }
         vectorA.setValueCount(columnarBatch.numRows())
 
         val vectorB = new Float8Vector("value", rootAllocator)
         vectorB.allocateNew()
-        columnarBatch.column(1).asInstanceOf[OffHeapColumnVector]
+        columnarBatch
+          .column(1)
+          .asInstanceOf[OffHeapColumnVector]
           .getDoubles(0, columnarBatch.numRows())
           .zipWithIndex
-          .foreach{
-            case (elem, idx) => vectorB.setSafe(idx, elem)
+          .foreach { case (elem, idx) =>
+            vectorB.setSafe(idx, elem)
           }
         vectorB.setValueCount(columnarBatch.numRows())
-
 
         val result = Add.runOn(arrowInterface)(vectorA, vectorB)
 
         val offHeapVector = new OffHeapColumnVector(columnarBatch.numRows(), DoubleType)
 
-        result.zipWithIndex.foreach {
-          case(elem, idx) => offHeapVector.putDouble(idx, elem)
+        result.zipWithIndex.foreach { case (elem, idx) =>
+          offHeapVector.putDouble(idx, elem)
         }
 
         new ColumnarBatch(Array(offHeapVector), result.size)

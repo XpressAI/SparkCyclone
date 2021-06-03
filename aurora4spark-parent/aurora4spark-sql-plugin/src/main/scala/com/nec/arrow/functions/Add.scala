@@ -16,8 +16,10 @@ object Add {
     nativeInterface: ArrowNativeInterfaceNumeric
   )(firstColumnVector: Float8Vector, secondColumnvector: Float8Vector): Seq[Double] = {
 
-    require(firstColumnVector.getValueCount == secondColumnvector.getValueCount,
-      "Plugin only allows pairwise sum of columns that have the same size.")
+    require(
+      firstColumnVector.getValueCount == secondColumnvector.getValueCount,
+      "Plugin only allows pairwise sum of columns that have the same size."
+    )
 
     val ra = new RootAllocator()
     val outputVector = new Float8Vector("count", ra)
@@ -36,7 +38,7 @@ object Add {
   }
 
   def addJVM(firstColumnVector: Float8Vector, secondColumnVector: Float8Vector): Seq[Double] = {
-    (0 until  firstColumnVector.getValueCount).map{ idx =>
+    (0 until firstColumnVector.getValueCount).map { idx =>
       firstColumnVector.get(idx) + secondColumnVector.get(idx)
     }
   }
