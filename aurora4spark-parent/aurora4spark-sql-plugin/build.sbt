@@ -57,6 +57,7 @@ VectorEngine / run / fork := true
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. **/
 VectorEngine / run / javaOptions += "-agentlib:hprof=cpu=samples"
 // VectorEngine / run / forkOptions := Defaults.forkOptionsTask.value.withRunJVMOptions(Vector("-agentlib:hprof=cpu=samples"))
+VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 Global / cancelable := true
 
 

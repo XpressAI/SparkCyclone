@@ -121,17 +121,7 @@ case class WordCountPlanner(childPlan: SparkPlan, output: Seq[Attribute], wordCo
           .take(1)
       }
       .coalesce(1)
-      .mapPartitions(iter =>
-        Iterator
-          .continually {
-            iter.foreach(_ => ())
-            Map.empty[String, Long]
-            // iter
-            // .map()
-            // .reduce(WordCounter.combine)
-          }
-          .take(1)
-      )
+      .mapPartitions(iter => Iterator.continually(iter.reduce(WordCounter.combine)).take(1))
       .flatMap { map =>
         map.toList.map { case (v, c) =>
           new GenericInternalRow(Array[Any](UTF8String.fromString(v), c))

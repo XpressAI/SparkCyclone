@@ -10,9 +10,9 @@ object VeBenchmarkApp extends VeBasedBenchmark {
     try {
       runBenchmark("sum") {
         val N = 2
-        veBenchmark("agg w/o group", N) {
-          spark.sql("SELECT SUM(_1 + _2) FROM nums")
-        }
+        // veBenchmark("agg w/o group", N) {
+          // spark.sql("SELECT SUM(_1 + _2) FROM nums")
+        // }
         veBenchmark("word count", N) {
           spark.sql(WordCountQuery)
         }
