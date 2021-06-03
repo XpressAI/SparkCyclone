@@ -53,7 +53,6 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
       LocalVeoExtension._enabled = true
 
       withSQLConf(
-        (SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, "false"),
         ("spark.sql.columnVector.offheap.enabled", "true")
       ) {
         ds.noop()
