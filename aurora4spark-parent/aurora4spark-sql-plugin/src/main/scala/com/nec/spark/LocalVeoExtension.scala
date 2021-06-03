@@ -1,5 +1,6 @@
 package com.nec.spark
 
+import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.LocalVeoExtension._enabled
 import com.nec.spark.agile._
 import com.nec.spark.planning.AddPlanExtractor

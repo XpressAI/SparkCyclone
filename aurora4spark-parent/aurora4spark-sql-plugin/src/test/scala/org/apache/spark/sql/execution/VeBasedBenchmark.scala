@@ -8,6 +8,8 @@ import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.Dataset
 
+import java.util.UUID
+
 trait VeBasedBenchmark extends SqlBasedBenchmark {
 
   override def getSparkSession: SparkSession = {
@@ -29,6 +31,11 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     Seq.fill[(Double, Double)](20000)((scala.util.Random.nextDouble(), scala.util.Random.nextDouble()))
       .toDS()
       .createOrReplaceTempView("nums")
+
+    List.fill[String](1000)(UUID.randomUUID.toString)
+      .toDS()
+      .withColumnRenamed("value", "word")
+      .createOrReplaceTempView("words")
 
     LocalVeoExtension._enabled = true
     println("VE plan:")
