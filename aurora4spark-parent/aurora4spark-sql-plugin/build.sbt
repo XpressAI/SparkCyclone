@@ -20,11 +20,11 @@ lazy val root = project
 libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
-  "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-  "org.apache.spark" %% "spark-sql" % sparkVersion % Test classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion % Test classifier ("tests"),
-  "org.apache.spark" %% "spark-core" % sparkVersion % Test classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion % "provided",
+  "org.apache.spark" %% "spark-sql" % sparkVersion,
+  "org.apache.spark" %% "spark-sql" % sparkVersion % "test,ve" classifier ("tests"),
+  "org.apache.spark" %% "spark-catalyst" % sparkVersion % "test,ve" classifier ("tests"),
+  "org.apache.spark" %% "spark-core" % sparkVersion % "test,ve" classifier ("tests"),
+  "org.apache.spark" %% "spark-catalyst" % sparkVersion,
   "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc,cmake,ve",
   "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
   "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
@@ -50,9 +50,15 @@ inConfig(AcceptanceTest)(Defaults.testTasks)
 def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
 
 lazy val VectorEngine = config("ve") extend Test
-inConfig(VectorEngine)(Defaults.testTasks)
+inConfig(VectorEngine)(Defaults.testSettings)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
+VectorEngine / run / fork := true
+/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. **/
+VectorEngine / run / javaOptions += "-agentlib:hprof=cpu=samples"
+VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
+Global / cancelable := true
+
 
 lazy val CMake = config("cmake") extend Test
 inConfig(CMake)(Defaults.testTasks)

@@ -4,3 +4,4 @@
 *.L
 _ve_build
 metals.sbt
+java.hprof.txt

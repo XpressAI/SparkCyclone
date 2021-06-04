@@ -8,6 +8,8 @@ import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.Dataset
 
+import java.util.UUID
+
 trait VeBasedBenchmark extends SqlBasedBenchmark {
 
   override def getSparkSession: SparkSession = {
@@ -26,9 +28,18 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     val benchmark = new Benchmark(name, cardinality, output = output)
 
     import spark.implicits._
-    Seq.fill[(Double, Double)](20000)((scala.util.Random.nextDouble(), scala.util.Random.nextDouble()))
+    Seq
+      .fill[(Double, Double)](20000)(
+        (scala.util.Random.nextDouble(), scala.util.Random.nextDouble())
+      )
       .toDS()
       .createOrReplaceTempView("nums")
+
+    List
+      .fill[String](10000)(UUID.randomUUID.toString)
+      .toDS()
+      .withColumnRenamed("value", "word")
+      .createOrReplaceTempView("words")
 
     LocalVeoExtension._enabled = true
     println("VE plan:")
@@ -41,7 +52,9 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     benchmark.addCase(s"$name on NEC SX-Aurora TSUBASA", numIters = 5) { _ =>
       LocalVeoExtension._enabled = true
 
-      withSQLConf((SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, "false")) {
+      withSQLConf(
+        ("spark.sql.columnVector.offheap.enabled", "true")
+      ) {
         ds.noop()
       }
     }

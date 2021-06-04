@@ -19,18 +19,25 @@ object WordCount {
     val idVector = new IntVector("id", ra)
     val frequencyVector = new IntVector("frequency", ra)
 
-    nativeInterface.callFunction(
-      name = "count_strings",
-      inputArguments = List(Some(varCharVector), None, None),
-      outputArguments = List(None, Some(idVector), Some(frequencyVector))
-    )
+    if (true) {
+      nativeInterface.callFunction(
+        name = "count_strings",
+        inputArguments = List(Some(varCharVector), None, None),
+        outputArguments = List(None, Some(idVector), Some(frequencyVector))
+      )
 
-    (0 until idVector.getValueCount).map { idx =>
-      val freq = frequencyVector.get(idx)
-      val stringId = idVector.get(idx)
-      val strValue = new String(varCharVector.get(stringId), "UTF-8")
-      (strValue, freq)
-    }.toMap
+      (0 until idVector.getValueCount).map { idx =>
+        val freq = frequencyVector.get(idx)
+        val stringId = idVector.get(idx)
+        val strValue = new String(varCharVector.get(stringId), "UTF-8")
+        (strValue, freq)
+      }.toMap
+    } else {
+      (0 until varCharVector.getValueCount()).view.map { stringId =>
+        val strValue = new String(varCharVector.get(stringId), "UTF-8")
+        (strValue, 1)
+      }.toMap
+    }
   }
 
   def wordCountJVM(varCharVector: VarCharVector): Map[String, Int] = {
