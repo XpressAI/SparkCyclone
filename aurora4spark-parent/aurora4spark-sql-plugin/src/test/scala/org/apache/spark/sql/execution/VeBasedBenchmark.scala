@@ -24,7 +24,14 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
       .getOrCreate()
   }
 
-  final def veBenchmark[T](name: String, cardinality: Long)(ds: => Dataset[T]): Unit = {
+  trait BenchmarkFilter {
+    def willRun(name: String): Boolean
+  }
+
+  final def veBenchmark[T](name: String, cardinality: Long)(
+    ds: => Dataset[T]
+  )(implicit benchmarkFilter: BenchmarkFilter): Unit = {
+    if (!benchmarkFilter.willRun(name)) return;
     val benchmark = new Benchmark(name, cardinality, output = output)
 
     import spark.implicits._
@@ -52,9 +59,7 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     benchmark.addCase(s"$name on NEC SX-Aurora TSUBASA", numIters = 5) { _ =>
       LocalVeoExtension._enabled = true
 
-      withSQLConf(
-        ("spark.sql.columnVector.offheap.enabled", "true")
-      ) {
+      withSQLConf(("spark.sql.columnVector.offheap.enabled", "true")) {
         ds.noop()
       }
     }

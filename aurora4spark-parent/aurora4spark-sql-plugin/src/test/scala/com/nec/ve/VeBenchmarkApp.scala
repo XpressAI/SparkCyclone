@@ -6,6 +6,11 @@ import org.apache.spark.sql.execution.VeBasedBenchmark
 
 object VeBenchmarkApp extends VeBasedBenchmark {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
+
+    implicit val willRun: BenchmarkFilter = name =>
+      mainArgs.isEmpty ||
+        mainArgs.exists(arg => name.contains(arg))
+
     Aurora4SparkExecutorPlugin.closeAutomatically = false
     try {
       runBenchmark("ve vs jvm benchmark") {
