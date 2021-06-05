@@ -58,7 +58,7 @@ object AveragingPlanOffHeap {
 
 }
 
-case class AveragingPlanOffHeap(child: RowToColumnarExec,
+case class AveragingPlanOffHeap(child: SparkPlan,
                                 summer: MultipleColumnsOffHeapSummer,
                                 column: Column)
   extends SparkPlan {
@@ -67,7 +67,7 @@ case class AveragingPlanOffHeap(child: RowToColumnarExec,
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .doExecuteColumnar()
+      .executeColumnar()
       .map { columnarBatch =>
         val theCol = columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector]
         (

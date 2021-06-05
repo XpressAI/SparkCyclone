@@ -3,10 +3,12 @@ package com.nec.acceptance
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.AveragingPlanOffHeap.OffHeapDoubleAverager.UnsafeBased
 import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
-import com.nec.spark.planning.{SingleColumnAvgPlanExtractor, SparkSqlPlanExtension, SummingPlanOffHeap}
+import com.nec.spark.planning.{AveragingPlanOffHeap, SingleColumnAvgPlanExtractor, SparkSqlPlanExtension, SummingPlanOffHeap}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
+
+import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 
 final class AuroraSqlPluginTest
   extends AnyFreeSpec
@@ -14,8 +16,10 @@ final class AuroraSqlPluginTest
   with SparkAdditions
   with Matchers {
 
-  "We call VE with our Averaging plan" in withSparkSession(
+  "We call VE with our Averaging plan" in withSparkSession({
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  }
   ) { sparkSession =>
     markup("AVG([Double])")
     import sparkSession.implicits._
@@ -31,7 +35,7 @@ final class AuroraSqlPluginTest
       SingleColumnAvgPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          SummingPlanOffHeap(
+          AveragingPlanOffHeap(
             childPlan.sparkPlan,
             MultipleColumnsOffHeapSummer.UnsafeBased,
             childPlan.column
