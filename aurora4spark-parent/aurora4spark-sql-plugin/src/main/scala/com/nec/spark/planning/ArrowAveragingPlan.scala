@@ -1,24 +1,20 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.functions.Sum
-import com.nec.spark.agile.{ColumnAggregation, OutputColumnAggregated}
+import com.nec.spark.agile.Column
+import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import com.nec.spark.agile.Column
-import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer
-import org.apache.arrow.memory.RootAllocator
 
-case class ArrowAveragingPlanOffHeap(child: SparkPlan, offHeapSummer: OffHeapSummer, column: Column)
+case class ArrowAveragingPlan(child: SparkPlan, offHeapSummer: ArrowSummer, column: Column)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true

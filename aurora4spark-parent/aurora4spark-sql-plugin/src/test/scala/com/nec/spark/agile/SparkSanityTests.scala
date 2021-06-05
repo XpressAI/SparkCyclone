@@ -2,32 +2,16 @@ package com.nec.spark.agile
 
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.planning.{
-  AddPlanExtractor,
-  ArrowAveragingPlanOffHeap,
-  ArrowSummingPlanOffHeap,
-  ArrowVeoAvgPlanExtractor,
-  ArrowVeoSumPlanExtractor,
-  SparkSqlPlanExtension,
-  SumPlanExtractor
-}
-import com.nec.spark.Aurora4SparkDriver
-import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.SampleTestData.SampleMultiColumnCSV
-import com.nec.spark.SampleTestData.SampleTwoColumnParquet
-import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.CBased
+import com.nec.spark.SampleTestData.{SampleMultiColumnCSV, SampleTwoColumnParquet}
+import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.CBased
+import com.nec.spark.{Aurora4SparkDriver, Aurora4SparkExecutorPlugin, SparkAdditions}
+import com.nec.spark.planning.{AddPlanExtractor, ArrowAveragingPlan, ArrowSummingPlan, SingleColumnAvgPlanExtractor, SingleColumnSumPlanExtractor, SparkSqlPlanExtension}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-import org.scalatest.BeforeAndAfter
 
-import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
-import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
-import org.apache.spark.sql.types.DecimalType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.internal.SQLConf.{COLUMN_VECTOR_OFFHEAP_ENABLED, WHOLESTAGE_CODEGEN_ENABLED}
+import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 
 /**
  * These tests are to get familiar with Spark and encode any oddities about it.
@@ -69,9 +53,11 @@ final class SparkSanityTests
     )
 
     assert(
-      SumPlanExtractor
+      SingleColumnSumPlanExtractor
         .matchPlan(executionPlan)
-        .contains(List(1, 2, 3))
+        .map(_.sparkPlan.execute())
+        .map(_.collect())
+        .map(_.map(_.getDouble(0)).toList) == Some(List(1, 2, 3))
     )
   }
 
@@ -149,12 +135,12 @@ final class SparkSanityTests
     SparkSqlPlanExtension.rulesToApply.clear()
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      ArrowVeoAvgPlanExtractor
+      SingleColumnAvgPlanExtractor
         .matchPlan(sparkPlan)
         .map(plan =>
-          new ArrowAveragingPlanOffHeap(
+          new ArrowAveragingPlan(
             plan.sparkPlan,
-            new CBased(CMakeBuilder.CLibPath.toString),
+            CBased(CMakeBuilder.CLibPath.toString),
             plan.column
           )
         )
@@ -183,10 +169,10 @@ final class SparkSanityTests
     SparkSqlPlanExtension.rulesToApply.clear()
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      ArrowVeoSumPlanExtractor
+      SingleColumnSumPlanExtractor
         .matchPlan(sparkPlan)
         .map(plan =>
-          ArrowSummingPlanOffHeap(
+          ArrowSummingPlan(
             plan.sparkPlan,
             CBased(CMakeBuilder.CLibPath.toString),
             plan.column

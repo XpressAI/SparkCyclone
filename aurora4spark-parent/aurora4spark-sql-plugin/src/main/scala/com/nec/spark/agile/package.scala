@@ -13,20 +13,14 @@ import org.apache.spark.sql.types.{DataType, DoubleType}
 package object agile {
   case class AttributeName(value: String) extends AnyVal
   case class SingleColumnSparkPlan(sparkPlan: SparkPlan, column: Column)
-  case class SparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[Seq[AttributeName]])
-  case class VeoSparkPlanWithMetadata(sparkPlan: SparkPlan, attributes: Seq[ColumnAggregation])
+
   case class GenericSparkPlanDescription(
     sparkPlan: SparkPlan,
     outColumns: Seq[OutputColumnPlanDescription]
   )
-  case class VeoGenericSparkPlan(sparkPlan: SparkPlan, outColumns: Seq[OutputColumn])
+
   type ColumnIndex = Int
   type ColumnWithNumbers = (ColumnIndex, Iterable[Double])
-
-  def createProjectionForSeq(seqSize: Int): UnsafeProjection = {
-    val types: Array[DataType] = Seq.fill(seqSize)(DoubleType).toArray
-    UnsafeProjection.create(types)
-  }
 
   sealed trait AggregationExpression
   case object SumExpression extends AggregationExpression
@@ -63,6 +57,7 @@ package object agile {
       subtractor.subtract(vector.valuesNativeAddress(), inputData.size)
     }
   }
+
   case object NoAggregationAggregator extends ColumnAggregator {
     override def aggregate(inputData: Seq[Double]): Double = {
       if (inputData.size != 1) {
@@ -72,17 +67,12 @@ package object agile {
     }
   }
 
-  case class ColumnAggregation(
-    columns: Seq[Column],
-    aggregation: ColumnAggregator,
-    columnIndex: ColumnIndex
-  ) extends Serializable
-
   case class ColumnAggregationExpression(
     columns: Seq[Column],
     aggregation: AggregationExpression,
     columnIndex: ColumnIndex
   ) extends Serializable
+
   case class Column(index: Int, name: String) extends Serializable
 
   case class OutputColumnAggregated(
@@ -101,6 +91,7 @@ package object agile {
           mergeFunc(a, b)
         }
       }
+
       this.copy(columns = columnsCombined, numberOfRows = (a.numberOfRows + this.numberOfRows))
     }
   }
