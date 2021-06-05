@@ -71,7 +71,7 @@ case class AveragingPlanOffHeap(child: SparkPlan,
       .map { columnarBatch =>
         val theCol = columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector]
         (
-          summer.sum(theCol.valuesNativeAddress(), 1),
+          summer.sum(theCol.valuesNativeAddress(), columnarBatch.numRows()),
           columnarBatch.numRows()
         )
       }
