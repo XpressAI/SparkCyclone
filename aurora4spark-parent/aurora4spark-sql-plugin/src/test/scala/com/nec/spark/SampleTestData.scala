@@ -18,13 +18,23 @@ object SampleTestData {
         .toURI
     )
     .toAbsolutePath
-  lazy val SampleTwoColumnParquet: Path = Paths
-    .get(
-      this.getClass
-        .getResource("sampleMultiColumnParquet2.parquet")
-        .toURI
+
+  /** When forked, this is no longer an external file, but a resource * */
+  lazy val PkgDir = Paths
+    .get("src/test/resources")
+    .resolve(
+      this
+        .getClass()
+        .getPackage
+        .getName
+        .replaceAllLiterally(".", "/")
     )
-    .toAbsolutePath
+    .toAbsolutePath()
+
+  lazy val SampleTwoColumnParquet: Path = {
+    PkgDir.resolve("sampleMultiColumnParquet2.parquet")
+  }
+
   lazy val SampleCSV: Path = Paths
     .get(
       this.getClass

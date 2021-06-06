@@ -21,6 +21,12 @@ Requirements:
 ~ VectorEngine / runMain com.nec.ve.VeBenchmarkApp
 ```
 
+Run a specific benchmark:
+
+```
+VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
+```
+
 ## Currently supported queries
 
 List of currently supported and tested queries can be found [in this file](../FEATURES.md).

@@ -172,3 +172,6 @@ target
 *.iml
 .bsp
 /hadoop-*
+
+.vscode
+metals.h2.db

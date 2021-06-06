@@ -9,6 +9,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.Dataset
 
 import java.util.UUID
+import com.nec.spark.SampleTestData
 
 trait VeBasedBenchmark extends SqlBasedBenchmark {
 
@@ -24,7 +25,15 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
       .getOrCreate()
   }
 
-  final def veBenchmark[T](name: String, cardinality: Long)(ds: => Dataset[T]): Unit = {
+  trait BenchmarkFilter {
+    def willRun(name: String): Boolean
+  }
+
+
+  final def veBenchmark[T](name: String, cardinality: Long)(
+    ds: => Dataset[T]
+  )(implicit benchmarkFilter: BenchmarkFilter): Unit = {
+    if (!benchmarkFilter.willRun(name)) return;
     val benchmark = new Benchmark(name, cardinality, output = output)
 
     import spark.implicits._
@@ -34,6 +43,16 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
       )
       .toDS()
       .createOrReplaceTempView("nums")
+
+    spark.read
+      .format("parquet")
+      .load(SampleTestData.SampleTwoColumnParquet.toString)
+      .createOrReplaceTempView("nums_parquet")
+
+    spark.read
+      .format("parquet")
+      .load(SampleTestData.SampleTwoColumnParquet.toString)
+      .createOrReplaceTempView("nums_parquet")
 
     List
       .fill[String](10000)(UUID.randomUUID.toString)
@@ -52,9 +71,7 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     benchmark.addCase(s"$name on NEC SX-Aurora TSUBASA", numIters = 5) { _ =>
       LocalVeoExtension._enabled = true
 
-      withSQLConf(
-        ("spark.sql.columnVector.offheap.enabled", "true")
-      ) {
+      withSQLConf(("spark.sql.columnVector.offheap.enabled", "true")) {
         ds.noop()
       }
     }

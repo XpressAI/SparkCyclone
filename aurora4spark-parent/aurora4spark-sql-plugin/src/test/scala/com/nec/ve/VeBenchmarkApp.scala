@@ -6,6 +6,11 @@ import org.apache.spark.sql.execution.VeBasedBenchmark
 
 object VeBenchmarkApp extends VeBasedBenchmark {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
+
+    implicit val willRun: BenchmarkFilter = name =>
+      mainArgs.isEmpty ||
+        mainArgs.exists(arg => name.contains(arg))
+
     Aurora4SparkExecutorPlugin.closeAutomatically = false
     try {
       runBenchmark("ve vs jvm benchmark") {
@@ -18,6 +23,9 @@ object VeBenchmarkApp extends VeBasedBenchmark {
         }
         veBenchmark("single column sum", N) {
           spark.sql("SELECT SUM(_1) FROM nums")
+        }
+        veBenchmark("pairwise", N) {
+          spark.sql("SELECT a + b FROM nums_parquet")
         }
       }
     } finally {

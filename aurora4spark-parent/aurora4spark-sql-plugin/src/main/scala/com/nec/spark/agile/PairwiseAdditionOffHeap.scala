@@ -1,7 +1,7 @@
 package com.nec.spark.agile
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.functions.Add
+import com.nec.arrow.functions.AddPairwise
 import com.nec.older.SumPairwise
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.ve.VeJavaContext
@@ -9,12 +9,22 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import sun.misc.Unsafe
 
+import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.ve.VeJavaContext
+import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.VectorSchemaRoot
+import sun.misc.Unsafe
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object PairwiseAdditionOffHeap {
@@ -80,41 +90,37 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .executeColumnar()
-      .map { columnarBatch =>
-        val rootAllocator = new RootAllocator()
-        val vectorA = new Float8Vector("value", rootAllocator)
-        vectorA.allocateNew()
-        columnarBatch
-          .column(0)
-          .asInstanceOf[OffHeapColumnVector]
-          .getDoubles(0, columnarBatch.numRows())
-          .zipWithIndex
-          .foreach { case (elem, idx) =>
-            vectorA.setSafe(idx, elem)
+      .mapPartitions { partitionInternalRows =>
+        Iterator
+          .continually {
+            val timeZoneId = conf.sessionLocalTimeZone
+            val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+              s"writer for pairwise addition",
+              0,
+              Long.MaxValue
+            )
+            val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+            val root = VectorSchemaRoot.create(arrowSchema, allocator)
+            val arrowWriter = ArrowWriter.create(root)
+            import scala.collection.JavaConverters._
+            partitionInternalRows.foreach { cb =>
+              cb.rowIterator().asScala.foreach { ir => arrowWriter.write(ir) }
+            }
+            arrowWriter.finish()
+
+            val outputVector = new Float8Vector("result", ArrowUtilsExposed.rootAllocator)
+
+            AddPairwise.runOn(arrowInterface)(
+              root.getVector(0).asInstanceOf[Float8Vector],
+              root.getVector(1).asInstanceOf[Float8Vector],
+              outputVector
+            )
+
+            val cb = new ColumnarBatch(Array(new ArrowColumnVector(outputVector)))
+            cb.setNumRows(root.getRowCount)
+            cb
           }
-        vectorA.setValueCount(columnarBatch.numRows())
-
-        val vectorB = new Float8Vector("value", rootAllocator)
-        vectorB.allocateNew()
-        columnarBatch
-          .column(1)
-          .asInstanceOf[OffHeapColumnVector]
-          .getDoubles(0, columnarBatch.numRows())
-          .zipWithIndex
-          .foreach { case (elem, idx) =>
-            vectorB.setSafe(idx, elem)
-          }
-        vectorB.setValueCount(columnarBatch.numRows())
-
-        val result = Add.runOn(arrowInterface)(vectorA, vectorB)
-
-        val offHeapVector = new OffHeapColumnVector(columnarBatch.numRows(), DoubleType)
-
-        result.zipWithIndex.foreach { case (elem, idx) =>
-          offHeapVector.putDouble(idx, elem)
-        }
-
-        new ColumnarBatch(Array(offHeapVector), result.size)
+          .take(1)
       }
   }
 

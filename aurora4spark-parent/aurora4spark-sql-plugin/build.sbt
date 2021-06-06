@@ -1,12 +1,13 @@
 import sbt.Def.spaceDelimited
 
+import java.lang.management.ManagementFactory
 import java.nio.file.Paths
 
 /**
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-val sparkVersion = "3.1.1"
+val sparkVersion = "3.1.2"
 ThisBuild / scalaVersion := "2.12.13"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
@@ -30,7 +31,8 @@ libraryDependencies ++= Seq(
   "com.nec" % "aveo4j" % "0.0.1",
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
-  "commons-io" % "commons-io" % "2.8.0" % "test"
+  "commons-io" % "commons-io" % "2.8.0" % "test",
+  "com.h2database" % "h2" % "1.4.200" % "test,ve"
 )
 
 /** Because of VE */
@@ -53,11 +55,16 @@ inConfig(VectorEngine)(Defaults.testSettings)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
 VectorEngine / run / fork := true
-/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. **/
-VectorEngine / run / javaOptions += "-agentlib:hprof=cpu=samples"
+
+/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
+VectorEngine / run / javaOptions ++= {
+  /** The feature was removed in JDK9, however for Spark we must support JDK8 */
+  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
+    List("-agentlib:hprof=cpu=samples")
+  else Nil
+}
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 Global / cancelable := true
-
 
 lazy val CMake = config("cmake") extend Test
 inConfig(CMake)(Defaults.testTasks)
