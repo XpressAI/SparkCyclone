@@ -1,11 +1,13 @@
-package com.nec.spark.planning
+package com.nec.cmake
+
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.SingleColumnAvgPlanExtractor
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 
-final class AveragingSparkPlanSpec
+final class AveragingCSparkPlanSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with SparkAdditions
@@ -22,10 +24,7 @@ final class AveragingSparkPlanSpec
     val executionPlan =
       sparkSession.sql("SELECT AVG(value)  FROM nums").as[(Double)].executionPlan
 
-    assert(
-      SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined,
-      executionPlan.toString()
-    )
+    assert(SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
   }
 
   "Specific plugin does not match average of sum" in withSparkSession(
@@ -39,9 +38,7 @@ final class AveragingSparkPlanSpec
     val executionPlan =
       sparkSession.sql("SELECT AVG(value + value) FROM nums").as[(Double)].executionPlan
 
-    assert(
-      SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined,
-      executionPlan.toString()
-    )
+    assert(SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
   }
+
 }
