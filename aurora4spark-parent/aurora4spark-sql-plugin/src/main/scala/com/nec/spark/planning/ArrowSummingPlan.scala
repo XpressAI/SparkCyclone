@@ -1,52 +1,38 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.{
-  ArrowNativeInterfaceNumeric,
-  CArrowNativeInterfaceNumeric,
-  VeArrowNativeInterfaceNumeric
-}
 import com.nec.arrow.functions.Sum
-import com.nec.aurora.Aurora
-import com.nec.older.SumSimple
+import com.nec.arrow.{CArrowNativeInterfaceNumeric, VeArrowNativeInterfaceNumeric}
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.agile.Column
-import com.nec.spark.planning.SingleValueStubPlan.SparkDefaultColumnName
-import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer
-import com.nec.ve.VeJavaContext
-import org.apache.arrow.memory.RootAllocator
+import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
-import org.apache.spark.sql.execution.RowToColumnarExec
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import sun.misc.Unsafe
-
 import org.apache.spark.sql.execution.arrow.ArrowWriter
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
+import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object ArrowSummingPlanOffHeap {
+object ArrowSummingPlan {
 
-  trait OffHeapSummer extends Serializable {
+  trait ArrowSummer extends Serializable {
     def sum(vector: Float8Vector, columnCount: Int): Double
   }
 
-  object OffHeapSummer {
+  object ArrowSummer {
 
-    case class CBased(libPath: String) extends OffHeapSummer {
+    case class CBased(libPath: String) extends ArrowSummer {
 
       override def sum(vector: Float8Vector, columnCount: Int): Double = {
         Sum.runOn(new CArrowNativeInterfaceNumeric(libPath))(vector, columnCount).head
       }
     }
 
-    case object VeoBased extends OffHeapSummer {
+    case object VeoBased extends ArrowSummer {
       override def sum(vector: Float8Vector, columnCount: Int): Double = {
         Sum
           .runOn(
@@ -63,7 +49,7 @@ object ArrowSummingPlanOffHeap {
   }
 }
 
-case class ArrowSummingPlanOffHeap(child: SparkPlan, summer: OffHeapSummer, column: Column)
+case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Column)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
@@ -97,7 +83,7 @@ case class ArrowSummingPlanOffHeap(child: SparkPlan, summer: OffHeapSummer, colu
   }
 
   override def output: Seq[Attribute] = Seq(
-    AttributeReference(name = SparkDefaultColumnName, dataType = DoubleType, nullable = false)()
+    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
   )
 
   override def children: Seq[SparkPlan] = Seq(child)

@@ -1,12 +1,14 @@
 package com.nec.acceptance
 
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.AveragingPlanner
-import com.nec.spark.planning.AveragingSparkPlanMultipleColumns
-import com.nec.spark.planning.SparkSqlPlanExtension
+import com.nec.spark.planning.AveragingPlanOffHeap.OffHeapDoubleAverager.UnsafeBased
+import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.planning.{AveragingPlanOffHeap, SingleColumnAvgPlanExtractor, SparkSqlPlanExtension, SummingPlanOffHeap}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
+
+import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 
 final class AuroraSqlPluginTest
   extends AnyFreeSpec
@@ -14,8 +16,10 @@ final class AuroraSqlPluginTest
   with SparkAdditions
   with Matchers {
 
-  "We call VE with our Averaging plan" in withSparkSession(
+  "We call VE with our Averaging plan" in withSparkSession({
     _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+  }
   ) { sparkSession =>
     markup("AVG([Double])")
     import sparkSession.implicits._
@@ -28,13 +32,13 @@ final class AuroraSqlPluginTest
       .createOrReplaceTempView("nums")
     SparkSqlPlanExtension.rulesToApply.clear()
     SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
-      AveragingPlanner
+      SingleColumnAvgPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          AveragingSparkPlanMultipleColumns(
+          AveragingPlanOffHeap(
             childPlan.sparkPlan,
-            childPlan.attributes,
-            AveragingSparkPlanMultipleColumns.averageLocalScala
+            MultipleColumnsOffHeapSummer.UnsafeBased,
+            childPlan.column
           )
         }
         .getOrElse(fail("Not expected to be here"))
@@ -46,48 +50,6 @@ final class AuroraSqlPluginTest
     val result = sumDataSet.head()
 
     assert(result == nums.sum / nums.length)
-  }
-
-  "We call VE with our Averaging plan for multiple average operations" in withSparkSession(
-    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
-  ) { sparkSession =>
-    markup("AVG([Double]), AVG([Double]), AVG([Double])")
-    import sparkSession.implicits._
-
-    val nums: List[(Double, Double, Double)] = List((1, 2, 3), (4, 5, 6), (7, 8, 9))
-    info(s"Input: $nums")
-
-    nums
-      .toDS()
-      .createOrReplaceTempView("nums")
-
-    SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
-      AveragingPlanner
-        .matchPlan(sparkPlan)
-        .map { childPlan =>
-          AveragingSparkPlanMultipleColumns(
-            childPlan.sparkPlan,
-            childPlan.attributes,
-            AveragingSparkPlanMultipleColumns.averageLocalScala
-          )
-        }
-        .getOrElse(fail("Not expected to be here"))
-    }
-
-    val sumDataSet =
-      sparkSession
-        .sql("SELECT AVG(_1), AVG(_2), AVG(_3) FROM nums")
-        .as[(Double, Double, Double)]
-
-    val expected = (
-      nums.map(_._1).sum / nums.size,
-      nums.map(_._2).sum / nums.size,
-      nums.map(_._3).sum / nums.size
-    )
-
-    val result = sumDataSet.collect().head
-
-    assert(result == expected)
   }
 
 }

@@ -5,7 +5,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
-object ArrowVeoAvgPlanExtractor {
+object SingleColumnAvgPlanExtractor {
 
   def matchPlan(sparkPlan: SparkPlan): Option[SingleColumnSparkPlan] = {
     PartialFunction.condOpt(sparkPlan) {

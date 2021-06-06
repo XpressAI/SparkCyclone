@@ -12,8 +12,7 @@ ThisBuild / scalaVersion := "2.12.13"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
-lazy val root = project
-  .in(file("."))
+lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
   .configs(CMake)

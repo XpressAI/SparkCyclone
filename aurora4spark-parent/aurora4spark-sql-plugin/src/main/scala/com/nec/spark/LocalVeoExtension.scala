@@ -3,18 +3,8 @@ package com.nec.spark
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.LocalVeoExtension._enabled
 import com.nec.spark.agile._
-import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.VeoBased
-import com.nec.spark.planning.{
-  AddPlanExtractor,
-  ArrowAveragingPlanOffHeap,
-  ArrowGenericAggregationPlanOffHeap,
-  ArrowSummingPlanOffHeap,
-  ArrowVeoAvgPlanExtractor,
-  ArrowVeoSumPlanExtractor,
-  VeoGenericPlanExtractor,
-  WordCountPlanner
-}
-import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
+import com.nec.spark.planning.{AddPlanExtractor, ArrowAveragingPlan, ArrowGenericAggregationPlanOffHeap, ArrowSummingPlan, SingleColumnAvgPlanExtractor, SingleColumnSumPlanExtractor, VeoGenericPlanExtractor, WordCountPlanner}
 import com.nec.spark.planning.WordCountPlanner.WordCounter
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -52,16 +42,16 @@ object LocalVeoExtension {
   }
 
   def preColumnarRule: Rule[SparkPlan] = { sparkPlan =>
-    ArrowVeoAvgPlanExtractor
+    SingleColumnAvgPlanExtractor
       .matchPlan(sparkPlan)
       .map(singleColumnPlan =>
-        ArrowAveragingPlanOffHeap(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+        ArrowAveragingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
       )
       .orElse(
-        ArrowVeoSumPlanExtractor
+        SingleColumnSumPlanExtractor
           .matchPlan(sparkPlan)
           .map(singleColumnPlan =>
-            ArrowSummingPlanOffHeap(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+            ArrowSummingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
           )
       )
       .orElse {

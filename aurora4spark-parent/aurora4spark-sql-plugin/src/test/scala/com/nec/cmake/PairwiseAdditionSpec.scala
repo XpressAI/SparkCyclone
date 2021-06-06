@@ -2,13 +2,13 @@ package com.nec.cmake
 
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.spark.planning.AddPlanExtractor
-import com.nec.spark.planning.ArrowAveragingPlanOffHeap
-import com.nec.spark.planning.ArrowVeoAvgPlanExtractor
 import com.nec.spark.planning.SparkSqlPlanExtension
 import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.CBased
+import com.nec.spark.planning.ArrowSummingPlan
+import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.CBased
+import com.nec.spark.planning.SingleColumnSumPlanExtractor
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
@@ -97,14 +97,10 @@ final class PairwiseAdditionSpec
     SparkSqlPlanExtension.rulesToApply.clear()
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      ArrowVeoAvgPlanExtractor
+      SingleColumnSumPlanExtractor
         .matchPlan(sparkPlan)
         .map(plan =>
-          new ArrowAveragingPlanOffHeap(
-            plan.sparkPlan,
-            new CBased(CMakeBuilder.CLibPath.toString),
-            plan.column
-          )
+          ArrowSummingPlan(plan.sparkPlan, CBased(CMakeBuilder.CLibPath.toString), plan.column)
         )
         .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
     }
