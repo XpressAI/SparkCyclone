@@ -72,7 +72,7 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
 
     import spark.implicits._
     Seq
-      .fill[(Double, Double)](200000)(
+      .fill[(Double, Double)](1000000)(
         (scala.util.Random.nextDouble(), scala.util.Random.nextDouble())
       )
       .toDS()
