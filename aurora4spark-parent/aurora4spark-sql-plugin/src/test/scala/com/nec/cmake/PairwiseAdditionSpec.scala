@@ -6,9 +6,10 @@ import com.nec.spark.planning.SparkSqlPlanExtension
 import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.ArrowAveragingPlan
 import com.nec.spark.planning.ArrowSummingPlan
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.CBased
-import com.nec.spark.planning.SingleColumnSumPlanExtractor
+import com.nec.spark.planning.SingleColumnAvgPlanExtractor
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
@@ -97,10 +98,10 @@ final class PairwiseAdditionSpec
     SparkSqlPlanExtension.rulesToApply.clear()
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      SingleColumnSumPlanExtractor
+      SingleColumnAvgPlanExtractor
         .matchPlan(sparkPlan)
         .map(plan =>
-          ArrowSummingPlan(plan.sparkPlan, CBased(CMakeBuilder.CLibPath.toString), plan.column)
+          ArrowAveragingPlan(plan.sparkPlan, CBased(CMakeBuilder.CLibPath.toString), plan.column)
         )
         .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
     }
