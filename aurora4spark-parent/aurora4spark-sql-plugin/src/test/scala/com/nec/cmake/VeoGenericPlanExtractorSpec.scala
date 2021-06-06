@@ -1,19 +1,16 @@
-package com.nec.spark.planning
+package com.nec.cmake
 
-import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.OutputColumn
 import com.nec.spark.agile.OutputColumnPlanDescription
-
+import com.nec.spark.planning.ArrowGenericAggregationPlanOffHeap
+import com.nec.spark.planning.SparkSqlPlanExtension
+import com.nec.spark.planning.VeoGenericPlanExtractor
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
-
 import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.internal.SQLConf.{
-  COLUMN_VECTOR_OFFHEAP_ENABLED,
-  WHOLESTAGE_CODEGEN_ENABLED
-}
+import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.must.Matchers
 
