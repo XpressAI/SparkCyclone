@@ -20,7 +20,7 @@ import sun.misc.Unsafe
 object SummingPlanOffHeap {
 
   trait MultipleColumnsOffHeapSummer extends Serializable {
-    def sum(inputMemoryAddress: Long, columnCount: Int): Double
+    def sum(inputMemoryAddress: Long, count: Int): Double
   }
 
   object MultipleColumnsOffHeapSummer {
@@ -32,8 +32,8 @@ object SummingPlanOffHeap {
         theUnsafe.get(null).asInstanceOf[Unsafe]
       }
 
-      def sum(inputMemoryAddress: Long, columnCount: Int): Double = {
-        (0 until columnCount)
+      def sum(inputMemoryAddress: Long, count: Int): Double = {
+        (0 until count)
           .map(index => getUnsafe.getDouble(inputMemoryAddress + index * 8))
           .sum
       }
@@ -41,14 +41,14 @@ object SummingPlanOffHeap {
 
     object VeoBased extends MultipleColumnsOffHeapSummer {
 
-      override def sum(inputMemoryAddress: Long, columnCount: Int): Double = {
+      override def sum(inputMemoryAddress: Long, count: Int): Double = {
         val vej =
           new VeJavaContext(
             Aurora4SparkExecutorPlugin._veo_proc,
             Aurora4SparkExecutorPlugin._veo_ctx,
             Aurora4SparkExecutorPlugin.lib
           )
-        SumSimple.sum_doubles_memory(vej, inputMemoryAddress, columnCount)
+        SumSimple.sum_doubles_memory(vej, inputMemoryAddress, count)
       }
     }
 
