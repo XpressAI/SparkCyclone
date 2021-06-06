@@ -11,7 +11,7 @@ import java.nio.file.StandardCopyOption
 import scala.sys.process._
 
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.functions.{Add, Avg, Sum}
+import com.nec.arrow.functions.{AddPairwise, Avg, Sum}
 
 /**
  * Utilities to build C libraries using CMake
@@ -25,7 +25,7 @@ object CMakeBuilder {
       TransferDefinitions.TransferDefinitionsSourceCode,
       Sum.SumSourceCode,
       Avg.AvgSourceCode,
-      Add.PairwiseSumCode
+      AddPairwise.PairwiseSumCode
     ).mkString("\n \n")
   )
 

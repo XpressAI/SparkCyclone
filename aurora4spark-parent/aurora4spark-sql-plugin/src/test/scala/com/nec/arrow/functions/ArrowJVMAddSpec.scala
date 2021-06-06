@@ -13,7 +13,7 @@ final class ArrowJVMAddSpec extends AnyFreeSpec {
     withArrowFloat8Vector(firstInputColumn) { firstVector =>
       withArrowFloat8Vector(secondInputColumn) { secondVector =>
         assert(
-          Add.addJVM(firstVector, secondVector) ==
+          AddPairwise.addJVM(firstVector, secondVector) ==
             Seq(6.0, 9.0, 11.0, 25.0, 45.0, 65.0, 200.0, 320.0, 440.0)
         )
       }
