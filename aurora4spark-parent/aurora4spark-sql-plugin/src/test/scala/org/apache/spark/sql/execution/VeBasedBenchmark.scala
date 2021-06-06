@@ -9,6 +9,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.Dataset
 
 import java.util.UUID
+import com.nec.spark.SampleTestData
 
 trait VeBasedBenchmark extends SqlBasedBenchmark {
 
@@ -28,6 +29,7 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     def willRun(name: String): Boolean
   }
 
+
   final def veBenchmark[T](name: String, cardinality: Long)(
     ds: => Dataset[T]
   )(implicit benchmarkFilter: BenchmarkFilter): Unit = {
@@ -41,6 +43,16 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
       )
       .toDS()
       .createOrReplaceTempView("nums")
+
+    spark.read
+      .format("parquet")
+      .load(SampleTestData.SampleTwoColumnParquet.toString)
+      .createOrReplaceTempView("nums_parquet")
+
+    spark.read
+      .format("parquet")
+      .load(SampleTestData.SampleTwoColumnParquet.toString)
+      .createOrReplaceTempView("nums_parquet")
 
     List
       .fill[String](10000)(UUID.randomUUID.toString)

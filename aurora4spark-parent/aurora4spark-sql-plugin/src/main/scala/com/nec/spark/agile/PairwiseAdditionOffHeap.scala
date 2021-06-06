@@ -89,6 +89,8 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
       .map { columnarBatch =>
         val rootAllocator = new RootAllocator()
         val vectorA = new Float8Vector("value", rootAllocator)
+        vectorA.set
+        vectorA.set
         vectorA.allocateNew()
         columnarBatch
           .column(0)

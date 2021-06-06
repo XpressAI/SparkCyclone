@@ -32,7 +32,8 @@ libraryDependencies ++= Seq(
   "com.nec" % "aveo4j" % "0.0.1",
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
-  "commons-io" % "commons-io" % "2.8.0" % "test"
+  "commons-io" % "commons-io" % "2.8.0" % "test",
+  "com.h2database" % "h2" % "1.4.200" % "test,ve"
 )
 
 /** Because of VE */
