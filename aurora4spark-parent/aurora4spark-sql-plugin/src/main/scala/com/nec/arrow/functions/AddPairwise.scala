@@ -22,6 +22,9 @@ object AddPairwise {
       "Plugin only allows pairwise sum of columns that have the same size."
     )
 
+    // todo get this to be set by the C code
+    outputVector.setValueCount(firstColumnVector.getValueCount())
+
     nativeInterface.callFunction(
       name = "add",
       inputArguments = List(Some(firstColumnVector), Some(secondColumnvector), None),
