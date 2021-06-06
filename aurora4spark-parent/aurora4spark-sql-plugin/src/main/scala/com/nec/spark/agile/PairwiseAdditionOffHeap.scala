@@ -3,9 +3,7 @@ package com.nec.spark.agile
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.Add
 import com.nec.older.SumPairwise
-import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.planning.SingleValueStubPlan.SparkDefaultColumnName
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -13,14 +11,13 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.ve.VeJavaContext
+import org.apache.arrow.memory.ArrowBuf
 import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.BaseFixedWidthVector
 import org.apache.arrow.vector.Float8Vector
 
 object PairwiseAdditionOffHeap {
@@ -88,31 +85,31 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
       .executeColumnar()
       .map { columnarBatch =>
         val rootAllocator = new RootAllocator()
+        val colA = columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+        val colB = columnarBatch.column(1).asInstanceOf[OffHeapColumnVector]
+
         val vectorA = new Float8Vector("value", rootAllocator)
-        vectorA.set
-        vectorA.set
-        vectorA.allocateNew()
-        columnarBatch
-          .column(0)
-          .asInstanceOf[OffHeapColumnVector]
-          .getDoubles(0, columnarBatch.numRows())
-          .zipWithIndex
-          .foreach { case (elem, idx) =>
-            vectorA.setSafe(idx, elem)
-          }
         vectorA.setValueCount(columnarBatch.numRows())
+        val field = classOf[BaseFixedWidthVector].getDeclaredField("valueBuffer")
+        field.setAccessible(true)
+        val firstBuf = new ArrowBuf(
+          vectorA.getValidityBuffer.getReferenceManager,
+          null,
+          columnarBatch.numRows() * 8,
+          colA.valuesNativeAddress()
+        )
+        field.set(vectorA, firstBuf)
 
         val vectorB = new Float8Vector("value", rootAllocator)
-        vectorB.allocateNew()
-        columnarBatch
-          .column(1)
-          .asInstanceOf[OffHeapColumnVector]
-          .getDoubles(0, columnarBatch.numRows())
-          .zipWithIndex
-          .foreach { case (elem, idx) =>
-            vectorB.setSafe(idx, elem)
-          }
         vectorB.setValueCount(columnarBatch.numRows())
+        field.setAccessible(true)
+        val secondBuf = new ArrowBuf(
+          vectorB.getValidityBuffer.getReferenceManager,
+          null,
+          columnarBatch.numRows() * 8,
+          colB.valuesNativeAddress()
+        )
+        field.set(vectorB, secondBuf)
 
         val result = Add.runOn(arrowInterface)(vectorA, vectorB)
 

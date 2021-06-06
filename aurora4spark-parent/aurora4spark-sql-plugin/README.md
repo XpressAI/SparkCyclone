@@ -24,7 +24,7 @@ Requirements:
 Run a specific benchmark:
 
 ```
-~ VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
+VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
 ```
 
 ## Currently supported queries
