@@ -27,20 +27,6 @@ object VeBenchmarkApp extends VeBasedBenchmark {
         veBenchmark("pairwise", N) {
           spark.sql("SELECT a + b FROM nums_parquet")
         }
-        veBenchmark("sampleDbNums", N) {
-null
-          // val dbs = spark
-          //   .format("jdbc")
-          //   .option("url", "jdbc:h2:~/test.h2;AUTO_SERVER=TRUE")
-          //   .option("driver", "org.h2.Driver")
-          //   .option("dbtable", "sample_db_nums")
-          //   .option("user", "sa")
-          //   .option("password", "")
-          //   .load()
-
-          // dbs.show()
-
-        }
       }
     } finally {
       Aurora4SparkExecutorPlugin.closeProcAndCtx()
