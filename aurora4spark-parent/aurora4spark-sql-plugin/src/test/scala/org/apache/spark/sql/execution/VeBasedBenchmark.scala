@@ -84,4 +84,46 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     benchmark.run()
   }
 
+  final def offHeapVsArrowBenchmark[T](name: String, cardinality: Long)(ds: => Dataset[T]): Unit = {
+    val benchmark = new Benchmark(name, cardinality, output = output)
+
+    import spark.implicits._
+    Seq
+      .fill[(Double, Double)](1000000)(
+        (scala.util.Random.nextDouble(), scala.util.Random.nextDouble())
+      )
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    List
+      .fill[String](10000)(UUID.randomUUID.toString)
+      .toDS()
+      .withColumnRenamed("value", "word")
+      .createOrReplaceTempView("words")
+
+    LocalVeoExtension._arrowEnabled = true
+    println("Arrow based plan:")
+    ds.explain()
+
+    println("OffHeap based plan:")
+    LocalVeoExtension._arrowEnabled = false
+    ds.explain()
+
+    benchmark.addCase(s"$name Arrow based computation", numIters = 5) { _ =>
+      LocalVeoExtension._arrowEnabled = true
+
+      withSQLConf(
+        ("spark.sql.columnVector.offheap.enabled", "true")
+      ) {
+        ds.noop()
+      }
+    }
+
+    benchmark.addCase(s"$name pure OffHeap based computation", numIters = 5) { _ =>
+      LocalVeoExtension._enabled = false
+      ds.noop()
+    }
+
+    benchmark.run()
+  }
 }

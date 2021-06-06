@@ -4,7 +4,8 @@ import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.LocalVeoExtension._enabled
 import com.nec.spark.agile._
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
-import com.nec.spark.planning.{AddPlanExtractor, ArrowAveragingPlan, ArrowGenericAggregationPlanOffHeap, ArrowSummingPlan, SingleColumnAvgPlanExtractor, SingleColumnSumPlanExtractor, VeoGenericPlanExtractor, WordCountPlanner}
+import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.planning.{AddPlanExtractor, ArrowAveragingPlan, ArrowGenericAggregationPlanOffHeap, ArrowSummingPlan, AveragingPlanOffHeap, SingleColumnAvgPlanExtractor, SingleColumnSumPlanExtractor, SummingPlanOffHeap, VeoGenericPlanExtractor, WordCountPlanner}
 import com.nec.spark.planning.WordCountPlanner.WordCounter
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -16,6 +17,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 object LocalVeoExtension {
   var _enabled = true
+  var _arrowEnabled = true
 
   def createAggregator(aggregationFunction: AggregationFunction): Aggregator = {
     aggregationFunction match {
@@ -45,13 +47,23 @@ object LocalVeoExtension {
     SingleColumnAvgPlanExtractor
       .matchPlan(sparkPlan)
       .map(singleColumnPlan =>
-        ArrowAveragingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+        if(_arrowEnabled) {
+          ArrowAveragingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+        } else {
+          AveragingPlanOffHeap(singleColumnPlan.sparkPlan, MultipleColumnsOffHeapSummer.VeoBased,
+            singleColumnPlan.column)
+        }
       )
       .orElse(
         SingleColumnSumPlanExtractor
           .matchPlan(sparkPlan)
           .map(singleColumnPlan =>
-            ArrowSummingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+            if(_arrowEnabled) {
+              ArrowSummingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
+            } else {
+              SummingPlanOffHeap(singleColumnPlan.sparkPlan, MultipleColumnsOffHeapSummer.VeoBased,
+                singleColumnPlan.column)
+            }
           )
       )
       .orElse {
