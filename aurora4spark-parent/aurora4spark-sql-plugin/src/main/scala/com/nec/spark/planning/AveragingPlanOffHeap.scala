@@ -3,23 +3,22 @@ package com.nec.spark.planning
 import com.nec.aurora.Aurora
 import com.nec.older.AvgSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
-import com.nec.spark.planning.SingleValueStubPlan.SparkDefaultColumnName
 import com.nec.spark.agile.ColumnIndex
-import com.nec.spark.planning.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
 import com.nec.ve.VeJavaContext
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
-import org.apache.spark.sql.execution.RowToColumnarExec
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
 
-object AveragingSparkPlanOffHeap {
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
+import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
+import org.apache.spark.sql.types.DoubleType
+import com.nec.spark.agile.Column
+import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
+
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
+object AveragingPlanOffHeap {
 
   trait OffHeapDoubleAverager extends Serializable {
     def average(memoryLocation: Long, count: Int): Double
@@ -59,38 +58,35 @@ object AveragingSparkPlanOffHeap {
 
 }
 
-case class AveragingSparkPlanOffHeap(child: RowToColumnarExec, averager: OffHeapDoubleAverager)
+case class AveragingPlanOffHeap(child: SparkPlan,
+                                summer: MultipleColumnsOffHeapSummer,
+                                column: Column)
   extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
-      .doExecuteColumnar()
+      .executeColumnar()
       .map { columnarBatch =>
-        val theCol = columnarBatch.column(0).asInstanceOf[OffHeapColumnVector]
+        val theCol = columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector]
         (
-          averager.average(theCol.valuesNativeAddress(), columnarBatch.numRows()),
+          summer.sum(theCol.valuesNativeAddress(), columnarBatch.numRows()),
           columnarBatch.numRows()
         )
       }
       .coalesce(1)
       .mapPartitions { nums =>
-        Iterator {
-          val nl = nums.toList
-          val totalSize = nl.map(_._2).sum
-          nl.map { case (avgs, gs) => avgs * (gs.toDouble / totalSize) }.sum
-        }
-      }
-      .map { double =>
-        val vector = new OnHeapColumnVector(1, DoubleType)
-        vector.putDouble(0, double)
-        new ColumnarBatch(Array(vector), 1)
+        val sum = nums.reduce((a, b) => (a._1 + b._1, a._2 + b._2))
+        val totalAvg = sum._1/sum._2
+        val offHeapColumnVector = new OffHeapColumnVector(1, DoubleType)
+        offHeapColumnVector.putDouble(0, totalAvg)
+        Iterator(new ColumnarBatch(Array(offHeapColumnVector), 1))
       }
   }
 
   override def output: Seq[Attribute] = Seq(
-    AttributeReference(name = SparkDefaultColumnName, dataType = DoubleType, nullable = false)()
+    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
   )
 
   override def children: Seq[SparkPlan] = Seq(child)

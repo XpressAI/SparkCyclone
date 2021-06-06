@@ -384,6 +384,104 @@ final class VeoGenericPlanExtractorSpec
     } finally sparkSession.close()
   }
 
+  "We call VE with our Averaging plan for multiple average operations" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+  ) { sparkSession =>
+    markup("AVG([Double]), AVG([Double]), AVG([Double])")
+    import sparkSession.implicits._
+
+    val nums: List[(Double, Double, Double)] = List((1, 2, 3), (4, 5, 6), (7, 8, 9))
+    info(s"Input: $nums")
+
+    nums
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
+      VeoGenericPlanExtractor
+        .matchPlan(sparkPlan)
+        .map { childPlan =>
+          ArrowGenericAggregationPlanOffHeap(
+            RowToColumnarExec(childPlan.sparkPlan),
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+              inputColumns,
+              outputColumnIndex,
+              columnAggregation,
+              outputAggregator
+              ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  createUnsafeColumnAggregator(columnAggregation),
+                  createUnsafeAggregator(outputAggregator)
+                )}
+          )
+        }
+        .getOrElse(fail("Not expected to be here"))
+    }
+
+    val sumDataSet =
+      sparkSession
+        .sql("SELECT AVG(_1), AVG(_2), AVG(_3) FROM nums")
+        .as[(Double, Double, Double)]
+
+    val expected = (
+      nums.map(_._1).sum / nums.size,
+      nums.map(_._2).sum / nums.size,
+      nums.map(_._3).sum / nums.size
+    )
+
+    val result = sumDataSet.collect().head
+
+    assert(result == expected)
+  }
+
+  "We can sum multiple columns reading from Parquet" in withSparkSession(
+    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
+      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
+      .set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    SparkSqlPlanExtension.rulesToApply.clear()
+
+    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
+      VeoGenericPlanExtractor
+        .matchPlan(sparkPlan)
+        .map { childPlan =>
+          ArrowGenericAggregationPlanOffHeap(
+            childPlan.sparkPlan,
+            childPlan.outColumns.map {
+              case OutputColumnPlanDescription(
+              inputColumns,
+              outputColumnIndex,
+              columnAggregation,
+              outputAggregator
+              ) =>
+                OutputColumn(
+                  inputColumns,
+                  outputColumnIndex,
+                  createUnsafeColumnAggregator(columnAggregation),
+                  createUnsafeAggregator(outputAggregator)
+                )}
+          )
+        }
+        .getOrElse(fail(s"Not expected to be here: ${sparkPlan}"))
+    }
+
+    val sumDataSet = sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
+      .as[(Double, Double)]
+      .selectExpr("SUM(a)")
+      .as[Double]
+      .debugConditionally()
+
+    assert(sumDataSet.collect().toList == List(62))
+  }
+
+
   "We can peform multiple different operations on multiple columns separately off the heap " in {
     val conf = new SparkConf()
     conf.setMaster("local")
