@@ -1,33 +1,19 @@
 package com.nec.spark.agile
 
-import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-import com.nec.spark.planning.{
-  AddPlanExtractor,
-  ArrowAveragingPlanOffHeap,
-  ArrowSummingPlanOffHeap,
-  ArrowVeoAvgPlanExtractor,
-  ArrowVeoSumPlanExtractor,
-  SparkSqlPlanExtension,
-  SumPlanExtractor
-}
+import com.nec.spark.planning.ArrowSummingPlanOffHeap
+import com.nec.spark.planning.ArrowVeoSumPlanExtractor
+import com.nec.spark.planning.SparkSqlPlanExtension
+import com.nec.spark.planning.SumPlanExtractor
 import com.nec.spark.Aurora4SparkDriver
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.SampleTestData.SampleMultiColumnCSV
-import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.ArrowSummingPlanOffHeap.OffHeapSummer.CBased
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
-
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
-import org.apache.spark.sql.types.DecimalType
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
 
 /**
  * These tests are to get familiar with Spark and encode any oddities about it.
@@ -73,105 +59,6 @@ final class SparkSanityTests
         .matchPlan(executionPlan)
         .contains(List(1, 2, 3))
     )
-  }
-
-  "We Pairwise-add off the heap" in withSparkSession(
-    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
-      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
-  ) { sparkSession =>
-    import sparkSession.implicits._
-
-    SparkSqlPlanExtension.rulesToApply.clear()
-
-    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      AddPlanExtractor
-        .matchAddPairwisePlan(
-          sparkPlan,
-          new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString)
-        )
-        .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
-    }
-
-    val csvSchema = StructType(
-      Seq(
-        StructField("a", DoubleType, nullable = false),
-        StructField("b", DoubleType, nullable = false)
-      )
-    )
-    val sumDataSet2 = sparkSession.read
-      .format("csv")
-      .schema(csvSchema)
-      .load(SampleMultiColumnCSV.toString)
-      .as[(Double, Double)]
-      .selectExpr("a + b")
-      .as[Double]
-      .debugConditionally()
-
-    val listOfDoubles = sumDataSet2.collect().toList
-    assert(listOfDoubles == List(3, 5, 7, 9, 58))
-  }
-
-  "We Pairwise-add Parquet off the heap" in withSparkSession(
-    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
-      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
-  ) { sparkSession =>
-    import sparkSession.implicits._
-
-    SparkSqlPlanExtension.rulesToApply.clear()
-
-    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      AddPlanExtractor
-        .matchAddPairwisePlan(
-          sparkPlan,
-          new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString)
-        )
-        .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
-    }
-
-    val sumDataSet2 = sparkSession.read
-      .format("parquet")
-      .load(SampleTwoColumnParquet.toString)
-      .as[(Double, Double)]
-      .selectExpr("a + b")
-      .as[Double]
-      .debugConditionally()
-
-    val listOfDoubles = sumDataSet2.collect().toList
-    assert(listOfDoubles == List(3, 5, 7, 9, 58))
-  }
-
-  "We handle single column average with specific plan" in withSparkSession(
-    _.set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
-      .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
-  ) { sparkSession =>
-    import sparkSession.implicits._
-
-    SparkSqlPlanExtension.rulesToApply.clear()
-
-    SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      ArrowVeoAvgPlanExtractor
-        .matchPlan(sparkPlan)
-        .map(plan =>
-          new ArrowAveragingPlanOffHeap(
-            plan.sparkPlan,
-            new CBased(CMakeBuilder.CLibPath.toString),
-            plan.column
-          )
-        )
-        .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))
-    }
-
-    val inputData: Seq[(Double, Double)] = Seq((10, 2), (20, 5), (30, 6), (40, 7))
-
-    val sumDataSet2 = inputData
-      .toDS()
-      .as[(Double, Double)]
-      .selectExpr("AVG(_1)")
-      .as[Double]
-      .debugConditionally()
-
-    val listOfDoubles = sumDataSet2.collect().toList
-    assert(listOfDoubles == List(25))
   }
 
   "We handle single column sum with specific plan" in withSparkSession(
