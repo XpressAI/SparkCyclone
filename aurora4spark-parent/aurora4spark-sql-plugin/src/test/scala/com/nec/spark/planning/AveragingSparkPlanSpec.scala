@@ -1,45 +1,19 @@
 package com.nec.spark.planning
+import com.nec.cmake.CMakeBuilder
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.AveragingSparkPlanOffHeap.OffHeapDoubleAverager
+import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.CBased
 import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.BeforeAndAfter
+import org.scalatest.matchers.must.Matchers
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
-import org.scalatest.BeforeAndAfter
-import org.scalatest.matchers.must.Matchers
 
 final class AveragingSparkPlanSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with SparkAdditions
   with Matchers {
-
-  "We match the averaging plan" in withSparkSession(
-    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
-  ) { sparkSession =>
-    import sparkSession.implicits._
-    Seq[Double](1, 2, 3)
-      .toDS()
-      .createOrReplaceTempView("nums")
-
-    val executionPlan = sparkSession.sql("SELECT AVG(value) FROM nums").as[Double].executionPlan
-
-    assert(AveragingPlanner.matchPlan(executionPlan).isDefined, executionPlan.toString())
-  }
-
-  "We match multiple average functions" in withSparkSession(
-    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
-  ) { sparkSession =>
-    import sparkSession.implicits._
-    Seq[Double](1, 2, 3)
-      .toDS()
-      .createOrReplaceTempView("nums")
-
-    val executionPlan =
-      sparkSession.sql("SELECT AVG(value), AVG(value) FROM nums").as[(Double, Double)].executionPlan
-
-    assert(AveragingPlanner.matchPlan(executionPlan).isDefined, executionPlan.toString())
-  }
 
   "Specific plan matches single column average" in withSparkSession(
     _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
@@ -52,7 +26,7 @@ final class AveragingSparkPlanSpec
     val executionPlan =
       sparkSession.sql("SELECT AVG(value)  FROM nums").as[(Double)].executionPlan
 
-    assert(ArrowVeoAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
+    assert(SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
   }
 
   "Specific plugin does not match average of sum" in withSparkSession(
@@ -66,7 +40,7 @@ final class AveragingSparkPlanSpec
     val executionPlan =
       sparkSession.sql("SELECT AVG(value + value) FROM nums").as[(Double)].executionPlan
 
-    assert(ArrowVeoAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
+    assert(SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined, executionPlan.toString())
   }
 
   "We extract data with RowToColumnarExec" in withSparkSession(
@@ -84,12 +58,13 @@ final class AveragingSparkPlanSpec
       .createOrReplaceTempView("nums")
 
     SparkSqlPlanExtension.rulesToApply.append { sparkPlan =>
-      VeoGenericPlanExtractor
+      SingleColumnAvgPlanExtractor
         .matchPlan(sparkPlan)
         .map { childPlan =>
-          AveragingSparkPlanOffHeap(
+          ArrowAveragingPlan(
             RowToColumnarExec(childPlan.sparkPlan),
-            OffHeapDoubleAverager.UnsafeBased
+            CBased(CMakeBuilder.CLibPath.toString),
+            childPlan.column
           )
         }
         .getOrElse(fail("Not expected to be here"))

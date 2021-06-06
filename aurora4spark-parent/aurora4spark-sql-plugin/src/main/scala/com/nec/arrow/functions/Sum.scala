@@ -15,7 +15,7 @@ object Sum {
     nativeInterface: ArrowNativeInterfaceNumeric
   )(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
     val ra = new RootAllocator()
-    val outputVector = new Float8Vector("count", ra)
+    val  outputVector = new Float8Vector("count", ra)
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(

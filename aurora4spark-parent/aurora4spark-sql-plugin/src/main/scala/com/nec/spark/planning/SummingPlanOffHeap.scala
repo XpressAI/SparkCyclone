@@ -2,9 +2,9 @@ package com.nec.spark.planning
 
 import com.nec.older.SumSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.agile.ColumnAggregation
+import com.nec.spark.agile.Column
 import com.nec.spark.agile.OutputColumnAggregated
-import com.nec.spark.planning.MultipleColumnsSummingPlanOffHeap.MultipleColumnsOffHeapSummer
+import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.ve.VeJavaContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -17,7 +17,7 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
 
-object MultipleColumnsSummingPlanOffHeap {
+object SummingPlanOffHeap {
 
   trait MultipleColumnsOffHeapSummer extends Serializable {
     def sum(inputMemoryAddress: Long, count: Int): Double
@@ -55,10 +55,10 @@ object MultipleColumnsSummingPlanOffHeap {
   }
 }
 
-case class MultipleColumnsSummingPlanOffHeap(
+case class SummingPlanOffHeap(
   child: SparkPlan,
   summer: MultipleColumnsOffHeapSummer,
-  columnarAggregations: Seq[ColumnAggregation]
+  column: Column
 ) extends SparkPlan {
 
   override def supportsColumnar: Boolean = true
@@ -67,49 +67,24 @@ case class MultipleColumnsSummingPlanOffHeap(
     child
       .executeColumnar()
       .map { columnarBatch =>
-        val offHeapAggregations = columnarAggregations.map {
-          case ColumnAggregation(columns, aggregationOperation, outputColumnIndex) => {
-            val dataVectors = columns
-              .map(column => columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector])
-              .map(vector => summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows()))
-
-            OutputColumnAggregated(
-              outputColumnIndex,
-              aggregationOperation,
-              dataVectors,
-              columnarBatch.numRows()
-            )
-          }
+        val vector = columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector]
+        summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows())
         }
-        offHeapAggregations
       }
       .coalesce(1)
       .mapPartitions(its => {
 
-        val aggregated =
-          its.toList.flatten.groupBy(_.outputColumnIndex).map { case (idx, columnAggregations) =>
-            columnAggregations.reduce((a, b) => a.combine(b)(_ + _))
-          }
+        val result = its.reduce((a, b) => a + b)
+        val offHeapVector = new OffHeapColumnVector(1, DoubleType)
+        offHeapVector.putDouble(0, result)
 
-        val elementsSum = aggregated.toList.sortBy(_.outputColumnIndex).map {
-          case OutputColumnAggregated(outIndex, aggregator, columns, _) =>
-            aggregator.aggregate(columns)
-        }
-
-        val vectors = elementsSum.map(_ => new OnHeapColumnVector(1, DoubleType))
-
-        elementsSum.zip(vectors).foreach { case (sum, vector) =>
-          vector.putDouble(0, sum)
-        }
-
-        Iterator(new ColumnarBatch(vectors.toArray, 1))
+        Iterator(new ColumnarBatch(Array(offHeapVector) , 1))
       })
-  }
 
-  override def output: Seq[Attribute] = columnarAggregations.zipWithIndex.map {
-    case (_, columnIndex) =>
-      AttributeReference(name = "_" + columnIndex, dataType = DoubleType, nullable = false)()
-  }
+  override def output: Seq[Attribute] = Seq(
+    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
+
+  )
 
   override def children: Seq[SparkPlan] = Seq(child)
 
