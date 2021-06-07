@@ -22,7 +22,7 @@ final class AveragingSparkPlanSpec
       .createOrReplaceTempView("nums")
 
     val executionPlan =
-      sparkSession.debugSql("SELECT AVG(value)  FROM nums").as[(Double)].executionPlan
+      sparkSession.debugSql("SELECT AVG(value)  FROM nums", "SUM(value)").as[(Double)].executionPlan
 
     assert(
       SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined,

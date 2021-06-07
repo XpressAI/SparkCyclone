@@ -1,10 +1,10 @@
 package com.nec.ve
 
-import com.nec.spark.SparkAdditions
-import com.nec.spark.AuroraSqlPlugin
+import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
 import com.nec.spark.planning.WordCountPlanner
 import com.nec.spark.planning.WordCountPlanner.WordCounter
 import com.nec.ve.VEWordCountSpec.WordCountQuery
+
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
@@ -23,6 +23,8 @@ final class VEWordCountSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
       .set(COLUMN_VECTOR_OFFHEAP_ENABLED.key, "true")
   ) { sparkSession =>
     import sparkSession.implicits._
+
+    Aurora4SparkExecutorPlugin.closeAutomatically = true
 
     List("a", "ab", "bc", "ab")
       .toDS()
