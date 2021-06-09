@@ -35,6 +35,10 @@ object SampleTestData {
     PkgDir.resolve("sampleMultiColumnParquet2.parquet")
   }
 
+  lazy val OrdersCsv: Path = {
+    PkgDir.resolve("orders.csv")
+  }
+
   lazy val SampleCSV: Path = Paths
     .get(
       this.getClass
