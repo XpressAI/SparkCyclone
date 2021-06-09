@@ -1,7 +1,6 @@
 package com.nec.ve
 
 import com.nec.spark._
-import com.nec.ve.VEWordCountSpec.WordCountQuery
 
 import org.apache.spark.sql.execution.VeBasedBenchmark
 

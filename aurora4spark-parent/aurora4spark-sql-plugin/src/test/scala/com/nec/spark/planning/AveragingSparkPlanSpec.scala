@@ -1,8 +1,10 @@
 package com.nec.spark.planning
+import com.nec.debugging.Debugging.SprarkSessionImplicit
 import com.nec.spark.SparkAdditions
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
+
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 
 final class AveragingSparkPlanSpec
@@ -20,7 +22,7 @@ final class AveragingSparkPlanSpec
       .createOrReplaceTempView("nums")
 
     val executionPlan =
-      sparkSession.sql("SELECT AVG(value)  FROM nums").as[(Double)].executionPlan
+      sparkSession.debugSql("SELECT AVG(value)  FROM nums", "SUM(value)").as[(Double)].executionPlan
 
     assert(
       SingleColumnAvgPlanExtractor.matchPlan(executionPlan).isDefined,

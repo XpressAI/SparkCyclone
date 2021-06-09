@@ -1,5 +1,6 @@
 package com.nec.spark.agile
 
+import com.nec.debugging.Debugging.SprarkSessionImplicit
 import com.nec.spark.Aurora4SparkDriver
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.SparkAdditions
@@ -7,6 +8,7 @@ import com.nec.spark.planning.SingleColumnSumPlanExtractor
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
+
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 
 /**
@@ -41,7 +43,7 @@ final class SparkSanityTests
       .createOrReplaceTempView("nums")
 
     val executionPlan =
-      sparkSession.sql("SELECT SUM(value) FROM nums").as[Double].executionPlan
+      sparkSession.debugSql("SELECT SUM(value) FROM nums", "SUM(value)").as[Double].executionPlan
 
     assert(
       executionPlan.getClass.getCanonicalName
@@ -56,5 +58,4 @@ final class SparkSanityTests
         .map(_.map(_.getDouble(0)).toList) == Some(List(1, 2, 3))
     )
   }
-
 }
