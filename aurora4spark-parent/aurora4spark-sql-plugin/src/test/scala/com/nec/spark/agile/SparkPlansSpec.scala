@@ -41,7 +41,7 @@ final class SparkPlansSpec
 
 
     sparkSession
-      .debugSql("SELECT SUM(totalPrice), userId, joined_timestamp FROM Users JOIN Orders on Orders.userId = Users.id " +
+      .debugSql("SELECT SUM(totalPrice) as totalSum, userId, joined_timestamp FROM Users JOIN Orders on Orders.userId = Users.id " +
         "GROUP BY userId, joined_timestamp ORDER BY joined_timestamp ASC", "real-life-example")
       .show()
   }
