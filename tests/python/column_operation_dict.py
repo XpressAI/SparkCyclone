@@ -1,6 +1,12 @@
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
 
+# helper function for looping 
+def loop(op, df = None):
+    for _ in range(100):
+        df = op(df)
+    return df
+
 operations = {
     'abs' : lambda df : df.select(F.abs(df['int_x'])),
     'acos' : lambda df : df.select(F.acos(df['randn'])),
@@ -55,7 +61,9 @@ operations = {
     '(x+y)_int': lambda df : df.select(df['int_x'] + df['int_y']),
     '(x-y)_int': lambda df : df.select(df['int_x'] - df['int_y']),
     '(x*y)_int': lambda df : df.select(df['int_x'] * df['int_y']),
-    '(x/y)_int': lambda df : df.select(df['int_x'] / df['int_y'])
+    '(x/y)_int': lambda df : df.select(df['int_x'] / df['int_y']),
+    'complex_op1_int' : lambda df : loop(lambda df : df.withColumn("int_a", df['int_a'] + (df['int_x'] * df['int_y']) + df['int_b']), df),
+    'complex_op1_float' : lambda df : loop(lambda df : df.withColumn("float_a", df['float_a'] + (df['float_x'] * df['float_y']) + df['float_b']), df),
 }
 
 aggregate = {
