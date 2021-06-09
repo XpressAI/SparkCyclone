@@ -1,24 +1,36 @@
 package com.nec.debugging
 
-import java.nio.file.{Files, Paths, StandardOpenOption}
+import java.nio.file.Files
+import java.nio.file.Paths
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.execution.DatasetEnricher.RichDataSetString
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.execution.SparkPlan
+import java.nio.file.StandardOpenOption
 
 object Debugging {
-  implicit class SprarkSessionImplicit(val sparkSession: SparkSession) {
-    def debugSql(sqlQuery: String, name: String): DataFrame = {
+  implicit class RichDataSet[T](val dataSet: Dataset[T]) {
+    def debugSql(name: String): Dataset[T] = {
       val plansDir = Paths.get("target", "plans")
-      if(!plansDir.toFile.exists()) {
+      if (!plansDir.toFile.exists()) {
         Files.createDirectory(plansDir)
       }
-      val frame = sparkSession.sql(sqlQuery)
+      val target = plansDir.resolve(s"$name.txt")
+      dataSet.queryExecution.debug.toFile(target.toAbsolutePath.toString)
+      dataSet
+    }
+    def debugSqlAndShow(name: String): Dataset[T] = {
+      val plansDir = Paths.get("target", "plans")
+      if (!plansDir.toFile.exists()) {
+        Files.createDirectory(plansDir)
+      }
+      val target = plansDir.resolve(s"$name.txt")
+      dataSet.queryExecution.debug.toFile(target.toAbsolutePath.toString)
       Files.write(
-        Paths.get("target", "plans", name),
-        frame.queryExecution.sparkPlan.toString().getBytes("UTF-8"),
-        StandardOpenOption.CREATE
+        target,
+        s"\n\n${dataSet.showAsString()}\n".getBytes("UTF-8"),
+        StandardOpenOption.APPEND
       )
-      frame
+      dataSet
     }
   }
 }
