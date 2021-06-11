@@ -62,8 +62,13 @@ operations = {
     '(x-y)_int': lambda df : df.select(df['int_x'] - df['int_y']),
     '(x*y)_int': lambda df : df.select(df['int_x'] * df['int_y']),
     '(x/y)_int': lambda df : df.select(df['int_x'] / df['int_y']),
-    'complex_op1_int' : lambda df : loop(lambda df : df.withColumn("int_a", df['int_a'] + (df['int_x'] * df['int_y']) + df['int_b']), df),
-    'complex_op1_float' : lambda df : loop(lambda df : df.withColumn("float_a", df['float_a'] + (df['float_x'] * df['float_y']) + df['float_b']), df),
+    'a=a+b_int' : lambda df : loop(lambda df : df.withColumn("int_a", df['int_a'] + df['int_b']), df),
+    'a=a+b_float' : lambda df : loop(lambda df : df.withColumn("float_a", df['float_a'] + df['float_b']), df),
+    'a=a*b_int' : lambda df : loop(lambda df : df.withColumn("int_a", df['int_a'] * df['int_b']), df),
+    'a=a*b_float' : lambda df : loop(lambda df : df.withColumn("float_a", df['float_a'] * df['float_b']), df),
+    'a=a+b*x_int' : lambda df : loop(lambda df : df.withColumn("int_a", df['int_a'] + df['int_b'] * df['int_x']), df),
+    'a=a+b*x_float' : lambda df : loop(lambda df : df.withColumn("float_a", df['float_a'] + df['float_b'] * df['float_x']), df),
+
 }
 
 aggregate = {
