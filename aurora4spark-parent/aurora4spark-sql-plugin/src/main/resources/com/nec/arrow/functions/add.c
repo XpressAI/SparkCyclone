@@ -17,6 +17,7 @@ long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_n
 
     output->data = malloc(output->count * sizeof(double));
 
+    #pragma omp parallel for
     for (i = 0; i < output->count; i++) {
        output->data[i] = input_data_a.data[i] + input_data_b.data[i];
     }
