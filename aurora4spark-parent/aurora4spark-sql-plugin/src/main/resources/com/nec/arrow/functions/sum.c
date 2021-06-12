@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "transfer-definitions.h"
 
 long sum_vectors(non_null_double_vector* input, non_null_double_vector* output)
 {
@@ -14,7 +15,7 @@ long sum_vectors(non_null_double_vector* input, non_null_double_vector* output)
     printf("Total number of elements received: %d \n", input_data.count);
     printf("Row count of received dataset: %d \n", row_count);
 #endif
-    output->data = malloc(output->count * sizeof(double));
+    output->data = (double *)malloc(output->count * sizeof(double));
 
     #pragma omp parallel for
     for (i = 0; i < output->count; i++) {
