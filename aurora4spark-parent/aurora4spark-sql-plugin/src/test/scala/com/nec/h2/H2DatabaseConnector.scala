@@ -11,8 +11,11 @@ import org.h2.tools.RunScript
 import org.apache.spark.sql.SparkSession
 
 object H2DatabaseConnector {
-  val inputH2Url = "jdbc:h2:mem:inputDb;MODE=MYSQL;USER=sa;DB_CLOSE_DELAY=-1"
-  val conn = DriverManager.getConnection(inputH2Url, "sa", "")
+  val inputH2Url = "jdbc:h2:mem:inputDb;USER=sa;DB_CLOSE_DELAY=-1"
+  val conn = {
+    Class.forName("org.h2.Driver")
+    DriverManager.getConnection(inputH2Url, "sa", "")
+  }
 
   def init(): Unit = {
 
