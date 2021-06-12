@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "transfer-definitions.h"
 
 long sum_vectors(non_null_double_vector* input, non_null_double_vector* output)
 {
