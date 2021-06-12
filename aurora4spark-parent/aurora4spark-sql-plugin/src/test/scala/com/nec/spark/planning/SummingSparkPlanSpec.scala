@@ -22,6 +22,26 @@ final class SummingSparkPlanSpec
 
   "Specific plan matches sum of a single column" in withSparkSession(
     _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  ) { sparkSession =>
+    import sparkSession.implicits._
+    Seq[(Double, Double, Double)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val executionPlan = sparkSession
+      .sql("SELECT SUM(_1) FROM nums")
+      .as[(Double)]
+      .executionPlan
+    assert(
+      SingleColumnSumPlanExtractor
+        .matchPlan(executionPlan)
+        .isDefined,
+      executionPlan.toString()
+    )
+  }
+
+  "Partial plan matching returns proper sum of single column" in withSparkSession(
+    _.set(WHOLESTAGE_CODEGEN_ENABLED.key, "false")
       .set("spark.sql.extensions", classOf[SparkSqlPlanExtension].getCanonicalName)
 
   ) { sparkSession =>
