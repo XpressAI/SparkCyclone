@@ -16,20 +16,15 @@ package object agile {
   case class SingleColumnSparkPlan(sparkPlan: SparkPlan, column: Column)
   case class PartialSingleColumnSparkPlan(plans: Seq[SparkPlan], parent: SparkPlan, child: SparkPlan, column: Column) {
     def replaceMain(replaceWith: SparkPlan): SparkPlan = {
-      var current = replaceWith
-
       plans.reverse.dropWhile(plan => plan != parent)
-        .map {
-          case f@HashAggregateExec(_, _, _, _, _, _, _) => {
-            val temp = f.copy(child = current)
-            current = temp
+        .foldLeft(replaceWith){
+          case (plan, f@HashAggregateExec(_, _, _, _, _, _, _)) => {
+            f.copy(child=plan)
           }
-          case f@ShuffleExchangeExec(_, _, _) => {
-            val temp = f.copy(child = current)
-            current = temp
+          case (plan, f@ShuffleExchangeExec(_, _, _)) => {
+            f.copy(child=plan)
           }
         }
-      current
       }
     }
 

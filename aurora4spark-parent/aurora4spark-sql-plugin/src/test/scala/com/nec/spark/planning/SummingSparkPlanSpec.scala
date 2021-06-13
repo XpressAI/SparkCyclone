@@ -49,6 +49,7 @@ final class SummingSparkPlanSpec
     import sparkSession.implicits._
     val seq = Seq.fill(500)(Random.nextDouble())
       seq.toDS()
+      .repartition(200)
       .createOrReplaceTempView("nums")
     SparkSqlPlanExtension.rulesToApply.clear()
 
@@ -117,11 +118,9 @@ final class SummingSparkPlanSpec
       .as[(Double)]
 
     querySet.collect()
-    println(beforeMatchingPlan)
-    println(querySet.executionPlan)
 
     assert(
-      beforeMatchingPlan.isInstanceOf[HashAggregateExec],
+      beforeMatchingPlan.isInstanceOf[HashAggregateExec] &&
       querySet.executionPlan.isInstanceOf[WholeStageCodegenExec]
     )
   }
