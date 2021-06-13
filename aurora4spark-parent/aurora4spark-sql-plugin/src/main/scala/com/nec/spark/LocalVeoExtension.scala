@@ -10,6 +10,8 @@ import com.nec.spark.planning.WordCountPlanner.WordCounter
 
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.{Add, Expression, Subtract}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Average, Sum}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.RowToColumnarExec
@@ -19,18 +21,18 @@ object LocalVeoExtension {
   var _enabled = true
   var _arrowEnabled = true
 
-  def createAggregator(aggregationFunction: AggregationFunction): Aggregator = {
+  def createAggregator(aggregationFunction: AggregateFunction): Aggregator = {
     aggregationFunction match {
-      case SumAggregation =>
+      case Sum(_) =>
         new SumAggregator(Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric)
-      case AvgAggregation =>
+      case Average(_) =>
         new AvgAggregator(Aurora4SparkExecutorPlugin.veArrowNativeInterfaceNumeric)
     }
   }
 
-  def createExpressionAggregator(aggregationFunction: AggregationExpression): ColumnAggregator = {
+  def createExpressionAggregator(aggregationFunction: Expression): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression =>
+      case Add(_, _, _) =>
         AdditionAggregator(
           new VeArrowNativeInterfaceNumeric(
             Aurora4SparkExecutorPlugin._veo_proc,
@@ -38,7 +40,7 @@ object LocalVeoExtension {
             Aurora4SparkExecutorPlugin.lib
           )
         )
-      case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
+      case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
       case _                  => NoAggregationAggregator
     }
   }

@@ -5,12 +5,13 @@ import com.nec.arrow.functions.{Avg, Sum}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 
-import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.types.{DataType, DoubleType}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
+import org.apache.spark.sql.types.DoubleType
 package object agile {
   case class AttributeName(value: String) extends AnyVal
   case class SingleColumnSparkPlan(sparkPlan: SparkPlan, column: Column)
@@ -35,11 +36,6 @@ package object agile {
 
   type ColumnIndex = Int
   type ColumnWithNumbers = (ColumnIndex, Iterable[Double])
-
-  sealed trait AggregationExpression
-  case object SumExpression extends AggregationExpression
-  case object SubtractExpression extends AggregationExpression
-  case object NoAggregationExpression extends AggregationExpression
 
   sealed trait ColumnAggregator extends Serializable {
     def aggregate(inputData: Seq[Double]): Double
@@ -83,7 +79,7 @@ package object agile {
 
   case class ColumnAggregationExpression(
     columns: Seq[Column],
-    aggregation: AggregationExpression,
+    aggregation: Expression,
     columnIndex: ColumnIndex
   ) extends Serializable
 
@@ -118,15 +114,11 @@ package object agile {
   ) extends Serializable
 
   case class OutputColumnPlanDescription(
-    inputColumns: Seq[Column],
-    outputColumnIndex: ColumnIndex,
-    columnAggregation: AggregationExpression,
-    outputAggregator: AggregationFunction
+                                          inputColumns: Seq[Column],
+                                          outputColumnIndex: ColumnIndex,
+                                          columnAggregation: Expression,
+                                          outputAggregator: AggregateFunction
   ) extends Serializable
-
-  sealed trait AggregationFunction
-  case object SumAggregation extends AggregationFunction
-  case object AvgAggregation extends AggregationFunction
 
   trait Aggregator extends Serializable {
     def aggregateOffHeap(inputVector: Float8Vector): Double
