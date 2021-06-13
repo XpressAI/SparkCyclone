@@ -1,26 +1,13 @@
 package com.nec.spark
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.{
-  AdditionAggregator,
-  AggregationExpression,
-  AggregationFunction,
-  Aggregator,
-  AvgAggregation,
-  AvgAggregator,
-  ColumnAggregator,
-  MultipleColumnsOffHeapSubtractor,
-  NoAggregationAggregator,
-  SubtractExpression,
-  SubtractionAggregator,
-  SumAggregation,
-  SumAggregator,
-  SumExpression
-}
+import com.nec.spark.agile.{AdditionAggregator, Aggregator, AvgAggregator, ColumnAggregator, MultipleColumnsOffHeapSubtractor, NoAggregationAggregator, SubtractionAggregator, SumAggregator}
 import com.nec.spark.planning.SparkSqlPlanExtension
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap, Informing, TestSuite}
 
+import org.apache.spark.sql.catalyst.expressions.{Add, Expression, Subtract}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Average, Sum}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
@@ -87,22 +74,22 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
     def executionPlan: SparkPlan = dataSet.extractQueryExecution.executedPlan
   }
 
-  protected def createUnsafeAggregator(aggregationFunction: AggregationFunction): Aggregator = {
+  protected def createUnsafeAggregator(aggregationFunction: AggregateFunction): Aggregator = {
     aggregationFunction match {
-      case SumAggregation =>
+      case Sum(_) =>
         new SumAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-      case AvgAggregation =>
+      case Average(_) =>
         new AvgAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
     }
   }
 
   protected def createUnsafeColumnAggregator(
-    aggregationFunction: AggregationExpression
+    aggregationFunction: Expression
   ): ColumnAggregator = {
     aggregationFunction match {
-      case SumExpression =>
+      case Add(_, _, _) =>
         AdditionAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-      case SubtractExpression => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
+      case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
       case _                  => NoAggregationAggregator
     }
   }
