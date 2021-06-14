@@ -1,23 +1,25 @@
 package com.nec.arrow
 
 import java.nio.ByteBuffer
-
-import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
+import ArrowNativeInterfaceNumeric._
+import com.nec.arrow.ArrowTransferStructures._
 import com.nec.aurora.Aurora
-import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
+import com.nec.arrow.ArrowInterfaces._
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector._
 import org.bytedeco.javacpp.LongPointer
+import ArrowNativeInterfaceNumeric._
+import SupportedVectorWrapper._
 
 final class VeArrowNativeInterfaceNumeric(
   proc: Aurora.veo_proc_handle,
   ctx: Aurora.veo_thr_ctxt,
   lib: Long
 ) extends ArrowNativeInterfaceNumeric {
-  override def callFunction(
+  override def callFunctionGen(
     name: String,
-    inputArguments: List[Option[Float8Vector]],
-    outputArguments: List[Option[Float8Vector]]
+    inputArguments: List[Option[SupportedVectorWrapper]],
+    outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
     proc = proc,
     ctx = ctx,
@@ -37,6 +39,16 @@ object VeArrowNativeInterfaceNumeric {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
     vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
+    vcvr
+  }
+
+  private def make_veo_int2_vector(
+    proc: Aurora.veo_proc_handle,
+    intVector: IntVector
+  ): non_null_int2_vector = {
+    val vcvr = new non_null_int2_vector()
+    vcvr.count = intVector.getValueCount
+    vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())
     vcvr
   }
 
@@ -77,13 +89,20 @@ object VeArrowNativeInterfaceNumeric {
     v_bb
   }
 
+  def nonNullInt2VectorToByteBuffer(int_vector: non_null_int2_vector): ByteBuffer = {
+    val v_bb = int_vector.getPointer.getByteBuffer(0, 12)
+    v_bb.putLong(0, int_vector.data)
+    v_bb.putInt(8, int_vector.count)
+    v_bb
+  }
+
   private def executeVe(
     proc: Aurora.veo_proc_handle,
     ctx: Aurora.veo_thr_ctxt,
     lib: Long,
     functionName: String,
-    inputArguments: List[Option[Float8Vector]],
-    outputArguments: List[Option[Float8Vector]]
+    inputArguments: List[Option[SupportedVectorWrapper]],
+    outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
 
     val our_args = Aurora.veo_args_alloc()
@@ -92,7 +111,7 @@ object VeArrowNativeInterfaceNumeric {
         .collect { case (Some(doubleVector), idx) =>
           doubleVector -> idx
         }
-        .foreach { case (doubleVector, index) =>
+        .foreach { case (Float8VectorWrapper(doubleVector), index) =>
           val double_vector_raw = make_veo_double_vector(proc, doubleVector)
 
           Aurora.veo_args_set_stack(
@@ -102,14 +121,24 @@ object VeArrowNativeInterfaceNumeric {
             nonNullDoubleVectorToByteBuffer(double_vector_raw),
             12L
           )
+           case (IntVectorWrapper(intVector), index) =>
+          val int_vector_raw = make_veo_int2_vector(proc, intVector)
+
+          Aurora.veo_args_set_stack(
+            our_args,
+            0,
+            index,
+            nonNullInt2VectorToByteBuffer(int_vector_raw),
+            12L
+          )
         }
 
-      val outputArgumentsVectors: List[(Float8Vector, Int)] = outputArguments.zipWithIndex
-        .collect { case (Some(doubleVector), index) =>
+      val outputArgumentsVectorsDouble: List[(Float8Vector, Int)] = outputArguments.zipWithIndex
+        .collect { case (Some(Float8VectorWrapper(doubleVector)), index) =>
           doubleVector -> index
         }
 
-      val outputArgumentsStructs: List[(non_null_double_vector, Int)] = outputArgumentsVectors.map {
+      val outputArgumentsStructs: List[(non_null_double_vector, Int)] = outputArgumentsVectorsDouble.map {
         case (doubleVector, index) =>
           new non_null_double_vector(doubleVector.getValueCount) -> index
       }
@@ -129,10 +158,10 @@ object VeArrowNativeInterfaceNumeric {
       require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      (outputArgumentsVectors.zip(outputArgumentsStructs).zip(outputArgumentsByteBuffers)).foreach {
-        case (((intVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
+      (outputArgumentsVectorsDouble.zip(outputArgumentsStructs).zip(outputArgumentsByteBuffers)).foreach {
+        case (((floatVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
           veo_read_non_null_double_vector(proc, non_null_int_vector, byteBuffer)
-          non_null_double_vector_to_float8Vector(non_null_int_vector, intVector)
+          non_null_double_vector_to_float8Vector(non_null_int_vector, floatVector)
       }
     } finally Aurora.veo_args_free(our_args)
   }
