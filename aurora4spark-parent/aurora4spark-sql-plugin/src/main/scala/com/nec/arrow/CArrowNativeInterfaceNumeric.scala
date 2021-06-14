@@ -36,17 +36,15 @@ object CArrowNativeInterfaceNumeric {
     val nl = nativeLibraryHandler.getNativeLibrary
     val fn = nl.getFunction(functionName)
 
-    /**
-     * 
-     * TODO implement for SupportedVectorWrapper
-    val outputStructs = outputArguments.map(_.map(doubleVector => {
+    val outputStructs = outputArguments.map(_.map{
+      case Float8VectorWrapper(doubleVector) => 
       new non_null_double_vector(doubleVector.getValueCount)
-    }))
+    })
 
     val invokeArgs: Array[java.lang.Object] = inputArguments
       .zip(outputStructs)
       .map {
-        case ((Some(vcv), _)) =>
+        case ((Some(Float8VectorWrapper(vcv)), _)) =>
           c_double_vector(vcv)
         case ((_, Some(structVector))) =>
           structVector
@@ -58,11 +56,10 @@ object CArrowNativeInterfaceNumeric {
     fn.invokeLong(invokeArgs)
 
     outputStructs.zip(outputArguments).foreach {
-      case (Some(struct), Some(vec)) =>
+      case (Some(struct), Some(Float8VectorWrapper(vec))) =>
         non_null_double_vector_to_float8Vector(struct, vec)
       case _ =>
-    }**/
-
+    }
 
   }
 }
