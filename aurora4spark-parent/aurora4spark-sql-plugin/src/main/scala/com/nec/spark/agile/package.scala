@@ -9,10 +9,24 @@ import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.{DataType, DoubleType}
-
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 package object agile {
   case class AttributeName(value: String) extends AnyVal
   case class SingleColumnSparkPlan(sparkPlan: SparkPlan, column: Column)
+  case class PartialSingleColumnSparkPlan(plans: Seq[SparkPlan], parent: SparkPlan, child: SparkPlan, column: Column) {
+    def replaceMain(replaceWith: SparkPlan): SparkPlan = {
+      plans.reverse.dropWhile(plan => plan != parent)
+        .foldLeft(replaceWith){
+          case (plan, f@HashAggregateExec(_, _, _, _, _, _, _)) => {
+            f.copy(child=plan)
+          }
+          case (plan, f@ShuffleExchangeExec(_, _, _)) => {
+            f.copy(child=plan)
+          }
+        }
+      }
+    }
 
   case class GenericSparkPlanDescription(
     sparkPlan: SparkPlan,
