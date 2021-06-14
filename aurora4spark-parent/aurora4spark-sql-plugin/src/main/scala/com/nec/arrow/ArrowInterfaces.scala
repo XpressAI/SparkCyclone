@@ -3,14 +3,13 @@ import org.apache.arrow.vector.ipc.message.ArrowFieldNode
 import org.apache.arrow.vector.BitVectorHelper
 import com.nec.arrow.ArrowTransferStructures.non_null_int_vector
 import org.apache.arrow.memory.ArrowBuf
-import org.apache.arrow.vector.Float8Vector
-import org.apache.arrow.vector.VarCharVector
+import org.apache.arrow.vector._
 import com.sun.jna.Pointer
 import com.nec.arrow.ArrowTransferStructures.varchar_vector
 import org.apache.arrow.memory.BufferAllocator
 import sun.nio.ch.DirectBuffer
 import org.apache.arrow.vector.IntVector
-import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
+import com.nec.arrow.ArrowTransferStructures._
 
 object ArrowInterfaces {
 
@@ -35,6 +34,13 @@ object ArrowInterfaces {
     vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
 
     vc.count = float8Vector.getValueCount
+    vc
+  }
+
+  def c_int2_vector(intVector: IntVector): non_null_int2_vector = {
+    val vc = new non_null_int2_vector()
+    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = intVector.getValueCount
     vc
   }
 

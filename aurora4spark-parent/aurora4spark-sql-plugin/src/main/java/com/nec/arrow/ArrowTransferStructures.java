@@ -65,6 +65,24 @@ public interface ArrowTransferStructures extends Library {
             public ByReference(Pointer p) { super(p); }
         }
     }
+    @Structure.FieldOrder({"data", "count"})
+    class non_null_int2_vector extends Structure {
+        public long data;
+        public Integer count;
+
+        public non_null_int2_vector() {
+            super();
+        }
+
+        public non_null_int2_vector(Pointer p) {
+            super(p);
+            read();
+        }
+        public static class ByReference extends non_null_int2_vector implements Structure.ByReference {
+            public ByReference() { }
+            public ByReference(Pointer p) { super(p); }
+        }
+    }
 
     @Structure.FieldOrder({"data", "count"})
     class non_null_double_vector extends Structure {
