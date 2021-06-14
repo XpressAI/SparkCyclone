@@ -3,7 +3,6 @@ package com.nec.spark.planning
 import scala.util.Random
 
 import com.nec.cmake.CMakeBuilder
-import com.nec.debugging.Debugging.SprarkSessionImplicit
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.CBased
 import org.scalatest.BeforeAndAfter
