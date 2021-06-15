@@ -79,7 +79,7 @@ final class JoinVeSpec extends AnyFreeSpec {
           ArrowVectorBuilders.withDirectFloat8Vector(data) { vcv =>
             runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, outVector)
             val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
-            (res, sortJVM(vcv))
+            (res, joinJVM(vcv))
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)
