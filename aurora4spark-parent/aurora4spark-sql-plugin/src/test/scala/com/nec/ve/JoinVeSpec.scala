@@ -52,6 +52,7 @@ final class JoinVeSpec extends AnyFreeSpec {
       oPath.toString,
       "-I./src/main/resources/com/nec/arrow/functions/cpp",
       "-I./src/main/resources/com/nec/arrow/functions/cpp/frovedis",
+      "-I./src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
       "-c",
       "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc",
       "-shared",
