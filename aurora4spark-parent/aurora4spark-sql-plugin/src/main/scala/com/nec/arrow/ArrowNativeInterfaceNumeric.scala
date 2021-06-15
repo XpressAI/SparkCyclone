@@ -29,5 +29,6 @@ object ArrowNativeInterfaceNumeric {
   object SupportedVectorWrapper {
     final case class Float8VectorWrapper(float8Vector: Float8Vector) extends SupportedVectorWrapper
     final case class IntVectorWrapper(intVector: IntVector) extends SupportedVectorWrapper
+
   }
 }

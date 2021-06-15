@@ -1,10 +1,9 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.{AttributeName, Column,
-  ColumnAggregationExpression, GenericSparkPlanDescription, OutputColumnPlanDescription}
+import com.nec.spark.agile.{AttributeName, Column, ColumnAggregationExpression, GenericSparkPlanDescription, OutputColumnPlanDescription}
 
 import org.apache.spark.sql.catalyst.expressions.{Add, AttributeSet, Expression, Subtract}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, Sum}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
@@ -35,7 +34,8 @@ object VeoGenericPlanExtractor {
               )
           ) => {
         val columnIndices = fourth.output.map(_.name).zipWithIndex.toMap
-        val columnMappings = exprs.map(expression => (expression, extractAttributes(expression.references)))
+        val columnMappings = exprs
+          .map(expression => extractExpression(expression.aggregateFunction))
           .zipWithIndex
           .map { case ((operation, attributes), id) =>
             ColumnAggregationExpression(
@@ -62,5 +62,16 @@ object VeoGenericPlanExtractor {
 
   def extractAttributes(attributes: AttributeSet): Seq[AttributeName] = {
     attributes.map(reference => AttributeName(reference.name)).toSeq
+  }
+
+  def extractExpression(
+                          aggregateFunction: AggregateFunction
+                        ): (Expression, Seq[AttributeName]) = {
+    aggregateFunction match {
+      case sum@Sum(expr) =>
+        (expr, extractAttributes(sum.references))
+      case avg@Average(expr) =>
+        (expr, extractAttributes(avg.references))
+    }
   }
 }
