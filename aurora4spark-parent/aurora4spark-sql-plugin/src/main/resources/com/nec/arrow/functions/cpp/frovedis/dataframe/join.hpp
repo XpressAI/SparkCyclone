@@ -11,6 +11,7 @@
 #include "../core/upper_bound.hpp"
 #include "hashtable.hpp"
 #include <limits>
+#include <iostream>
 #endif
 
 #define JOIN_VLEN 256
