@@ -2,7 +2,7 @@
 #include "transfer-definitions.c"
 #include "frovedis/dataframe/join.hpp"
 #include <iostream>
-extern "C" long join_doubles(non_null_double_vector* input, non_null_double_vector* out) {
+long join_doubles(non_null_double_vector* input, non_null_double_vector* out) {
     // ret.append_column(cnames[i], col);
     std::cout << "TEZT";
     out->data = (double *)malloc(input->count * sizeof(double));
