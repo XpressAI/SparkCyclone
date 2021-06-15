@@ -34,7 +34,7 @@ object JoinVeSpec {
       )
     }
 
-    def sortJVM(inputVector: Float8Vector): List[Double] =
+    def joinJVM(inputVector: Float8Vector): List[Double] =
       (0 until inputVector.getValueCount).map { idx =>
         inputVector.get(idx)
       }.toList.sorted
