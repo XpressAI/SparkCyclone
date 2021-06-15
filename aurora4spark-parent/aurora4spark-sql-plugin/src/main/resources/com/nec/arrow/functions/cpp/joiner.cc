@@ -4,6 +4,6 @@
 
 extern "C" long join_doubles(non_null_double_vector* input, non_null_double_vector* out) {
     std::cout << "TEZT\n";
-    frovedis::equi_join2(input, input, out);
+    std::vector vector();
    return 0;
 }
