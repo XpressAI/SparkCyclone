@@ -1217,8 +1217,6 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k,
                                       table_valp, hashp);
   auto missed_size = missed.size();
   if(missed_size > 0) {
-    RLOG(DEBUG) << "missed = " << missed_size << "/" << size
-                << ", table_size = " << table_size << std::endl;
     conflict_key.resize(missed_size);
     conflict_val.resize(missed_size);
     auto conflict_keyp = conflict_key.data();
@@ -1300,8 +1298,6 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k,
                                        is_unique_ok);
   auto missed_size = missed.size();
   if(missed_size > 0) {
-    RLOG(DEBUG) << "missed = " << missed_size << "/" << size
-                << ", table_size = " << table_size << std::endl;
     conflict_key.resize(missed_size);
     conflict_val.resize(missed_size);
     auto conflict_keyp = conflict_key.data();
@@ -1368,8 +1364,6 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k) {
   auto missed = find_miss(keyp, size, table_keyp, hashp);
   auto missed_size = missed.size();
   if(missed_size > 0) {
-    RLOG(DEBUG) << "missed = " << missed_size << "/" << size
-                << ", table_size = " << table_size << std::endl;
     conflict_key.resize(missed_size);
     auto conflict_keyp = conflict_key.data();
     auto missedp = missed.data();
