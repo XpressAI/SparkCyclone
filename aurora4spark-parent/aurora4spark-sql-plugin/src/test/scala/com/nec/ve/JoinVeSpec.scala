@@ -34,7 +34,7 @@ object JoinVeSpec {
       )
     }
 
-    def sortJVM(inputVector: Float8Vector): List[Double] =
+    def joinJVM(inputVector: Float8Vector): List[Double] =
       (0 until inputVector.getValueCount).map { idx =>
         inputVector.get(idx)
       }.toList.sorted
@@ -45,26 +45,26 @@ final class JoinVeSpec extends AnyFreeSpec {
   "We can join two lists" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectories(veBuildPath)
-    val oPath = veBuildPath.resolve("join.o")
+    val oPath = veBuildPath.resolve("join.so")
     val theCommand = List(
       "nc++",
+      "-O3",
+      "-fpic",
+      "-pthread",
       "-o",
       oPath.toString,
       "-I./src/main/resources/com/nec/arrow/functions/cpp",
       "-I./src/main/resources/com/nec/arrow/functions/cpp/frovedis",
-      "-c",
-      "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc",
+      "-I./src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
       "-shared",
       "-I./src/main/resources/com/nec/arrow/functions",
-      "-I./src/main/resources/com/nec/arrow/"
+      "-I./src/main/resources/com/nec/arrow/",
+      "-xc++",
+      "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc"
     )
 
     import scala.sys.process._
     info(theCommand.!!.toString)
-
-    val soFile = veBuildPath.resolve("join.so")
-    val command2 = Seq("nc++", "-shared", "-pthread", "-o", soFile.toString, oPath.toString)
-    info(command2.!!.toString)
 
     val proc = Aurora.veo_proc_create(0)
     val (sorted, expectedSorted) =
@@ -75,11 +75,11 @@ final class JoinVeSpec extends AnyFreeSpec {
           val alloc = new RootAllocator(Integer.MAX_VALUE)
           val outVector = new Float8Vector("value", alloc)
           val data: Seq[Double] = Seq(5, 1, 2, 34, 6)
-          val lib: Long = Aurora.veo_load_library(proc, soFile.toString)
+          val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
           ArrowVectorBuilders.withDirectFloat8Vector(data) { vcv =>
             runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, outVector)
             val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
-            (res, sortJVM(vcv))
+            (res, joinJVM(vcv))
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)

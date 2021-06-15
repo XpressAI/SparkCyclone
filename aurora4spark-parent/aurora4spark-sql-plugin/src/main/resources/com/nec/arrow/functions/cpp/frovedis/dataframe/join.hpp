@@ -1,7 +1,10 @@
 #ifndef JOIN_HPP
 #define JOIN_HPP
+#include <iostream>
 
 #include <vector>
+#include <iostream>
+
 #if !(defined(_SX) || defined(__ve__))
 #include <unordered_map>
 #else
@@ -11,6 +14,7 @@
 #include "../core/upper_bound.hpp"
 #include "hashtable.hpp"
 #include <limits>
+#include <iostream>
 #endif
 
 #define JOIN_VLEN 256
@@ -307,13 +311,19 @@ void equi_join(std::vector<T>& left,
                std::vector<size_t>& left_idx_out,
                std::vector<size_t>& right_idx_out) {
   int is_unique_ok;
+
   unique_hashtable<T, size_t> ht(right, right_idx, is_unique_ok);
   if(is_unique_ok) {
+    std::cout << "UNIQUE OK";
     std::vector<size_t> missed;
     auto looked_up = ht.lookup(left, missed);
+      for(int i=0; i<looked_up.size(); ++i)
+              std::cout << "Looked up: " << looked_up[i] << "\n";
     left_idx_out = shrink_missed(left_idx, missed);
     right_idx_out = shrink_missed(looked_up, missed);
   } else {
+      std::cout << "UNIQUE OK";
+
     ht.clear();
     radix_sort(right, right_idx);
     auto sep = set_separate(right);
