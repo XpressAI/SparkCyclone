@@ -30,7 +30,7 @@ object JoinVeSpec {
       nativeInterface.callFunction(
         name = "join_doubles",
         inputArguments = List(Some(firstColumnVector), None),
-        outputArguments = List(None, Some(outputVector))
+        outputArguments = List(None, None)
       )
     }
 
