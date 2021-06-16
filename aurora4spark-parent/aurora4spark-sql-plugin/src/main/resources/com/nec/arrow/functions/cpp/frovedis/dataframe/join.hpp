@@ -46,30 +46,29 @@ void equi_join(std::vector<T>& left,
 }
 
 template <class T>
-void equi_join2(non_null_double_vector* left,
-                    non_null_double_vector* right,
-                    non_null_double_vector* out) {
-      std::vector<double> left_vec(left -> data, left->data + left -> count);
-      std::vector<double> right_vec(right -> data, right->data + right -> count);
-      size_t left_size = 0;
-      for(size_t i = 0; i < left -> count; i++)
-          left_size += sizeof(left -> data[i]);
+void equi_join_raw(non_null_double_vector* left,
+                       non_null_double_vector* right,
+                       non_null_double_vector* out) {
 
-      std::vector<size_t> left_idx(left_size);
-      size_t right_size = 0;
+    std::vector<double> left_vec(left -> data, left->data + left -> count);
+    std::vector<double> right_vec(right -> data, right->data + right -> count);
+    size_t left_size = 0;
+    for(size_t i = 0; i < left -> count; i++)
+        left_size += sizeof(left -> data[i]);
 
-      for(size_t i = 0; i < right -> count; i++)
-            right_size += sizeof(left -> data[i]);
+    std::vector<size_t> left_idx(left_size);
+    size_t right_size = 0;
 
-      std::vector<size_t> right_idx(right_size);
+    for(size_t i = 0; i < right -> count; i++)
+          right_size += sizeof(left -> data[i]);
 
-      std::vector<size_t> right_out;
-      std::vector<size_t> left_out;
+    std::vector<size_t> right_idx(right_size);
 
-      frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);
+    std::vector<size_t> right_out;
+    std::vector<size_t> left_out;
 
-      for(int i =0; i < right_out.size(); i++)
-          std::cout << right_out[i] << "\n";
+    frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);
+
 }
 
 // for star join
@@ -349,6 +348,31 @@ void equi_join(std::vector<T>& left,
     multi_equi_join(sep, left, left_idx, right, right_idx,
                     left_idx_out, right_idx_out);
   }
+}
+
+template <class T>
+void equi_join_raw(non_null_double_vector* left,
+                       non_null_double_vector* right,
+                       non_null_double_vector* out) {
+
+    std::vector<double> left_vec(left -> data, left->data + left -> count);
+    std::vector<double> right_vec(right -> data, right->data + right -> count);
+    size_t left_size = 0;
+    for(size_t i = 0; i < left -> count; i++)
+        left_size += sizeof(left -> data[i]);
+
+    std::vector<size_t> left_idx(left_size);
+    size_t right_size = 0;
+
+    for(size_t i = 0; i < right -> count; i++)
+          right_size += sizeof(left -> data[i]);
+
+    std::vector<size_t> right_idx(right_size);
+
+    std::vector<size_t> right_out;
+    std::vector<size_t> left_out;
+
+    frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);
 }
 
 template <class T>
