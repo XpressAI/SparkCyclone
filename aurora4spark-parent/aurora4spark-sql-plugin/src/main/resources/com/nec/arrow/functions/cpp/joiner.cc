@@ -5,8 +5,6 @@
 #include <iostream>
 
 extern "C" long join_doubles(non_null_double_vector* input, non_null_double_vector* out) {
-    std::cout << "TEZT\n";
-    std::vector<int> vec;
-    vec.push_back(10);
+    printf("DDD");
    return 0;
 }
