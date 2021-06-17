@@ -1,5 +1,7 @@
 #!/bin/bash
 
+zip dep.zip *.py
+
 /opt/spark/bin/spark-submit --master yarn \
 --name GPU_Benchmark \
 --deploy-mode cluster \
@@ -12,11 +14,11 @@
 --conf spark.rapids.sql.csv.read.float.enabled=true \
 --conf spark.rapids.sql.csv.read.integer.enabled=true \
 --conf spark.rapids.sql.variableFloatAgg.enabled=true \
-run_benchmark.py data/100M_R100000000_P100_csv \
+run_benchmark.py data/1M_R1000000_P100_csv \
 -x 4g -d 4g \
--o output/test_gpu_100M_clearcache \
+-o output/test_gpu_1M_clearcache \
 -t column \
--l "sum_int,sum_float,avg_int,avg_float,(x+y)_int,(x+y)_float,avg(x+y)_int,avg(x+y)_float,sum(x+y)_int,sum(x+y)_float" \
+-l "a=a+b_int,a=a+b_float,a=a*b_int,a=a*b_float,a=a+b*x_int,a=a+b*x_float" \
 -n 5 \
 --clearcache
 
