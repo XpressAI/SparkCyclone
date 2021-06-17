@@ -7,12 +7,12 @@ import SupportedVectorWrapper._
 trait ArrowNativeInterfaceNumeric extends Serializable {
   final def callFunction(
     name: String,
-    inputArguments: List[Option[Float8Vector]],
+    inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[Float8Vector]]
   ): Unit = {
     callFunctionGen(
-      name = name, 
-      inputArguments = inputArguments.map(_.map(f8v => Float8VectorWrapper(f8v))),
+      name = name,
+      inputArguments = inputArguments,
       outputArguments = outputArguments.map(_.map(f8v => Float8VectorWrapper(f8v)))
     )
   }
