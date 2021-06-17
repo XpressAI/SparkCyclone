@@ -43,10 +43,19 @@ object JoinVeSpec {
       )
     }
 
-    def joinJVM(inputVector: Float8Vector): List[Double] =
-      (0 until inputVector.getValueCount).map { idx =>
-        inputVector.get(idx)
-      }.toList.sorted
+    def joinJVM(leftColumn: Float8Vector, rightColumn: Float8Vector,
+                leftKey: IntVector, rightKey: IntVector): List[(Double, Double)] = {
+      val leftColVals = (0 until leftColumn.getValueCount).map(idx => leftColumn.get(idx))
+      val rightColVals = (0 until rightColumn.getValueCount).map(idx => rightColumn.get(idx))
+      val leftKeyVals = (0 until leftKey.getValueCount).map(idx => leftKey.get(idx))
+      val rightKeyVals = (0 until rightKey.getValueCount).map(idx => rightKey.get(idx))
+      val leftMap = leftKeyVals.zip(leftColVals).toMap
+      val rightMap = rightKeyVals.zip(rightColVals).toMap
+      val joinedKeys = leftKeyVals.filter(key => rightMap.contains(key))
+      joinedKeys.map(key => leftMap(key)).zip(
+        joinedKeys.map(key => rightMap(key))
+      ).toList
+    }
   }
 
 }
@@ -94,7 +103,9 @@ final class JoinVeSpec extends AnyFreeSpec {
                 ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
                   runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(firstColumnVec, secondColumnVec, firstKeysVec, secondKeysVec, outVector)
                   val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
-                  (res, joinJVM(firstColumnVec))
+                    .splitAt(outVector.getValueCount/2)
+                  val joinResult = res._1.zip(res._2)
+                  (joinResult, joinJVM(firstColumnVec, secondColumnVec, firstKeysVec, secondKeysVec))
                 }
                 }
               }
