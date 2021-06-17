@@ -1,6 +1,7 @@
 package com.nec.arrow.functions
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import org.apache.arrow.vector.Float8Vector
 
 object Sort {
@@ -13,7 +14,7 @@ object Sort {
 
     nativeInterface.callFunction(
       name = "sort_doubles",
-      inputArguments = List(Some(firstColumnVector), None),
+      inputArguments = List(Some(Float8VectorWrapper(firstColumnVector)), None),
       outputArguments = List(None, Some(outputVector))
     )
   }

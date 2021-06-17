@@ -1,6 +1,7 @@
 package com.nec.arrow.functions
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.memory.RootAllocator
 
@@ -14,14 +15,14 @@ object Avg {
 
   def runOn(
     nativeInterface: ArrowNativeInterfaceNumeric
-  )(varCharVector: Float8Vector, columnsCount: Int): Seq[Double] = {
+  )(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
     val ra = new RootAllocator()
     val outputVector = new Float8Vector("count", ra)
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(
       name = "vector_avg",
-      inputArguments = List(Some(varCharVector), None),
+      inputArguments = List(Some(Float8VectorWrapper(float8Vector)), None),
       outputArguments = List(None, Some(outputVector), None)
     )
 
