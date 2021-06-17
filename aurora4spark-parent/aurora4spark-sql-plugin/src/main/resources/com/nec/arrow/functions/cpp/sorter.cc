@@ -1,10 +1,7 @@
 #include "frovedis/core/radix_sort.hpp"
 #include "transfer-definitions.c"
-#include <iostream>
-#include <vector>
-extern "C" long sort_doubles(non_null_double_vector* input, non_null_double_vector* out) {
 
-    std::vector<int> vec(4);
+extern "C" long sort_doubles(non_null_double_vector* input, non_null_double_vector* out) {
     out->data = (double *)malloc(input->count * sizeof(double));
     out->count = input->count;
     memcpy(out->data, input -> data, input->count * sizeof(double));
