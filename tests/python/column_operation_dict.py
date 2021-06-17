@@ -3,7 +3,7 @@ import pyspark.sql.types as T
 
 # helper function for looping 
 def loop(op, df = None):
-    for _ in range(100):
+    for _ in range(10):
         df = op(df)
     return df
 

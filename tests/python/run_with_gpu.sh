@@ -1,5 +1,7 @@
 #!/bin/bash
 
+zip dep.zip *.py
+
 /opt/spark/bin/spark-submit --master yarn \
 --name GPU_Benchmark \
 --deploy-mode cluster \

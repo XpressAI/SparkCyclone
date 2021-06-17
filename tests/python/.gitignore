@@ -4,3 +4,4 @@ _SUCCESS
 *.parquet
 *.json
 *.jar
+test*
