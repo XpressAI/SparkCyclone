@@ -7,7 +7,7 @@ import argparse
 from timeit import default_timer as timer
 
 def query_1(spark):
-    print("""Running: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+    print("""Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
         FROM trips WHERE payment_type = 2 
         group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
         having fare_amount > 20.0
@@ -19,7 +19,7 @@ def query_1(spark):
     return res
 
 def query_2(spark):
-    print("""Running: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+    print("""Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
         FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
     """)
     res = spark.sql('SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) \
@@ -27,7 +27,7 @@ def query_2(spark):
     return res
 
 def query_3(spark):
-    print("""Running: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+    print("""Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
         from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
     """)
     res = spark.sql('select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) \
@@ -35,7 +35,7 @@ def query_3(spark):
     return res
 
 def query_4(spark):
-    print("""Running: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+    print("""Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
         from trips inner join cab_types on trips.cab_type_id = cab_types.id
     """)
     res = spark.sql('select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type \
@@ -43,7 +43,7 @@ def query_4(spark):
     return res
 
 def query_5(spark):
-    print("""Running: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    print("""Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
     as mean_distance, AVG(total_amount) as mean_amount from trips
     """)
     res = spark.sql('select corr(trip_distance, total_amount) as correlation, AVG(trip_distance) as mean_distance, AVG(total_amount) as mean_amount from trips')
@@ -52,19 +52,56 @@ def query_5(spark):
 if __name__ == '__main__':
     conf = SparkConf().setAll([('spark.executor.memory', '4g'), ('spark.driver.memory', '4g')]) 
     spark = SparkSession.builder.appName('NYC').config(conf=conf).getOrCreate()
+    schema_nyctaxi = T.StructType([
+        T.StructField("id",T.StringType(), False),
+        T.StructField("cab_type_id",T.StringType()),
+        T.StructField("vendor_id",T.StringType()),
+        T.StructField("pickup_datetime",T.StringType()),
+        T.StructField("dropoff_datetime",T.StringType()),
+        T.StructField("store_and_fwd_flag",T.StringType()),
+        T.StructField("rate_code_id",T.StringType()),
+        T.StructField("pickup_longitude",T.StringType()),
+        T.StructField("pickup_latitude",T.StringType()),
+        T.StructField("dropoff_longitude",T.StringType()),
+        T.StructField("dropoff_latitude",T.StringType()),
+        T.StructField("passenger_count",T.LongType()),
+        T.StructField("trip_distance",T.DoubleType()),
+        T.StructField("fare_amount",T.DoubleType()),
+        T.StructField("extra",T.DoubleType()),
+        T.StructField("mta_tax",T.DoubleType()),
+        T.StructField("tip_amount",T.DoubleType()),
+        T.StructField("tolls_amount",T.DoubleType()),
+        T.StructField("ehail_fee",T.DoubleType()),
+        T.StructField("improvement_surcharge",T.DoubleType()),
+        T.StructField("congestion_surcharge",T.DoubleType()),
+        T.StructField("total_amount",T.DoubleType()),
+        T.StructField("payment_type",T.DoubleType()),
+        T.StructField("trip_type",T.StringType()),
+        T.StructField("pickup_nyct2010_gid",T.StringType()),
+        T.StructField("dropoff_nyct2010_gid",T.StringType()),
+        T.StructField("pickup_location_id",T.StringType()),
+        T.StructField("dropoff_location_id",T.StringType()),
+    ])
+    
+    schema_cab = T.StructType([
+        T.StructField("id", T.StringType(),False),
+        T.StructField("type", T.StringType()),
+    ])
 
-    df = spark.read.csv('data/trips_2020.csv', header=True).persist(StorageLevel.MEMORY_AND_DISK)
-    df1 = spark.read.csv('data/cab_types.csv', header=True).persist(StorageLevel.MEMORY_AND_DISK)
+    df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi).persist(StorageLevel.MEMORY_AND_DISK)
+    df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab).persist(StorageLevel.MEMORY_AND_DISK)
     df.registerTempTable('trips')
     df1.registerTempTable('cab_types')
-    print(df.schema, df1.schema)
+    print(f'{df.schema} \n{df1.schema}')
+    # print(df.show(5))
+    # print(df1.show(5))
 
     queries = {
         'q1': query_1, 
         'q2': query_2, 
-        'q2': query_3, 
-        'q3': query_4, 
-        'q4': query_5
+        'q3': query_3, 
+        'q4': query_4, 
+        'q5': query_5
     }
     res = []
 
@@ -74,7 +111,7 @@ if __name__ == '__main__':
         try:
 
             for i in range(5):
-                print("="*60)
+                print("="*240)
                 print(f'Running {op}_benchmark_test_{i}')
 
                 spark.catalog.clearCache() 
@@ -89,7 +126,7 @@ if __name__ == '__main__':
                 time_taken = timer() - start_time
                 new_df.explain()
                 print(f'Finished {op}_benchmark_test_{i} = {time_taken}')
-                print("="*60)
+                print("="*240)
                 col_op.append(time_taken)
 
             avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (5-2)
@@ -113,7 +150,3 @@ if __name__ == '__main__':
         mode='overwrite'
     )
     print(results_df.show())
-
-            
-
-

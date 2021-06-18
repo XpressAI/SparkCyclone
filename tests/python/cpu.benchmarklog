@@ -1,0 +1,413 @@
+StructType(List(StructField(id,StringType,true),StructField(cab_type_id,StringType,true),StructField(vendor_id,StringType,true),StructField(pickup_datetime,StringType,true),StructField(dropoff_datetime,StringType,true),StructField(store_and_fwd_flag,StringType,true),StructField(rate_code_id,StringType,true),StructField(pickup_longitude,StringType,true),StructField(pickup_latitude,StringType,true),StructField(dropoff_longitude,StringType,true),StructField(dropoff_latitude,StringType,true),StructField(passenger_count,LongType,true),StructField(trip_distance,DoubleType,true),StructField(fare_amount,DoubleType,true),StructField(extra,DoubleType,true),StructField(mta_tax,DoubleType,true),StructField(tip_amount,DoubleType,true),StructField(tolls_amount,DoubleType,true),StructField(ehail_fee,DoubleType,true),StructField(improvement_surcharge,DoubleType,true),StructField(congestion_surcharge,DoubleType,true),StructField(total_amount,DoubleType,true),StructField(payment_type,DoubleType,true),StructField(trip_type,StringType,true),StructField(pickup_nyct2010_gid,StringType,true),StructField(dropoff_nyct2010_gid,StringType,true),StructField(pickup_location_id,StringType,true),StructField(dropoff_location_id,StringType,true))) 
+StructType(List(StructField(id,StringType,true),StructField(type,StringType,true)))
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_0
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#64]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+
+Finished q1_benchmark_test_0 = 73.06945280797663
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_1
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#120]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+
+Finished q1_benchmark_test_1 = 91.32878371098195
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_2
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#176]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+
+Finished q1_benchmark_test_2 = 106.52942035801243
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_3
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#232]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+
+Finished q1_benchmark_test_3 = 110.11873164097778
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_4
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#288]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+
+Finished q1_benchmark_test_4 = 90.36939531899407
+================================================================================================================================================================================================================================================
+AVG for q1_benchmark_test = 96.07586646266282
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_0
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#332]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+
+Finished q2_benchmark_test_0 = 170.99023943199427
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_1
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#376]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+
+Finished q2_benchmark_test_1 = 177.4391928180121
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_2
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#420]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+
+Finished q2_benchmark_test_2 = 171.93491214999813
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_3
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#464]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+
+Finished q2_benchmark_test_3 = 170.50084881097428
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_4
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#508]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+
+Finished q2_benchmark_test_4 = 165.08319331202074
+================================================================================================================================================================================================================================================
+AVG for q2_benchmark_test = 171.1420001309889
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_0
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#462L, sum(total_amount)#463]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#466) AND (sum((fare_amount#13 + extra#14))#466 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#574]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+
+Finished q3_benchmark_test_0 = 150.74038294199272
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_1
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#495L, sum(total_amount)#496]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#499) AND (sum((fare_amount#13 + extra#14))#499 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#642]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+
+Finished q3_benchmark_test_1 = 151.9892745729885
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_2
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#528L, sum(total_amount)#529]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#532) AND (sum((fare_amount#13 + extra#14))#532 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#710]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+
+Finished q3_benchmark_test_2 = 151.00661333999597
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_3
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#561L, sum(total_amount)#562]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#565) AND (sum((fare_amount#13 + extra#14))#565 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#778]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+
+Finished q3_benchmark_test_3 = 157.72054060199298
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_4
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#594L, sum(total_amount)#595]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#598) AND (sum((fare_amount#13 + extra#14))#598 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#846]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+
+Finished q3_benchmark_test_4 = 166.07221148299868
+================================================================================================================================================================================================================================================
+AVG for q3_benchmark_test = 153.57214283832582
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_0
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#930]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+
+Finished q4_benchmark_test_0 = 81.15664122000453
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_1
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1013]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+
+Finished q4_benchmark_test_1 = 78.15033125600894
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_2
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1096]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+
+Finished q4_benchmark_test_2 = 77.19777985100518
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_3
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1179]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+
+Finished q4_benchmark_test_3 = 75.99230758898193
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_4
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1262]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+
+Finished q4_benchmark_test_4 = 75.8235730509914
+================================================================================================================================================================================================================================================
+AVG for q4_benchmark_test = 77.11347289866535
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_0
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1307]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+
+Finished q5_benchmark_test_0 = 38.41372977400897
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_1
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1351]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+
+Finished q5_benchmark_test_1 = 37.42217316600727
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_2
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1395]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+
+Finished q5_benchmark_test_2 = 37.278304378996836
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_3
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1439]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+
+Finished q5_benchmark_test_3 = 37.30963816199801
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_4
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1483]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+
+Finished q5_benchmark_test_4 = 37.405203625996364
+================================================================================================================================================================================================================================================
+AVG for q5_benchmark_test = 37.37900498466721
++----+------------------+-----------------+------------------+------------------+------------------+------------------------+
+|test|            test_0|           test_1|            test_2|            test_3|            test_4|mean_exclude_max_and_min|
++----+------------------+-----------------+------------------+------------------+------------------+------------------------+
+|  q1| 73.06945280797663|91.32878371098195|106.52942035801243|110.11873164097778| 90.36939531899407|       96.07586646266282|
+|  q2|170.99023943199427|177.4391928180121|171.93491214999813|170.50084881097428|165.08319331202074|       171.1420001309889|
+|  q3|150.74038294199272|151.9892745729885|151.00661333999597|157.72054060199298|166.07221148299868|      153.57214283832582|
+|  q4| 81.15664122000453|78.15033125600894| 77.19777985100518| 75.99230758898193|  75.8235730509914|       77.11347289866535|
+|  q5| 38.41372977400897|37.42217316600727|37.278304378996836| 37.30963816199801|37.405203625996364|       37.37900498466721|
++----+------------------+-----------------+------------------+------------------+------------------+------------------------+
+
+None
