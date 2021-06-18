@@ -37,10 +37,7 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     val benchmark = new Benchmark(name, cardinality, output = output)
 
     import spark.implicits._
-    Seq
-      .fill[(Double, Double)](200000)(
-        (scala.util.Random.nextDouble(), scala.util.Random.nextDouble())
-      )
+    Seq.range(0, 2000000).map(_.toDouble)
       .toDS()
       .createOrReplaceTempView("nums")
 
