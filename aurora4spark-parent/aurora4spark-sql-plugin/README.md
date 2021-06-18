@@ -27,6 +27,12 @@ Run a specific benchmark:
 VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
 ```
 
+#### JMH
+
+```
+jmh:run -prof jmh.extras.JFR -t1 -f 1 -wi 2 -i 2 .*VEJMHBenchmark.*
+```
+
 ## Currently supported queries
 
 List of currently supported and tested queries can be found [in this file](../FEATURES.md).

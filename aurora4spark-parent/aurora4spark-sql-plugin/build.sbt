@@ -8,7 +8,7 @@ import java.nio.file.Paths
  * are very slow
  */
 val sparkVersion = "3.1.2"
-ThisBuild / scalaVersion := "2.12.13"
+ThisBuild / scalaVersion := "2.12.14"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
@@ -16,6 +16,15 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
   .configs(CMake)
+  .enablePlugins(JmhPlugin)
+
+Jmh / sourceDirectory := (Test / sourceDirectory).value
+Jmh / classDirectory := (Test / classDirectory).value
+Jmh / dependencyClasspath := (Test / dependencyClasspath).value
+Jmh / compile := (Jmh / compile).dependsOn(Test / compile).value
+Jmh / run := (Jmh / run).dependsOn(Jmh / Keys.compile).evaluated
+// for very long classpath
+Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true"
 
 libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
@@ -25,7 +34,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-catalyst" % sparkVersion % "test,ve" classifier ("tests"),
   "org.apache.spark" %% "spark-core" % sparkVersion % "test,ve" classifier ("tests"),
   "org.apache.spark" %% "spark-catalyst" % sparkVersion,
-  "org.scalatest" %% "scalatest" % "3.2.7" % "test,acc,cmake,ve",
+  "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
   "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
   "com.nec" % "aveo4j" % "0.0.1",
@@ -58,6 +67,7 @@ VectorEngine / run / fork := true
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
 VectorEngine / run / javaOptions ++= {
+
   /** The feature was removed in JDK9, however for Spark we must support JDK8 */
   if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
     List("-agentlib:hprof=cpu=samples")
