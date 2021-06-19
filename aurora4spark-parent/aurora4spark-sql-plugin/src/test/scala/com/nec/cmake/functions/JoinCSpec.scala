@@ -21,6 +21,7 @@ final class JoinCSpec extends AnyFreeSpec {
     val theCommand = List(
       "g++",
       "-std=c++11",
+      "-fpic",
       "-o",
       soPath.toString,
       "-I./src/main/resources/com/nec/arrow/functions/cpp",

@@ -65,7 +65,10 @@ final class JoinVeSpec extends AnyFreeSpec {
     Files.createDirectories(veBuildPath)
     val oPath = veBuildPath.resolve("join.so")
     val theCommand = List(
-      "g++",
+      "nc++",
+      "-O3",
+      "-fpic",
+      "-pthread",
       "-o",
       oPath.toString,
       "-I./src/main/resources/com/nec/arrow/functions/cpp",
