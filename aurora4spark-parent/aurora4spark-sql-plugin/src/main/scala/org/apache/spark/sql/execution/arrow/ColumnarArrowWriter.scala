@@ -103,12 +103,17 @@ class ColumnarArrowWriter(val root: VectorSchemaRoot, fields: Array[ArrowFieldWr
 
   def writeColumns(columnarBatch: ColumnarBatch): Unit = {
     root.setRowCount(columnarBatch.numRows())
-    (0 until columnarBatch.numCols()).foreach { colNum =>
+    var colNum = 0
+    var rowNum = 0
+    val numRows = columnarBatch.numRows()
+    while (colNum < columnarBatch.numCols()) {
       val col = columnarBatch.column(colNum)
-      fields(colNum).valueVector.setValueCount(columnarBatch.numRows())
-      (0 until columnarBatch.numRows()).foreach { rowNum =>
-        fields(colNum).write(new SpecializedColumnVectorGetters(col), rowNum)
+      val getter = new SpecializedColumnVectorGetters(col)
+      while (rowNum < numRows) {
+        fields(colNum).write(getter, rowNum)
+        rowNum = rowNum + 1
       }
+      colNum = colNum + 1
     }
   }
 }

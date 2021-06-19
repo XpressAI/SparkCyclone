@@ -28,8 +28,12 @@ object ArrowSummingPlan {
 
   object ArrowSummer {
 
+    object JVMBased extends ArrowSummer {
+      override def sum(vector: Float8Vector, columnCount: Int): Double = {
+        Sum.sumJVM(vector, columnCount).head
+      }
+    }
     case class CBased(libPath: String) extends ArrowSummer {
-
       override def sum(vector: Float8Vector, columnCount: Int): Double = {
         Sum.runOn(new CArrowNativeInterfaceNumeric(libPath))(vector, columnCount).head
       }
@@ -58,7 +62,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
   override def supportsColumnar: Boolean = true
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    println(s"Supports columnar? ${child.supportsColumnar}")
+    println(s"Supports columnar? ${child.supportsColumnar} ${child.getClass.getCanonicalName}")
     if (child.supportsColumnar) {
       child
         .executeColumnar()
