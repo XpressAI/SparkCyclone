@@ -101,10 +101,8 @@ class ColumnarArrowWriter(val root: VectorSchemaRoot, fields: Array[ArrowFieldWr
     StructField(f.name, f.dataType, f.nullable)
   })
 
-  private var count: Int = 0
-
   def writeColumns(columnarBatch: ColumnarBatch): Unit = {
-    this.count = columnarBatch.numRows()
+    root.setRowCount(columnarBatch.numRows())
     (0 until columnarBatch.numCols()).foreach { colNum =>
       val col = columnarBatch.column(colNum)
       fields(colNum).valueVector.setValueCount(columnarBatch.numRows())
@@ -112,16 +110,5 @@ class ColumnarArrowWriter(val root: VectorSchemaRoot, fields: Array[ArrowFieldWr
         fields(colNum).write(new SpecializedColumnVectorGetters(col), rowNum)
       }
     }
-  }
-
-  def finish(): Unit = {
-    root.setRowCount(count)
-    fields.foreach(_.finish())
-  }
-
-  def reset(): Unit = {
-    root.setRowCount(0)
-    count = 0
-    fields.foreach(_.reset())
   }
 }

@@ -62,7 +62,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
     if (child.supportsColumnar) {
       child
         .executeColumnar()
-        .map { colBatch =>
+        .mapPartitions { columnarBatches =>
           val timeZoneId = conf.sessionLocalTimeZone
           val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
             s"writer for word count",
@@ -71,12 +71,12 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
           )
           val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
           val root = VectorSchemaRoot.create(arrowSchema, allocator)
-          root.setRowCount(colBatch.numRows())
           val arrowWriter = ColumnarArrowWriter.create(root)
-          arrowWriter.writeColumns(colBatch)
-          arrowWriter.finish()
 
-          summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
+          columnarBatches.map { colBatch =>
+            arrowWriter.writeColumns(colBatch)
+            summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
+          }
         }
         .coalesce(1)
         .mapPartitions { it =>
