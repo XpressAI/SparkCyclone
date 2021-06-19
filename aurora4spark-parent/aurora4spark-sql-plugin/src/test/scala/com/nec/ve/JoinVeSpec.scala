@@ -82,7 +82,7 @@ final class JoinVeSpec extends AnyFreeSpec {
     )
 
     import scala.sys.process._
-    info(theCommand.!!.toString)
+    info(theCommand.!!)
 
     val proc = Aurora.veo_proc_create(0)
     val (sorted, expectedSorted) =
