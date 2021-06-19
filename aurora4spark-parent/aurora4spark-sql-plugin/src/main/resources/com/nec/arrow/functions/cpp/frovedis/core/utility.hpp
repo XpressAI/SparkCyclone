@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sstream>
 #include <iomanip>
+#include<stdexcept>
 
 #define SIZEOF_INT8 1
 #define SIZEOF_INT16 2

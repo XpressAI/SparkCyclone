@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <stdint.h>
+#include<stdexcept>
 
 #include "prefix_sum.hpp"
 

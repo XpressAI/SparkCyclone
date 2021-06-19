@@ -28,11 +28,11 @@ final class SortVeSpec extends AnyFreeSpec {
       "-o",
       soPath.toString,
       "-I./src/main/resources/com/nec/arrow/functions/cpp",
-      "-c",
-      "./src/main/resources/com/nec/arrow/functions/cpp/sorter.cc",
       "-shared",
       "-I./src/main/resources/com/nec/arrow/functions",
-      "-I./src/main/resources/com/nec/arrow/"
+      "-I./src/main/resources/com/nec/arrow/",
+      "./src/main/resources/com/nec/arrow/functions/cpp/sorter.cc",
+
     )
 
     import scala.sys.process._
