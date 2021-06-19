@@ -19,11 +19,14 @@ final class SortVeSpec extends AnyFreeSpec {
   "We can sort a list of ints" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
-    val oPath = veBuildPath.resolve("sort.o")
+    val soPath = veBuildPath.resolve("sort.so")
     val theCommand = List(
       "nc++",
+      "-O3",
+      "-fpic",
+      "-pthread",
       "-o",
-      oPath.toString,
+      soPath.toString,
       "-I./src/main/resources/com/nec/arrow/functions/cpp",
       "-c",
       "./src/main/resources/com/nec/arrow/functions/cpp/sorter.cc",
@@ -35,10 +38,6 @@ final class SortVeSpec extends AnyFreeSpec {
     import scala.sys.process._
     info(theCommand.!!.toString)
 
-    val soFile = veBuildPath.resolve("sort.so")
-    val command2 = Seq("nc++", "-shared", "-pthread", "-o", soFile.toString, oPath.toString)
-    info(command2.!!.toString)
-
     val proc = Aurora.veo_proc_create(0)
     val (sorted, expectedSorted) =
       try {
@@ -48,7 +47,7 @@ final class SortVeSpec extends AnyFreeSpec {
           val alloc = new RootAllocator(Integer.MAX_VALUE)
           val outVector = new Float8Vector("value", alloc)
           val data: Seq[Double] = Seq(5, 1, 2, 34, 6)
-          val lib: Long = Aurora.veo_load_library(proc, soFile.toString)
+          val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
           ArrowVectorBuilders.withDirectFloat8Vector(data) { vcv =>
             runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, outVector)
             val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
