@@ -65,19 +65,36 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
     val timeZoneId = conf.sessionLocalTimeZone
 
     println(s"Supports columnar? ${child.supportsColumnar} ${child.getClass.getCanonicalName}")
-    if (child.supportsColumnar) {
+   if (child.supportsColumnar) {
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
           columnarBatches.map { colBatch =>
-            0
+            val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+            val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+              s"writer for word count",
+              0,
+              Long.MaxValue
+            )
+            val root = VectorSchemaRoot.create(arrowSchema, allocator)
+            val arrowWriter = ColumnarArrowWriter.create(root)
+
+            arrowWriter.writeColumns(colBatch)
+
+
+            try summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
+            finally {
+              import scala.collection.JavaConverters._
+              root.getFieldVectors().asScala.foreach(_.close())
+              allocator.close()
+            }
           }
         }
         .coalesce(1)
         .mapPartitions { it =>
           val result = it.reduce((a, b) => a + b)
           val outVector = new OffHeapColumnVector(1, DoubleType)
-          outVector.putDouble(0, 0)
+          outVector.putDouble(0, result)
 
           Iterator(new ColumnarBatch(Array(outVector), 1))
         }
@@ -85,8 +102,18 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
       child
         .execute()
         .mapPartitions { rows =>
+          val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+          val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+            s"writer for word count",
+            0,
+            Long.MaxValue
+          )
+          val root = VectorSchemaRoot.create(arrowSchema, allocator)
+          val arrowWriter = ArrowWriter.create(root)
+          rows.foreach(row => arrowWriter.write(row))
+          arrowWriter.finish()
 
-          Iterator(0)
+          Iterator(summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1))
         }
         .coalesce(1)
         .mapPartitions { it =>
