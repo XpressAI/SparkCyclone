@@ -70,55 +70,14 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
         .executeColumnar()
         .mapPartitions { columnarBatches =>
           columnarBatches.map { colBatch =>
-            val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-              s"writer for word count",
-              0,
-              Long.MaxValue
-            )
-            val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
-            val vcv =
-              arrowSchema.findField("value").createVector(allocator).asInstanceOf[Float8Vector]
-            vcv.setValueCount(colBatch.numRows())
-            val col = colBatch.column(0)
-            var rowIdx = 0
-            while (rowIdx < colBatch.numRows()) {
-              vcv.set(rowIdx, col.getDouble(rowIdx))
-              rowIdx = rowIdx + 1
-            }
-            summer.sum(vcv, 1)
+            0
           }
         }
         .coalesce(1)
         .mapPartitions { it =>
           val result = it.reduce((a, b) => a + b)
           val outVector = new OffHeapColumnVector(1, DoubleType)
-          outVector.putDouble(0, result)
-
-          Iterator(new ColumnarBatch(Array(outVector), 1))
-        }
-    } else if (false) {
-      child
-        .executeColumnar()
-        .mapPartitions { columnarBatches =>
-          val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
-          val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-            s"writer for word count",
-            0,
-            Long.MaxValue
-          )
-          val root = VectorSchemaRoot.create(arrowSchema, allocator)
-          val arrowWriter = ColumnarArrowWriter.create(root)
-
-          columnarBatches.map { colBatch =>
-            arrowWriter.writeColumns(colBatch)
-            summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
-          }
-        }
-        .coalesce(1)
-        .mapPartitions { it =>
-          val result = it.reduce((a, b) => a + b)
-          val outVector = new OffHeapColumnVector(1, DoubleType)
-          outVector.putDouble(0, result)
+          outVector.putDouble(0, 0)
 
           Iterator(new ColumnarBatch(Array(outVector), 1))
         }
@@ -126,18 +85,8 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
       child
         .execute()
         .mapPartitions { rows =>
-          val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
-          val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-            s"writer for word count",
-            0,
-            Long.MaxValue
-          )
-          val root = VectorSchemaRoot.create(arrowSchema, allocator)
-          val arrowWriter = ArrowWriter.create(root)
-          rows.foreach(row => arrowWriter.write(row))
-          arrowWriter.finish()
 
-          Iterator(summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1))
+          Iterator(0)
         }
         .coalesce(1)
         .mapPartitions { it =>
