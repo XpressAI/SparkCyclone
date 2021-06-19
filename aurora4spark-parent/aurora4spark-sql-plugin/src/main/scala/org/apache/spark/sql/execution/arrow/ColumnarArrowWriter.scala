@@ -107,8 +107,8 @@ class ColumnarArrowWriter(val root: VectorSchemaRoot, fields: Array[ArrowFieldWr
     this.count = columnarBatch.numRows()
     (0 until columnarBatch.numCols()).foreach { colNum =>
       val col = columnarBatch.column(colNum)
+      fields(colNum).valueVector.setValueCount(columnarBatch.numRows())
       (0 until columnarBatch.numRows()).foreach { rowNum =>
-        fields(colNum).valueVector.setValueCount(columnarBatch.numRows())
         fields(colNum).write(new SpecializedColumnVectorGetters(col), rowNum)
       }
     }
