@@ -71,8 +71,9 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
           )
           val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
           val root = VectorSchemaRoot.create(arrowSchema, allocator)
+          root.setRowCount(colBatch.numRows())
           val arrowWriter = ColumnarArrowWriter.create(root)
-          arrowWriter.writeColumn(colBatch)
+          arrowWriter.writeColumns(colBatch)
           arrowWriter.finish()
 
           summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
