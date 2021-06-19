@@ -1,7 +1,6 @@
 package com.nec.ve
 
-import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.AuroraSqlPlugin
+import com.nec.spark._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.debug.DebugQuery
 import org.apache.spark.sql.internal.SQLConf
@@ -16,8 +15,15 @@ class VEJMHBenchmark {
   @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
   def testOneRun(): Unit = {
-    val query = sparkSession.sql("SELECT SUM(_1) FROM nums")
-    query.debug()
+    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
+    assert(query.collect().nonEmpty)
+  }
+
+  // @Benchmark
+  @BenchmarkMode(Array(Mode.SingleShotTime))
+  def testJVMRun(): Unit = {
+    LocalVeoExtension._enabled = false
+    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
     assert(query.collect().nonEmpty)
   }
 
@@ -37,12 +43,10 @@ class VEJMHBenchmark {
       .getOrCreate()
 
     import sparkSession.implicits._
-    Seq
-      .range(0, 2000000)
-      .map(_.toDouble)
-      .toDS()
+    sparkSession.sqlContext.read
+      .format("parquet")
+      .load("/home/william/large-sample-parquet-10_9/")
       .createOrReplaceTempView("nums")
-
   }
 
   @TearDown

@@ -22,7 +22,7 @@ object VeBenchmarkApp extends VeBasedBenchmark {
           spark.sql(WordCountQuery)
         }
         veBenchmark("single column sum", N) {
-          spark.sql("SELECT SUM(_1) FROM nums")
+          spark.sql("SELECT SUM(a) FROM nums")
         }
         veBenchmark("pairwise", N) {
           spark.sql("SELECT a + b FROM nums_parquet")

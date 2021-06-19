@@ -18,6 +18,7 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
       .builder()
       .master("local[1]")
       .appName(this.getClass.getCanonicalName)
+      .config(key = SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = "false")
       .config(key = SQLConf.SHUFFLE_PARTITIONS.key, value = 1)
       .config(key = SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, value = 1)
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
@@ -37,8 +38,10 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     val benchmark = new Benchmark(name, cardinality, output = output)
 
     import spark.implicits._
-    Seq.range(0, 2000000).map(_.toDouble)
-      .toDS()
+      
+    spark.sqlContext.read
+      .format("parquet")
+      .load("/home/william/large-sample-parquet-10_9/")
       .createOrReplaceTempView("nums")
 
     spark.read
@@ -65,17 +68,17 @@ trait VeBasedBenchmark extends SqlBasedBenchmark {
     LocalVeoExtension._enabled = false
     ds.explain()
 
-    benchmark.addCase(s"$name on NEC SX-Aurora TSUBASA", numIters = 5) { _ =>
+    benchmark.addCase(s"$name on NEC SX-Aurora TSUBASA", numIters = 1) { _ =>
       LocalVeoExtension._enabled = true
 
       withSQLConf(("spark.sql.columnVector.offheap.enabled", "true")) {
-        ds.noop()
+        ds.collect()
       }
     }
 
-    benchmark.addCase(s"$name on Spark JVM", numIters = 5) { _ =>
+    benchmark.addCase(s"$name on Spark JVM", numIters = 1) { _ =>
       LocalVeoExtension._enabled = false
-      ds.noop()
+      ds.collect()
     }
 
     benchmark.run()
