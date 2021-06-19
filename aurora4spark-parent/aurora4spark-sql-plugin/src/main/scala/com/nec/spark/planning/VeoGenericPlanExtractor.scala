@@ -32,10 +32,11 @@ object VeoGenericPlanExtractor {
                   ),
                 shuffleOrigin
               )
-          ) => {
+          ) if exprs
+          .forall(expression => extractExpression(expression.aggregateFunction).isDefined) => {
         val columnIndices = fourth.output.map(_.name).zipWithIndex.toMap
         val columnMappings = exprs
-          .map(expression => extractExpression(expression.aggregateFunction))
+          .flatMap(expression => extractExpression(expression.aggregateFunction))
           .zipWithIndex
           .map { case ((operation, attributes), id) =>
             ColumnAggregationExpression(
@@ -66,8 +67,8 @@ object VeoGenericPlanExtractor {
 
   def extractExpression(
                           aggregateFunction: AggregateFunction
-                        ): (Expression, Seq[AttributeName]) = {
-    aggregateFunction match {
+                        ): Option[(Expression, Seq[AttributeName])] = {
+    PartialFunction.condOpt(aggregateFunction) {
       case sum@Sum(expr) =>
         (expr, extractAttributes(sum.references))
       case avg@Average(expr) =>

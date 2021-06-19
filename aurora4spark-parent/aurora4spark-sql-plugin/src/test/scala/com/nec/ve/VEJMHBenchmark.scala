@@ -14,17 +14,19 @@ class VEJMHBenchmark {
 
   @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
-  def testOneRun(): Unit = {
-    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
-    assert(query.collect().nonEmpty)
+  @Fork(value = 1, warmups = 0)
+  def test1VERun(): Unit = {
+    val query = sparkSession.sql("SELECT MIN(a) FROM nums")
+    println(s"VE result = ${query.collect().toList}")
   }
 
   @Benchmark
+  @Fork(value = 1, warmups = 0)
   @BenchmarkMode(Array(Mode.SingleShotTime))
-  def testJVMRun(): Unit = {
+  def test2JVMRun(): Unit = {
     LocalVeoExtension._enabled = false
-    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
-    assert(query.collect().nonEmpty)
+    val query = sparkSession.sql("SELECT MIN(a) FROM nums")
+    println(s"JVM result = ${query.collect().toList}")
   }
 
   @Setup
@@ -43,7 +45,7 @@ class VEJMHBenchmark {
     import sparkSession.implicits._
     sparkSession.sqlContext.read
       .format("parquet")
-      .load("/home/william/large-sample-parquet-10_9/")
+      .load("/home/william/large-sample-parquet-10_8/")
       .createOrReplaceTempView("nums")
   }
 
