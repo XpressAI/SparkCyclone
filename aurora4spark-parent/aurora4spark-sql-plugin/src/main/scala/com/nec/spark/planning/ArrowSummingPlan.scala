@@ -58,7 +58,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
   override def supportsColumnar: Boolean = true
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    println(s"Supports columnar? ${child.supportsColumnar}")
+    println(s"Supports columnar? ${child.supportsColumnar} ${child.getClass.getCanonicalName}")
     if (child.supportsColumnar) {
       child
         .executeColumnar()

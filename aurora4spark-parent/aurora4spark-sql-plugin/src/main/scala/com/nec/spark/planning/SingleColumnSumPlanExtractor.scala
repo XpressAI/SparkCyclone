@@ -32,6 +32,9 @@ object SingleColumnSumPlanExtractor {
                 shuffleOrigin
               )
           ) if (avg.references.size == 1) => {
+        println(fourth)
+        println(fourth.getClass.getCanonicalName())
+        println(fourth.supportsColumnar)
         val indices = fourth.output.map(_.name).zipWithIndex.toMap
         val colName = avg.references.head.name
 

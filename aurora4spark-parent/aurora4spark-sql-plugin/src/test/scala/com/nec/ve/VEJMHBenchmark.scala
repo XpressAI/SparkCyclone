@@ -19,7 +19,7 @@ class VEJMHBenchmark {
     assert(query.collect().nonEmpty)
   }
 
-  // @Benchmark
+  @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
   def testJVMRun(): Unit = {
     LocalVeoExtension._enabled = false
@@ -33,13 +33,11 @@ class VEJMHBenchmark {
 
     this._sparkSession = SparkSession
       .builder()
-      .master("local[1]")
+      .master("local[4]")
       .appName(this.getClass.getCanonicalName)
-      .config(key = SQLConf.SHUFFLE_PARTITIONS.key, value = 1)
-      .config(key = SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, value = 1)
-      .config(key = SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = "false")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .config(key = "spark.ui.enabled", value = false)
+      .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
       .getOrCreate()
 
     import sparkSession.implicits._
