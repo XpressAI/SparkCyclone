@@ -141,6 +141,8 @@ case class VEHashAggregate(
     } else {
       doConsumeWithKeys(ctx, input)
     }
+
+    result
   }
 
   // The variables are used as aggregation buffers and each aggregate function has one or more
@@ -334,24 +336,25 @@ case class VEHashAggregate(
     }
 
     val aggNames = functions.map(_.prettyName)
-    val aggCodeBlocks = bufferEvals.zipWithIndex.map { case (bufferEvalsForOneFunc, i) =>
-      val bufVarsForOneFunc = bufVars(i)
-      // All the update code for aggregation buffers should be placed in the end
-      // of each aggregation function code.
-      val updates = bufferEvalsForOneFunc.zip(bufVarsForOneFunc).map { case (ev, bufVar) =>
-        s"""
-           |${bufVar.isNull} = ${ev.isNull};
-           |${bufVar.value} = ${ev.value};
+    val aggCodeBlocks: Seq[Block] = bufferEvals.zipWithIndex
+      .map { case (bufferEvalsForOneFunc, i) =>
+        val bufVarsForOneFunc = bufVars(i)
+        // All the update code for aggregation buffers should be placed in the end
+        // of each aggregation function code.
+        val updates = bufferEvalsForOneFunc.zip(bufVarsForOneFunc).map { case (ev, bufVar) =>
+          s"""
+             |${bufVar.isNull} = ${ev.isNull};
+             |${bufVar.value} = ${ev.value};
          """.stripMargin
-      }
-      code"""
-            |${ctx.registerComment(s"do aggregate for ${aggNames(i)}")}
-            |${ctx.registerComment("evaluate aggregate function")}
-            |${evaluateVariables(bufferEvalsForOneFunc)}
-            |${ctx.registerComment("update aggregation buffers")}
-            |${updates.mkString("\n").trim}
+        }
+        code"""
+              |${ctx.registerComment(s"do aggregate for ${aggNames(i)}")}
+              |${ctx.registerComment("evaluate aggregate function")}
+              |${evaluateVariables(bufferEvalsForOneFunc).replace(" + ", " + 1 + ")}
+              |${ctx.registerComment("update aggregation buffers")}
+              |${updates.mkString("\n").trim}
        """.stripMargin
-    }
+      }
 
     val codeToEvalAggFunc =
       if (

@@ -129,6 +129,11 @@ final class RealWorldSparkPlansSpec
       .collect()
       .head
 
-    assert(result == 16305.0)
+    /**
+     * This demonstrates a code transformation of a WholeStageCodeGen in VEHashAggregate
+     * Where we do a 'SUM(totalPrice) + COUNT(totalPrice)' effectively
+     */
+    val NumRecords = 49
+    assert(result == 16305.0 + NumRecords)
   }
 }
