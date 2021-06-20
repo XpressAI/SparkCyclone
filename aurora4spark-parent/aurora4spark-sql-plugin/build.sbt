@@ -7,7 +7,7 @@ import java.nio.file.Paths
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-val sparkVersion = "3.1.2"
+val sparkVersion = "3.1.1"
 ThisBuild / scalaVersion := "2.12.14"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
@@ -41,8 +41,13 @@ libraryDependencies ++= Seq(
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
-  "com.h2database" % "h2" % "1.4.200" % "test,ve"
-)
+  "com.h2database" % "h2" % "1.4.200" % "test,ve")
+
+Test / unmanagedJars ++=  sys.env.get("CUDF_PATH")
+  .map(path => new File((path)))
+  .map(file => Seq(file))
+  .getOrElse(Seq())
+  .classpath
 
 /** Because of VE */
 VectorEngine / parallelExecution := false
