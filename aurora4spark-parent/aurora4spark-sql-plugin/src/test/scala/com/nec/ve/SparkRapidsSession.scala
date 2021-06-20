@@ -18,8 +18,12 @@ class SparkRapidsSession {
       .master("local[4]")
       .appName(this.getClass.getCanonicalName)
       .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
+      .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
+      .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
+
       .config(key = "spark.ui.enabled", value = false)
       .getOrCreate()
+
     sparkSession.sqlContext.read
       .format("parquet")
       .load("/home/william/large-sample-parquet-10_9/")

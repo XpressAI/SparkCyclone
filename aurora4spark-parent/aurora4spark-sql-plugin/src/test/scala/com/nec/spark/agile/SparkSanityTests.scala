@@ -8,6 +8,8 @@ import com.nec.spark.planning.SingleColumnSumPlanExtractor
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
+
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 
 /**
