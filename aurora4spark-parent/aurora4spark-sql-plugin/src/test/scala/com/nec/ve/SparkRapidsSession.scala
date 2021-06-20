@@ -12,7 +12,6 @@ class SparkRapidsSession {
 
   @Setup
   def prepare(): Unit = {
-    Aurora4SparkExecutorPlugin.closeAutomatically = false
 
     this._sparkSession = SparkSession
       .builder()
