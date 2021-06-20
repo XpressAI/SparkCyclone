@@ -12,7 +12,7 @@ class VEJMHBenchmark {
   private var _sparkSession: SparkSession = null
   private lazy val sparkSession: SparkSession = _sparkSession
 
-  @Benchmark
+  // @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
   def test1VERunWithArrow(): Unit = {
     LocalVeoExtension._arrowEnabled = true
@@ -20,7 +20,7 @@ class VEJMHBenchmark {
     println(s"VE result = ${query.collect().toList}")
   }
 
-  @Benchmark
+  // @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
   def test1VERunNoArrow(): Unit = {
     LocalVeoExtension._arrowEnabled = false
@@ -47,6 +47,7 @@ class VEJMHBenchmark {
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .config(key = "spark.ui.enabled", value = false)
       .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
+      .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
       .getOrCreate()
 
     import sparkSession.implicits._
