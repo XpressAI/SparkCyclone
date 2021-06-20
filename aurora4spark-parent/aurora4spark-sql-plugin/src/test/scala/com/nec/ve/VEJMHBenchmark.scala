@@ -38,8 +38,7 @@ class VEJMHBenchmark {
   def testRapidsRun(rapidsSession: SparkRapidsSession): Unit = {
     LocalVeoExtension._enabled = false
     val query = rapidsSession.sparkSession.sql("SELECT SUM(a) FROM nums")
+    println(query.queryExecution.executedPlan)
     println(s"JVM result = ${query.collect().toList}")
   }
-
-
 }
