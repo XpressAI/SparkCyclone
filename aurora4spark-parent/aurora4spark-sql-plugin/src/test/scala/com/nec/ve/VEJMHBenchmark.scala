@@ -44,7 +44,7 @@ class VEJMHBenchmark {
       .builder()
       .master("local[4]")
       .appName(this.getClass.getCanonicalName)
-      .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
+      .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
       .config(key = "spark.ui.enabled", value = false)
       .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
       .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
