@@ -28,7 +28,9 @@ final class RealWorldSparkPlansSpec
   before {
     H2DatabaseConnector.init()
   }
-  "We get the spark plan for more complex query" in withSparkSession(identity) { sparkSession =>
+  "We get the spark plan for more complex query" in withSparkSession2(
+    _.config("spark.sql.codegen.comments", value = true)
+  ) { sparkSession =>
     import sparkSession.implicits._
     val props = new Properties()
 
@@ -48,7 +50,9 @@ final class RealWorldSparkPlansSpec
       )
       .debugSqlAndShow(name = "real-life-example")
   }
-  "We get the spark plan for a simple sum" in withSparkSession(identity) { sparkSession =>
+  "We get the spark plan for a simple sum" in withSparkSession2(
+    _.config("spark.sql.codegen.comments", value = true)
+  ) { sparkSession =>
     import sparkSession.implicits._
 
     sparkSession.read
@@ -66,7 +70,7 @@ final class RealWorldSparkPlansSpec
     assert(result == 16305.0)
   }
   "We get the spark plan for a simple sum rewritten" in withSparkSession2(
-    _.withExtensions(extensions =>
+    _.config("spark.sql.codegen.comments", value = true).withExtensions(extensions =>
       extensions.injectColumnar({ sparkSession =>
         new ColumnarRule {
           override def preColumnarTransitions: Rule[SparkPlan] = sparkPlan =>

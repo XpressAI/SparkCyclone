@@ -1,0 +1,343 @@
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('totalPrice), None)]
++- 'UnresolvedRelation [Orders], [], false
+
+== Analyzed Logical Plan ==
+sum(CAST(totalPrice AS DOUBLE)): double
+Aggregate [sum(cast(totalPrice#78 as double)) AS sum(CAST(totalPrice AS DOUBLE))#86]
++- SubqueryAlias orders
+   +- Relation[id#75,userId#76,orderTimestamp#77,totalPrice#78,items#79] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(cast(totalPrice#78 as double)) AS sum(CAST(totalPrice AS DOUBLE))#86]
++- Project [totalPrice#78]
+   +- Relation[id#75,userId#76,orderTimestamp#77,totalPrice#78,items#79] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum(cast(totalPrice#78 as double))], output=[sum(CAST(totalPrice AS DOUBLE))#86])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#180]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))], output=[sum#89])
+      +- FileScan csv [totalPrice#78] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[file:/C:/Users/William/IdeaProjects/aurora4spark/aurora4spark-parent/aurora4spa..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<totalPrice:string>
+
+== Whole Stage Codegen ==
+Found 2 WholeStageCodegen subtrees.
+== Subtree 1 / 2 (maxMethodCodeSize:198; maxConstantPoolSize:165(0.25% used); numInnerClasses:0) ==
+*(1) HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))], output=[sum#89])
++- FileScan csv [totalPrice#78] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[file:/C:/Users/William/IdeaProjects/aurora4spark/aurora4spark-parent/aurora4spa..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<totalPrice:string>
+
+Generated code:
+/* 001 */ public Object generate(Object[] references) {
+/* 002 */   return new GeneratedIteratorForCodegenStage1(references);
+/* 003 */ }
+/* 004 */
+/* 005 */ /**
+/* 006 */  * Codegened pipeline for stage (id=1)
+/* 007 */  * *(1) HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))], output=[sum#89])
+/* 008 */  * +- FileScan csv [totalPrice#78] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[file:/C:/Users/William/IdeaProjects/aurora4spark/aurora4spark-parent/aurora4spa..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<totalPrice:string>
+/* 009 */  */
+/* 010 */ // codegenStageId=1
+/* 011 */ final class GeneratedIteratorForCodegenStage1 extends org.apache.spark.sql.execution.BufferedRowIterator {
+/* 012 */   private Object[] references;
+/* 013 */   private scala.collection.Iterator[] inputs;
+/* 014 */   private boolean agg_initAgg_0;
+/* 015 */   private boolean agg_bufIsNull_0;
+/* 016 */   private double agg_bufValue_0;
+/* 017 */   private scala.collection.Iterator inputadapter_input_0;
+/* 018 */   private boolean agg_agg_isNull_1_0;
+/* 019 */   private boolean agg_agg_isNull_3_0;
+/* 020 */   private org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter[] agg_mutableStateArray_0 = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter[1];
+/* 021 */
+/* 022 */   public GeneratedIteratorForCodegenStage1(Object[] references) {
+/* 023 */     this.references = references;
+/* 024 */   }
+/* 025 */
+/* 026 */   public void init(int index, scala.collection.Iterator[] inputs) {
+/* 027 */     partitionIndex = index;
+/* 028 */     this.inputs = inputs;
+/* 029 */
+/* 030 */     inputadapter_input_0 = inputs[0];
+/* 031 */     agg_mutableStateArray_0[0] = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter(1, 0);
+/* 032 */
+/* 033 */   }
+/* 034 */
+/* 035 */   private void agg_doAggregate_sum_0(boolean agg_exprIsNull_0_0, org.apache.spark.unsafe.types.UTF8String agg_expr_0_0) throws java.io.IOException {
+/* 036 */     // do aggregate for sum
+/* 037 */     // evaluate aggregate function
+/* 038 */     // coalesce((coalesce(input[0, double, true], 0.0) + cast(input[1, string, true] as double)), input[0, double, true])
+/* 039 */     agg_agg_isNull_1_0 = true;
+/* 040 */     double agg_value_1 = -1.0;
+/* 041 */     do {
+/* 042 */       // (coalesce(input[0, double, true], 0.0) + cast(input[1, string, true] as double))
+/* 043 */       boolean agg_isNull_2 = true;
+/* 044 */       double agg_value_2 = -1.0;
+/* 045 */       // coalesce(input[0, double, true], 0.0)
+/* 046 */       agg_agg_isNull_3_0 = true;
+/* 047 */       double agg_value_3 = -1.0;
+/* 048 */       do {
+/* 049 */         if (!agg_bufIsNull_0) {
+/* 050 */           agg_agg_isNull_3_0 = false;
+/* 051 */           agg_value_3 = agg_bufValue_0;
+/* 052 */           continue;
+/* 053 */         }
+/* 054 */
+/* 055 */         if (!false) {
+/* 056 */           agg_agg_isNull_3_0 = false;
+/* 057 */           agg_value_3 = 0.0D;
+/* 058 */           continue;
+/* 059 */         }
+/* 060 */
+/* 061 */       } while (false);
+/* 062 */       // cast(input[1, string, true] as double)
+/* 063 */       boolean agg_isNull_6 = agg_exprIsNull_0_0;
+/* 064 */       double agg_value_6 = -1.0;
+/* 065 */       if (!agg_exprIsNull_0_0) {
+/* 066 */         final String agg_doubleStr_0 = agg_expr_0_0.toString();
+/* 067 */         try {
+/* 068 */           agg_value_6 = Double.valueOf(agg_doubleStr_0);
+/* 069 */         } catch (java.lang.NumberFormatException e) {
+/* 070 */           final Double d = (Double) Cast.processFloatingPointSpecialLiterals(agg_doubleStr_0, false);
+/* 071 */           if (d == null) {
+/* 072 */             agg_isNull_6 = true;
+/* 073 */           } else {
+/* 074 */             agg_value_6 = d.doubleValue();
+/* 075 */           }
+/* 076 */         }
+/* 077 */       }
+/* 078 */       if (!agg_isNull_6) {
+/* 079 */         agg_isNull_2 = false; // resultCode could change nullability.
+/* 080 */
+/* 081 */         agg_value_2 = agg_value_3 + agg_value_6;
+/* 082 */
+/* 083 */       }
+/* 084 */       if (!agg_isNull_2) {
+/* 085 */         agg_agg_isNull_1_0 = false;
+/* 086 */         agg_value_1 = agg_value_2;
+/* 087 */         continue;
+/* 088 */       }
+/* 089 */
+/* 090 */       if (!agg_bufIsNull_0) {
+/* 091 */         agg_agg_isNull_1_0 = false;
+/* 092 */         agg_value_1 = agg_bufValue_0;
+/* 093 */         continue;
+/* 094 */       }
+/* 095 */
+/* 096 */     } while (false);
+/* 097 */     // update aggregation buffers
+/* 098 */     agg_bufIsNull_0 = agg_agg_isNull_1_0;
+/* 099 */     agg_bufValue_0 = agg_value_1;
+/* 100 */   }
+/* 101 */
+/* 102 */   private void agg_doAggregateWithoutKey_0() throws java.io.IOException {
+/* 103 */     // initialize aggregation buffer
+/* 104 */     agg_bufIsNull_0 = true;
+/* 105 */     agg_bufValue_0 = -1.0;
+/* 106 */
+/* 107 */     // PRODUCE: InputAdapter
+/* 108 */     while ( inputadapter_input_0.hasNext()) {
+/* 109 */       InternalRow inputadapter_row_0 = (InternalRow) inputadapter_input_0.next();
+/* 110 */
+/* 111 */       // CONSUME: HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))])
+/* 112 */       // input[0, string, true]
+/* 113 */       boolean inputadapter_isNull_0 = inputadapter_row_0.isNullAt(0);
+/* 114 */       UTF8String inputadapter_value_0 = inputadapter_isNull_0 ?
+/* 115 */       null : (inputadapter_row_0.getUTF8String(0));
+/* 116 */
+/* 117 */       agg_doConsume_0(inputadapter_row_0, inputadapter_value_0, inputadapter_isNull_0);
+/* 118 */       // shouldStop check is eliminated
+/* 119 */     }
+/* 120 */
+/* 121 */   }
+/* 122 */
+/* 123 */   private void agg_doConsume_0(InternalRow inputadapter_row_0, UTF8String agg_expr_0_0, boolean agg_exprIsNull_0_0) throws java.io.IOException {
+/* 124 */     // do aggregate
+/* 125 */     // common sub-expressions
+/* 126 */
+/* 127 */     // evaluate aggregate functions and update aggregation buffers
+/* 128 */     agg_doAggregate_sum_0(agg_exprIsNull_0_0, agg_expr_0_0);
+/* 129 */
+/* 130 */   }
+/* 131 */
+/* 132 */   protected void processNext() throws java.io.IOException {
+/* 133 */     // PRODUCE: HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))])
+/* 134 */     while (!agg_initAgg_0) {
+/* 135 */       agg_initAgg_0 = true;
+/* 136 */       long agg_beforeAgg_0 = System.nanoTime();
+/* 137 */       agg_doAggregateWithoutKey_0();
+/* 138 */       ((org.apache.spark.sql.execution.metric.SQLMetric) references[1] /* aggTime */).add((System.nanoTime() - agg_beforeAgg_0) / 1000000);
+/* 139 */
+/* 140 */       // output the result
+/* 141 */
+/* 142 */       ((org.apache.spark.sql.execution.metric.SQLMetric) references[0] /* numOutputRows */).add(1);
+/* 143 */       // CONSUME: WholeStageCodegen (1)
+/* 144 */       agg_mutableStateArray_0[0].reset();
+/* 145 */
+/* 146 */       agg_mutableStateArray_0[0].zeroOutNullBytes();
+/* 147 */
+/* 148 */       if (agg_bufIsNull_0) {
+/* 149 */         agg_mutableStateArray_0[0].setNullAt(0);
+/* 150 */       } else {
+/* 151 */         agg_mutableStateArray_0[0].write(0, agg_bufValue_0);
+/* 152 */       }
+/* 153 */       append((agg_mutableStateArray_0[0].getRow()));
+/* 154 */     }
+/* 155 */   }
+/* 156 */
+/* 157 */ }
+
+== Subtree 2 / 2 (maxMethodCodeSize:139; maxConstantPoolSize:137(0.21% used); numInnerClasses:0) ==
+*(2) HashAggregate(keys=[], functions=[sum(cast(totalPrice#78 as double))], output=[sum(CAST(totalPrice AS DOUBLE))#86])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#180]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))], output=[sum#89])
+      +- FileScan csv [totalPrice#78] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[file:/C:/Users/William/IdeaProjects/aurora4spark/aurora4spark-parent/aurora4spa..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<totalPrice:string>
+
+Generated code:
+/* 001 */ public Object generate(Object[] references) {
+/* 002 */   return new GeneratedIteratorForCodegenStage2(references);
+/* 003 */ }
+/* 004 */
+/* 005 */ /**
+/* 006 */  * Codegened pipeline for stage (id=2)
+/* 007 */  * *(2) HashAggregate(keys=[], functions=[sum(cast(totalPrice#78 as double))], output=[sum(CAST(totalPrice AS DOUBLE))#86])
+/* 008 */  * +- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#180]
+/* 009 */  *    +- *(1) HashAggregate(keys=[], functions=[partial_sum(cast(totalPrice#78 as double))], output=[sum#89])
+/* 010 */  *       +- FileScan csv [totalPrice#78] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[file:/C:/Users/William/IdeaProjects/aurora4spark/aurora4spark-parent/aurora4spa..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<totalPrice:string>
+/* 011 */  */
+/* 012 */ // codegenStageId=2
+/* 013 */ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execution.BufferedRowIterator {
+/* 014 */   private Object[] references;
+/* 015 */   private scala.collection.Iterator[] inputs;
+/* 016 */   private boolean agg_initAgg_0;
+/* 017 */   private boolean agg_bufIsNull_0;
+/* 018 */   private double agg_bufValue_0;
+/* 019 */   private scala.collection.Iterator inputadapter_input_0;
+/* 020 */   private boolean agg_agg_isNull_3_0;
+/* 021 */   private boolean agg_agg_isNull_5_0;
+/* 022 */   private org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter[] agg_mutableStateArray_0 = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter[1];
+/* 023 */
+/* 024 */   public GeneratedIteratorForCodegenStage2(Object[] references) {
+/* 025 */     this.references = references;
+/* 026 */   }
+/* 027 */
+/* 028 */   public void init(int index, scala.collection.Iterator[] inputs) {
+/* 029 */     partitionIndex = index;
+/* 030 */     this.inputs = inputs;
+/* 031 */
+/* 032 */     inputadapter_input_0 = inputs[0];
+/* 033 */     agg_mutableStateArray_0[0] = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter(1, 0);
+/* 034 */
+/* 035 */   }
+/* 036 */
+/* 037 */   private void agg_doAggregateWithoutKey_0() throws java.io.IOException {
+/* 038 */     // initialize aggregation buffer
+/* 039 */     agg_bufIsNull_0 = true;
+/* 040 */     agg_bufValue_0 = -1.0;
+/* 041 */
+/* 042 */     // PRODUCE: InputAdapter
+/* 043 */     while ( inputadapter_input_0.hasNext()) {
+/* 044 */       InternalRow inputadapter_row_0 = (InternalRow) inputadapter_input_0.next();
+/* 045 */
+/* 046 */       // CONSUME: HashAggregate(keys=[], functions=[sum(cast(totalPrice#78 as double))])
+/* 047 */       // input[0, double, true]
+/* 048 */       boolean inputadapter_isNull_0 = inputadapter_row_0.isNullAt(0);
+/* 049 */       double inputadapter_value_0 = inputadapter_isNull_0 ?
+/* 050 */       -1.0 : (inputadapter_row_0.getDouble(0));
+/* 051 */
+/* 052 */       agg_doConsume_0(inputadapter_row_0, inputadapter_value_0, inputadapter_isNull_0);
+/* 053 */       // shouldStop check is eliminated
+/* 054 */     }
+/* 055 */
+/* 056 */   }
+/* 057 */
+/* 058 */   private void agg_doConsume_0(InternalRow inputadapter_row_0, double agg_expr_0_0, boolean agg_exprIsNull_0_0) throws java.io.IOException {
+/* 059 */     // do aggregate
+/* 060 */     // common sub-expressions
+/* 061 */
+/* 062 */     // evaluate aggregate functions and update aggregation buffers
+/* 063 */
+/* 064 */     // do aggregate for sum
+/* 065 */     // evaluate aggregate function
+/* 066 */     // coalesce((coalesce(input[0, double, true], 0.0) + input[1, double, true]), input[0, double, true])
+/* 067 */     agg_agg_isNull_3_0 = true;
+/* 068 */     double agg_value_3 = -1.0;
+/* 069 */     do {
+/* 070 */       // (coalesce(input[0, double, true], 0.0) + input[1, double, true])
+/* 071 */       boolean agg_isNull_4 = true;
+/* 072 */       double agg_value_4 = -1.0;
+/* 073 */       // coalesce(input[0, double, true], 0.0)
+/* 074 */       agg_agg_isNull_5_0 = true;
+/* 075 */       double agg_value_5 = -1.0;
+/* 076 */       do {
+/* 077 */         if (!agg_bufIsNull_0) {
+/* 078 */           agg_agg_isNull_5_0 = false;
+/* 079 */           agg_value_5 = agg_bufValue_0;
+/* 080 */           continue;
+/* 081 */         }
+/* 082 */
+/* 083 */         if (!false) {
+/* 084 */           agg_agg_isNull_5_0 = false;
+/* 085 */           agg_value_5 = 0.0D;
+/* 086 */           continue;
+/* 087 */         }
+/* 088 */
+/* 089 */       } while (false);
+/* 090 */
+/* 091 */       if (!agg_exprIsNull_0_0) {
+/* 092 */         agg_isNull_4 = false; // resultCode could change nullability.
+/* 093 */
+/* 094 */         agg_value_4 = agg_value_5 + agg_expr_0_0;
+/* 095 */
+/* 096 */       }
+/* 097 */       if (!agg_isNull_4) {
+/* 098 */         agg_agg_isNull_3_0 = false;
+/* 099 */         agg_value_3 = agg_value_4;
+/* 100 */         continue;
+/* 101 */       }
+/* 102 */
+/* 103 */       if (!agg_bufIsNull_0) {
+/* 104 */         agg_agg_isNull_3_0 = false;
+/* 105 */         agg_value_3 = agg_bufValue_0;
+/* 106 */         continue;
+/* 107 */       }
+/* 108 */
+/* 109 */     } while (false);
+/* 110 */     // update aggregation buffers
+/* 111 */     agg_bufIsNull_0 = agg_agg_isNull_3_0;
+/* 112 */     agg_bufValue_0 = agg_value_3;
+/* 113 */
+/* 114 */   }
+/* 115 */
+/* 116 */   protected void processNext() throws java.io.IOException {
+/* 117 */     // PRODUCE: HashAggregate(keys=[], functions=[sum(cast(totalPrice#78 as double))])
+/* 118 */     while (!agg_initAgg_0) {
+/* 119 */       agg_initAgg_0 = true;
+/* 120 */       long agg_beforeAgg_0 = System.nanoTime();
+/* 121 */       agg_doAggregateWithoutKey_0();
+/* 122 */       ((org.apache.spark.sql.execution.metric.SQLMetric) references[1] /* aggTime */).add((System.nanoTime() - agg_beforeAgg_0) / 1000000);
+/* 123 */
+/* 124 */       // output the result
+/* 125 */
+/* 126 */       ((org.apache.spark.sql.execution.metric.SQLMetric) references[0] /* numOutputRows */).add(1);
+/* 127 */       // CONSUME: WholeStageCodegen (2)
+/* 128 */       agg_mutableStateArray_0[0].reset();
+/* 129 */
+/* 130 */       agg_mutableStateArray_0[0].zeroOutNullBytes();
+/* 131 */
+/* 132 */       if (agg_bufIsNull_0) {
+/* 133 */         agg_mutableStateArray_0[0].setNullAt(0);
+/* 134 */       } else {
+/* 135 */         agg_mutableStateArray_0[0].write(0, agg_bufValue_0);
+/* 136 */       }
+/* 137 */       append((agg_mutableStateArray_0[0].getRow()));
+/* 138 */     }
+/* 139 */   }
+/* 140 */
+/* 141 */ }
+
+
+
++-------------------------------+
+|sum(CAST(totalPrice AS DOUBLE))|
++-------------------------------+
+|                        16305.0|
++-------------------------------+
+

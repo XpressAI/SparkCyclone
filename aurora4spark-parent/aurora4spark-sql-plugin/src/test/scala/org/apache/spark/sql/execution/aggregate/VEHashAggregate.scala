@@ -128,11 +128,15 @@ case class VEHashAggregate(
   }
 
   protected override def doProduce(ctx: CodegenContext): String = {
-    if (groupingExpressions.isEmpty) {
+    val r = if (groupingExpressions.isEmpty) {
       doProduceWithoutKeys(ctx)
     } else {
       doProduceWithKeys(ctx)
     }
+
+    println(s"Produce result = $r")
+    r
+
   }
 
   override def doConsume(ctx: CodegenContext, input: Seq[ExprCode], row: ExprCode): String = {
@@ -141,6 +145,7 @@ case class VEHashAggregate(
     } else {
       doConsumeWithKeys(ctx, input)
     }
+
 
     result
   }
