@@ -1,13 +1,10 @@
 package com.nec.ve
 
 import com.nec.spark._
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.debug.DebugQuery
-import org.apache.spark.sql.internal.SQLConf
 import org.openjdk.jmh.annotations._
 
 @State(Scope.Benchmark)
-class VEJMHBenchmark {
+class VEJMHBenchmarkParquet {
 
   @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))

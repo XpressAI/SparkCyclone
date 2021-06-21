@@ -28,6 +28,12 @@ class SparkRapidsSession {
       .format("parquet")
       .load("/home/william/large-sample-parquet-10_9/")
       .createOrReplaceTempView("nums")
+
+    sparkSession.sqlContext.read
+      .format("csv")
+      .option("header", true)
+      .load("/home/dominik/large-sample-csv-10_9/")
+      .createOrReplaceTempView("nums_csv")
   }
 
   @TearDown
