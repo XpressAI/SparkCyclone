@@ -1,6 +1,6 @@
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 
-def query_1(spark: SparkSession):
+def query_1(spark: SparkSession) -> DataFrame:
     print("""Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
         FROM trips WHERE payment_type = 2 
         group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
@@ -12,7 +12,7 @@ def query_1(spark: SparkSession):
         having fare_amount > 20.0')
     return res
 
-def query_2(spark: SparkSession):
+def query_2(spark: SparkSession) -> DataFrame:
     print("""Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
         FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
     """)
@@ -20,7 +20,7 @@ def query_2(spark: SparkSession):
         FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type')
     return res
 
-def query_3(spark: SparkSession):
+def query_3(spark: SparkSession) -> DataFrame:
     print("""Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
         from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
     """)
@@ -28,7 +28,7 @@ def query_3(spark: SparkSession):
         from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0')
     return res
 
-def query_4(spark: SparkSession):
+def query_4(spark: SparkSession) -> DataFrame:
     print("""Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
         from trips inner join cab_types on trips.cab_type_id = cab_types.id
     """)
@@ -36,7 +36,7 @@ def query_4(spark: SparkSession):
         from trips inner join cab_types on trips.cab_type_id = cab_types.id')
     return res
 
-def query_5(spark: SparkSession):
+def query_5(spark: SparkSession) -> DataFrame:
     print("""Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
     as mean_distance, AVG(total_amount) as mean_amount from trips
     """)
