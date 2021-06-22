@@ -10,12 +10,7 @@ zip dep.zip *.py
 --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
 --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
-run_benchmark.py data/1M_R1000000_P100_csv \
--x 4g -d 4g \
--o output/test_ve_1M_clearcache \
--t column \
--l "a=a+b_int,a=a+b_float,a=a*b_int,a=a*b_float,a=a+b*x_int,a=a+b*x_float" \
--n 5 \
---clearcache
+run_benchmark.py  --outputfile "test_ve_nyc_taxi" --clearcache --ntest 5 nycdata --list "q1,q2,q3,q4,q5"
+
 
 /opt/hadoop/bin/hadoop dfs -rm -r -f temp
