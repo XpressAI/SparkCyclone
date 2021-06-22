@@ -10,15 +10,64 @@ spark-submit --master spark://spark-master:7077  generate_data.py /path/to/test/
 - json
 
 ## Run Benchmark
+Example
 ```py
-spark-submit --master spark://spark-master:7077 run_benchmark.py /path/to/test/data/file -r num_partitions  -o 'output' -sl 11001 -t column -l max,min
+spark-submit --master spark://spark-master:7077 run_benchmark.py  --outputfile "test_cpu_nyc_taxi" --clearcache --ntest 5 nycdata --list "q5"
 ```
-### Benchmark type (-t / --type)
-- groubyagg
-- repart
-- innerjoin
-- broadinnerjoin
-- column
+### run_benchmark.py -h
+```
+usage: run_benchmark.py [-h] [-x EXECUTOR] [-d DRIVER] [-sl STORAGELEVEL]
+                        [-n NTEST] [-cc] [-o OUTPUTFILE]
+                        {random,nycdata} ...
+
+Run Benchmark. Please generate dataset using generate_data.py first.
+
+positional arguments:
+  {random,nycdata}      Dataset Options
+    random              Random Dataset
+    nycdata             NYC-taxi-data Dataset
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -x EXECUTOR, --executor EXECUTOR
+                        Set Executor Memory
+  -d DRIVER, --driver DRIVER
+                        Set Driver Memory
+  -sl STORAGELEVEL, --storageLevel STORAGELEVEL
+                        Set Storage Level
+  -n NTEST, --ntest NTEST
+                        Number of Tests
+  -cc, --clearcache     Clear cache for every tasks
+  -o OUTPUTFILE, --outputfile OUTPUTFILE
+                        Output file name (CSV)
+```
+
+### run_bencmark.py random -h
+```
+usage: run_benchmark.py random [-h] [-r REPARTITIONS]
+                               [-t {groupbyagg,repart,innerjoin,broadinnerjoin,column}]
+                               [-l LIST]
+                               file_url
+
+positional arguments:
+  file_url              Input file URL
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -r REPARTITIONS, --repartitions REPARTITIONS
+                        Number of partitions
+  -t {groupbyagg,repart,innerjoin,broadinnerjoin,column}, --type {groupbyagg,repart,innerjoin,broadinnerjoin,column}
+                        Set Benchmark Type
+  -l LIST, --list LIST  Comma delimited list input
+```
+### run_benchmark.py nycdata -h
+```
+usage: run_benchmark.py nycdata [-h] [-l LIST]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LIST, --list LIST  Comma delimited list input
+```
 
 ### Repartition Notes
 - Need to state partition number (-r / --repartitions)

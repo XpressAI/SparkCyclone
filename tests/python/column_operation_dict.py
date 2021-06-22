@@ -1,8 +1,10 @@
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
+from pyspark.sql import DataFrame
+from typing import Callable
 
 # helper function for looping 
-def loop(op, df = None):
+def loop(op: Callable[[DataFrame], DataFrame], df: DataFrame = None) -> DataFrame:
     for _ in range(10):
         df = op(df)
     return df
