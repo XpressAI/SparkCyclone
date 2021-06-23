@@ -9,7 +9,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
-import org.apache.spark.sql.execution.{SparkPlan, WholeStageCodegenExec}
+import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
@@ -33,8 +33,9 @@ final class SummingSparkPlanSpec
       .as[(Double)]
       .executionPlan
     assert(
-      SingleColumnSumPlanExtractor
-        .matchPlan(executionPlan)
+      JoinPlanExtractor
+        .matchBroadcastJoinPlan(executionPlan)
+        .map(desc => JoinPlan(RowToColumnarExec(desc.left), RowToColumnarExec(desc.right)).execute())
         .isDefined,
       executionPlan.toString()
     )
