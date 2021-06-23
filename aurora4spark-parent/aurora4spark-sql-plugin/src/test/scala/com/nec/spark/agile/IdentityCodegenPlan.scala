@@ -19,6 +19,7 @@ final case class IdentityCodegenPlan(child: SparkPlan) extends SparkPlan with Co
     val resultVars = input.zipWithIndex.map { case (ev, i) => ev }
     s"""
        |do {
+       | // here we have the doConsume
        |  ${consume(ctx, resultVars)}
        |} while(false);
      """.stripMargin
