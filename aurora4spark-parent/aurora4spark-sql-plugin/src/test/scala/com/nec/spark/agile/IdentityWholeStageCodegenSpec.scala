@@ -1,5 +1,6 @@
 package com.nec.spark.agile
 
+import com.nec.debugging.Debugging.RichSparkPlan
 import com.nec.spark.SparkAdditions
 import org.apache.spark.sql.execution.WholeStageCodegenExec
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -33,6 +34,7 @@ final class IdentityWholeStageCodegenSpec
     val result = codegened.executeCollectPublic().map(row => row.getDouble(0))
     assert(result.toList == List(1d, 2d, 3d))
   }
+
   "Execute Identity WSCE for a LocalTableScan, and get the original input back" in withSparkSession2(
     _.config(CODEGEN_FALLBACK.key, value = false)
   ) { sparkSession =>
@@ -46,6 +48,8 @@ final class IdentityWholeStageCodegenSpec
       .executionPlan
     val codegened = WholeStageCodegenExec(IdentityCodegenPlan(executionPlan))(1)
     info(codegened.toString())
+    codegened
+      .debugCodegen(name = "identity-codegen")
     val result = codegened.executeCollectPublic().map(row => row.getDouble(0))
     assert(result.toList == List(1d, 2d, 3d))
   }
