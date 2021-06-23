@@ -9,58 +9,36 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Benchmark)
 class VEJMHBenchmark {
 
-  private var _sparkSession: SparkSession = null
-  private lazy val sparkSession: SparkSession = _sparkSession
-
-  // @Benchmark
+  @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
-  def test1VERunWithArrow(): Unit = {
+  def test1VERunWithArrow(sparkVeSession: SparkVeSession): Unit = {
     LocalVeoExtension._arrowEnabled = true
-    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
-    println(s"VE result = ${query.collect().toList}")
-  }
-
-  // @Benchmark
-  @BenchmarkMode(Array(Mode.SingleShotTime))
-  def test1VERunNoArrow(): Unit = {
-    LocalVeoExtension._arrowEnabled = false
-    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
+    val query = sparkVeSession.sparkSession.sql("SELECT SUM(a) FROM nums")
     println(s"VE result = ${query.collect().toList}")
   }
 
   @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
-  def test2JVMRun(): Unit = {
+  def test1VERunNoArrow(sparkVeSession: SparkVeSession): Unit = {
+    LocalVeoExtension._arrowEnabled = false
+    val query = sparkVeSession.sparkSession.sql("SELECT SUM(a) FROM nums")
+    println(s"VE result = ${query.collect().toList}")
+  }
+
+  @Benchmark
+  @BenchmarkMode(Array(Mode.SingleShotTime))
+  def test2JVMRun(sparkVeSession: SparkVeSession): Unit = {
     LocalVeoExtension._enabled = false
-    val query = sparkSession.sql("SELECT SUM(a) FROM nums")
+    val query = sparkVeSession.sparkSession.sql("SELECT SUM(a) FROM nums")
     println(s"JVM result = ${query.collect().toList}")
   }
 
-  @Setup
-  def prepare(): Unit = {
-    Aurora4SparkExecutorPlugin.closeAutomatically = false
-
-    this._sparkSession = SparkSession
-      .builder()
-      .master("local[4]")
-      .appName(this.getClass.getCanonicalName)
-      .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-      .config(key = "spark.ui.enabled", value = false)
-      .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
-      .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
-      .getOrCreate()
-
-    import sparkSession.implicits._
-    sparkSession.sqlContext.read
-      .format("parquet")
-      .load("/home/william/large-sample-parquet-10_9/")
-      .createOrReplaceTempView("nums")
+  @Benchmark
+  @BenchmarkMode(Array(Mode.SingleShotTime))
+  def testRapidsRun(rapidsSession: SparkRapidsSession): Unit = {
+    LocalVeoExtension._enabled = false
+    val query = rapidsSession.sparkSession.sql("SELECT SUM(a) FROM nums")
+    println(query.queryExecution.executedPlan)
+    println(s"JVM result = ${query.collect().toList}")
   }
-
-  @TearDown
-  def tearDown(): Unit = {
-    sparkSession.close()
-    Aurora4SparkExecutorPlugin.closeProcAndCtx()
-  }
-
 }

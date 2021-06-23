@@ -1,6 +1,7 @@
 package com.nec.arrow.functions
 import org.apache.arrow.vector.Float8Vector
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import org.apache.arrow.memory.RootAllocator
 
 object Sum {
@@ -20,7 +21,7 @@ object Sum {
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(
       name = "sum_vectors",
-      inputArguments = List(Some(float8Vector), None),
+      inputArguments = List(Some(Float8VectorWrapper(float8Vector)), None),
       outputArguments = List(None, Some(outputVector), None)
     )
 

@@ -41,8 +41,15 @@ libraryDependencies ++= Seq(
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
-  "com.h2database" % "h2" % "1.4.200" % "test,ve"
+  "com.h2database" % "h2" % "1.4.200" % "test,ve",
+  "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve"
 )
+
+Test / unmanagedJars ++=  sys.env.get("CUDF_PATH")
+  .map(path => new File((path)))
+  .map(file => Seq(file))
+  .getOrElse(Seq())
+  .classpath
 
 /** Because of VE */
 VectorEngine / parallelExecution := false
