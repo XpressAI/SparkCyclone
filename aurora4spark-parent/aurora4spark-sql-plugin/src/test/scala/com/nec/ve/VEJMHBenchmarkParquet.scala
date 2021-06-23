@@ -1,13 +1,10 @@
 package com.nec.ve
 
 import com.nec.spark._
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.debug.DebugQuery
-import org.apache.spark.sql.internal.SQLConf
 import org.openjdk.jmh.annotations._
 
 @State(Scope.Benchmark)
-class VEJMHBenchmark {
+class VEJMHBenchmarkParquet {
 
   @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
@@ -27,9 +24,16 @@ class VEJMHBenchmark {
 
   @Benchmark
   @BenchmarkMode(Array(Mode.SingleShotTime))
-  def test2JVMRun(sparkVeSession: SparkVeSession): Unit = {
+  def test2JVMRunNoWholestageCodegen(sparkVeSession: SparkVeSession): Unit = {
     LocalVeoExtension._enabled = false
     val query = sparkVeSession.sparkSession.sql("SELECT SUM(a) FROM nums")
+    println(s"JVM result = ${query.collect().toList}")
+  }
+
+  @Benchmark
+  @BenchmarkMode(Array(Mode.SingleShotTime))
+  def test2JVMRunWithWholestageCodegen(sparkWholestageSession: SparkWholestageSession): Unit = {
+    val query = sparkWholestageSession.sparkSession.sql("SELECT SUM(a) FROM nums")
     println(s"JVM result = ${query.collect().toList}")
   }
 
