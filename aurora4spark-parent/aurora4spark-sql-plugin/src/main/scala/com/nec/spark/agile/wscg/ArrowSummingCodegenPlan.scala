@@ -15,6 +15,9 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.types.DoubleType
 
 object ArrowSummingCodegenPlan {
 
@@ -55,8 +58,6 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   override def output: Seq[Attribute] = Seq(
     AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
   )
-
-  override def children: Seq[SparkPlan] = Seq(child)
 
   override def children: Seq[SparkPlan] = Seq(child)
 
