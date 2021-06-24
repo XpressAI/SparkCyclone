@@ -1,5 +1,6 @@
 package com.nec.spark
 
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.spark.LocalVeoExtension._enabled
 import com.nec.spark.agile._
@@ -32,6 +33,8 @@ import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.ColumnarToRowExec
+import org.apache.spark.sql.execution.FileSourceScanExec
 
 object LocalVeoExtension {
   var _enabled = true
@@ -86,18 +89,16 @@ object LocalVeoExtension {
                     ),
                   shuffleOrigin
                 )
-            ) if (avg.references.size == 1) => {
-          println(fourth)
-          println(fourth.getClass.getCanonicalName())
-          println(fourth.supportsColumnar)
+            )
+            if (avg.references.size == 1)
+            /*  && !sparkPlan.sqlContext.sparkContext.getConf
+                .get(WHOLESTAGE_CODEGEN_ENABLED.key)
+                .equalsIgnoreCase("false") */ => {
           val indices = fourth.output.map(_.name).zipWithIndex.toMap
           val colName = avg.references.head.name
 
-          first.copy(child =
-            see.copy(child =
-              ArrowSummingCodegenPlan(fourth, VeoBased)
-            )
-          )
+          val nc = ArrowSummingCodegenPlan(fourth, VeoBased)
+          first.copy(child = see.copy(child = nc))
         }
       }
       .orElse {

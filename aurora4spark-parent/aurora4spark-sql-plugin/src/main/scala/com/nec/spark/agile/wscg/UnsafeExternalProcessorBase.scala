@@ -13,7 +13,12 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
 
   def child: SparkPlan
 
-  override protected def doExecute(): RDD[InternalRow] = sys.error("This should not be called if in WSCG")
+  override def supportsColumnar: Boolean = false
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    sys.error("This should not be called if in WSCG")
+  }
+
   override def inputRDDs(): Seq[RDD[InternalRow]] = Seq(child.execute())
 
   type ContainerType <: UnsafeBatchProcessor
@@ -62,4 +67,5 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
        |$containerVariable.insertRow((UnsafeRow)${row.value});
      """.stripMargin
   }
+
 }

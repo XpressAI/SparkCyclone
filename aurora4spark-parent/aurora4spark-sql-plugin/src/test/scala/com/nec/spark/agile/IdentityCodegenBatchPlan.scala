@@ -7,7 +7,7 @@ import org.apache.spark.sql.execution.SparkPlan
 final case class IdentityCodegenBatchPlan(child: SparkPlan)
   extends SparkPlan
   with BlockingOperatorWithCodegen
-  with UnsafeExternalProcessorBase {
+  with wscg.UnsafeExternalProcessorBase {
   type ContainerType = UnsafeExternalDuplicator
   def createContainer(): UnsafeExternalDuplicator = new UnsafeExternalDuplicator
   override def containerClass: Class[UnsafeExternalDuplicator] = classOf[UnsafeExternalDuplicator]

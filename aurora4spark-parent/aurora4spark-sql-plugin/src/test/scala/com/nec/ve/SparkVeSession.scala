@@ -21,7 +21,6 @@ class SparkVeSession {
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .config(key = "spark.ui.enabled", value = false)
       .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
-      .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
       .getOrCreate()
 
     import sparkSession.implicits._
@@ -30,11 +29,11 @@ class SparkVeSession {
       .load("/home/william/large-sample-parquet-10_9/")
       .createOrReplaceTempView("nums")
 
-    sparkSession.sqlContext.read
-      .format("csv")
-      .option("header", true)
-      .load("/home/dominik/large-sample-csv-10_9/")
-      .createOrReplaceTempView("nums_csv")
+    // sparkSession.sqlContext.read
+    //   .format("csv")
+    //   .option("header", true)
+    //   .load("/home/dominik/large-sample-csv-10_9/")
+    //   .createOrReplaceTempView("nums_csv")
   }
 
   @TearDown
