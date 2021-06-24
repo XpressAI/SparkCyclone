@@ -1,6 +1,6 @@
-package com.nec.spark.agile
+package com.nec.spark.agile.wscg
 
-import com.nec.spark.agile.ArrowSummingCodegenPlan.UnsafeArrowSummingContainer
+import com.nec.spark.agile.wscg.ArrowSummingCodegenPlan.UnsafeArrowSummingContainer
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -47,8 +47,8 @@ object ArrowSummingCodegenPlan {
 
 final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   extends SparkPlan
-  with BlockingOperatorWithCodegen
-  with UnsafeExternalProcessorBase {
+    with BlockingOperatorWithCodegen
+    with UnsafeExternalProcessorBase {
   override def output: Seq[Attribute] = child.output
   override def children: Seq[SparkPlan] = Seq(child)
 

@@ -1,4 +1,5 @@
-package com.nec.spark.agile
+package com.nec.spark.agile.wscg
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 

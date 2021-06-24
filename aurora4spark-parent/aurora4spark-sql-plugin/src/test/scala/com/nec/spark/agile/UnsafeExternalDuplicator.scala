@@ -1,4 +1,5 @@
 package com.nec.spark.agile
+import com.nec.spark.agile.wscg.UnsafeBatchProcessor
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 

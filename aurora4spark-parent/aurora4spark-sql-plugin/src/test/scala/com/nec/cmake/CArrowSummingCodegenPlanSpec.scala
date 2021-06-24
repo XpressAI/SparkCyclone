@@ -1,4 +1,4 @@
-package com.nec.spark.agile
+package com.nec.cmake
 
 import com.nec.debugging.Debugging.RichDataSet
 import com.nec.spark.SparkAdditions
@@ -15,7 +15,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
-final class ArrowSummingCodegenPlanSpec
+final class CArrowSummingCodegenPlanSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with SparkAdditions
@@ -61,7 +61,12 @@ final class ArrowSummingCodegenPlanSpec
                     val colName = avg.references.head.name
 
                     first.copy(child =
-                      see.copy(child = ArrowSummingCodegenPlan(fourth, ArrowSummer.JVMBased))
+                      see.copy(child =
+                        ArrowSummingCodegenPlan(
+                          fourth,
+                          ArrowSummer.CBased(CMakeBuilder.CLibPath.toString)
+                        )
+                      )
                     )
                   }
                 }

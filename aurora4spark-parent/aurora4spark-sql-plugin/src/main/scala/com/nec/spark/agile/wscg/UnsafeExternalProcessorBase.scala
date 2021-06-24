@@ -1,8 +1,7 @@
-package com.nec.spark.agile
-import com.nec.spark.agile.wscg.UnsafeBatchProcessor
+package com.nec.spark.agile.wscg
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
