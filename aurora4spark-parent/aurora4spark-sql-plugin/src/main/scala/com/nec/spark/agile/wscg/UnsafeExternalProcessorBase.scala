@@ -13,6 +13,8 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
 
   def child: SparkPlan
 
+
+
   override def supportsColumnar: Boolean = false
 
   override protected def doExecute(): RDD[InternalRow] = {
@@ -40,7 +42,7 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
     ctx.INPUT_ROW = null
     val resultIterator = ctx.addMutableState(
       "scala.collection.Iterator<UnsafeRow>",
-      "resultsIterator",
+      "usResultsIterator",
       forceInline = true
     )
     s"""

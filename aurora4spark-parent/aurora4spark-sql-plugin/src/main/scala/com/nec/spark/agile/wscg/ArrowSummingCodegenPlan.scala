@@ -10,10 +10,10 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.execution.BlockingOperatorWithCodegen
-import org.apache.spark.sql.execution.CodegenSupport
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 
 object ArrowSummingCodegenPlan {
 
@@ -50,20 +50,16 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   extends SparkPlan
   with BlockingOperatorWithCodegen
   with UnsafeExternalProcessorBase {
-  override def output: Seq[Attribute] = child.output
-  override def children: Seq[SparkPlan] = Seq(child)
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override def supportsColumnar: Boolean = false
+  override def output: Seq[Attribute] = child.output.take(1)
+
+  override def children: Seq[SparkPlan] = Seq(child)
 
   override protected def doExecute(): RDD[InternalRow] = {
     sys.error("This should not be called if in WSCG")
   }
-/* 
- require(
-    child.isInstanceOf[CodegenSupport],
-    s"Required to support Codegen, but ${child.getClass} does not support it."
-  )
-*/
+
   override type ContainerType = UnsafeArrowSummingContainer
 
   def createContainer(): UnsafeArrowSummingContainer = {
