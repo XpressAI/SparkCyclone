@@ -6,7 +6,6 @@ import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.wscg.ArrowSummingCodegenPlan
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
-import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -14,7 +13,7 @@ import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.scalatest.BeforeAndAfter
@@ -207,14 +206,16 @@ final class ArrowSummingCodegenPlanSpec
   ) { sparkSession =>
     import sparkSession.implicits._
 
+    val schema = StructType(Array(StructField("a", DoubleType)))
+
     sparkSession.read
       .format("csv")
-      .schema(Encoders.scalaDouble.schema)
+      .schema(schema)
       .load(SampleCSV.toString)
       .as[Double]
       .createOrReplaceTempView("nums")
     val executionPlan = sparkSession
-      .sql("SELECT SUM(value) FROM nums")
+      .sql("SELECT SUM(a) FROM nums")
       .debugSqlAndShow(name = "arrow-sum-codegen-csv")
       .as[Double]
     val result = executionPlan.collect().toList

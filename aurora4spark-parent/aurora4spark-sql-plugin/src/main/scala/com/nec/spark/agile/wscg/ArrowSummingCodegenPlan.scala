@@ -56,7 +56,7 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   with UnsafeExternalProcessorBase {
 
   override def output: Seq[Attribute] = Seq(
-    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
+    AttributeReference(name = "sum_result", dataType = DoubleType, nullable = false)()
   )
 
   override def children: Seq[SparkPlan] = Seq(child)
@@ -74,7 +74,7 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
 
   def createContainer(): UnsafeArrowSummingContainer = {
     val timeZoneId = conf.sessionLocalTimeZone
-    val arrowSchema: Schema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+    val arrowSchema: Schema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
     val allocator =
       ArrowUtilsExposed.rootAllocator.newChildAllocator(
         s"writer for a summing plan",
@@ -87,4 +87,5 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
 
   override def containerClass: Class[UnsafeArrowSummingContainer] =
     classOf[UnsafeArrowSummingContainer]
+
 }

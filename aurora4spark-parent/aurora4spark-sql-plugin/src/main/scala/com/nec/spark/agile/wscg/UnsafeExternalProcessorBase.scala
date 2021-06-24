@@ -13,15 +13,13 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
 
   def child: SparkPlan
 
-
-
   override def supportsColumnar: Boolean = false
 
   override protected def doExecute(): RDD[InternalRow] = {
     sys.error("This should not be called if in WSCG")
   }
 
-  override def inputRDDs(): Seq[RDD[InternalRow]] = Seq(child.execute())
+  override def inputRDDs(): Seq[RDD[InternalRow]] = child.asInstanceOf[CodegenSupport].inputRDDs()
 
   type ContainerType <: UnsafeBatchProcessor
 
@@ -30,19 +28,19 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
   def createContainer(): ContainerType
 
   override protected def doProduce(ctx: CodegenContext): String = {
-    val excecuted = ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "executed")
-    val outputRow = ctx.freshName("outputRow")
-    val thisPlan = ctx.addReferenceObj("plan", this)
+    val excecuted = ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "_gen_executed")
+    val outputRow = ctx.freshName("_gen_outputRow")
+    val thisPlan = ctx.addReferenceObj("_gen_plan", this)
     containerVariable = ctx.addMutableState(
       containerClass.getName,
-      "batchProcessor",
+      "_gen_batchProcessor",
       v => s"$v = $thisPlan.createContainer();",
       forceInline = true
     )
     ctx.INPUT_ROW = null
     val resultIterator = ctx.addMutableState(
       "scala.collection.Iterator<UnsafeRow>",
-      "usResultsIterator",
+      "_gen_usResultsIterator",
       forceInline = true
     )
     s"""
