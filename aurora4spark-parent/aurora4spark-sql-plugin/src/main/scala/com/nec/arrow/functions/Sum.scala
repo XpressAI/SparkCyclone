@@ -16,7 +16,7 @@ object Sum {
     nativeInterface: ArrowNativeInterfaceNumeric
   )(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
     val ra = new RootAllocator()
-    val  outputVector = new Float8Vector("count", ra)
+    val outputVector = new Float8Vector("count", ra)
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
     nativeInterface.callFunction(
@@ -31,16 +31,19 @@ object Sum {
   }
 
   def sumJVM(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
-    (0 until float8Vector.getValueCount)
-      .map(idx => float8Vector.getValueAsDouble(idx))
-      .zipWithIndex
-      .groupBy { case (elem, idx) =>
-        idx % columnsCount
-      }
-      .map { case (idx, seq) =>
-        seq.map(_._1).sum
-      }
-      .toSeq
+    if (float8Vector.getValueCount < 1) Seq.fill(columnsCount)(0)
+    else
+      (0 until float8Vector.getValueCount)
+        .view
+        .map(idx => float8Vector.getValueAsDouble(idx))
+        .zipWithIndex
+        .groupBy { case (elem, idx) =>
+          idx % columnsCount
+        }
+        .map { case (idx, seq) =>
+          seq.map(_._1).sum
+        }
+        .toSeq
   }
 
 }
