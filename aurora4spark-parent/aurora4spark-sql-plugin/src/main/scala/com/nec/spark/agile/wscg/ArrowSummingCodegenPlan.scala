@@ -14,6 +14,8 @@ import org.apache.spark.sql.execution.CodegenSupport
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.types.DoubleType
 
 object ArrowSummingCodegenPlan {
 
@@ -50,7 +52,11 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   extends SparkPlan
   with BlockingOperatorWithCodegen
   with UnsafeExternalProcessorBase {
-  override def output: Seq[Attribute] = child.output
+
+  override def output: Seq[Attribute] = Seq(
+    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
+  )
+
   override def children: Seq[SparkPlan] = Seq(child)
 
   override def supportsColumnar: Boolean = false
@@ -58,12 +64,12 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   override protected def doExecute(): RDD[InternalRow] = {
     sys.error("This should not be called if in WSCG")
   }
-/* 
+  /*
  require(
     child.isInstanceOf[CodegenSupport],
     s"Required to support Codegen, but ${child.getClass} does not support it."
   )
-*/
+   */
   override type ContainerType = UnsafeArrowSummingContainer
 
   def createContainer(): UnsafeArrowSummingContainer = {

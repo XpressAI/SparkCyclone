@@ -4,6 +4,10 @@ import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import org.openjdk.jmh.annotations.{Scope, Setup, State, TearDown}
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Encoders
+import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.DoubleType
 
 @State(Scope.Benchmark)
 class SparkWholestageSession {
@@ -19,19 +23,30 @@ class SparkWholestageSession {
       .master("local[4]")
       .appName(this.getClass.getCanonicalName)
       .config(key = "spark.ui.enabled", value = false)
-      .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
+      .config(key = "spark.sql.codegen.fallback", value = false)
       .getOrCreate()
+
+    import sparkSession.sqlContext.implicits._
 
     sparkSession.sqlContext.read
       .format("parquet")
       .load("/home/william/large-sample-parquet-10_9/")
       .createOrReplaceTempView("nums")
 
-    // sparkSession.sqlContext.read
-    //   .format("csv")
-    //   .option("header", true)
-    //   .load("/home/dominik/large-sample-csv-10_9/")
-    //   .createOrReplaceTempView("nums_csv")
+    val schema = StructType(
+      Array(
+        StructField("a", DoubleType),
+        StructField("b", DoubleType),
+        StructField("c", DoubleType)
+      )
+    )
+    sparkSession.sqlContext.read
+      .format("csv")
+      .option("header", true)
+      .schema(schema)
+      .load("/home/dominik/large-sample-csv-10_9/")
+      .as[(Double, Double, Double)]
+      .createOrReplaceTempView("nums_csv")
   }
 
   @TearDown
