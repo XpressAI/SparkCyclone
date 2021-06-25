@@ -8,10 +8,15 @@ import org.apache.spark.sql.execution.CodegenSupport
 import org.apache.spark.sql.execution.SparkPlan
 
 final case class IdentityCodegenPlan(child: SparkPlan) extends SparkPlan with CodegenSupport {
+
   override protected def doExecute(): RDD[InternalRow] = sys.error("This should not be called.")
+
   override def output: Seq[Attribute] = child.output
+
   override def children: Seq[SparkPlan] = Seq(child)
+
   override def inputRDDs(): Seq[RDD[InternalRow]] = Seq(child.execute())
+
   override protected def doProduce(ctx: CodegenContext): String =
     child.asInstanceOf[CodegenSupport].produce(ctx, this)
 
