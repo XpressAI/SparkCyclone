@@ -18,7 +18,6 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.Utils
 
 /**
  * Hash-based aggregate operator that can also fallback to sorting when data exceeds memory size.
@@ -48,9 +47,8 @@ case class OurMinimalHashAggregateExec(
       .flatMap(_.aggregateFunction.inputAggBufferAttributes)
   }
 
-  protected val aggregateBufferAttributes: Seq[AttributeReference] = {
+  protected val aggregateBufferAttributes: Seq[AttributeReference] =
     aggregateExpressions.flatMap(_.aggregateFunction.aggBufferAttributes)
-  }
 
   override def producedAttributes: AttributeSet =
     AttributeSet(aggregateAttributes) ++
@@ -180,64 +178,31 @@ case class OurMinimalHashAggregateExec(
     aggBufferUpdatingExprs: Seq[Seq[Expression]],
     aggCodeBlocks: Seq[Block],
     subExprs: Map[Expression, SubExprEliminationState]
-  ): Option[String] = {
-    val exprValsInSubExprs = subExprs.flatMap { case (_, s) => s.value :: s.isNull :: Nil }
-    if (exprValsInSubExprs.exists(_.isInstanceOf[SimpleExprValue])) {
-      // `SimpleExprValue`s cannot be used as an input variable for split functions, so
-      // we give up splitting functions if it exists in `subExprs`.
-      None
-    } else {
-      val inputVars = aggBufferUpdatingExprs.map { aggExprsForOneFunc =>
-        val inputVarsForOneFunc = aggExprsForOneFunc
-          .map(CodeGenerator.getLocalInputVariableValues(ctx, _, subExprs)._1)
+  ): String = {
+    val splitCodes = aggBufferUpdatingExprs.zipWithIndex.map { case (vv, i) =>
+      val args =
+        vv.map(CodeGenerator.getLocalInputVariableValues(ctx, _, subExprs)._1)
           .reduce(_ ++ _)
           .toSeq
-        val paramLength = CodeGenerator.calculateParamLengthFromExprValues(inputVarsForOneFunc)
-
-        // Checks if a parameter length for the `aggExprsForOneFunc` does not go over the JVM limit
-        if (CodeGenerator.isValidParamLength(paramLength)) {
-          Some(inputVarsForOneFunc)
-        } else {
-          None
+      val argList = args
+        .map { v =>
+          s"${CodeGenerator.typeName(v.javaType)} ${v.variableName}"
         }
-      }
-
-      // Checks if all the aggregate code can be split into pieces.
-      // If the parameter length of at lease one `aggExprsForOneFunc` goes over the limit,
-      // we totally give up splitting aggregate code.
-      if (inputVars.forall(_.isDefined)) {
-        val splitCodes = inputVars.flatten.zipWithIndex.map { case (args, i) =>
-          val doAggFunc = ctx.freshName(s"doAggregate_${aggNames(i)}")
-          val argList = args
-            .map { v =>
-              s"${CodeGenerator.typeName(v.javaType)} ${v.variableName}"
-            }
-            .mkString(", ")
-          val doAggFuncName = ctx.addNewFunction(
-            doAggFunc,
-            s"""
-               |private void $doAggFunc($argList) throws java.io.IOException {
-               |  ${aggCodeBlocks(i)}
-               |}
+        .mkString(", ")
+      val doAggFunc = ctx.freshName(s"doAggregate_${aggNames(i)}")
+      val doAggFuncName = ctx.addNewFunction(
+        doAggFunc,
+        s"""
+           |private void $doAggFunc($argList) throws java.io.IOException {
+           |  ${aggCodeBlocks(i)}
+           |}
              """.stripMargin
-          )
+      )
 
-          val inputVariables = args.map(_.variableName).mkString(", ")
-          s"$doAggFuncName($inputVariables);"
-        }
-        Some(splitCodes.mkString("\n").trim)
-      } else {
-        val errMsg = "Failed to split aggregate code into small functions because the parameter " +
-          "length of at least one split function went over the JVM limit: " +
-          CodeGenerator.MAX_JVM_METHOD_PARAMS_LENGTH
-        if (Utils.isTesting) {
-          throw new IllegalStateException(errMsg)
-        } else {
-          logInfo(errMsg)
-          None
-        }
-      }
+      val inputVariables = args.map(_.variableName).mkString(", ")
+      s"$doAggFuncName($inputVariables);"
     }
+    splitCodes.mkString("\n").trim
   }
 
   private def doConsumeWithoutKeys(ctx: CodegenContext, input: Seq[ExprCode]): String = {
@@ -282,19 +247,7 @@ case class OurMinimalHashAggregateExec(
     }
 
     val codeToEvalAggFunc =
-      if (
-        conf.codegenSplitAggregateFunc &&
-        aggCodeBlocks.map(_.length).sum > conf.methodSplitThreshold
-      ) {
-        val maybeSplitCode =
-          splitAggregateExpressions(ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
-
-        maybeSplitCode.getOrElse {
-          aggCodeBlocks.fold(EmptyBlock)(_ + _).code
-        }
-      } else {
-        aggCodeBlocks.fold(EmptyBlock)(_ + _).code
-      }
+      splitAggregateExpressions(ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
 
     s"""
        |// do aggregate
