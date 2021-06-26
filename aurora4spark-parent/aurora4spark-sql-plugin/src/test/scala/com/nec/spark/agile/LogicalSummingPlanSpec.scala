@@ -168,7 +168,6 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   }
 
   "Identity batched works" ignore {
-
     /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
