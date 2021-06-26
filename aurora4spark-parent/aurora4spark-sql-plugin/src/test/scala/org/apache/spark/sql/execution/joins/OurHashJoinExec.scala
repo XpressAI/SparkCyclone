@@ -1,9 +1,6 @@
 package org.apache.spark.sql.execution.joins
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.plans.physical.BroadcastDistribution
-import org.apache.spark.sql.catalyst.plans.physical.Distribution
-import org.apache.spark.sql.catalyst.plans.physical.UnspecifiedDistribution
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,37 +38,6 @@ case class OurHashJoinExec(
     case BuildRight => (right, left)
   }
 
-  protected lazy val (buildKeys, streamedKeys) = {
-    require(
-      leftKeys.length == rightKeys.length &&
-        leftKeys
-          .map(_.dataType)
-          .zip(rightKeys.map(_.dataType))
-          .forall(types => types._1.sameType(types._2)),
-      "Join keys from two sides should have same length and types"
-    )
-    buildSide match {
-      case BuildLeft  => (leftKeys, rightKeys)
-      case BuildRight => (rightKeys, leftKeys)
-    }
-  }
-
-  @transient protected lazy val (buildOutput, streamedOutput) = {
-    buildSide match {
-      case BuildLeft  => (left.output, right.output)
-      case BuildRight => (right.output, left.output)
-    }
-  }
-
-  @transient protected lazy val buildBoundKeys: Seq[Expression] =
-    bindReferences(HashJoin.rewriteKeyExpr(buildKeys), buildOutput)
-
-  @transient protected lazy val streamedBoundKeys: Seq[Expression] =
-    bindReferences(HashJoin.rewriteKeyExpr(streamedKeys), streamedOutput)
-
-  protected def streamSideKeyGenerator(): UnsafeProjection =
-    UnsafeProjection.create(streamedBoundKeys)
-
   override def doProduce(ctx: CodegenContext): String =
     streamedPlan.asInstanceOf[CodegenSupport].produce(ctx, this)
 
@@ -97,7 +63,19 @@ case class OurHashJoinExec(
       ctx.currentVars = input
 
       // generate the join key as UnsafeRow
-      val ev = GenerateUnsafeProjection.createCode(ctx, streamedBoundKeys)
+      val ev = GenerateUnsafeProjection.createCode(
+        ctx,
+        bindReferences(
+          HashJoin.rewriteKeyExpr(buildSide match {
+            case BuildLeft  => rightKeys
+            case BuildRight => leftKeys
+          }),
+          buildSide match {
+            case BuildLeft  => right.output
+            case BuildRight => left.output
+          }
+        )
+      )
       (ev, s"${ev.value}.anyNull()")
     }
     val matched = ctx.freshName("matched")
@@ -132,16 +110,6 @@ case class OurHashJoinExec(
        |  }
        |}
        """.stripMargin
-  }
-
-  override def requiredChildDistribution: Seq[Distribution] = {
-    val mode = HashedRelationBroadcastMode(buildBoundKeys, isNullAwareAntiJoin)
-    buildSide match {
-      case BuildLeft =>
-        BroadcastDistribution(mode) :: UnspecifiedDistribution :: Nil
-      case BuildRight =>
-        UnspecifiedDistribution :: BroadcastDistribution(mode) :: Nil
-    }
   }
 
   protected override def doExecute(): RDD[InternalRow] = sys.error("Expected WSCG to run")

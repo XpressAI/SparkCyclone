@@ -1,4 +1,4 @@
-package org.apache.spark.sql.execution.joins
+package org.apache.spark.sql.execution.joins;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
@@ -18,11 +18,14 @@ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execu
         partitionIndex = index;
         this.inputs = inputs;
         localtablescan_input_0 = inputs[0];
+
         ourhashjoin_relation_0 = ((org.apache.spark.sql.execution.joins.UnsafeHashedRelation) ((org.apache.spark.broadcast.TorrentBroadcast) references[1] /* broadcast */).value()).asReadOnlyCopy();
         incPeakExecutionMemory(ourhashjoin_relation_0.estimatedSize());
+
         ourhashjoin_mutableStateArray_0[0] = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter(1, 0);
         ourhashjoin_mutableStateArray_0[1] = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter(3, 0);
         ourhashjoin_mutableStateArray_0[2] = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter(2, 0);
+
     }
 
     protected void processNext() throws java.io.IOException {
@@ -35,12 +38,16 @@ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execu
             // CONSUME: OurHashJoin [knownfloatingpointnormalized(normalizenanandzero((value#16 + 2.0)))], [knownfloatingpointnormalized(normalizenanandzero((num#9 + 3.0)))], Inner, BuildLeft, false
             // input[0, double, false]
             double localtablescan_value_0 = localtablescan_row_0.getDouble(0);
+
             // generate join key for stream side
             ourhashjoin_mutableStateArray_0[0].reset();
+
             // knownfloatingpointnormalized(normalizenanandzero((input[0, double, false] + 3.0)))
             double ourhashjoin_value_2 = -1.0;
+
             ourhashjoin_value_2 = localtablescan_value_0 + 3.0D;
             double ourhashjoin_value_1 = -1.0;
+
             if (Double.isNaN(ourhashjoin_value_2)) {
                 ourhashjoin_value_1 = Double.NaN;
             } else if (ourhashjoin_value_2 == -0.0d) {
@@ -58,6 +65,7 @@ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execu
                     {
                         // CONSUME: Project [value#16, (mapTo#10 + 1.0) AS (mapTo + CAST(1 AS DOUBLE))#21]
                         // common sub-expressions
+
                         // CONSUME: WholeStageCodegen (2)
                         // input[0, double, true]
                         boolean ourhashjoin_isNull_5 = ourhashjoin_matched_0.isNullAt(0);
@@ -66,21 +74,28 @@ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execu
                         // (input[2, double, false] + 1.0)
                         // input[1, double, false]
                         double localtablescan_value_1 = localtablescan_row_0.getDouble(1);
+
                         double project_value_1 = -1.0;
+
                         project_value_1 = localtablescan_value_1 + 1.0D;
                         ourhashjoin_mutableStateArray_0[2].reset();
+
                         ourhashjoin_mutableStateArray_0[2].zeroOutNullBytes();
+
                         if (ourhashjoin_isNull_5) {
                             ourhashjoin_mutableStateArray_0[2].setNullAt(0);
                         } else {
                             ourhashjoin_mutableStateArray_0[2].write(0, ourhashjoin_value_5);
                         }
+
                         ourhashjoin_mutableStateArray_0[2].write(1, project_value_1);
                         append((ourhashjoin_mutableStateArray_0[2].getRow()).copy());
+
                     }
                 }
             }
             if (shouldStop()) return;
         }
     }
+
 }
