@@ -23,7 +23,7 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
   def createContainer(): ContainerType
 
   override protected def doProduce(ctx: CodegenContext): String = {
-    val excecuted = ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "executed")
+    val executed = ctx.addMutableState(CodeGenerator.JAVA_BOOLEAN, "executed")
     val outputRow = ctx.freshName("outputRow")
     val thisPlan = ctx.addReferenceObj("plan", this)
     containerVariable = ctx.addMutableState(
@@ -38,28 +38,30 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
       "resultsIterator",
       forceInline = true
     )
-    s"""
-  if(!$excecuted) {
-    $excecuted = true;
-    ${child.asInstanceOf[CodegenSupport].produce(ctx, this)}
-   $resultIterator = $containerVariable.execute();
-   }
 
- while ($limitNotReachedCond $resultIterator.hasNext()) {
-   UnsafeRow $outputRow = (UnsafeRow)$resultIterator.next();
-   ${consume(ctx, null, outputRow)}
-   if (shouldStop()) return;
-}
+    s"""
+
+    if(!$executed) {
+      $executed = true;
+      ${child.asInstanceOf[CodegenSupport].produce(ctx, this)}
+      $resultIterator = $containerVariable.execute();
+    }
+
+    while ($limitNotReachedCond $resultIterator.hasNext()) {
+      UnsafeRow $outputRow = (UnsafeRow)$resultIterator.next();
+      ${consume(ctx, null, outputRow)}
+      if (shouldStop()) return;
+    }
    """
   }
 
   private var containerVariable: String = _
 
   override def doConsume(ctx: CodegenContext, input: Seq[ExprCode], row: ExprCode): String = {
-
     s"""
        |${row.code}
        |$containerVariable.insertRow((UnsafeRow)${row.value});
      """.stripMargin
   }
+
 }

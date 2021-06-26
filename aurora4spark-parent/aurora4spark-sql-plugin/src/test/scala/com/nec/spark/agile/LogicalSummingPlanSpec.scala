@@ -21,6 +21,8 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.OurMinimalHashAggregateExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.joins.OurHashJoinExec
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -105,7 +107,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )("SELECT SUM(value) FROM nums")(result => assert(result == List(62d)))
   }
 
-  "We can do an identity codegen" - {
+  "We can do an identity codegen" ignore {
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
@@ -124,7 +126,43 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
   }
 
-  "We can do an identity codegen which pre-loads everything first before enabling consumption" - {
+  "We can do a hash aggregate map" - {
+    withVariousInputs[Double](
+      _.config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .withExtensions(sse =>
+          sse.injectColumnar(sparkSession =>
+            new ColumnarRule {
+              override def preColumnarTransitions: Rule[SparkPlan] = { sp =>
+                sp.transformDown {
+                  case hae @ HashAggregateExec(
+                        requiredChildDistributionExpressions,
+                        groupingExpressions,
+                        aggregateExpressions,
+                        aggregateAttributes,
+                        initialInputBufferOffset,
+                        resultExpressions,
+                        child
+                      ) =>
+                    OurMinimalHashAggregateExec(
+                      requiredChildDistributionExpressions,
+                      groupingExpressions,
+                      aggregateExpressions,
+                      aggregateAttributes,
+                      initialInputBufferOffset,
+                      resultExpressions,
+                      child
+                    )
+                  case other => other
+                }
+              }
+            }
+          )
+        )
+    )("SELECT SUM(value) FROM nums")(result => assert(result == List(62d)))
+  }
+
+  "Identity batched works" ignore {
 
     /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
     withVariousInputs[Double](
@@ -136,7 +174,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
               override def apply(plan: LogicalPlan): Seq[SparkPlan] =
                 plan match {
                   case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
-                    List(IdentityCopyCodegenPlan(planLater(child)))
+                    List(IdentityCodegenBatchPlan(planLater(child)))
                   case _ => Nil
                 }
             }
