@@ -3,8 +3,9 @@ package com.nec.spark.agile
 import com.nec.spark.SampleTestData.SampleCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
-import com.nec.spark.agile.LogicalSummingPlanSpec.SomePlan
+import com.nec.spark.agile.LogicalSummingPlanSpec.IdentityPlan
 import com.nec.spark.agile.LogicalSummingPlanSpec.makeCsvNums
+import com.nec.spark.agile.LogicalSummingPlanSpec.makeMemoryJoinNums
 import com.nec.spark.agile.LogicalSummingPlanSpec.makeMemoryNums
 import com.nec.spark.agile.LogicalSummingPlanSpec.makeParquetNums
 import org.apache.spark.rdd.RDD
@@ -26,19 +27,28 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
 object LogicalSummingPlanSpec {
-  case class SomePlan(child: SparkPlan) extends SparkPlan {
+  case class IdentityPlan(child: SparkPlan) extends SparkPlan {
     override protected def doExecute(): RDD[InternalRow] = child.execute()
     override def output: Seq[Attribute] = child.output
     override def children: Seq[SparkPlan] = Seq(child)
   }
 
   val SharedName = "nums"
+  val SharedNameJoinView = "nums_to_join"
 
   def makeMemoryNums(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
     Seq(1d, 2d, 3d, 4d, 52d)
       .toDS()
       .createOrReplaceTempView(SharedName)
+  }
+
+  final case class SomeTab(num: Double, mapTo: Double)
+  def makeMemoryJoinNums(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    Seq(SomeTab(2d, 2.5d), SomeTab(4d, 3d))
+      .toDS()
+      .createOrReplaceTempView(SharedNameJoinView)
   }
 
   def makeCsvNums(sparkSession: SparkSession): Unit = {
@@ -69,8 +79,10 @@ object LogicalSummingPlanSpec {
 final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   private implicit val encDouble: Encoder[Double] = Encoders.scalaDouble
+  private implicit val encDouble2 =
+    Encoders.tuple[Double, Double](Encoders.scalaDouble, Encoders.scalaDouble)
 
-  "We can do a sum" - {
+  "We can do an identity map" - {
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
@@ -80,13 +92,34 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
               override def apply(plan: LogicalPlan): Seq[SparkPlan] =
                 plan match {
                   case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
-                    List(SomePlan(planLater(child)))
+                    List(IdentityPlan(planLater(child)))
                   case _ => Nil
                 }
             }
           )
         )
     )("SELECT SUM(value) FROM nums")(result => assert(result == List(6d)))
+  }
+
+  "We can do a simple join" - {
+    withVariousInputs[(Double, Double)](
+      _.config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .withExtensions(sse =>
+          sse.injectPlannerStrategy(sparkSession =>
+            new Strategy {
+              override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+                plan match {
+                  case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                    List(IdentityPlan(planLater(child)))
+                  case _ => Nil
+                }
+            }
+          )
+        )
+    )("SELECT value, mapTo FROM nums INNER JOIN nums_to_join on value = num")(result =>
+      assert(result == List((2d, 2.5d), (4d, 3d)))
+    )
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
@@ -108,6 +141,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
       import sparkSession.implicits._
+      makeMemoryJoinNums(sparkSession)
       fr(sparkSession)
       val ds = sparkSession.sql(sql).debugSqlHere.as[T]
       f(ds.collect().toList)
