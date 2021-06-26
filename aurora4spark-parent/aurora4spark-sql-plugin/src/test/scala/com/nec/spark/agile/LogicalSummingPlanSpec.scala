@@ -105,6 +105,25 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )("SELECT SUM(value) FROM nums")(result => assert(result == List(62d)))
   }
 
+  "We can do an identity codegen" - {
+    withVariousInputs[Double](
+      _.config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .withExtensions(sse =>
+          sse.injectPlannerStrategy(sparkSession =>
+            new Strategy {
+              override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+                plan match {
+                  case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                    List(IdentityCodegenPlan(planLater(child)))
+                  case _ => Nil
+                }
+            }
+          )
+        )
+    )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
+  }
+
   "We can do a simple join" ignore {
     withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
@@ -126,7 +145,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )
   }
 
-  "We can do a rewritten join" - {
+  "We can do a rewritten join" ignore {
     withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
@@ -179,9 +198,9 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   )(sql: String)(f: List[T] => Unit)(implicit enc: Encoder[T]): Unit = {
     for {
       (title, fr) <- List(
-//        "Memory" -> makeMemoryNums _,
+        "Memory" -> makeMemoryNums _,
         "CSV" -> makeCsvNums _,
-//        "Parquet" -> makeParquetNums _
+        "Parquet" -> makeParquetNums _
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
       import sparkSession.implicits._
