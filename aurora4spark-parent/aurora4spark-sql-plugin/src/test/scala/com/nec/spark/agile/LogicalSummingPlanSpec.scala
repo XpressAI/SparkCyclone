@@ -18,7 +18,11 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.joins.OurHashJoinExec
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.StructField
@@ -82,7 +86,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   private implicit val encDouble2 =
     Encoders.tuple[Double, Double](Encoders.scalaDouble, Encoders.scalaDouble)
 
-  "We can do an identity map" - {
+  "We can do an identity map" ignore {
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
@@ -101,7 +105,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )("SELECT SUM(value) FROM nums")(result => assert(result == List(62d)))
   }
 
-  "We can do a simple join" - {
+  "We can do a simple join" ignore {
     withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
@@ -114,6 +118,46 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
                     List(IdentityPlan(planLater(child)))
                   case _ => Nil
                 }
+            }
+          )
+        )
+    )("SELECT value, mapTo FROM nums INNER JOIN nums_to_join on value = num")(result =>
+      assert(result == List((2d, 2.5d), (4d, 3d)))
+    )
+  }
+
+  "We can do a rewritten join" - {
+    withVariousInputs[(Double, Double)](
+      _.config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .withExtensions(sse =>
+          sse.injectColumnar(sparkSession =>
+            new ColumnarRule {
+              override def preColumnarTransitions: Rule[SparkPlan] = { sp =>
+                sp.transformDown {
+                  case BroadcastHashJoinExec(
+                        leftKeys,
+                        rightKeys,
+                        joinType,
+                        buildSide,
+                        condition,
+                        left,
+                        right,
+                        isNullAwareAntiJoin
+                      ) =>
+                    OurHashJoinExec(
+                      leftKeys,
+                      rightKeys,
+                      joinType,
+                      buildSide,
+                      condition,
+                      left,
+                      right,
+                      isNullAwareAntiJoin
+                    )
+                  case other => other
+                }
+              }
             }
           )
         )
