@@ -1,4 +1,4 @@
-package org.apache.spark.sql.execution.joins;
+package org.apache.spark.sql.execution.joins
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
@@ -26,20 +26,20 @@ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execu
     }
 
     protected void processNext() throws java.io.IOException {
-        // PRODUCE: Project [value#33, (mapTo#27 + 1.0) AS (mapTo + CAST(1 AS DOUBLE))#38]
-        // PRODUCE: OurHashJoin [knownfloatingpointnormalized(normalizenanandzero((value#33 + 1.0)))], [knownfloatingpointnormalized(normalizenanandzero((num#26 + 1.0)))], Inner, BuildLeft, false
-        // PRODUCE: LocalTableScan [num#26, mapTo#27]
+        // PRODUCE: Project [value#16, (mapTo#10 + 1.0) AS (mapTo + CAST(1 AS DOUBLE))#21]
+        // PRODUCE: OurHashJoin [knownfloatingpointnormalized(normalizenanandzero((value#16 + 2.0)))], [knownfloatingpointnormalized(normalizenanandzero((num#9 + 3.0)))], Inner, BuildLeft, false
+        // PRODUCE: LocalTableScan [num#9, mapTo#10]
         while (localtablescan_input_0.hasNext()) {
             InternalRow localtablescan_row_0 = (InternalRow) localtablescan_input_0.next();
             ((org.apache.spark.sql.execution.metric.SQLMetric) references[0] /* numOutputRows */).add(1);
-            // CONSUME: OurHashJoin [knownfloatingpointnormalized(normalizenanandzero((value#33 + 1.0)))], [knownfloatingpointnormalized(normalizenanandzero((num#26 + 1.0)))], Inner, BuildLeft, false
+            // CONSUME: OurHashJoin [knownfloatingpointnormalized(normalizenanandzero((value#16 + 2.0)))], [knownfloatingpointnormalized(normalizenanandzero((num#9 + 3.0)))], Inner, BuildLeft, false
             // input[0, double, false]
             double localtablescan_value_0 = localtablescan_row_0.getDouble(0);
             // generate join key for stream side
             ourhashjoin_mutableStateArray_0[0].reset();
-            // knownfloatingpointnormalized(normalizenanandzero((input[0, double, false] + 1.0)))
+            // knownfloatingpointnormalized(normalizenanandzero((input[0, double, false] + 3.0)))
             double ourhashjoin_value_2 = -1.0;
-            ourhashjoin_value_2 = localtablescan_value_0 + 1.0D;
+            ourhashjoin_value_2 = localtablescan_value_0 + 3.0D;
             double ourhashjoin_value_1 = -1.0;
             if (Double.isNaN(ourhashjoin_value_2)) {
                 ourhashjoin_value_1 = Double.NaN;
@@ -56,7 +56,7 @@ final class GeneratedIteratorForCodegenStage2 extends org.apache.spark.sql.execu
                 while (ourhashjoin_matches_0.hasNext()) {
                     UnsafeRow ourhashjoin_matched_0 = (UnsafeRow) ourhashjoin_matches_0.next();
                     {
-                        // CONSUME: Project [value#33, (mapTo#27 + 1.0) AS (mapTo + CAST(1 AS DOUBLE))#38]
+                        // CONSUME: Project [value#16, (mapTo#10 + 1.0) AS (mapTo + CAST(1 AS DOUBLE))#21]
                         // common sub-expressions
                         // CONSUME: WholeStageCodegen (2)
                         // input[0, double, true]
