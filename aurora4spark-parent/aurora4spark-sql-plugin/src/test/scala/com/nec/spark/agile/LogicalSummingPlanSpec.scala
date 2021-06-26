@@ -124,6 +124,27 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
   }
 
+  "We can do an identity codegen which pre-loads everything first before enabling consumption" - {
+
+    /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
+    withVariousInputs[Double](
+      _.config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .withExtensions(sse =>
+          sse.injectPlannerStrategy(sparkSession =>
+            new Strategy {
+              override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+                plan match {
+                  case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                    List(IdentityCopyCodegenPlan(planLater(child)))
+                  case _ => Nil
+                }
+            }
+          )
+        )
+    )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
+  }
+
   "We can do a simple join" ignore {
     withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
