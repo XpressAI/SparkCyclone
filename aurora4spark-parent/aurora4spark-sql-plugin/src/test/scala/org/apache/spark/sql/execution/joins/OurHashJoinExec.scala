@@ -3,6 +3,8 @@ package org.apache.spark.sql.execution.joins
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.SQLConfHelper
+import org.apache.spark.sql.catalyst.analysis.CastSupport
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.codegen._
@@ -11,6 +13,9 @@ import org.apache.spark.sql.catalyst.optimizer.BuildRight
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.CodegenSupport
+import org.apache.spark.sql.execution.joins.OurHashJoinExec.rewriteKeyExpr
+import org.apache.spark.sql.types.IntegralType
+import org.apache.spark.sql.types.LongType
 
 /**
  * Performs an inner hash join of two child relations.  When the output RDD of this operator is
@@ -66,7 +71,7 @@ case class OurHashJoinExec(
       val ev = GenerateUnsafeProjection.createCode(
         ctx,
         bindReferences(
-          HashJoin.rewriteKeyExpr(buildSide match {
+          rewriteKeyExpr(buildSide match {
             case BuildLeft  => rightKeys
             case BuildRight => leftKeys
           }),
@@ -118,5 +123,39 @@ case class OurHashJoinExec(
     streamedPlan.asInstanceOf[CodegenSupport].inputRDDs()
 
   override def needCopyResult: Boolean = true
+
+}
+
+object OurHashJoinExec extends CastSupport with SQLConfHelper {
+
+  /**
+   * Try to rewrite the key as LongType so we can use getLong(), if they key can fit with a long.
+   *
+   * If not, returns the original expressions.
+   */
+  def rewriteKeyExpr(keys: Seq[Expression]): Seq[Expression] = {
+    assert(keys.nonEmpty)
+    // TODO: support BooleanType, DateType and TimestampType
+    if (
+      keys.exists(!_.dataType.isInstanceOf[IntegralType])
+      || keys.map(_.dataType.defaultSize).sum > 8
+    ) {
+      return keys
+    }
+
+    var keyExpr: Expression = if (keys.head.dataType != LongType) {
+      cast(keys.head, LongType)
+    } else {
+      keys.head
+    }
+    keys.tail.foreach { e =>
+      val bits = e.dataType.defaultSize * 8
+      keyExpr = BitwiseOr(
+        ShiftLeft(keyExpr, Literal(bits)),
+        BitwiseAnd(cast(e, LongType), Literal((1L << bits) - 1))
+      )
+    }
+    keyExpr :: Nil
+  }
 
 }
