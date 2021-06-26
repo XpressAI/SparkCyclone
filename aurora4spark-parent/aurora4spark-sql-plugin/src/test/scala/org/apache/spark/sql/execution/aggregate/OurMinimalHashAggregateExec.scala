@@ -115,7 +115,7 @@ case class OurMinimalHashAggregateExec(
          |private void $doAgg() throws java.io.IOException {
          |  // initialize aggregation buffer
          |  $initBufVar
-         |
+         |  System.out.println("Doing a produce here...");
          |  ${child.asInstanceOf[CodegenSupport].produce(ctx, this)}
          |}
        """.stripMargin
@@ -126,6 +126,7 @@ case class OurMinimalHashAggregateExec(
        |  $initAgg = true;
        |  $doAggFuncName();
        |
+       |  System.out.println("Doing a consume here...");
        |  ${consume(ctx, flatBufVars).trim}
        |}
      """.stripMargin
@@ -176,6 +177,8 @@ case class OurMinimalHashAggregateExec(
       splitAggregateExpressions(ctx, aggNames, boundUpdateExprs, aggCodeBlocks, subExprs.states)
 
     s"""
+       |
+       |  System.out.println("Receiving a push to here");
        |// do aggregate
        |// common sub-expressions
        |$effectiveCodes

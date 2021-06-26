@@ -251,7 +251,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def debugSqlHere: Dataset[T] = {
       info(dataSet.queryExecution.executedPlan.toString())
-      info(dataSet.queryExecution.debug.codegenToSeq().mkString("\n"))
+//      info(dataSet.queryExecution.debug.codegenToSeq().mkString("\n"))
       dataSet
     }
   }
@@ -261,7 +261,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   )(sql: String)(f: List[T] => Unit)(implicit enc: Encoder[T]): Unit = {
     for {
       (title, fr) <- List(
-        "Memory" -> makeMemoryNums _,
+//        "Memory" -> makeMemoryNums _,
         "CSV" -> makeCsvNums _,
         "Parquet" -> makeParquetNums _
       )
