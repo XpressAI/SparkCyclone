@@ -1,11 +1,9 @@
 package org.apache.spark.sql.execution.aggregate
 
-import java.util.concurrent.TimeUnit._
 import org.apache.spark.TaskContext
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.errors._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -33,7 +31,8 @@ case class OurMinimalHashAggregateExec(
   initialInputBufferOffset: Int,
   resultExpressions: Seq[NamedExpression],
   child: SparkPlan
-) extends BlockingOperatorWithCodegen with UnaryExecNode {
+) extends BlockingOperatorWithCodegen
+  with UnaryExecNode {
 
   protected def inputAttributes: Seq[Attribute] = {
     val modes = aggregateExpressions.map(_.mode).distinct
@@ -67,8 +66,8 @@ case class OurMinimalHashAggregateExec(
   override def requiredChildDistribution: List[Distribution] = {
     requiredChildDistributionExpressions match {
       case Some(exprs) if exprs.isEmpty => AllTuples :: Nil
-      case Some(exprs) => ClusteredDistribution(exprs) :: Nil
-      case None => UnspecifiedDistribution :: Nil
+      case Some(exprs)                  => ClusteredDistribution(exprs) :: Nil
+      case None                         => UnspecifiedDistribution :: Nil
     }
   }
   require(OurMinimalHashAggregateExec.supportsAggregate(aggregateBufferAttributes))
@@ -139,33 +138,6 @@ case class OurMinimalHashAggregateExec(
     val flatBufVars = bufVars.flatten
     val initBufVar = evaluateVariables(flatBufVars)
 
-    // generate variables for output
-    val (resultVars, genResult) = if (modes.contains(Final) || modes.contains(Complete)) {
-      // evaluate aggregate results
-      ctx.currentVars = flatBufVars
-      val aggResults =
-        bindReferences(functions.map(_.evaluateExpression), aggregateBufferAttributes)
-          .map(_.genCode(ctx))
-      val evaluateAggResults = evaluateVariables(aggResults)
-      // evaluate result expressions
-      ctx.currentVars = aggResults
-      val resultVars = bindReferences(resultExpressions, aggregateAttributes).map(_.genCode(ctx))
-      (
-        resultVars,
-        s"""
-           |$evaluateAggResults
-           |${evaluateVariables(resultVars)}
-       """.stripMargin
-      )
-    } else if (modes.contains(Partial) || modes.contains(PartialMerge)) {
-      // output the aggregate buffer directly
-      (flatBufVars, "")
-    } else {
-      // no aggregate function, the result should be literals
-      val resultVars = resultExpressions.map(_.genCode(ctx))
-      (resultVars, evaluateVariables(resultVars))
-    }
-
     val doAgg = ctx.freshName("doAggregateWithoutKey")
     val doAggFuncName = ctx.addNewFunction(
       doAgg,
@@ -189,11 +161,8 @@ case class OurMinimalHashAggregateExec(
        |  $doAggFuncName();
        |  $aggTime.add((System.nanoTime() - $beforeAgg) / $NANOS_PER_MILLIS);
        |
-       |  // output the result
-       |  ${genResult.trim}
-       |
        |  $numOutput.add(1);
-       |  ${consume(ctx, resultVars).trim}
+       |  ${consume(ctx, flatBufVars).trim}
        |}
      """.stripMargin
   }
@@ -278,12 +247,7 @@ case class OurMinimalHashAggregateExec(
     // To individually generate code for each aggregate function, an element in `updateExprs` holds
     // all the expressions for the buffer of an aggregation function.
     val updateExprs = aggregateExpressions.map { e =>
-      e.mode match {
-        case Partial | Complete =>
-          e.aggregateFunction.asInstanceOf[DeclarativeAggregate].updateExpressions
-        case PartialMerge | Final =>
-          e.aggregateFunction.asInstanceOf[DeclarativeAggregate].mergeExpressions
-      }
+      e.aggregateFunction.asInstanceOf[DeclarativeAggregate].updateExpressions
     }
     ctx.currentVars = bufVars.flatten ++ input
     val boundUpdateExprs = updateExprs.map { updateExprsForOneFunc =>
