@@ -161,8 +161,8 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
             }
           )
         )
-    )("SELECT value, mapTo FROM nums INNER JOIN nums_to_join on value = num")(result =>
-      assert(result == List((2d, 2.5d), (4d, 3d)))
+    )("SELECT value, mapTo + 1 FROM nums INNER JOIN nums_to_join on value = num")(result =>
+      assert(result == List((2d, 3.5d), (4d, 4d)))
     )
   }
 

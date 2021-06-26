@@ -43,7 +43,8 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   )(f: SparkSession => T): T = {
     val conf = new SparkConf()
     conf.setMaster("local")
-    conf.setAppName("local-test")
+    conf.setAppName(s"local-test-${scala.util.Random.nextInt()}")
+    conf.set("spark.driver.allowMultipleContexts", "true")
     conf.set("spark.ui.enabled", "false")
     val sparkSession = configure(SparkSession.builder().config(conf)).getOrCreate()
     try f(sparkSession)
