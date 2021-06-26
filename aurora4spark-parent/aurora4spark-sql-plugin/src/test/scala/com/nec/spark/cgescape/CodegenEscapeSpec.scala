@@ -29,49 +29,15 @@ import org.apache.spark.sql.types.StructType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
-object CodegenEscapeSpec {
-  val SharedName = "nums"
-  val SharedNameJoinView = "nums_to_join"
-
-  def makeMemoryNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    Seq(1d, 2d, 3d, 4d, 52d)
-      .toDS()
-      .createOrReplaceTempView(SharedName)
-  }
-
-  final case class SomeTab(num: Double, mapTo: Double)
-  def makeMemoryJoinNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    Seq(SomeTab(2d, 2.5d), SomeTab(4d, 3d))
-      .toDS()
-      .createOrReplaceTempView(SharedNameJoinView)
-  }
-
-  def makeCsvNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    val schema = StructType(Array(StructField("a", DoubleType)))
-    sparkSession.read
-      .format("csv")
-      .schema(schema)
-      .load(SampleCSV.toString)
-      .withColumnRenamed("a", "value")
-      .as[Double]
-      .createOrReplaceTempView(SharedName)
-  }
-
-  def makeParquetNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    sparkSession.read
-      .format("parquet")
-      .load(SampleTwoColumnParquet.toString)
-      .withColumnRenamed("a", "value")
-      .as[(Double, Double)]
-      .createOrReplaceTempView(SharedName)
-  }
-
-}
-
+/**
+ * These tests show us how to escape Codegen.
+ *
+ * While they simply return the input, we are using the SUM(value) to force an aggregation, which is easy to match.
+ *
+ * Instead of rewriting Physical Plans we should hook into Logical plans for simplicity, as Spark's
+ *
+ * HashAggregateExec is split into 3 parts which are more complex to deal with.
+ */
 //noinspection ConvertExpressionToSAM
 final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
@@ -134,11 +100,47 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
       import sparkSession.implicits._
-      makeMemoryJoinNums(sparkSession)
       fr(sparkSession)
       val ds = sparkSession.sql(sql).debugSqlHere.as[T]
       f(ds.collect().toList)
     }
+  }
+
+}
+
+
+object CodegenEscapeSpec {
+  val SharedName = "nums"
+
+  def makeMemoryNums(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    Seq(1d, 2d, 3d, 4d, 52d)
+      .toDS()
+      .createOrReplaceTempView(SharedName)
+  }
+
+  final case class SomeTab(num: Double, mapTo: Double)
+
+  def makeCsvNums(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    val schema = StructType(Array(StructField("a", DoubleType)))
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .load(SampleCSV.toString)
+      .withColumnRenamed("a", "value")
+      .as[Double]
+      .createOrReplaceTempView(SharedName)
+  }
+
+  def makeParquetNums(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquet.toString)
+      .withColumnRenamed("a", "value")
+      .as[(Double, Double)]
+      .createOrReplaceTempView(SharedName)
   }
 
 }

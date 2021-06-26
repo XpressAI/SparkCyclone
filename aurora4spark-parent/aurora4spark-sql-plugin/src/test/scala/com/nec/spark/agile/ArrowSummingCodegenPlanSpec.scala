@@ -3,12 +3,10 @@ package com.nec.spark.agile
 import com.nec.debugging.Debugging.RichDataSet
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.ColumnarRule
+import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.catalyst.plans.logical
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
@@ -23,49 +21,14 @@ final class ArrowSummingCodegenPlanSpec
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
-        sse.injectColumnar(ss =>
-          new ColumnarRule {
-            override def postColumnarTransitions: Rule[SparkPlan] = { sparkPlan =>
-              PartialFunction
-                .condOpt(sparkPlan) {
-                  case first @ HashAggregateExec(
-                        requiredChildDistributionExpressions,
-                        groupingExpressions,
-                        Seq(
-                          AggregateExpression(avg @ Sum(exr), mode, isDistinct, filter, resultId)
-                        ),
-                        aggregateAttributes,
-                        initialInputBufferOffset,
-                        resultExpressions,
-                        see @ org.apache.spark.sql.execution.exchange
-                          .ShuffleExchangeExec(
-                            outputPartitioning,
-                            org.apache.spark.sql.execution.aggregate
-                              .HashAggregateExec(
-                                _requiredChildDistributionExpressions,
-                                _groupingExpressions,
-                                _aggregateExpressions,
-                                _aggregateAttributes,
-                                _initialInputBufferOffset,
-                                _resultExpressions,
-                                fourth
-                              ),
-                            shuffleOrigin
-                          )
-                      ) if (avg.references.size == 1) => {
-                    println(fourth)
-                    println(fourth.getClass.getCanonicalName())
-                    println(fourth.supportsColumnar)
-                    val indices = fourth.output.map(_.name).zipWithIndex.toMap
-                    val colName = avg.references.head.name
-
-                    first.copy(child =
-                      see.copy(child = ArrowSummingCodegenPlan(fourth, ArrowSummer.JVMBased))
-                    )
-                  }
-                }
-                .getOrElse(sparkPlan)
-            }
+        sse.injectPlannerStrategy(sparkSession =>
+          new Strategy {
+            override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+              plan match {
+                case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                  List(ArrowSummingCodegenPlan(planLater(child), ArrowSummer.JVMBased))
+                case _ => Nil
+              }
           }
         )
       )
