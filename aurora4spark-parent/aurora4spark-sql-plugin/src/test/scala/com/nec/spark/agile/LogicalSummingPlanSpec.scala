@@ -129,7 +129,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
   }
 
-  "We can do a hash aggregate map" - {
+  "We can do a hash aggregate map" ignore {
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
@@ -168,6 +168,26 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   }
 
   "Identity batched works" ignore {
+    /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
+    withVariousInputs[Double](
+      _.config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .withExtensions(sse =>
+          sse.injectPlannerStrategy(sparkSession =>
+            new Strategy {
+              override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+                plan match {
+                  case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                    List(IdentityBatchPlan(planLater(child)))
+                  case _ => Nil
+                }
+            }
+          )
+        )
+    )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
+  }
+
+  "Identity batched works w/ codegen" - {
     /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
@@ -262,7 +282,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
     for {
       (title, fr) <- List(
 //        "Memory" -> makeMemoryNums _,
-        "CSV" -> makeCsvNums _,
+//        "CSV" -> makeCsvNums _,
         "Parquet" -> makeParquetNums _
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>

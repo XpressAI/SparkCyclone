@@ -47,11 +47,11 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
       $resultIterator = $containerVariable.execute();
     }
 
-    while ($limitNotReachedCond $resultIterator.hasNext()) {
-      UnsafeRow $outputRow = (UnsafeRow)$resultIterator.next();
-      ${consume(ctx, null, outputRow)}
-      if (shouldStop()) return;
-    }
+//    while ($limitNotReachedCond $resultIterator.hasNext()) {
+//      UnsafeRow $outputRow = (UnsafeRow)$resultIterator.next();
+//      ${consume(ctx, null, outputRow)}
+//      if (shouldStop()) return;
+//    }
    """
   }
 
@@ -60,7 +60,7 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
   override def doConsume(ctx: CodegenContext, input: Seq[ExprCode], row: ExprCode): String = {
     s"""
        |${row.code}
-       |$containerVariable.insertRow((UnsafeRow)${row.value});
+//       |$containerVariable.insertRow((UnsafeRow)${row.value});
      """.stripMargin
   }
 

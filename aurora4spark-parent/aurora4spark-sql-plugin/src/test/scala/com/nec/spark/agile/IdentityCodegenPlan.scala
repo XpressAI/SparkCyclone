@@ -10,9 +10,7 @@ import org.apache.spark.sql.execution.CodegenSupport
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.UnaryExecNode
 
-case class IdentityCodegenPlan(child: SparkPlan)
-  extends UnaryExecNode
-  with CodegenSupport {
+case class IdentityCodegenPlan(child: SparkPlan) extends UnaryExecNode with CodegenSupport {
 
   override protected def doExecute(): RDD[InternalRow] = sys.error("This should not be called.")
 
@@ -20,7 +18,8 @@ case class IdentityCodegenPlan(child: SparkPlan)
 
   override def inputRDDs(): Seq[RDD[InternalRow]] = child.asInstanceOf[CodegenSupport].inputRDDs()
 
-  protected override def doProduce(ctx: CodegenContext): String =    child.asInstanceOf[CodegenSupport].produce(ctx, this)
+  protected override def doProduce(ctx: CodegenContext): String =
+    child.asInstanceOf[CodegenSupport].produce(ctx, this)
 
   override def doConsume(ctx: CodegenContext, input: Seq[ExprCode], row: ExprCode): String = {
     s"""
