@@ -281,8 +281,8 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
   )(sql: String)(f: List[T] => Unit)(implicit enc: Encoder[T]): Unit = {
     for {
       (title, fr) <- List(
-//        "Memory" -> makeMemoryNums _,
-//        "CSV" -> makeCsvNums _,
+        "Memory" -> makeMemoryNums _,
+        "CSV" -> makeCsvNums _,
         "Parquet" -> makeParquetNums _
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
