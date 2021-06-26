@@ -1,27 +1,25 @@
 package com.nec.ve
 
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import org.openjdk.jmh.annotations.{Scope, Setup, State, TearDown}
 
 import org.apache.spark.sql.SparkSession
 
 @State(Scope.Benchmark)
-class SparkRapidsSession {
+class SparkWholestageSession {
   var _sparkSession: SparkSession = null
   lazy val sparkSession: SparkSession = _sparkSession
 
   @Setup
   def prepare(): Unit = {
+    Aurora4SparkExecutorPlugin.closeAutomatically = false
 
     this._sparkSession = SparkSession
       .builder()
       .master("local[4]")
       .appName(this.getClass.getCanonicalName)
-      .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
-      .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
-      .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
-
       .config(key = "spark.ui.enabled", value = false)
+      .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
       .getOrCreate()
 
     sparkSession.sqlContext.read

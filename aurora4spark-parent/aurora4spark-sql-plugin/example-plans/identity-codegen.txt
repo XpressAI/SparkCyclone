@@ -1,0 +1,47 @@
+Found 1 WholeStageCodegen subtrees.
+== Subtree 1 / 1 (maxMethodCodeSize:96; maxConstantPoolSize:95(0.14% used); numInnerClasses:0) ==
+*(1) IdentityCodegenBatchPlan
++- *(1) LocalTableScan [value#1]
+
+Generated code:
+/* 001 */ public Object generate(Object[] references) {
+/* 002 */   return new GeneratedIteratorForCodegenStage1(references);
+/* 003 */ }
+/* 004 */
+/* 005 */ // codegenStageId=1
+/* 006 */ final class GeneratedIteratorForCodegenStage1 extends org.apache.spark.sql.execution.BufferedRowIterator {
+/* 007 */   private Object[] references;
+/* 008 */   private scala.collection.Iterator[] inputs;
+/* 009 */   private scala.collection.Iterator localtablescan_input_0;
+/* 010 */   private org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter[] identitycodegenbatchplan_mutableStateArray_0 = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter[1];
+/* 011 */
+/* 012 */   public GeneratedIteratorForCodegenStage1(Object[] references) {
+/* 013 */     this.references = references;
+/* 014 */   }
+/* 015 */
+/* 016 */   public void init(int index, scala.collection.Iterator[] inputs) {
+/* 017 */     partitionIndex = index;
+/* 018 */     this.inputs = inputs;
+/* 019 */     localtablescan_input_0 = inputs[0];
+/* 020 */     identitycodegenbatchplan_mutableStateArray_0[0] = new org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter(1, 0);
+/* 021 */
+/* 022 */   }
+/* 023 */
+/* 024 */   protected void processNext() throws java.io.IOException {
+/* 025 */     while ( localtablescan_input_0.hasNext()) {
+/* 026 */       InternalRow localtablescan_row_0 = (InternalRow) localtablescan_input_0.next();
+/* 027 */       ((org.apache.spark.sql.execution.metric.SQLMetric) references[0] /* numOutputRows */).add(1);
+/* 028 */       do {
+/* 029 */         double localtablescan_value_0 = localtablescan_row_0.getDouble(0);
+/* 030 */         identitycodegenbatchplan_mutableStateArray_0[0].reset();
+/* 031 */
+/* 032 */         identitycodegenbatchplan_mutableStateArray_0[0].write(0, localtablescan_value_0);
+/* 033 */         append((identitycodegenbatchplan_mutableStateArray_0[0].getRow()));
+/* 034 */
+/* 035 */       } while(false);
+/* 036 */       if (shouldStop()) return;
+/* 037 */     }
+/* 038 */   }
+/* 039 */
+/* 040 */ }
+
