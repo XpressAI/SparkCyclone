@@ -98,7 +98,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
             }
           )
         )
-    )("SELECT SUM(value) FROM nums")(result => assert(result == List(6d)))
+    )("SELECT SUM(value) FROM nums")(result => assert(result == List(62d)))
   }
 
   "We can do a simple join" - {
