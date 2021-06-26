@@ -92,7 +92,7 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
               override def apply(plan: LogicalPlan): Seq[SparkPlan] =
                 plan match {
                   case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
-                    List(IdentityPlan(planLater(child)))
+                    Nil //   List(IdentityPlan(planLater(child)))
                   case _ => Nil
                 }
             }
