@@ -16,6 +16,9 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateMode
+import org.apache.spark.sql.catalyst.expressions.aggregate.Partial
+import org.apache.spark.sql.catalyst.expressions.aggregate.PartialMerge
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -143,7 +146,9 @@ final class LogicalSummingPlanSpec extends AnyFreeSpec with BeforeAndAfter with 
                         initialInputBufferOffset,
                         resultExpressions,
                         child
-                      ) =>
+                      )
+                      if aggregateExpressions
+                        .exists(a => Set[AggregateMode](Partial, PartialMerge).contains(a.mode)) =>
                     OurMinimalHashAggregateExec(
                       requiredChildDistributionExpressions,
                       groupingExpressions,
