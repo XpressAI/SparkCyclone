@@ -57,7 +57,6 @@ trait UnsafeExternalProcessorBase { this: SparkPlan with BlockingOperatorWithCod
       s"""
          |private void $doConsumeMethodIdx() throws java.io.IOException {
          |  // initialize aggregation buffer
-         |  System.out.println("Doing a produce here in Batch Planner...");
          |  ${child.asInstanceOf[CodegenSupport].produce(ctx, this)}
          |}
        """.stripMargin
