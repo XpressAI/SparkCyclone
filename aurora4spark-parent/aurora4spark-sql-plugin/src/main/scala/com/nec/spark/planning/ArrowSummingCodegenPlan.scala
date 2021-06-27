@@ -1,5 +1,6 @@
 package com.nec.spark.agile
 
+import com.nec.spark.agile.ArrowSummingCodegenPlan.UnsafeArrowSummingContainer
 import com.nec.spark.cgescape.UnsafeExternalProcessorBase
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.ArrowUnsafeSummer

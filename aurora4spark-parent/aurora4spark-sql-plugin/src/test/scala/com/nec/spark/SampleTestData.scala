@@ -32,7 +32,7 @@ object SampleTestData {
     .toAbsolutePath()
 
   lazy val SampleTwoColumnParquet: Path = {
-    PkgDir.resolve("sampleMultiColumnParquet2.parquet")
+    PkgDir.resolve("parquet-arrow-example.parquet")
   }
 
   lazy val OrdersCsv: Path = {

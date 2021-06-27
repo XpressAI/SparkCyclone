@@ -2,7 +2,9 @@ package com.nec.spark.agile
 
 import com.nec.debugging.Debugging.RichDataSet
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.ArrowSummingCodegenPlan
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
+
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -34,14 +36,15 @@ final class ArrowSummingCodegenPlanSpec
       )
   ) { sparkSession =>
     import sparkSession.implicits._
-    Seq(1d, 2d, 3d)
-      .toDS()
+    sparkSession.read.parquet("/Users/wosin/aurora4spark/aurora4spark-parent/aurora4spark-sql-plugin/src/test/resources/com/nec/spark/parquet-arrow-example.parquet")
       .createOrReplaceTempView("nums")
 
     val executionPlan = sparkSession
-      .sql("SELECT SUM(value) FROM nums")
+      .sql("SELECT SUM(a) FROM nums")
       .debugSqlAndShow(name = "arrow-sum-codegen")
       .as[Double]
+
+    println(executionPlan.queryExecution.sparkPlan)
     val result = executionPlan.collect().toList
     assert(result == List(6d))
   }

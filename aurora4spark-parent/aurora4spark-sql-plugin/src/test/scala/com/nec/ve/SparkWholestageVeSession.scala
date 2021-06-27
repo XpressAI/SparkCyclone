@@ -6,11 +6,11 @@ import org.openjdk.jmh.annotations.{Scope, Setup, State, TearDown}
 import org.apache.spark.sql.SparkSession
 
 @State(Scope.Benchmark)
-class SparkWholestageSession {
+class SparkWholestageVeSession {
   var _sparkSession: SparkSession = null
   lazy val sparkSession: SparkSession = _sparkSession
-  LocalVeoExtension._useCodegenPlans = false
-  LocalVeoExtension._enabled = false
+  LocalVeoExtension._enabled = true
+  LocalVeoExtension._useCodegenPlans = true
 
   @Setup
   def prepare(): Unit = {

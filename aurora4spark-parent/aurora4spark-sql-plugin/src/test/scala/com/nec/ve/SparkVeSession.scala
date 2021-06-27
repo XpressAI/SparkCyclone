@@ -21,7 +21,7 @@ class SparkVeSession {
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .config(key = "spark.ui.enabled", value = false)
       .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
-      .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
+      .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = true)
       .getOrCreate()
 
     import sparkSession.implicits._

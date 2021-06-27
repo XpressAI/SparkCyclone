@@ -2,6 +2,7 @@ package com.nec.spark.planning
 import com.nec.spark.agile.{Column, SingleColumnSparkPlan}
 
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
@@ -39,4 +40,18 @@ object SingleColumnAvgPlanExtractor {
       }
     }
   }
+
+//  def matchLogicalPlan(logicalPlan: LogicalPlan): Option[SingleColumnSparkPlan] = {
+//    PartialFunction.condOpt(logicalPlan) {
+//      case Aggregate(groupingExpressions, aggregateExpressions, child)
+//        if(aggregateExpressions.size == 1 && aggregateExpressions.head) =>
+//
+//      if (avg.references.size == 1) => {
+//        val indices = fourth.output.map(_.name).zipWithIndex.toMap
+//        val colName = avg.references.head.name
+//
+//        SingleColumnSparkPlan(fourth, Column(indices(colName), colName))
+//      }
+//    }
+//  }
 }
