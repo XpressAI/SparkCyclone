@@ -1,6 +1,8 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.ArrowSummingCodegenPlan.UnsafeArrowSummingContainer
+import com.nec.spark.cgescape.UnsafeExternalProcessorBase
+import com.nec.spark.cgescape.UnsafeExternalProcessorBase.UnsafeBatchProcessor
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -51,11 +53,7 @@ final case class ArrowSummingCodegenPlan(child: SparkPlan, summer: ArrowSummer)
   with UnsafeExternalProcessorBase {
   override def output: Seq[Attribute] = child.output
   override def children: Seq[SparkPlan] = Seq(child)
-
-  require(child.isInstanceOf[CodegenSupport], "Required to support Codegen")
-
   override type ContainerType = UnsafeArrowSummingContainer
-
   def createContainer(): UnsafeArrowSummingContainer = {
     val timeZoneId = conf.sessionLocalTimeZone
     val arrowSchema: Schema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
