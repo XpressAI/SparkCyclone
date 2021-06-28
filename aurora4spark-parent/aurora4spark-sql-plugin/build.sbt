@@ -35,6 +35,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "test,ve" classifier ("tests"),
   "org.apache.spark" %% "spark-catalyst" % sparkVersion,
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
+  "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
   "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
   "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
   "com.nec" % "aveo4j" % "0.0.1",

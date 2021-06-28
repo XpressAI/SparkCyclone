@@ -1,17 +1,17 @@
 package com.nec.cmake
 
 import java.time.Instant
-
 import org.apache.commons.io.FileUtils
+
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-
 import scala.sys.process._
-
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.functions.{AddPairwise, Avg, Sum}
+import com.nec.arrow.functions.AddPairwise
+import com.nec.arrow.functions.Avg
+import com.nec.arrow.functions.Sum
 
 /**
  * Utilities to build C libraries using CMake
@@ -50,19 +50,35 @@ object CMakeBuilder {
       case _                       => buildAndLinkMacos(targetPath)
     }
   }
+
+  def runHopeOk(command: List[String]): Unit = {
+    var res = ""
+    val io = new ProcessIO(
+      stdin => { stdin.close() },
+      stdout => {
+        val src = scala.io.Source.fromInputStream(stdout)
+        try res = src.mkString
+        finally stdout.close()
+      },
+      stderr => { stderr.close() }
+    )
+    val proc = command.run(io)
+    assert(proc.exitValue() == 0, s"Failed; data was: $res")
+  }
+
   private def buildAndLinkWin(targetPath: Path): Path = {
     val cmd = List("C:\\Program Files\\CMake\\bin\\cmake", "-A", "x64", targetPath.toString)
     val cmd2 =
       List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
+    runHopeOk(cmd)
+    runHopeOk(cmd2)
     targetPath.getParent.resolve("Debug").resolve("aurora4spark.dll")
   }
   private def buildAndLinkMacos(targetPath: Path): Path = {
     val cmd = List("cmake", targetPath.toString)
     val cmd2 = List("make", "-C", targetPath.getParent.toString)
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
+    runHopeOk(cmd)
+    runHopeOk(cmd2)
     targetPath.getParent.resolve("libaurora4spark.dylib")
   }
   private def buildAndLinkLin(targetPath: Path): Path = {
