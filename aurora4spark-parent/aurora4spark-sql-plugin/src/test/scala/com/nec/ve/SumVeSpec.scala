@@ -1,9 +1,9 @@
 package com.nec.ve
 
 import com.nec.arrow.ArrowVectorBuilders
-
 import java.nio.file.Paths
 import java.time.Instant
+
 import com.nec.arrow.functions.Sum.runOn
 import com.nec.arrow.functions.Sum.sumJVM
 import com.nec.aurora.Aurora
@@ -11,7 +11,6 @@ import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.Sum
 import org.scalatest.freespec.AnyFreeSpec
-
 final class SumVeSpec extends AnyFreeSpec {
 
   "We can get a sum back" in {
