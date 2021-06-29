@@ -7,7 +7,6 @@ import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CExpressionEvaluation
 import com.nec.spark.planning.CEvaluationPlan
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
-import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
@@ -85,7 +84,7 @@ final class DynamicCSqlExpressionEvaluationSpec
       "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)" -> 0.0d
     ).take(2).foreach { case (sql, expectation) =>
       s"${sql}" in withSparkSession2(configuration(sql)) { sparkSession =>
-        Source.CSV.generate(sparkSession)
+//        Source.CSV.generate(sparkSession)
         import sparkSession.implicits._
         assert(sparkSession.sql(sql).debugSqlHere.as[Double].collect().toList == List(expectation))
       }

@@ -6,13 +6,15 @@ import com.nec.ve.FlexiPassingVESpec.Add1Mul2
 import com.nec.ve.FlexiPassingVESpec.RichFloat8
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
-
 import java.nio.file.Paths
 import java.time.Instant
+
 import scala.language.higherKinds
+
 import com.nec.arrow.native.Float8GenericNativeIf
 import com.nec.arrow.native.Float8GenericNativeIf.InVh
 import com.nec.arrow.native.Float8GenericNativeIf.VeNativeIf
+import com.nec.ve.generated.VEJMHBenchmarks
 
 /**
  * Here, we will enable us to do passing of an output to another input without having to copy
@@ -63,7 +65,6 @@ object FlexiPassingVESpec {
 }
 final class FlexiPassingVESpec extends AnyFreeSpec {
   "It works" in {
-
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val libPath = VeKernelCompiler("wc", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, FlexiPassingVESpec.Sources)

@@ -1,6 +1,5 @@
 package com.nec.spark.agile
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.Add
@@ -154,7 +153,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
             )
           )
       ) { sparkSession =>
-        Source.CSV.generate(sparkSession)
+//        Source.CSV.generate(sparkSession)
         import sparkSession.implicits._
         sparkSession.sql(sql).debugSqlHere
       }
