@@ -1,8 +1,9 @@
 package com.nec.spark
-import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
+import com.nec.spark.BenchTestingPossibilities.{BenchTestAdditions, testSqlRapids, testSqlVe, testSqlVeWholestageCodegen}
 import com.nec.spark.BenchTestingPossibilities.Testing.DataSize
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
+
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
@@ -69,6 +70,109 @@ object BenchTestingPossibilities {
     override def requiresVe: Boolean = false
   }
 
+  def testSqlVe(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
+    override def name: String = s"VeArrow${source.title}${sql.replaceAll("[^a-zA-Z_0-9]", "")}"
+    override def benchmark(sparkSession: SparkSession): Unit = {
+      sparkSession.sql(sql)
+    }
+
+    override def prepareSession(dataSize: DataSize): SparkSession = {
+      LocalVeoExtension._enabled = true
+
+      val sess = SparkSession
+        .builder()
+        .master("local[4]")
+        .appName(name)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
+        .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
+        .getOrCreate()
+
+      source.generate(sess)
+
+      sess
+    }
+
+    override def cleanUp(sparkSession: SparkSession): Unit = {
+      sparkSession.close()
+      Aurora4SparkExecutorPlugin.closeProcAndCtx()
+    }
+
+    override def verify(sparkSession: SparkSession): Unit = {
+      import sparkSession.implicits._
+      sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
+    }
+    override def requiresVe: Boolean = true
+  }
+
+  def testSqlRapids(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
+    override def name: String = s"Rapids${source.title}${sql.replaceAll("[^a-zA-Z_0-9]", "")}"
+    override def benchmark(sparkSession: SparkSession): Unit = {
+      sparkSession.sql(sql)
+    }
+    override def prepareSession(dataSize: DataSize): SparkSession = {
+      val sess = SparkSession
+        .builder()
+        .master("local[4]")
+        .appName(name)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
+        .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
+        .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
+        .getOrCreate()
+
+      source.generate(sess)
+
+      sess
+    }
+
+    override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
+    override def verify(sparkSession: SparkSession): Unit = {
+      import sparkSession.implicits._
+      sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
+    }
+    override def requiresVe: Boolean = false
+  }
+
+  def testSqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
+    override def name: String = s"VeArrowWholestageCodegen${source.title}${sql.replaceAll("[^a-zA-Z_0-9]", "")}"
+    override def benchmark(sparkSession: SparkSession): Unit = {
+      sparkSession.sql(sql)
+    }
+
+    override def prepareSession(dataSize: DataSize): SparkSession = {
+      LocalVeoExtension._enabled = true
+      LocalVeoExtension._useCodegenPlans = true
+      val sess = SparkSession
+        .builder()
+        .master("local[4]")
+        .appName(name)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
+        .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = true)
+        .getOrCreate()
+
+      source.generate(sess)
+
+      sess
+    }
+
+    override def cleanUp(sparkSession: SparkSession): Unit = {
+      sparkSession.close()
+      Aurora4SparkExecutorPlugin.closeProcAndCtx()
+    }
+
+    override def verify(sparkSession: SparkSession): Unit = {
+      import sparkSession.implicits._
+      sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
+    }
+    override def requiresVe: Boolean = true
+  }
+
   /** Proof of generating any variation of things */
   val SampleTests: List[Testing] = {
     for {
@@ -81,8 +185,38 @@ object BenchTestingPossibilities {
     )
   }.toList
 
-  val possibilities: List[Testing] = List(SampleTests, SimpleSumPlanTest.OurTesting).flatten
-
+  val possibilities: List[Testing] = {
+    ((for {
+      num <- 2 to 4
+      source <- List(Source.CSV, Source.Parquet)
+    } yield testSql(
+      sql = s"SELECT SUM(value + $num) FROM nums",
+      expectedResult = num + 2,
+      source = source
+    )) ++ (
+      for {
+        source <- List(Source.CSV, Source.Parquet)
+      } yield testSqlVe(
+        sql = "SELECT SUM(a) FROM nums",
+        expectedResult = 0,
+        source = source
+      )) ++ (
+      for {
+        source <- List(Source.CSV, Source.Parquet)
+      } yield testSqlRapids(
+        sql = "SELECT SUM(a) FROM nums",
+        expectedResult = 0,
+        source = source
+      )) ++ (
+      for {
+        source <- List(Source.CSV, Source.Parquet)
+      } yield testSqlVeWholestageCodegen(
+        sql = "SELECT SUM(a) FROM nums",
+        expectedResult = 0,
+        source = source
+      )
+      )).toList
+  }
   trait BenchTestAdditions { this: AnyFreeSpec =>
     def runTestCase(testing: Testing): Unit = {
       testing.name.value in {
