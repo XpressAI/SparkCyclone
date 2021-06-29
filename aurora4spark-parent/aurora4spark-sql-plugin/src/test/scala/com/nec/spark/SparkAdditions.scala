@@ -13,6 +13,8 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
 import org.apache.spark.sql.execution.SparkPlan
 
+object  SparkAdditions {
+}
 trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   this: TestSuite with Informing with BeforeAndAfter =>
 
