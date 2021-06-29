@@ -20,30 +20,34 @@ object SampleTestData {
     .toAbsolutePath
 
   /** When forked, this is no longer an external file, but a resource * */
-  lazy val PkgDir = Paths
-    .get("src/test/resources")
-    .resolve(
-      this
-        .getClass()
-        .getPackage
-        .getName
-        .replaceAllLiterally(".", "/")
-    )
-    .toAbsolutePath()
+  lazy val PkgDir = {
 
-  lazy val SampleTwoColumnParquet: Path = {
+    /** When running from fun-bench we need to look 1 directory up */
+    val root =
+      if (Paths.get(".").toAbsolutePath.toString.contains("fun-bench"))
+        Paths
+          .get("../src/test/resources")
+      else
+        Paths
+          .get("src/test/resources")
+
+    root
+      .resolve(
+        this
+          .getClass()
+          .getPackage
+          .getName
+          .replaceAllLiterally(".", "/")
+      )
+      .toAbsolutePath()
+  }
+
+  lazy val SampleTwoColumnParquet: Path =
     PkgDir.resolve("sampleMultiColumnParquet2.parquet")
-  }
 
-  lazy val OrdersCsv: Path = {
+  lazy val OrdersCsv: Path =
     PkgDir.resolve("orders.csv")
-  }
 
-  lazy val SampleCSV: Path = Paths
-    .get(
-      this.getClass
-        .getResource("sample.csv")
-        .toURI
-    )
-    .toAbsolutePath
+  lazy val SampleCSV: Path =
+    PkgDir.resolve("sample.csv")
 }

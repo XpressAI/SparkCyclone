@@ -161,7 +161,8 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
     )
   }
 
-  "We can get info for a longer set of Strings" in {
+  /** Ignored as very verbose and does not assert anything */
+  "We can get info for a longer set of Strings" ignore {
     val someStrings =
       readStringPositionsValuesLengths(stringsToArrow(makeStrings(100): _*)).toList.take(1)
     someStrings.foreach { strInfo => info(strInfo.toString) }
@@ -207,7 +208,6 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   "A set of Strings can be turned into an Arrow buffer, and we can just read it back" in {
     val stringBatch = makeStrings(100)
     assert(writeAndGet(stringBatch: _*).map(_.value) == stringBatch)
-    writeAndGet(stringBatch: _*).foreach { v => info(s"$v") }
   }
 
   "We can pass a VarCharVector to the C program and get an output" in {
