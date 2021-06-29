@@ -308,8 +308,10 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
         T.StructField("type", T.StringType()),
     ])
 
-    df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi).persist(StorageLevel.MEMORY_AND_DISK)
-    df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab).persist(StorageLevel.MEMORY_AND_DISK)
+    level = parse_storage_level(list(tuple(args.storageLevel)))
+    
+    df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi).persist(StorageLevel(*tuple(level)))
+    df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab).persist(StorageLevel(*tuple(level)))
     df.registerTempTable('trips')
     df1.registerTempTable('cab_types')
     df.printSchema()
