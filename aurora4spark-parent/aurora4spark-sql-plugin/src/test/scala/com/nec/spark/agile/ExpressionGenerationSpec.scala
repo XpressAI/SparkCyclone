@@ -20,10 +20,8 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.Metadata
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
-import CExpressionEvaluation._
-object ExpressionGenerationSpec {
-
-}
+import com.nec.spark.agile.CExpressionEvaluation._
+object ExpressionGenerationSpec {}
 
 final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
   import com.eed3si9n.expecty.Expecty.assert
@@ -52,7 +50,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
           "for (int i = 0; i < input->count; i++) {",
           "summy_accumulated += input->data[i] - 1.0;",
           "}",
-          "double summy_result = summy_accumulated;"
+          "double summy_result = summy_accumulated;",
+          "output->data[0] = summy_result;"
         )
     )
 
@@ -84,7 +83,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "avy12351_accumulated += input->data[i] - 1.0;",
         "avy12351_counted += 1;",
         "}",
-        "double avy12351_result = avy12351_accumulated / avy12351_counted;"
+        "double avy12351_result = avy12351_accumulated / avy12351_counted;",
+        "output->data[0] = avy12351_result;"
       )
     )
 
@@ -116,7 +116,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
           "avy1232_accumulated += input->data[i] + 2.0;",
           "avy1232_counted += 1;",
           "}",
-          "double avy1232_result = avy1232_accumulated / avy1232_counted;"
+          "double avy1232_result = avy1232_accumulated / avy1232_counted;",
+          "output->data[0] = avy1232_result;"
         )
     )
 
