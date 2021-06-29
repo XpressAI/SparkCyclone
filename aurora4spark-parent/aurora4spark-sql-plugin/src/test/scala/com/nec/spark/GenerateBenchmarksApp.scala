@@ -3,7 +3,7 @@ import java.io.File
 import java.nio.file.Files
 
 object GenerateBenchmarksApp extends App {
-  val expectedTarget = new File(args.last).getAbsoluteFile
+  val expectedTarget = new File("/Users/wosin/aurora4spark/aurora4spark-parent/aurora4spark-sql-plugin/src/test/scala/com/nec/ve/KeyBenchmark.scala").getAbsoluteFile
   val fixtures: List[String] = {
     BenchTestingPossibilities.possibilities.zipWithIndex.map { case (testing, idx) =>
       s"""
