@@ -1,0 +1,911 @@
+Namespace(clearcache=True, driver='4g', executor='4g', list=['q1', 'q2', 'q3', 'q4', 'q5'], ntest=5, outputfile='test_cpu_nyc_taxi', storageLevel='11001', which='nycdata')
+/home/hadoop/nm-local-dir/usercache/muhdlaziem/appcache/application_1623827494633_0039/container_1623827494633_0039_01_000001/pyspark.zip/pyspark/context.py:267: RuntimeWarning: Failed to add file [file:///home/muhdlaziem/Workspace/aurora4spark/tests/python/dep.zip] specified in 'spark.submit.pyFiles' to Python path:
+  /home/hadoop/nm-local-dir/usercache/muhdlaziem/filecache/269
+  /home/hadoop/nm-local-dir/usercache/muhdlaziem/appcache/application_1623827494633_0039/spark-d53071c3-2f5f-4dc7-afd7-190998ac394a/userFiles-567fffe7-5c02-428f-82ca-377ef005cd27
+  /home/hadoop/nm-local-dir/usercache/muhdlaziem/filecache/267/__spark_libs__2930903011470592945.zip/spark-core_2.12-3.1.1.jar
+  /home/hadoop/nm-local-dir/usercache/muhdlaziem/appcache/application_1623827494633_0039/container_1623827494633_0039_01_000001/pyspark.zip
+  /home/hadoop/nm-local-dir/usercache/muhdlaziem/appcache/application_1623827494633_0039/container_1623827494633_0039_01_000001/py4j-0.10.9-src.zip
+  /home/hadoop/nm-local-dir/usercache/muhdlaziem/appcache/application_1623827494633_0039/container_1623827494633_0039_01_000001/dep.zip
+  /usr/lib64/python36.zip
+  /usr/lib64/python3.6
+  /usr/lib64/python3.6/lib-dynload
+  /usr/lib64/python3.6/site-packages
+  /opt/nec/ve/nlcpy/1.0.1/lib/python3.6
+  /usr/lib/python3.6/site-packages
+  RuntimeWarning)
+root
+ |-- id: string (nullable = true)
+ |-- cab_type_id: string (nullable = true)
+ |-- vendor_id: string (nullable = true)
+ |-- pickup_datetime: string (nullable = true)
+ |-- dropoff_datetime: string (nullable = true)
+ |-- store_and_fwd_flag: string (nullable = true)
+ |-- rate_code_id: string (nullable = true)
+ |-- pickup_longitude: string (nullable = true)
+ |-- pickup_latitude: string (nullable = true)
+ |-- dropoff_longitude: string (nullable = true)
+ |-- dropoff_latitude: string (nullable = true)
+ |-- passenger_count: long (nullable = true)
+ |-- trip_distance: double (nullable = true)
+ |-- fare_amount: double (nullable = true)
+ |-- extra: double (nullable = true)
+ |-- mta_tax: double (nullable = true)
+ |-- tip_amount: double (nullable = true)
+ |-- tolls_amount: double (nullable = true)
+ |-- ehail_fee: double (nullable = true)
+ |-- improvement_surcharge: double (nullable = true)
+ |-- congestion_surcharge: double (nullable = true)
+ |-- total_amount: double (nullable = true)
+ |-- payment_type: double (nullable = true)
+ |-- trip_type: string (nullable = true)
+ |-- pickup_nyct2010_gid: string (nullable = true)
+ |-- dropoff_nyct2010_gid: string (nullable = true)
+ |-- pickup_location_id: string (nullable = true)
+ |-- dropoff_location_id: string (nullable = true)
+
+root
+ |-- id: string (nullable = true)
+ |-- type: string (nullable = true)
+
+================================================================================================================================================================================================================================================
+Starting Benchmark for nycdata_column_benchmark() : ['q1', 'q2', 'q3', 'q4', 'q5']
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_0
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Parsed Logical Plan ==
+'UnresolvedHaving ('fare_amount > 20.0)
++- 'Aggregate ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id], ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id]
+   +- 'Filter ('payment_type = 2)
+      +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_datetime: string, dropoff_datetime: string, fare_amount: double, pickup_location_id: string, dropoff_location_id: string
+Filter (fare_amount#13 > cast(20.0 as double))
++- Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (payment_type#22 = cast(2 as double))
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
++- Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+      +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#64]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+Finished q1_benchmark_test_0 = 69.81611187499948
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_1
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Parsed Logical Plan ==
+'UnresolvedHaving ('fare_amount > 20.0)
++- 'Aggregate ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id], ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id]
+   +- 'Filter ('payment_type = 2)
+      +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_datetime: string, dropoff_datetime: string, fare_amount: double, pickup_location_id: string, dropoff_location_id: string
+Filter (fare_amount#13 > cast(20.0 as double))
++- Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (payment_type#22 = cast(2 as double))
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
++- Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+      +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#120]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+Finished q1_benchmark_test_1 = 73.35505036800168
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_2
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Parsed Logical Plan ==
+'UnresolvedHaving ('fare_amount > 20.0)
++- 'Aggregate ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id], ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id]
+   +- 'Filter ('payment_type = 2)
+      +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_datetime: string, dropoff_datetime: string, fare_amount: double, pickup_location_id: string, dropoff_location_id: string
+Filter (fare_amount#13 > cast(20.0 as double))
++- Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (payment_type#22 = cast(2 as double))
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
++- Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+      +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#176]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+Finished q1_benchmark_test_2 = 82.20934541802853
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_3
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Parsed Logical Plan ==
+'UnresolvedHaving ('fare_amount > 20.0)
++- 'Aggregate ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id], ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id]
+   +- 'Filter ('payment_type = 2)
+      +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_datetime: string, dropoff_datetime: string, fare_amount: double, pickup_location_id: string, dropoff_location_id: string
+Filter (fare_amount#13 > cast(20.0 as double))
++- Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (payment_type#22 = cast(2 as double))
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
++- Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+      +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#232]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+Finished q1_benchmark_test_3 = 88.55005085002631
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q1_benchmark_test_4
+Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        FROM trips WHERE payment_type = 2 
+        group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        having fare_amount > 20.0
+        
+== Parsed Logical Plan ==
+'UnresolvedHaving ('fare_amount > 20.0)
++- 'Aggregate ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id], ['id, 'pickup_datetime, 'dropoff_datetime, 'fare_amount, 'pickup_location_id, 'dropoff_location_id]
+   +- 'Filter ('payment_type = 2)
+      +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_datetime: string, dropoff_datetime: string, fare_amount: double, pickup_location_id: string, dropoff_location_id: string
+Filter (fare_amount#13 > cast(20.0 as double))
++- Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (payment_type#22 = cast(2 as double))
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
++- Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+   +- Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+      +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
++- Exchange hashpartitioning(id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27, 200), ENSURE_REQUIREMENTS, [id=#288]
+   +- *(1) HashAggregate(keys=[id#0, pickup_datetime#3, dropoff_datetime#4, knownfloatingpointnormalized(normalizenanandzero(fare_amount#13)) AS fare_amount#13, pickup_location_id#26, dropoff_location_id#27], functions=[], output=[id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27])
+      +- *(1) Project [id#0, pickup_datetime#3, dropoff_datetime#4, fare_amount#13, pickup_location_id#26, dropoff_location_id#27]
+         +- *(1) Filter (((isnotnull(payment_type#22) AND isnotnull(fare_amount#13)) AND (payment_type#22 = 2.0)) AND (fare_amount#13 > 20.0))
+            +- FileScan csv [id#0,pickup_datetime#3,dropoff_datetime#4,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [isnotnull(payment_type#22), isnotnull(fare_amount#13), (payment_type#22 = 2.0), (fare_amount#13 ..., Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(payment_type), IsNotNull(fare_amount), EqualTo(payment_type,2.0), GreaterThan(fare_amo..., ReadSchema: struct<id:string,pickup_datetime:string,dropoff_datetime:string,fare_amount:double,payment_type:d...
+
+Finished q1_benchmark_test_4 = 97.52210396109149
+================================================================================================================================================================================================================================================
+AVG for q1_benchmark_test = 81.37148221201885
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_0
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Parsed Logical Plan ==
+'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('AVG('fare_amount), None)]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, avg(fare_amount): double
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#327L, avg(fare_amount#13) AS avg(fare_amount)#328]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#327L, avg(fare_amount#13) AS avg(fare_amount)#328]
++- Project [id#0, fare_amount#13, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#327L, avg(fare_amount)#328])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#332]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#344L, sum#345, count#346L])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+Finished q2_benchmark_test_0 = 145.55753135797568
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_1
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Parsed Logical Plan ==
+'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('AVG('fare_amount), None)]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, avg(fare_amount): double
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#354L, avg(fare_amount#13) AS avg(fare_amount)#355]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#354L, avg(fare_amount#13) AS avg(fare_amount)#355]
++- Project [id#0, fare_amount#13, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#354L, avg(fare_amount)#355])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#376]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#371L, sum#372, count#373L])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+Finished q2_benchmark_test_1 = 153.51531116012484
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_2
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Parsed Logical Plan ==
+'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('AVG('fare_amount), None)]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, avg(fare_amount): double
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#381L, avg(fare_amount#13) AS avg(fare_amount)#382]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#381L, avg(fare_amount#13) AS avg(fare_amount)#382]
++- Project [id#0, fare_amount#13, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#381L, avg(fare_amount)#382])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#420]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#398L, sum#399, count#400L])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+Finished q2_benchmark_test_2 = 138.47526637488045
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_3
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Parsed Logical Plan ==
+'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('AVG('fare_amount), None)]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, avg(fare_amount): double
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#408L, avg(fare_amount#13) AS avg(fare_amount)#409]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#408L, avg(fare_amount#13) AS avg(fare_amount)#409]
++- Project [id#0, fare_amount#13, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#408L, avg(fare_amount)#409])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#464]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#425L, sum#426, count#427L])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+Finished q2_benchmark_test_3 = 143.43504901998676
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q2_benchmark_test_4
+Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+        FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+    
+== Parsed Logical Plan ==
+'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('AVG('fare_amount), None)]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, avg(fare_amount): double
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#435L, avg(fare_amount#13) AS avg(fare_amount)#436]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#435L, avg(fare_amount#13) AS avg(fare_amount)#436]
++- Project [id#0, fare_amount#13, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#435L, avg(fare_amount)#436])
++- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#508]
+   +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_avg(fare_amount#13)], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#452L, sum#453, count#454L])
+      +- FileScan csv [id#0,fare_amount#13,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,payment_type:double,pickup_location_id:string,dropoff_locatio...
+
+Finished q2_benchmark_test_4 = 130.74948598700576
+================================================================================================================================================================================================================================================
+AVG for q2_benchmark_test = 142.48928225094764
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_0
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Parsed Logical Plan ==
+'UnresolvedHaving ('SUM(('fare_amount + 'extra)) < 0)
++- 'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('SUM('total_amount), None)]
+   +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, sum(total_amount): double
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#462L, sum(total_amount)#463]
++- Filter (sum((fare_amount#13 + extra#14))#466 < cast(0 as double))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#462L, sum(total_amount#21) AS sum(total_amount)#463, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#466]
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#462L, sum(total_amount)#463]
++- Filter (isnotnull(sum((fare_amount#13 + extra#14))#466) AND (sum((fare_amount#13 + extra#14))#466 < 0.0))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#462L, sum(total_amount#21) AS sum(total_amount)#463, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#466]
+      +- Project [id#0, fare_amount#13, extra#14, total_amount#21, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#462L, sum(total_amount)#463]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#466) AND (sum((fare_amount#13 + extra#14))#466 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#462L, sum(total_amount)#463, sum((fare_amount#13 + extra#14))#466])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#574]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#483L, sum#484, sum#485])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+Finished q3_benchmark_test_0 = 122.46492845402099
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_1
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Parsed Logical Plan ==
+'UnresolvedHaving ('SUM(('fare_amount + 'extra)) < 0)
++- 'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('SUM('total_amount), None)]
+   +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, sum(total_amount): double
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#495L, sum(total_amount)#496]
++- Filter (sum((fare_amount#13 + extra#14))#499 < cast(0 as double))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#495L, sum(total_amount#21) AS sum(total_amount)#496, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#499]
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#495L, sum(total_amount)#496]
++- Filter (isnotnull(sum((fare_amount#13 + extra#14))#499) AND (sum((fare_amount#13 + extra#14))#499 < 0.0))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#495L, sum(total_amount#21) AS sum(total_amount)#496, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#499]
+      +- Project [id#0, fare_amount#13, extra#14, total_amount#21, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#495L, sum(total_amount)#496]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#499) AND (sum((fare_amount#13 + extra#14))#499 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#495L, sum(total_amount)#496, sum((fare_amount#13 + extra#14))#499])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#642]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#516L, sum#517, sum#518])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+Finished q3_benchmark_test_1 = 100.91792750102468
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_2
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Parsed Logical Plan ==
+'UnresolvedHaving ('SUM(('fare_amount + 'extra)) < 0)
++- 'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('SUM('total_amount), None)]
+   +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, sum(total_amount): double
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#528L, sum(total_amount)#529]
++- Filter (sum((fare_amount#13 + extra#14))#532 < cast(0 as double))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#528L, sum(total_amount#21) AS sum(total_amount)#529, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#532]
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#528L, sum(total_amount)#529]
++- Filter (isnotnull(sum((fare_amount#13 + extra#14))#532) AND (sum((fare_amount#13 + extra#14))#532 < 0.0))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#528L, sum(total_amount#21) AS sum(total_amount)#529, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#532]
+      +- Project [id#0, fare_amount#13, extra#14, total_amount#21, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#528L, sum(total_amount)#529]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#532) AND (sum((fare_amount#13 + extra#14))#532 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#528L, sum(total_amount)#529, sum((fare_amount#13 + extra#14))#532])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#710]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#549L, sum#550, sum#551])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+Finished q3_benchmark_test_2 = 118.32401969912462
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_3
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Parsed Logical Plan ==
+'UnresolvedHaving ('SUM(('fare_amount + 'extra)) < 0)
++- 'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('SUM('total_amount), None)]
+   +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, sum(total_amount): double
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#561L, sum(total_amount)#562]
++- Filter (sum((fare_amount#13 + extra#14))#565 < cast(0 as double))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#561L, sum(total_amount#21) AS sum(total_amount)#562, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#565]
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#561L, sum(total_amount)#562]
++- Filter (isnotnull(sum((fare_amount#13 + extra#14))#565) AND (sum((fare_amount#13 + extra#14))#565 < 0.0))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#561L, sum(total_amount#21) AS sum(total_amount)#562, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#565]
+      +- Project [id#0, fare_amount#13, extra#14, total_amount#21, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#561L, sum(total_amount)#562]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#565) AND (sum((fare_amount#13 + extra#14))#565 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#561L, sum(total_amount)#562, sum((fare_amount#13 + extra#14))#565])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#778]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#582L, sum#583, sum#584])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+Finished q3_benchmark_test_3 = 112.59016552590765
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q3_benchmark_test_4
+Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+        from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+    
+== Parsed Logical Plan ==
+'UnresolvedHaving ('SUM(('fare_amount + 'extra)) < 0)
++- 'Aggregate ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type], ['id, 'pickup_location_id, 'dropoff_location_id, 'payment_type, unresolvedalias('COUNT(1), None), unresolvedalias('SUM('total_amount), None)]
+   +- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+id: string, pickup_location_id: string, dropoff_location_id: string, payment_type: double, count(1): bigint, sum(total_amount): double
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#594L, sum(total_amount)#595]
++- Filter (sum((fare_amount#13 + extra#14))#598 < cast(0 as double))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#594L, sum(total_amount#21) AS sum(total_amount)#595, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#598]
+      +- SubqueryAlias trips
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#594L, sum(total_amount)#595]
++- Filter (isnotnull(sum((fare_amount#13 + extra#14))#598) AND (sum((fare_amount#13 + extra#14))#598 < 0.0))
+   +- Aggregate [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1) AS count(1)#594L, sum(total_amount#21) AS sum(total_amount)#595, sum((fare_amount#13 + extra#14)) AS sum((fare_amount#13 + extra#14))#598]
+      +- Project [id#0, fare_amount#13, extra#14, total_amount#21, payment_type#22, pickup_location_id#26, dropoff_location_id#27]
+         +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) Project [id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#594L, sum(total_amount)#595]
++- *(2) Filter (isnotnull(sum((fare_amount#13 + extra#14))#598) AND (sum((fare_amount#13 + extra#14))#598 < 0.0))
+   +- *(2) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22], functions=[count(1), sum(total_amount#21), sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count(1)#594L, sum(total_amount)#595, sum((fare_amount#13 + extra#14))#598])
+      +- Exchange hashpartitioning(id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, 200), ENSURE_REQUIREMENTS, [id=#846]
+         +- *(1) HashAggregate(keys=[id#0, pickup_location_id#26, dropoff_location_id#27, knownfloatingpointnormalized(normalizenanandzero(payment_type#22)) AS payment_type#22], functions=[partial_count(1), partial_sum(total_amount#21), partial_sum((fare_amount#13 + extra#14))], output=[id#0, pickup_location_id#26, dropoff_location_id#27, payment_type#22, count#615L, sum#616, sum#617])
+            +- FileScan csv [id#0,fare_amount#13,extra#14,total_amount#21,payment_type#22,pickup_location_id#26,dropoff_location_id#27] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:string,fare_amount:double,extra:double,total_amount:double,payment_type:double,pickup_l...
+
+Finished q3_benchmark_test_4 = 129.69768131989986
+================================================================================================================================================================================================================================================
+AVG for q3_benchmark_test = 117.79303789301775
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_0
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Parsed Logical Plan ==
+'Project ['trips.payment_type, 'trips.fare_amount, 'trips.mta_tax, 'trips.trip_distance, 'trips.tolls_amount, 'cab_types.type]
++- 'Join Inner, ('trips.cab_type_id = 'cab_types.id)
+   :- 'UnresolvedRelation [trips], [], false
+   +- 'UnresolvedRelation [cab_types], [], false
+
+== Analyzed Logical Plan ==
+payment_type: double, fare_amount: double, mta_tax: double, trip_distance: double, tolls_amount: double, type: string
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- SubqueryAlias trips
+   :  +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- SubqueryAlias cab_types
+      +- Relation[id#196,type#197] csv
+
+== Optimized Logical Plan ==
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- Project [cab_type_id#1, trip_distance#12, fare_amount#13, mta_tax#15, tolls_amount#17, payment_type#22]
+   :  +- Filter isnotnull(cab_type_id#1)
+   :     +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- Filter isnotnull(id#196)
+      +- Relation[id#196,type#197] csv
+
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#930]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+Finished q4_benchmark_test_0 = 70.61612499202602
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_1
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Parsed Logical Plan ==
+'Project ['trips.payment_type, 'trips.fare_amount, 'trips.mta_tax, 'trips.trip_distance, 'trips.tolls_amount, 'cab_types.type]
++- 'Join Inner, ('trips.cab_type_id = 'cab_types.id)
+   :- 'UnresolvedRelation [trips], [], false
+   +- 'UnresolvedRelation [cab_types], [], false
+
+== Analyzed Logical Plan ==
+payment_type: double, fare_amount: double, mta_tax: double, trip_distance: double, tolls_amount: double, type: string
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- SubqueryAlias trips
+   :  +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- SubqueryAlias cab_types
+      +- Relation[id#196,type#197] csv
+
+== Optimized Logical Plan ==
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- Project [cab_type_id#1, trip_distance#12, fare_amount#13, mta_tax#15, tolls_amount#17, payment_type#22]
+   :  +- Filter isnotnull(cab_type_id#1)
+   :     +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- Filter isnotnull(id#196)
+      +- Relation[id#196,type#197] csv
+
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1013]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+Finished q4_benchmark_test_1 = 72.7194533299189
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_2
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Parsed Logical Plan ==
+'Project ['trips.payment_type, 'trips.fare_amount, 'trips.mta_tax, 'trips.trip_distance, 'trips.tolls_amount, 'cab_types.type]
++- 'Join Inner, ('trips.cab_type_id = 'cab_types.id)
+   :- 'UnresolvedRelation [trips], [], false
+   +- 'UnresolvedRelation [cab_types], [], false
+
+== Analyzed Logical Plan ==
+payment_type: double, fare_amount: double, mta_tax: double, trip_distance: double, tolls_amount: double, type: string
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- SubqueryAlias trips
+   :  +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- SubqueryAlias cab_types
+      +- Relation[id#196,type#197] csv
+
+== Optimized Logical Plan ==
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- Project [cab_type_id#1, trip_distance#12, fare_amount#13, mta_tax#15, tolls_amount#17, payment_type#22]
+   :  +- Filter isnotnull(cab_type_id#1)
+   :     +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- Filter isnotnull(id#196)
+      +- Relation[id#196,type#197] csv
+
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1096]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+Finished q4_benchmark_test_2 = 69.0728166140616
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_3
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Parsed Logical Plan ==
+'Project ['trips.payment_type, 'trips.fare_amount, 'trips.mta_tax, 'trips.trip_distance, 'trips.tolls_amount, 'cab_types.type]
++- 'Join Inner, ('trips.cab_type_id = 'cab_types.id)
+   :- 'UnresolvedRelation [trips], [], false
+   +- 'UnresolvedRelation [cab_types], [], false
+
+== Analyzed Logical Plan ==
+payment_type: double, fare_amount: double, mta_tax: double, trip_distance: double, tolls_amount: double, type: string
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- SubqueryAlias trips
+   :  +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- SubqueryAlias cab_types
+      +- Relation[id#196,type#197] csv
+
+== Optimized Logical Plan ==
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- Project [cab_type_id#1, trip_distance#12, fare_amount#13, mta_tax#15, tolls_amount#17, payment_type#22]
+   :  +- Filter isnotnull(cab_type_id#1)
+   :     +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- Filter isnotnull(id#196)
+      +- Relation[id#196,type#197] csv
+
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1179]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+Finished q4_benchmark_test_3 = 70.3012440749444
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q4_benchmark_test_4
+Query: select trips.payment_type, trips.fare_amount, trips.mta_tax, trips.trip_distance, trips.tolls_amount, cab_types.type 
+        from trips inner join cab_types on trips.cab_type_id = cab_types.id
+    
+== Parsed Logical Plan ==
+'Project ['trips.payment_type, 'trips.fare_amount, 'trips.mta_tax, 'trips.trip_distance, 'trips.tolls_amount, 'cab_types.type]
++- 'Join Inner, ('trips.cab_type_id = 'cab_types.id)
+   :- 'UnresolvedRelation [trips], [], false
+   +- 'UnresolvedRelation [cab_types], [], false
+
+== Analyzed Logical Plan ==
+payment_type: double, fare_amount: double, mta_tax: double, trip_distance: double, tolls_amount: double, type: string
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- SubqueryAlias trips
+   :  +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- SubqueryAlias cab_types
+      +- Relation[id#196,type#197] csv
+
+== Optimized Logical Plan ==
+Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- Join Inner, (cab_type_id#1 = id#196)
+   :- Project [cab_type_id#1, trip_distance#12, fare_amount#13, mta_tax#15, tolls_amount#17, payment_type#22]
+   :  +- Filter isnotnull(cab_type_id#1)
+   :     +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+   +- Filter isnotnull(id#196)
+      +- Relation[id#196,type#197] csv
+
+== Physical Plan ==
+*(2) Project [payment_type#22, fare_amount#13, mta_tax#15, trip_distance#12, tolls_amount#17, type#197]
++- *(2) BroadcastHashJoin [cab_type_id#1], [id#196], Inner, BuildRight, false
+   :- *(2) Filter isnotnull(cab_type_id#1)
+   :  +- FileScan csv [cab_type_id#1,trip_distance#12,fare_amount#13,mta_tax#15,tolls_amount#17,payment_type#22] Batched: false, DataFilters: [isnotnull(cab_type_id#1)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [IsNotNull(cab_type_id)], ReadSchema: struct<cab_type_id:string,trip_distance:double,fare_amount:double,mta_tax:double,tolls_amount:dou...
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, false]),false), [id=#1262]
+      +- *(1) Filter isnotnull(id#196)
+         +- FileScan csv [id#196,type#197] Batched: false, DataFilters: [isnotnull(id#196)], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/cab_types.csv], PartitionFilters: [], PushedFilters: [IsNotNull(id)], ReadSchema: struct<id:string,type:string>
+
+Finished q4_benchmark_test_4 = 74.30026705493219
+================================================================================================================================================================================================================================================
+AVG for q4_benchmark_test = 71.21227413229644
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_0
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Parsed Logical Plan ==
+'Project ['corr('trip_distance, 'total_amount) AS correlation#725, 'AVG('trip_distance) AS mean_distance#726, 'AVG('total_amount) AS mean_amount#727]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+correlation: double, mean_distance: double, mean_amount: double
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#725, avg(trip_distance#12) AS mean_distance#726, avg(total_amount#21) AS mean_amount#727]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#725, avg(trip_distance#12) AS mean_distance#726, avg(total_amount#21) AS mean_amount#727]
++- Project [trip_distance#12, total_amount#21]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)], output=[correlation#725, mean_distance#726, mean_amount#727])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1307]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)], output=[n#734, xAvg#735, yAvg#736, ck#737, xMk#738, yMk#739, sum#765, count#766L, sum#767, count#768L])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+Finished q5_benchmark_test_0 = 34.475568199995905
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_1
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Parsed Logical Plan ==
+'Project ['corr('trip_distance, 'total_amount) AS correlation#771, 'AVG('trip_distance) AS mean_distance#772, 'AVG('total_amount) AS mean_amount#773]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+correlation: double, mean_distance: double, mean_amount: double
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#771, avg(trip_distance#12) AS mean_distance#772, avg(total_amount#21) AS mean_amount#773]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#771, avg(trip_distance#12) AS mean_distance#772, avg(total_amount#21) AS mean_amount#773]
++- Project [trip_distance#12, total_amount#21]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)], output=[correlation#771, mean_distance#772, mean_amount#773])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1351]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)], output=[n#780, xAvg#781, yAvg#782, ck#783, xMk#784, yMk#785, sum#811, count#812L, sum#813, count#814L])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+Finished q5_benchmark_test_1 = 34.197454425971955
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_2
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Parsed Logical Plan ==
+'Project ['corr('trip_distance, 'total_amount) AS correlation#817, 'AVG('trip_distance) AS mean_distance#818, 'AVG('total_amount) AS mean_amount#819]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+correlation: double, mean_distance: double, mean_amount: double
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#817, avg(trip_distance#12) AS mean_distance#818, avg(total_amount#21) AS mean_amount#819]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#817, avg(trip_distance#12) AS mean_distance#818, avg(total_amount#21) AS mean_amount#819]
++- Project [trip_distance#12, total_amount#21]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)], output=[correlation#817, mean_distance#818, mean_amount#819])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1395]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)], output=[n#826, xAvg#827, yAvg#828, ck#829, xMk#830, yMk#831, sum#857, count#858L, sum#859, count#860L])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+Finished q5_benchmark_test_2 = 34.589238004991785
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_3
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Parsed Logical Plan ==
+'Project ['corr('trip_distance, 'total_amount) AS correlation#863, 'AVG('trip_distance) AS mean_distance#864, 'AVG('total_amount) AS mean_amount#865]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+correlation: double, mean_distance: double, mean_amount: double
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#863, avg(trip_distance#12) AS mean_distance#864, avg(total_amount#21) AS mean_amount#865]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#863, avg(trip_distance#12) AS mean_distance#864, avg(total_amount#21) AS mean_amount#865]
++- Project [trip_distance#12, total_amount#21]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)], output=[correlation#863, mean_distance#864, mean_amount#865])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1439]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)], output=[n#872, xAvg#873, yAvg#874, ck#875, xMk#876, yMk#877, sum#903, count#904L, sum#905, count#906L])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+Finished q5_benchmark_test_3 = 33.23671924509108
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+Running q5_benchmark_test_4
+Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+    as mean_distance, AVG(total_amount) as mean_amount from trips
+    
+== Parsed Logical Plan ==
+'Project ['corr('trip_distance, 'total_amount) AS correlation#909, 'AVG('trip_distance) AS mean_distance#910, 'AVG('total_amount) AS mean_amount#911]
++- 'UnresolvedRelation [trips], [], false
+
+== Analyzed Logical Plan ==
+correlation: double, mean_distance: double, mean_amount: double
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#909, avg(trip_distance#12) AS mean_distance#910, avg(total_amount#21) AS mean_amount#911]
++- SubqueryAlias trips
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Optimized Logical Plan ==
+Aggregate [corr(trip_distance#12, total_amount#21) AS correlation#909, avg(trip_distance#12) AS mean_distance#910, avg(total_amount#21) AS mean_amount#911]
++- Project [trip_distance#12, total_amount#21]
+   +- Relation[id#0,cab_type_id#1,vendor_id#2,pickup_datetime#3,dropoff_datetime#4,store_and_fwd_flag#5,rate_code_id#6,pickup_longitude#7,pickup_latitude#8,dropoff_longitude#9,dropoff_latitude#10,passenger_count#11L,trip_distance#12,fare_amount#13,extra#14,mta_tax#15,tip_amount#16,tolls_amount#17,ehail_fee#18,improvement_surcharge#19,congestion_surcharge#20,total_amount#21,payment_type#22,trip_type#23,... 4 more fields] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[corr(trip_distance#12, total_amount#21), avg(trip_distance#12), avg(total_amount#21)], output=[correlation#909, mean_distance#910, mean_amount#911])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#1483]
+   +- *(1) HashAggregate(keys=[], functions=[partial_corr(trip_distance#12, total_amount#21), partial_avg(trip_distance#12), partial_avg(total_amount#21)], output=[n#918, xAvg#919, yAvg#920, ck#921, xMk#922, yMk#923, sum#949, count#950L, sum#951, count#952L])
+      +- FileScan csv [trip_distance#12,total_amount#21] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/muhdlaziem/data/trips_2020.csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<trip_distance:double,total_amount:double>
+
+Finished q5_benchmark_test_4 = 33.555940554942936
+================================================================================================================================================================================================================================================
+AVG for q5_benchmark_test = 34.0763210603036
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+RESULTS
+Test Run = nycdata_benchmark, StorageLevel = 11001, Operation = ['q1', 'q2', 'q3', 'q4', 'q5'].
+Writing results to output/nycdata_test_cpu_nyc_taxi_11001
+================================================================================================================================================================================================================================================
++----+------------------+------------------+------------------+------------------+------------------+------------------------+
+|test|            test_0|            test_1|            test_2|            test_3|            test_4|mean_exclude_max_and_min|
++----+------------------+------------------+------------------+------------------+------------------+------------------------+
+|  q1| 69.81611187499948| 73.35505036800168| 82.20934541802853| 88.55005085002631| 97.52210396109149|       81.37148221201885|
+|  q2|145.55753135797568|153.51531116012484|138.47526637488045|143.43504901998676|130.74948598700576|      142.48928225094764|
+|  q3|122.46492845402099|100.91792750102468|118.32401969912462|112.59016552590765|129.69768131989986|      117.79303789301775|
+|  q4| 70.61612499202602|  72.7194533299189|  69.0728166140616|  70.3012440749444| 74.30026705493219|       71.21227413229644|
+|  q5|34.475568199995905|34.197454425971955|34.589238004991785| 33.23671924509108|33.555940554942936|        34.0763210603036|
++----+------------------+------------------+------------------+------------------+------------------+------------------------+
