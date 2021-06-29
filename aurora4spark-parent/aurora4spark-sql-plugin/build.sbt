@@ -1,6 +1,7 @@
 import sbt.Def.spaceDelimited
 
 import java.lang.management.ManagementFactory
+import java.nio.file.Files
 import java.nio.file.Paths
 
 /**
@@ -17,6 +18,30 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(CMake)
   .enablePlugins(JmhPlugin)
+
+/**
+ * Run with:
+ *
+ * fun-bench / Jmh / run -t1 -f 1 -wi 1 -i 1 .*KeyBenchmark.*
+ */
+lazy val `fun-bench` = project
+  .enablePlugins(JmhPlugin)
+  .dependsOn(root % "compile->test")
+  .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
+  .settings(Compile / sourceGenerators += Def.taskDyn {
+    val smDir = (Compile / sourceManaged).value
+    if (!smDir.exists()) Files.createDirectories(smDir.toPath)
+    val tgt = smDir / "KeyBenchmark.scala"
+
+    Def.taskDyn {
+      val genTask = (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+
+      Def.task {
+        genTask.value
+        Seq(tgt)
+      }
+    }
+  })
 
 Jmh / sourceDirectory := (Test / sourceDirectory).value
 Jmh / classDirectory := (Test / classDirectory).value
@@ -45,7 +70,8 @@ libraryDependencies ++= Seq(
   "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve"
 )
 
-Test / unmanagedJars ++=  sys.env.get("CUDF_PATH")
+Test / unmanagedJars ++= sys.env
+  .get("CUDF_PATH")
   .map(path => new File((path)))
   .map(file => Seq(file))
   .getOrElse(Seq())
