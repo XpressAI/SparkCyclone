@@ -54,7 +54,7 @@ def groupby_agg_benchmark(df: DataFrame, spark: SparkSession, args: argparse.Nam
 
         print(f'Count value for groupby_agg_benchmark() = {res_df.rdd.count()}')
         time_taken = timer() - start_time
-        res_df.explain()
+        res_df.explain(extended=True)
         print(f'Running for groupby_agg_benchmark_test_{i} = {time_taken}')
         res.append(time_taken)
     
@@ -84,7 +84,7 @@ def repartition_benchmark(df: DataFrame, spark: SparkSession, args: argparse.Nam
         print(f'Number of partition after repartition_benchmark() = {res_df.rdd.getNumPartitions()}')
 
         time_taken = timer() - start_time
-        res_df.explain()
+        res_df.explain(extended=True)
         print(f'Running for repartition_benchmark_{i} = {time_taken}')
         res.append(time_taken)
     
@@ -115,7 +115,7 @@ def innerjoin_benchmark(df: DataFrame, spark: SparkSession, args: argparse.Names
         print(f'Count value for innerjoin_benchmark() = {res_df.rdd.count()}')
 
         time_taken = timer() - start_time
-        res_df.explain()
+        res_df.explain(extended=True)
         print(f'Running for innerjoin_benchmark_{i} = {time_taken}')
         res.append(time_taken)
 
@@ -146,7 +146,7 @@ def broadcast_innerjoin_benchmark(df: DataFrame, spark: SparkSession, args: argp
         print(f'Count value for broadcast_innerjoin_benchmark() = {res_df.rdd.count()}')
 
         time_taken = timer() - start_time
-        res_df.explain()
+        res_df.explain(extended=True)
         print(f'Running for broadcast_innerjoin_benchmark_{i} = {time_taken}')
         res.append(time_taken)
 
@@ -189,7 +189,7 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFram
                     mode='overwrite'
                 )
                 time_taken = timer() - start_time
-                new_df.explain()
+                new_df.explain(extended=True)
                 print(f'Finished {op}_benchmark_test_{i} = {time_taken}')
                 print("="*240)
                 col_op.append(time_taken)
