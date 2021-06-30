@@ -1,6 +1,7 @@
 package com.nec.ve
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.functions.Avg
+import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.arrow.functions.Sum
 import com.nec.arrow.functions.WordCount
 import com.nec.older.AvgMultipleColumns
@@ -73,7 +74,8 @@ object VeKernelCompiler {
           SumPairwise.C_Definition,
           AvgSimple.C_Definition,
           SumMultipleColumns.C_Definition,
-          AvgMultipleColumns.C_Definition
+          AvgMultipleColumns.C_Definition,
+          JoinSourceCode
         ).mkString("\n\n\n")
       )
   }

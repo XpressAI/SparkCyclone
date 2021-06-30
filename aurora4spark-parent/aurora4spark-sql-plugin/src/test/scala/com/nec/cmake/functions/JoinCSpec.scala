@@ -1,16 +1,14 @@
 package com.nec.cmake.functions
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.time.Instant
-
-import com.nec.arrow.ArrowVectorBuilders.withDirectFloat8Vector
-import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterfaceNumeric, VeArrowNativeInterfaceNumeric}
-import com.nec.arrow.functions.Sort
-import com.nec.ve.JoinVeSpec.Join.{joinJVM, runOn}
+import com.nec.arrow.ArrowVectorBuilders
+import com.nec.arrow.CArrowNativeInterfaceNumeric
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
-
+import com.nec.arrow.functions.Join._
 final class JoinCSpec extends AnyFreeSpec {
 
   "Through Arrow, it works" in {
@@ -28,8 +26,7 @@ final class JoinCSpec extends AnyFreeSpec {
       "-shared",
       "-I./src/main/resources/com/nec/arrow/functions",
       "-I./src/main/resources/com/nec/arrow/",
-      "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc",
-
+      "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc"
     )
 
     import scala.sys.process._
@@ -41,13 +38,20 @@ final class JoinCSpec extends AnyFreeSpec {
     val firstColumnKeys: Seq[Int] = Seq(1, 2, 3, 4, 5)
     val secondColumnKeys: Seq[Int] = Seq(4, 2, 5, 200, 800)
     ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
-      ArrowVectorBuilders.withDirectFloat8Vector(secondColumn){ secondColumnVec =>
+      ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
         ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
           ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
-            runOn(new CArrowNativeInterfaceNumeric(soPath.toString))(firstColumnVec,
-              secondColumnVec, firstKeysVec, secondKeysVec, outVector)
-            val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
-              .splitAt(outVector.getValueCount/2)
+            runOn(new CArrowNativeInterfaceNumeric(soPath.toString))(
+              firstColumnVec,
+              secondColumnVec,
+              firstKeysVec,
+              secondKeysVec,
+              outVector
+            )
+            val res = (0 until outVector.getValueCount)
+              .map(i => outVector.get(i))
+              .toList
+              .splitAt(outVector.getValueCount / 2)
             val joinResult = res._1.zip(res._2)
             (joinResult, joinJVM(firstColumnVec, secondColumnVec, firstKeysVec, secondKeysVec))
           }

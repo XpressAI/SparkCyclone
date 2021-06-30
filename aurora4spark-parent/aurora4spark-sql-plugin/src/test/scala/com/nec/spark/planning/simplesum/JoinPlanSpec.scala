@@ -2,6 +2,7 @@ package com.nec.spark.planning.simplesum
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.functions.Join
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
@@ -10,7 +11,6 @@ import com.nec.spark.BenchTestingPossibilities.CleanName.RichStringClean
 import com.nec.spark.BenchTestingPossibilities.Testing
 import com.nec.spark.planning.simplesum.JoinPlanSpec.OurSimpleJoin.JoinMethod
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.RichDataSet
-import com.nec.ve.JoinVeSpec
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.SparkConf
@@ -76,7 +76,7 @@ object JoinPlanSpec {
                               secondKeysVec =>
                                 jm match {
                                   case JoinMethod.ArrowBased.VEBased =>
-                                    JoinVeSpec.Join.runOn(
+                                    Join.runOn(
                                       new VeArrowNativeInterfaceNumeric(
                                         Aurora4SparkExecutorPlugin._veo_proc,
                                         Aurora4SparkExecutorPlugin._veo_ctx,
@@ -105,7 +105,7 @@ object JoinPlanSpec {
                                       }
 
                                   case JoinMethod.ArrowBased.JvmArrowBased =>
-                                    JoinVeSpec.Join
+                                    Join
                                       .joinJVM(
                                         firstColumnVec,
                                         secondColumnVec,
