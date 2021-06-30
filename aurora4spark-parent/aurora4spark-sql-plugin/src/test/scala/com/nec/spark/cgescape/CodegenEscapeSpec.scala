@@ -1,9 +1,11 @@
 package com.nec.spark.cgescape
 
-import com.nec.spark.SampleTestData.SampleCSV
-import com.nec.spark.SampleTestData.SampleTwoColumnParquet
+import com.nec.spark.SampleTestData.{LargeCSV, LargeParquet, SampleCSV, SampleTwoColumnParquet}
 import com.nec.spark.SparkAdditions
 import CodegenEscapeSpec._
+import com.nec.spark.BenchTestingPossibilities.Testing.DataSize
+import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoder
@@ -124,6 +126,7 @@ object CodegenEscapeSpec {
   def makeCsvNums(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
     val schema = StructType(Array(StructField("a", DoubleType)))
+
     sparkSession.read
       .format("csv")
       .schema(schema)
@@ -133,13 +136,35 @@ object CodegenEscapeSpec {
       .createOrReplaceTempView(SharedName)
   }
 
+  def makeCsvNumsLarge(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+
+    sparkSession.read
+      .format("csv")
+      .option("header", "true")
+      .load(LargeCSV.toString)
+      .withColumnRenamed("a", "value")
+      .createOrReplaceTempView(SharedName)
+  }
+
   def makeParquetNums(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
+
     sparkSession.read
       .format("parquet")
       .load(SampleTwoColumnParquet.toString)
       .withColumnRenamed("a", "value")
       .as[(Double, Double)]
+      .createOrReplaceTempView(SharedName)
+  }
+
+  def makeParquetNumsLarge(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+
+    sparkSession.read
+      .format("parquet")
+      .load(LargeParquet.toString)
+      .withColumnRenamed("a", "value")
       .createOrReplaceTempView(SharedName)
   }
 
