@@ -31,6 +31,7 @@ class State_${testing.name} {
     BenchTestingPossibilities.possibilities.zipWithIndex.map { case (testing, idx) =>
       s"""
       @Benchmark
+      @BenchmarkMode(Array(Mode.SingleShotTime))
       def Bench_${testing.name}(state: KeyBenchmark.State_${testing.name}): Unit = {
         com.nec.spark.BenchTestingPossibilities.possibilities(${idx}).benchmark(state.sparkSession)
       }
