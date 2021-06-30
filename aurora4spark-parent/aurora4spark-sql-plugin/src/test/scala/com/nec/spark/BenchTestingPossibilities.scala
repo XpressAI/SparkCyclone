@@ -57,7 +57,7 @@ object BenchTestingPossibilities {
         .config(key = "spark.ui.enabled", value = false)
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }
@@ -90,7 +90,7 @@ object BenchTestingPossibilities {
         .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }
@@ -124,7 +124,7 @@ object BenchTestingPossibilities {
         .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }
@@ -158,7 +158,7 @@ object BenchTestingPossibilities {
         .config(key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, value = true)
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }

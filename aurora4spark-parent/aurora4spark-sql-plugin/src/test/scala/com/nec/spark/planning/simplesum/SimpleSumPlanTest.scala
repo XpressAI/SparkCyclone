@@ -3,11 +3,10 @@ import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.BenchTestingPossibilities.CleanName
 import com.nec.spark.BenchTestingPossibilities.CleanName.RichStringClean
 import com.nec.spark.BenchTestingPossibilities.Testing
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeCsvNums
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeMemoryNums
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeParquetNums
+import com.nec.spark.cgescape.CodegenEscapeSpec.{makeCsvNums, makeCsvNumsLarge, makeMemoryNums, makeParquetNums, makeParquetNumsLarge}
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -18,6 +17,8 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
+import com.nec.spark.BenchTestingPossibilities.Testing.DataSize
+import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
 
 object SimpleSumPlanTest {
   val PureJvmBasedModes: List[SumMethod] = List(
@@ -37,23 +38,36 @@ object SimpleSumPlanTest {
   sealed trait Source extends Serializable {
     def title: String
     def isColumnar: Boolean
-    def generate(sparkSession: SparkSession): Unit
+    def generate(sparkSession: SparkSession, size: DataSize): Unit
   }
 
   object Source {
     case object CSV extends Source {
       override def isColumnar: Boolean = false
-      override def generate(sparkSession: SparkSession): Unit = makeCsvNums(sparkSession)
+      override def generate(sparkSession: SparkSession, size: DataSize): Unit = {
+        size match {
+          case BenchmarkSize => makeCsvNumsLarge(sparkSession)
+          case SanityCheckSize => makeCsvNums(sparkSession)
+        }
+      }
+
       override def title: String = "CSV"
     }
     case object Parquet extends Source {
       override def isColumnar: Boolean = true
-      override def generate(sparkSession: SparkSession): Unit = makeParquetNums(sparkSession)
+      override def generate(sparkSession: SparkSession, size: DataSize): Unit = {
+        size match {
+          case BenchmarkSize => makeParquetNumsLarge(sparkSession)
+          case SanityCheckSize => makeParquetNums(sparkSession)
+        }
+      }
+
       override def title: String = "Parquet"
     }
     case object InMemory extends Source {
       override def isColumnar: Boolean = true
-      override def generate(sparkSession: SparkSession): Unit = makeMemoryNums(sparkSession)
+      override def generate(sparkSession: SparkSession, size: DataSize): Unit =
+        makeMemoryNums(sparkSession)
       override def title: String = "LocalTable"
     }
 
@@ -112,7 +126,7 @@ object SimpleSumPlanTest {
           )
           .getOrCreate()
 
-        source.generate(ss)
+        source.generate(ss, dataSize)
 
         ss
       }
