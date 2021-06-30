@@ -46,7 +46,7 @@ object SampleTestData {
     PkgDir.resolve("sampleMultiColumnParquet2.parquet")
 
   lazy val LargeParquet: Path =
-    Path.of("/home/william/large-sample-parquet-10_9/")
+    Paths.get("/home/william/large-sample-parquet-10_9/")
 
   lazy val OrdersCsv: Path =
     PkgDir.resolve("orders.csv")
@@ -55,5 +55,5 @@ object SampleTestData {
     PkgDir.resolve("sample.csv")
 
   lazy val LargeCSV: Path =
-    Path.of("/home/dominik/large-sample-csv-10_9/")
+    Paths.get("/home/dominik/large-sample-csv-10_9/")
 }
