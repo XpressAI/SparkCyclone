@@ -21,6 +21,7 @@ object VeKernelCompiler {
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
     additionalOptions: Map[Int, String] = Map.empty,
+    includesFromResources: List[String] = List.empty,
     useOpenmp: Boolean = true
   ) {
     def compilerArguments: List[String] =
@@ -38,10 +39,11 @@ object VeKernelCompiler {
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
 
     def include(key: String, value: String): VeCompilerConfig = key match {
-      case "o"      => copy(optimizationLevel = value.toInt)
-      case "debug"  => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
-      case "openmp" => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
-      case "path"   => copy(nccPath = value)
+      case "o"        => copy(optimizationLevel = value.toInt)
+      case "debug"    => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
+      case "openmp"   => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
+      case "path"     => copy(nccPath = value)
+      case "includes" => copy(includesFromResources = value.split(",").toList)
       case key if key.startsWith(ExtraArgumentPrefix) =>
         copy(additionalOptions =
           additionalOptions.updated(key.drop(ExtraArgumentPrefix.length).toInt, value)
@@ -66,7 +68,7 @@ object VeKernelCompiler {
     VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(
         List(
-          TransferDefinitions.TransferDefinitionsSourceCode,
+          "#include \"transfer-definitions.h\"",
           WordCount.WordCountSourceCode,
           Avg.AvgSourceCode,
           Sum.SumSourceCode,
@@ -76,7 +78,8 @@ object VeKernelCompiler {
           SumMultipleColumns.C_Definition,
           AvgMultipleColumns.C_Definition,
           JoinSourceCode
-        ).mkString("\n\n\n")
+        ).mkString("\n\n\n"),
+        config.includesFromResources
       )
   }
 
@@ -87,7 +90,7 @@ final case class VeKernelCompiler(
   config: VeKernelCompiler.VeCompilerConfig = VeCompilerConfig.testConfig
 ) {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
-  def compile_c(sourceCode: String): Path = {
+  def compile_c(sourceCode: String, includes: List[String] = List.empty): Path = {
     if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
@@ -96,12 +99,23 @@ final case class VeKernelCompiler(
     val soFile = buildDir.resolve(s"${compilationPrefix}.so")
     import scala.sys.process._
     import config._
+    val includesArgs = includes.map(i => s"-I${i}")
     val command: Seq[String] =
-      Seq(nccPath) ++ compilerArguments ++ Seq("-c", cSource.toString, "-o", oFile.toString)
+      Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
+        "-xc++",
+        "-c",
+        cSource.toString,
+        "-o",
+        oFile.toString
+      )
     System.err.println(s"Will execute: ${command.mkString(" ")}")
     Process(command = command, cwd = buildDir.toFile).!!
 
-    val command2 = Seq(nccPath, "-shared", "-pthread", "-o", soFile.toString, oFile.toString)
+    val command2 = Seq(nccPath, "-shared", "-pthread") ++ Seq(
+      "-o",
+      soFile.toString,
+      oFile.toString
+    )
     System.err.println(s"Will execute: ${command2.mkString(" ")}")
     Process(command = command2, cwd = buildDir.toFile).!!
 

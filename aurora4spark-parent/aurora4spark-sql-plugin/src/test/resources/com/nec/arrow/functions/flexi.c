@@ -5,7 +5,7 @@
 long add1(non_null_double_vector* input, non_null_double_vector* output)
 {
     output->count = input->count;
-    output->data = malloc(output->count * sizeof(double));
+    output->data = (double*)malloc(output->count * sizeof(double));
     for ( int i = 0; i < input->count; i++ ) {
         output->data[i] = input->data[i] + 1;
     }
@@ -15,7 +15,7 @@ long add1(non_null_double_vector* input, non_null_double_vector* output)
 long mul2(non_null_double_vector* input, non_null_double_vector* output)
 {
     output->count = input->count;
-    output->data = malloc(output->count * sizeof(double));
+    output->data = (double*)malloc(output->count * sizeof(double));
     for ( int i = 0; i < input->count; i++ ) {
         output->data[i] = input->data[i] * 2;
     }

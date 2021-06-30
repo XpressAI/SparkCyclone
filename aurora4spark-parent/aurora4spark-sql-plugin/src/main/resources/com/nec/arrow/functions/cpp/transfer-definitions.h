@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#ifndef VE_TD_DEFS
 typedef struct
 {
     void **data;
@@ -27,3 +27,7 @@ typedef struct
     double *data;
     long count;
 } non_null_double_vector;
+
+#define VE_TD_DEFS 1
+#endif
+
