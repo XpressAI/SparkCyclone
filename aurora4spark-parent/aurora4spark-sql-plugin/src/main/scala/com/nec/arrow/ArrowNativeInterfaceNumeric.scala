@@ -1,8 +1,8 @@
 package com.nec.arrow
 
 import org.apache.arrow.vector._
-import ArrowNativeInterfaceNumeric._
-import SupportedVectorWrapper._
+import com.nec.arrow.ArrowNativeInterfaceNumeric._
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
 
 trait ArrowNativeInterfaceNumeric extends Serializable {
   final def callFunction(
@@ -10,11 +10,16 @@ trait ArrowNativeInterfaceNumeric extends Serializable {
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[Float8Vector]]
   ): Unit = {
-    callFunctionGen(
-      name = name,
-      inputArguments = inputArguments,
-      outputArguments = outputArguments.map(_.map(f8v => Float8VectorWrapper(f8v)))
-    )
+    try {
+      callFunctionGen(
+        name = name,
+        inputArguments = inputArguments,
+        outputArguments = outputArguments.map(_.map(f8v => Float8VectorWrapper(f8v)))
+      )
+    } catch {
+      case e: Throwable =>
+        throw new RuntimeException(s"Failed: inputs = ${inputArguments}; ${e}", e)
+    }
   }
 
   def callFunctionGen(
@@ -24,8 +29,7 @@ trait ArrowNativeInterfaceNumeric extends Serializable {
   )
 }
 object ArrowNativeInterfaceNumeric {
-  sealed trait SupportedVectorWrapper {
-  }
+  sealed trait SupportedVectorWrapper {}
   object SupportedVectorWrapper {
     final case class Float8VectorWrapper(float8Vector: Float8Vector) extends SupportedVectorWrapper
     final case class IntVectorWrapper(intVector: IntVector) extends SupportedVectorWrapper
