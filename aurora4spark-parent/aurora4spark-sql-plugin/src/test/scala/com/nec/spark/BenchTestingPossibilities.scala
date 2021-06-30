@@ -133,7 +133,7 @@ object BenchTestingPossibilities {
       import sparkSession.implicits._
       sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
     }
-    override def requiresVe: Boolean = false
+    override def requiresVe: Boolean = true
   }
 
   def testSqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
