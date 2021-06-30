@@ -28,13 +28,20 @@ VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
 ```
 
 #### JMH
-In order to use Spark Rapids for benchmark You need to invoke the following command:
+In order to automatically generate and invoke all currently supported benchmarks You should invoke 
+the follwing commands: 
 ```
 export CUDF_PATH=/opt/aurora4spark/cudf-0.19.2-cuda10-1.jar
 ```
 ```
-jmh:run -prof jmh.extras.JFR -t1 -f 1 -wi 1 -i 1 .*VEJMHBenchmark.*
+fun-bench / Jmh / run -t1 -f 1 -wi 1 -i 1 .*KeyBenchmark.*
 ```
+
+The first one will set the path to cudf JAR required by rapids benchmarks, while the other one
+will generate all benchmarks defined in `BenchTestingPossibilities` class and then start them.
+
+Adding new benchmarks requires implementing `Testing` abstract class and making sure it is included
+in `BenchTestingPossibilities.possibilities` list.
 
 ## Currently supported queries
 

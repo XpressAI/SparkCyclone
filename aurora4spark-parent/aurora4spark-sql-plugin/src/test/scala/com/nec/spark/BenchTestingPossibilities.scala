@@ -71,7 +71,7 @@ object BenchTestingPossibilities {
   }
 
   def testSqlVe(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: String = s"VeArrow${source.title}${sql.replaceAll("[^a-zA-Z_0-9]", "")}"
+    override def name: CleanName = CleanName.fromString(s"Ve${source.title}${sql}")
     override def benchmark(sparkSession: SparkSession): Unit = {
       sparkSession.sql(sql)
     }
@@ -82,7 +82,7 @@ object BenchTestingPossibilities {
       val sess = SparkSession
         .builder()
         .master("local[4]")
-        .appName(name)
+        .appName(name.value)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
         .config(key = "spark.ui.enabled", value = false)
@@ -108,15 +108,16 @@ object BenchTestingPossibilities {
   }
 
   def testSqlRapids(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: String = s"Rapids${source.title}${sql.replaceAll("[^a-zA-Z_0-9]", "")}"
+    override def name: CleanName = CleanName.fromString(s"Rapids${source.title}${sql}")
     override def benchmark(sparkSession: SparkSession): Unit = {
-      sparkSession.sql(sql)
+      val result = sparkSession.sql(sql)
+      println(result.queryExecution.executedPlan)
     }
     override def prepareSession(dataSize: DataSize): SparkSession = {
       val sess = SparkSession
         .builder()
         .master("local[4]")
-        .appName(name)
+        .appName(name.value)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
         .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
@@ -137,9 +138,10 @@ object BenchTestingPossibilities {
   }
 
   def testSqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: String = s"VeArrowWholestageCodegen${source.title}${sql.replaceAll("[^a-zA-Z_0-9]", "")}"
+    override def name: CleanName = CleanName.fromString(s"VeWholestage${source.title}${sql}")
     override def benchmark(sparkSession: SparkSession): Unit = {
-      sparkSession.sql(sql)
+      val result = sparkSession.sql(sql)
+      println(result.queryExecution.executedPlan)
     }
 
     override def prepareSession(dataSize: DataSize): SparkSession = {
@@ -148,7 +150,7 @@ object BenchTestingPossibilities {
       val sess = SparkSession
         .builder()
         .master("local[4]")
-        .appName(name)
+        .appName(name.value)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
         .config(key = "spark.ui.enabled", value = false)
@@ -197,21 +199,21 @@ object BenchTestingPossibilities {
       for {
         source <- List(Source.CSV, Source.Parquet)
       } yield testSqlVe(
-        sql = "SELECT SUM(a) FROM nums",
+        sql = "SELECT SUM(value) FROM nums",
         expectedResult = 0,
         source = source
       )) ++ (
       for {
         source <- List(Source.CSV, Source.Parquet)
       } yield testSqlRapids(
-        sql = "SELECT SUM(a) FROM nums",
+        sql = "SELECT SUM(value) FROM nums",
         expectedResult = 0,
         source = source
       )) ++ (
       for {
         source <- List(Source.CSV, Source.Parquet)
       } yield testSqlVeWholestageCodegen(
-        sql = "SELECT SUM(a) FROM nums",
+        sql = "SELECT SUM(value) FROM nums",
         expectedResult = 0,
         source = source
       )
