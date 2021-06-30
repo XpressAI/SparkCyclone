@@ -130,12 +130,14 @@ object SimpleSumPlanV2Test {
           .config(conf)
           .config(CODEGEN_FALLBACK.key, value = false)
           .config("spark.sql.codegen.comments", value = true)
+          .withExtensions(_.injectColumnar())
           .withExtensions(sse =>
             sse.injectPlannerStrategy(sparkSession =>
               new Strategy {
                 override def apply(plan: LogicalPlan): Seq[SparkPlan] =
                   plan match {
-                    case logical.Aggregate(groupingExpressions, resultExpressions, child) => Nil
+                    case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                      Nil
                     case _                                                                => Nil
                   }
               }
