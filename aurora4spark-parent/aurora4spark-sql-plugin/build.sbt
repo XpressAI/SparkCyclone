@@ -19,6 +19,27 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(CMake)
   .enablePlugins(JmhPlugin)
 
+val spark2Version = "2.3.2"
+
+lazy val spark2 = project.settings(
+  scalaVersion := "2.11.12",
+  libraryDependencies ++= Seq(
+    "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
+    "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
+    "org.apache.spark" %% "spark-sql" % spark2Version,
+    "org.apache.spark" %% "spark-catalyst" % spark2Version,
+    "org.apache.spark" %% "spark-core" % spark2Version,
+    "org.apache.spark" %% "spark-catalyst" % spark2Version,
+    "org.scalatest" %% "scalatest" % "3.2.9" % Test,
+    "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test,
+    "com.nec" % "aveo4j" % "0.0.1",
+    "org.bytedeco" % "javacpp" % "1.5.5",
+    "net.java.dev.jna" % "jna-platform" % "5.8.0",
+    "commons-io" % "commons-io" % "2.8.0" % Test,
+    "com.h2database" % "h2" % "1.4.200" % Test,
+  )
+)
+
 /**
  * Run with:
  *
