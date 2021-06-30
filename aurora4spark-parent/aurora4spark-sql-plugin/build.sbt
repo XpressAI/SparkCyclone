@@ -8,7 +8,7 @@ import java.nio.file.Paths
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-val sparkVersion = "3.1.2"
+val sparkVersion = "3.1.1"
 ThisBuild / scalaVersion := "2.12.14"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
