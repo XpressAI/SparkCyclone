@@ -10,34 +10,22 @@ import com.nec.aurora.Aurora
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.Sum
+import com.nec.cmake.functions.JoinCSpec.JoinerSource
+import com.nec.cmake.functions.SortCSpec
 import org.scalatest.freespec.AnyFreeSpec
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
+
 import java.nio.file.Files
 
 final class SortVeSpec extends AnyFreeSpec {
   "We can sort a list of ints" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
-    val soPath = veBuildPath.resolve("sort.so")
-    val theCommand = List(
-      "nc++",
-      "-O3",
-      "-fpic",
-      "-pthread",
-      "-o",
-      soPath.toString,
-      "-I./src/main/resources/com/nec/arrow/functions/cpp",
-      "-shared",
-      "-I./src/main/resources/com/nec/arrow/functions",
-      "-I./src/main/resources/com/nec/arrow/",
-      "./src/main/resources/com/nec/arrow/functions/cpp/sorter.cc",
-
+    val soPath = VeKernelCompiler("avg", veBuildPath).compile_c(
+      List(TransferDefinitions.TransferDefinitionsSourceCode, SortCSpec.SorterSource)
+        .mkString("\n\n")
     )
-
-    import scala.sys.process._
-    info(theCommand.!!.toString)
-
     val proc = Aurora.veo_proc_create(0)
     val (sorted, expectedSorted) =
       try {

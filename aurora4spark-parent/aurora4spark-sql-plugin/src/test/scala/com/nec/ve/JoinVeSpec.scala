@@ -1,12 +1,15 @@
 package com.nec.ve
 
 import com.nec.arrow.ArrowVectorBuilders
+import com.nec.arrow.TransferDefinitions
 
 import java.nio.file.Paths
 import java.time.Instant
 import com.nec.aurora.Aurora
 import com.nec.arrow.functions.Join._
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.functions.Avg
+import com.nec.cmake.functions.JoinCSpec.JoinerSource
 import org.scalatest.freespec.AnyFreeSpec
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
@@ -16,28 +19,10 @@ import java.nio.file.Files
 final class JoinVeSpec extends AnyFreeSpec {
   "We can join two lists" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    Files.createDirectories(veBuildPath)
-    val oPath = veBuildPath.resolve("join.so")
-    val theCommand = List(
-      "nc++",
-      "-O3",
-      "-fpic",
-      "-pthread",
-      "-o",
-      oPath.toString,
-      "-I./src/main/resources/com/nec/arrow/functions/cpp",
-      "-I./src/main/resources/com/nec/arrow/functions/cpp/frovedis",
-      "-I./src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
-      "-shared",
-      "-I./src/main/resources/com/nec/arrow/functions",
-      "-I./src/main/resources/com/nec/arrow/",
-      "-xc++",
-      "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc"
+    val oPath = VeKernelCompiler("avg", veBuildPath).compile_c(
+      List(TransferDefinitions.TransferDefinitionsSourceCode, JoinerSource)
+        .mkString("\n\n")
     )
-
-    import scala.sys.process._
-    info(theCommand.!!)
-
     val proc = Aurora.veo_proc_create(0)
     val (sorted, expectedSorted) =
       try {
