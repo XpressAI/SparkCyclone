@@ -11,6 +11,7 @@ import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.cgescape.CodegenEscapeSpec.makeCsvNumsMultiColumn
 import com.nec.spark.planning.CEvaluationPlan
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
+import com.nec.spark.planning.VERewriteStrategy
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -40,50 +41,7 @@ object DynamicCSqlExpressionEvaluationSpec {
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
-          new Strategy {
-            override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-              plan match {
-                case logical.Project(resultExpressions, child) =>
-                  implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-                  List(
-                    CEvaluationPlan(
-                      resultExpressions,
-                      CExpressionEvaluation
-                        .cGenProject(child.output, resultExpressions),
-                      planLater(child),
-                      cNativeEvaluator
-                    )
-                  )
-                case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
-                  implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-                  List(
-                    CEvaluationPlan(
-                      resultExpressions,
-                      List(
-                        CExpressionEvaluation
-                          .cGen(
-                            child.output,
-                            resultExpressions.map { re =>
-                              (
-                                re.asInstanceOf[Alias],
-                                re
-                                  .asInstanceOf[Alias]
-                                  .child
-                                  .asInstanceOf[AggregateExpression]
-                              )
-                            }: _*
-                          )
-                          .lines,
-                        List("}")
-                      ).flatten.codeLines,
-                      planLater(child),
-                      cNativeEvaluator
-                    )
-                  )
-                case _ => Nil
-              }
-            }
-          }
+          new VERewriteStrategy(sparkSession, cNativeEvaluator)
         )
       )
   }

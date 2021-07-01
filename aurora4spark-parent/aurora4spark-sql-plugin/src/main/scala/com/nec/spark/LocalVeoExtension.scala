@@ -1,22 +1,40 @@
 package com.nec.spark
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
-import com.nec.spark.LocalVeoExtension._enabled
+import com.nec.aurora.Aurora
+import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile._
-import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
+import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.planning.WordCountPlanner.WordCounter
-import com.nec.spark.planning.{AddPlanExtractor, ArrowAveragingPlan, ArrowGenericAggregationPlanOffHeap, ArrowSummingCodegenPlan, ArrowSummingPlan, AveragingPlanOffHeap, SingleColumnAvgPlanExtractor, SingleColumnSumPlanExtractor, SummingPlanOffHeap, VeoGenericPlanExtractor, WordCountPlanner}
-
+import com.nec.spark.planning.AddPlanExtractor
+import com.nec.spark.planning.ArrowAveragingPlan
+import com.nec.spark.planning.ArrowGenericAggregationPlanOffHeap
+import com.nec.spark.planning.ArrowSummingPlan
+import com.nec.spark.planning.AveragingPlanOffHeap
+import com.nec.spark.planning.SingleColumnAvgPlanExtractor
+import com.nec.spark.planning.SingleColumnSumPlanExtractor
+import com.nec.spark.planning.SummingPlanOffHeap
+import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.VeoGenericPlanExtractor
+import com.nec.spark.planning.WordCountPlanner
+import com.nec.ve.VeKernelCompiler
+import com.nec.ve.VeKernelCompiler.compile_cpp
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateFunction, Average, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Add, Expression, Subtract}
-import org.apache.spark.sql.catalyst.plans.logical
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
+import org.apache.spark.sql.catalyst.expressions.aggregate.Average
+import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.catalyst.expressions.Add
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.Subtract
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarRule, RowToColumnarExec, SparkPlan}
-import org.apache.spark.sql.{SparkSessionExtensions, Strategy}
+import org.apache.spark.sql.execution.RowToColumnarExec
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.SparkSessionExtensions
+
+import java.nio.file.Files
 
 object LocalVeoExtension {
   var _enabled = true
@@ -43,7 +61,7 @@ object LocalVeoExtension {
           )
         )
       case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
-      case _                  => NoAggregationAggregator
+      case _                 => NoAggregationAggregator
     }
   }
 
@@ -51,22 +69,28 @@ object LocalVeoExtension {
     SingleColumnAvgPlanExtractor
       .matchPlan(sparkPlan)
       .map(singleColumnPlan =>
-        if(_arrowEnabled) {
+        if (_arrowEnabled) {
           ArrowAveragingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
         } else {
-          AveragingPlanOffHeap(singleColumnPlan.sparkPlan, MultipleColumnsOffHeapSummer.VeoBased,
-            singleColumnPlan.column)
+          AveragingPlanOffHeap(
+            singleColumnPlan.sparkPlan,
+            MultipleColumnsOffHeapSummer.VeoBased,
+            singleColumnPlan.column
+          )
         }
       )
       .orElse(
         SingleColumnSumPlanExtractor
           .matchPlan(sparkPlan)
           .map(singleColumnPlan =>
-            if(_arrowEnabled) {
+            if (_arrowEnabled) {
               ArrowSummingPlan(singleColumnPlan.sparkPlan, VeoBased, singleColumnPlan.column)
             } else {
-              SummingPlanOffHeap(singleColumnPlan.sparkPlan, MultipleColumnsOffHeapSummer.VeoBased,
-                singleColumnPlan.column)
+              SummingPlanOffHeap(
+                singleColumnPlan.sparkPlan,
+                MultipleColumnsOffHeapSummer.VeoBased,
+                singleColumnPlan.column
+              )
             }
           )
       )
@@ -103,26 +127,32 @@ object LocalVeoExtension {
       .getOrElse(sparkPlan)
   }
 }
+
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
-    if (!LocalVeoExtension._useCodegenPlans) {
-      sparkSessionExtensions.injectColumnar({ sparkSession =>
-        new ColumnarRule {
-          override def preColumnarTransitions: Rule[SparkPlan] = sparkPlan =>
-            if (_enabled) LocalVeoExtension.preColumnarRule.apply(sparkPlan) else sparkPlan
-        }
-      })
-    } else {
-      sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
-        new Strategy {
-          override def apply(plan: LogicalPlan): Seq[SparkPlan] =
-            plan match {
-              case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
-                List(ArrowSummingCodegenPlan(planLater(child), ArrowSummer.JVMBased))
-              case _ => Nil
-            }
+    sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
+      new VERewriteStrategy(
+        sparkSession,
+        new NativeEvaluator {
+          override def forCode(code: String): ArrowNativeInterfaceNumeric = {
+            val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
+            val soName = compile_cpp(
+              buildDir = tmpBuildDir,
+              config =
+                VeKernelCompiler.VeCompilerConfig.fromSparkConf(sparkSession.sparkContext.getConf),
+              code
+            ).toAbsolutePath.toString
+
+            val currentLib = Aurora.veo_load_library(_veo_proc, soName)
+            new VeArrowNativeInterfaceNumeric(
+              Aurora4SparkExecutorPlugin._veo_proc,
+              Aurora4SparkExecutorPlugin._veo_ctx,
+              currentLib
+            )
+          }
         }
       )
-    }
+    )
+
   }
 }
