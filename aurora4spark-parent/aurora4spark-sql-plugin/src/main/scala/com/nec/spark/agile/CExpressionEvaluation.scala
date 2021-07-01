@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Average
 import org.apache.spark.sql.catalyst.expressions.Subtract
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.Add
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.Multiply
 
@@ -21,19 +22,28 @@ object CExpressionEvaluation {
     outputArgument: String
   )
 
-  def evaluateSub(expression: Expression): String = {
+  def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
-      case AttributeReference(_, _, _, _) =>
-        // todo support multiple columns - not yet though!
-        "input->data[i]"
-      case Subtract(left, right, _)             => s"${evaluateSub(left)} - ${evaluateSub(right)}"
-      case Multiply(left, right, _)             => s"${evaluateSub(left)} * ${evaluateSub(right)}"
-      case Add(left, right, _)                  => s"${evaluateSub(left)} + ${evaluateSub(right)}"
-      case Literal(v, DoubleType | IntegerType) => s"$v"
+      case AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.name == name) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx =>
+            s"input_${idx}->data[i]"
+        }
+      case Subtract(left, right, _) =>
+        s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
+      case Multiply(left, right, _) =>
+        s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
+      case Add(left, right, _) =>
+        s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
+      case Literal(v, DoubleType | IntegerType) =>
+        s"$v"
     }
   }
 
   def process(
+    inputs: Seq[Attribute],
     cleanName: String,
     aggregateExpression: AggregateExpression,
     idx: Int
@@ -45,7 +55,7 @@ object CExpressionEvaluation {
             s"output_${idx}->data = (double *)malloc(1 * sizeof(double));",
             s"double ${cleanName}_accumulated = 0;"
           ),
-          iter = List(s"${cleanName}_accumulated += ${evaluateSub(sub)};"),
+          iter = List(s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"),
           result = List(
             s"double ${cleanName}_result = ${cleanName}_accumulated;",
             s"output_${idx}->data[0] = ${cleanName}_result;"
@@ -60,7 +70,7 @@ object CExpressionEvaluation {
             s"int ${cleanName}_counted = 0;"
           ),
           iter = List(
-            s"${cleanName}_accumulated += ${evaluateSub(sub)};",
+            s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
             s"${cleanName}_counted += 1;"
           ),
           result = List(
@@ -79,21 +89,27 @@ object CExpressionEvaluation {
   implicit class RichListStr(list: List[String]) {
     def codeLines: CodeLines = CodeLines(list)
   }
-  def cGen(pairs: (Alias, AggregateExpression)*): CodeLines = {
+  def cGen(input: Seq[Attribute], pairs: (Alias, AggregateExpression)*): CodeLines = {
     // todo a better clean up - this can clash
     val cleanNames = pairs.map(_._1.name.replaceAll("[^A-Z_a-z0-9]", "")).toList
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
-        process(cleanName, aggregateExpression, idx)
+        process(input, cleanName, aggregateExpression, idx)
           .getOrElse(sys.error(s"Unknown: ${aggregateExpression}"))
     }
 
+    val inputBits = input.zipWithIndex
+      .map { case (i, idx) =>
+        s"non_null_double_vector* input_${idx}"
+      }
+      .mkString(", ")
+
     List[List[String]](
-      List(s"""extern "C" long f(non_null_double_vector* input, ${ads
+      List(s"""extern "C" long f(${inputBits}, ${ads
         .map(_.outputArgument)
         .mkString(", ")}) {"""),
       ads.flatMap(_.init),
-      List("for (int i = 0; i < input->count; i++) {"),
+      List("for (int i = 0; i < input_0->count; i++) {"),
       ads.flatMap(_.iter),
       List("}"),
       ads.flatMap(_.result),

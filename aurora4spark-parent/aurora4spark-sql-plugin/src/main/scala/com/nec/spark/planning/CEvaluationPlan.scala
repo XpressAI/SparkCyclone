@@ -52,12 +52,15 @@ final case class CEvaluationPlan(
             0,
             Long.MaxValue
           )
-          val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
+          val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
           val root = VectorSchemaRoot.create(arrowSchema, allocator)
           val arrowWriter = ArrowWriter.create(root)
           rows.foreach(row => arrowWriter.write(row))
           arrowWriter.finish()
-          val vector = root.getVector(0).asInstanceOf[Float8Vector]
+
+          val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
+            root.getVector(idx).asInstanceOf[Float8Vector]
+          }
           arrowWriter.finish()
 
           val outputVectors = resultExpressions.zipWithIndex.map { case (ne, idx) =>
@@ -69,9 +72,10 @@ final case class CEvaluationPlan(
 
           evaluator.callFunction(
             name = "f",
-            inputArguments =
-              List(Some(Float8VectorWrapper(vector))) ++ outputVectors.map(_ => None),
-            outputArguments = List(None) ++ outputVectors.map(v => Some(v))
+            inputArguments = inputVectors.toList.map(iv =>
+              Some(Float8VectorWrapper(iv))
+            ) ++ outputVectors.map(_ => None),
+            outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
           )
 
           (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>

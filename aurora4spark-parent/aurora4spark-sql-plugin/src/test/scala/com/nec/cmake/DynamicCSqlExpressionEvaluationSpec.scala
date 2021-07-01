@@ -7,6 +7,7 @@ import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.SanityCheckSize
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CExpressionEvaluation
 import com.nec.spark.agile.CExpressionEvaluation.RichListStr
+import com.nec.spark.cgescape.CodegenEscapeSpec.makeCsvNumsMultiColumn
 import com.nec.spark.planning.CEvaluationPlan
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
@@ -47,15 +48,18 @@ object DynamicCSqlExpressionEvaluationSpec {
                       resultExpressions,
                       List(
                         CExpressionEvaluation
-                          .cGen(resultExpressions.map { re =>
-                            (
-                              re.asInstanceOf[Alias],
-                              re
-                                .asInstanceOf[Alias]
-                                .child
-                                .asInstanceOf[AggregateExpression]
-                            )
-                          }: _*)
+                          .cGen(
+                            child.output,
+                            resultExpressions.map { re =>
+                              (
+                                re.asInstanceOf[Alias],
+                                re
+                                  .asInstanceOf[Alias]
+                                  .child
+                                  .asInstanceOf[AggregateExpression]
+                              )
+                            }: _*
+                          )
                           .lines,
                         List("}")
                       ).flatten.codeLines,
@@ -94,6 +98,21 @@ final class DynamicCSqlExpressionEvaluationSpec
       }
     }
   }
+
+  val sql_mci = "SELECT SUM(a + b) FROM nums"
+  "Support multi-column inputs" in withSparkSession2(configuration(sql_mci)) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    assert(sparkSession.sql(sql_mci).debugSqlHere.as[(Double)].collect().toList == List(82.0))
+  }
+
+  val sql_mci_2 = "SELECT SUM(b - a) FROM nums"
+  "Support multi-column inputs, order reversed" in withSparkSession2(configuration(sql_mci_2)) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    assert(sparkSession.sql(sql_mci_2).debugSqlHere.as[Double].collect().toList == List(-42.0))
+  }
+
   "Different multi-column expressions can be evaluated" - {
 
     val sql1 = "SELECT AVG(2 * value), SUM(value) FROM nums"
