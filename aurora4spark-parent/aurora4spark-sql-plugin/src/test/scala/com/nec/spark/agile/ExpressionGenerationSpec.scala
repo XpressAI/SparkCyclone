@@ -28,39 +28,35 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   import com.eed3si9n.expecty.Expecty.assert
   val cHeading =
     List(
-      "extern \"C\" long f(non_null_double_vector* input, non_null_double_vector* output_0) {",
+      "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0) {",
       "output_0->data = (double *)malloc(1 * sizeof(double));"
     )
 
   val cHeading2 =
     List(
-      "extern \"C\" long f(non_null_double_vector* input, non_null_double_vector* output_0, non_null_double_vector* output_0) {",
+      "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0, non_null_double_vector* output_0) {",
       "output_0->data = (double *)malloc(1 * sizeof(double));",
       "output_0->data = (double *)malloc(1 * sizeof(double));"
     )
   "SUM((value#14 - 1.0)) is evaluated" in {
+    val ref = AttributeReference(
+      name = "value#14",
+      dataType = DoubleType,
+      nullable = false,
+      metadata = Metadata.empty
+    )()
     val expr = AggregateExpression(
-      aggregateFunction = Sum(
-        Subtract(
-          AttributeReference(
-            name = "abcd",
-            dataType = DoubleType,
-            nullable = false,
-            metadata = Metadata.empty
-          )(),
-          Literal(1.0, DoubleType)
-        )
-      ),
+      aggregateFunction = Sum(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
       isDistinct = false,
       filter = None
     )
 
-    assert(cGen(Alias(null, "summy")() -> expr) == {
+    assert(cGen(Seq(ref), Alias(null, "summy")() -> expr) == {
       cHeading ++ List(
         "double summy_accumulated = 0;",
-        "for (int i = 0; i < input->count; i++) {",
-        "summy_accumulated += input->data[i] - 1.0;",
+        "for (int i = 0; i < input_0->count; i++) {",
+        "summy_accumulated += input_0->data[i] - 1.0;",
         "}",
         "double summy_result = summy_accumulated;",
         "output_0->data[0] = summy_result;",
@@ -71,29 +67,26 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   }
 
   "AVG((value#14 - 1.0)) is evaluated" in {
+    val ref =
+      AttributeReference(
+        name = "abcd",
+        dataType = DoubleType,
+        nullable = false,
+        metadata = Metadata.empty
+      )()
     val expr = AggregateExpression(
-      aggregateFunction = Average(
-        Subtract(
-          AttributeReference(
-            name = "abcd",
-            dataType = DoubleType,
-            nullable = false,
-            metadata = Metadata.empty
-          )(),
-          Literal(1.0, DoubleType)
-        )
-      ),
+      aggregateFunction = Average(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
       isDistinct = false,
       filter = None
     )
 
-    assert(cGen(Alias(null, "avy#123 + 51")() -> expr) == {
+    assert(cGen(Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
       cHeading ++ List(
         "double avy12351_accumulated = 0;",
         "int avy12351_counted = 0;",
-        "for (int i = 0; i < input->count; i++) {",
-        "avy12351_accumulated += input->data[i] - 1.0;",
+        "for (int i = 0; i < input_0->count; i++) {",
+        "avy12351_accumulated += input_0->data[i] - 1.0;",
         "avy12351_counted += 1;",
         "}",
         "double avy12351_result = avy12351_accumulated / avy12351_counted;",
@@ -104,33 +97,68 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
 
   }
   "AVG((value#14 + 2.0)) is evaluated" in {
+    val ref =
+      AttributeReference(
+        name = "abcd",
+        dataType = DoubleType,
+        nullable = false,
+        metadata = Metadata.empty
+      )()
     val expr = AggregateExpression(
-      aggregateFunction = Average(
-        Add(
-          AttributeReference(
-            name = "abcd",
-            dataType = DoubleType,
-            nullable = false,
-            metadata = Metadata.empty
-          )(),
-          Literal(2.0, DoubleType)
-        )
-      ),
+      aggregateFunction = Average(Add(ref, Literal(2.0, DoubleType))),
       mode = Complete,
       isDistinct = false,
       filter = None
     )
 
-    assert(cGen(Alias(null, "avy#123 + 2")() -> expr) == {
+    assert(cGen(Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
       cHeading ++ List(
         "double avy1232_accumulated = 0;",
         "int avy1232_counted = 0;",
-        "for (int i = 0; i < input->count; i++) {",
-        "avy1232_accumulated += input->data[i] + 2.0;",
+        "for (int i = 0; i < input_0->count; i++) {",
+        "avy1232_accumulated += input_0->data[i] + 2.0;",
         "avy1232_counted += 1;",
         "}",
         "double avy1232_result = avy1232_accumulated / avy1232_counted;",
         "output_0->data[0] = avy1232_result;",
+        "return 0;"
+      )
+    }.codeLines)
+  }
+  "AVG((value#14 + value#13)) is evaluated" in {
+    val ref1 =
+      AttributeReference(
+        name = "abcd",
+        dataType = DoubleType,
+        nullable = false,
+        metadata = Metadata.empty
+      )()
+    val ref2 =
+      AttributeReference(
+        name = "abcd_2",
+        dataType = DoubleType,
+        nullable = false,
+        metadata = Metadata.empty
+      )()
+    val expr = AggregateExpression(
+      aggregateFunction = Average(Add(ref1, ref2)),
+      mode = Complete,
+      isDistinct = false,
+      filter = None
+    )
+
+    assert(cGen(Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
+      List(
+        "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0) {",
+        "output_0->data = (double *)malloc(1 * sizeof(double));",
+        "double avy123avy124_accumulated = 0;",
+        "int avy123avy124_counted = 0;",
+        "for (int i = 0; i < input_0->count; i++) {",
+        "avy123avy124_accumulated += input_0->data[i] + input_1->data[i];",
+        "avy123avy124_counted += 1;",
+        "}",
+        "double avy123avy124_result = avy123avy124_accumulated / avy123avy124_counted;",
+        "output_0->data[0] = avy123avy124_result;",
         "return 0;"
       )
     }.codeLines)
@@ -144,7 +172,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       "SELECT AVG(2 * value), SUM(value) FROM nums",
       "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)"
     ).take(2).foreach { sql =>
-      s"${sql}" in withSparkSession2(
+      s"$sql" in withSparkSession2(
         _.config(CODEGEN_FALLBACK.key, value = false)
           .config("spark.sql.codegen.comments", value = true)
           .withExtensions(sse =>
@@ -176,52 +204,40 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   }
 
   "SUM((value#14 - 1.0)), AVG((value#14 - 1.0)) is evaluated" in {
+    val ref =
+      AttributeReference(
+        name = "abcd",
+        dataType = DoubleType,
+        nullable = false,
+        metadata = Metadata.empty
+      )()
+
     val expr = AggregateExpression(
-      aggregateFunction = Sum(
-        Subtract(
-          AttributeReference(
-            name = "abcd",
-            dataType = DoubleType,
-            nullable = false,
-            metadata = Metadata.empty
-          )(),
-          Literal(1.0, DoubleType)
-        )
-      ),
+      aggregateFunction = Sum(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
       isDistinct = false,
       filter = None
     )
 
     val expr2 = AggregateExpression(
-      aggregateFunction = Average(
-        Subtract(
-          AttributeReference(
-            name = "abcd",
-            dataType = DoubleType,
-            nullable = false,
-            metadata = Metadata.empty
-          )(),
-          Literal(1.0, DoubleType)
-        )
-      ),
+      aggregateFunction = Average(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
       isDistinct = false,
       filter = None
     )
 
     assert(
-      cGen(Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2) ==
+      cGen(Seq(ref), Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2) ==
         List(
-          """extern "C" long f(non_null_double_vector* input, non_null_double_vector* output_0, non_null_double_vector* output_1) {""",
+          """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* output_0, non_null_double_vector* output_1) {""",
           """output_0->data = (double *)malloc(1 * sizeof(double));""",
           """double summy_accumulated = 0;""",
           """output_1->data = (double *)malloc(1 * sizeof(double));""",
           """double avy12310_accumulated = 0;""",
           "int avy12310_counted = 0;",
-          "for (int i = 0; i < input->count; i++) {",
-          "summy_accumulated += input->data[i] - 1.0;",
-          "avy12310_accumulated += input->data[i] - 1.0;",
+          "for (int i = 0; i < input_0->count; i++) {",
+          "summy_accumulated += input_0->data[i] - 1.0;",
+          "avy12310_accumulated += input_0->data[i] - 1.0;",
           "avy12310_counted += 1;",
           "}",
           "double summy_result = summy_accumulated;",

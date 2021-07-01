@@ -1,29 +1,20 @@
 package com.nec.spark.cgescape
 
-import com.nec.spark.SampleTestData.{LargeCSV, LargeParquet, SampleCSV, SampleTwoColumnParquet}
+import com.nec.spark.SampleTestData.LargeCSV
+import com.nec.spark.SampleTestData.LargeParquet
+import com.nec.spark.SampleTestData.SampleCSV
+import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
-import CodegenEscapeSpec._
-import com.nec.spark.BenchTestingPossibilities.Testing.DataSize
-import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
-
-import org.apache.spark.rdd.RDD
+import com.nec.spark.cgescape.CodegenEscapeSpec._
+import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateMode
-import org.apache.spark.sql.catalyst.expressions.aggregate.Partial
-import org.apache.spark.sql.catalyst.expressions.aggregate.PartialMerge
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.ColumnarRule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.StructField
@@ -44,8 +35,9 @@ import org.scalatest.freespec.AnyFreeSpec
 final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   private implicit val encDouble: Encoder[Double] = Encoders.scalaDouble
-    
+
   "We can do a row-based batched identity codegen (accumulate results, and then process an output)" - {
+
     /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
     withVariousInputs[Double](
       _.config(CODEGEN_FALLBACK.key, value = false)
@@ -110,7 +102,6 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
 
 }
 
-
 object CodegenEscapeSpec {
   val SharedName = "nums"
 
@@ -133,6 +124,18 @@ object CodegenEscapeSpec {
       .load(SampleCSV.toString)
       .withColumnRenamed("a", "value")
       .as[Double]
+      .createOrReplaceTempView(SharedName)
+  }
+
+  def makeCsvNumsMultiColumn(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    val schema = StructType(Array(StructField("a", DoubleType), StructField("b", DoubleType)))
+
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .load(SampleMultiColumnCSV.toString)
+      .as[(Double, Double)]
       .createOrReplaceTempView(SharedName)
   }
 
