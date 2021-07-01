@@ -102,8 +102,8 @@ ${VeKernelCompiler.DefaultIncludesList.map(i => s"include_directories($i)").mkSt
   private def buildAndLinkLin(targetPath: Path): Path = {
     val cmd = List("cmake", targetPath.toString)
     val cmd2 = List("make", "-C", targetPath.getParent.toString)
-    assert(cmd.! == 0)
-    assert(cmd2.! == 0)
+    runHopeOk(cmd)
+    runHopeOk(cmd2)
     targetPath.getParent.resolve("libaurora4spark.so")
   }
 }
