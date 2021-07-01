@@ -1,6 +1,7 @@
 package com.nec.spark.planning
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -8,6 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
@@ -23,18 +25,22 @@ object CEvaluationPlan {
   }
 }
 final case class CEvaluationPlan(
-  lines: List[String],
+  resultExpressions: Seq[NamedExpression],
+  lines: CodeLines,
   child: SparkPlan,
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode {
+
   protected def inputAttributes: Seq[Attribute] = child.output
-  override def output: Seq[Attribute] = Seq(
-    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
-  )
+
+  override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
+    AttributeReference(name = s"value_${idx}", dataType = DoubleType, nullable = false)()
+  }
+
   override def outputPartitioning: Partitioning = SinglePartition
   override protected def doExecute(): RDD[InternalRow] = {
-    val evaluator = nativeEvaluator.forCode(lines.mkString("\n", "\n", "\n"))
+    val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
     child
       .execute()
       .coalesce(numPartitions = 1)
@@ -54,21 +60,30 @@ final case class CEvaluationPlan(
           val vector = root.getVector(0).asInstanceOf[Float8Vector]
           arrowWriter.finish()
 
-          val outputVector = new Float8Vector("count", allocator)
-          outputVector.allocateNew(1)
-          outputVector.setValueCount(1)
+          val outputVectors = resultExpressions.zipWithIndex.map { case (ne, idx) =>
+            val outputVector = new Float8Vector(s"out_${idx}", allocator)
+            outputVector.allocateNew(1)
+            outputVector.setValueCount(1)
+            outputVector
+          }
+
           evaluator.callFunction(
             name = "f",
-            inputArguments = List(Some(Float8VectorWrapper(vector)), None),
-            outputArguments = List(None, Some(outputVector), None)
+            inputArguments =
+              List(Some(Float8VectorWrapper(vector))) ++ outputVectors.map(_ => None),
+            outputArguments = List(None) ++ outputVectors.map(v => Some(v))
           )
 
-          (0 until outputVector.getValueCount).iterator.map { idx =>
-            val writer = new UnsafeRowWriter(1)
+          (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
+            val writer = new UnsafeRowWriter(outputVectors.size)
             writer.reset()
-            writer.write(0, outputVector.getValueAsDouble(idx))
+            outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+              val doubleV = v.getValueAsDouble(v_idx)
+              writer.write(c_idx, doubleV)
+            }
             writer.getRow
           }
+
         }.take(1).flatten
       }
   }

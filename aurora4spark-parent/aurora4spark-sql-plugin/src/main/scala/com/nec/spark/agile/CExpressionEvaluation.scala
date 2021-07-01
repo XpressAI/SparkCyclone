@@ -17,7 +17,8 @@ object CExpressionEvaluation {
   final case class AggregateDescription(
     init: List[String],
     iter: List[String],
-    result: List[String]
+    result: List[String],
+    outputArgument: String
   )
 
   def evaluateSub(expression: Expression): String = {
@@ -34,48 +35,69 @@ object CExpressionEvaluation {
 
   def process(
     cleanName: String,
-    aggregateExpression: AggregateExpression
+    aggregateExpression: AggregateExpression,
+    idx: Int
   ): Option[AggregateDescription] = {
     PartialFunction.condOpt(aggregateExpression.aggregateFunction) {
       case Sum(sub) =>
         AggregateDescription(
-          init = List(s"double ${cleanName}_accumulated = 0;"),
+          init = List(
+            s"output_${idx}->data = (double *)malloc(1 * sizeof(double));",
+            s"double ${cleanName}_accumulated = 0;"
+          ),
           iter = List(s"${cleanName}_accumulated += ${evaluateSub(sub)};"),
           result = List(
             s"double ${cleanName}_result = ${cleanName}_accumulated;",
-            s"output->data[0] = ${cleanName}_result;"
-          )
+            s"output_${idx}->data[0] = ${cleanName}_result;"
+          ),
+          outputArgument = s"non_null_double_vector* output_${idx}"
         )
       case Average(sub) =>
         AggregateDescription(
-          init = List(s"double ${cleanName}_accumulated = 0;", s"int ${cleanName}_counted = 0;"),
+          init = List(
+            s"output_${idx}->data = (double *)malloc(1 * sizeof(double));",
+            s"double ${cleanName}_accumulated = 0;",
+            s"int ${cleanName}_counted = 0;"
+          ),
           iter = List(
             s"${cleanName}_accumulated += ${evaluateSub(sub)};",
             s"${cleanName}_counted += 1;"
           ),
           result = List(
             s"double ${cleanName}_result = ${cleanName}_accumulated / ${cleanName}_counted;",
-            s"output->data[0] = ${cleanName}_result;"
-          )
+            s"output_${idx}->data[0] = ${cleanName}_result;"
+          ),
+          outputArgument = s"non_null_double_vector* output_${idx}"
         )
     }
   }
 
-  def cGen(alias: Alias, aggregateExpression: AggregateExpression): List[String] = {
+  final case class CodeLines(lines: List[String]) {
+    override def toString: String = (List(s"CodeLines(") ++ lines ++ List(")")).mkString("\n")
+  }
+
+  implicit class RichListStr(list: List[String]) {
+    def codeLines: CodeLines = CodeLines(list)
+  }
+  def cGen(pairs: (Alias, AggregateExpression)*): CodeLines = {
     // todo a better clean up - this can clash
-    val cleanName = alias.name.replaceAll("[^A-Z_a-z0-9]", "")
-    val ad =
-      process(cleanName, aggregateExpression).getOrElse(
-        sys.error(s"Unknown: ${aggregateExpression}")
-      )
+    val cleanNames = pairs.map(_._1.name.replaceAll("[^A-Z_a-z0-9]", "")).toList
+    val ads = cleanNames.zip(pairs).zipWithIndex.map {
+      case ((cleanName, (alias, aggregateExpression)), idx) =>
+        process(cleanName, aggregateExpression, idx)
+          .getOrElse(sys.error(s"Unknown: ${aggregateExpression}"))
+    }
 
     List[List[String]](
-      ad.init,
+      List(s"""extern "C" long f(non_null_double_vector* input, ${ads
+        .map(_.outputArgument)
+        .mkString(", ")}) {"""),
+      ads.flatMap(_.init),
       List("for (int i = 0; i < input->count; i++) {"),
-      ad.iter,
+      ads.flatMap(_.iter),
       List("}"),
-      ad.result,
+      ads.flatMap(_.result),
       List("return 0;")
-    ).flatten
+    ).flatten.codeLines
   }
 }
