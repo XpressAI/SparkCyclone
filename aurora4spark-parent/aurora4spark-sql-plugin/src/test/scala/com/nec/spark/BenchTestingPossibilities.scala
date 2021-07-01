@@ -48,7 +48,7 @@ object BenchTestingPossibilities {
   def testSql(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
     override def name: CleanName = CleanName.fromString(s"${source.title}${sql}")
     override def benchmark(sparkSession: SparkSession): Unit = {
-      sparkSession.sql(sql)
+      sparkSession.sql(sql).collect()
     }
     override def prepareSession(dataSize: DataSize): SparkSession = {
       val sess = SparkSession
@@ -58,7 +58,7 @@ object BenchTestingPossibilities {
         .config(key = "spark.ui.enabled", value = false)
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }
@@ -74,7 +74,7 @@ object BenchTestingPossibilities {
   def testSqlVe(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
     override def name: CleanName = CleanName.fromString(s"Ve${source.title}${sql}")
     override def benchmark(sparkSession: SparkSession): Unit = {
-      sparkSession.sql(sql)
+      sparkSession.sql(sql).collect()
     }
 
     override def prepareSession(dataSize: DataSize): SparkSession = {
@@ -95,7 +95,7 @@ object BenchTestingPossibilities {
         )
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }
@@ -117,6 +117,7 @@ object BenchTestingPossibilities {
     override def benchmark(sparkSession: SparkSession): Unit = {
       val result = sparkSession.sql(sql)
       println(result.queryExecution.executedPlan)
+      result.collect()
     }
     override def prepareSession(dataSize: DataSize): SparkSession = {
       val sess = SparkSession
@@ -129,7 +130,7 @@ object BenchTestingPossibilities {
         .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
         .getOrCreate()
 
-      source.generate(sess)
+      source.generate(sess, dataSize)
 
       sess
     }
@@ -142,13 +143,13 @@ object BenchTestingPossibilities {
     override def requiresVe: Boolean = true
   }
 
-  def testSqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source): Testing =
-    new Testing {
-      override def name: CleanName = CleanName.fromString(s"VeWholestage${source.title}${sql}")
-      override def benchmark(sparkSession: SparkSession): Unit = {
-        val result = sparkSession.sql(sql)
-        println(result.queryExecution.executedPlan)
-      }
+  def testSqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
+    override def name: CleanName = CleanName.fromString(s"VeWholestage${source.title}${sql}")
+    override def benchmark(sparkSession: SparkSession): Unit = {
+      val result = sparkSession.sql(sql)
+      println(result.queryExecution.executedPlan)
+      result.collect()
+    }
 
       override def prepareSession(dataSize: DataSize): SparkSession = {
         LocalVeoExtension._enabled = true
@@ -167,7 +168,7 @@ object BenchTestingPossibilities {
           )
           .getOrCreate()
 
-        source.generate(sess)
+      source.generate(sess, dataSize)
 
         sess
       }
