@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_ids, non_null_int_vector* counted_string_frequencies)
+extern "C" long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_ids, non_null_int_vector* counted_string_frequencies)
 {
     varchar_vector input_strings = strings[0];
 
@@ -10,9 +10,9 @@ long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_
     printf("Received %i items in pointers data=%p, offsets=%p \n", input_strings.count, input_strings.data, input_strings.offsets);
 #endif
     /** pre-allocate enough memory to return all the strings at the maximum **/
-    counted_string_ids->data = malloc(input_strings.count * sizeof(int));
+    counted_string_ids->data = (int*)malloc(input_strings.count * sizeof(int));
     counted_string_ids->count = 0;
-    counted_string_frequencies->data = malloc(input_strings.count * sizeof(int));
+    counted_string_frequencies->data = (int*)malloc(input_strings.count * sizeof(int));
     counted_string_frequencies->count = 0;
 
     for (int i = 0; i < input_strings.count; i++)
@@ -54,10 +54,10 @@ long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_
 
 
 /** SUM(a-b), AVG(b) **/
-int sum_avg_subtract(non_null_double_vector* a, non_null_double_vector* b, non_null_double_vector* c, non_null_double_vector* the_sum, non_null_double_vector* the_avg) {
+extern "C" int sum_avg_subtract(non_null_double_vector* a, non_null_double_vector* b, non_null_double_vector* c, non_null_double_vector* the_sum, non_null_double_vector* the_avg) {
     
-    the_sum->data = malloc(1 * sizeof(double));
-    the_avg->data = malloc(1 * sizeof(double));
+    the_sum->data = (double*)malloc(1 * sizeof(double));
+    the_avg->data = (double*)malloc(1 * sizeof(double));
     the_sum->count = 1;
     the_avg->count = 1;
 

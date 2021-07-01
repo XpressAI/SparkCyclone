@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_null_double_vector* output)
+extern "C" long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_null_double_vector* output)
 {
     int i;
     int j;
@@ -15,7 +15,7 @@ long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_n
     printf("Row count of received dataset: %d \n", row_count);
 #endif
 
-    output->data = malloc(output->count * sizeof(double));
+    output->data = (double*) malloc(output->count * sizeof(double));
 
     #pragma omp parallel for
     for (i = 0; i < output->count; i++) {

@@ -1,7 +1,6 @@
 package com.nec.arrow.functions
 
 import com.nec.arrow.ArrowVectorBuilders.{withDirectFloat8Vector, withDirectIntVector}
-import com.nec.ve.JoinVeSpec.Join
 import org.scalatest.freespec.AnyFreeSpec
 
 final class ArrowJVMJoinSpec extends AnyFreeSpec {

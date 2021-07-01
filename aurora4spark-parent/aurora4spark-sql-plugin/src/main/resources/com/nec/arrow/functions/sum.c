@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long sum_vectors(non_null_double_vector* input, non_null_double_vector* output)
+extern "C" long sum_vectors(non_null_double_vector* input, non_null_double_vector* output)
 {
     int i;
     int j;

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long vector_avg(non_null_double_vector* input, non_null_double_vector* output)
+extern "C"  long vector_avg(non_null_double_vector* input, non_null_double_vector* output)
 {
     int i;
     int j;
@@ -14,7 +14,7 @@ long vector_avg(non_null_double_vector* input, non_null_double_vector* output)
     printf("Row count of received dataset: %d \n", row_count);
 #endif
 
-    output->data = malloc(output->count * sizeof(double));
+    output->data = (double*)malloc(output->count * sizeof(double));
 
     for (i = 0; i < output->count; i++) {
        double sum = 0;

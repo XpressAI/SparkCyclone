@@ -4,7 +4,6 @@ import com.nec.debugging.Debugging.RichDataSet
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.ArrowSummingCodegenPlan
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
-
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan

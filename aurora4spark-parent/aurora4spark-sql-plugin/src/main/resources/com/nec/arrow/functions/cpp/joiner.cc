@@ -1,5 +1,5 @@
 #include "frovedis/core/radix_sort.hpp"
-#include "transfer-definitions.c"
+#include "transfer-definitions.h"
 #include "frovedis/dataframe/join.hpp"
 #include "frovedis/dataframe/join.cc"
 

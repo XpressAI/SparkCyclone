@@ -46,8 +46,8 @@ object DynamicCSqlExpressionEvaluationSpec {
                     CEvaluationPlan(
                       List(
                         List(
-                          "long f(non_null_double_vector* input, non_null_double_vector* output) {",
-                          "output->data = malloc(1 * sizeof(double));"
+                          "extern \"C\" long f(non_null_double_vector* input, non_null_double_vector* output) {",
+                          "output->data = (double *)malloc(1 * sizeof(double));"
                         ),
                         CExpressionEvaluation.cGen(
                           resultExpressions.head.asInstanceOf[Alias],
