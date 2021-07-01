@@ -5,18 +5,17 @@ import java.nio.file.Paths
 import java.time.Instant
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.arrow.functions.Join._
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.JoinCSpec.JoinerSource
-import com.nec.ve.VeKernelCompiler.RootPath
+import com.nec.spark.agile.CppResource
 
 object JoinCSpec {
-  val JoinerSource = new String(
-    Files.readAllBytes(RootPath.resolve("src/main/resources/com/nec/arrow/functions/cpp/joiner.cc"))
-  )
+  val JoinerSource: String = CppResource("cpp/joiner.cc").readString
 }
 
 final class JoinCSpec extends AnyFreeSpec {
@@ -26,7 +25,7 @@ final class JoinCSpec extends AnyFreeSpec {
     Files.createDirectory(veBuildPath)
 
     val soPath = CMakeBuilder.buildC(
-      List("#include \"transfer-definitions.h\"", JoinerSource)
+      List(TransferDefinitionsSourceCode, "\n\n", JoinerSource)
         .mkString("\n\n")
     )
 

@@ -163,10 +163,6 @@ object JoinPlanSpec {
           key = "spark.plugins",
           value = if (requiresVe) classOf[AuroraSqlPlugin].getCanonicalName else ""
         )
-        .config(
-          key = VeKernelCompiler.IncludesKey,
-          value = VeKernelCompiler.DefaultIncludes,
-        )
         .config("spark.sql.codegen.comments", value = true)
         .withExtensions(sse =>
           sse.injectPlannerStrategy(sparkSession =>

@@ -1,4 +1,5 @@
 package com.nec.ve
+import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Avg
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.arrow.functions.Sum
@@ -8,6 +9,7 @@ import com.nec.older.AvgSimple
 import com.nec.older.SumMultipleColumns
 import com.nec.older.SumPairwise
 import com.nec.older.SumSimple
+import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 
 import java.nio.file._
@@ -15,31 +17,8 @@ import org.apache.spark.SparkConf
 
 object VeKernelCompiler {
 
-  val IncludesKey = "spark.com.nec.spark.ncc.includes"
-
-  lazy val DefaultIncludes = DefaultIncludesList
-    .mkString(",")
-
-  lazy val RootPath = {
-    val current = Paths.get(".").toAbsolutePath
-    if (current.toString.contains("fun-bench"))
-      current.getParent
-    else current
-  }
-
-  lazy val DefaultIncludesList = {
-    List(
-      "src/main/resources/com/nec/arrow/functions/cpp",
-      "src/main/resources/com/nec/arrow/functions/cpp/frovedis",
-      "src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
-      "src/main/resources/com/nec/arrow/functions",
-      "src/main/resources/com/nec/arrow/"
-    ).map(sub => RootPath.resolve(sub).toUri)
-      .map(
-        _.toString
-          .replaceAllLiterally("file:///C:/", "C:/")
-          .replaceAllLiterally("file://", "")
-      )
+  lazy val DefaultIncludes = {
+    Set("cpp", "cpp/frovedis", "cpp/frovedis/dataframe", "")
   }
 
   import VeCompilerConfig.ExtraArgumentPrefix
@@ -48,7 +27,6 @@ object VeKernelCompiler {
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
     additionalOptions: Map[Int, String] = Map.empty,
-    includesFromResources: List[String] = List.empty,
     useOpenmp: Boolean = true
   ) {
     def compilerArguments: List[String] =
@@ -66,11 +44,10 @@ object VeKernelCompiler {
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
 
     def include(key: String, value: String): VeCompilerConfig = key match {
-      case "o"        => copy(optimizationLevel = value.toInt)
-      case "debug"    => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
-      case "openmp"   => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
-      case "path"     => copy(nccPath = value)
-      case "includes" => copy(includesFromResources = value.split(",").toList)
+      case "o"      => copy(optimizationLevel = value.toInt)
+      case "debug"  => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
+      case "openmp" => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
+      case "path"   => copy(nccPath = value)
       case key if key.startsWith(ExtraArgumentPrefix) =>
         copy(additionalOptions =
           additionalOptions.updated(key.drop(ExtraArgumentPrefix.length).toInt, value)
@@ -95,7 +72,7 @@ object VeKernelCompiler {
     VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(
         List(
-          "#include \"transfer-definitions.h\"",
+          TransferDefinitionsSourceCode,
           WordCount.WordCountSourceCode,
           Avg.AvgSourceCode,
           Sum.SumSourceCode,
@@ -105,8 +82,7 @@ object VeKernelCompiler {
           SumMultipleColumns.C_Definition,
           AvgMultipleColumns.C_Definition,
           JoinSourceCode
-        ).mkString("\n\n\n"),
-        config.includesFromResources
+        ).mkString("\n\n\n")
       )
   }
 
@@ -140,10 +116,20 @@ final case class VeKernelCompiler(
     assert(proc.exitValue() == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }
 
-  def compile_c(sourceCode: String, includes: List[String] = List.empty): Path = {
+  def compile_c(sourceCode: String): Path = {
     if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
+    val sourcesDir = buildDir.resolve("sources")
+    CppResources.All.copyTo(sourcesDir)
+    val includes: List[String] = {
+      CppResources.All.all
+        .map(_.containingDir(sourcesDir))
+        .toList
+        .map(i =>
+          i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length)
+        )
+    }
     Files.write(cSource, sourceCode.getBytes())
     try {
       val oFile = buildDir.resolve(s"${compilationPrefix}.o")
