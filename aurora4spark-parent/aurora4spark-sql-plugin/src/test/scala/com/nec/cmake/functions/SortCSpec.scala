@@ -5,18 +5,17 @@ import java.nio.file.Paths
 import java.time.Instant
 import com.nec.arrow.ArrowVectorBuilders.withDirectFloat8Vector
 import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Sort
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.SortCSpec.SorterSource
-import com.nec.ve.VeKernelCompiler.RootPath
+import com.nec.spark.agile.CppResource
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
 object SortCSpec {
-  val SorterSource = new String(
-    Files.readAllBytes(RootPath.resolve("src/main/resources/com/nec/arrow/functions/cpp/sorter.cc"))
-  )
+  val SorterSource: String = CppResource("cpp/sorter.cc").readString
 }
 
 final class SortCSpec extends AnyFreeSpec {
@@ -26,7 +25,7 @@ final class SortCSpec extends AnyFreeSpec {
     Files.createDirectory(veBuildPath)
 
     val cLib = CMakeBuilder.buildC(
-      List("#include \"transfer-definitions.h\"", SorterSource)
+      List(TransferDefinitionsSourceCode, SorterSource)
         .mkString("\n\n")
     )
 

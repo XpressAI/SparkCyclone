@@ -78,7 +78,6 @@ object BenchTestingPossibilities {
         .appName(name.value)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-        .config(key = VeKernelCompiler.IncludesKey, value = VeKernelCompiler.DefaultIncludes)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
         .config(

@@ -36,7 +36,7 @@ lazy val spark2 = project.settings(
     "org.bytedeco" % "javacpp" % "1.5.5",
     "net.java.dev.jna" % "jna-platform" % "5.8.0",
     "commons-io" % "commons-io" % "2.8.0" % Test,
-    "com.h2database" % "h2" % "1.4.200" % Test,
+    "com.h2database" % "h2" % "1.4.200" % Test
   )
 )
 
@@ -94,7 +94,9 @@ libraryDependencies ++= Seq(
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve"
+  "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve",
+  "org.reflections" % "reflections" % "0.9.12",
+  "commons-io" % "commons-io" % "2.10.0"
 )
 
 Test / unmanagedJars ++= sys.env
