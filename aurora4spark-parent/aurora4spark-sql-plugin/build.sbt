@@ -176,6 +176,9 @@ addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
 
 assembly / assemblyMergeStrategy := {
   case v if v.contains("module-info.class")   => MergeStrategy.discard
+  case v if v.contains("UnusedStub")          => MergeStrategy.first
+  case v if v.contains("aopalliance")         => MergeStrategy.first
+  case v if v.contains("/inject")             => MergeStrategy.first
   case v if v.contains("reflect-config.json") => MergeStrategy.discard
   case v if v.contains("jni-config.json")     => MergeStrategy.discard
   case v if v.contains("git.properties")      => MergeStrategy.discard
