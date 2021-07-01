@@ -89,9 +89,20 @@ object CExpressionEvaluation {
   implicit class RichListStr(list: List[String]) {
     def codeLines: CodeLines = CodeLines(list)
   }
-  def cGen(input: Seq[Attribute], pairs: (Alias, AggregateExpression)*): CodeLines = {
+  trait NameCleaner {
+    def cleanName(input: String): String
+  }
+
+  object NameCleaner {
+    val simple: NameCleaner = _.replaceAll("[^A-Z_a-z0-9]", "")
+    val verbose: NameCleaner = v => CleanName.fromString(v).value
+  }
+
+  def cGen(input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
+    nameCleaner: NameCleaner
+  ): CodeLines = {
     // todo a better clean up - this can clash
-    val cleanNames = pairs.map(_._1.name.replaceAll("[^A-Z_a-z0-9]", "")).toList
+    val cleanNames = pairs.map(_._1.name).map(nameCleaner.cleanName).toList
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
         process(input, cleanName, aggregateExpression, idx)

@@ -1,12 +1,9 @@
 package com.nec.spark.planning.simplesum
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.BenchTestingPossibilities.CleanName
-import com.nec.spark.BenchTestingPossibilities.CleanName.RichStringClean
 import com.nec.spark.BenchTestingPossibilities.Testing
-import com.nec.spark.cgescape.CodegenEscapeSpec.{makeCsvNums, makeCsvNumsLarge, makeMemoryNums, makeParquetNums, makeParquetNumsLarge}
+import com.nec.spark.cgescape.CodegenEscapeSpec.{makeCsvNums, makeParquetNums, makeParquetNumsLarge, makeCsvNumsLarge, makeMemoryNums}
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -19,6 +16,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.spark.BenchTestingPossibilities.Testing.DataSize
 import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
+import com.nec.spark.agile.CleanName
+import com.nec.spark.agile.CleanName.RichStringClean
 
 object SimpleSumPlanTest {
   val PureJvmBasedModes: List[SumMethod] = List(
