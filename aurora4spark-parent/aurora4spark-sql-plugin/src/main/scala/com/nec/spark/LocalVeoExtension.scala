@@ -1,10 +1,9 @@
 package com.nec.spark
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ExecutorDeferredVeArrowNativeInterfaceNumeric
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
-import com.nec.aurora.Aurora
-import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile._
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
@@ -144,12 +143,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
               List(TransferDefinitions.TransferDefinitionsSourceCode, code).mkString("\n\n")
             ).toAbsolutePath.toString
 
-            val currentLib = Aurora.veo_load_library(_veo_proc, soName)
-            new VeArrowNativeInterfaceNumeric(
-              Aurora4SparkExecutorPlugin._veo_proc,
-              Aurora4SparkExecutorPlugin._veo_ctx,
-              currentLib
-            )
+            ExecutorDeferredVeArrowNativeInterfaceNumeric(soName)
           }
         }
       )
