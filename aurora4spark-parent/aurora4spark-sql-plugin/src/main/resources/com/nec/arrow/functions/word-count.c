@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_ids, non_null_int_vector* counted_string_frequencies)
+extern "C" long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_ids, non_null_int_vector* counted_string_frequencies)
 {
     varchar_vector input_strings = strings[0];
 
@@ -54,7 +54,7 @@ long count_strings(varchar_vector* strings, non_null_int_vector* counted_string_
 
 
 /** SUM(a-b), AVG(b) **/
-int sum_avg_subtract(non_null_double_vector* a, non_null_double_vector* b, non_null_double_vector* c, non_null_double_vector* the_sum, non_null_double_vector* the_avg) {
+extern "C" int sum_avg_subtract(non_null_double_vector* a, non_null_double_vector* b, non_null_double_vector* c, non_null_double_vector* the_sum, non_null_double_vector* the_avg) {
     
     the_sum->data = (double*)malloc(1 * sizeof(double));
     the_avg->data = (double*)malloc(1 * sizeof(double));

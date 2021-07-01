@@ -6,6 +6,7 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.spark.planning.simplesum.JoinPlanSpec
+import com.nec.ve.VeKernelCompiler
 
 object BenchTestingPossibilities {
 
@@ -85,6 +86,7 @@ object BenchTestingPossibilities {
         .appName(name.value)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
+        .config(key = VeKernelCompiler.IncludesKey, value = VeKernelCompiler.DefaultIncludes)
         .config(key = "spark.ui.enabled", value = false)
         .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
         .config(

@@ -67,7 +67,8 @@ final class FlexiPassingVESpec extends AnyFreeSpec {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val libPath = VeKernelCompiler("wc", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, FlexiPassingVESpec.Sources)
-        .mkString("\n\n")
+        .mkString("\n\n"),
+      VeKernelCompiler.DefaultIncludesList
     )
 
     val proc = Aurora.veo_proc_create(0)

@@ -28,6 +28,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.freespec.AnyFreeSpec
 import java.nio.file.Paths
+import com.nec.ve.VeKernelCompiler
 
 object JoinPlanSpec {
   object OurSimpleJoin {
@@ -162,21 +163,8 @@ object JoinPlanSpec {
           value = if (requiresVe) classOf[AuroraSqlPlugin].getCanonicalName else ""
         )
         .config(
-          key = "spark.com.nec.spark.ncc.includes",
-          value = {
-            val current = Paths.get(".").toAbsolutePath
-            val rootPath =
-              if (current.toString.contains("fun-bench"))
-                current.getParent
-              else current
-            List(
-              "src/main/resources/com/nec/arrow/functions/cpp",
-              "src/main/resources/com/nec/arrow/functions/cpp/frovedis",
-              "src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
-              "src/main/resources/com/nec/arrow/functions",
-              "src/main/resources/com/nec/arrow/"
-            ).map(sub => rootPath.resolve(sub)).mkString(",")
-          }
+          key = VeKernelCompiler.IncludesKey,
+          value = VeKernelCompiler.DefaultIncludes,
         )
         .config("spark.sql.codegen.comments", value = true)
         .withExtensions(sse =>

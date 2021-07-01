@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_null_double_vector* output)
+extern "C" long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_null_double_vector* output)
 {
     int i;
     int j;

@@ -34,4 +34,8 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     )
     testArgs.asJava
   }
+
+  override def shutdown(): Unit = {
+    Aurora4SparkDriver.launched = false
+  }
 }

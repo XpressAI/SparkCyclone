@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long add1(non_null_double_vector* input, non_null_double_vector* output)
+extern "C" long add1(non_null_double_vector* input, non_null_double_vector* output)
 {
     output->count = input->count;
     output->data = (double*)malloc(output->count * sizeof(double));
@@ -12,7 +12,7 @@ long add1(non_null_double_vector* input, non_null_double_vector* output)
     return 0;
 }
 
-long mul2(non_null_double_vector* input, non_null_double_vector* output)
+extern "C" long mul2(non_null_double_vector* input, non_null_double_vector* output)
 {
     output->count = input->count;
     output->data = (double*)malloc(output->count * sizeof(double));

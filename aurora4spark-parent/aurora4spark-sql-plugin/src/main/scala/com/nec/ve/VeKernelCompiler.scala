@@ -15,6 +15,26 @@ import java.nio.file._
 import org.apache.spark.SparkConf
 
 object VeKernelCompiler {
+
+  val IncludesKey = "spark.com.nec.spark.ncc.includes"
+
+  lazy val DefaultIncludes = DefaultIncludesList.mkString(",")
+
+  lazy val DefaultIncludesList = {
+    val current = Paths.get(".").toAbsolutePath
+    val rootPath =
+      if (current.toString.contains("fun-bench"))
+        current.getParent
+      else current
+    List(
+      "src/main/resources/com/nec/arrow/functions/cpp",
+      "src/main/resources/com/nec/arrow/functions/cpp/frovedis",
+      "src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
+      "src/main/resources/com/nec/arrow/functions",
+      "src/main/resources/com/nec/arrow/"
+    ).map(sub => rootPath.resolve(sub)).map(_.toString)
+  }
+
   import VeCompilerConfig.ExtraArgumentPrefix
   final case class VeCompilerConfig(
     nccPath: String = "ncc",
@@ -90,35 +110,58 @@ final case class VeKernelCompiler(
   config: VeKernelCompiler.VeCompilerConfig = VeCompilerConfig.testConfig
 ) {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
+
+  import scala.sys.process._
+
+  def runHopeOk(process: ProcessBuilder): Unit = {
+    var res = ""
+    var resErr = ""
+    val io = new ProcessIO(
+      stdin => { stdin.close() },
+      stdout => {
+        val src = scala.io.Source.fromInputStream(stdout)
+        try res = src.mkString
+        finally stdout.close()
+      },
+      stderr => {
+        val src = scala.io.Source.fromInputStream(stderr)
+        try resErr = src.mkString
+        finally stderr.close()
+      }
+    )
+    val proc = process.run(io)
+    assert(proc.exitValue() == 0, s"Failed; data was: $res; process was ${process}; $resErr")
+  }
+
   def compile_c(sourceCode: String, includes: List[String] = List.empty): Path = {
     if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
     Files.write(cSource, sourceCode.getBytes())
-    val oFile = buildDir.resolve(s"${compilationPrefix}.o")
-    val soFile = buildDir.resolve(s"${compilationPrefix}.so")
-    import scala.sys.process._
-    import config._
-    val includesArgs = includes.map(i => s"-I${i}")
-    val command: Seq[String] =
-      Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
-        "-xc++",
-        "-c",
-        cSource.toString,
-        "-o",
-        oFile.toString
-      )
-    System.err.println(s"Will execute: ${command.mkString(" ")}")
-    Process(command = command, cwd = buildDir.toFile).!!
+    try {
+      val oFile = buildDir.resolve(s"${compilationPrefix}.o")
+      val soFile = buildDir.resolve(s"${compilationPrefix}.so")
+      import scala.sys.process._
+      import config._
+      val includesArgs = includes.map(i => s"-I${i}")
+      val command: Seq[String] =
+        Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
+          "-xc++",
+          "-c",
+          cSource.toString,
+          "-o",
+          oFile.toString
+        )
+      runHopeOk(Process(command = command, cwd = buildDir.toFile))
 
-    val command2 = Seq(nccPath, "-shared", "-pthread") ++ Seq(
-      "-o",
-      soFile.toString,
-      oFile.toString
-    )
-    System.err.println(s"Will execute: ${command2.mkString(" ")}")
-    Process(command = command2, cwd = buildDir.toFile).!!
+      val command2 =
+        Seq(nccPath, "-shared", "-pthread") ++ Seq("-o", soFile.toString, oFile.toString)
+      runHopeOk(Process(command = command2, cwd = buildDir.toFile))
 
-    soFile
+      soFile
+    } catch {
+      case e: Throwable =>
+        throw new RuntimeException(s"Failed to compile: ${e}; source was ${cSource}", e)
+    }
   }
 }

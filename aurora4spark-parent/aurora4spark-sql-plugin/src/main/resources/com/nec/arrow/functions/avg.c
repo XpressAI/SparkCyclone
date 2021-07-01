@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-long vector_avg(non_null_double_vector* input, non_null_double_vector* output)
+extern "C"  long vector_avg(non_null_double_vector* input, non_null_double_vector* output)
 {
     int i;
     int j;
