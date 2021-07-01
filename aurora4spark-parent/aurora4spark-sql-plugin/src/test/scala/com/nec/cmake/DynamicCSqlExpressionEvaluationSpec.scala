@@ -6,10 +6,10 @@ import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.SanityCheckSize
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CExpressionEvaluation
+import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.planning.CEvaluationPlan
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
-
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
@@ -44,20 +44,21 @@ object DynamicCSqlExpressionEvaluationSpec {
                 case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
                   List(
                     CEvaluationPlan(
+                      resultExpressions,
                       List(
-                        List(
-                          "extern \"C\" long f(non_null_double_vector* input, non_null_double_vector* output) {",
-                          "output->data = (double *)malloc(1 * sizeof(double));"
-                        ),
-                        CExpressionEvaluation.cGen(
-                          resultExpressions.head.asInstanceOf[Alias],
-                          resultExpressions.head
-                            .asInstanceOf[Alias]
-                            .child
-                            .asInstanceOf[AggregateExpression]
-                        ),
+                        CExpressionEvaluation
+                          .cGen(resultExpressions.map { re =>
+                            (
+                              re.asInstanceOf[Alias],
+                              re
+                                .asInstanceOf[Alias]
+                                .child
+                                .asInstanceOf[AggregateExpression]
+                            )
+                          }: _*)
+                          .lines,
                         List("}")
-                      ).flatten,
+                      ).flatten.codeLines,
                       planLater(child),
                       cNativeEvaluator
                     )
@@ -76,21 +77,46 @@ final class DynamicCSqlExpressionEvaluationSpec
   with BeforeAndAfter
   with SparkAdditions {
 
-  "Different expressions can be evaluated" - {
+  "Different single-column expressions can be evaluated" - {
     List(
       "SELECT SUM(value) FROM nums" -> 62.0d,
       "SELECT SUM(value - 1) FROM nums" -> 57.0d,
       /** The below are ignored for now */
-      "SELECT AVG(value) FROM nums" -> 24.8d,
+      "SELECT AVG(value) FROM nums" -> 12.4d,
       "SELECT AVG(2 * value) FROM nums" -> 24.8d,
       "SELECT AVG(2 * value), SUM(value) FROM nums" -> 0.0d,
       "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)" -> 0.0d
-    ).take(2).foreach { case (sql, expectation) =>
+    ).take(4).foreach { case (sql, expectation) =>
       s"${sql}" in withSparkSession2(configuration(sql)) { sparkSession =>
         Source.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
         assert(sparkSession.sql(sql).debugSqlHere.as[Double].collect().toList == List(expectation))
       }
+    }
+  }
+  "Different multi-column expressions can be evaluated" - {
+
+    val sql1 = "SELECT AVG(2 * value), SUM(value) FROM nums"
+
+    s"Multi-column: ${sql1}" in withSparkSession2(configuration(sql1)) { sparkSession =>
+      Source.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+      assert(
+        sparkSession.sql(sql1).debugSqlHere.as[(Double, Double)].collect().toList == List(
+          24.8 -> 62.0
+        )
+      )
+    }
+
+    val sql2 = "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)"
+
+    s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration(sql2)) {
+      sparkSession =>
+        Source.CSV.generate(sparkSession, SanityCheckSize)
+        import sparkSession.implicits._
+        assert(
+          sparkSession.sql(sql2).debugSqlHere.as[(Double, Double, Double)].collect().toList == Nil
+        )
     }
   }
 

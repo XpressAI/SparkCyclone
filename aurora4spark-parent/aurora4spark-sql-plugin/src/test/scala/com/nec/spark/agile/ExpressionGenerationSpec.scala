@@ -2,7 +2,6 @@ package com.nec.spark.agile
 import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.SanityCheckSize
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
-
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.Add
@@ -27,6 +26,18 @@ object ExpressionGenerationSpec {}
 
 final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
   import com.eed3si9n.expecty.Expecty.assert
+  val cHeading =
+    List(
+      "extern \"C\" long f(non_null_double_vector* input, non_null_double_vector* output_0) {",
+      "output_0->data = (double *)malloc(1 * sizeof(double));"
+    )
+
+  val cHeading2 =
+    List(
+      "extern \"C\" long f(non_null_double_vector* input, non_null_double_vector* output_0, non_null_double_vector* output_0) {",
+      "output_0->data = (double *)malloc(1 * sizeof(double));",
+      "output_0->data = (double *)malloc(1 * sizeof(double));"
+    )
   "SUM((value#14 - 1.0)) is evaluated" in {
     val expr = AggregateExpression(
       aggregateFunction = Sum(
@@ -45,18 +56,17 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(
-      cGen(Alias(null, "summy")(), expr) ==
-        List(
-          "double summy_accumulated = 0;",
-          "for (int i = 0; i < input->count; i++) {",
-          "summy_accumulated += input->data[i] - 1.0;",
-          "}",
-          "double summy_result = summy_accumulated;",
-          "output->data[0] = summy_result;",
-          "return 0;"
-        )
-    )
+    assert(cGen(Alias(null, "summy")() -> expr) == {
+      cHeading ++ List(
+        "double summy_accumulated = 0;",
+        "for (int i = 0; i < input->count; i++) {",
+        "summy_accumulated += input->data[i] - 1.0;",
+        "}",
+        "double summy_result = summy_accumulated;",
+        "output_0->data[0] = summy_result;",
+        "return 0;"
+      )
+    }.codeLines)
 
   }
 
@@ -78,8 +88,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(
-      cGen(Alias(null, "avy#123 + 51")(), expr) == List(
+    assert(cGen(Alias(null, "avy#123 + 51")() -> expr) == {
+      cHeading ++ List(
         "double avy12351_accumulated = 0;",
         "int avy12351_counted = 0;",
         "for (int i = 0; i < input->count; i++) {",
@@ -87,10 +97,10 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "avy12351_counted += 1;",
         "}",
         "double avy12351_result = avy12351_accumulated / avy12351_counted;",
-        "output->data[0] = avy12351_result;",
+        "output_0->data[0] = avy12351_result;",
         "return 0;"
       )
-    )
+    }.codeLines)
 
   }
   "AVG((value#14 + 2.0)) is evaluated" in {
@@ -111,21 +121,19 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(
-      cGen(Alias(null, "avy#123 + 2")(), expr) ==
-        List(
-          "double avy1232_accumulated = 0;",
-          "int avy1232_counted = 0;",
-          "for (int i = 0; i < input->count; i++) {",
-          "avy1232_accumulated += input->data[i] + 2.0;",
-          "avy1232_counted += 1;",
-          "}",
-          "double avy1232_result = avy1232_accumulated / avy1232_counted;",
-          "output->data[0] = avy1232_result;",
-          "return 0;"
-        )
-    )
-
+    assert(cGen(Alias(null, "avy#123 + 2")() -> expr) == {
+      cHeading ++ List(
+        "double avy1232_accumulated = 0;",
+        "int avy1232_counted = 0;",
+        "for (int i = 0; i < input->count; i++) {",
+        "avy1232_accumulated += input->data[i] + 2.0;",
+        "avy1232_counted += 1;",
+        "}",
+        "double avy1232_result = avy1232_accumulated / avy1232_counted;",
+        "output_0->data[0] = avy1232_result;",
+        "return 0;"
+      )
+    }.codeLines)
   }
 
   "Different expressions are found" - {
@@ -167,6 +175,63 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     }
   }
 
+  "SUM((value#14 - 1.0)), AVG((value#14 - 1.0)) is evaluated" in {
+    val expr = AggregateExpression(
+      aggregateFunction = Sum(
+        Subtract(
+          AttributeReference(
+            name = "abcd",
+            dataType = DoubleType,
+            nullable = false,
+            metadata = Metadata.empty
+          )(),
+          Literal(1.0, DoubleType)
+        )
+      ),
+      mode = Complete,
+      isDistinct = false,
+      filter = None
+    )
+
+    val expr2 = AggregateExpression(
+      aggregateFunction = Average(
+        Subtract(
+          AttributeReference(
+            name = "abcd",
+            dataType = DoubleType,
+            nullable = false,
+            metadata = Metadata.empty
+          )(),
+          Literal(1.0, DoubleType)
+        )
+      ),
+      mode = Complete,
+      isDistinct = false,
+      filter = None
+    )
+
+    assert(
+      cGen(Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2) ==
+        List(
+          """extern "C" long f(non_null_double_vector* input, non_null_double_vector* output_0, non_null_double_vector* output_1) {""",
+          """output_0->data = (double *)malloc(1 * sizeof(double));""",
+          """double summy_accumulated = 0;""",
+          """output_1->data = (double *)malloc(1 * sizeof(double));""",
+          """double avy12310_accumulated = 0;""",
+          "int avy12310_counted = 0;",
+          "for (int i = 0; i < input->count; i++) {",
+          "summy_accumulated += input->data[i] - 1.0;",
+          "avy12310_accumulated += input->data[i] - 1.0;",
+          "avy12310_counted += 1;",
+          "}",
+          "double summy_result = summy_accumulated;",
+          "output_0->data[0] = summy_result;",
+          "double avy12310_result = avy12310_accumulated / avy12310_counted;",
+          "output_1->data[0] = avy12310_result;",
+          "return 0;"
+        ).codeLines
+    )
+  }
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def debugSqlHere: Dataset[T] = {
       info(dataSet.queryExecution.executedPlan.toString())
