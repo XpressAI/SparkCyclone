@@ -107,10 +107,23 @@ final class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_mci_2 = "SELECT SUM(b - a) FROM nums"
-  "Support multi-column inputs, order reversed" in withSparkSession2(configuration(sql_mci_2)) { sparkSession =>
-    makeCsvNumsMultiColumn(sparkSession)
-    import sparkSession.implicits._
-    assert(sparkSession.sql(sql_mci_2).debugSqlHere.as[Double].collect().toList == List(-42.0))
+  "Support multi-column inputs, order reversed" in withSparkSession2(configuration(sql_mci_2)) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      assert(sparkSession.sql(sql_mci_2).debugSqlHere.as[Double].collect().toList == List(-42.0))
+  }
+
+  val sql_mcio = "SELECT SUM(b-a), SUM(a + b) FROM nums"
+  "Support multi-column inputs and outputs" in withSparkSession2(configuration(sql_mcio)) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      assert(
+        sparkSession.sql(sql_mcio).debugSqlHere.as[(Double, Double)].collect().toList == List(
+          -42.0 -> 82.0
+        )
+      )
   }
 
   "Different multi-column expressions can be evaluated" - {
