@@ -9,7 +9,7 @@ Requirements:
 ## SBT commands
 
 - Unit tests: `~testQuick`
-- Functional tests using CMake: `~ CMake / testQuick`
+- Functional tests using CMake: `~ CMake / testQuick` - for this, on Windows use `choco install --force visualstudio2017buildtools` and then install C++ through the Visual Studio Installer.
 - Functional tests on VE (run on a VH): `~ VectorEngine / testQuick`
 - Functional tests on JVM: `testQuick`
 - Acceptance tests, which also generate `../FEATURES.md`: `AcceptanceTest / test` (or `Acc`)
