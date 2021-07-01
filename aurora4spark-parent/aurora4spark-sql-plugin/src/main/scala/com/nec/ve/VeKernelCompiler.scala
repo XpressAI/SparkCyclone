@@ -86,6 +86,15 @@ object VeKernelCompiler {
       )
   }
 
+  def compile_cpp(
+    buildDir: Path = Paths.get("_ve_build"),
+    config: VeCompilerConfig,
+    code: String
+  ): Path = {
+    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
+      .compile_c(code)
+  }
+
 }
 final case class VeKernelCompiler(
   compilationPrefix: String,
@@ -126,9 +135,7 @@ final case class VeKernelCompiler(
       CppResources.All.all
         .map(_.containingDir(sourcesDir))
         .toList
-        .map(i =>
-          i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length)
-        )
+        .map(i => i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length))
     }
     Files.write(cSource, sourceCode.getBytes())
     try {
