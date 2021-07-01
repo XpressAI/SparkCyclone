@@ -6,6 +6,7 @@ import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.SanityCheckSize
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CExpressionEvaluation
+import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
 import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.cgescape.CodegenEscapeSpec.makeCsvNumsMultiColumn
 import com.nec.spark.planning.CEvaluationPlan
@@ -43,6 +44,7 @@ object DynamicCSqlExpressionEvaluationSpec {
             override def apply(plan: LogicalPlan): Seq[SparkPlan] =
               plan match {
                 case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+                  implicit val nameCleaner: NameCleaner = NameCleaner.verbose
                   List(
                     CEvaluationPlan(
                       resultExpressions,

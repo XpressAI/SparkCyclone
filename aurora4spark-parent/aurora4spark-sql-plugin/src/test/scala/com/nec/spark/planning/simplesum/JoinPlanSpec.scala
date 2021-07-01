@@ -6,9 +6,9 @@ import com.nec.arrow.functions.Join
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.BenchTestingPossibilities.CleanName
-import com.nec.spark.BenchTestingPossibilities.CleanName.RichStringClean
 import com.nec.spark.BenchTestingPossibilities.Testing
+import com.nec.spark.agile.CleanName
+import com.nec.spark.agile.CleanName.RichStringClean
 import com.nec.spark.planning.simplesum.JoinPlanSpec.OurSimpleJoin.JoinMethod
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.RichDataSet
 import org.apache.arrow.memory.RootAllocator
@@ -27,6 +27,7 @@ import org.apache.spark.sql.execution.BinaryExecNode
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.freespec.AnyFreeSpec
+
 import java.nio.file.Paths
 import com.nec.ve.VeKernelCompiler
 

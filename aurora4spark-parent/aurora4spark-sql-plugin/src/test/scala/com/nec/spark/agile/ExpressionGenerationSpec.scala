@@ -26,6 +26,7 @@ object ExpressionGenerationSpec {}
 
 final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
   import com.eed3si9n.expecty.Expecty.assert
+  private implicit val nameCleaner: NameCleaner = NameCleaner.simple
   val cHeading =
     List(
       "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0) {",

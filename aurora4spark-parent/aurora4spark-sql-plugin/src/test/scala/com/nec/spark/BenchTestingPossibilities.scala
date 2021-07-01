@@ -5,24 +5,16 @@ import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
+import com.nec.spark.agile.CleanName
 import com.nec.spark.planning.simplesum.JoinPlanSpec
 import com.nec.ve.VeKernelCompiler
 
 object BenchTestingPossibilities {
 
   /** Compiler-friendly name that we can use as part of class an method names. */
-  final case class CleanName(value: String) {
-    override def toString: String = value
-  }
-  object CleanName {
 
-    implicit class RichStringClean(string: String) {
-      def clean: CleanName = fromString(string)
-    }
-    def fromString(value: String): CleanName = CleanName(value.replaceAll("[^a-zA-Z_0-9]", ""))
-  }
   abstract class Testing {
-    def name: CleanName
+    def name: agile.CleanName
     def verify(sparkSession: SparkSession): Unit
     def benchmark(sparkSession: SparkSession): Unit
     def prepareSession(dataSize: DataSize = DataSize.BenchmarkSize): SparkSession
