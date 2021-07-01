@@ -13,7 +13,7 @@ def basic_df_example(spark):
        .format("csv") \
        .schema(schema) \
        .load("file:///opt/aurora4spark/examples/sampleMultiColumn.csv") \
-       .selectExpr("AVG(_1)", "AVG(_2)", "SUM(_3)")
+       .selectExpr("AVG(_2 - _1)", "SUM(2 + _2)", "SUM(_3)")
 
     newDF.explain()
     newDF.printSchema()

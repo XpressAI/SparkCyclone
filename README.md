@@ -10,28 +10,32 @@ Spark Plugin development documentation: [aurora4spark-parent/README.md](aurora4s
 
 $ /opt/spark/bin/spark-submit \
     --name PairwiseAddExample \
-    --master 'local[4]' \
+    --master yarn \
+    --deploy-mode cluster \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-add-pairwise.py
 
 $ /opt/spark/bin/spark-submit \
     --name AveragingExample \
-    --master 'local[4]' \
+    --master yarn \
+    --deploy-mode cluster \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-avg.py
 
 $ /opt/spark/bin/spark-submit \
     --name SumExample \
-    --master 'local[4]' \
+    --master yarn \
+    --deploy-mode cluster \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-sum.py
 
 $ /opt/spark/bin/spark-submit \
     --name SumMultipleColumnsExample \
-    --master 'local[4]' \
+    --master yarn \
+    --deploy-mode cluster \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-sum-multiple.py
@@ -39,14 +43,16 @@ $ /opt/spark/bin/spark-submit \
 
 $ /opt/spark/bin/spark-submit \
     --name AveragingMultipleColumns5Example \
-    --master 'local[4]' \
+    --master yarn \
+    --deploy-mode cluster \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-avg-multiple.py
 
 $ /opt/spark/bin/spark-submit \
     --name MultipleOperationsExample \
-    --master 'local[4]' \
+    --master yarn \
+    --deploy-mode cluster \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     /opt/aurora4spark/examples/example-multiple-operations.py
