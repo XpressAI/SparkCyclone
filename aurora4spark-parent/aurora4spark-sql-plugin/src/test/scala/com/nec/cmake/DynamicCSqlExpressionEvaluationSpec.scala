@@ -41,8 +41,19 @@ object DynamicCSqlExpressionEvaluationSpec {
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
           new Strategy {
-            override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+            override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
               plan match {
+                case logical.Project(resultExpressions, child) =>
+                  implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+                  List(
+                    CEvaluationPlan(
+                      resultExpressions,
+                      CExpressionEvaluation
+                        .cGenProject(child.output, resultExpressions),
+                      planLater(child),
+                      cNativeEvaluator
+                    )
+                  )
                 case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
                   implicit val nameCleaner: NameCleaner = NameCleaner.verbose
                   List(
@@ -71,6 +82,7 @@ object DynamicCSqlExpressionEvaluationSpec {
                   )
                 case _ => Nil
               }
+            }
           }
         )
       )
@@ -99,6 +111,21 @@ final class DynamicCSqlExpressionEvaluationSpec
         assert(sparkSession.sql(sql).debugSqlHere.as[Double].collect().toList == List(expectation))
       }
     }
+  }
+
+  val sql_pairwise = "SELECT a + b FROM nums"
+  "Support pairwise addition" in withSparkSession2(configuration(sql_pairwise)) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    assert(
+      sparkSession.sql(sql_pairwise).debugSqlHere.as[(Double)].collect().toList == List(
+        3,
+        5,
+        7,
+        9,
+        58
+      )
+    )
   }
 
   val sql_mci = "SELECT SUM(a + b) FROM nums"

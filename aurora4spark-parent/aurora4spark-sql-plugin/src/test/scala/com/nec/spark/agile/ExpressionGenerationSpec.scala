@@ -39,6 +39,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       "output_0->data = (double *)malloc(1 * sizeof(double));",
       "output_0->data = (double *)malloc(1 * sizeof(double));"
     )
+
   "SUM((value#14 - 1.0)) is evaluated" in {
     val ref = AttributeReference(
       name = "value#14",
@@ -249,6 +250,88 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         ).codeLines
     )
   }
+
+  private val ref_value14 =
+    AttributeReference(
+      name = "value#14",
+      dataType = DoubleType,
+      nullable = false,
+      metadata = Metadata.empty
+    )()
+  private val ref_value15 =
+    AttributeReference(
+      name = "value#15",
+      dataType = DoubleType,
+      nullable = false,
+      metadata = Metadata.empty
+    )()
+
+  "Addition projection: value#14 + value#15" in {
+    assert(
+      cGenProject(
+        Seq(ref_value14, ref_value15),
+        Seq(Alias(Add(ref_value14, ref_value15), "oot")())
+      ) == List(
+        """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
+        "{",
+        "output_0->count = input_0->count;",
+        "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
+        "#pragma omp parallel for",
+        "for (int i = 0; i < output_0->count; i++) {",
+        "output_0->data[i] = input_0->data[i] + input_1->data[i];",
+        "}",
+        "return 0;",
+        "}"
+      ).codeLines
+    )
+  }
+
+  "Subtraction projection: value#14 - value#15" in {
+    assert(
+      cGenProject(
+        Seq(ref_value14, ref_value15),
+        Seq(Alias(Subtract(ref_value14, ref_value15), "oot")())
+      ) == List(
+        """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
+        "{",
+        "output_0->count = input_0->count;",
+        "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
+        "#pragma omp parallel for",
+        "for (int i = 0; i < output_0->count; i++) {",
+        "output_0->data[i] = input_0->data[i] - input_1->data[i];",
+        "}",
+        "return 0;",
+        "}"
+      ).codeLines
+    )
+  }
+
+  "Multiple column projection: value#14 + value#15, value#14 - value#15" in {
+    assert(
+      cGenProject(
+        Seq(ref_value14, ref_value15),
+        Seq(
+          Alias(Add(ref_value14, ref_value15), "oot")(),
+          Alias(Subtract(ref_value14, ref_value15), "oot")()
+        )
+      ) == List(
+        """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0, non_null_double_vector* output_1)""",
+        "{",
+        "output_0->count = input_0->count;",
+        "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
+        "output_1->count = input_0->count;",
+        "output_1->data = (double*) malloc(output_1->count * sizeof(double));",
+        "#pragma omp parallel for",
+        "for (int i = 0; i < output_0->count; i++) {",
+        "output_0->data[i] = input_0->data[i] + input_1->data[i];",
+        "output_1->data[i] = input_0->data[i] - input_1->data[i];",
+        "}",
+        "return 0;",
+        "}"
+      ).codeLines
+    )
+  }
+
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def debugSqlHere: Dataset[T] = {
       info(dataSet.queryExecution.executedPlan.toString())
