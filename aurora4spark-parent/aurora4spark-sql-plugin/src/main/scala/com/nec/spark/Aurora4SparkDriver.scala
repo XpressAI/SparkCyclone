@@ -1,8 +1,5 @@
 package com.nec.spark
 
-import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.compile_c
-
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.DriverPlugin
@@ -27,10 +24,10 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     pluginContext.conf().set("spark.sql.extensions", classOf[LocalVeoExtension].getCanonicalName)
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
-      "ve_so_name" -> compile_c(
+      /*  "ve_so_name" -> compile_c(
         buildDir = tmpBuildDir,
         config = VeKernelCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
-      ).toAbsolutePath.toString
+      ).toAbsolutePath.toString*/
     )
     testArgs.asJava
   }
