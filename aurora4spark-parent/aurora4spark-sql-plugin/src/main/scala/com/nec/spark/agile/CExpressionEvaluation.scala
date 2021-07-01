@@ -74,7 +74,8 @@ object CExpressionEvaluation {
       List("for (int i = 0; i < input->count; i++) {"),
       ad.iter,
       List("}"),
-      ad.result
+      ad.result,
+      List("return 0;")
     ).flatten
   }
 }

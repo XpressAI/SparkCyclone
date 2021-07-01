@@ -51,7 +51,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
           "summy_accumulated += input->data[i] - 1.0;",
           "}",
           "double summy_result = summy_accumulated;",
-          "output->data[0] = summy_result;"
+          "output->data[0] = summy_result;",
+          "return 0;"
         )
     )
 
@@ -84,7 +85,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "avy12351_counted += 1;",
         "}",
         "double avy12351_result = avy12351_accumulated / avy12351_counted;",
-        "output->data[0] = avy12351_result;"
+        "output->data[0] = avy12351_result;",
+        "return 0;"
       )
     )
 
@@ -117,7 +119,8 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
           "avy1232_counted += 1;",
           "}",
           "double avy1232_result = avy1232_accumulated / avy1232_counted;",
-          "output->data[0] = avy1232_result;"
+          "output->data[0] = avy1232_result;",
+          "return 0;"
         )
     )
 

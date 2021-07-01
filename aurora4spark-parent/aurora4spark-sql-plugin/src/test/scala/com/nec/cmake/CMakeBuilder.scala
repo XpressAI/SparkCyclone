@@ -51,8 +51,9 @@ object CMakeBuilder {
     }
   }
 
-  def runHopeOk(command: List[String]): Unit = {
+  def runHopeOk(process: ProcessBuilder): Unit = {
     var res = ""
+    var resErr = ""
     val io = new ProcessIO(
       stdin => { stdin.close() },
       stdout => {
@@ -60,10 +61,14 @@ object CMakeBuilder {
         try res = src.mkString
         finally stdout.close()
       },
-      stderr => { stderr.close() }
+      stderr => {
+        val src = scala.io.Source.fromInputStream(stderr)
+        try resErr = src.mkString
+        finally stderr.close()
+      }
     )
-    val proc = command.run(io)
-    assert(proc.exitValue() == 0, s"Failed; data was: $res")
+    val proc = process.run(io)
+    assert(proc.exitValue() == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }
 
   private def buildAndLinkWin(targetPath: Path): Path = {
