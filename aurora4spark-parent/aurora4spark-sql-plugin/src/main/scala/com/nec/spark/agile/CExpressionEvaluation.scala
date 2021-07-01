@@ -12,8 +12,38 @@ import org.apache.spark.sql.catalyst.expressions.Add
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.Multiply
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 
 object CExpressionEvaluation {
+  def cGenProject(inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
+    nameCleaner: NameCleaner
+  ): CodeLines = {
+    val inputBits = inputs.zipWithIndex
+      .map { case (i, idx) =>
+        s"non_null_double_vector* input_${idx}"
+      }
+
+    val outputBits = resultExpressions.zipWithIndex.map { case (i, idx) =>
+      s"non_null_double_vector* output_${idx}"
+    }
+
+    val arguments = inputBits ++ outputBits
+
+    List[List[String]](
+      List(s"""extern "C" long f(${arguments.mkString(", ")})""", "{"),
+      resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
+        List(
+          s"output_${idx}->count = input_0->count;",
+          s"output_${idx}->data = (double*) malloc(output_${idx}->count * sizeof(double));"
+        )
+      }.toList,
+      List("#pragma omp parallel for", "for (int i = 0; i < output_0->count; i++) {"),
+      resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
+        List(s"output_${idx}->data[i] = ${evaluateSub(inputs, re.asInstanceOf[Alias].child)};")
+      }.toList,
+      List("}", "return 0;", "}")
+    ).flatten.codeLines
+  }
 
   final case class AggregateDescription(
     init: List[String],
@@ -101,7 +131,6 @@ object CExpressionEvaluation {
   def cGen(input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
-    // todo a better clean up - this can clash
     val cleanNames = pairs.map(_._1.name).map(nameCleaner.cleanName).toList
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
