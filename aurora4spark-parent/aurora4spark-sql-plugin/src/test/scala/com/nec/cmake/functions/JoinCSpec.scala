@@ -9,28 +9,27 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.arrow.functions.Join._
+import com.nec.cmake.CMakeBuilder
+import com.nec.cmake.functions.JoinCSpec.JoinerSource
+import com.nec.ve.VeKernelCompiler.RootPath
+
+object JoinCSpec {
+  val JoinerSource = new String(
+    Files.readAllBytes(RootPath.resolve("src/main/resources/com/nec/arrow/functions/cpp/joiner.cc"))
+  )
+}
+
 final class JoinCSpec extends AnyFreeSpec {
 
   "Through Arrow, it works" in {
-    val input: Seq[Double] = Seq(500.0, 200.0, 1.0, 280.0, 1000.0)
     val veBuildPath = Paths.get("target", "c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
-    val soPath = veBuildPath.resolve("join.so")
-    val theCommand = List(
-      "g++",
-      "-std=c++11",
-      "-fpic",
-      "-o",
-      soPath.toString,
-      "-I./src/main/resources/com/nec/arrow/functions/cpp",
-      "-shared",
-      "-I./src/main/resources/com/nec/arrow/functions",
-      "-I./src/main/resources/com/nec/arrow/",
-      "./src/main/resources/com/nec/arrow/functions/cpp/joiner.cc"
+
+    val soPath = CMakeBuilder.buildC(
+      List("#include \"transfer-definitions.h\"", JoinerSource)
+        .mkString("\n\n")
     )
 
-    import scala.sys.process._
-    info(theCommand.!!)
     val alloc = new RootAllocator(Integer.MAX_VALUE)
     val outVector = new Float8Vector("value", alloc)
     val firstColumn: Seq[Double] = Seq(5, 1, 2, 34, 6)

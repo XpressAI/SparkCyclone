@@ -6,12 +6,12 @@ import org.apache.commons.io.FileUtils
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
 import scala.sys.process._
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.functions.AddPairwise
 import com.nec.arrow.functions.Avg
 import com.nec.arrow.functions.Sum
+import com.nec.ve.VeKernelCompiler
 
 /**
  * Utilities to build C libraries using CMake
@@ -29,16 +29,29 @@ object CMakeBuilder {
     ).mkString("\n \n")
   )
 
+  lazy val CMakeListsTXT =
+    s"""
+cmake_minimum_required(VERSION 3.6)
+project(HelloWorld LANGUAGES CXX C)
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+add_library(aurora4spark SHARED aurora4spark.cpp)
+${VeKernelCompiler.DefaultIncludesList.map(i => s"include_directories($i)").mkString("\n")}
+"""
+
   def buildC(cSource: String): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     if (Files.exists(targetDir)) {
       FileUtils.deleteDirectory(targetDir.toFile)
     }
     Files.createDirectories(targetDir)
-    val tgtCl = targetDir.resolve(CMakeListsTXT.getFileName)
-    Files.copy(CMakeListsTXT, tgtCl, StandardCopyOption.REPLACE_EXISTING)
+    val tgtCl = targetDir.resolve("CMakeLists.txt")
+    Files.write(tgtCl, CMakeListsTXT.getBytes("UTF-8"))
     Files.write(targetDir.resolve("aurora4spark.cpp"), cSource.getBytes("UTF-8"))
-    buildAndLink(tgtCl)
+    try buildAndLink(tgtCl)
+    catch {
+      case e: Throwable =>
+        throw new RuntimeException(s"Could not build due to $e. CMakeLists: ${CMakeListsTXT}", e)
+    }
   }
 
   private def buildAndLink(targetPath: Path): Path = {

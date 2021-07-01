@@ -1,5 +1,4 @@
 package com.nec.ve
-import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.functions.Avg
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.arrow.functions.Sum
@@ -18,21 +17,29 @@ object VeKernelCompiler {
 
   val IncludesKey = "spark.com.nec.spark.ncc.includes"
 
-  lazy val DefaultIncludes = DefaultIncludesList.mkString(",")
+  lazy val DefaultIncludes = DefaultIncludesList
+    .mkString(",")
+
+  lazy val RootPath = {
+    val current = Paths.get(".").toAbsolutePath
+    if (current.toString.contains("fun-bench"))
+      current.getParent
+    else current
+  }
 
   lazy val DefaultIncludesList = {
-    val current = Paths.get(".").toAbsolutePath
-    val rootPath =
-      if (current.toString.contains("fun-bench"))
-        current.getParent
-      else current
     List(
       "src/main/resources/com/nec/arrow/functions/cpp",
       "src/main/resources/com/nec/arrow/functions/cpp/frovedis",
       "src/main/resources/com/nec/arrow/functions/cpp/frovedis/dataframe",
       "src/main/resources/com/nec/arrow/functions",
       "src/main/resources/com/nec/arrow/"
-    ).map(sub => rootPath.resolve(sub)).map(_.toString)
+    ).map(sub => RootPath.resolve(sub).toUri)
+      .map(
+        _.toString
+          .replaceAllLiterally("file:///C:/", "C:/")
+          .replaceAllLiterally("file://", "")
+      )
   }
 
   import VeCompilerConfig.ExtraArgumentPrefix
