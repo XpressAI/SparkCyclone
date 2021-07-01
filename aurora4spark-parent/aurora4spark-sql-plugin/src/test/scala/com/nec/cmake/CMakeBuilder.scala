@@ -37,7 +37,7 @@ object CMakeBuilder {
     Files.createDirectories(targetDir)
     val tgtCl = targetDir.resolve(CMakeListsTXT.getFileName)
     Files.copy(CMakeListsTXT, tgtCl, StandardCopyOption.REPLACE_EXISTING)
-    Files.write(targetDir.resolve("aurora4spark.c"), cSource.getBytes("UTF-8"))
+    Files.write(targetDir.resolve("aurora4spark.cpp"), cSource.getBytes("UTF-8"))
     buildAndLink(tgtCl)
   }
 
