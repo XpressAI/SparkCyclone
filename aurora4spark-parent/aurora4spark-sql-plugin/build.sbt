@@ -8,37 +8,111 @@ import java.nio.file.Paths
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-val sparkVersion = "3.1.1"
+
 ThisBuild / scalaVersion := "2.12.14"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
-lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
-  .configs(AcceptanceTest)
-  .configs(VectorEngine)
-  .configs(CMake)
-  .enablePlugins(JmhPlugin)
+lazy val scala212 = "2.12.14"
+lazy val scala211 = "2.11.12"
 
+lazy val spark23 = ConfigAxis("Spark2_3", "spark2.3")
+lazy val spark31 = ConfigAxis("Spark3_1", "spark3.1")
+
+val spark3Version = "3.1.1"
 val spark2Version = "2.3.2"
-
-lazy val spark2 = project.settings(
-  scalaVersion := "2.11.12",
-  libraryDependencies ++= Seq(
-    "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
-    "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
-    "org.apache.spark" %% "spark-sql" % spark2Version,
-    "org.apache.spark" %% "spark-catalyst" % spark2Version,
-    "org.apache.spark" %% "spark-core" % spark2Version,
-    "org.apache.spark" %% "spark-catalyst" % spark2Version,
-    "org.scalatest" %% "scalatest" % "3.2.9" % Test,
-    "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test,
-    "com.nec" % "aveo4j" % "0.0.1",
-    "org.bytedeco" % "javacpp" % "1.5.5",
-    "net.java.dev.jna" % "jna-platform" % "5.8.0",
-    "commons-io" % "commons-io" % "2.8.0" % Test,
-    "com.h2database" % "h2" % "1.4.200" % Test
+lazy val plugin = (projectMatrix in file("."))
+  .settings(name := "aurora4spark-sql-plugin")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.nec" % "aveo4j" % "0.0.1",
+      "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
+      "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
+      "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
+      "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
+      "org.bytedeco" % "javacpp" % "1.5.5",
+      "net.java.dev.jna" % "jna-platform" % "5.8.0",
+      "commons-io" % "commons-io" % "2.8.0" % "test",
+      "com.h2database" % "h2" % "1.4.200" % "test,ve",
+      "org.reflections" % "reflections" % "0.9.12",
+      "commons-io" % "commons-io" % "2.10.0"
+    ),
+    VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test",
+    /** Because of VE */
+    VectorEngine / parallelExecution := false,
+    /** Because of Spark */
+    AcceptanceTest / parallelExecution := false,
+    /** Because of Spark */
+    Test / parallelExecution := false,
+    CMake / fork := true,
+    Test / testOptions := Seq(Tests.Filter(otherFilter)),
+    AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter)),
+    VectorEngine / testOptions := Seq(Tests.Filter(veFilter)),
+    CMake / testOptions := Seq(Tests.Filter(cmakeFilter)),
+    AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.acceptance.MarkdownReporter"),
+    AcceptanceTest / testOptions += Tests.Argument("-o"),
+    VectorEngine / fork := true,
+    VectorEngine / run / fork := true,
+    /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
+    VectorEngine / run / javaOptions ++= {
+      // The feature was removed in JDK9, however for Spark we must support JDK8
+      if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
+        List("-agentlib:hprof=cpu=samples")
+      else Nil
+    },
+    Test / testOptions ++= {
+      if ((Test / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
+    },
+    AcceptanceTest / testOptions ++= {
+      if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
+    }
   )
-)
+  .customRow(
+    scalaVersions = Seq(scala212),
+    axisValues = Seq(spark31, VirtualAxis.jvm),
+    _.settings(
+      moduleName := name.value + "_spark3.1",
+      libraryDependencies ++= Seq(
+        "org.apache.spark" %% "spark-sql" % spark3Version,
+        "org.apache.spark" %% "spark-sql" % spark3Version % "test,ve" classifier ("tests"),
+        "org.apache.spark" %% "spark-catalyst" % spark3Version % "test,ve" classifier ("tests"),
+        "org.apache.spark" %% "spark-core" % spark3Version % "test,ve" classifier ("tests"),
+        "org.apache.spark" %% "spark-catalyst" % spark3Version,
+        "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve",
+        "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
+        "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc"
+      ),
+      inConfig(CMake)(Defaults.testTasks),
+      inConfig(Test)(Defaults.testTasks),
+      inConfig(AcceptanceTest)(Defaults.testTasks),
+      inConfig(VectorEngine)(Defaults.testSettings)
+    )
+      .configs(AcceptanceTest)
+      .configs(VectorEngine)
+      .configs(CMake)
+  )
+  .customRow(
+    scalaVersions = Seq(scala211),
+    axisValues = Seq(spark23, VirtualAxis.jvm),
+    _.settings(
+      moduleName := name.value + "_spark2.3",
+      libraryDependencies ++= Seq(
+        "org.apache.spark" %% "spark-sql" % spark2Version,
+        "org.apache.spark" %% "spark-sql" % spark2Version % "test,ve" classifier ("tests"),
+        "org.apache.spark" %% "spark-catalyst" % spark2Version % "test,ve" classifier ("tests"),
+        "org.apache.spark" %% "spark-core" % spark2Version % "test,ve" classifier ("tests")
+      ),
+      inConfig(CMake)(Defaults.testTasks),
+      inConfig(Test)(Defaults.testTasks),
+      inConfig(AcceptanceTest)(Defaults.testTasks),
+      inConfig(VectorEngine)(Defaults.testSettings)
+    )
+      .configs(AcceptanceTest)
+      .configs(VectorEngine)
+      .configs(CMake)
+  )
+
+val spark31Root = plugin.finder(spark31, VirtualAxis.jvm)(scala212)
 
 /**
  * Run with:
@@ -47,7 +121,7 @@ lazy val spark2 = project.settings(
  */
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
-  .dependsOn(root % "compile->test")
+  .dependsOn(spark31Root % "compile->test")
   .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
   .settings(Compile / sourceGenerators += Def.taskDyn {
     val smDir = (Compile / sourceManaged).value
@@ -56,10 +130,10 @@ lazy val `fun-bench` = project
 
     Def.taskDyn {
       // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
-      (root / Test / testQuick).toTask("").value
+      (spark31Root / Test / testQuick).toTask("").value
       Def.taskDyn {
         val genTask =
-          (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+          (spark31Root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
 
         Def.task {
           genTask.value
@@ -69,36 +143,6 @@ lazy val `fun-bench` = project
     }
   })
 
-Jmh / sourceDirectory := (Test / sourceDirectory).value
-Jmh / classDirectory := (Test / classDirectory).value
-Jmh / dependencyClasspath := (Test / dependencyClasspath).value
-Jmh / compile := (Jmh / compile).dependsOn(Test / compile).value
-Jmh / run := (Jmh / run).dependsOn(Jmh / Keys.compile).evaluated
-// for very long classpath
-Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true"
-
-libraryDependencies ++= Seq(
-  "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
-  "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
-  "org.apache.spark" %% "spark-sql" % sparkVersion,
-  "org.apache.spark" %% "spark-sql" % sparkVersion % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-core" % sparkVersion % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion,
-  "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
-  "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
-  "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
-  "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
-  "com.nec" % "aveo4j" % "0.0.1",
-  "org.bytedeco" % "javacpp" % "1.5.5",
-  "net.java.dev.jna" % "jna-platform" % "5.8.0",
-  "commons-io" % "commons-io" % "2.8.0" % "test",
-  "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve",
-  "org.reflections" % "reflections" % "0.9.12",
-  "commons-io" % "commons-io" % "2.10.0"
-)
-
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
   .map(path => new File((path)))
@@ -106,52 +150,20 @@ Test / unmanagedJars ++= sys.env
   .getOrElse(Seq())
   .classpath
 
-/** Because of VE */
-VectorEngine / parallelExecution := false
-
-/** Because of Spark */
-AcceptanceTest / parallelExecution := false
-
-/** Because of Spark */
-Test / parallelExecution := false
-
-inConfig(Test)(Defaults.testTasks)
-
 lazy val AcceptanceTest = config("acc") extend Test
-inConfig(AcceptanceTest)(Defaults.testTasks)
+
 def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
 
 lazy val VectorEngine = config("ve") extend Test
-inConfig(VectorEngine)(Defaults.testSettings)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
-VectorEngine / fork := true
-VectorEngine / run / fork := true
 
-/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
-VectorEngine / run / javaOptions ++= {
-
-  /** The feature was removed in JDK9, however for Spark we must support JDK8 */
-  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
-    List("-agentlib:hprof=cpu=samples")
-  else Nil
-}
-VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 Global / cancelable := true
 
 lazy val CMake = config("cmake") extend Test
-inConfig(CMake)(Defaults.testTasks)
+
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
-CMake / fork := true
 
 def otherFilter(name: String): Boolean = !accFilter(name) && !veFilter(name) && !cmakeFilter(name)
-
-Test / testOptions := Seq(Tests.Filter(otherFilter))
-AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter))
-VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
-CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
-
-AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.acceptance.MarkdownReporter")
-AcceptanceTest / testOptions += Tests.Argument("-o")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -189,17 +201,9 @@ assembly / assemblyMergeStrategy := {
 
 lazy val debugTestPlans = settingKey[Boolean]("Whether to output Spark plans during testing")
 
-debugTestPlans := false
+ThisBuild / debugTestPlans := false
 
 val debugTestPlansArgument = Tests.Argument(TestFrameworks.ScalaTest, "-Ddebug.spark.plans=true")
-
-Test / testOptions ++= {
-  if ((Test / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
-}
-
-AcceptanceTest / testOptions ++= {
-  if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
-}
 
 lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")
 
