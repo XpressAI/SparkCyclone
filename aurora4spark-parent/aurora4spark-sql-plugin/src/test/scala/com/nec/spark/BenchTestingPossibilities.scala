@@ -54,10 +54,6 @@ object BenchTestingPossibilities {
             .master("local[4]")
             .appName(name.value)
             .config(key = "spark.ui.enabled", value = false)
-            .config(
-              key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key,
-              value = false
-            )
             .getOrCreate()
         case TestingTarget.CMake =>
           sys.error("Not supported")
