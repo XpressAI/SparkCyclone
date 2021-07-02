@@ -6,6 +6,17 @@ Requirements:
 - Hadoop
 - JDK 8
 
+## Development for Spark 2.3 / Scala 2.11
+
+Done using SBT's cross-build: https://www.scala-sbt.org/1.x/docs/Cross-Build.html
+
+You can eg create a directory `src/main/scala-2.12` and `src/main/scala-2.11` for compiling those version-specific sources.
+
+As such, any Spark 2.3-specific tests should be done through `src/test/scala-2.11`.
+
+In the shell, switch using `+ 2.11.12`. We tried to use https://github.com/sbt/sbt-projectmatrix - while it worked
+it did not gel so well with IntelliJ.
+
 ## SBT commands
 
 - Unit tests: `~testQuick`
