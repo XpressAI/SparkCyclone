@@ -4,12 +4,6 @@ import java.lang.management.ManagementFactory
 import java.nio.file.Files
 import java.nio.file.Paths
 
-/**
- * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
- * are very slow
- */
-
-ThisBuild / scalaVersion := "2.12.14"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
@@ -21,6 +15,7 @@ lazy val spark31 = ConfigAxis("Spark3_1", "spark3.1")
 
 val spark3Version = "3.1.1"
 val spark2Version = "2.3.2"
+
 lazy val plugin = (projectMatrix in file("."))
   .settings(name := "aurora4spark-sql-plugin")
   .settings(
@@ -71,6 +66,7 @@ lazy val plugin = (projectMatrix in file("."))
     scalaVersions = Seq(scala212),
     axisValues = Seq(spark31, VirtualAxis.jvm),
     _.settings(
+      ideSkipProject := true,
       moduleName := name.value + "_spark3.1",
       libraryDependencies ++= Seq(
         "org.apache.spark" %% "spark-sql" % spark3Version,
@@ -95,6 +91,7 @@ lazy val plugin = (projectMatrix in file("."))
     scalaVersions = Seq(scala211),
     axisValues = Seq(spark23, VirtualAxis.jvm),
     _.settings(
+      ideSkipProject := true,
       moduleName := name.value + "_spark2.3",
       libraryDependencies ++= Seq(
         "org.apache.spark" %% "spark-sql" % spark2Version,
@@ -112,7 +109,9 @@ lazy val plugin = (projectMatrix in file("."))
       .configs(CMake)
   )
 
-val spark31Root = plugin.finder(spark31, VirtualAxis.jvm)(scala212)
+val spark31Root = plugin.finder(spark31, VirtualAxis.jvm)(scala212).settings(ideSkipProject := false)
+
+ideSkipProject := true
 
 /**
  * Run with:
@@ -122,7 +121,10 @@ val spark31Root = plugin.finder(spark31, VirtualAxis.jvm)(scala212)
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
   .dependsOn(spark31Root % "compile->test")
-  .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
+  .settings(
+    Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
+    scalaVersion := (spark31Root / scalaVersion).value
+  )
   .settings(Compile / sourceGenerators += Def.taskDyn {
     val smDir = (Compile / sourceManaged).value
     if (!smDir.exists()) Files.createDirectories(smDir.toPath)

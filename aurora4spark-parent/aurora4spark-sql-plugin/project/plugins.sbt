@@ -3,3 +3,5 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.0.0")
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.0")
 addSbtPlugin("com.eed3si9n" % "sbt-projectmatrix" % "0.8.0")
+addSbtPlugin("org.jetbrains" % "sbt-ide-settings" % "1.0.0")
+
