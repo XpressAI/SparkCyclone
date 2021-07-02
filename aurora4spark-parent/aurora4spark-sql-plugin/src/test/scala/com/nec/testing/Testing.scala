@@ -23,7 +23,7 @@ object Testing {
     def isPlainSpark: Boolean = this == TestingTarget.PlainSpark
     def isVE: Boolean = this == TestingTarget.VectorEngine
     def isRapids: Boolean = this == TestingTarget.Rapids
-    def isC: Boolean = this == TestingTarget.CMake
+    def isCMake: Boolean = this == TestingTarget.CMake
   }
 
   object TestingTarget {
