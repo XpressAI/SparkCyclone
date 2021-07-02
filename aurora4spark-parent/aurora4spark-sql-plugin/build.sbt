@@ -1,7 +1,11 @@
-import sbt.Def.spaceDelimited
+import complete.DefaultParsers._
+
+import scala.sys.process._
+import sbt._
+import sbt.Keys._
+def intellijImportOnly212 = ideSkipProject := (scalaVersion.value != scala212)
 
 import java.lang.management.ManagementFactory
-import java.nio.file.Files
 import java.nio.file.Paths
 
 val orcVversion = "1.5.8"
@@ -10,16 +14,31 @@ val slf4jVersion = "1.7.30"
 lazy val scala212 = "2.12.14"
 lazy val scala211 = "2.11.12"
 
-lazy val spark23 = ConfigAxis("Spark2_3", "spark2.3")
-lazy val spark31 = ConfigAxis("Spark3_1", "spark3.1")
-
 val spark3Version = "3.1.1"
 val spark2Version = "2.3.2"
 
+lazy val sparkVersion = SettingKey[String]("sparkVersion")
+
+ThisBuild / ideSkipProject := (scalaVersion.value != scala212)
+
+val selectScalaVersions = Seq(scala211, scala212)
 lazy val plugin = (projectMatrix in file("."))
   .settings(name := "aurora4spark-sql-plugin")
+  .jvmPlatform(scalaVersions = selectScalaVersions)
   .settings(
+    intellijImportOnly212,
+    sparkVersion := {
+      val sv = scalaVersion.value
+        .contains(scala212)
+
+      if (sv) spark3Version else spark2Version
+    },
     libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value % "test,ve" classifier ("tests"),
+      "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "test,ve" classifier ("tests"),
+      "org.apache.spark" %% "spark-core" % sparkVersion.value % "test,ve" classifier ("tests"),
+      "org.apache.spark" %% "spark-catalyst" % sparkVersion.value,
       "com.nec" % "aveo4j" % "0.0.1",
       "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
       "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
@@ -60,90 +79,46 @@ lazy val plugin = (projectMatrix in file("."))
     },
     AcceptanceTest / testOptions ++= {
       if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
-    }
+    },
+    inConfig(CMake)(Defaults.testTasks),
+    inConfig(Test)(Defaults.testTasks),
+    inConfig(AcceptanceTest)(Defaults.testTasks),
+    inConfig(VectorEngine)(Defaults.testSettings)
   )
-  .customRow(
-    scalaVersions = Seq(scala212),
-    axisValues = Seq(spark31, VirtualAxis.jvm),
-    _.settings(
-      ideSkipProject := true,
-      moduleName := name.value + "_spark3.1",
-      libraryDependencies ++= Seq(
-        "org.apache.spark" %% "spark-sql" % spark3Version,
-        "org.apache.spark" %% "spark-sql" % spark3Version % "test,ve" classifier ("tests"),
-        "org.apache.spark" %% "spark-catalyst" % spark3Version % "test,ve" classifier ("tests"),
-        "org.apache.spark" %% "spark-core" % spark3Version % "test,ve" classifier ("tests"),
-        "org.apache.spark" %% "spark-catalyst" % spark3Version,
-        "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve",
-        "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
-        "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc"
-      ),
-      inConfig(CMake)(Defaults.testTasks),
-      inConfig(Test)(Defaults.testTasks),
-      inConfig(AcceptanceTest)(Defaults.testTasks),
-      inConfig(VectorEngine)(Defaults.testSettings)
-    )
-      .configs(AcceptanceTest)
-      .configs(VectorEngine)
-      .configs(CMake)
-  )
-  .customRow(
-    scalaVersions = Seq(scala211),
-    axisValues = Seq(spark23, VirtualAxis.jvm),
-    _.settings(
-      ideSkipProject := true,
-      moduleName := name.value + "_spark2.3",
-      libraryDependencies ++= Seq(
-        "org.apache.spark" %% "spark-sql" % spark2Version,
-        "org.apache.spark" %% "spark-sql" % spark2Version % "test,ve" classifier ("tests"),
-        "org.apache.spark" %% "spark-catalyst" % spark2Version % "test,ve" classifier ("tests"),
-        "org.apache.spark" %% "spark-core" % spark2Version % "test,ve" classifier ("tests")
-      ),
-      inConfig(CMake)(Defaults.testTasks),
-      inConfig(Test)(Defaults.testTasks),
-      inConfig(AcceptanceTest)(Defaults.testTasks),
-      inConfig(VectorEngine)(Defaults.testSettings)
-    )
-      .configs(AcceptanceTest)
-      .configs(VectorEngine)
-      .configs(CMake)
-  )
-
-val spark31Root = plugin.finder(spark31, VirtualAxis.jvm)(scala212).settings(ideSkipProject := false)
-
-ideSkipProject := true
+  .configs(AcceptanceTest)
+  .configs(VectorEngine)
+  .configs(CMake)
 
 /**
  * Run with:
  *
- * fun-bench / Jmh / run -t1 -f 1 -wi 1 -i 1 .*KeyBenchmark.*
+ * fun-bench / Jmh / run -h
  */
-lazy val `fun-bench` = project
-  .enablePlugins(JmhPlugin)
-  .dependsOn(spark31Root % "compile->test")
-  .settings(
-    Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
-    scalaVersion := (spark31Root / scalaVersion).value
-  )
-  .settings(Compile / sourceGenerators += Def.taskDyn {
-    val smDir = (Compile / sourceManaged).value
-    if (!smDir.exists()) Files.createDirectories(smDir.toPath)
-    val tgt = smDir / "KeyBenchmark.scala"
-
-    Def.taskDyn {
-      // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
-      (spark31Root / Test / testQuick).toTask("").value
-      Def.taskDyn {
-        val genTask =
-          (spark31Root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
-
-        Def.task {
-          genTask.value
-          Seq(tgt)
-        }
-      }
-    }
-  })
+//lazy val `fun-bench` = projectMatrix
+//  .in(file("fun-bench"))
+//  .enablePlugins(JmhPlugin)
+//  .dependsOn(plugin % "compile->test")
+//  .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
+//  .jvmPlatform(scalaVersions = selectScalaVersions)
+//  .settings(Compile / sourceGenerators += Def.taskDyn {
+//    val smDir = (Compile / sourceManaged).value
+//    if (!smDir.exists()) Files.createDirectories(smDir.toPath)
+//    val tgt = smDir / "KeyBenchmark.scala"
+//
+//    Def.taskDyn {
+//      // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
+//      (spark31Root / Test / testQuick).toTask("").value
+//      Def.taskDyn {
+//        val genTask =
+//          (spark31Root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+//
+//        Def.task {
+//          genTask.value
+//          Seq(tgt)
+//        }
+//      }
+//    }
+//  })
 
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
@@ -220,7 +195,6 @@ deploy := {
   val args: Seq[String] = spaceDelimited("<arg>").parsed
   val targetBox = args.headOption.getOrElse(sys.error("Deploy target missing"))
   val logger = streams.value.log
-  import scala.sys.process._
 
   /**
    * Because we use `assembly`, it runs unit tests as well. If you are iterating and want to just
@@ -243,7 +217,6 @@ deployExamples := {
   val args: Seq[String] = spaceDelimited("<arg>").parsed
   val targetBox = args.headOption.getOrElse(sys.error("Deploy target missing"))
   val logger = streams.value.log
-  import scala.sys.process._
 
   logger.info(s"Preparing deployment of examples to ${targetBox}...")
   Seq("ssh", targetBox, "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
