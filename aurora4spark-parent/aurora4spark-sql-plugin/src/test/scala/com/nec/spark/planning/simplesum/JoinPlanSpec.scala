@@ -6,11 +6,10 @@ import com.nec.arrow.functions.Join
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.BenchTestingPossibilities.Testing
-import com.nec.spark.agile.CleanName
-import com.nec.spark.agile.CleanName.RichStringClean
 import com.nec.spark.planning.simplesum.JoinPlanSpec.OurSimpleJoin.JoinMethod
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.RichDataSet
+import com.nec.testing.Testing
+import com.nec.testing.Testing.TestingTarget
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.SparkConf
@@ -27,9 +26,6 @@ import org.apache.spark.sql.execution.BinaryExecNode
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.freespec.AnyFreeSpec
-
-import java.nio.file.Paths
-import com.nec.ve.VeKernelCompiler
 
 object JoinPlanSpec {
   object OurSimpleJoin {
@@ -136,8 +132,7 @@ object JoinPlanSpec {
     override def output: Seq[Attribute] = left.output.takeRight(1) ++ right.output.takeRight(1)
   }
 
-  def testingOur(joinMethod: JoinMethod): Testing = new Testing {
-    override def name: CleanName = s"SimpleJoin_${joinMethod}".clean
+  final case class TestingOUR(joinMethod: JoinMethod) extends Testing {
     override def verify(sparkSession: SparkSession): Unit = {
       import sparkSession.implicits._
       val ds = sparkSession
@@ -161,7 +156,7 @@ object JoinPlanSpec {
         .config(CODEGEN_FALLBACK.key, value = false)
         .config(
           key = "spark.plugins",
-          value = if (requiresVe) classOf[AuroraSqlPlugin].getCanonicalName else ""
+          value = if (testingTarget.isVE) classOf[AuroraSqlPlugin].getCanonicalName else ""
         )
         .config("spark.sql.codegen.comments", value = true)
         .withExtensions(sse =>
@@ -191,17 +186,15 @@ object JoinPlanSpec {
       ss
     }
     override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
-
-    override def requiresVe: Boolean = joinMethod match {
-      case JoinMethod.InJVM                    => false
-      case JoinMethod.ArrowBased.VEBased       => true
-      case JoinMethod.ArrowBased.JvmArrowBased => false
+    override def testingTarget: Testing.TestingTarget = joinMethod match {
+      case JoinMethod.InJVM                    => TestingTarget.PlainSpark
+      case JoinMethod.ArrowBased.VEBased       => TestingTarget.VectorEngine
+      case JoinMethod.ArrowBased.JvmArrowBased => TestingTarget.PlainSpark
     }
 
   }
 
-  val testingSparkJVM: Testing = new Testing {
-    override def name: CleanName = s"SimpleJoin_Spark".clean
+  final case class TestingSimpleJoinSparkJVM() extends Testing {
     override def verify(sparkSession: SparkSession): Unit = {
       import sparkSession.implicits._
       val ds = sparkSession
@@ -238,16 +231,16 @@ object JoinPlanSpec {
       ss
     }
     override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
-    override def requiresVe: Boolean = false
+    override def testingTarget: Testing.TestingTarget = TestingTarget.PlainSpark
   }
   val OurTesting: List[Testing] = List(
-    testingOur(JoinMethod.InJVM),
-    testingOur(JoinMethod.ArrowBased.VEBased),
-    testingOur(JoinMethod.ArrowBased.JvmArrowBased),
-    testingSparkJVM
+    TestingOUR(JoinMethod.InJVM),
+    TestingOUR(JoinMethod.ArrowBased.VEBased),
+    TestingOUR(JoinMethod.ArrowBased.JvmArrowBased),
+    TestingSimpleJoinSparkJVM()
   )
 }
 
 final class JoinPlanSpec extends AnyFreeSpec with BenchTestAdditions {
-  JoinPlanSpec.OurTesting.filterNot(_.requiresVe).foreach(runTestCase)
+  JoinPlanSpec.OurTesting.filter(_.testingTarget.isPlainSpark).foreach(runTestCase)
 }

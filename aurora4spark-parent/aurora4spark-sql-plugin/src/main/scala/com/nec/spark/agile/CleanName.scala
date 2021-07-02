@@ -1,6 +1,7 @@
 package com.nec.spark.agile
 import java.util.regex.Pattern
 
+/** Compiler-friendly name that we can use as part of class an method names. */
 final case class CleanName(value: String) {
   override def toString: String = value
 }

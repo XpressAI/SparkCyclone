@@ -1,44 +1,19 @@
 package com.nec.spark
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.BenchTestingPossibilities.Testing.DataSize
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.spark.agile.CleanName
 import com.nec.spark.planning.simplesum.JoinPlanSpec
-import com.nec.ve.VeKernelCompiler
+import com.nec.testing.Testing
+import com.nec.testing.Testing.DataSize
+import com.nec.testing.Testing.TestingTarget
 
 object BenchTestingPossibilities {
 
-  /** Compiler-friendly name that we can use as part of class an method names. */
-
-  abstract class Testing {
-    def name: agile.CleanName
-    def verify(sparkSession: SparkSession): Unit
-    def benchmark(sparkSession: SparkSession): Unit
-    def prepareSession(dataSize: DataSize = DataSize.BenchmarkSize): SparkSession
-    def cleanUp(sparkSession: SparkSession): Unit
-    def requiresVe: Boolean
-  }
-
-  object Testing {
-
-    /**
-     * We may prepare a session with a small amount of data, but also with a big amount of data
-     *
-     * This enables us to confirm the *correctness* before we proceed with heavy benchmarking.
-     */
-    sealed trait DataSize
-    object DataSize {
-      case object BenchmarkSize extends DataSize
-      case object SanityCheckSize extends DataSize
-    }
-  }
-
   /** You can generate variations of these as well as well, including CSV and so forth */
-  def testSql(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: CleanName = CleanName.fromString(s"${source.title}${sql}")
+  final case class SimpleSql(sql: String, expectedResult: Double, source: Source) extends Testing {
     override def benchmark(sparkSession: SparkSession): Unit = {
       sparkSession.sql(sql).collect()
     }
@@ -55,16 +30,14 @@ object BenchTestingPossibilities {
       sess
     }
 
-    override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
     override def verify(sparkSession: SparkSession): Unit = {
       import sparkSession.implicits._
       assert(sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult))
     }
-    override def requiresVe: Boolean = false
+    override def testingTarget: Testing.TestingTarget = TestingTarget.PlainSpark
   }
 
-  def testSqlVe(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: CleanName = CleanName.fromString(s"Ve${source.title}${sql}")
+  final case class SimpleVE(sql: String, expectedResult: Double, source: Source) extends Testing {
     override def benchmark(sparkSession: SparkSession): Unit = {
       sparkSession.sql(sql).collect()
     }
@@ -100,11 +73,11 @@ object BenchTestingPossibilities {
       import sparkSession.implicits._
       sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
     }
-    override def requiresVe: Boolean = true
+    override def testingTarget: Testing.TestingTarget = TestingTarget.VectorEngine
   }
 
-  def testSqlRapids(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: CleanName = CleanName.fromString(s"Rapids${source.title}${sql}")
+  final case class SimpleSqlRapids(sql: String, expectedResult: Double, source: Source)
+    extends Testing {
     override def benchmark(sparkSession: SparkSession): Unit = {
       val result = sparkSession.sql(sql)
       println(result.queryExecution.executedPlan)
@@ -131,57 +104,57 @@ object BenchTestingPossibilities {
       import sparkSession.implicits._
       sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
     }
-    override def requiresVe: Boolean = true
+    override def testingTarget: Testing.TestingTarget = TestingTarget.Rapids
   }
 
-  def testSqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source): Testing = new Testing {
-    override def name: CleanName = CleanName.fromString(s"VeWholestage${source.title}${sql}")
+  final case class SqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source)
+    extends Testing {
     override def benchmark(sparkSession: SparkSession): Unit = {
       val result = sparkSession.sql(sql)
       println(result.queryExecution.executedPlan)
       result.collect()
     }
 
-      override def prepareSession(dataSize: DataSize): SparkSession = {
-        LocalVeoExtension._enabled = true
-        LocalVeoExtension._useCodegenPlans = true
-        val sess = SparkSession
-          .builder()
-          .master("local[4]")
-          .appName(name.value)
-          .config(key = "spark.ui.enabled", value = false)
-          .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-          .config(key = "spark.ui.enabled", value = false)
-          .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
-          .config(
-            key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key,
-            value = true
-          )
-          .getOrCreate()
+    override def prepareSession(dataSize: DataSize): SparkSession = {
+      LocalVeoExtension._enabled = true
+      LocalVeoExtension._useCodegenPlans = true
+      val sess = SparkSession
+        .builder()
+        .master("local[4]")
+        .appName(name.value)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
+        .config(key = "spark.ui.enabled", value = false)
+        .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
+        .config(
+          key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key,
+          value = true
+        )
+        .getOrCreate()
 
       source.generate(sess, dataSize)
 
-        sess
-      }
-
-      override def cleanUp(sparkSession: SparkSession): Unit = {
-        sparkSession.close()
-        Aurora4SparkExecutorPlugin.closeProcAndCtx()
-      }
-
-      override def verify(sparkSession: SparkSession): Unit = {
-        import sparkSession.implicits._
-        sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
-      }
-      override def requiresVe: Boolean = true
+      sess
     }
+
+    override def cleanUp(sparkSession: SparkSession): Unit = {
+      sparkSession.close()
+      Aurora4SparkExecutorPlugin.closeProcAndCtx()
+    }
+
+    override def verify(sparkSession: SparkSession): Unit = {
+      import sparkSession.implicits._
+      sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
+    }
+    override def testingTarget: Testing.TestingTarget = TestingTarget.VectorEngine
+  }
 
   /** Proof of generating any variation of things */
   val SampleTests: List[Testing] = {
     for {
       num <- 2 to 4
       source <- List(Source.CSV, Source.Parquet)
-    } yield testSql(
+    } yield SimpleSql(
       sql = s"SELECT SUM(value + $num) FROM nums",
       expectedResult = 62 + 5 * num,
       source = source
@@ -192,26 +165,26 @@ object BenchTestingPossibilities {
     ((for {
       num <- 2 to 4
       source <- List(Source.CSV, Source.Parquet)
-    } yield testSql(
+    } yield SimpleSql(
       sql = s"SELECT SUM(value + $num) FROM nums",
       expectedResult = num + 2,
       source = source
     )) ++ (for {
       source <- List(Source.CSV, Source.Parquet)
-    } yield testSqlVe(
+    } yield SimpleVE(
       sql = "SELECT SUM(value) FROM nums",
       expectedResult = 0,
       source = source
     )) ++ (for {
       source <- List(Source.CSV, Source.Parquet)
-    } yield testSqlRapids(
+    } yield SimpleSqlRapids(
       sql = "SELECT SUM(value) FROM nums",
       expectedResult = 0,
       source = source
     )) ++ (
       for {
         source <- List(Source.CSV, Source.Parquet)
-      } yield testSqlVeWholestageCodegen(
+      } yield SqlVeWholestageCodegen(
         sql = "SELECT SUM(value) FROM nums",
         expectedResult = 0,
         source = source
@@ -233,6 +206,6 @@ object BenchTestingPossibilities {
 final class BenchTestingPossibilities extends AnyFreeSpec with BenchTestAdditions {
 
   /** TODO We could also generate Spark plan details from here for easy cross-referencing, as well as codegen */
-  BenchTestingPossibilities.SampleTests.filterNot(_.requiresVe).foreach(runTestCase)
+  BenchTestingPossibilities.SampleTests.filter(_.testingTarget.isPlainSpark).foreach(runTestCase)
 
 }
