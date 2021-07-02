@@ -15,6 +15,8 @@ object CleanName {
     value
       .replaceAll(Pattern.quote("-"), "_minus_")
       .replaceAll(Pattern.quote("+"), "_plus_")
+      .replaceAll("[^a-zA-Z_0-9]", "_")
+      .replaceAll("_+", "_")
       .replaceAll("[^a-zA-Z_0-9]", "")
   )
 }
