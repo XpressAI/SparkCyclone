@@ -32,7 +32,7 @@ class State_${testing.name} {
       s"""
       @Benchmark
       @BenchmarkMode(Array(Mode.SingleShotTime))
-      def Bench_${testing.name}(state: KeyBenchmark.State_${testing.name}): Unit = {
+      def ${testing.name}(state: DynamicBenchmark.State_${testing.name}): Unit = {
         com.nec.spark.BenchTestingPossibilities.possibilities(${idx}).benchmark(state.sparkSession)
       }
       """
@@ -42,16 +42,15 @@ class State_${testing.name} {
   Files.write(
     expectedTarget.toPath,
     s"""
-package com.nec.spark
+package nec
 import org.openjdk.jmh.annotations._
 import org.apache.spark.sql._
 
-
-object KeyBenchmark {
+object DynamicBenchmark {
 ${fixtures.mkString("\n\n")}
 }
 @State(Scope.Benchmark)
-class KeyBenchmark {
+class DynamicBenchmark {
 ${methods.mkString("\n\n")}
 }
   """.getBytes("UTF-8")

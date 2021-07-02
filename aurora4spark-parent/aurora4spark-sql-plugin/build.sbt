@@ -52,7 +52,7 @@ lazy val `fun-bench` = project
     clean.value
     val smDir = (Compile / sourceManaged).value
     if (!smDir.exists()) Files.createDirectories(smDir.toPath)
-    val tgt = smDir / "KeyBenchmark.scala"
+    val tgt = smDir / "DynamicBenchmark.scala"
 
     Def.taskDyn {
       // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!

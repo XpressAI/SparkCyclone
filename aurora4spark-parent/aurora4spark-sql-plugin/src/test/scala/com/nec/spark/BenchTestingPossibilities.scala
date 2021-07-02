@@ -4,7 +4,6 @@ import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.spark.agile.CleanName
 import com.nec.spark.planning.simplesum.JoinPlanSpec
 import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize

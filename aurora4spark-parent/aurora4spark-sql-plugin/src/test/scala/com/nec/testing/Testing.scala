@@ -1,12 +1,13 @@
 package com.nec.testing
 import com.nec.spark.agile
+import com.nec.spark.agile.CleanName
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
 import org.apache.spark.sql.SparkSession
 
 abstract class Testing { this: Product =>
-  final def name: agile.CleanName = agile.CleanName.fromString(
-    this.getClass.getSimpleName + "_" + this.toString + s"_${testingTarget.label}"
+  final def name: CleanName = agile.CleanName.fromString(
+    this.getClass.getSimpleName + "__" + this.toString + s"_${testingTarget.label}"
   )
   def verify(sparkSession: SparkSession): Unit
   def benchmark(sparkSession: SparkSession): Unit
@@ -45,9 +46,15 @@ object Testing {
    *
    * This enables us to confirm the *correctness* before we proceed with heavy benchmarking.
    */
-  sealed trait DataSize
+  sealed trait DataSize {
+    def label: String
+  }
   object DataSize {
-    case object BenchmarkSize extends DataSize
-    case object SanityCheckSize extends DataSize
+    case object BenchmarkSize extends DataSize {
+      override def label: String = "Large"
+    }
+    case object SanityCheckSize extends DataSize {
+      override def label: String = "Small"
+    }
   }
 }
