@@ -39,7 +39,7 @@ object CExpressionEvaluation {
       }.toList,
       List("#pragma omp parallel for", "for (int i = 0; i < output_0->count; i++) {"),
       resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
-        List(s"output_${idx}->data[i] = ${evaluateSub(inputs, re.asInstanceOf[Alias].child)};")
+        List(s"output_${idx}->data[i] = ${evaluateExpression(inputs, re)};")
       }.toList,
       List("}", "return 0;", "}")
     ).flatten.codeLines
@@ -51,6 +51,17 @@ object CExpressionEvaluation {
     result: List[String],
     outputArgument: String
   )
+
+  def evaluateExpression(input: Seq[Attribute], expression: Expression): String = {
+    expression match {
+      case alias @ Alias(expr, name) => evaluateSub(input, alias.child)
+      case NamedExpression(name, DoubleType | IntegerType) => input.indexWhere(_.name == name) match {
+        case -1 =>
+          sys.error(s"Could not find a reference for ${expression} from set of: ${input}")
+        case idx => s"input_${idx}->data[i]"
+      }
+    }
+  }
 
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
