@@ -1,8 +1,7 @@
 package org.apache.spark.sql.util
-
-import org.apache.arrow.memory.RootAllocator
-import org.apache.spark.sql.types.StructType
 import org.apache.arrow.vector.types.pojo.Schema
+import org.apache.spark.sql.types.StructType
+import org.apache.arrow.memory.RootAllocator
 
 object ArrowUtilsExposed {
   def rootAllocator: RootAllocator = ArrowUtils.rootAllocator

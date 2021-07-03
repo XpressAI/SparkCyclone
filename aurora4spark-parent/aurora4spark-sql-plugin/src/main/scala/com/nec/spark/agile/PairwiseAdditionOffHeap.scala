@@ -8,7 +8,6 @@ import com.nec.ve.VeJavaContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import sun.misc.Unsafe
-
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.ve.VeJavaContext
 import org.apache.arrow.vector.Float8Vector
