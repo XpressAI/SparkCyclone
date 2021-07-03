@@ -141,10 +141,11 @@ object CodegenEscapeSpec {
 
   def makeCsvNumsLarge(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
+    val schema = StructType(Array(StructField("a", DoubleType), StructField("b", DoubleType), StructField("c", DoubleType)))
 
     sparkSession.read
       .format("csv")
-      .option("header", "true")
+      .schema(schema)
       .load(LargeCSV.toString)
       .withColumnRenamed("a", "value")
       .createOrReplaceTempView(SharedName)
