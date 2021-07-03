@@ -1,9 +1,8 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.{OutputColumn, OutputColumnAggregated}
+import com.nec.spark.agile.{OutputColumnAggregated, OutputColumn}
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
-
+import org.apache.arrow.vector.{VectorSchemaRoot, Float8Vector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}

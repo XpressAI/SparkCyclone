@@ -8,7 +8,6 @@ import java.nio.file.Paths
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-val sparkVersion = "3.1.1"
 ThisBuild / scalaVersion := "2.12.14"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
@@ -19,31 +18,10 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(CMake)
   .enablePlugins(JmhPlugin)
 
-val spark2Version = "2.3.2"
-
-lazy val spark2 = project.settings(
-  scalaVersion := "2.11.12",
-  libraryDependencies ++= Seq(
-    "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
-    "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
-    "org.apache.spark" %% "spark-sql" % spark2Version,
-    "org.apache.spark" %% "spark-catalyst" % spark2Version,
-    "org.apache.spark" %% "spark-core" % spark2Version,
-    "org.apache.spark" %% "spark-catalyst" % spark2Version,
-    "org.scalatest" %% "scalatest" % "3.2.9" % Test,
-    "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test,
-    "com.nec" % "aveo4j" % "0.0.1",
-    "org.bytedeco" % "javacpp" % "1.5.5",
-    "net.java.dev.jna" % "jna-platform" % "5.8.0",
-    "commons-io" % "commons-io" % "2.8.0" % Test,
-    "com.h2database" % "h2" % "1.4.200" % Test
-  )
-)
-
 /**
  * Run with:
  *
- * fun-bench / Jmh / run -t1 -f 1 -wi 1 -i 1 .*KeyBenchmark.*
+ * fun-bench / Jmh / run -h
  */
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
@@ -77,27 +55,41 @@ Jmh / run := (Jmh / run).dependsOn(Jmh / Keys.compile).evaluated
 // for very long classpath
 Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true"
 
+crossScalaVersions := Seq("2.12.14", "2.11.12")
+
+val sparkVersion = SettingKey[String]("sparkVersion")
+
+ThisBuild / sparkVersion := {
+  val scalaV = scalaVersion.value
+  if (scalaV.startsWith("2.12")) "3.1.1" else "2.3.2"
+}
+
 libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
-  "org.apache.spark" %% "spark-sql" % sparkVersion,
-  "org.apache.spark" %% "spark-sql" % sparkVersion % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-core" % sparkVersion % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion,
+  "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+  "org.apache.spark" %% "spark-sql" % sparkVersion.value % "test,ve" classifier ("tests"),
+  "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "test,ve" classifier ("tests"),
+  "org.apache.spark" %% "spark-core" % sparkVersion.value % "test,ve" classifier ("tests"),
+  "org.apache.spark" %% "spark-catalyst" % sparkVersion.value,
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
-  "frovedis" %% "frovedis-client" % "0.1.0-SNAPSHOT" % "test,acc",
-  "frovedis" %% "frovedis-client-test" % "0.1.0-SNAPSHOT" % "test,acc",
   "com.nec" % "aveo4j" % "0.0.1",
   "org.bytedeco" % "javacpp" % "1.5.5",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve",
   "org.reflections" % "reflections" % "0.9.12",
   "commons-io" % "commons-io" % "2.10.0"
 )
+
+libraryDependencies ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, n)) if n > 11 =>
+      List("com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve")
+    case _ => Nil
+  }
+}
 
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
