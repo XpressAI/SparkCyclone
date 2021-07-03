@@ -43,10 +43,6 @@ object BenchTestingPossibilities {
             .config(key = "spark.ui.enabled", value = false)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
             .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
-            .config(
-              key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key,
-              value = false
-            )
             .getOrCreate()
         case TestingTarget.PlainSpark =>
           SparkSession
@@ -71,48 +67,6 @@ object BenchTestingPossibilities {
     }
   }
 
-  final case class SqlVeWholestageCodegen(sql: String, expectedResult: Double, source: Source)
-    extends Testing {
-    override def benchmark(sparkSession: SparkSession): Unit = {
-      val result = sparkSession.sql(sql)
-      println(result.queryExecution.executedPlan)
-      result.collect()
-    }
-
-    override def prepareSession(dataSize: DataSize): SparkSession = {
-      LocalVeoExtension._enabled = true
-      LocalVeoExtension._useCodegenPlans = true
-      val sess = SparkSession
-        .builder()
-        .master("local[4]")
-        .appName(name.value)
-        .config(key = "spark.ui.enabled", value = false)
-        .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-        .config(key = "spark.ui.enabled", value = false)
-        .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
-        .config(
-          key = org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key,
-          value = true
-        )
-        .getOrCreate()
-
-      source.generate(sess, dataSize)
-
-      sess
-    }
-
-    override def cleanUp(sparkSession: SparkSession): Unit = {
-      sparkSession.close()
-      Aurora4SparkExecutorPlugin.closeProcAndCtx()
-    }
-
-    override def verify(sparkSession: SparkSession): Unit = {
-      import sparkSession.implicits._
-      sparkSession.sql(sql).as[Double].collect().toList == List(expectedResult)
-    }
-    override def testingTarget: Testing.TestingTarget = TestingTarget.VectorEngine
-  }
-
   val possibilities: List[Testing] =
     List(
       for {
@@ -127,13 +81,6 @@ object BenchTestingPossibilities {
         expectedResult = 123,
         source = source,
         testingTarget = testingTarget
-      ),
-      for {
-        source <- List(Source.CSV, Source.Parquet)
-      } yield SqlVeWholestageCodegen(
-        sql = "SELECT SUM(value) FROM nums",
-        expectedResult = 0,
-        source = source
       ),
       JoinPlanSpec.OurTesting
     ).flatten

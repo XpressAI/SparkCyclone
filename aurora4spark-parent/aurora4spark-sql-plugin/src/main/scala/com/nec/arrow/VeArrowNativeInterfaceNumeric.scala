@@ -104,33 +104,34 @@ object VeArrowNativeInterfaceNumeric {
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
-
+    assert(lib > 0, s"Expected lib to be >0, was ${lib}")
     val our_args = Aurora.veo_args_alloc()
     try {
       inputArguments.zipWithIndex
         .collect { case (Some(doubleVector), idx) =>
           doubleVector -> idx
         }
-        .foreach { case (Float8VectorWrapper(doubleVector), index) =>
-          val double_vector_raw = make_veo_double_vector(proc, doubleVector)
+        .foreach {
+          case (Float8VectorWrapper(doubleVector), index) =>
+            val double_vector_raw = make_veo_double_vector(proc, doubleVector)
 
-          Aurora.veo_args_set_stack(
-            our_args,
-            0,
-            index,
-            nonNullDoubleVectorToByteBuffer(double_vector_raw),
-            12L
-          )
-           case (IntVectorWrapper(intVector), index) =>
-          val int_vector_raw = make_veo_int2_vector(proc, intVector)
+            Aurora.veo_args_set_stack(
+              our_args,
+              0,
+              index,
+              nonNullDoubleVectorToByteBuffer(double_vector_raw),
+              12L
+            )
+          case (IntVectorWrapper(intVector), index) =>
+            val int_vector_raw = make_veo_int2_vector(proc, intVector)
 
-          Aurora.veo_args_set_stack(
-            our_args,
-            0,
-            index,
-            nonNullInt2VectorToByteBuffer(int_vector_raw),
-            12L
-          )
+            Aurora.veo_args_set_stack(
+              our_args,
+              0,
+              index,
+              nonNullInt2VectorToByteBuffer(int_vector_raw),
+              12L
+            )
         }
 
       val outputArgumentsVectorsDouble: List[(Float8Vector, Int)] = outputArguments.zipWithIndex
@@ -138,10 +139,10 @@ object VeArrowNativeInterfaceNumeric {
           doubleVector -> index
         }
 
-      val outputArgumentsStructs: List[(non_null_double_vector, Int)] = outputArgumentsVectorsDouble.map {
-        case (doubleVector, index) =>
+      val outputArgumentsStructs: List[(non_null_double_vector, Int)] =
+        outputArgumentsVectorsDouble.map { case (doubleVector, index) =>
           new non_null_double_vector(doubleVector.getValueCount) -> index
-      }
+        }
 
       val outputArgumentsByteBuffers: List[(ByteBuffer, Int)] = outputArgumentsStructs.map {
         case (struct, index) =>
@@ -155,14 +156,19 @@ object VeArrowNativeInterfaceNumeric {
       val req_id = Aurora.veo_call_async_by_name(ctx, lib, functionName, our_args)
       val fnCallResult = new LongPointer(8)
       val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
-      require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
+      require(
+        callRes == 0,
+        s"Expected 0, got $callRes; means VE call failed for function ${functionName}; inputs: ${inputArguments}; outputs: ${outputArguments}"
+      )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      (outputArgumentsVectorsDouble.zip(outputArgumentsStructs).zip(outputArgumentsByteBuffers)).foreach {
-        case (((floatVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
+      (outputArgumentsVectorsDouble
+        .zip(outputArgumentsStructs)
+        .zip(outputArgumentsByteBuffers))
+        .foreach { case (((floatVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
           veo_read_non_null_double_vector(proc, non_null_int_vector, byteBuffer)
           non_null_double_vector_to_float8Vector(non_null_int_vector, floatVector)
-      }
+        }
     } finally Aurora.veo_args_free(our_args)
   }
 

@@ -38,8 +38,11 @@ object CExpressionEvaluation {
         )
       }.toList,
       List("#pragma omp parallel for", "for (int i = 0; i < output_0->count; i++) {"),
-      resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
-        List(s"output_${idx}->data[i] = ${evaluateSub(inputs, re.asInstanceOf[Alias].child)};")
+      resultExpressions.zipWithIndex.flatMap {
+        case (re: Alias, idx) =>
+          List(s"output_${idx}->data[i] = ${evaluateSub(inputs, re.child)};")
+        case (other, idx) =>
+          sys.error(s"Got ${other}, expected an Alias, at index ${idx}.")
       }.toList,
       List("}", "return 0;", "}")
     ).flatten.codeLines

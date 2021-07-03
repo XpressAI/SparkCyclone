@@ -133,12 +133,14 @@ object JoinPlanSpec {
   }
 
   final case class TestingOUR(joinMethod: JoinMethod) extends Testing {
+    import com.nec.spark.planning.VERewriteStrategy
     override def verify(sparkSession: SparkSession): Unit = {
       import sparkSession.implicits._
       val ds = sparkSession
         .sql("SELECT a.value, b.value FROM a INNER JOIN b ON a.key = b.key")
         .debugSqlHere
         .as[(Double, Double)]
+
       val result = ds.collect().toList
       assert(result.sortBy(_._1) == List((1.0, 2.0), (2.0, 3.0)))
     }
@@ -150,6 +152,7 @@ object JoinPlanSpec {
       conf.setMaster("local")
       conf.setAppName("local-test")
       conf.set("spark.ui.enabled", "false")
+      VERewriteStrategy._enabled = false
       val ss = SparkSession
         .builder()
         .config(conf)
@@ -162,13 +165,15 @@ object JoinPlanSpec {
         .withExtensions(sse =>
           sse.injectPlannerStrategy(sparkSession =>
             new Strategy {
-              override def apply(plan: LogicalPlan): Seq[SparkPlan] =
+              override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+                println(s"This is the injector for ==> ${plan}")
                 plan match {
                   case logical.Join(left, right, joinType, condition, hint) =>
                     require(joinType == Inner)
                     List(OurSimpleJoin(planLater(left), planLater(right), joinMethod))
                   case _ => Nil
                 }
+              }
             }
           )
         )
@@ -185,7 +190,10 @@ object JoinPlanSpec {
         .createOrReplaceTempView("b")
       ss
     }
-    override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
+    override def cleanUp(sparkSession: SparkSession): Unit = {
+      sparkSession.close()
+      VERewriteStrategy._enabled = true
+    }
     override def testingTarget: Testing.TestingTarget = joinMethod match {
       case JoinMethod.InJVM                    => TestingTarget.PlainSpark
       case JoinMethod.ArrowBased.VEBased       => TestingTarget.VectorEngine

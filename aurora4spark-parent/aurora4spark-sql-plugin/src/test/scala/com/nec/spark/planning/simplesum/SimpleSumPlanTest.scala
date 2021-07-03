@@ -83,7 +83,7 @@ object SimpleSumPlanTest {
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def debugSqlHere: Dataset[T] = {
-      System.err.println(dataSet.queryExecution.executedPlan.toString())
+      System.out.println(dataSet.queryExecution.executedPlan.toString())
       dataSet
     }
   }
