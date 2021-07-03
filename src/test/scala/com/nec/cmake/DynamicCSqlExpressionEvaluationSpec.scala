@@ -52,8 +52,8 @@ final class DynamicCSqlExpressionEvaluationSpec
       "SELECT AVG(2 * value) FROM nums" -> 24.8d,
       "SELECT AVG(2 * value), SUM(value) FROM nums" -> 0.0d,
       "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)" -> 0.0d
-    ).take(4).foreach { case (sql, expectation) =>
-      s"${sql}" in withSparkSession2(configuration) { sparkSession =>
+    ).zipWithIndex.take(4).foreach { case ((sql, expectation), idx) =>
+      s"(n${idx}) ${sql}" in withSparkSession2(configuration) { sparkSession =>
         Source.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
         assert(sparkSession.sql(sql).debugSqlHere.as[Double].collect().toList == List(expectation))
