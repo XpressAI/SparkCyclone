@@ -27,8 +27,11 @@ lazy val `fun-bench` = project
   .dependsOn(root % "compile->test")
   .settings(
     name := "funbench",
+    Jmh / run := {
+      (Test / test).value
+      (Jmh / run).evaluated
+    },
     Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
-    // Jmh / run := (Jmh / run).dependsOn(Test / test),
     Test / test :=
       Def.taskDyn {
         val basicTests =

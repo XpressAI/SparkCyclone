@@ -48,57 +48,61 @@ final case class CEvaluationPlan(
     child
       .execute()
       .mapPartitions { rows =>
-        Iterator.continually {
-          val timeZoneId = conf.sessionLocalTimeZone
-          val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-            s"writer for word count",
-            0,
-            Long.MaxValue
-          )
-          val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-          val root = VectorSchemaRoot.create(arrowSchema, allocator)
-          val arrowWriter = ArrowWriter.create(root)
-          rows.foreach(row => arrowWriter.write(row))
-          arrowWriter.finish()
+        Iterator
+          .continually {
+            val timeZoneId = conf.sessionLocalTimeZone
+            val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+              s"writer for word count",
+              0,
+              Long.MaxValue
+            )
+            val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+            val root = VectorSchemaRoot.create(arrowSchema, allocator)
+            val arrowWriter = ArrowWriter.create(root)
+            rows.foreach(row => arrowWriter.write(row))
+            arrowWriter.finish()
 
-          val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
-            root.getVector(idx).asInstanceOf[Float8Vector]
-          }
-          arrowWriter.finish()
+            val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
+              root.getVector(idx).asInstanceOf[Float8Vector]
+            }
+            arrowWriter.finish()
 
-          val outputVectors = resultExpressions
-            .flatMap(_.asInstanceOf[Alias].child match {
-              case ae: AggregateExpression =>
-                ae.aggregateFunction.aggBufferAttributes
-              case other => List(other)
-            })
-            .zipWithIndex
-            .map { case (ne, idx) =>
-              val outputVector = new Float8Vector(s"out_${idx}", allocator)
-              outputVector.allocateNew(1)
-              outputVector.setValueCount(1)
-              outputVector
+            val outputVectors = resultExpressions
+              .flatMap(_.asInstanceOf[Alias].child match {
+                case ae: AggregateExpression =>
+                  ae.aggregateFunction.aggBufferAttributes
+                case other => List(other)
+              })
+              .zipWithIndex
+              .map { case (ne, idx) =>
+                val outputVector = new Float8Vector(s"out_${idx}", allocator)
+                outputVector.allocateNew(1)
+                outputVector.setValueCount(1)
+                outputVector
+              }
+
+            evaluator.callFunction(
+              name = "f",
+              inputArguments = inputVectors.toList.map(iv =>
+                Some(Float8VectorWrapper(iv))
+              ) ++ outputVectors.map(_ => None),
+              outputArguments =
+                inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
+            )
+
+            (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
+              val writer = new UnsafeRowWriter(outputVectors.size)
+              writer.reset()
+              outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                val doubleV = v.getValueAsDouble(v_idx)
+                writer.write(c_idx, doubleV)
+              }
+              writer.getRow
             }
 
-          evaluator.callFunction(
-            name = "f",
-            inputArguments = inputVectors.toList.map(iv =>
-              Some(Float8VectorWrapper(iv))
-            ) ++ outputVectors.map(_ => None),
-            outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
-          )
-
-          (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
-            val writer = new UnsafeRowWriter(outputVectors.size)
-            writer.reset()
-            outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-              val doubleV = v.getValueAsDouble(v_idx)
-              writer.write(c_idx, doubleV)
-            }
-            writer.getRow
           }
-
-        }.take(1).flatten
+          .take(1)
+          .flatten
       }
       .coalesce(numPartitions = 1, shuffle = true)
       .mapPartitions { unsafeRows =>
@@ -110,7 +114,6 @@ final case class CEvaluationPlan(
             )
 
             if (isAggregation) {
-
               val startingIndices = resultExpressions.view
                 .flatMap {
                   case ne @ Alias(
