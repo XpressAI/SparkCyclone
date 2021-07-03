@@ -28,6 +28,12 @@ typedef struct
     long count;
 } non_null_double_vector;
 
+typedef struct
+{
+    char *data;
+    int length;
+} non_null_c_bounded_string;
+
 #define VE_TD_DEFS 1
 #endif
 

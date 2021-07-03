@@ -4,8 +4,6 @@ import com.sun.jna.Library;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
-import java.nio.ByteBuffer;
-
 public interface ArrowTransferStructures extends Library {
     @Structure.FieldOrder({"data", "offsets", "count"})
     class varchar_vector extends Structure {
@@ -21,9 +19,14 @@ public interface ArrowTransferStructures extends Library {
             super(p);
             read();
         }
+
         public static class ByReference extends varchar_vector implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
         }
     }
 
@@ -41,9 +44,14 @@ public interface ArrowTransferStructures extends Library {
             super(p);
             read();
         }
+
         public static class ByReference extends varchar_vector_raw implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
         }
     }
 
@@ -60,11 +68,17 @@ public interface ArrowTransferStructures extends Library {
             super(p);
             read();
         }
+
         public static class ByReference extends non_null_int_vector implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
         }
     }
+
     @Structure.FieldOrder({"data", "count"})
     class non_null_int2_vector extends Structure {
         public long data;
@@ -78,9 +92,14 @@ public interface ArrowTransferStructures extends Library {
             super(p);
             read();
         }
+
         public static class ByReference extends non_null_int2_vector implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
         }
     }
 
@@ -106,9 +125,38 @@ public interface ArrowTransferStructures extends Library {
             super(p);
             read();
         }
+
         public static class ByReference extends non_null_double_vector implements Structure.ByReference {
-            public ByReference() { }
-            public ByReference(Pointer p) { super(p); }
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
+        }
+    }
+
+    @Structure.FieldOrder({"data", "length"})
+    class non_null_c_bounded_string extends Structure {
+        public long data;
+        public Integer length;
+
+        public non_null_c_bounded_string() {
+            super();
+        }
+
+        public non_null_c_bounded_string(Pointer p) {
+            super(p);
+            read();
+        }
+
+        public static class ByReference extends non_null_c_bounded_string implements Structure.ByReference {
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
         }
     }
 }

@@ -11,6 +11,8 @@ import sun.nio.ch.DirectBuffer
 import org.apache.arrow.vector.IntVector
 import com.nec.arrow.ArrowTransferStructures._
 
+import java.nio.ByteBuffer
+
 object ArrowInterfaces {
 
   def non_null_int_vector_to_IntVector(input: non_null_int_vector, output: IntVector): Unit = {
@@ -34,6 +36,17 @@ object ArrowInterfaces {
     vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
 
     vc.count = float8Vector.getValueCount
+    vc
+  }
+
+  def c_bounded_string(string: String): non_null_c_bounded_string = {
+    val vc = new non_null_c_bounded_string()
+    vc.data = ByteBuffer
+      .allocateDirect(string.length)
+      .put(string.getBytes())
+      .asInstanceOf[DirectBuffer]
+      .address()
+    vc.length = string.length
     vc
   }
 

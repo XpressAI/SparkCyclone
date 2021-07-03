@@ -34,8 +34,8 @@ trait ArrowNativeInterfaceNumeric extends Serializable {
 object ArrowNativeInterfaceNumeric {
   sealed trait SupportedVectorWrapper {}
   object SupportedVectorWrapper {
+    final case class StringWrapper(string: String) extends SupportedVectorWrapper
     final case class Float8VectorWrapper(float8Vector: Float8Vector) extends SupportedVectorWrapper
     final case class IntVectorWrapper(intVector: IntVector) extends SupportedVectorWrapper
-
   }
 }

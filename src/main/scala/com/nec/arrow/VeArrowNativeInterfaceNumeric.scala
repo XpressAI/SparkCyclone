@@ -1,15 +1,14 @@
 package com.nec.arrow
 
 import java.nio.ByteBuffer
-import ArrowNativeInterfaceNumeric._
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.aurora.Aurora
 import com.nec.arrow.ArrowInterfaces._
-import com.nec.spark.Aurora4SparkExecutorPlugin
 import org.apache.arrow.vector._
 import org.bytedeco.javacpp.LongPointer
-import ArrowNativeInterfaceNumeric._
-import SupportedVectorWrapper._
+import com.nec.arrow.ArrowNativeInterfaceNumeric._
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
+import sun.nio.ch.DirectBuffer
 
 final class VeArrowNativeInterfaceNumeric(
   proc: Aurora.veo_proc_handle,
@@ -40,6 +39,20 @@ object VeArrowNativeInterfaceNumeric {
     vcvr.count = float8Vector.getValueCount
     vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
     vcvr
+  }
+
+  private def make_veo_string(
+    proc: Aurora.veo_proc_handle,
+    string: String
+  ): non_null_c_bounded_string = {
+    val vc = new non_null_c_bounded_string()
+    val theBuf = ByteBuffer
+      .allocateDirect(string.length)
+      .put(string.getBytes())
+    theBuf.position(0)
+    vc.length = string.length
+    vc.data = copyBufferToVe(proc, theBuf)
+    vc
   }
 
   private def make_veo_int2_vector(
@@ -82,6 +95,13 @@ object VeArrowNativeInterfaceNumeric {
     veInputPointer.get()
   }
 
+  def stringToByteBuffer(str_buf: non_null_c_bounded_string): ByteBuffer = {
+    val v_bb = str_buf.getPointer.getByteBuffer(0, 12)
+    v_bb.putLong(0, str_buf.data)
+    v_bb.putInt(8, str_buf.length)
+    v_bb
+  }
+
   def nonNullDoubleVectorToByteBuffer(double_vector: non_null_double_vector): ByteBuffer = {
     val v_bb = double_vector.getPointer.getByteBuffer(0, 12)
     v_bb.putLong(0, double_vector.data)
@@ -112,6 +132,10 @@ object VeArrowNativeInterfaceNumeric {
           doubleVector -> idx
         }
         .foreach {
+          case (StringWrapper(stringValue), index) =>
+            val wr = make_veo_string(proc, stringValue)
+
+            Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L)
           case (Float8VectorWrapper(doubleVector), index) =>
             val double_vector_raw = make_veo_double_vector(proc, doubleVector)
 
