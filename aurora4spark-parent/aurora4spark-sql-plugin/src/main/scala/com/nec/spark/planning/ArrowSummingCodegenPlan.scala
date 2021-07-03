@@ -5,9 +5,8 @@ import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.ArrowUnsafeSummer
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.pojo.Schema
-
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{BlockingOperatorWithCodegen, SparkPlan}
+import org.apache.spark.sql.execution.{SparkPlan, BlockingOperatorWithCodegen}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 object ArrowSummingCodegenPlan {}

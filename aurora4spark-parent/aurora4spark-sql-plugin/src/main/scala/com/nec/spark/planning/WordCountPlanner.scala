@@ -14,10 +14,10 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.unsafe.types.UTF8String
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.planning.WordCountPlanner.WordCounter
+import org.apache.spark.sql.util.ArrowUtilsExposed
 
 object WordCountPlanner {
   def transformPlan(sparkPlan: SparkPlan): Option[WordCounter => SparkPlan] =
