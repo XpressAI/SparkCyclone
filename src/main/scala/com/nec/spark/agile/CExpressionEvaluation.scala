@@ -49,17 +49,18 @@ object CExpressionEvaluation {
     init: List[String],
     iter: List[String],
     result: List[String],
-    outputArgument: String
+    outputArguments: List[String]
   )
 
   def evaluateExpression(input: Seq[Attribute], expression: Expression): String = {
     expression match {
       case alias @ Alias(expr, name) => evaluateSub(input, alias.child)
-      case NamedExpression(name, DoubleType | IntegerType) => input.indexWhere(_.name == name) match {
-        case -1 =>
-          sys.error(s"Could not find a reference for ${expression} from set of: ${input}")
-        case idx => s"input_${idx}->data[i]"
-      }
+      case NamedExpression(name, DoubleType | IntegerType) =>
+        input.indexWhere(_.name == name) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${input}")
+          case idx => s"input_${idx}->data[i]"
+        }
     }
   }
 
@@ -93,20 +94,22 @@ object CExpressionEvaluation {
       case Sum(sub) =>
         AggregateDescription(
           init = List(
-            s"output_${idx}->data = (double *)malloc(1 * sizeof(double));",
+            s"output_${idx}_sum->data = (double *)malloc(1 * sizeof(double));",
             s"double ${cleanName}_accumulated = 0;"
           ),
           iter = List(s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"),
           result = List(
-            s"double ${cleanName}_result = ${cleanName}_accumulated;",
-            s"output_${idx}->data[0] = ${cleanName}_result;"
+            s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;"
           ),
-          outputArgument = s"non_null_double_vector* output_${idx}"
+          outputArguments = List(s"non_null_double_vector* output_${idx}_sum")
         )
       case Average(sub) =>
+        val outputSum = s"output_${idx}_average_sum"
+        val outputCount = s"output_${idx}_average_count"
         AggregateDescription(
           init = List(
-            s"output_${idx}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputSum}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputCount}->data = (double *)malloc(1 * sizeof(double));",
             s"double ${cleanName}_accumulated = 0;",
             s"int ${cleanName}_counted = 0;"
           ),
@@ -115,10 +118,13 @@ object CExpressionEvaluation {
             s"${cleanName}_counted += 1;"
           ),
           result = List(
-            s"double ${cleanName}_result = ${cleanName}_accumulated / ${cleanName}_counted;",
-            s"output_${idx}->data[0] = ${cleanName}_result;"
+            s"${outputSum}->data[0] = ${cleanName}_accumulated;",
+            s"${outputCount}->data[0] = ${cleanName}_counted;"
           ),
-          outputArgument = s"non_null_double_vector* output_${idx}"
+          outputArguments = List(
+            s"non_null_double_vector* ${outputSum}",
+            s"non_null_double_vector* ${outputCount}"
+          )
         )
     }
   }
@@ -157,7 +163,7 @@ object CExpressionEvaluation {
 
     List[List[String]](
       List(s"""extern "C" long f(${inputBits}, ${ads
-        .map(_.outputArgument)
+        .flatMap(_.outputArguments)
         .mkString(", ")}) {"""),
       ads.flatMap(_.init),
       List("for (int i = 0; i < input_0->count; i++) {"),

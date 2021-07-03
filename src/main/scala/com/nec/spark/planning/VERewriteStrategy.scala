@@ -10,6 +10,7 @@ import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.Attribute
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -19,7 +20,11 @@ final class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: Nativ
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     if (VERewriteStrategy._enabled) {
       plan match {
-        case logical.Project(resultExpressions, child) =>
+        case logical.Project(resultExpressions, child) if !resultExpressions.forall {
+              /** If it's just a rename, don't send to VE * */
+              case a: Alias if a.child.isInstanceOf[Attribute] => true
+              case _                                           => false
+            } =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
