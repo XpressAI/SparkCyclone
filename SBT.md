@@ -55,8 +55,23 @@ the follwing commands:
 ```
 export CUDF_PATH=/opt/aurora4spark/cudf-0.19.2-cuda10-1.jar
 ```
+
 ```
-fun-bench / Jmh / run -t1 -f 1 -wi 1 -i 1 .*KeyBenchmark.*
+# get help -- you'll really need to understand these in depth before running benchmarks, else they might be quite meaningless
+fun-bench / Jmh / run -h
+
+# list benchmarks
+fun-bench / Jmh / run -t1 -f 1 -wi 0 -i 1 -l
+
+# run all benchmarks
+fun-bench / Jmh / run -t1 -f 1 -wi 0 -i 1 .*
+
+# run a specific benchmark with extra options, and also request a flight recording.
+# in this case we want to look at the benchmarks to see what is going on at the moment.
+fun-bench / Jmh / run -f 1 -wi 0 -prof jfr -i 1 .*Parquet.*Rapid.* -to 20m -jvmArgsAppend -Dspark.ui.enabled=true
+
+# skip dependent tests - in case you're iterating over some JMH bits
+; set `fun-bench` / Test / skip := true ; fun-bench / ...
 ```
 
 The first one will set the path to cudf JAR required by rapids benchmarks, while the other one

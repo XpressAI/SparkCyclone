@@ -7,6 +7,7 @@ import com.nec.spark.planning.simplesum.JoinPlanSpec
 import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
+import org.apache.spark.SparkConf
 
 object BenchTestingPossibilities {
 
@@ -22,34 +23,36 @@ object BenchTestingPossibilities {
       result.collect()
     }
     override def prepareSession(dataSize: DataSize): SparkSession = {
-
+      val sparkConf = new SparkConf(loadDefaults = true)
       val sess = testingTarget match {
         case TestingTarget.Rapids =>
           SparkSession
             .builder()
-            .master("local[4]")
             .appName(name.value)
-            .config(key = "spark.ui.enabled", value = false)
+            .master("local[*]")
             .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
             .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
             .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
+            .config(key = "spark.ui.enabled", value = false)
+            .config(sparkConf)
             .getOrCreate()
         case TestingTarget.VectorEngine =>
           LocalVeoExtension._enabled = true
           SparkSession
             .builder()
-            .master("local[4]")
+            .master("local[*]")
             .appName(name.value)
-            .config(key = "spark.ui.enabled", value = false)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-            .config(key = "spark.sql.columnVector.offheap.enabled", value = true)
+            .config(key = "spark.ui.enabled", value = false)
+            .config(sparkConf)
             .getOrCreate()
         case TestingTarget.PlainSpark =>
           SparkSession
             .builder()
-            .master("local[4]")
+            .master("local[*]")
             .appName(name.value)
             .config(key = "spark.ui.enabled", value = false)
+            .config(sparkConf)
             .getOrCreate()
         case TestingTarget.CMake =>
           sys.error("Not supported")

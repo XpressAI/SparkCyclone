@@ -25,43 +25,36 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
   .dependsOn(root % "compile->test")
-  .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
-  .settings(Compile / sourceGenerators += Def.taskDyn {
-    // clean up this directory as JMH does not do that
-    clean.value
-    val smDir = (Compile / sourceManaged).value
-    if (!smDir.exists()) Files.createDirectories(smDir.toPath)
-    val tgt = smDir / "DynamicBenchmark.scala"
-
-    Def.taskDyn {
-      // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
-      (root / Test / testQuick).toTask("").value
+  .settings(
+    name := "funbench",
+    Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
+    // Jmh / run := (Jmh / run).dependsOn(Test / test),
+    Test / test :=
       Def.taskDyn {
-        (root / CMake / testQuick).toTask("").value
-        Def.taskDyn {
-          val isOnVe = sys.env.contains("NLC_LIB_I64")
-
-          val finalize = Def.taskDyn {
-            val genTask =
-              (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
-
-            Def.task {
-              genTask.value
-              Seq(tgt)
-            }
-          }
-
-          if (isOnVe)
-            Def.taskDyn {
-              (root / VectorEngine / testQuick).toTask("").value
-              finalize
-            }
-          else finalize
-
+        val basicTests =
+          Def
+            .sequential((root / Test / testQuick).toTask(""), (root / CMake / testQuick).toTask(""))
+        val testsWithVe = Def.sequential(basicTests, (root / VectorEngine / testQuick).toTask(""))
+        val doSkipTests = (Test / skip).value
+        val isOnVe = sys.env.contains("NLC_LIB_I64")
+        if (doSkipTests) Def.task(())
+        else if (isOnVe) testsWithVe
+        else basicTests
+      }.value,
+    Compile / sourceGenerators +=
+      Def.taskDyn {
+        // clean up because JMH does clear out compiled sources
+        clean.value
+        val smDir = (Compile / sourceManaged).value
+        if (!smDir.exists()) Files.createDirectories(smDir.toPath)
+        val tgt = smDir / "DynamicBenchmark.scala"
+        val genTask = (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+        Def.task {
+          genTask.value
+          Seq(tgt)
         }
       }
-    }
-  })
+  )
 
 crossScalaVersions := Seq("2.12.14", "2.11.12")
 

@@ -48,7 +48,7 @@ final case class CEvaluationPlan(
     child
       .execute()
       .mapPartitions { rows =>
-        Iterator {
+        Iterator.continually {
           val timeZoneId = conf.sessionLocalTimeZone
           val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
             s"writer for word count",
@@ -100,7 +100,7 @@ final case class CEvaluationPlan(
 
         }.take(1).flatten
       }
-      .coalesce(1)
+      .coalesce(numPartitions = 1, shuffle = true)
       .mapPartitions { unsafeRows =>
         Iterator
           .continually {
