@@ -26,7 +26,7 @@ object DynamicCSqlExpressionEvaluationSpec {
     new CArrowNativeInterfaceNumeric(cLib.toAbsolutePath.toString)
   }
 
-  def configuration(sql: String): SparkSession.Builder => SparkSession.Builder = {
+  def configuration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
@@ -53,7 +53,7 @@ final class DynamicCSqlExpressionEvaluationSpec
       "SELECT AVG(2 * value), SUM(value) FROM nums" -> 0.0d,
       "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)" -> 0.0d
     ).take(4).foreach { case (sql, expectation) =>
-      s"${sql}" in withSparkSession2(configuration(sql)) { sparkSession =>
+      s"${sql}" in withSparkSession2(configuration) { sparkSession =>
         Source.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
         assert(sparkSession.sql(sql).debugSqlHere.as[Double].collect().toList == List(expectation))
@@ -62,7 +62,7 @@ final class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_pairwise = "SELECT a + b FROM nums"
-  "Support pairwise addition" in withSparkSession2(configuration(sql_pairwise)) { sparkSession =>
+  "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     assert(
@@ -77,14 +77,14 @@ final class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_mci = "SELECT SUM(a + b) FROM nums"
-  "Support multi-column inputs" in withSparkSession2(configuration(sql_mci)) { sparkSession =>
+  "Support multi-column inputs" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     assert(sparkSession.sql(sql_mci).debugSqlHere.as[(Double)].collect().toList == List(82.0))
   }
 
   val sql_mci_2 = "SELECT SUM(b - a) FROM nums"
-  "Support multi-column inputs, order reversed" in withSparkSession2(configuration(sql_mci_2)) {
+  "Support multi-column inputs, order reversed" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
@@ -92,22 +92,21 @@ final class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_mcio = "SELECT SUM(b-a), SUM(a + b) FROM nums"
-  "Support multi-column inputs and outputs" in withSparkSession2(configuration(sql_mcio)) {
-    sparkSession =>
-      makeCsvNumsMultiColumn(sparkSession)
-      import sparkSession.implicits._
-      assert(
-        sparkSession.sql(sql_mcio).debugSqlHere.as[(Double, Double)].collect().toList == List(
-          -42.0 -> 82.0
-        )
+  "Support multi-column inputs and outputs" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    assert(
+      sparkSession.sql(sql_mcio).debugSqlHere.as[(Double, Double)].collect().toList == List(
+        -42.0 -> 82.0
       )
+    )
   }
 
   "Different multi-column expressions can be evaluated" - {
 
     val sql1 = "SELECT AVG(2 * value), SUM(value) FROM nums"
 
-    s"Multi-column: ${sql1}" in withSparkSession2(configuration(sql1)) { sparkSession =>
+    s"Multi-column: ${sql1}" in withSparkSession2(configuration) { sparkSession =>
       Source.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
       assert(
@@ -119,13 +118,12 @@ final class DynamicCSqlExpressionEvaluationSpec
 
     val sql2 = "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)"
 
-    s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration(sql2)) {
-      sparkSession =>
-        Source.CSV.generate(sparkSession, SanityCheckSize)
-        import sparkSession.implicits._
-        assert(
-          sparkSession.sql(sql2).debugSqlHere.as[(Double, Double, Double)].collect().toList == Nil
-        )
+    s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration) { sparkSession =>
+      Source.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+      assert(
+        sparkSession.sql(sql2).debugSqlHere.as[(Double, Double, Double)].collect().toList == Nil
+      )
     }
   }
 

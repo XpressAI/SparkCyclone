@@ -182,3 +182,4 @@ metals.h2.db
 _ve_build
 metals.sbt
 java.hprof.txt
+*.jfr
