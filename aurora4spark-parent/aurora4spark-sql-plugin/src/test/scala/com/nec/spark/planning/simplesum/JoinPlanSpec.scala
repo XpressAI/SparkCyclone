@@ -166,7 +166,6 @@ object JoinPlanSpec {
           sse.injectPlannerStrategy(sparkSession =>
             new Strategy {
               override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-                println(s"This is the injector for ==> ${plan}")
                 plan match {
                   case logical.Join(left, right, joinType, condition, hint) =>
                     require(joinType == Inner)

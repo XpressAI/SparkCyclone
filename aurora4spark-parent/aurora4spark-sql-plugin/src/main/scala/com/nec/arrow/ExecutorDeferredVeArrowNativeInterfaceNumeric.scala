@@ -9,8 +9,9 @@ final case class ExecutorDeferredVeArrowNativeInterfaceNumeric(libPath: String)
     inputArguments: List[Option[ArrowNativeInterfaceNumeric.SupportedVectorWrapper]],
     outputArguments: List[Option[ArrowNativeInterfaceNumeric.SupportedVectorWrapper]]
   ): Unit = {
-    println(s"Loading: ${Aurora4SparkExecutorPlugin._veo_proc}; ${libPath}; ${Thread.currentThread}")
-    val lib = try Aurora.veo_load_library(Aurora4SparkExecutorPlugin._veo_proc, libPath)
+    // use for debugging purposes
+    // println(s"Loading: ${Aurora4SparkExecutorPlugin._veo_proc}; ${libPath}; ${Thread.currentThread}")
+    val lib = Aurora.veo_load_library(Aurora4SparkExecutorPlugin._veo_proc, libPath)
     require(lib != 0, s"Expected lib != 0, got ${lib}")
     try {
       new VeArrowNativeInterfaceNumeric(

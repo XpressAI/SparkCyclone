@@ -49,6 +49,7 @@ lazy val `fun-bench` = project
   .dependsOn(root % "compile->test")
   .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
   .settings(Compile / sourceGenerators += Def.taskDyn {
+    // clean up this directory as JMH does not do that
     clean.value
     val smDir = (Compile / sourceManaged).value
     if (!smDir.exists()) Files.createDirectories(smDir.toPath)
@@ -57,14 +58,19 @@ lazy val `fun-bench` = project
     Def.taskDyn {
       // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
       (root / Test / testQuick).toTask("").value
-      (root / CMake / testQuick).toTask("").value
       Def.taskDyn {
-        val genTask =
-          (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+        (root / CMake / testQuick).toTask("").value
+        Def.taskDyn {
+          (root / VectorEngine / testQuick).toTask("").value
+          Def.taskDyn {
+            val genTask =
+              (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
 
-        Def.task {
-          genTask.value
-          Seq(tgt)
+            Def.task {
+              genTask.value
+              Seq(tgt)
+            }
+          }
         }
       }
     }

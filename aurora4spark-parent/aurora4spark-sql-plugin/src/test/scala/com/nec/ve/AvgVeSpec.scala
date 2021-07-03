@@ -12,7 +12,6 @@ import com.nec.arrow.functions.Avg
 import org.scalatest.freespec.AnyFreeSpec
 
 final class AvgVeSpec extends AnyFreeSpec {
-
   "We can get a avg back" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val libPath = VeKernelCompiler("avg", veBuildPath).compile_c(
