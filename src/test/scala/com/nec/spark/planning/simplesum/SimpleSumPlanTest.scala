@@ -1,10 +1,5 @@
 package com.nec.spark.planning.simplesum
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeCsvNums
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeCsvNumsLarge
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeMemoryNums
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeParquetNums
-import com.nec.spark.cgescape.CodegenEscapeSpec.makeParquetNumsLarge
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod
 import org.apache.spark.SparkConf
@@ -19,11 +14,12 @@ import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.spark.agile.CleanName
 import com.nec.spark.agile.CleanName.RichStringClean
-import com.nec.testing.Testing
+import com.nec.testing._
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.DataSize.BenchmarkSize
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.nec.testing.Testing.TestingTarget
+import com.nec.testing.SampleSource._
 
 object SimpleSumPlanTest {
   val PureJvmBasedModes: List[SumMethod] = List(
@@ -40,45 +36,6 @@ object SimpleSumPlanTest {
     SumMethod.CodegenBased.ArrowCodegenBased(ArrowSummer.VeoBased)
   )
 
-  sealed trait Source extends Serializable {
-    def title: String
-    def isColumnar: Boolean
-    def generate(sparkSession: SparkSession, size: DataSize): Unit
-  }
-
-  object Source {
-    case object CSV extends Source {
-      override def isColumnar: Boolean = false
-      override def generate(sparkSession: SparkSession, size: DataSize): Unit = {
-        size match {
-          case BenchmarkSize   => makeCsvNumsLarge(sparkSession)
-          case SanityCheckSize => makeCsvNums(sparkSession)
-        }
-      }
-
-      override def title: String = "CSV"
-    }
-    case object Parquet extends Source {
-      override def isColumnar: Boolean = true
-      override def generate(sparkSession: SparkSession, size: DataSize): Unit = {
-        size match {
-          case BenchmarkSize   => makeParquetNumsLarge(sparkSession)
-          case SanityCheckSize => makeParquetNums(sparkSession)
-        }
-      }
-
-      override def title: String = "Parquet"
-    }
-    case object InMemory extends Source {
-      override def isColumnar: Boolean = true
-      override def generate(sparkSession: SparkSession, size: DataSize): Unit =
-        makeMemoryNums(sparkSession)
-      override def title: String = "LocalTable"
-    }
-
-    val All: List[Source] = List(CSV, Parquet, InMemory)
-  }
-
   // not used, need to reincorporate back somehow
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
@@ -88,7 +45,7 @@ object SimpleSumPlanTest {
     }
   }
 
-  final case class SimpleSumTesting(sumMethod: SumMethod, source: Source, sql: String)
+  final case class SimpleSumTesting(sumMethod: SumMethod, sampleSource: SampleSource, sql: String)
     extends Testing {
     override def verify(sparkSession: SparkSession): Unit = {
       import sparkSession.implicits._
@@ -125,7 +82,7 @@ object SimpleSumPlanTest {
         )
         .getOrCreate()
 
-      source.generate(ss, dataSize)
+      sampleSource.generate(ss, dataSize)
 
       ss
     }
@@ -135,9 +92,9 @@ object SimpleSumPlanTest {
   val OurTesting: List[Testing] = {
     for {
       sumMethod <- PureJvmBasedModes
-      source <- Source.All
-      sql = "SELECT SUM(value) FROM nums"
-    } yield SimpleSumTesting(sumMethod, source, sql)
+      sampleSource <- SampleSource.All
+      sql = s"SELECT SUM(${SampleColA}) FROM nums"
+    } yield SimpleSumTesting(sumMethod, sampleSource, sql)
   }
 }
 
