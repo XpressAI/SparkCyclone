@@ -251,3 +251,9 @@ ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIISt
 ThisBuild / resolvers += "aveo4j-repo" at Paths.get("aveo4j-repo").toUri.toASCIIString
 
 Test / testOptions += Tests.Argument("-oD")
+
+val bench = inputKey[Unit]("Runs JMH benchmarks in fun-bench")
+
+bench := (`fun-bench` / Jmh / run).evaluated
+addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
+addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")

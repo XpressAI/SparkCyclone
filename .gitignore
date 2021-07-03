@@ -183,3 +183,4 @@ _ve_build
 metals.sbt
 java.hprof.txt
 *.jfr
+.attach_*
