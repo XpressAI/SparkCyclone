@@ -39,7 +39,11 @@ lazy val `fun-bench` = project
       Def.taskDyn {
         (root / CMake / testQuick).toTask("").value
         Def.taskDyn {
-          (root / VectorEngine / testQuick).toTask("").value
+          val isOnVe = sys.env.contains("NLC_LIB_I64")
+          if (isOnVe) Def.task {
+            (root / VectorEngine / testQuick).toTask("").value
+          }
+
           Def.taskDyn {
             val genTask =
               (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
