@@ -57,6 +57,7 @@ lazy val `fun-bench` = project
     Def.taskDyn {
       // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
       (root / Test / testQuick).toTask("").value
+      (root / CMake / testQuick).toTask("").value
       Def.taskDyn {
         val genTask =
           (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
