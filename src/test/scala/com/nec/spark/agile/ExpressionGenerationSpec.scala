@@ -1,6 +1,6 @@
 package com.nec.spark.agile
+
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.Add
@@ -21,6 +21,8 @@ import org.apache.spark.sql.types.Metadata
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.spark.agile.CExpressionEvaluation._
+import com.nec.testing.SampleSource
+import com.nec.testing.SampleSource.SampleColA
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 object ExpressionGenerationSpec {}
 
@@ -162,11 +164,11 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
 
   "Different expressions are found" - {
     List(
-      "SELECT SUM(value) FROM nums",
-      "SELECT SUM(value - 1) FROM nums",
-      "SELECT AVG(2 * value) FROM nums",
-      "SELECT AVG(2 * value), SUM(value) FROM nums",
-      "SELECT AVG(2 * value), SUM(value - 1), value / 2 FROM nums GROUP BY (value / 2)"
+      s"SELECT SUM(${SampleColA}) FROM nums",
+      s"SELECT SUM(${SampleColA} - 1) FROM nums",
+      s"SELECT AVG(2 * ${SampleColA}) FROM nums",
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums",
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)"
     ).take(2).foreach { sql =>
       s"$sql" in withSparkSession2(
         _.config(CODEGEN_FALLBACK.key, value = false)
@@ -192,9 +194,11 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
             )
           )
       ) { sparkSession =>
-        Source.CSV.generate(sparkSession, SanityCheckSize)
+        SampleSource.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
-        sparkSession.sql(sql).debugSqlHere
+        sparkSession.sql(sql).debugSqlHere { ds =>
+          ds.collect()
+        }
       }
     }
   }
@@ -327,9 +331,10 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
-    def debugSqlHere: Dataset[T] = {
-      info(dataSet.queryExecution.executedPlan.toString())
-      dataSet
+    def debugSqlHere[V](f: Dataset[T] => V): V = {
+      withClue(dataSet.queryExecution.executedPlan.toString()) {
+        f(dataSet)
+      }
     }
   }
 

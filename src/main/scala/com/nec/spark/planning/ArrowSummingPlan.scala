@@ -63,8 +63,6 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val timeZoneId = conf.sessionLocalTimeZone
-
-    println(s"Supports columnar? ${child.supportsColumnar} ${child.getClass.getCanonicalName}")
    if (child.supportsColumnar) {
       child
         .executeColumnar()

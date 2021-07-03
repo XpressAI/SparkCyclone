@@ -7,7 +7,7 @@ import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.simplesum.JoinPlanSpec.OurSimpleJoin.JoinMethod
-import com.nec.spark.planning.simplesum.SimpleSumPlanTest.RichDataSet
+import com.nec.spark.agile.SimpleSumPlanTest.RichDataSet
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
 import org.apache.arrow.memory.RootAllocator

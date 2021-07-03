@@ -27,17 +27,18 @@ lazy val `fun-bench` = project
   .dependsOn(root % "compile->test")
   .settings(
     name := "funbench",
-    Jmh / run := {
-      (Test / test).value
-      (Jmh / run).evaluated
-    },
+    Jmh / run := (Jmh / run).dependsOn((Test / test)).evaluated,
     Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
     Test / test :=
       Def.taskDyn {
-        val basicTests =
-          Def
-            .sequential((root / Test / testQuick).toTask(""), (root / CMake / testQuick).toTask(""))
-        val testsWithVe = Def.sequential(basicTests, (root / VectorEngine / testQuick).toTask(""))
+        val basicTests = Def.task {
+          (root / Test / testQuick).toTask("").value
+          (root / CMake / testQuick).toTask("").value
+        }
+        val testsWithVe = Def.task {
+          basicTests.value
+          (root / VectorEngine / testQuick).toTask("").value
+        }
         val doSkipTests = (Test / skip).value
         val isOnVe = sys.env.contains("NLC_LIB_I64")
         if (doSkipTests) Def.task(())
@@ -46,16 +47,20 @@ lazy val `fun-bench` = project
       }.value,
     Compile / sourceGenerators +=
       Def.taskDyn {
-        // clean up because JMH does clear out compiled sources
-        clean.value
+        val str = streams.value
         val smDir = (Compile / sourceManaged).value
-        if (!smDir.exists()) Files.createDirectories(smDir.toPath)
         val tgt = smDir / "DynamicBenchmark.scala"
-        val genTask = (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
-        Def.task {
-          genTask.value
-          Seq(tgt)
-        }
+        if (!smDir.exists()) Files.createDirectories(smDir.toPath)
+
+        Def.sequential(
+          Def.task {
+            clean
+          },
+          Def.task {
+            (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}").value
+            Seq(tgt)
+          }
+        )
       }
   )
 
@@ -253,7 +258,7 @@ ThisBuild / resolvers += "aveo4j-repo" at Paths.get("aveo4j-repo").toUri.toASCII
 Test / testOptions += Tests.Argument("-oD")
 
 val bench = inputKey[Unit]("Runs JMH benchmarks in fun-bench")
-
 bench := (`fun-bench` / Jmh / run).evaluated
+
 addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
 addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")

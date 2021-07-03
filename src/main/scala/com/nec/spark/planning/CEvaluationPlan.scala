@@ -17,6 +17,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
+import org.apache.spark.sql.execution.ColumnarToRowTransition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.execution.arrow.ArrowWriter
@@ -34,7 +35,8 @@ final case class CEvaluationPlan(
   child: SparkPlan,
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
-  with UnaryExecNode {
+  with UnaryExecNode
+  with ColumnarToRowTransition {
 
   protected def inputAttributes: Seq[Attribute] = child.output
 
@@ -43,7 +45,8 @@ final case class CEvaluationPlan(
   }
 
   override def outputPartitioning: Partitioning = SinglePartition
-  override protected def doExecute(): RDD[InternalRow] = {
+
+  private def executeRowWise(): RDD[InternalRow] = {
     val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
     child
       .execute()
@@ -81,14 +84,18 @@ final case class CEvaluationPlan(
                 outputVector
               }
 
-            evaluator.callFunction(
-              name = "f",
-              inputArguments = inputVectors.toList.map(iv =>
-                Some(Float8VectorWrapper(iv))
-              ) ++ outputVectors.map(_ => None),
-              outputArguments =
-                inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
-            )
+            try {
+              evaluator.callFunction(
+                name = "f",
+                inputArguments = inputVectors.toList.map(iv =>
+                  Some(Float8VectorWrapper(iv))
+                ) ++ outputVectors.map(_ => None),
+                outputArguments =
+                  inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
+              )
+            } finally {
+              inputVectors.foreach(_.close())
+            }
 
             (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
               val writer = new UnsafeRowWriter(outputVectors.size)
@@ -149,5 +156,127 @@ final case class CEvaluationPlan(
           .take(1)
           .flatten
       }
+  }
+
+  private def executeColumnWise(): RDD[InternalRow] = {
+    val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
+    child
+      .executeColumnar()
+      .mapPartitions { columnarBatches =>
+        columnarBatches
+          .map { columnarBatch =>
+            val timeZoneId = conf.sessionLocalTimeZone
+            val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+              s"writer for word count",
+              0,
+              Long.MaxValue
+            )
+            val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+            val root = VectorSchemaRoot.create(arrowSchema, allocator)
+            val nr = columnarBatch.numRows()
+            root.setRowCount(nr)
+
+            val inputVectors: List[Float8Vector] = inputAttributes.zipWithIndex.par.map {
+              case (attr, idx) =>
+                val fv = root.getVector(idx).asInstanceOf[Float8Vector]
+                val theCol = columnarBatch.column(idx)
+                var rowId = 0
+                while (rowId < nr) {
+                  fv.set(rowId, theCol.getDouble(rowId))
+                  rowId = rowId + 1
+                }
+                fv
+            }.toList
+
+            val outputVectors = resultExpressions
+              .flatMap(_.asInstanceOf[Alias].child match {
+                case ae: AggregateExpression =>
+                  ae.aggregateFunction.aggBufferAttributes
+                case other => List(other)
+              })
+              .zipWithIndex
+              .map { case (ne, idx) =>
+                val outputVector = new Float8Vector(s"out_${idx}", allocator)
+                outputVector.allocateNew(1)
+                outputVector.setValueCount(1)
+                outputVector
+              }
+
+            try {
+              evaluator.callFunction(
+                name = "f",
+                inputArguments = inputVectors.toList.map(iv =>
+                  Some(Float8VectorWrapper(iv))
+                ) ++ outputVectors.map(_ => None),
+                outputArguments =
+                  inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
+              )
+            } finally {
+              inputVectors.foreach(_.close())
+            }
+
+            (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
+              val writer = new UnsafeRowWriter(outputVectors.size)
+              writer.reset()
+              outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                val doubleV = v.getValueAsDouble(v_idx)
+                writer.write(c_idx, doubleV)
+              }
+              writer.getRow
+            }
+
+          }
+          .take(1)
+          .flatten
+      }
+      .coalesce(numPartitions = 1, shuffle = true)
+      .mapPartitions { unsafeRows =>
+        Iterator
+          .continually {
+            val unsafeRowsList = unsafeRows.toList
+            val isAggregation = resultExpressions.exists(
+              _.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
+            )
+
+            if (isAggregation) {
+              val startingIndices = resultExpressions.view
+                .flatMap {
+                  case ne @ Alias(
+                        AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
+                        name
+                      ) =>
+                    aggregateFunction.aggBufferAttributes.map(attr => ne)
+                }
+                .zipWithIndex
+                .groupBy(_._1)
+                .mapValues(_.map(_._2).min)
+
+              /** total Aggregation */
+              val writer = new UnsafeRowWriter(resultExpressions.size)
+              writer.reset()
+
+              resultExpressions.view.zipWithIndex.foreach {
+                case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val sum = unsafeRowsList.map(_.getDouble(idx)).sum
+                  val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
+                  val result = sum / count
+                  writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val result = unsafeRowsList.map(_.getDouble(idx)).sum
+                  writer.write(outIdx, result)
+                case other => sys.error(s"Other not supported: ${other}")
+              }
+              Iterator(writer.getRow)
+            } else unsafeRowsList.iterator
+          }
+          .take(1)
+          .flatten
+      }
+  }
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    if (child.supportsColumnar) executeColumnWise() else executeRowWise()
   }
 }
