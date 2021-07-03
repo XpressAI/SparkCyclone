@@ -1,5 +1,7 @@
 package com.nec.spark
+import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.cNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
+import com.nec.spark.planning.VERewriteStrategy
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
@@ -8,6 +10,8 @@ import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
+import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
 
 object BenchTestingPossibilities {
 
@@ -34,6 +38,7 @@ object BenchTestingPossibilities {
             .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
             .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
             .config(key = "spark.ui.enabled", value = false)
+            .config(CODEGEN_COMMENTS.key, value = true)
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.VectorEngine =>
@@ -42,6 +47,7 @@ object BenchTestingPossibilities {
             .builder()
             .master("local[*]")
             .appName(name.value)
+            .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
             .config(key = "spark.ui.enabled", value = false)
             .config(sparkConf)
@@ -51,11 +57,25 @@ object BenchTestingPossibilities {
             .builder()
             .master("local[*]")
             .appName(name.value)
+            .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.CMake =>
-          sys.error("Not supported")
+          SparkSession
+            .builder()
+            .master("local[*]")
+            .appName(name.value)
+            .withExtensions(sse =>
+              sse.injectPlannerStrategy(sparkSession =>
+                new VERewriteStrategy(sparkSession, cNativeEvaluator)
+              )
+            )
+            .config(CODEGEN_FALLBACK.key, value = false)
+            .config(CODEGEN_COMMENTS.key, value = true)
+            .config(key = "spark.ui.enabled", value = false)
+            .config(sparkConf)
+            .getOrCreate()
       }
 
       source.generate(sess, dataSize)
@@ -77,7 +97,8 @@ object BenchTestingPossibilities {
         testingTarget <- List(
           TestingTarget.VectorEngine,
           TestingTarget.PlainSpark,
-          TestingTarget.Rapids
+          TestingTarget.Rapids,
+          TestingTarget.CMake
         )
       } yield SimpleSql(
         sql = s"SELECT SUM(value) FROM nums",
