@@ -16,7 +16,6 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
   .configs(CMake)
-  .enablePlugins(JmhPlugin)
 
 /**
  * Run with:
@@ -28,32 +27,41 @@ lazy val `fun-bench` = project
   .dependsOn(root % "compile->test")
   .settings(Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true")
   .settings(Compile / sourceGenerators += Def.taskDyn {
+    // clean up this directory as JMH does not do that
+    clean.value
     val smDir = (Compile / sourceManaged).value
     if (!smDir.exists()) Files.createDirectories(smDir.toPath)
-    val tgt = smDir / "KeyBenchmark.scala"
+    val tgt = smDir / "DynamicBenchmark.scala"
 
     Def.taskDyn {
       // run any outstanding unit tests, as if they are broken we are not the wisest to begin benchmarking!
       (root / Test / testQuick).toTask("").value
       Def.taskDyn {
-        val genTask =
-          (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+        (root / CMake / testQuick).toTask("").value
+        Def.taskDyn {
+          val isOnVe = sys.env.contains("NLC_LIB_I64")
 
-        Def.task {
-          genTask.value
-          Seq(tgt)
+          val finalize = Def.taskDyn {
+            val genTask =
+              (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}")
+
+            Def.task {
+              genTask.value
+              Seq(tgt)
+            }
+          }
+
+          if (isOnVe)
+            Def.taskDyn {
+              (root / VectorEngine / testQuick).toTask("").value
+              finalize
+            }
+          else finalize
+
         }
       }
     }
   })
-
-Jmh / sourceDirectory := (Test / sourceDirectory).value
-Jmh / classDirectory := (Test / classDirectory).value
-Jmh / dependencyClasspath := (Test / dependencyClasspath).value
-Jmh / compile := (Jmh / compile).dependsOn(Test / compile).value
-Jmh / run := (Jmh / run).dependsOn(Jmh / Keys.compile).evaluated
-// for very long classpath
-Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true"
 
 crossScalaVersions := Seq("2.12.14", "2.11.12")
 
@@ -98,21 +106,12 @@ Test / unmanagedJars ++= sys.env
   .getOrElse(Seq())
   .classpath
 
-/** Because of VE */
-VectorEngine / parallelExecution := false
-
-/** Because of Spark */
-AcceptanceTest / parallelExecution := false
-
 /** Because of Spark */
 Test / parallelExecution := false
-
 inConfig(Test)(Defaults.testTasks)
 
-lazy val AcceptanceTest = config("acc") extend Test
-inConfig(AcceptanceTest)(Defaults.testTasks)
-def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
-
+/** Vector Engine specific configuration */
+VectorEngine / parallelExecution := false
 lazy val VectorEngine = config("ve") extend Test
 inConfig(VectorEngine)(Defaults.testSettings)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
@@ -121,27 +120,35 @@ VectorEngine / run / fork := true
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
 VectorEngine / run / javaOptions ++= {
-
-  /** The feature was removed in JDK9, however for Spark we must support JDK8 */
+  // The feature was removed in JDK9, however for Spark we must support JDK8
   if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
     List("-agentlib:hprof=cpu=samples")
   else Nil
 }
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
-Global / cancelable := true
+VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 
+/** CMake specific configuration */
 lazy val CMake = config("cmake") extend Test
 inConfig(CMake)(Defaults.testTasks)
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
 CMake / fork := true
-
-def otherFilter(name: String): Boolean = !accFilter(name) && !veFilter(name) && !cmakeFilter(name)
-
-Test / testOptions := Seq(Tests.Filter(otherFilter))
-AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter))
-VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
+Global / cancelable := true
+
+def otherFilter(name: String): Boolean = !accFilter(name) && !veFilter(name) && !cmakeFilter(name)
+Test / testOptions := Seq(Tests.Filter(otherFilter))
+
+/** Acceptance Testing configuration */
+AcceptanceTest / parallelExecution := false
+AcceptanceTest / testOptions ++= {
+  if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
+}
+lazy val AcceptanceTest = config("acc") extend Test
+inConfig(AcceptanceTest)(Defaults.testTasks)
+def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
+AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter))
 AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.acceptance.MarkdownReporter")
 AcceptanceTest / testOptions += Tests.Argument("-o")
 
@@ -187,10 +194,6 @@ val debugTestPlansArgument = Tests.Argument(TestFrameworks.ScalaTest, "-Ddebug.s
 
 Test / testOptions ++= {
   if ((Test / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
-}
-
-AcceptanceTest / testOptions ++= {
-  if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
 }
 
 lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")

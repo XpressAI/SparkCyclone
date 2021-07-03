@@ -1,5 +1,4 @@
 package com.nec.spark.agile
-import com.nec.spark.BenchTestingPossibilities.Testing.DataSize.SanityCheckSize
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.simplesum.SimpleSumPlanTest.Source
 import org.apache.spark.sql.Dataset
@@ -22,6 +21,7 @@ import org.apache.spark.sql.types.Metadata
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.spark.agile.CExpressionEvaluation._
+import com.nec.testing.Testing.DataSize.SanityCheckSize
 object ExpressionGenerationSpec {}
 
 final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {

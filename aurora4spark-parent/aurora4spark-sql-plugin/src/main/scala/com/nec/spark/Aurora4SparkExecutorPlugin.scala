@@ -48,8 +48,13 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(0)
       _veo_ctx = Aurora.veo_context_open(_veo_proc)
-//      Aurora4SparkExecutorPlugin.lib =
-//        Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
+      /** We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
+       * We're moving to the latter, however this is retained for compatibility for the previous set of sets we had.
+       * **/
+      if (extraConf.containsKey("ve_so_name")) {
+        Aurora4SparkExecutorPlugin.lib =
+          Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
+      }
       veArrowNativeInterface = new VeArrowNativeInterface(_veo_proc, _veo_ctx, lib)
       veArrowNativeInterfaceNumeric = new VeArrowNativeInterfaceNumeric(_veo_proc, _veo_ctx, lib)
     }

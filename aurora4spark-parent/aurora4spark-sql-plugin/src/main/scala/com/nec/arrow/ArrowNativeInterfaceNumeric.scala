@@ -18,7 +18,10 @@ trait ArrowNativeInterfaceNumeric extends Serializable {
       )
     } catch {
       case e: Throwable =>
-        throw new RuntimeException(s"Failed: inputs = ${inputArguments}; ${e}", e)
+        throw new RuntimeException(
+          s"Failed to execute ${name}: inputs = ${inputArguments}; ${e}",
+          e
+        )
     }
   }
 
