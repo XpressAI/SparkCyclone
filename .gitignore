@@ -175,3 +175,10 @@ target
 
 .vscode
 metals.h2.db
+.bloop
+.metals
+.vscode
+*.L
+_ve_build
+metals.sbt
+java.hprof.txt

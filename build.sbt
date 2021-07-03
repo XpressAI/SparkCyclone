@@ -240,18 +240,18 @@ deployExamples := {
   Seq(
     "scp",
     "-r",
-    (baseDirectory.value / ".." / ".." / "examples").getAbsolutePath,
+    (baseDirectory.value / "examples").getAbsolutePath,
     s"${targetBox}:/opt/aurora4spark/"
   ) ! logger
   Seq(
     "scp",
-    (baseDirectory.value / ".." / ".." / "README.md").getAbsolutePath,
+    (baseDirectory.value / "README.md").getAbsolutePath,
     s"${targetBox}:/opt/aurora4spark/"
   ) ! logger
   logger.info("Uploaded examples.")
 }
 
 ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
-ThisBuild / resolvers += "aveo4j-repo" at Paths.get("..", "..", "aveo4j-repo").toUri.toASCIIString
+ThisBuild / resolvers += "aveo4j-repo" at Paths.get("aveo4j-repo").toUri.toASCIIString
 
 Test / testOptions += Tests.Argument("-oD")

@@ -5,12 +5,10 @@ import com.nec.spark.Aurora4SparkDriver
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.SingleColumnSumPlanExtractor
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
-
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 
 /**
  * These tests are to get familiar with Spark and encode any oddities about it.

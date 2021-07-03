@@ -1,6 +1,7 @@
 # aurora4spark
 
-Spark Plugin development documentation: [aurora4spark-parent/README.md](aurora4spark-parent/README.md).
+- For the plug-in development: [SBT.md](SBT.md).
+- For the JavaCPP layer around AVEO, see: [aurora4spark-parent/aveo4j/README.md](aurora4spark-parent/aveo4j/README.md).
 
 ## Usage of the plugin
 

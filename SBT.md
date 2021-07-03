@@ -6,6 +6,17 @@ Requirements:
 - Hadoop
 - JDK 8
 
+## Hadoop set up on Windows
+
+For Windows, make sure you configure Hadoop as per [Hadoop on Windows](https://wiki.apache.org/hadoop/WindowsProblems) and set the appropriate `HADOOP_HOME`. Binaries [here](https://github.com/steveloughran/winutils/releases/tag/tag_2017-08-29-hadoop-2.8.1-native).
+
+Then the files should look like this:
+
+```
+C:/hadoop-2.8.1/bin/hadoop.dll
+...
+```
+
 ## Development for Spark 2.3 / Scala 2.11
 
 Done using SBT's cross-build: https://www.scala-sbt.org/1.x/docs/Cross-Build.html
