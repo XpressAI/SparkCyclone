@@ -17,6 +17,20 @@ C:/hadoop-2.8.1/bin/hadoop.dll
 ...
 ```
 
+## VE configuration options
+
+You can put the following in `~/.bashrc`:
+
+```
+export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+export PATH=$JAVA_HOME/bin:$PATH
+mkdir -p ~/.local/bin
+ln -f -s /opt/nec/ve/bin/ncc ~/.local/bin/ncc
+ln -f -s /opt/nec/ve/bin/nc++ ~/.local/bin/nc++
+ln -f -s /opt/nec/ve/bin/ps ~/.local/bin/veps
+source /opt/rh/devtoolset-9/enable
+```
+
 ## Development for Spark 2.3 / Scala 2.11
 
 Done using SBT's cross-build: https://www.scala-sbt.org/1.x/docs/Cross-Build.html

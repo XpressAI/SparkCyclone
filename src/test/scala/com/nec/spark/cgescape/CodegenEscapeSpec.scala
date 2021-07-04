@@ -1,12 +1,11 @@
 package com.nec.spark.cgescape
 
-import com.nec.spark.SampleTestData.LargeCSV
-import com.nec.spark.SampleTestData.LargeParquet
-import com.nec.spark.SampleTestData.SampleCSV
-import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import com.nec.spark.SparkAdditions
-import com.nec.spark.cgescape.CodegenEscapeSpec._
-import com.nec.spark.SampleTestData.SampleMultiColumnCSV
+import com.nec.testing.SampleSource.SampleColA
+import com.nec.testing.SampleSource.SampleColB
+import com.nec.testing.SampleSource.makeCsvNumsMultiColumn
+import com.nec.testing.SampleSource.makeMemoryNums
+import com.nec.testing.SampleSource.makeParquetNums
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
@@ -16,9 +15,6 @@ import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -35,11 +31,11 @@ import org.scalatest.freespec.AnyFreeSpec
 final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
 
   private implicit val encDouble: Encoder[Double] = Encoders.scalaDouble
+  private implicit val encDouble2: Encoder[(Double, Double)] = Encoders.tuple(encDouble, encDouble)
 
   "We can do a row-based batched identity codegen (accumulate results, and then process an output)" - {
-
     /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
-    withVariousInputs[Double](
+    withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
         .withExtensions(sse =>
@@ -54,11 +50,13 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
             }
           )
         )
-    )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
+    )(s"SELECT SUM(${SampleColA}), SUM(${SampleColB}) FROM nums")(result =>
+      assert(result.map(_._1) == List[Double](1, 2, 3, 4, 52))
+    )
   }
 
   "We can do a row-based identity codegen" - {
-    withVariousInputs[Double](
+    withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
         .config("spark.sql.codegen.comments", value = true)
         .withExtensions(sse =>
@@ -73,13 +71,16 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
             }
           )
         )
-    )("SELECT SUM(value) FROM nums")(result => assert(result == List[Double](1, 2, 3, 4, 52)))
+    )(s"SELECT SUM(${SampleColA}), SUM(${SampleColB}) FROM nums")(result =>
+      assert(result.map(_._1) == List[Double](1, 2, 3, 4, 52))
+    )
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
-    def debugSqlHere: Dataset[T] = {
-      info(dataSet.queryExecution.executedPlan.toString())
-      dataSet
+    def debugSqlHere[V](f: Dataset[T] => V): V = {
+      withClue(dataSet.queryExecution.executedPlan.toString()) {
+        f(dataSet)
+      }
     }
   }
 
@@ -89,87 +90,16 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
     for {
       (title, fr) <- List(
         "Memory" -> makeMemoryNums _,
-        "CSV" -> makeCsvNums _,
+        "CSV" -> makeCsvNumsMultiColumn _,
         "Parquet" -> makeParquetNums _
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
       import sparkSession.implicits._
       fr(sparkSession)
-      val ds = sparkSession.sql(sql).debugSqlHere.as[T]
-      f(ds.collect().toList)
+      sparkSession.sql(sql).debugSqlHere { ds =>
+        f(ds.as[T].collect().toList)
+      }
     }
-  }
-
-}
-
-object CodegenEscapeSpec {
-  val SharedName = "nums"
-
-  def makeMemoryNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    Seq(1d, 2d, 3d, 4d, 52d)
-      .toDS()
-      .createOrReplaceTempView(SharedName)
-  }
-
-  final case class SomeTab(num: Double, mapTo: Double)
-
-  def makeCsvNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    val schema = StructType(Array(StructField("a", DoubleType)))
-
-    sparkSession.read
-      .format("csv")
-      .schema(schema)
-      .load(SampleCSV.toString)
-      .withColumnRenamed("a", "value")
-      .as[Double]
-      .createOrReplaceTempView(SharedName)
-  }
-
-  def makeCsvNumsMultiColumn(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    val schema = StructType(Array(StructField("a", DoubleType), StructField("b", DoubleType)))
-
-    sparkSession.read
-      .format("csv")
-      .schema(schema)
-      .load(SampleMultiColumnCSV.toString)
-      .as[(Double, Double)]
-      .createOrReplaceTempView(SharedName)
-  }
-
-  def makeCsvNumsLarge(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-    val schema = StructType(Array(StructField("a", DoubleType), StructField("b", DoubleType), StructField("c", DoubleType)))
-
-    sparkSession.read
-      .format("csv")
-      .schema(schema)
-      .load(LargeCSV.toString)
-      .withColumnRenamed("a", "value")
-      .createOrReplaceTempView(SharedName)
-  }
-
-  def makeParquetNums(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-
-    sparkSession.read
-      .format("parquet")
-      .load(SampleTwoColumnParquet.toString)
-      .withColumnRenamed("a", "value")
-      .as[(Double, Double)]
-      .createOrReplaceTempView(SharedName)
-  }
-
-  def makeParquetNumsLarge(sparkSession: SparkSession): Unit = {
-    import sparkSession.implicits._
-
-    sparkSession.read
-      .format("parquet")
-      .load(LargeParquet.toString)
-      .withColumnRenamed("a", "value")
-      .createOrReplaceTempView(SharedName)
   }
 
 }

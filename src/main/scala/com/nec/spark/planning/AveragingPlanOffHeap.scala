@@ -43,10 +43,7 @@ object AveragingPlanOffHeap {
 
     case class VeoBased(ve_so_name: String) extends OffHeapDoubleAverager {
       override def average(memoryLocation: Long, count: ColumnIndex): Double = {
-        println(s"SO name: ${ve_so_name}")
-        println(s"Reusing proc = ${_veo_proc}")
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(_veo_proc)
-        println(s"Created ctx = ${ctx}")
         try {
           val lib: Long = Aurora.veo_load_library(_veo_proc, ve_so_name)
           val vej = new VeJavaContext(_veo_proc, ctx, lib)

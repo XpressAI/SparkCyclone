@@ -63,7 +63,6 @@ final class SummingSparkPlanSpec
               plan.column)
 
             val d = plan.replaceMain(newChild)
-            println(d)
             d
           })
           .getOrElse(sys.error(s"Plan was not matched: ${sparkPlan}"))

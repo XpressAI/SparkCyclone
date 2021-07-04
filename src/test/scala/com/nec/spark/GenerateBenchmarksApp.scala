@@ -1,42 +1,51 @@
 package com.nec.spark
 import java.io.File
 import java.nio.file.Files
+import com.nec.testing.Testing._
 
 object GenerateBenchmarksApp extends App {
   val expectedTarget = new File(args.last).getAbsoluteFile
   val fixtures: List[String] = {
-    BenchTestingPossibilities.possibilities.zipWithIndex.map { case (testing, idx) =>
+    BenchTestingPossibilities.possibilitiesMap.keysIterator.map { name =>
       s"""
 @State(Scope.Benchmark)
-class State_${testing.name} {
+class State_${name} {
   var _sparkSession: SparkSession = null
   lazy val sparkSession: SparkSession = _sparkSession
 
   @Setup
   def prepare(): Unit = {
-    this._sparkSession = com.nec.spark.BenchTestingPossibilities.possibilities(${idx}).prepareSession()
+    this._sparkSession = com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}").prepareSession()
   }
 
   @TearDown
   def tearDown(): Unit = {
-    com.nec.spark.BenchTestingPossibilities.possibilities(${idx}).cleanUp(sparkSession)
+    com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}").cleanUp(sparkSession)
   }
 }
 
       """
-    }
+    }.toList
   }
 
   val methods: List[String] = {
-    BenchTestingPossibilities.possibilities.zipWithIndex.map { case (testing, idx) =>
-      s"""
+    BenchTestingPossibilities.possibilitiesMap
+      /**
+       * Exclude CMake as it's not really useful for benchmarking here. We are nonetheless
+       * adding it to .possibilities in order to do correctness testing when in the CMake scope
+       */
+      .filterNot { case (name, testing) => testing.testingTarget == TestingTarget.CMake }
+      .keysIterator
+      .map { name =>
+        s"""
       @Benchmark
       @BenchmarkMode(Array(Mode.SingleShotTime))
-      def ${testing.name}(state: DynamicBenchmark.State_${testing.name}): Unit = {
-        com.nec.spark.BenchTestingPossibilities.possibilities(${idx}).benchmark(state.sparkSession)
+      def ${name}(state: DynamicBenchmark.State_${name}): Unit = {
+        com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}").benchmark(state.sparkSession)
       }
       """
-    }
+      }
+      .toList
 
   }
   Files.write(

@@ -1,4 +1,5 @@
-package com.nec.spark.planning.simplesum
+package com.nec.spark.agile
+
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod
@@ -12,14 +13,11 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.spark.agile.CleanName
-import com.nec.spark.agile.CleanName.RichStringClean
-import com.nec.testing._
-import com.nec.testing.Testing.DataSize
-import com.nec.testing.Testing.DataSize.BenchmarkSize
-import com.nec.testing.Testing.DataSize.SanityCheckSize
+import com.nec.spark.planning.simplesum.SimpleSumPlan
+import com.nec.testing.SampleSource
+import com.nec.testing.SampleSource.SampleColA
+import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
-import com.nec.testing.SampleSource._
 
 object SimpleSumPlanTest {
   val PureJvmBasedModes: List[SumMethod] = List(
@@ -45,7 +43,7 @@ object SimpleSumPlanTest {
     }
   }
 
-  final case class SimpleSumTesting(sumMethod: SumMethod, sampleSource: SampleSource, sql: String)
+  final case class SimpleSumTesting(sumMethod: SumMethod, source: SampleSource, sql: String)
     extends Testing {
     override def verify(sparkSession: SparkSession): Unit = {
       import sparkSession.implicits._
@@ -82,7 +80,7 @@ object SimpleSumPlanTest {
         )
         .getOrCreate()
 
-      sampleSource.generate(ss, dataSize)
+      source.generate(ss, dataSize)
 
       ss
     }
@@ -92,9 +90,9 @@ object SimpleSumPlanTest {
   val OurTesting: List[Testing] = {
     for {
       sumMethod <- PureJvmBasedModes
-      sampleSource <- SampleSource.All
+      source <- SampleSource.All
       sql = s"SELECT SUM(${SampleColA}) FROM nums"
-    } yield SimpleSumTesting(sumMethod, sampleSource, sql)
+    } yield SimpleSumTesting(sumMethod, source, sql)
   }
 }
 

@@ -44,7 +44,6 @@ object SumPairwise {
   ): Unit = {
     import veJavaContext._
     val our_args = Aurora.veo_args_alloc()
-    println("Allocated args")
 
     val a_ptr = new LocationPointer(memLocationA, length).asByteBuffer()
     val b_ptr = new LocationPointer(memLocationB, length).asByteBuffer()
@@ -58,11 +57,9 @@ object SumPairwise {
 
     /** Call */
     try {
-      println("Calling")
       val req_id = Aurora.veo_call_async_by_name(ctx, lib, "sum_pairwise", our_args)
       val longPointer = new LongPointer(8)
       Aurora.veo_call_wait_result(ctx, req_id, longPointer)
-      println("Call over")
     } finally our_args.close()
   }
 }

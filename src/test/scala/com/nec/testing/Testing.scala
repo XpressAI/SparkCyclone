@@ -24,20 +24,25 @@ object Testing {
     def isVE: Boolean = this == TestingTarget.VectorEngine
     def isRapids: Boolean = this == TestingTarget.Rapids
     def isCMake: Boolean = this == TestingTarget.CMake
+    def expectedString: Option[String]
   }
 
   object TestingTarget {
     case object Rapids extends TestingTarget {
       def label: String = "Rapids"
+      override def expectedString: Option[String] = Some("Gpu")
     }
     case object VectorEngine extends TestingTarget {
       def label: String = "VE"
+      override def expectedString: Option[String] = Some("LocalVeoNativeEvaluator")
     }
     case object CMake extends TestingTarget {
       def label: String = "CMake"
+      override def expectedString: Option[String] = Some("CEvaluation")
     }
     case object PlainSpark extends TestingTarget {
       def label: String = "JVM"
+      override def expectedString: Option[String] = None
     }
   }
 
