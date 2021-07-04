@@ -184,3 +184,5 @@ metals.sbt
 java.hprof.txt
 *.jfr
 .attach_*
+*.csv.gz
+*.crc

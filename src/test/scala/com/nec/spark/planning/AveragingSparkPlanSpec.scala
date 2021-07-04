@@ -23,7 +23,6 @@ final class AveragingSparkPlanSpec
     val executionPlan = sparkSession
       .sql("SELECT AVG(value)  FROM nums")
       .as[Double]
-      .debugSql(name = "AVG(value)")
       .executionPlan
 
     assert(

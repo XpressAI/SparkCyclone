@@ -2,9 +2,11 @@ package com.nec.spark.planning
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.commons.lang3.reflect.FieldUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -23,10 +25,36 @@ import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.apache.spark.sql.vectorized.ArrowColumnVector
+
+import scala.language.dynamics
 
 object CEvaluationPlan {
   trait NativeEvaluator extends Serializable {
     def forCode(code: String): ArrowNativeInterfaceNumeric
+  }
+
+  object HasFloat8Vector {
+    final class PrivateReader(val obj: Object) extends Dynamic {
+      def selectDynamic(name: String): PrivateReader = {
+        val clz = obj.getClass
+        val field = FieldUtils.getAllFields(clz).find(_.getName == name) match {
+          case Some(f) => f
+          case None    => throw new NoSuchFieldException(s"Class ${clz} does not seem to have ${name}")
+        }
+        field.setAccessible(true)
+        new PrivateReader(field.get(obj))
+      }
+    }
+
+    implicit class RichObject(obj: Object) {
+      def readPrivate: PrivateReader = new PrivateReader(obj)
+    }
+    def unapply(arrowColumnVector: ArrowColumnVector): Option[Float8Vector] = {
+      PartialFunction.condOpt(arrowColumnVector.readPrivate.accessor.vector.obj) {
+        case fv: Float8Vector => fv
+      }
+    }
   }
 }
 final case class CEvaluationPlan(
@@ -178,14 +206,19 @@ final case class CEvaluationPlan(
 
             val inputVectors: List[Float8Vector] = inputAttributes.zipWithIndex.par.map {
               case (attr, idx) =>
-                val fv = root.getVector(idx).asInstanceOf[Float8Vector]
-                val theCol = columnarBatch.column(idx)
-                var rowId = 0
-                while (rowId < nr) {
-                  fv.set(rowId, theCol.getDouble(rowId))
-                  rowId = rowId + 1
+                columnarBatch.column(idx) match {
+                  case HasFloat8Vector(float8Vector) =>
+                    println("Reusing!! :-)  \\o/ ") // for now let's celebrate!
+                    float8Vector
+                  case theCol =>
+                    val fv = root.getVector(idx).asInstanceOf[Float8Vector]
+                    var rowId = 0
+                    while (rowId < nr) {
+                      fv.set(rowId, theCol.getDouble(rowId))
+                      rowId = rowId + 1
+                    }
+                    fv
                 }
-                fv
             }.toList
 
             val outputVectors = resultExpressions

@@ -81,6 +81,7 @@ object SampleSource {
     sparkSession.read
       .format("csv")
       .schema(schema)
+      .option("header", "true")
       .load(SampleMultiColumnCSV.toString)
       .createOrReplaceTempView(SharedName)
   }
