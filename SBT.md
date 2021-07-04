@@ -8,14 +8,16 @@ Requirements:
 
 ## Hadoop set up on Windows
 
-For Windows, make sure you configure Hadoop as per [Hadoop on Windows](https://wiki.apache.org/hadoop/WindowsProblems) and set the appropriate `HADOOP_HOME`. Binaries [here](https://github.com/steveloughran/winutils/releases/tag/tag_2017-08-29-hadoop-2.8.1-native).
+For Windows, make sure you configure Hadoop as per [Hadoop on Windows](https://wiki.apache.org/hadoop/WindowsProblems) and set the appropriate `HADOOP_HOME` (download winutils)
 
 Then the files should look like this:
 
 ```
-C:/hadoop-2.8.1/bin/hadoop.dll
+C:/hadoop-3.2.1/bin/hadoop.dll
 ...
 ```
+
+Also add the bin directory to `PATH`.
 
 ## VE configuration options
 
