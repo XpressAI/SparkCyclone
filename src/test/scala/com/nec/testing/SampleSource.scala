@@ -87,7 +87,7 @@ object SampleSource {
   }
 
   lazy val LargeCSV: Path =
-    Paths.get("/home/dominik/large-sample-csv-10_9/")
+    Paths.get("/data/large-sample-csv-10_9/")
 
   def makeCsvNumsLarge(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
@@ -118,7 +118,7 @@ object SampleSource {
   }
 
   lazy val LargeParquet: Path =
-    Paths.get("/home/william/large-sample-parquet-10_9/")
+    Paths.get("/data/large-sample-parquet-20_9/")
 
   def makeParquetNumsLarge(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
