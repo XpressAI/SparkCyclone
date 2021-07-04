@@ -1,13 +1,13 @@
 package com.nec.arrow
 
-import java.nio.file.Path
-
-import com.nec.arrow.ArrowTransferStructures.{non_null_double_vector, non_null_int2_vector}
-import com.nec.arrow.ArrowInterfaces.{c_double_vector, c_int2_vector, non_null_double_vector_to_float8Vector}
+import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
+import com.nec.arrow.ArrowInterfaces.c_double_vector
+import com.nec.arrow.ArrowInterfaces.c_int2_vector
+import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
 import com.sun.jna.Library
-import org.apache.arrow.vector.Float8Vector
-import ArrowNativeInterfaceNumeric._
-import SupportedVectorWrapper._
+import com.nec.arrow.ArrowNativeInterfaceNumeric._
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
+import com.nec.arrow.ArrowInterfaces.c_bounded_string
 
 final class CArrowNativeInterfaceNumeric(libPath: String) extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
@@ -36,22 +36,21 @@ object CArrowNativeInterfaceNumeric {
     val nl = nativeLibraryHandler.getNativeLibrary
     val fn = nl.getFunction(functionName)
 
-    val outputStructs = outputArguments.map(_.map{
-      case Float8VectorWrapper(doubleVector) =>
-        new non_null_double_vector(doubleVector.getValueCount)
+    val outputStructs = outputArguments.map(_.map { case Float8VectorWrapper(doubleVector) =>
+      new non_null_double_vector(doubleVector.getValueCount)
     })
 
     val invokeArgs: Array[java.lang.Object] = inputArguments
       .zip(outputStructs)
       .map {
+        case ((Some(StringWrapper(str)), _)) =>
+          c_bounded_string(str)
         case ((Some(Float8VectorWrapper(vcv)), _)) =>
           c_double_vector(vcv)
         case ((Some(IntVectorWrapper(vcv)), _)) =>
           c_int2_vector(vcv)
         case ((_, Some(structVector))) =>
           structVector
-        case other =>
-          sys.error(s"Unexpected state: $other")
       }
       .toArray
 
