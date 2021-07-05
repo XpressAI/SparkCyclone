@@ -47,7 +47,7 @@ object NativeCSVParserBenchmark {
     def bytes: Int = value * MEGABYTE
   }
   object Megs {
-    val Default = Megs(50)
+    val Default = Megs(150)
   }
 }
 
