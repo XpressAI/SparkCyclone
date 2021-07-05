@@ -37,7 +37,7 @@ object VeArrowNativeInterfaceNumeric {
   ): non_null_double_vector = {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
-    vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer())
+    vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer(), Some(float8Vector.getDataBuffer.capacity()))
     vcvr
   }
 
@@ -81,9 +81,10 @@ object VeArrowNativeInterfaceNumeric {
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
   }
 
-  def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer): Long = {
+  def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer, len: Option[Long] = None): Long = {
     val veInputPointer = new LongPointer(8)
-    val size = byteBuffer.capacity()
+    /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
+    val size = len.getOrElse(byteBuffer.capacity().toLong)
     Aurora.veo_alloc_mem(proc, veInputPointer, size)
     Aurora.veo_write_mem(
       proc,

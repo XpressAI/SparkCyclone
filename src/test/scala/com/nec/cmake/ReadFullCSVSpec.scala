@@ -1,9 +1,8 @@
-package com.nec.spark
+package com.nec.cmake
 
+import com.nec.spark._
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.cmake.CNativeEvaluator
-import com.nec.spark.ReadFullCSVSpec.SampleRow
-import com.nec.spark.ReadFullCSVSpec.samplePartedCsv
+import ReadFullCSVSpec._
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.types.DoubleType
@@ -23,7 +22,7 @@ object ReadFullCSVSpec {
 }
 
 final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
-  "We can write and read back a .csv.gz collection via Hadoop" ignore withSparkSession2(identity) {
+  "We can write and read back a .csv.gz collection via Hadoop" in withSparkSession2(identity) {
     sparkSession =>
       info(
         "This shows that we can read these files from hdfs, and then should be able to read them as a whole and push to the VE."

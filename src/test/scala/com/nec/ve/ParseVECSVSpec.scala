@@ -29,7 +29,6 @@ final class ParseVECSVSpec extends AnyFreeSpec {
       try {
         val alloc = new RootAllocator(Integer.MAX_VALUE)
         val outVector = new Float8Vector("value", alloc)
-        val data: Seq[Double] = Seq(5, 1, 2, 34, 6)
         val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
         verifyOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))
       } finally Aurora.veo_context_close(ctx)

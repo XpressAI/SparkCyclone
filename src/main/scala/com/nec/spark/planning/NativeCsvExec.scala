@@ -56,7 +56,6 @@ case class NativeCsvExec(
     "Source here is only columnar"
   )
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-
     val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]

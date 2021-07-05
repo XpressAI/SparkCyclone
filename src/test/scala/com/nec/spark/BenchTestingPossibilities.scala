@@ -137,6 +137,12 @@ object BenchTestingPossibilities {
               key = "spark.sql.inMemoryColumnarStorage.compressed",
               value = offHeapMode.get.compressed.toString()
             )
+            .withExtensions(sse =>
+              if (csvStrategy.isNative)
+                sse.injectPlannerStrategy(sparkSession =>
+                  NativeCsvStrategy(new LocalVeoExtension.LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf))
+                )
+            )
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.PlainSpark =>
@@ -203,8 +209,12 @@ object BenchTestingPossibilities {
       testing.name.value in {
         val sparkSession = testing.prepareSession()
         val data = testing.prepareInput(sparkSession, DataSize.SanityCheckSize)
-        try testing.verifyResult(data.collect().toList)
-        finally testing.cleanUp(sparkSession)
+        try {
+          testing.verifyResult(data.collect().toList)
+        } catch {
+          case e: Throwable =>
+            throw new RuntimeException(s"${data.queryExecution.executedPlan}, ${e}", e)
+        } finally testing.cleanUp(sparkSession)
       }
     }
   }
