@@ -43,6 +43,7 @@ object CMakeBuilder {
 cmake_minimum_required(VERSION 3.6)
 project(HelloWorld LANGUAGES CXX C)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set (CMAKE_CXX_STANDARD 17)
 ${CppResources.All.all
         .map(_.containingDir(SourcesDir))
         .toList

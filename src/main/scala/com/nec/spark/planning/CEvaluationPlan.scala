@@ -119,7 +119,8 @@ final case class CEvaluationPlan(
                   Some(Float8VectorWrapper(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments =
-                  inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
+                  inputVectors.toList.map(_ => None) ++
+                    outputVectors.map(v => Some(Float8VectorWrapper(v)))
               )
             } finally {
               inputVectors.foreach(_.close())
@@ -242,7 +243,7 @@ final case class CEvaluationPlan(
                   Some(Float8VectorWrapper(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments =
-                  inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(v))
+                  inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(Float8VectorWrapper(v)))
               )
             } finally {
               inputVectors.foreach(_.close())
