@@ -206,7 +206,7 @@ object BenchTestingPossibilities {
           TestingTarget.CMake
         )
         csvStrat <-
-          if (testingTarget.isNative && source == SampleSource.CSV)
+          if (testingTarget == TestingTarget.VectorEngine && source == SampleSource.CSV)
             CsvStrategy.All
           else List(CsvStrategy.NormalCsv)
         colMode <-
