@@ -30,9 +30,9 @@ object ParseCSVSpec {
     CsvParse.runOn(arrowInterfaceNumeric)(inputStr, a, b, c)
 
     expect(
-      a.toList == inputColumns.map(_._1),
-      b.toList == inputColumns.map(_._2),
-      c.toList == inputColumns.map(_._3)
+      a.toList == List[Double](1, 4, 7),
+      b.toList == List[Double](2, 5, 8),
+      c.toList == List[Double](3, 6, 9)
     )
 
     CsvParse.runOn(arrowInterfaceNumeric)(inputStr + "\n5,43,1.2\n", a, b, c)

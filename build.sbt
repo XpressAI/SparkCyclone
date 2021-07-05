@@ -31,14 +31,9 @@ lazy val `fun-bench` = project
     Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
     Test / test :=
       Def.taskDyn {
-        val basicTests = Def.task {
-          (root / Test / testQuick).toTask("").value
-          (root / CMake / testQuick).toTask("").value
-        }
-        val testsWithVe = Def.task {
-          basicTests.value
-          (root / VectorEngine / testQuick).toTask("").value
-        }
+        val basicTests = Def
+          .sequential((root / Test / testQuick).toTask(""), (root / CMake / testQuick).toTask(""))
+        val testsWithVe = Def.sequential(basicTests, (root / VectorEngine / testQuick).toTask(""))
         val doSkipTests = (Test / skip).value
         val isOnVe = sys.env.contains("NLC_LIB_I64")
         if (doSkipTests) Def.task(())

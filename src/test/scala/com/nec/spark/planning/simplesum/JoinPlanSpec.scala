@@ -7,13 +7,13 @@ import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.simplesum.JoinPlanSpec.OurSimpleJoin.JoinMethod
-import com.nec.spark.agile.SimpleSumPlanTest.RichDataSet
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.InternalRow
@@ -134,26 +134,17 @@ object JoinPlanSpec {
 
   final case class TestingOUR(joinMethod: JoinMethod) extends Testing {
     import com.nec.spark.planning.VERewriteStrategy
-    override def verify(sparkSession: SparkSession): Unit = {
-      import sparkSession.implicits._
-      val ds = sparkSession
-        .sql("SELECT a.value, b.value FROM a INNER JOIN b ON a.key = b.key")
-        .debugSqlHere
-        .as[(Double, Double)]
-
-      val result = ds.collect().toList
+    type Result = (Double, Double)
+    override def verifyResult(result: List[Result]): Unit = {
       assert(result.sortBy(_._1) == List((1.0, 2.0), (2.0, 3.0)))
     }
-    override def benchmark(sparkSession: SparkSession): Unit = {
-      verify(sparkSession)
-    }
-    override def prepareSession(dataSize: Testing.DataSize): SparkSession = {
+    override def prepareSession(): SparkSession = {
       val conf = new SparkConf()
       conf.setMaster("local")
       conf.setAppName("local-test")
       conf.set("spark.ui.enabled", "false")
       VERewriteStrategy._enabled = false
-      val ss = SparkSession
+      SparkSession
         .builder()
         .config(conf)
         .config(CODEGEN_FALLBACK.key, value = false)
@@ -177,7 +168,13 @@ object JoinPlanSpec {
           )
         )
         .getOrCreate()
-      import ss.sqlContext.implicits._
+    }
+
+    override def prepareInput(
+      sparkSession: SparkSession,
+      dataSize: Testing.DataSize
+    ): Dataset[Result] = {
+      import sparkSession.sqlContext.implicits._
       List[(Int, Double)](1 -> 1.0, 2 -> 2.0).toDS
         .withColumnRenamed("_1", "key")
         .withColumnRenamed("_2", "value")
@@ -187,7 +184,12 @@ object JoinPlanSpec {
         .withColumnRenamed("_1", "key")
         .withColumnRenamed("_2", "value")
         .createOrReplaceTempView("b")
-      ss
+
+      import sparkSession.sqlContext.implicits._
+
+      sparkSession
+        .sql("SELECT a.value, b.value FROM a INNER JOIN b ON a.key = b.key")
+        .as[(Double, Double)]
     }
     override def cleanUp(sparkSession: SparkSession): Unit = {
       sparkSession.close()
@@ -202,30 +204,16 @@ object JoinPlanSpec {
   }
 
   final case class TestingSimpleJoinSparkJVM() extends Testing {
-    override def verify(sparkSession: SparkSession): Unit = {
-      import sparkSession.implicits._
-      val ds = sparkSession
-        .sql("SELECT a.value, b.value FROM a INNER JOIN b ON a.key = b.key")
-        .debugSqlHere
-        .as[(Double, Double)]
-      val result = ds.collect().toList
-      assert(result.sortBy(_._1) == List((1.0, 2.0), (2.0, 3.0)))
+    type Result = (Double, Double)
+    override def verifyResult(data: List[Result]): Unit = {
+      assert(data.sortBy(_._1) == List((1.0, 2.0), (2.0, 3.0)))
     }
-    override def benchmark(sparkSession: SparkSession): Unit = {
-      verify(sparkSession)
-    }
-    override def prepareSession(dataSize: Testing.DataSize): SparkSession = {
-      val conf = new SparkConf()
-      conf.setMaster("local")
-      conf.setAppName("local-test")
-      conf.set("spark.ui.enabled", "false")
-      val ss = SparkSession
-        .builder()
-        .config(conf)
-        .config(CODEGEN_FALLBACK.key, value = false)
-        .config("spark.sql.codegen.comments", value = true)
-        .getOrCreate()
-      import ss.sqlContext.implicits._
+    override def prepareInput(
+      sparkSession: SparkSession,
+      dataSize: Testing.DataSize
+    ): Dataset[(Double, Double)] = {
+      import sparkSession.sqlContext.implicits._
+
       List[(Int, Double)](1 -> 1.0, 2 -> 2.0).toDS
         .withColumnRenamed("_1", "key")
         .withColumnRenamed("_2", "value")
@@ -235,7 +223,22 @@ object JoinPlanSpec {
         .withColumnRenamed("_1", "key")
         .withColumnRenamed("_2", "value")
         .createOrReplaceTempView("b")
-      ss
+
+      sparkSession
+        .sql("SELECT a.value, b.value FROM a INNER JOIN b ON a.key = b.key")
+        .as[(Double, Double)]
+    }
+    override def prepareSession(): SparkSession = {
+      val conf = new SparkConf()
+      conf.setMaster("local")
+      conf.setAppName("local-test")
+      conf.set("spark.ui.enabled", "false")
+      SparkSession
+        .builder()
+        .config(conf)
+        .config(CODEGEN_FALLBACK.key, value = false)
+        .config("spark.sql.codegen.comments", value = true)
+        .getOrCreate()
     }
     override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
     override def testingTarget: Testing.TestingTarget = TestingTarget.PlainSpark

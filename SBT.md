@@ -86,6 +86,9 @@ bench -t1 -f 1 -wi 0 -i 1 .*
 # in this case we want to look at the benchmarks to see what is going on at the moment.
 bench -f 1 -wi 0 -prof jfr -i 1 .*Parquet.*Rapid.* -to 20m -jvmArgsAppend -Dspark.ui.enabled=true
 
+# to force small data set for whatever reason (eg running on local machine, and don't have the huge data-set), use:  
+-jvmArgsAppend -Dnec.testing.force-small=true
+
 bench -f 1 -wi 0 -prof jfr -i 1 -jvmArgsAppend -Dspark.ui.enabled=true .*
 
 ```

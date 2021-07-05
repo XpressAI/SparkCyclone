@@ -10,12 +10,18 @@ object GenerateBenchmarksApp extends App {
       s"""
 @State(Scope.Benchmark)
 class State_${name} {
-  var _sparkSession: SparkSession = null
-  lazy val sparkSession: SparkSession = _sparkSession
+  lazy val testing = com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}")
+  lazy val sparkSession: SparkSession = testing.prepareSession()
+  lazy val input = testing.prepareInput(sparkSession, com.nec.testing.Testing.DataSize.defaultForBenchmarks)
+  lazy val benchDebugging = com.nec.spark.agile.BenchmarkDebugging(testing)
+  import benchDebugging._
 
   @Setup
   def prepare(): Unit = {
-    this._sparkSession = com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}").prepareSession()
+    // initialize and also prepare the execution plan
+    // I realised that the comparison includes the planning time as well
+    // Depends how we want to do it, but I think we should keep it separate
+    input.debugPlans()
   }
 
   @TearDown
@@ -33,15 +39,19 @@ class State_${name} {
       /**
        * Exclude CMake as it's not really useful for benchmarking here. We are nonetheless
        * adding it to .possibilities in order to do correctness testing when in the CMake scope
+       *
+       * Bringing it back -- useful for local development just to get an idea
+       * As no VE here
        */
-      .filterNot { case (name, testing) => testing.testingTarget == TestingTarget.CMake }
+//      .filterNot { case (name, testing) => testing.testingTarget == TestingTarget.CMake }
       .keysIterator
       .map { name =>
         s"""
       @Benchmark
       @BenchmarkMode(Array(Mode.SingleShotTime))
       def ${name}(state: DynamicBenchmark.State_${name}): Unit = {
-        com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}").benchmark(state.sparkSession)
+        import state.benchDebugging._
+        state.input.debugResults()
       }
       """
       }

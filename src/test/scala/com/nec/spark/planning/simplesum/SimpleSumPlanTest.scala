@@ -3,7 +3,6 @@ import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.plans.logical
@@ -12,14 +11,10 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.freespec.AnyFreeSpec
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.spark.agile.CleanName
-import com.nec.spark.agile.CleanName.RichStringClean
 import com.nec.testing._
-import com.nec.testing.Testing.DataSize
-import com.nec.testing.Testing.DataSize.BenchmarkSize
-import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.nec.testing.Testing.TestingTarget
 import com.nec.testing.SampleSource._
+import org.apache.spark.sql.Dataset
 
 object SimpleSumPlanTest {
   val PureJvmBasedModes: List[SumMethod] = List(
@@ -36,34 +31,29 @@ object SimpleSumPlanTest {
     SumMethod.CodegenBased.ArrowCodegenBased(ArrowSummer.VeoBased)
   )
 
-  // not used, need to reincorporate back somehow
-
-  implicit class RichDataSet[T](val dataSet: Dataset[T]) {
-    def debugSqlHere: Dataset[T] = {
-      System.out.println(dataSet.queryExecution.executedPlan.toString())
-      dataSet
-    }
-  }
-
   final case class SimpleSumTesting(sumMethod: SumMethod, sampleSource: SampleSource, sql: String)
     extends Testing {
-    override def verify(sparkSession: SparkSession): Unit = {
-      import sparkSession.implicits._
-      val ds = sparkSession.sql(sql).debugSqlHere.as[Double]
-      val result = ds.collect().toList
-      assert(result == List[Double](62))
+    type Result = Double
+
+    override def verifyResult(data: List[Result]): Unit = {
+      assert(data == List[Double](62))
     }
-    override def benchmark(sparkSession: SparkSession): Unit = {
+
+    override def prepareInput(
+      sparkSession: SparkSession,
+      dataSize: Testing.DataSize
+    ): Dataset[Double] = {
+      sampleSource.generate(sparkSession, dataSize)
       import sparkSession.implicits._
-      val ds = sparkSession.sql(sql).as[Double]
-      ds.collect().toList
+      sparkSession.sql(sql).as[Double]
     }
-    override def prepareSession(dataSize: Testing.DataSize): SparkSession = {
+
+    override def prepareSession(): SparkSession = {
       val conf = new SparkConf()
       conf.setMaster("local")
       conf.setAppName("local-test")
       conf.set("spark.ui.enabled", "false")
-      val ss = SparkSession
+      SparkSession
         .builder()
         .config(conf)
         .config(CODEGEN_FALLBACK.key, value = false)
@@ -81,10 +71,6 @@ object SimpleSumPlanTest {
           )
         )
         .getOrCreate()
-
-      sampleSource.generate(ss, dataSize)
-
-      ss
     }
     override def testingTarget: Testing.TestingTarget = TestingTarget.PlainSpark
   }

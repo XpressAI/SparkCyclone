@@ -43,7 +43,8 @@ object VERewriteStrategy {
     }
   }
 }
-final class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: NativeEvaluator)
+
+final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: NativeEvaluator)
   extends Strategy {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     if (VERewriteStrategy._enabled) {

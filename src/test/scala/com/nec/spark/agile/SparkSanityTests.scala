@@ -44,7 +44,6 @@ final class SparkSanityTests
     val executionPlan = sparkSession
       .sql("SELECT SUM(value)  FROM nums")
       .as[Double]
-      .debugSql(name = "SUM(value)")
       .executionPlan
 
     assert(

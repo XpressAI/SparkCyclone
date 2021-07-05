@@ -1,11 +1,7 @@
 package com.nec.cmake
 
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.CArrowNativeInterfaceNumeric
-import com.nec.arrow.TransferDefinitions
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.SampleColA
@@ -19,16 +15,6 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
 object DynamicCSqlExpressionEvaluationSpec {
-
-  object CNativeEvaluator extends NativeEvaluator {
-    override def forCode(code: String): ArrowNativeInterfaceNumeric = {
-      val cLib = CMakeBuilder.buildC(
-        List(TransferDefinitions.TransferDefinitionsSourceCode, code)
-          .mkString("\n\n")
-      )
-      new CArrowNativeInterfaceNumeric(cLib.toAbsolutePath.toString)
-    }
-  }
 
   def configuration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)

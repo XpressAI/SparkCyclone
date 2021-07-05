@@ -10,16 +10,9 @@ import java.nio.file.StandardOpenOption
 
 object Debugging {
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
-    def debugSql(name: String): Dataset[T] = {
-      val plansDir = Paths.get("target", "plans")
-      if (!plansDir.toFile.exists()) {
-        Files.createDirectory(plansDir)
-      }
-      val target = plansDir.resolve(s"$name.txt")
-      dataSet.queryExecution.debug.toFile(target.toAbsolutePath.toString)
-      dataSet
-    }
     def debugSqlAndShow(name: String): Dataset[T] = {
+      return dataSet
+      // ignoring for now - a lot of noise
       val plansDir = Paths.get("target", "plans")
       if (!plansDir.toFile.exists()) {
         Files.createDirectory(plansDir)
@@ -37,6 +30,8 @@ object Debugging {
 
   implicit class RichSparkPlan[T](val sparkPlan: SparkPlan) {
     def debugCodegen(name: String): SparkPlan = {
+      // ignoring for now - a lot of noise
+      return sparkPlan
       val plansDir = Paths.get("target", "plans")
       if (!plansDir.toFile.exists()) {
         Files.createDirectory(plansDir)

@@ -3,15 +3,17 @@ import com.nec.spark.agile
 import com.nec.spark.agile.CleanName
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
 abstract class Testing { this: Product =>
+  type Result
   final def name: CleanName = agile.CleanName.fromString(
     this.getClass.getSimpleName + "__" + this.toString + s"_${testingTarget.label}"
   )
-  def verify(sparkSession: SparkSession): Unit
-  def benchmark(sparkSession: SparkSession): Unit
-  def prepareSession(dataSize: DataSize = DataSize.BenchmarkSize): SparkSession
+  def prepareSession(): SparkSession
+  def prepareInput(sparkSession: SparkSession, dataSize: DataSize): Dataset[Result]
+  def verifyResult(dataset: List[Result]): Unit
   def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
   def testingTarget: TestingTarget
 }
@@ -24,6 +26,7 @@ object Testing {
     def isVE: Boolean = this == TestingTarget.VectorEngine
     def isRapids: Boolean = this == TestingTarget.Rapids
     def isCMake: Boolean = this == TestingTarget.CMake
+    def isNative: Boolean = isVE || isCMake
     def expectedString: Option[String]
   }
 
@@ -55,6 +58,13 @@ object Testing {
     def label: String
   }
   object DataSize {
+    def defaultForBenchmarks: DataSize = {
+      if (
+        Option(System.getProperty("nec.testing.force-small"))
+          .exists(v => Set("1", "true").contains(v.toLowerCase()))
+      ) SanityCheckSize
+      else BenchmarkSize
+    }
     case object BenchmarkSize extends DataSize {
       override def label: String = "Large"
     }

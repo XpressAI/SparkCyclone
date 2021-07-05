@@ -1,7 +1,8 @@
 package com.nec.spark
 
-import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.CNativeEvaluator
+import com.nec.cmake.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
+import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import com.nec.spark.planning.VERewriteStrategy
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
@@ -13,6 +14,7 @@ import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
 
@@ -43,43 +45,69 @@ object BenchTestingPossibilities {
     }
   }
 
+  sealed trait CsvStrategy {
+    def expectedString: Option[String]
+    final override def toString: String = label
+    def label: String
+    def isNative: Boolean
+  }
+  object CsvStrategy {
+    case object NativeCsv extends CsvStrategy {
+      override def label: String = "NativeCsv"
+      override def isNative: Boolean = true
+      override def expectedString: Option[String] = Some("NativeCsv")
+    }
+    case object NormalCsv extends CsvStrategy {
+      override def label: String = "NormalCsv"
+      override def isNative: Boolean = false
+      override def expectedString: Option[String] = None
+    }
+    val All: List[CsvStrategy] = List(NativeCsv, NormalCsv)
+  }
+
   import com.eed3si9n.expecty.Expecty.assert
   final case class SimpleSql(
     sql: String,
     expectedResult: (Double, Double),
     source: SampleSource,
     testingTarget: TestingTarget,
-    offHeapMode: Option[VeColumnMode]
+    offHeapMode: Option[VeColumnMode],
+    csvStrategy: CsvStrategy
   ) extends Testing {
-    override def benchmark(sparkSession: SparkSession): Unit = {
-      val dataframe = sparkSession.sql(sql)
-      testingTarget.expectedString.foreach { str =>
+
+    type Result = (Double, Double)
+
+    override def verifyResult(result: List[Result]): Unit = {
+      assert(result == List(expectedResult))
+    }
+
+    def expectedStrings: List[String] =
+      testingTarget.expectedString.toList ++ csvStrategy.expectedString.toList ++ {
+        if (testingTarget.isNative) List("CEvaluation") else Nil
+      }
+
+    override def prepareInput(sparkSession: SparkSession, dataSize: DataSize): Dataset[Result] = {
+      source.generate(sparkSession, dataSize)
+      import sparkSession.sqlContext.implicits._
+      val dataSet = sparkSession.sql(sql).as[Result]
+
+      val planString = dataSet.queryExecution.executedPlan.toString()
+      expectedStrings.foreach { expStr =>
         assert(
-          dataframe.queryExecution.executedPlan.toString().contains(str),
-          s"Expected the plan to match the testing target, we are in ${testingTarget.label}; me = $this; config: ${sparkSession.sparkContext.getConf.toDebugString}"
+          planString.contains(expStr),
+          s"Expected the plan to contain '$expStr', but it didn't"
         )
       }
-      val result = dataframe.collect()
-      assert(result.nonEmpty, "Expected result to be non-empty")
-      println(s"Peek result ==> ${result.head}")
+
+      dataSet
     }
-    override def verify(sparkSession: SparkSession): Unit = {
-      import sparkSession.implicits._
-      val dataset = sparkSession.sql(sql).as[(Double, Double)]
-      val message = s"Query was: '${sql}', on $name"
-      testingTarget.expectedString.foreach { str =>
-        assert(
-          dataset.queryExecution.executedPlan.toString().contains(str),
-          s"Expected the plan to match the testing target, we are in ${testingTarget.label}"
-        )
-      }
-      assert(dataset.collect().toList == List(expectedResult), message)
-    }
-    override def prepareSession(dataSize: DataSize): SparkSession = {
+
+    override def prepareSession(): SparkSession = {
       val sparkConf = new SparkConf(loadDefaults = true)
         .set("nec.testing.target", testingTarget.label)
         .set("nec.testing.testing", this.toString)
-      val sess = testingTarget match {
+        .set("spark.sql.codegen.comments", "true")
+      testingTarget match {
         case TestingTarget.Rapids =>
           SparkSession
             .builder()
@@ -109,6 +137,12 @@ object BenchTestingPossibilities {
               key = "spark.sql.inMemoryColumnarStorage.compressed",
               value = offHeapMode.get.compressed.toString()
             )
+            .withExtensions(sse =>
+              if (csvStrategy.isNative)
+                sse.injectPlannerStrategy(sparkSession =>
+                  NativeCsvStrategy(new LocalVeoExtension.LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf))
+                )
+            )
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.PlainSpark =>
@@ -126,8 +160,12 @@ object BenchTestingPossibilities {
             .master("local[*]")
             .appName(name.value)
             .withExtensions(sse =>
+              if (csvStrategy.isNative)
+                sse.injectPlannerStrategy(sparkSession => NativeCsvStrategy(CNativeEvaluator))
+            )
+            .withExtensions(sse =>
               sse.injectPlannerStrategy(sparkSession =>
-                new VERewriteStrategy(sparkSession, CNativeEvaluator)
+                VERewriteStrategy(sparkSession, CNativeEvaluator)
               )
             )
             .config(CODEGEN_FALLBACK.key, value = false)
@@ -136,10 +174,6 @@ object BenchTestingPossibilities {
             .config(sparkConf)
             .getOrCreate()
       }
-
-      source.generate(sess, dataSize)
-
-      sess
     }
   }
 
@@ -156,12 +190,16 @@ object BenchTestingPossibilities {
         colMode <-
           if (testingTarget == TestingTarget.VectorEngine) VeColumnMode.All.map(v => Some(v))
           else List(None)
+        csvStrat <-
+          if (testingTarget.isNative && source == SampleSource.CSV) CsvStrategy.All
+          else List(CsvStrategy.NormalCsv)
       } yield SimpleSql(
         sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}) FROM nums",
         expectedResult = (62, 4),
         source = source,
         testingTarget = testingTarget,
-        offHeapMode = colMode
+        offHeapMode = colMode,
+        csvStrategy = csvStrat
       ),
       JoinPlanSpec.OurTesting
     ).flatten
@@ -169,14 +207,20 @@ object BenchTestingPossibilities {
   trait BenchTestAdditions { this: AnyFreeSpec =>
     def runTestCase(testing: Testing): Unit = {
       testing.name.value in {
-        val sparkSession = testing.prepareSession(dataSize = DataSize.SanityCheckSize)
-        try testing.verify(sparkSession)
-        finally testing.cleanUp(sparkSession)
+        val sparkSession = testing.prepareSession()
+        val data = testing.prepareInput(sparkSession, DataSize.SanityCheckSize)
+        try {
+          testing.verifyResult(data.collect().toList)
+        } catch {
+          case e: Throwable =>
+            throw new RuntimeException(s"${data.queryExecution.executedPlan}, ${e}", e)
+        } finally testing.cleanUp(sparkSession)
       }
     }
   }
 
-  val possibilitiesMap: Map[String, Testing] = possibilities.map(testing => testing.name.value -> testing).toMap
+  val possibilitiesMap: Map[String, Testing] =
+    possibilities.map(testing => testing.name.value -> testing).toMap
 }
 
 final class BenchTestingPossibilities extends AnyFreeSpec with BenchTestAdditions {
