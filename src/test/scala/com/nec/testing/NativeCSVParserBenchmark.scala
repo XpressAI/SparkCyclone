@@ -14,6 +14,7 @@ import com.nec.ve.VeKernelCompiler.compile_cpp
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
+import com.eed3si9n.expecty.Expecty._
 
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -39,62 +40,65 @@ object NativeCSVParserBenchmark {
 
     val alloc = new RootAllocator(Integer.MAX_VALUE)
     def close(): Unit
-    def byteBuffer: ByteBuffer
-    def totalSize: Int
+    def string: String
+  }
+  private val MEGABYTE = 1024 * 1024
+  final case class Megs(value: Int) {
+    def bytes: Int = value * MEGABYTE
+  }
+  object Megs {
+    val Default = Megs(100)
   }
 }
 
-final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType) extends GenericTesting {
+final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType, dataSize: NativeCSVParserBenchmark.Megs = NativeCSVParserBenchmark.Megs.Default)
+  extends GenericTesting {
   override type State = ParserTestState
   override def benchmark(state: State): Unit = {
     val a = new Float8Vector("a", state.bufferAllocator)
     val b = new Float8Vector("b", state.bufferAllocator)
     val c = new Float8Vector("c", state.bufferAllocator)
-    CsvParse.runOn(state.interface)(Left(state.byteBuffer -> state.totalSize), a, b, c)
+    CsvParse.runOn(state.interface)(Right(state.string), a, b, c)
 
     val randomRow = scala.util.Random.nextInt(state.originalArray.length / 3)
     val randomCol = scala.util.Random.nextInt(3)
 
     assert(
-      state.originalArray(3 * randomRow + randomCol) == List(a, b, c)(randomCol).get(randomRow)
+      state.originalArray
+        .apply(3 * randomRow + randomCol) == List(a, b, c).apply(randomCol).get(randomRow)
     )
   }
+
   override def cleanUp(state: State): Unit = {
     println(s"Cleaning up! ${state}")
   }
   override def testingTarget: Testing.TestingTarget = simpleTestType.testingTarget
-  private val MEGABYTE = 1024 * 1024
   override def init(): State = {
-    val minimum = 512 * MEGABYTE
+    val minimum = dataSize.bytes
     val arrItems = scala.collection.mutable.Buffer.empty[Double]
-    val theBuffer = ByteBuffer.allocateDirect(minimum + 1024)
-    theBuffer.put("a,b,c\n".getBytes())
-    while (theBuffer.position() < minimum) {
+    val stringBuilder = new StringBuilder()
+    stringBuilder ++= "a,b,c\n"
+    while (stringBuilder.size < minimum) {
       val newItems = List.fill(3)(scala.util.Random.nextDouble())
       arrItems ++= newItems
-      theBuffer.put((newItems.mkString(",") + "\n").getBytes())
+      stringBuilder ++= (newItems.mkString(",") + "\n")
     }
+    val inputString = stringBuilder.toString()
     val inputArray = arrItems.toArray
     arrItems.clear()
-    val madeTotalSize = theBuffer.position()
-    assert(
-      theBuffer.position() > minimum,
-      s"Require data size to be big enough, had ${theBuffer.position()}, expected $minimum"
-    )
-    theBuffer.position(0)
     simpleTestType match {
       case SimpleTestType.CBased =>
         new ParserTestState {
           val bufferAllocator = new RootAllocator(Integer.MAX_VALUE)
           val interface = CNativeEvaluator.forCode(CsvParse.CsvParseCode)
           override def close(): Unit = ()
-          override def byteBuffer: ByteBuffer = theBuffer
+          override def string: String = inputString
+
           override def originalArray: Array[Double] = inputArray
-          override def totalSize: Int = madeTotalSize
         }
       case SimpleTestType.VEBased =>
         new ParserTestState {
-          override def byteBuffer: ByteBuffer = theBuffer
+          override def string: String = inputString
           val bufferAllocator = new RootAllocator(Integer.MAX_VALUE)
           val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
           val soName = compile_cpp(
@@ -107,7 +111,7 @@ final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType) extend
           val proc = Aurora.veo_proc_create(0)
           val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
 
-          val lib = Aurora.veo_load_library(Aurora4SparkExecutorPlugin._veo_proc, soName)
+          val lib = Aurora.veo_load_library(proc, soName)
           require(lib != 0, s"Expected lib != 0, got ${lib}")
 
           val interface =
@@ -119,7 +123,6 @@ final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType) extend
           }
 
           override def originalArray: Array[Double] = inputArray
-          override def totalSize: Int = madeTotalSize
         }
     }
   }
