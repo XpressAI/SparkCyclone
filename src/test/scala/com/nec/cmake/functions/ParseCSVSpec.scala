@@ -27,7 +27,7 @@ object ParseCSVSpec {
     val a = new Float8Vector("a", alloc)
     val b = new Float8Vector("b", alloc)
     val c = new Float8Vector("c", alloc)
-    CsvParse.runOn(arrowInterfaceNumeric)(inputStr, a, b, c)
+    CsvParse.runOn(arrowInterfaceNumeric)(Right(inputStr), a, b, c)
 
     expect(
       a.toList == List[Double](1, 4, 7),
@@ -35,7 +35,7 @@ object ParseCSVSpec {
       c.toList == List[Double](3, 6, 9)
     )
 
-    CsvParse.runOn(arrowInterfaceNumeric)(inputStr + "\n5,43,1.2\n", a, b, c)
+    CsvParse.runOn(arrowInterfaceNumeric)(Right(inputStr + "\n5,43,1.2\n"), a, b, c)
 
     assert(a.getValueCount == 4)
   }

@@ -66,6 +66,11 @@ VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
 ```
 
 #### JMH
+
+Get a gist about JMH here in this good tutorial: http://tutorials.jenkov.com/java-performance/jmh.html
+In this project, we generate the JMH benchmarks programmatically based on Scala definitions, in order to try out 
+many different variations.
+
 In order to automatically generate and invoke all currently supported benchmarks You should invoke 
 the follwing commands: 
 ```

@@ -1,8 +1,11 @@
 package com.nec.arrow.functions
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.ByteBufferWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
 import org.apache.arrow.vector.Float8Vector
+
+import java.nio.ByteBuffer
 
 object CsvParse {
 
@@ -12,12 +15,20 @@ object CsvParse {
     finally source.close()
   }
 
-  def runOn(
-    nativeInterface: ArrowNativeInterfaceNumeric
-  )(input: String, a: Float8Vector, b: Float8Vector, c: Float8Vector): Unit = {
+  def runOn(nativeInterface: ArrowNativeInterfaceNumeric)(
+    input: Either[(ByteBuffer, Int), String],
+    a: Float8Vector,
+    b: Float8Vector,
+    c: Float8Vector
+  ): Unit = {
     nativeInterface.callFunction(
       name = "parse_csv",
-      inputArguments = List(Some(StringWrapper(input)), None, None, None),
+      inputArguments = List(
+        Some(input.fold(Function.tupled(ByteBufferWrapper.apply), StringWrapper)),
+        None,
+        None,
+        None
+      ),
       outputArguments = List(None, Some(a), Some(b), Some(c))
     )
   }
