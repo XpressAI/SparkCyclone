@@ -39,23 +39,22 @@ final class GroupByCSpec extends AnyFreeSpec {
           outCountVector,
           outValuesVector
         )
+
         val counts = (0 until outCountVector.getValueCount)
           .map(i => outCountVector.get(i))
           .toList
 
-        var values = (0 until outValuesVector.getValueCount)
-          .map(i => outValuesVector.get(i))
-          .toList
-
-        val result = counts.zipWithIndex.map{
-          case (value, idx) => {
-            val key = outGroupsVector.get(idx)
-            val valz = values.take(value)
-            values = values.drop(value)
-            (key, valz.toSeq)
+        val values = counts.zipWithIndex.foldLeft((Seq.empty[Seq[Double]], 0L)){
+          case (state, (value, idx)) => {
+            val totalCountSoFar = state._2
+            val elemsSoFar = state._1
+            val valz = (totalCountSoFar until totalCountSoFar + value).map(index => outValuesVector.get(index.toInt))
+            (elemsSoFar:+ valz, totalCountSoFar + valz.size)
           }
-        }.toMap
+        }
+        val groupKeys = (0 until outGroupsVector.getValueCount).map(idx => outGroupsVector.get(idx))
 
+        val result = groupKeys.zip(values._1)
         (result, groupJVM(groupingColumnVec, valuesColumnVec))
       }
     }

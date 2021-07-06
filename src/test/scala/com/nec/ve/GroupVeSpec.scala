@@ -4,6 +4,7 @@ import java.nio.file.Paths
 import java.time.Instant
 
 import com.nec.arrow.functions.GroupBy
+import com.nec.arrow.functions.GroupBy.groupJVM
 import com.nec.arrow.{ArrowVectorBuilders, TransferDefinitions, VeArrowNativeInterfaceNumeric}
 import com.nec.aurora.Aurora
 import org.apache.arrow.memory.RootAllocator
@@ -26,41 +27,37 @@ final class GroupVeSpec extends AnyFreeSpec {
         val alloc = new RootAllocator(Integer.MAX_VALUE)
         val outValuesVector = new Float8Vector("values", alloc)
         val outGroupsVector = new Float8Vector("groups", alloc)
-        val outGroupsCountVector = new IntVector("groupCounts", alloc)
+        val outCountVector = new IntVector("groupCounts", alloc)
 
         val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
         val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23 , 44, 55, 109)
 
         val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
-        ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { firstColumnVec =>
-          ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { secondColumnVec =>
+        ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
+          ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
             GroupBy.runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
-              firstColumnVec,
-              secondColumnVec,
+              groupingColumnVec,
+              valuesColumnVec,
               outGroupsVector,
-              outGroupsCountVector,
+              outCountVector,
               outValuesVector
             )
-            val counts = (0 until outGroupsCountVector.getValueCount)
-              .map(i => outGroupsCountVector.get(i))
+            val counts = (0 until outCountVector.getValueCount)
+              .map(i => outCountVector.get(i))
               .toList
 
-            var values = (0 until outValuesVector.getValueCount)
-              .map(i => outValuesVector.get(i))
-              .toList
-
-            val result = counts.zipWithIndex.map{
-              case (value, idx) => {
-                val key = outGroupsVector.get(idx)
-                val valz = values.take(value)
-                values = values.drop(value)
-                (key, valz.toSeq)
+            val values = counts.zipWithIndex.foldLeft((Seq.empty[Seq[Double]], 0L)){
+              case (state, (value, idx)) => {
+                val totalCountSoFar = state._2
+                val elemsSoFar = state._1
+                val valz = (totalCountSoFar until totalCountSoFar + value).map(index => outValuesVector.get(index.toInt))
+                (elemsSoFar:+ valz, totalCountSoFar + valz.size)
               }
-            }.toMap
-            (
-              result,
-              GroupBy.groupJVM(firstColumnVec, secondColumnVec)
-            )
+            }
+            val groupKeys = (0 until outGroupsVector.getValueCount).map(idx => outGroupsVector.get(idx))
+
+            val result = groupKeys.zip(values._1)
+            (result, groupJVM(groupingColumnVec, valuesColumnVec))
           }
         }
       } finally Aurora.veo_context_close(ctx)
