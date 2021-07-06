@@ -57,7 +57,18 @@ object VeKernelCompiler {
   }
   object VeCompilerConfig {
     val ExtraArgumentPrefix = "extra-argument."
-    val testConfig: VeCompilerConfig = VeCompilerConfig()
+    val NecNonSparkPrefix = "ncc."
+    val testConfig: VeCompilerConfig = {
+      import scala.collection.JavaConverters._
+      System.getProperties.asScala
+        .collect {
+          case (k, v) if k.startsWith(NecNonSparkPrefix) && v != null =>
+            k.drop(NecNonSparkPrefix.length) -> v
+        }
+        .foldLeft(VeCompilerConfig()) { case (compilerConfig, (key, value)) =>
+          compilerConfig.include(key, value)
+        }
+    }
     val NecPrefix = "spark.com.nec.spark.ncc."
     def fromSparkConf(sparkConfig: SparkConf): VeCompilerConfig = {
       sparkConfig
@@ -122,7 +133,11 @@ final case class VeKernelCompiler(
       }
     )
     val proc = process.run(io)
-    assert(proc.exitValue() == 0, s"Failed; data was: $res; process was ${process}; $resErr")
+    val ev = proc.exitValue()
+    if (config.doDebug) {
+      System.err.println(s"NCC output: \n${res}; \n${resErr}")
+    }
+    assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }
 
   def compile_c(sourceCode: String): Path = {

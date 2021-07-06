@@ -96,6 +96,12 @@ bench -f 1 -wi 0 -prof jfr -i 1 .*Parquet.*Rapid.* -to 20m -jvmArgsAppend -Dspar
 
 bench -f 1 -wi 0 -prof jfr -i 1 -jvmArgsAppend -Dspark.ui.enabled=true .*
 
+# to enable compiler debugging, use:
+-jvmArgsAppend -Dncc.debug=1
+
+# or if running under Spark:
+-jvmArgsAppend -Dspark.com.nec.spark.ncc.debug=1
+
 ```
 
 The first one will set the path to cudf JAR required by rapids benchmarks, while the other one
