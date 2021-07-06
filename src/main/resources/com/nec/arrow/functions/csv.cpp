@@ -87,6 +87,8 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
                             non_null_double_vector* output_b)
 {
+    std::cout << std::endl;
+
     int length = csv_data->length;
     char *data = csv_data->data;
 
@@ -113,6 +115,8 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
 
     std::string *parts = (std::string *)malloc(sizeof(std::string) * (count * 2));
 
+    std::cout << std::endl;
+
     #pragma _NEC cncall
     for (int i = 1; i <= count; i++) {
         int line_start = new_lines[i - 1] + 1;
@@ -129,17 +133,23 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
         line_start = line_end + 1;
     }
 
+    std::cout << std::endl;
+
     std::vector<std::string> strings;
     strings.assign(parts, parts + (count * 2));
     frovedis::words w = frovedis::vector_string_to_words(strings);
     
     std::vector<double> doubles = frovedis::parsenumber<double>(w);
 
+    std::cout << std::endl;
+
     #pragma _NEC vector
     for (int i = 0; i < count; i++) {
         a_data[i] = doubles[i * 2 + 0];
         b_data[i] = doubles[i * 2 + 1];
     }
+
+    std::cout << std::endl;
 
     output_a->data = a_data;
     output_a->count = count;
