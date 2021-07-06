@@ -41,7 +41,7 @@ object ParseCSVSpec {
     assert(a.getValueCount == 4)
 
     
-    val size = 4
+    val size = 7
     val rng = new Random(42)
     val bigStr =  (0 to size)
       .map { case a => 

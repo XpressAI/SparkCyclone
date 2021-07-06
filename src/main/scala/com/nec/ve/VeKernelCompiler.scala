@@ -42,7 +42,6 @@ object VeKernelCompiler {
           if (doDebug) List("-D", "DEBUG=1") else Nil,
           if (useOpenmp) List("-fopenmp", "-mparallel") else Nil
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
-      println(s"Compiler args: ${ret.mkString(" ")}")
       ret
     }
 
