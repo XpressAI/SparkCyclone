@@ -17,12 +17,12 @@ import java.time.Instant
 final class ParseVECSVSpec extends AnyFreeSpec {
   "We can sort a list of ints" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    Files.createDirectory(veBuildPath)
+    Files.createDirectories(veBuildPath)
     val soPath = VeKernelCompiler(
       compilationPrefix = "csv",
       buildDir = veBuildPath,
       config = VeKernelCompiler.VeCompilerConfig.testConfig
-        .copy(doDebug = true)
+        .copy(doDebug = false)
     ).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
         .mkString("\n\n")

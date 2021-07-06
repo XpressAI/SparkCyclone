@@ -24,13 +24,13 @@ object VeKernelCompiler {
   import VeCompilerConfig.ExtraArgumentPrefix
   final case class VeCompilerConfig(
     nccPath: String = "ncc",
-    optimizationLevel: Int = 4,
+    optimizationLevel: Int = 3,
     doDebug: Boolean = false,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = true
   ) {
-    def compilerArguments: List[String] =
-      List(
+    def compilerArguments: List[String] = {
+      val ret = List(
         s"-O$optimizationLevel",
         "-fpic",
         "-finline-functions",
@@ -42,6 +42,9 @@ object VeKernelCompiler {
           if (doDebug) List("-D", "DEBUG=1") else Nil,
           if (useOpenmp) List("-fopenmp", "-mparallel") else Nil
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
+      println(s"Compiler args: ${ret.mkString(" ")}")
+      ret
+    }
 
     def include(key: String, value: String): VeCompilerConfig = key match {
       case "o"      => copy(optimizationLevel = value.toInt)
