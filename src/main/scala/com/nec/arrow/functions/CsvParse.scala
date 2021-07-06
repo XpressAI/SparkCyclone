@@ -30,7 +30,12 @@ object CsvParse {
         None,
         None
       ),
-      outputArguments = List(None, Some(a), Some(b), Some(c))
+      outputArguments = List(
+        None,
+        Some(Float8VectorWrapper(a)),
+        Some(Float8VectorWrapper(b)),
+        Some(Float8VectorWrapper(c))
+      )
     )
   }
 }

@@ -21,6 +21,11 @@ object ArrowInterfaces {
     non_null_int_vector_to_intVector(input, output, output.getAllocator)
   }
 
+  def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, output: IntVector): Unit = {
+    val nBytes = input.count * 4
+    non_null_int2_vector_to_IntVector(input, output, output.getAllocator)
+  }
+
   def non_null_double_vector_to_float8Vector(
     input: non_null_double_vector,
     output: Float8Vector
@@ -118,6 +123,28 @@ object ArrowInterfaces {
       List(
         validityBuffer,
         new ArrowBuf(validityBuffer.getReferenceManager, null, input.count * 8, input.data)
+      ).asJava
+    )
+  }
+
+  def non_null_int2_vector_to_IntVector(
+                                              input: non_null_int2_vector,
+                                              intVector: IntVector,
+                                              rootAllocator: BufferAllocator
+                                            ): Unit = {
+
+    /** Set up the validity buffer -- everything is valid here * */
+    val res = rootAllocator.newReservation()
+    res.add(input.count)
+    val validityBuffer = res.allocateBuffer()
+    validityBuffer.reallocIfNeeded(input.count.toLong)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
+    import scala.collection.JavaConverters._
+    intVector.loadFieldBuffers(
+      new ArrowFieldNode(input.count.toLong, 0),
+      List(
+        validityBuffer,
+        new ArrowBuf(validityBuffer.getReferenceManager, null, input.count * 4, input.data)
       ).asJava
     )
   }
