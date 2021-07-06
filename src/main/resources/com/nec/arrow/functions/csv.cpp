@@ -79,6 +79,8 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
     output_c->data = c_data;
     output_c->count = count;
 
+    free(parts);
+
     return 0;
 }
 
@@ -156,6 +158,8 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
     output_b->data = b_data;
     output_b->count = count;
 
+    free(parts);
+
     return 0;
 }
 
@@ -210,6 +214,8 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
 
     output_a->data = a_data;
     output_a->count = count;
+
+    free(parts);
 
     return 0;
 }
