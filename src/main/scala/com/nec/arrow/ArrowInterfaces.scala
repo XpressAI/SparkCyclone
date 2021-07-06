@@ -50,6 +50,13 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_bounded_data(byteBuffer: ByteBuffer, bufSize: Int): non_null_c_bounded_string = {
+    val vc = new non_null_c_bounded_string()
+    vc.data = byteBuffer.asInstanceOf[DirectBuffer].address()
+    vc.length = bufSize
+    vc
+  }
+
   def c_int2_vector(intVector: IntVector): non_null_int2_vector = {
     val vc = new non_null_int2_vector()
     vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()

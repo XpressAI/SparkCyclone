@@ -18,7 +18,12 @@ final class ParseVECSVSpec extends AnyFreeSpec {
   "We can sort a list of ints" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
-    val soPath = VeKernelCompiler("csv", veBuildPath).compile_c(
+    val soPath = VeKernelCompiler(
+      compilationPrefix = "csv",
+      buildDir = veBuildPath,
+      config = VeKernelCompiler.VeCompilerConfig.testConfig
+        .copy(doDebug = true)
+    ).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
         .mkString("\n\n")
     )

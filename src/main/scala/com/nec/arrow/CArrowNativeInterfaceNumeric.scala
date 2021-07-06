@@ -1,5 +1,6 @@
 package com.nec.arrow
 
+import com.nec.arrow.ArrowInterfaces.c_bounded_data
 import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
 import com.nec.arrow.ArrowInterfaces.c_double_vector
 import com.nec.arrow.ArrowInterfaces.c_int2_vector
@@ -36,13 +37,17 @@ object CArrowNativeInterfaceNumeric {
     val nl = nativeLibraryHandler.getNativeLibrary
     val fn = nl.getFunction(functionName)
 
-    val outputStructs = outputArguments.map(_.map { case Float8VectorWrapper(doubleVector) =>
-      new non_null_double_vector(doubleVector.getValueCount)
+    val outputStructs = outputArguments.map(_.map {
+      case Float8VectorWrapper(doubleVector) =>
+        new non_null_double_vector(doubleVector.getValueCount)
+      case other => throw new MatchError(s"Not supported for output: ${other}")
     })
 
     val invokeArgs: Array[java.lang.Object] = inputArguments
       .zip(outputStructs)
       .map {
+        case ((Some(ByteBufferWrapper(buffer, size)), _)) =>
+          c_bounded_data(buffer, size)
         case ((Some(StringWrapper(str)), _)) =>
           c_bounded_string(str)
         case ((Some(Float8VectorWrapper(vcv)), _)) =>
@@ -51,6 +56,8 @@ object CArrowNativeInterfaceNumeric {
           c_int2_vector(vcv)
         case ((_, Some(structVector))) =>
           structVector
+        case other =>
+          throw new MatchError(s"Unmatched for input: ${other}")
       }
       .toArray
 

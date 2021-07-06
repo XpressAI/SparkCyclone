@@ -52,8 +52,13 @@ object BenchTestingPossibilities {
     def isNative: Boolean
   }
   object CsvStrategy {
-    case object NativeCsv extends CsvStrategy {
-      override def label: String = "NativeCsv"
+    case object NativeCsvVE extends CsvStrategy {
+      override def label: String = "NativeCsvVE"
+      override def isNative: Boolean = true
+      override def expectedString: Option[String] = Some("NativeCsv")
+    }
+    case object NativeCsvC extends CsvStrategy {
+      override def label: String = "NativeCsvC"
       override def isNative: Boolean = true
       override def expectedString: Option[String] = Some("NativeCsv")
     }
@@ -62,7 +67,7 @@ object BenchTestingPossibilities {
       override def isNative: Boolean = false
       override def expectedString: Option[String] = None
     }
-    val All: List[CsvStrategy] = List(NativeCsv, NormalCsv)
+    val All: List[CsvStrategy] = List(NativeCsvVE, NativeCsvC, NormalCsv)
   }
 
   import com.eed3si9n.expecty.Expecty.assert
@@ -122,25 +127,38 @@ object BenchTestingPossibilities {
             .getOrCreate()
         case TestingTarget.VectorEngine =>
           LocalVeoExtension._enabled = true
-          SparkSession
+          var builder = SparkSession
             .builder()
             .master("local[*]")
             .appName(name.value)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
             .config(key = "spark.ui.enabled", value = false)
-            .config(
-              key = "spark.sql.columnVector.offheap.enabled",
-              value = offHeapMode.get.offHeapEnabled.toString
-            )
-            .config(
-              key = "spark.sql.inMemoryColumnarStorage.compressed",
-              value = offHeapMode.get.compressed.toString()
-            )
+
+          offHeapMode.foreach { v =>
+            builder = builder
+              .config(
+                key = "spark.sql.columnVector.offheap.enabled",
+                value = v.offHeapEnabled.toString
+              )
+              .config(
+                key = "spark.sql.inMemoryColumnarStorage.compressed",
+                value = v.compressed.toString()
+              )
+          }
+
+          builder
             .withExtensions(sse =>
               if (csvStrategy.isNative)
                 sse.injectPlannerStrategy(sparkSession =>
-                  NativeCsvStrategy(new LocalVeoExtension.LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf))
+                  if (csvStrategy == CsvStrategy.NativeCsvVE)
+                    NativeCsvStrategy(
+                      new LocalVeoExtension.LocalVeoNativeEvaluator(
+                        sparkSession.sparkContext.getConf
+                      )
+                    )
+                  else
+                    NativeCsvStrategy(CNativeEvaluator)
                 )
             )
             .config(sparkConf)
@@ -187,12 +205,14 @@ object BenchTestingPossibilities {
           TestingTarget.Rapids,
           TestingTarget.CMake
         )
-        colMode <-
-          if (testingTarget == TestingTarget.VectorEngine) VeColumnMode.All.map(v => Some(v))
-          else List(None)
         csvStrat <-
-          if (testingTarget.isNative && source == SampleSource.CSV) CsvStrategy.All
+          if (testingTarget == TestingTarget.VectorEngine && source == SampleSource.CSV)
+            CsvStrategy.All
           else List(CsvStrategy.NormalCsv)
+        colMode <-
+          if (testingTarget == TestingTarget.VectorEngine && source != SampleSource.CSV)
+            VeColumnMode.All.map(v => Some(v))
+          else List(None)
       } yield SimpleSql(
         sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}) FROM nums",
         expectedResult = (62, 4),

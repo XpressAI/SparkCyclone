@@ -66,6 +66,11 @@ VectorEngine / runMain com.nec.ve.VeBenchmarkApp sum
 ```
 
 #### JMH
+
+Get a gist about JMH here in this good tutorial: http://tutorials.jenkov.com/java-performance/jmh.html
+In this project, we generate the JMH benchmarks programmatically based on Scala definitions, in order to try out 
+many different variations.
+
 In order to automatically generate and invoke all currently supported benchmarks You should invoke 
 the follwing commands: 
 ```
@@ -90,6 +95,12 @@ bench -f 1 -wi 0 -prof jfr -i 1 .*Parquet.*Rapid.* -to 20m -jvmArgsAppend -Dspar
 -jvmArgsAppend -Dnec.testing.force-small=true
 
 bench -f 1 -wi 0 -prof jfr -i 1 -jvmArgsAppend -Dspark.ui.enabled=true .*
+
+# to enable compiler debugging, use:
+-jvmArgsAppend -Dncc.debug=1
+
+# or if running under Spark:
+-jvmArgsAppend -Dspark.com.nec.spark.ncc.debug=1
 
 ```
 

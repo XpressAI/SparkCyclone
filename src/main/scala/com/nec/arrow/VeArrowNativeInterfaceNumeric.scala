@@ -55,6 +55,18 @@ object VeArrowNativeInterfaceNumeric {
     vc
   }
 
+  private def make_veo_string_of_byteBuffer(
+    proc: Aurora.veo_proc_handle,
+    byteBuffer: ByteBuffer,
+    size: Int
+  ): non_null_c_bounded_string = {
+    val vc = new non_null_c_bounded_string()
+    vc.length = size
+    byteBuffer.position(0)
+    vc.data = copyBufferToVe(proc, byteBuffer, Some(size))
+    vc
+  }
+
   private def make_veo_int2_vector(
     proc: Aurora.veo_proc_handle,
     intVector: IntVector
@@ -133,6 +145,10 @@ object VeArrowNativeInterfaceNumeric {
           doubleVector -> idx
         }
         .foreach {
+          case (ByteBufferWrapper(byteBuffer, size), index) =>
+            val wr = make_veo_string_of_byteBuffer(proc, byteBuffer, size)
+
+            Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L)
           case (StringWrapper(stringValue), index) =>
             val wr = make_veo_string(proc, stringValue)
 

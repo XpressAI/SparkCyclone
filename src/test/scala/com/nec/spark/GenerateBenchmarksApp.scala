@@ -1,7 +1,8 @@
 package com.nec.spark
+import com.nec.testing.GenericTesting
+
 import java.io.File
 import java.nio.file.Files
-import com.nec.testing.Testing._
 
 object GenerateBenchmarksApp extends App {
   val expectedTarget = new File(args.last).getAbsoluteFile
@@ -32,6 +33,30 @@ class State_${name} {
 
       """
     }.toList
+  } ++ {
+    GenericTesting.possibilitiesMap.keysIterator.map { name =>
+      s"""
+@State(Scope.Benchmark)
+class State_${name} {
+  val testing = com.nec.testing.GenericTesting.possibilitiesMap("${name}")
+  var state: testing.State = _
+
+  def executeTest(): Unit = {
+    testing.benchmark(state)
+  }
+
+  @Setup
+  def prepare(): Unit = {
+    this.state = testing.init()
+  }
+
+  @TearDown
+  def tearDown(): Unit = {
+    testing.cleanUp(state)
+  }
+}
+      """
+    }
   }
 
   val methods: List[String] = {
@@ -44,8 +69,7 @@ class State_${name} {
        * As no VE here
        */
 //      .filterNot { case (name, testing) => testing.testingTarget == TestingTarget.CMake }
-      .keysIterator
-      .map { name =>
+      .keysIterator.map { name =>
         s"""
       @Benchmark
       @BenchmarkMode(Array(Mode.SingleShotTime))
@@ -54,9 +78,15 @@ class State_${name} {
         state.input.debugResults()
       }
       """
+      }.toList ++ GenericTesting.possibilitiesMap.keysIterator.map { name =>
+      s"""
+      @Benchmark
+      @BenchmarkMode(Array(Mode.SingleShotTime))
+      def ${name}(state: DynamicBenchmark.State_${name}): Unit = {
+        state.executeTest()
       }
-      .toList
-
+      """
+    }
   }
   Files.write(
     expectedTarget.toPath,
