@@ -73,3 +73,8 @@ A good set of NCC defaults is set up, however if further overriding is needed, i
 ```
 
 For safety, if an argument key is not recognized, it will fail to launch.
+
+To use the x86 CSV parser:
+```
+--conf spark.com.nec.enable-native-csv=true
+```

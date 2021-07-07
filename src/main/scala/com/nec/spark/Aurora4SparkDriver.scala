@@ -23,7 +23,7 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     logInfo("Aurora4Spark DriverPlugin is launched.")
     Aurora4SparkDriver.launched = true
     val nativeCsvEnabled =
-      sc.getConf.get("spark.com.nec.enable-native-csv", "true").equalsIgnoreCase("true")
+      sc.getConf.get("spark.com.nec.enable-native-csv", "false").equalsIgnoreCase("true")
     val allExtensions =
       List(classOf[LocalVeoExtension]) ++ (if (nativeCsvEnabled) List(classOf[NativeCsvExtension])
                                            else Nil)
