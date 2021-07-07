@@ -5,10 +5,11 @@ import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
 import com.nec.arrow.ArrowInterfaces.c_double_vector
 import com.nec.arrow.ArrowInterfaces.c_int2_vector
 import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
+import com.nec.arrow.ArrowTransferStructures.{non_null_double_vector, non_null_int_vector}
+import com.nec.arrow.ArrowInterfaces.{c_bounded_string, c_double_vector, c_int2_vector, non_null_double_vector_to_float8Vector, non_null_int_vector_to_IntVector}
 import com.sun.jna.Library
 import com.nec.arrow.ArrowNativeInterfaceNumeric._
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
-import com.nec.arrow.ArrowInterfaces.c_bounded_string
 
 final class CArrowNativeInterfaceNumeric(libPath: String) extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
@@ -38,9 +39,10 @@ object CArrowNativeInterfaceNumeric {
     val fn = nl.getFunction(functionName)
 
     val outputStructs = outputArguments.map(_.map {
-      case Float8VectorWrapper(doubleVector) =>
-        new non_null_double_vector(doubleVector.getValueCount)
+      case Float8VectorWrapper(doubleVector) => new non_null_double_vector(doubleVector.getValueCount)
+      case IntVectorWrapper(intVector) => new non_null_int_vector()
       case other => throw new MatchError(s"Not supported for output: ${other}")
+
     })
 
     val invokeArgs: Array[java.lang.Object] = inputArguments
@@ -65,7 +67,9 @@ object CArrowNativeInterfaceNumeric {
 
     outputStructs.zip(outputArguments).foreach {
       case (Some(struct), Some(Float8VectorWrapper(vec))) =>
-        non_null_double_vector_to_float8Vector(struct, vec)
+        non_null_double_vector_to_float8Vector(struct.asInstanceOf[non_null_double_vector], vec)
+      case (Some(struct), Some(IntVectorWrapper(vec))) =>
+        non_null_int_vector_to_IntVector(struct.asInstanceOf[non_null_int_vector], vec)
       case _ =>
     }
 

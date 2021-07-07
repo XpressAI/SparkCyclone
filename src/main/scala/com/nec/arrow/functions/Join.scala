@@ -30,7 +30,7 @@ object Join {
         Some(IntVectorWrapper(rightKeyVector)),
         None
       ),
-      outputArguments = List(None, None , None, None, Some(outputVector))
+      outputArguments = List(None, None , None, None, Some(Float8VectorWrapper(outputVector)))
     )
   }
 

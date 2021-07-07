@@ -15,7 +15,7 @@ object Sort {
     nativeInterface.callFunction(
       name = "sort_doubles",
       inputArguments = List(Some(Float8VectorWrapper(firstColumnVector)), None),
-      outputArguments = List(None, Some(outputVector))
+      outputArguments = List(None, Some(Float8VectorWrapper(outputVector)))
     )
   }
 
