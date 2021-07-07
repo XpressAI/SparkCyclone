@@ -134,6 +134,7 @@ object BenchTestingPossibilities {
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
             .config(key = "spark.ui.enabled", value = false)
+            .config(key = "spark.com.nec.enable-native-csv", "false")
 
           offHeapMode.foreach { v =>
             builder = builder
