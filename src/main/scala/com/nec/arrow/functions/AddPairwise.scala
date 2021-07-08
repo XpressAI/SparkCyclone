@@ -32,7 +32,7 @@ object AddPairwise {
         Some(Float8VectorWrapper(firstColumnVector)),
         Some(Float8VectorWrapper(secondColumnvector)),
         None),
-      outputArguments = List(None, None, Some(outputVector))
+      outputArguments = List(None, None, Some(Float8VectorWrapper(outputVector)))
     )
   }
 

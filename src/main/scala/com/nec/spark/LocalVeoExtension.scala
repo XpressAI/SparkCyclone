@@ -151,6 +151,5 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
         new LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf)
       )
     )
-
   }
 }

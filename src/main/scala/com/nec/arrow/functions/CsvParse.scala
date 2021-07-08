@@ -3,6 +3,7 @@ package com.nec.arrow.functions
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.ByteBufferWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.{Float8VectorWrapper, StringWrapper}
 import org.apache.arrow.vector.Float8Vector
 
 import java.nio.ByteBuffer
@@ -36,7 +37,12 @@ object CsvParse {
         None,
         None
       ),
-      outputArguments = List(None, Some(a), Some(b), Some(c))
+      outputArguments = List(
+        None,
+        Some(Float8VectorWrapper(a)),
+        Some(Float8VectorWrapper(b)),
+        Some(Float8VectorWrapper(c))
+      )
     )
   }
 }

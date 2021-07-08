@@ -1,6 +1,7 @@
 package com.nec.arrow
 
 import java.nio.ByteBuffer
+
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.aurora.Aurora
 import com.nec.arrow.ArrowInterfaces._
@@ -8,6 +9,7 @@ import org.apache.arrow.vector._
 import org.bytedeco.javacpp.LongPointer
 import com.nec.arrow.ArrowNativeInterfaceNumeric._
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
+import com.sun.jna.Structure
 import sun.nio.ch.DirectBuffer
 
 final class VeArrowNativeInterfaceNumeric(
@@ -93,6 +95,20 @@ object VeArrowNativeInterfaceNumeric {
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
   }
 
+  private def veo_read_non_null_int2_vector(
+                                               proc: Aurora.veo_proc_handle,
+                                               vec: non_null_int2_vector,
+                                               byteBuffer: ByteBuffer
+                                             ): Unit = {
+    val veoPtr = byteBuffer.getLong(0)
+    val dataCount = byteBuffer.getInt(8)
+    val dataSize = dataCount * 8
+    val vhTarget = ByteBuffer.allocateDirect(dataSize)
+    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    vec.count = dataCount
+    vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+  }
+
   def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer, len: Option[Long] = None): Long = {
     val veInputPointer = new LongPointer(8)
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
@@ -141,8 +157,8 @@ object VeArrowNativeInterfaceNumeric {
     val our_args = Aurora.veo_args_alloc()
     try {
       inputArguments.zipWithIndex
-        .collect { case (Some(doubleVector), idx) =>
-          doubleVector -> idx
+        .collect {
+          case (Some(doubleVector), idx) => doubleVector -> idx
         }
         .foreach {
           case (ByteBufferWrapper(byteBuffer, size), index) =>
@@ -175,22 +191,28 @@ object VeArrowNativeInterfaceNumeric {
             )
         }
 
-      val outputArgumentsVectorsDouble: List[(Float8Vector, Int)] = outputArguments.zipWithIndex
-        .collect { case (Some(Float8VectorWrapper(doubleVector)), index) =>
-          doubleVector -> index
+      val outputArgumentsVectorsDouble: List[(SupportedVectorWrapper, Int)] = outputArguments
+        .zipWithIndex
+        .collect {
+          case (Some(vec), index) => vec -> index
         }
 
-      val outputArgumentsStructs: List[(non_null_double_vector, Int)] =
-        outputArgumentsVectorsDouble.map { case (doubleVector, index) =>
-          new non_null_double_vector(doubleVector.getValueCount) -> index
+      val outputArgumentsZipped: List[(SupportedVectorWrapper, Structure, ByteBuffer, Int)] =
+        outputArgumentsVectorsDouble
+          .map {
+            case (vec @ Float8VectorWrapper(doubleVector), index) => {
+              val structVector = new non_null_double_vector(doubleVector.getValueCount)
+              val byteBuffer = nonNullDoubleVectorToByteBuffer(structVector)
+              (vec, structVector, byteBuffer, index)
+            }
+            case (vec @ IntVectorWrapper(intWrapper), index) => {
+              val structVector = new non_null_int2_vector()
+              val byteBuffer = nonNullInt2VectorToByteBuffer(structVector)
+              (vec, structVector, byteBuffer, index)
+            }
         }
 
-      val outputArgumentsByteBuffers: List[(ByteBuffer, Int)] = outputArgumentsStructs.map {
-        case (struct, index) =>
-          nonNullDoubleVectorToByteBuffer(struct) -> index
-      }
-
-      outputArgumentsByteBuffers.foreach { case (byteBuffer, index) =>
+      outputArgumentsZipped.foreach { case (vec, struct, byteBuffer, index) =>
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
       }
 
@@ -203,12 +225,17 @@ object VeArrowNativeInterfaceNumeric {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      (outputArgumentsVectorsDouble
-        .zip(outputArgumentsStructs)
-        .zip(outputArgumentsByteBuffers))
-        .foreach { case (((floatVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
-          veo_read_non_null_double_vector(proc, non_null_int_vector, byteBuffer)
-          non_null_double_vector_to_float8Vector(non_null_int_vector, floatVector)
+      outputArgumentsZipped
+        .foreach {
+          case (Float8VectorWrapper(vec), struct: non_null_double_vector, byteBuff, _) => {
+            veo_read_non_null_double_vector(proc, struct, byteBuff)
+            non_null_double_vector_to_float8Vector(struct, vec)
+          }
+
+          case (IntVectorWrapper(vec), struct: non_null_int2_vector, byteBuff, _) => {
+            veo_read_non_null_int2_vector(proc, struct, byteBuff)
+            non_null_int2_vector_to_IntVector(struct, vec)
+          }
         }
     } finally Aurora.veo_args_free(our_args)
   }

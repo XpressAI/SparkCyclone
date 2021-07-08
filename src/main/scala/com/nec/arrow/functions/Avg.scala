@@ -23,7 +23,7 @@ object Avg {
     nativeInterface.callFunction(
       name = "vector_avg",
       inputArguments = List(Some(Float8VectorWrapper(float8Vector)), None),
-      outputArguments = List(None, Some(outputVector), None)
+      outputArguments = List(None, Some(Float8VectorWrapper(outputVector)), None)
     )
 
     (0 until outputVector.getValueCount).map { idx =>

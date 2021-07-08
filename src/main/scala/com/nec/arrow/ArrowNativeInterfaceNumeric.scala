@@ -10,13 +10,13 @@ trait ArrowNativeInterfaceNumeric extends Serializable {
   final def callFunction(
     name: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
-    outputArguments: List[Option[Float8Vector]]
+    outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
     try {
       callFunctionGen(
         name = name,
         inputArguments = inputArguments,
-        outputArguments = outputArguments.map(_.map(f8v => Float8VectorWrapper(f8v)))
+        outputArguments = outputArguments
       )
     } catch {
       case e: Throwable =>
