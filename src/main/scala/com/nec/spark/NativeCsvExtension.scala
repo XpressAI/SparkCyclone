@@ -7,8 +7,15 @@ import com.nec.cmake._
 
 final class NativeCsvExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
-    sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
-      NativeCsvExec.NativeCsvStrategy(CNativeEvaluator)
-    )
+    sparkSessionExtensions.injectPlannerStrategy { sparkSession =>
+      val conf = sparkSession.sparkContext.getConf
+      val selection = conf.get("spark.com.nec.native-csv", "false").toLowerCase()
+      selection match {
+        case "x86" => NativeCsvExec.NativeCsvStrategy(CNativeEvaluator)
+        case "ve" =>
+          NativeCsvExec.NativeCsvStrategy(new LocalVeoExtension.LocalVeoNativeEvaluator(conf))
+        case other => EmptyStrategy
+      }
+    }
   }
 }

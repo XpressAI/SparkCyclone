@@ -76,5 +76,7 @@ For safety, if an argument key is not recognized, it will fail to launch.
 
 To use the x86 CSV parser:
 ```
---conf spark.com.nec.enable-native-csv=true
+--conf spark.com.nec.native-csv=x86
+--conf spark.com.nec.native-csv=VE
+--conf spark.com.nec.native-csv=off
 ```
