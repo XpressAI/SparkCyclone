@@ -35,19 +35,18 @@ object ParseCSVSpec {
       b.toList == List[Double](2, 5, 8),
       c.toList == List[Double](3, 6, 9)
     )
-    
+
     val inputStr2 = inputStr.replace("\n\n", "") + "\n5,43,1.2\n\n"
     CsvParse.runOn(arrowInterfaceNumeric)(Right(inputStr2), a, b, c)
     assert(a.getValueCount == 4)
 
-    
     val size = 7
     val rng = new Random(42)
-    val bigStr =  (0 to size)
-      .map { case a => 
+    val bigStr = (0 to size)
+      .map { case a =>
         List(
-          rng.nextDouble() * rng.nextInt(1000), 
-          rng.nextDouble * rng.nextInt(1000), 
+          rng.nextDouble() * rng.nextInt(1000),
+          rng.nextDouble * rng.nextInt(1000),
           rng.nextDouble * rng.nextInt(1000)
         ).mkString(",")
       }
@@ -57,21 +56,10 @@ object ParseCSVSpec {
     CsvParse.runOn(arrowInterfaceNumeric)(Right(bigStr), a, b, c)
     val veEnd = System.currentTimeMillis()
     assert(a.getValueCount == size + 1)
-    /*
-    val spark = SparkSession.builder().appName("CsvExample").master("local").getOrCreate()
 
-    import spark.implicits._
-    val csvData = bigStr.lines.toList.toDS()
-    println("Reading csv from spark.")
-    val jvmStart = System.currentTimeMillis()
-    val frame = spark.read.option("header", true).option("inferSchema",true).csv(csvData)
-    println(s"Spark read ${frame.count} lines")
-    val jvmEnd = System.currentTimeMillis()
-
-
-    println(s"Ve elapsed: ${(veEnd - veStart) / 1000}s JVM elapsed: ${(jvmEnd - jvmStart) / 1000}s")
-    */
-    println(s"Ve elapsed: ${(veEnd - veStart) / 1000}s")
+    val inputStr3 = "a,b\n1,2\n3,4\n"
+    CsvParse.runOn2(arrowInterfaceNumeric)(Right(inputStr3), a, b)
+    expect(a.toList == List[Double](1, 3), b.toList == List[Double](2, 4))
   }
 }
 

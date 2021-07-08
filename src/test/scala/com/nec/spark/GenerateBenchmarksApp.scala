@@ -7,8 +7,11 @@ import java.nio.file.Files
 object GenerateBenchmarksApp extends App {
   val expectedTarget = new File(args.last).getAbsoluteFile
   val fixtures: List[String] = {
-    BenchTestingPossibilities.possibilitiesMap.keysIterator.map { name =>
-      s"""
+    BenchTestingPossibilities.possibilitiesMap
+      .filterNot(_._2.testingTarget.isCMake)
+      .keysIterator
+      .map { name =>
+        s"""
 @State(Scope.Benchmark)
 class State_${name} {
   lazy val testing = com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}")
@@ -32,7 +35,8 @@ class State_${name} {
 }
 
       """
-    }.toList
+      }
+      .toList
   } ++ {
     GenericTesting.possibilitiesMap.keysIterator.map { name =>
       s"""
@@ -61,15 +65,9 @@ class State_${name} {
 
   val methods: List[String] = {
     BenchTestingPossibilities.possibilitiesMap
-      /**
-       * Exclude CMake as it's not really useful for benchmarking here. We are nonetheless
-       * adding it to .possibilities in order to do correctness testing when in the CMake scope
-       *
-       * Bringing it back -- useful for local development just to get an idea
-       * As no VE here
-       */
-//      .filterNot { case (name, testing) => testing.testingTarget == TestingTarget.CMake }
-      .keysIterator.map { name =>
+      .filterNot(_._2.testingTarget.isCMake)
+      .keysIterator
+      .map { name =>
         s"""
       @Benchmark
       @BenchmarkMode(Array(Mode.SingleShotTime))
@@ -78,7 +76,8 @@ class State_${name} {
         state.input.debugResults()
       }
       """
-      }.toList ++ GenericTesting.possibilitiesMap.keysIterator.map { name =>
+      }
+      .toList ++ GenericTesting.possibilitiesMap.keysIterator.map { name =>
       s"""
       @Benchmark
       @BenchmarkMode(Array(Mode.SingleShotTime))

@@ -45,4 +45,24 @@ object CsvParse {
       )
     )
   }
+
+  def runOn2(nativeInterface: ArrowNativeInterfaceNumeric)(
+    input: Either[(ByteBuffer, Int), String],
+    a: Float8Vector,
+    b: Float8Vector,
+  ): Unit = {
+    nativeInterface.callFunction(
+      name = "parse_csv_2",
+      inputArguments = List(
+        Some(input.fold(Function.tupled(ByteBufferWrapper.apply), StringWrapper)),
+        None,
+        None
+      ),
+      outputArguments = List(
+        None,
+        Some(Float8VectorWrapper(a)),
+        Some(Float8VectorWrapper(b))
+      )
+    )
+  }
 }
