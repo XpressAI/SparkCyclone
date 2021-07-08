@@ -182,3 +182,38 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     
     return 0;
 }
+
+extern "C" long parse_csv_double1_str2_int3_long4(
+    non_null_c_bounded_string* csv_data,
+    non_null_double_vector* output_a,
+    non_null_varchar_vector* output_b,
+    non_null_int_vector* output_c,
+    non_null_bigint_vector* output_d)
+{
+    output_a->data = (double *)malloc(2 * sizeof(double));
+    output_a->data[0] = 1.0;
+    output_a->data[1] = 2.0;
+    output_a->count = 2;
+
+    const char* output_str = "one point zeroTwoPointZerox";
+    output_b->data = (char *)malloc(27 * sizeof(char));
+    strncpy(output_b->data, output_str, 27);
+    output_b->offsets = (int *)malloc(3 * sizeof(int));
+    output_b->offsets[0] = 0;
+    output_b->offsets[1] = 100;
+    output_b->offsets[2] = 200;
+    output_b->count = 2;
+    output_b->size = 100;
+    return 0;
+    
+    output_c->data = (int *)malloc(2 * sizeof(int));
+    output_c->data[0] = 1;
+    output_c->data[1] = 2;
+    output_c->count = 2;
+
+    output_d->data = (long *)malloc(2 * sizeof(long));
+    output_d->data[0] = 1000000000000;
+    output_d->data[1] = 1000000000001;
+    output_d->count = 2;
+    
+}
