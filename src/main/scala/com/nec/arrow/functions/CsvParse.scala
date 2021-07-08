@@ -19,11 +19,6 @@ object CsvParse {
   val CsvParseCode: String = {
     val sources = Seq(
       scala.io.Source.fromInputStream(getClass.getResourceAsStream("csv.cpp")),
-      scala.io.Source.fromInputStream(getClass.getResourceAsStream("cpp/frovedis/text/char_int_conv.cc")),
-      scala.io.Source.fromInputStream(getClass.getResourceAsStream("cpp/frovedis/core/utility.cc")),
-      scala.io.Source.fromInputStream(getClass.getResourceAsStream("cpp/frovedis/text/find.cc")),
-      scala.io.Source.fromInputStream(getClass.getResourceAsStream("cpp/frovedis/text/words.cc")),
-      scala.io.Source.fromInputStream(getClass.getResourceAsStream("cpp/frovedis/text/parsefloat.cc")),
     )
     try sources.map(_.mkString("")).mkString("\n")
     finally sources.map(_.close())

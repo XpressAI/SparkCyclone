@@ -7,8 +7,11 @@
 #include <vector>
 #include <omp.h>
 #include "words.hpp"
+#include "words.cc"
 #include "parsefloat.hpp"
+#include "parsefloat.cc"
 #include "char_int_conv.hpp"
+#include "char_int_conv.cc"
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,

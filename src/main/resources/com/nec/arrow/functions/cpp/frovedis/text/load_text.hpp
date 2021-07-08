@@ -4,7 +4,7 @@
 #include "../core/node_local.hpp"
 #include "char_int_conv.hpp"
 #include "find.hpp"
-
+#include "find.cc"
 #ifdef USE_YAS
 #include <yas/types/std/vector.hpp>
 #include <yas/types/std/string.hpp>
@@ -31,7 +31,7 @@ load_text_separate(const std::string& path,
                    const std::string& delim,
                    node_local<std::vector<size_t>>& sep,
                    node_local<std::vector<size_t>>& len,
-                   ssize_t start, ssize_t& end); // end is input/output
+                   size_t start, size_t& end); // end is input/output
 
 std::vector<int>
 load_text_local(const std::string& path,

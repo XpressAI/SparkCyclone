@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <cmath>
+#include "utility.cc"
 #include "utility.hpp"
 #include "set_operations.hpp"
 #include "conditions_for_find.hpp"

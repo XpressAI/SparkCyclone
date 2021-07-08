@@ -1,5 +1,6 @@
 #include "words.hpp"
 #include "find.hpp"
+#include "find.cc"
 #include "../core/radix_sort.hpp"
 #include "../core/set_operations.hpp"
 #include "../core/lower_bound.hpp"
@@ -1596,7 +1597,7 @@ void replace(const std::vector<int>& chars,
     ret_lensp[i] = lensp[i];
   }
   // might be negative
-  ssize_t size_diff = (ssize_t)to_size - (ssize_t)from_size; 
+  size_t size_diff = (size_t)to_size - (size_t)from_size;
 #pragma _NEC ivdep
   for(size_t i = 0; i < sep_idx_size-1; i++) {
     ret_lensp[idxp[sep_idxp[i]]] += size_diff * original_num_occurrencep[i];

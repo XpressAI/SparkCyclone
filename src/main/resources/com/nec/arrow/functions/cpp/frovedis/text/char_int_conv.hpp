@@ -5,6 +5,7 @@
 #include <string>
 #include <cstddef>
 #include "../core/utility.hpp"
+#include "../core/utility.cc"
 
 namespace frovedis {
 
