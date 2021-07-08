@@ -10,6 +10,7 @@
 #include "parsefloat.hpp"
 #include "char_int_conv.hpp"
 
+#if __ve__
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
@@ -17,7 +18,7 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_c)
 {
     #if DEBUG
-        //std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
+        std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
     #endif
 
     int length = csv_data->length;
@@ -78,7 +79,7 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_b)
 {
     #if DEBUG
-        //std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
+        std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
     #endif
 
     int length = csv_data->length;
@@ -136,7 +137,7 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a)
 {
     #if DEBUG
-        //std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
+        std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
     #endif
 
     int length = csv_data->length;
@@ -184,7 +185,7 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     return 0;
 }
 
-#if 0
+#else 
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
@@ -332,5 +333,5 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
 
     return 0;
 }
-#endif
 
+#endif
