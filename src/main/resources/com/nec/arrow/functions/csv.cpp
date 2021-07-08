@@ -199,9 +199,10 @@ extern "C" long parse_csv_double1_str2_int3_long4(
     output_b->data = (char *)malloc(27 * sizeof(char));
     strncpy(output_b->data, output_str, 27);
     output_b->offsets = (int *)malloc(3 * sizeof(int));
-    output_b->offsets[0] = 0;
+    output_b->offsets[0] = 2;
     output_b->offsets[1] = 100;
     output_b->offsets[2] = 200;
+    std::cout << "KEKE --> " << output_b->offsets[1] << std::endl << std::flush;
     output_b->count = 2;
     output_b->size = 100;
     return 0;

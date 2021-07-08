@@ -221,6 +221,7 @@ object ArrowInterfaces {
     println(offBuffer.getInt(1))
     println(offBuffer.getInt(2))
     println(offBuffer.getInt(3))
+    println(offBuffer.capacity());
     varCharVector.loadFieldBuffers(
       new ArrowFieldNode(input.count.toLong, 0),
       List(
