@@ -1,10 +1,6 @@
 package com.nec.arrow
 
 import com.nec.arrow.ArrowInterfaces.c_bounded_data
-import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
-import com.nec.arrow.ArrowInterfaces.c_double_vector
-import com.nec.arrow.ArrowInterfaces.c_int2_vector
-import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
 import com.nec.arrow.ArrowTransferStructures.{non_null_double_vector, non_null_int_vector}
 import com.nec.arrow.ArrowInterfaces.{c_bounded_string, c_double_vector, c_int2_vector, non_null_double_vector_to_float8Vector, non_null_int_vector_to_IntVector}
 import com.sun.jna.Library
