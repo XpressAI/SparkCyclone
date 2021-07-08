@@ -22,13 +22,19 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
   ): java.util.Map[String, String] = {
     logInfo("Aurora4Spark DriverPlugin is launched.")
     Aurora4SparkDriver.launched = true
-    pluginContext.conf().set("spark.sql.extensions", classOf[LocalVeoExtension].getCanonicalName)
+    val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
+    pluginContext
+      .conf()
+      .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(","))
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
-      "ve_so_name" -> VeKernelCompiler.compile_c(
-        buildDir = tmpBuildDir,
-        config = VeKernelCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
-      ).toAbsolutePath.toString
+      "ve_so_name" -> VeKernelCompiler
+        .compile_c(
+          buildDir = tmpBuildDir,
+          config = VeKernelCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
+        )
+        .toAbsolutePath
+        .toString
     )
     testArgs.asJava
   }
