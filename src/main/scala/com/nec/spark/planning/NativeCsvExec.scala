@@ -2,15 +2,19 @@ package com.nec.spark.planning
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.{Float8VectorWrapper, StringWrapper}
+
 import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 import org.apache.arrow.vector.Float8Vector
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
+
 import org.apache.spark.sql.execution.SparkPlan
 import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
+
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.planning.ScanOperation
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -69,7 +73,7 @@ case class NativeCsvExec(
       evaluator.callFunction(
         name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
         inputArguments = List(Some(StringWrapper(y))) ++ outColumns.map(_ => None),
-        outputArguments = List(None) ++ outColumns.map(col => Some(col))
+        outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
       )
       new ColumnarBatch(
         outColumns.map(col => new ArrowColumnVector(col)).toArray,
