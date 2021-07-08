@@ -57,7 +57,7 @@ object VeArrowNativeInterface {
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
     Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
     vec.count = dataCount
-    vec.data = new Pointer(vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address())
+    vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
   }
 
   def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer): Long = {

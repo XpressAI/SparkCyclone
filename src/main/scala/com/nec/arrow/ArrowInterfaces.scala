@@ -123,7 +123,7 @@ object ArrowInterfaces {
           validityBuffer.getReferenceManager,
           null,
           input.count * 4,
-          Pointer.nativeValue(input.data)
+          input.data
         )
       ).asJava
     )
@@ -134,8 +134,6 @@ object ArrowInterfaces {
     bigintVector: BigIntVector,
     rootAllocator: BufferAllocator
   ): Unit = {
-
-    /** Set up the validity buffer -- everything is valid here * */
     val res = rootAllocator.newReservation()
     res.add(input.count)
     val validityBuffer = res.allocateBuffer()
@@ -151,7 +149,7 @@ object ArrowInterfaces {
           validityBuffer.getReferenceManager,
           null,
           input.count * 8,
-          Pointer.nativeValue(input.data)
+          input.data
         )
       ).asJava
     )
@@ -162,7 +160,6 @@ object ArrowInterfaces {
     intVector: Float8Vector,
     rootAllocator: BufferAllocator
   ): Unit = {
-
     /** Set up the validity buffer -- everything is valid here * */
     val res = rootAllocator.newReservation()
     res.add(input.count)
@@ -206,7 +203,6 @@ object ArrowInterfaces {
     varCharVector: VarCharVector,
     rootAllocator: BufferAllocator
   ): Unit = {
-    /** Set up the validity buffer -- everything is valid here * */
     val res = rootAllocator.newReservation()
     res.add(input.count)
     val validityBuffer = res.allocateBuffer()
@@ -214,14 +210,9 @@ object ArrowInterfaces {
     (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
     import scala.collection.JavaConverters._
 
-    val dataBuffer = new ArrowBuf(validityBuffer.getReferenceManager, null, input.size, input.data)
-    println(s"INput size = ${input.size}, count = ${input.count}")
+    val dataBuffer = new ArrowBuf(validityBuffer.getReferenceManager, null, input.size.toLong, input.data)
+
     val offBuffer = new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
-    println(offBuffer.getInt(0))
-    println(offBuffer.getInt(1))
-    println(offBuffer.getInt(2))
-    println(offBuffer.getInt(3))
-    println(offBuffer.capacity());
     varCharVector.loadFieldBuffers(
       new ArrowFieldNode(input.count.toLong, 0),
       List(
@@ -231,4 +222,5 @@ object ArrowInterfaces {
       ).asJava
     )
   }
+
 }

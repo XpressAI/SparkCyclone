@@ -57,7 +57,7 @@ public interface ArrowTransferStructures extends Library {
 
     @Structure.FieldOrder({"data", "count"})
     class non_null_int_vector extends Structure {
-        public Pointer data;
+        public long data;
         public Integer count;
 
         public non_null_int_vector() {
@@ -163,7 +163,7 @@ public interface ArrowTransferStructures extends Library {
 
     @Structure.FieldOrder({"data", "count"})
     class non_null_bigint_vector extends Structure {
-        public Pointer data;
+        public long data;
         public Integer count;
 
         public int size() {

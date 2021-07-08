@@ -79,6 +79,8 @@ object CsvParse {
       inputArguments = List(
         Some(input.fold(Function.tupled(ByteBufferWrapper.apply), StringWrapper)),
         None,
+        None,
+        None,
         None
       ),
       outputArguments = List(

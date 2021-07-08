@@ -128,7 +128,7 @@ VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 lazy val CMake = config("cmake") extend Test
 inConfig(CMake)(Defaults.testTasks)
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
-CMake / fork := true
+CMake / fork := false
 CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
 Global / cancelable := true

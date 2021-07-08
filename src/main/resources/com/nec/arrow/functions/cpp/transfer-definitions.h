@@ -30,7 +30,7 @@ typedef struct
 
 typedef struct
 {
-    long *data;
+    long long *data;
     int count;
 } non_null_bigint_vector;
 

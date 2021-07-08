@@ -26,9 +26,11 @@ object ParseCSVSpec {
       .toList
       .map(bytes => new String(bytes, "UTF-8"))
   }
+
   implicit class RichBigIntVector(bigIntVector: BigIntVector) {
     def toList: List[Long] = (0 until bigIntVector.getValueCount).map(bigIntVector.get).toList
   }
+
   implicit class RichIntVector(IntVector: IntVector) {
     def toList: List[Int] = (0 until IntVector.getValueCount).map(IntVector.get).toList
   }
