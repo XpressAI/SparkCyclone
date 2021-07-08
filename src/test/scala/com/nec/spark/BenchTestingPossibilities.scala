@@ -57,17 +57,12 @@ object BenchTestingPossibilities {
       override def isNative: Boolean = true
       override def expectedString: Option[String] = Some("NativeCsv")
     }
-    case object NativeCsvC extends CsvStrategy {
-      override def label: String = "NativeCsvC"
-      override def isNative: Boolean = true
-      override def expectedString: Option[String] = Some("NativeCsv")
-    }
     case object NormalCsv extends CsvStrategy {
       override def label: String = "NormalCsv"
       override def isNative: Boolean = false
       override def expectedString: Option[String] = None
     }
-    val All: List[CsvStrategy] = List(NativeCsvVE, NativeCsvC, NormalCsv)
+    val All: List[CsvStrategy] = List(NativeCsvVE, NormalCsv)
   }
 
   import com.eed3si9n.expecty.Expecty.assert
