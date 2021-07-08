@@ -15,7 +15,7 @@ import java.nio.file.Paths
 import java.time.Instant
 
 final class ParseVECSVSpec extends AnyFreeSpec {
-  "We can sort a list of ints" in {
+  "We can do a run of CSV" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectories(veBuildPath)
     val soPath = VeKernelCompiler(
@@ -38,11 +38,5 @@ final class ParseVECSVSpec extends AnyFreeSpec {
         verifyOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))
       } finally Aurora.veo_context_close(ctx)
     } finally Aurora.veo_proc_destroy(proc)
-  }
-  "Through Arrow, it works" in {
-    val cLib = CMakeBuilder.buildC(
-      List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
-        .mkString("\n\n")
-    )
   }
 }

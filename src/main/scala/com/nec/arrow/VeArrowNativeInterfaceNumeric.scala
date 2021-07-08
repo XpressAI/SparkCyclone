@@ -39,7 +39,11 @@ object VeArrowNativeInterfaceNumeric {
   ): non_null_double_vector = {
     val vcvr = new non_null_double_vector()
     vcvr.count = float8Vector.getValueCount
-    vcvr.data = copyBufferToVe(proc, float8Vector.getDataBuffer.nioBuffer(), Some(float8Vector.getDataBuffer.capacity()))
+    vcvr.data = copyBufferToVe(
+      proc,
+      float8Vector.getDataBuffer.nioBuffer(),
+      Some(float8Vector.getDataBuffer.capacity())
+    )
     vcvr
   }
 
@@ -96,10 +100,10 @@ object VeArrowNativeInterfaceNumeric {
   }
 
   private def veo_read_non_null_int2_vector(
-                                               proc: Aurora.veo_proc_handle,
-                                               vec: non_null_int2_vector,
-                                               byteBuffer: ByteBuffer
-                                             ): Unit = {
+    proc: Aurora.veo_proc_handle,
+    vec: non_null_int2_vector,
+    byteBuffer: ByteBuffer
+  ): Unit = {
     val veoPtr = byteBuffer.getLong(0)
     val dataCount = byteBuffer.getInt(8)
     val dataSize = dataCount * 8
@@ -109,8 +113,53 @@ object VeArrowNativeInterfaceNumeric {
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
   }
 
-  def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer, len: Option[Long] = None): Long = {
+  private def veo_read_non_null_bigint_vector(
+    proc: Aurora.veo_proc_handle,
+    vec: non_null_bigint_vector,
+    byteBuffer: ByteBuffer
+  ): Unit = {
+    val veoPtr = byteBuffer.getLong(0)
+    val dataCount = byteBuffer.getInt(8)
+    val dataSize = dataCount * 8
+    val vhTarget = ByteBuffer.allocateDirect(dataSize)
+    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    vec.count = dataCount
+    vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+  }
+
+  private def veo_read_non_null_varchar_vector(
+    proc: Aurora.veo_proc_handle,
+    vec: non_null_varchar_vector,
+    byteBuffer: ByteBuffer
+  ): Unit = {
+    /* data = size 8, offsets = size 8, size = size 4, count = size 4; so: 0, 8, 16, 20 */
+    val veoPtrData = byteBuffer.getLong(0)
+    val dataSize = byteBuffer.getInt(16)
+    val vhTargetData = ByteBuffer.allocateDirect(dataSize)
+    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetData), veoPtrData, dataSize)
+    vec.size = dataSize
+    vec.data = vhTargetData.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+
+    val veoPtrOffsets = byteBuffer.getLong(8)
+    val dataCount = byteBuffer.getInt(20)
+    val vhTargetOffsets = ByteBuffer.allocateDirect((dataCount + 1) * 4)
+    Aurora.veo_read_mem(
+      proc,
+      new org.bytedeco.javacpp.Pointer(vhTargetOffsets),
+      veoPtrOffsets,
+      (dataCount + 1) * 4
+    )
+    vec.count = dataCount
+    vec.offsets = vhTargetOffsets.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+  }
+
+  def copyBufferToVe(
+    proc: Aurora.veo_proc_handle,
+    byteBuffer: ByteBuffer,
+    len: Option[Long] = None
+  ): Long = {
     val veInputPointer = new LongPointer(8)
+
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
     val size = len.getOrElse(byteBuffer.capacity().toLong)
     Aurora.veo_alloc_mem(proc, veInputPointer, size)
@@ -145,6 +194,24 @@ object VeArrowNativeInterfaceNumeric {
     v_bb
   }
 
+  def nonNullBigIntVectorToByteBuffer(bigint_vector: non_null_bigint_vector): ByteBuffer = {
+    val v_bb = bigint_vector.getPointer.getByteBuffer(0, 12)
+    v_bb.putLong(0, bigint_vector.data)
+    v_bb.putInt(8, bigint_vector.count)
+    v_bb
+  }
+
+  def nonNullVarCharVectorVectorToByteBuffer(
+    varchar_vector: non_null_varchar_vector
+  ): ByteBuffer = {
+    val v_bb = varchar_vector.getPointer.getByteBuffer(0, 24)
+    v_bb.putLong(0, varchar_vector.data)
+    v_bb.putLong(8, varchar_vector.offsets)
+    v_bb.putInt(16, varchar_vector.size)
+    v_bb.putInt(20, varchar_vector.count)
+    v_bb
+  }
+
   private def executeVe(
     proc: Aurora.veo_proc_handle,
     ctx: Aurora.veo_thr_ctxt,
@@ -157,8 +224,8 @@ object VeArrowNativeInterfaceNumeric {
     val our_args = Aurora.veo_args_alloc()
     try {
       inputArguments.zipWithIndex
-        .collect {
-          case (Some(doubleVector), idx) => doubleVector -> idx
+        .collect { case (Some(doubleVector), idx) =>
+          doubleVector -> idx
         }
         .foreach {
           case (ByteBufferWrapper(byteBuffer, size), index) =>
@@ -191,11 +258,11 @@ object VeArrowNativeInterfaceNumeric {
             )
         }
 
-      val outputArgumentsVectorsDouble: List[(SupportedVectorWrapper, Int)] = outputArguments
-        .zipWithIndex
-        .collect {
-          case (Some(vec), index) => vec -> index
-        }
+      val outputArgumentsVectorsDouble: List[(SupportedVectorWrapper, Int)] =
+        outputArguments.zipWithIndex
+          .collect { case (Some(vec), index) =>
+            vec -> index
+          }
 
       val outputArgumentsZipped: List[(SupportedVectorWrapper, Structure, ByteBuffer, Int)] =
         outputArgumentsVectorsDouble
@@ -210,7 +277,17 @@ object VeArrowNativeInterfaceNumeric {
               val byteBuffer = nonNullInt2VectorToByteBuffer(structVector)
               (vec, structVector, byteBuffer, index)
             }
-        }
+            case (vec @ BigIntVectorWrapper(bigIntWrapper), index) => {
+              val structVector = new non_null_bigint_vector()
+              val byteBuffer = nonNullBigIntVectorToByteBuffer(structVector)
+              (vec, structVector, byteBuffer, index)
+            }
+            case (vec @ VarCharVectorWrapper(varCharVector), index) => {
+              val structVector = new non_null_varchar_vector()
+              val byteBuffer = nonNullVarCharVectorVectorToByteBuffer(structVector)
+              (vec, structVector, byteBuffer, index)
+            }
+          }
 
       outputArgumentsZipped.foreach { case (vec, struct, byteBuffer, index) =>
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
@@ -235,6 +312,16 @@ object VeArrowNativeInterfaceNumeric {
           case (IntVectorWrapper(vec), struct: non_null_int2_vector, byteBuff, _) => {
             veo_read_non_null_int2_vector(proc, struct, byteBuff)
             non_null_int2_vector_to_IntVector(struct, vec)
+          }
+
+          case (BigIntVectorWrapper(vec), struct: non_null_bigint_vector, byteBuff, _) => {
+            veo_read_non_null_bigint_vector(proc, struct, byteBuff)
+            non_null_bigint_vector_to_bigIntVector(struct, vec)
+          }
+
+          case (VarCharVectorWrapper(vec), struct: non_null_varchar_vector, byteBuff, _) => {
+            veo_read_non_null_varchar_vector(proc, struct, byteBuff)
+            non_null_varchar_vector_to_VarCharVector(struct, vec)
           }
         }
     } finally Aurora.veo_args_free(our_args)

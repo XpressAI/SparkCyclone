@@ -9,10 +9,10 @@ struct load_text_helper {
   load_text_helper(){}
   load_text_helper(const string& path,
                    const string& delim,
-                   ssize_t start) :
+                   size_t start) :
     path(path), delim(delim), start(start) {}
   void operator()(vector<int>& ret, vector<size_t>& sep, vector<size_t>& len,
-                  ssize_t& rend) {
+                  size_t& rend) {
     MPI_File fh;
     time_spent t(DEBUG);
     int r = MPI_File_open(frovedis_comm_rpc, const_cast<char*>(path.c_str()),
@@ -25,7 +25,7 @@ struct load_text_helper {
     size_t nodes = get_nodesize();
     int self = get_selfid();
     bool read_until_middle;
-    ssize_t end;
+    size_t end;
     if(rend == -1 || rend >= file_size) {
       read_until_middle = false; end = file_size;
     } else {
@@ -230,7 +230,7 @@ struct load_text_helper {
   }
   string path;
   string delim;
-  ssize_t start;
+  size_t start;
   SERIALIZE(path, delim, start)
 };
 
@@ -240,7 +240,7 @@ load_text(const string& path, const string& delim,
           node_local<vector<size_t>>& sep,
           node_local<vector<size_t>>& len) {
   auto ret = make_node_local_allocate<vector<int>>();
-  auto bend = broadcast(ssize_t(-1)); // dummy
+  auto bend = broadcast(size_t(-1)); // dummy
   ret.mapv(load_text_helper(path, delim, 0), sep, len, bend);
   return ret;
 }
@@ -249,7 +249,7 @@ node_local<vector<int>>
 load_text_separate(const string& path, const string& delim,
                    node_local<vector<size_t>>& sep,
                    node_local<vector<size_t>>& len,
-                   ssize_t start, ssize_t& end){
+                   size_t start, size_t& end){
   auto ret = make_node_local_allocate<vector<int>>();
   auto bend = broadcast(end);
   ret.mapv(load_text_helper(path, delim, start), sep, len, bend);

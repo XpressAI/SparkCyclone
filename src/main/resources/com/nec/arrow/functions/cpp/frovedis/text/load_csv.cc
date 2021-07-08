@@ -1,4 +1,5 @@
 #include "load_csv.hpp"
+#include "find.cc"
 #include "find.hpp"
 #include "words.hpp"
 #include "../core/lower_bound.hpp"
@@ -392,7 +393,7 @@ load_csv(const std::string& path,
 node_local<words>
 load_csv_separate(const std::string& path,
                   node_local<std::vector<size_t>>& line_starts_byword,
-                  ssize_t start_pos, ssize_t& end_pos,
+                  size_t start_pos, size_t& end_pos,
                   bool is_crlf,
                   bool to_skip_head,
                   int separator) {
@@ -481,7 +482,7 @@ load_simple_csv(const std::string& path,
 node_local<words>
 load_simple_csv_separate(const std::string& path,
                          node_local<std::vector<size_t>>& line_starts_byword,
-                         ssize_t start_pos, ssize_t& end_pos,
+                         size_t start_pos, size_t& end_pos,
                          bool is_crlf,
                          bool to_skip_head,
                          int separator) {

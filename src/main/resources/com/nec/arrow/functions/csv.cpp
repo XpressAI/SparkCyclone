@@ -7,8 +7,11 @@
 #include <vector>
 #include <omp.h>
 #include "words.hpp"
+#include "words.cc"
 #include "parsefloat.hpp"
+#include "parsefloat.cc"
 #include "char_int_conv.hpp"
+#include "char_int_conv.cc"
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
@@ -180,5 +183,41 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     output_a->data = a_data;
     output_a->count = count;
     
+    return 0;
+}
+
+/** Static stub implementation -- requires reimplementation for dynamic inputs here **/
+extern "C" long parse_csv_double1_str2_int3_long4(
+    non_null_c_bounded_string* csv_data,
+    non_null_double_vector* output_a,
+    non_null_varchar_vector* output_b,
+    non_null_int_vector* output_c,
+    non_null_bigint_vector* output_d)
+{
+    output_a->data = (double *)malloc(2 * sizeof(double));
+    output_a->data[0] = 1.0;
+    output_a->data[1] = 2.0;
+    output_a->count = 2;
+
+    const char* output_str = "one point zerotwoPointZero";
+    output_b->data = (char *)malloc(26 * sizeof(char));
+    strncpy(output_b->data, output_str, 26);
+    output_b->offsets = (int *)malloc(3 * sizeof(int));
+    output_b->offsets[0] = 0;
+    output_b->offsets[1] = 14;
+    output_b->offsets[2] = 26;
+    output_b->count = 2;
+    output_b->size = 26;
+
+    output_c->data = (int *)malloc(2 * sizeof(int));
+    output_c->data[0] = 1;
+    output_c->data[1] = 2;
+    output_c->count = 2;
+
+    output_d->data = (long long *)malloc(2 * sizeof(long));
+    output_d->data[0] = 10000000000000L;
+    output_d->data[1] = 10000000000001L;
+    output_d->count = 2;
+
     return 0;
 }

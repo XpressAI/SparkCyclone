@@ -57,7 +57,7 @@ public interface ArrowTransferStructures extends Library {
 
     @Structure.FieldOrder({"data", "count"})
     class non_null_int_vector extends Structure {
-        public Pointer data;
+        public long data;
         public Integer count;
 
         public non_null_int_vector() {
@@ -127,6 +127,64 @@ public interface ArrowTransferStructures extends Library {
         }
 
         public static class ByReference extends non_null_double_vector implements Structure.ByReference {
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
+        }
+    }
+    @Structure.FieldOrder({"data", "offsets", "size", "count"})
+    class non_null_varchar_vector extends Structure {
+        public long data;
+        public long offsets;
+        public Integer size;
+        public Integer count;
+
+        public non_null_varchar_vector() {
+            super();
+        }
+
+        public non_null_varchar_vector(Pointer p) {
+            super(p);
+            read();
+        }
+
+        public static class ByReference extends non_null_varchar_vector implements Structure.ByReference {
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
+        }
+    }
+
+    @Structure.FieldOrder({"data", "count"})
+    class non_null_bigint_vector extends Structure {
+        public long data;
+        public Integer count;
+
+        public int size() {
+            return count * 8;
+        }
+
+        public non_null_bigint_vector() {
+            super();
+        }
+
+        public non_null_bigint_vector(int count) {
+            super();
+            this.count = count;
+        }
+
+        public non_null_bigint_vector(Pointer p) {
+            super(p);
+            read();
+        }
+
+        public static class ByReference extends non_null_bigint_vector implements Structure.ByReference {
             public ByReference() {
             }
 

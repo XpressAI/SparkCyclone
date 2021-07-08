@@ -19,7 +19,7 @@ typedef struct
 typedef struct
 {
     int *data;
-    long count;
+    int count;
 } non_null_int_vector;
 
 typedef struct
@@ -27,6 +27,20 @@ typedef struct
     double *data;
     long count;
 } non_null_double_vector;
+
+typedef struct
+{
+    long long *data;
+    int count;
+} non_null_bigint_vector;
+
+typedef struct
+{
+    char *data;
+    int *offsets;
+    int size;
+    int count;
+} non_null_varchar_vector;
 
 typedef struct
 {

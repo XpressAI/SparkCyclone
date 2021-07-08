@@ -30,7 +30,7 @@ load_simple_csv(const std::string& path,
 node_local<words>
 load_csv_separate(const std::string& path,
                   node_local<std::vector<size_t>>& line_starts_byword,
-                  ssize_t start, ssize_t& end,
+                  size_t start, size_t& end,
                   bool is_crlf = false,
                   bool skip_head = false,
                   int separator = ',');
@@ -38,7 +38,7 @@ load_csv_separate(const std::string& path,
 node_local<words>
 load_simple_csv(const std::string& path,
                 node_local<std::vector<size_t>>& line_starts_byword,
-                ssize_t start, ssize_t& end,
+                size_t start, size_t& end,
                 bool is_crlf = false,
                 bool to_skip_head = false,
                 int separator = ',');

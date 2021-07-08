@@ -20,6 +20,14 @@ object ArrowInterfaces {
     output.getAllocator.newReservation().reserve(nBytes)
     non_null_int_vector_to_intVector(input, output, output.getAllocator)
   }
+  def non_null_bigint_vector_to_bigIntVector(
+    input: non_null_bigint_vector,
+    output: BigIntVector
+  ): Unit = {
+    val nBytes = input.count * 8
+    output.getAllocator.newReservation().reserve(nBytes)
+    non_null_bigint_vector_to_bigintVector(input, output, output.getAllocator)
+  }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, output: IntVector): Unit = {
     val nBytes = input.count * 4
@@ -42,6 +50,22 @@ object ArrowInterfaces {
 
     vc.count = float8Vector.getValueCount
     vc
+  }
+
+  def c_non_null_varchar_vector(varCharVector: VarCharVector): non_null_varchar_vector = {
+    val vc = new non_null_varchar_vector()
+    vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.offsets = varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = varCharVector.getValueCount
+    vc.size = varCharVector.sizeOfValueBuffer()
+    vc
+  }
+
+  def non_null_varchar_vector_to_VarCharVector(
+    input: non_null_varchar_vector,
+    output: VarCharVector
+  ): Unit = {
+    nun_null_varchar_vector_to_VarCharVector(input, output, output.getAllocator)
   }
 
   def c_bounded_string(string: String): non_null_c_bounded_string = {
@@ -99,7 +123,33 @@ object ArrowInterfaces {
           validityBuffer.getReferenceManager,
           null,
           input.count * 4,
-          Pointer.nativeValue(input.data)
+          input.data
+        )
+      ).asJava
+    )
+  }
+
+  def non_null_bigint_vector_to_bigintVector(
+    input: non_null_bigint_vector,
+    bigintVector: BigIntVector,
+    rootAllocator: BufferAllocator
+  ): Unit = {
+    val res = rootAllocator.newReservation()
+    res.add(input.count)
+    val validityBuffer = res.allocateBuffer()
+    validityBuffer.reallocIfNeeded(input.count.toLong)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
+
+    import scala.collection.JavaConverters._
+    bigintVector.loadFieldBuffers(
+      new ArrowFieldNode(input.count.toLong, 0),
+      List(
+        validityBuffer,
+        new ArrowBuf(
+          validityBuffer.getReferenceManager,
+          null,
+          input.count * 8,
+          input.data
         )
       ).asJava
     )
@@ -110,7 +160,6 @@ object ArrowInterfaces {
     intVector: Float8Vector,
     rootAllocator: BufferAllocator
   ): Unit = {
-
     /** Set up the validity buffer -- everything is valid here * */
     val res = rootAllocator.newReservation()
     res.add(input.count)
@@ -128,10 +177,10 @@ object ArrowInterfaces {
   }
 
   def non_null_int2_vector_to_IntVector(
-                                              input: non_null_int2_vector,
-                                              intVector: IntVector,
-                                              rootAllocator: BufferAllocator
-                                            ): Unit = {
+    input: non_null_int2_vector,
+    intVector: IntVector,
+    rootAllocator: BufferAllocator
+  ): Unit = {
 
     /** Set up the validity buffer -- everything is valid here * */
     val res = rootAllocator.newReservation()
@@ -148,4 +197,30 @@ object ArrowInterfaces {
       ).asJava
     )
   }
+
+  def nun_null_varchar_vector_to_VarCharVector(
+    input: non_null_varchar_vector,
+    varCharVector: VarCharVector,
+    rootAllocator: BufferAllocator
+  ): Unit = {
+    val res = rootAllocator.newReservation()
+    res.add(input.count)
+    val validityBuffer = res.allocateBuffer()
+    validityBuffer.reallocIfNeeded(input.count.toLong)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
+    import scala.collection.JavaConverters._
+
+    val dataBuffer = new ArrowBuf(validityBuffer.getReferenceManager, null, input.size.toLong, input.data)
+
+    val offBuffer = new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
+    varCharVector.loadFieldBuffers(
+      new ArrowFieldNode(input.count.toLong, 0),
+      List(
+        validityBuffer,
+        offBuffer,
+        dataBuffer
+      ).asJava
+    )
+  }
+
 }
