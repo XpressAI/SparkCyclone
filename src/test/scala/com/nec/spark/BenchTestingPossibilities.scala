@@ -3,16 +3,17 @@ package com.nec.spark
 import com.nec.cmake.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
-import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.{JoinPlanSpec, VERewriteStrategy}
+
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
-import com.nec.spark.planning.simplesum.JoinPlanSpec
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.SampleColA
 import com.nec.testing.SampleSource.SampleColB
 import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK

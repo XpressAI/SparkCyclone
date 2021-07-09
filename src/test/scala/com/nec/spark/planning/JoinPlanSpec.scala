@@ -1,31 +1,27 @@
-package com.nec.spark.planning.simplesum
+package com.nec.spark.planning
+
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.arrow.ArrowVectorBuilders
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.{ArrowVectorBuilders, VeArrowNativeInterfaceNumeric}
 import com.nec.arrow.functions.Join
-import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.AuroraSqlPlugin
+import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.planning.simplesum.JoinPlanSpec.OurSimpleJoin.JoinMethod
+import com.nec.spark.planning.JoinPlanSpec.OurSimpleJoin.JoinMethod
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
+import org.scalatest.freespec.AnyFreeSpec
+
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.{Dataset, SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.plans.Inner
-import org.apache.spark.sql.catalyst.plans.logical
+import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.BinaryExecNode
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan}
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.scalatest.freespec.AnyFreeSpec
 
 object JoinPlanSpec {
   object OurSimpleJoin {
@@ -133,7 +129,6 @@ object JoinPlanSpec {
   }
 
   final case class TestingOUR(joinMethod: JoinMethod) extends Testing {
-    import com.nec.spark.planning.VERewriteStrategy
     type Result = (Double, Double)
     override def verifyResult(result: List[Result]): Unit = {
       assert(result.sortBy(_._1) == List((1.0, 2.0), (2.0, 3.0)))
