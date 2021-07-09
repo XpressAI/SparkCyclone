@@ -55,7 +55,8 @@ final class GroupByCSpec extends AnyFreeSpec {
         val groupKeys = (0 until outGroupsVector.getValueCount).map(idx => outGroupsVector.get(idx))
 
         val result = groupKeys.zip(values._1)
-        (result, groupJVM(groupingColumnVec, valuesColumnVec))
+        assert(!result.isEmpty)
+        assert(result.toMap == groupJVM(groupingColumnVec, valuesColumnVec))
       }
     }
   }

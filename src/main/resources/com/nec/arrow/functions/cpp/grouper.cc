@@ -28,6 +28,7 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
      double last = grouping_vec[0];
      int groups_count = 0;
      int curr_group_size = 0;
+      std::cout << "GROUP";
 
      for(size_t i = 0; i < grouping_vec.size(); i++) {
         if(grouping_vec[i] == last) {
@@ -51,6 +52,7 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
      return 0;
 }
 
+
 extern "C" long group_by_sum(non_null_double_vector* grouping_col,
                          non_null_double_vector* values_col,
                          non_null_double_vector* values,
@@ -66,28 +68,28 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
 
      values->data = (double *) malloc(grouping_vec.size() * sizeof(double));
      values->count = grouping_vec.size();
-
      //Pre-allocate enough data so that we can return even if only unique ids are there
      groups->data = (double *) malloc(values_col->count * sizeof(double));
 
      double last = grouping_vec[0];
      double curr_sum = 0.0;
      int groups_count = 0;
-
      for(size_t i = 0; i < grouping_vec.size(); i++) {
         if(grouping_vec[i] == last) {
-          curr_sum += values->data[idx[i]];
+          curr_sum += values_col->data[idx[i]];
         } else {
           groups->data[groups_count] = last;
+          values->data[groups_count] = curr_sum;
           last = grouping_vec[i];
           groups_count++;
+          curr_sum = values_col->data[idx[i]];
         }
-        values->data[i] = values_col->data[idx[i]];
      }
-
      groups->data[groups_count] = last;
+     values->data[groups_count] = curr_sum;
      groups_count++;
-     groups->count =  groups_count;
+     groups->count = groups_count;
+     values->count = groups_count;
 
      return 0;
 }

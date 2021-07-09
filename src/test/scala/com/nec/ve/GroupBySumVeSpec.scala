@@ -3,6 +3,7 @@ package com.nec.ve
 import java.nio.file.Paths
 import java.time.Instant
 
+import com.nec.arrow.functions.GroupBySum
 import com.nec.arrow.functions.GroupBySum._
 import com.nec.arrow.{ArrowVectorBuilders, TransferDefinitions, VeArrowNativeInterfaceNumeric}
 import com.nec.aurora.Aurora
@@ -14,7 +15,7 @@ final class GroupBySumVeSpec extends AnyFreeSpec {
   "We can group by column" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val oPath = VeKernelCompiler("avg", veBuildPath).compile_c(
-      List(TransferDefinitions.TransferDefinitionsSourceCode, GroupBy.GroupBySourceCode)
+      List(TransferDefinitions.TransferDefinitionsSourceCode, GroupBySum.GroupBySumSourceCode)
         .mkString("\n\n")
     )
     val proc = Aurora.veo_proc_create(0)
@@ -28,7 +29,7 @@ final class GroupBySumVeSpec extends AnyFreeSpec {
         val outGroupsVector = new Float8Vector("groups", alloc)
 
         val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
-        val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23 , 44, 55, 109)
+        val valuesColumn: Seq[Double] =   Seq(10, 55, 41, 84, 43, 23 , 44, 55, 109)
 
         val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
         ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
@@ -42,9 +43,8 @@ final class GroupBySumVeSpec extends AnyFreeSpec {
 
             val result = (0 until outGroupsVector.getValueCount)
               .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
-              .toMap
 
-            (result, groupJVM(groupingColumnVec, valuesColumnVec))
+            (result.toMap, groupBySumJVM(groupingColumnVec, valuesColumnVec))
           }
         }
       } finally Aurora.veo_context_close(ctx)

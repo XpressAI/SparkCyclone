@@ -18,14 +18,13 @@ final class GroupBySumCSpec extends AnyFreeSpec {
     Files.createDirectory(veBuildPath)
 
     val soPath = CMakeBuilder.buildC(
-      List(TransferDefinitionsSourceCode, "\n\n", GroupBySourceCode)
+      List(TransferDefinitionsSourceCode, "\n\n", GroupBySumSourceCode)
         .mkString("\n\n")
     )
 
     val alloc = new RootAllocator(Integer.MAX_VALUE)
     val outGroupsVector = new Float8Vector("groups", alloc)
     val outValuesVector = new Float8Vector("values", alloc)
-    val outCountVector = new IntVector("count", alloc)
 
     val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
     val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23 , 44, 55, 109)
@@ -41,7 +40,8 @@ final class GroupBySumCSpec extends AnyFreeSpec {
         val result = (0 until outGroupsVector.getValueCount)
           .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
 
-        (result.toMap, groupJVM(groupingColumnVec, valuesColumnVec))
+        assert(!result.isEmpty)
+        assert(result.toMap == groupBySumJVM(groupingColumnVec, valuesColumnVec))
       }
     }
   }

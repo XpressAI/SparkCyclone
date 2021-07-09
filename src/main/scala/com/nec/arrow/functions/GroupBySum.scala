@@ -6,7 +6,7 @@ import org.apache.arrow.vector.{Float8Vector, IntVector}
 
 object GroupBySum {
 
-  val GroupBySourceCode: String = {
+  val GroupBySumSourceCode: String = {
     val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("/com/nec/arrow/functions/cpp/grouper.cc"))
     try source.mkString
     finally source.close()
@@ -36,7 +36,7 @@ object GroupBySum {
     )
   }
 
-  def groupJVM(groupingVector: Float8Vector, valuesVector: Float8Vector): Map[Double, Double] = {
+  def groupBySumJVM(groupingVector: Float8Vector, valuesVector: Float8Vector): Map[Double, Double] = {
     val groupingVals = (0 until groupingVector.getValueCount).map(idx => groupingVector.get(idx))
     val valuesVals = (0 until valuesVector.getValueCount).map(idx => valuesVector.get(idx))
 

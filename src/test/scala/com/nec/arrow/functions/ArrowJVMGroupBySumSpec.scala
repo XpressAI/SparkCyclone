@@ -21,7 +21,7 @@ final class ArrowJVMGroupBySumSpec extends AnyFreeSpec {
     withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
       withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
         assert(
-          GroupBySum.groupJVM(groupingColumnVec, valuesColumnVec) == expectedResult
+          GroupBySum.groupBySumJVM(groupingColumnVec, valuesColumnVec) == expectedResult
         )
       }
     }
