@@ -28,7 +28,6 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
      double last = grouping_vec[0];
      int groups_count = 0;
      int curr_group_size = 0;
-      std::cout << "GROUP";
 
      for(size_t i = 0; i < grouping_vec.size(); i++) {
         if(grouping_vec[i] == last) {
