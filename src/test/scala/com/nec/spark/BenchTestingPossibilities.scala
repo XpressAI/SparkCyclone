@@ -3,7 +3,7 @@ package com.nec.spark
 import com.nec.cmake.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
-import com.nec.spark.planning.{JoinPlanSpec, VERewriteStrategy}
+import com.nec.spark.planning.{GroupBySumPlanSpec, JoinPlanSpec, VERewriteStrategy}
 
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
@@ -217,7 +217,8 @@ object BenchTestingPossibilities {
         offHeapMode = colMode,
         csvStrategy = csvStrat
       ),
-      JoinPlanSpec.OurTesting
+      JoinPlanSpec.OurTesting,
+      GroupBySumPlanSpec.OurTesting
     ).flatten
 
   trait BenchTestAdditions { this: AnyFreeSpec =>
