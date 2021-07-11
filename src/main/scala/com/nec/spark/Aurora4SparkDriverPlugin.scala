@@ -9,19 +9,19 @@ import org.apache.spark.internal.Logging
 import java.nio.file.Files
 import com.nec.ve.VeKernelCompiler
 
-object Aurora4SparkDriver {
+object Aurora4SparkDriverPlugin {
 
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
 }
 
-class Aurora4SparkDriver extends DriverPlugin with Logging {
+class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
   override def init(
     sc: SparkContext,
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
     logInfo("Aurora4Spark DriverPlugin is launched.")
-    Aurora4SparkDriver.launched = true
+    Aurora4SparkDriverPlugin.launched = true
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
     pluginContext
       .conf()
@@ -40,6 +40,6 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
   }
 
   override def shutdown(): Unit = {
-    Aurora4SparkDriver.launched = false
+    Aurora4SparkDriverPlugin.launched = false
   }
 }
