@@ -8,6 +8,9 @@ import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
 import com.nec.ve.VeKernelCompiler
+import okio.ByteString
+
+import java.nio.file.Paths
 
 object Aurora4SparkDriverPlugin {
 
@@ -18,7 +21,11 @@ object Aurora4SparkDriverPlugin {
 class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
 
   override def receive(message: Any): AnyRef = {
-    super.receive(message)
+    message match {
+      case RequestCompiledLibrary(libPath) =>
+        RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(Paths.get(libPath)): _*))
+      case other => super.receive(message)
+    }
   }
 
   override def init(
@@ -32,7 +39,6 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
       .conf()
       .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(","))
 
-    pluginContext.send()
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
       "ve_so_name" -> VeKernelCompiler
