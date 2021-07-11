@@ -5,6 +5,7 @@ import com.nec.arrow.functions.GroupBySum
 import com.nec.arrow.{ArrowVectorBuilders, VeArrowNativeInterfaceNumeric}
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.GroupBySumPlanSpec.SimpleGroupBySum.GroupByMethod
+import com.nec.spark.planning.GroupBySumPlanSpec.SimpleGroupBySum.GroupByMethod.{JvmArrowBased, VEBased}
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
@@ -28,14 +29,10 @@ object GroupBySumPlanSpec {
   object SimpleGroupBySum {
     sealed trait GroupByMethod extends Serializable
     object GroupByMethod {
-      case object InJVM extends GroupByMethod
-      sealed trait ArrowBased extends GroupByMethod
-      object ArrowBased {
-        case object JvmArrowBased extends ArrowBased
-        case object VEBased extends ArrowBased
+        case object JvmArrowBased extends GroupByMethod
+        case object VEBased extends GroupByMethod
       }
     }
-  }
   final case class SimpleGroupBySum(child: SparkPlan, groupMethod: GroupByMethod)
     extends UnaryExecNode {
     override protected def doExecute(): RDD[InternalRow] = {
@@ -44,43 +41,29 @@ object GroupBySumPlanSpec {
         .coalesce(1)
         .mapPartitions(iterator => {
           val inputCols = iterator.map(row => (row.getDouble(0), row.getDouble(1))).toList
-          val resultMap = groupMethod match {
-            case GroupByMethod.InJVM =>
-              inputCols
-                .groupBy(_._1)
-                .map {
-                  case (groupingId, list) => {
-                    (groupingId, list.map(_._2).sum)
-                  }
-                }
-
-            case arrowBased: GroupByMethod.ArrowBased =>
-              ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._1)) {groupingVec =>
-                ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._2)) {valuesVec => {
-                  arrowBased match {
-                    case GroupByMethod.ArrowBased.JvmArrowBased =>
-                      GroupBySum.groupBySumJVM(groupingVec, valuesVec)
-                    case GroupByMethod.ArrowBased.VEBased =>
-                      val alloc = new RootAllocator(Integer.MAX_VALUE)
-                      val outValuesVector = new Float8Vector("values", alloc)
-                      val outGroupsVector = new Float8Vector("groups", alloc)
-
-                      GroupBySum.runOn(
-                        new VeArrowNativeInterfaceNumeric(
-                          Aurora4SparkExecutorPlugin._veo_proc,
-                          Aurora4SparkExecutorPlugin._veo_ctx,
-                          Aurora4SparkExecutorPlugin.lib
-                      )
-                      )(groupingVec, valuesVec, outGroupsVector, outValuesVector)
-                      (0 until outGroupsVector.getValueCount)
-                        .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
-                        .toMap
-                  }
-                }}
+          val alloc = new RootAllocator(Integer.MAX_VALUE)
+          val outValuesVector = new Float8Vector("values", alloc)
+          val outGroupsVector = new Float8Vector("groups", alloc)
+          val resultsMap = ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._1)) { groupingVec =>
+            ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._2)) { valuesVec => {
+              groupMethod match {
+                case JvmArrowBased =>
+                  GroupBySum.groupBySumJVM(groupingVec, valuesVec)
+                case VEBased =>
+                  GroupBySum.runOn(
+                    new VeArrowNativeInterfaceNumeric(
+                      Aurora4SparkExecutorPlugin._veo_proc,
+                      Aurora4SparkExecutorPlugin._veo_ctx,
+                      Aurora4SparkExecutorPlugin.lib
+                    ))(groupingVec, valuesVec, outGroupsVector, outValuesVector)
+                  (0 until outGroupsVector.getValueCount)
+                    .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
+                    .toMap
               }
+            }}
           }
 
-          resultMap.zipWithIndex.map {
+          resultsMap.zipWithIndex.map {
             case ((groupingId, sum), idx) => {
               val writer = new UnsafeRowWriter(2)
               writer.reset()
@@ -157,9 +140,8 @@ object GroupBySumPlanSpec {
       VERewriteStrategy._enabled = true
     }
     override def testingTarget: Testing.TestingTarget = groupByMethod match {
-      case GroupByMethod.InJVM                    => TestingTarget.PlainSpark
-      case GroupByMethod.ArrowBased.VEBased       => TestingTarget.VectorEngine
-      case GroupByMethod.ArrowBased.JvmArrowBased => TestingTarget.PlainSpark
+      case GroupByMethod.VEBased       => TestingTarget.VectorEngine
+      case GroupByMethod.JvmArrowBased => TestingTarget.PlainSpark
     }
 
   }
@@ -202,10 +184,10 @@ object GroupBySumPlanSpec {
     override def cleanUp(sparkSession: SparkSession): Unit = sparkSession.close()
     override def testingTarget: Testing.TestingTarget = TestingTarget.PlainSpark
   }
+
   val OurTesting: List[Testing] = List(
-    GroupBySumPlanTesting(GroupByMethod.InJVM),
-    GroupBySumPlanTesting(GroupByMethod.ArrowBased.VEBased),
-    GroupBySumPlanTesting(GroupByMethod.ArrowBased.JvmArrowBased),
+    GroupBySumPlanTesting(GroupByMethod.VEBased),
+    GroupBySumPlanTesting(GroupByMethod.JvmArrowBased),
     GroupBySumPlainSparkTesting()
   )
 }
