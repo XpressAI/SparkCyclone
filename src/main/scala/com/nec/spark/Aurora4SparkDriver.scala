@@ -26,8 +26,6 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     pluginContext
       .conf()
       .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(","))
-    logError(pluginContext.conf().toDebugString)
-    logError(sc.resources.toString)
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
       "ve_so_name" -> VeKernelCompiler
