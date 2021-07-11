@@ -36,7 +36,6 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
     )
 
   "Our extra classpath" - {
-
     expectedItems.foreach { name =>
       s"Has ${name}" in {
         expect(extraClassPath.exists(_.contains(name)))
@@ -57,7 +56,9 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
       .map(item => item.toString.replaceAllLiterally("file:/", "/"))
 
   "We can execute in cluster-local mode" in withSparkSession2(
-    _.config("spark.worker.resource.ve.amount", "1")
+    _.config("spark.executor.resource.ve.amount", "1")
+      .config("spark.task.resource.ve.amount", "1")
+      .config("spark.worker.resource.ve.amount", "1")
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .config("spark.ui.enabled", "true")
       .config("spark.executor.extraClassPath", extraClassPath.mkString(":"))
@@ -74,7 +75,7 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
       .createOrReplaceTempView("nums")
     val q = sparkSession.sql("select sum(value) from nums").as[Double]
     println(q.queryExecution.executedPlan.toString())
-
+    println(sparkSession.sparkContext.resources)
     val result = q.collect().toList
     assert(result == List(1))
   }

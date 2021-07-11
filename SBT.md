@@ -36,7 +36,7 @@ export SPARK_SCALA_VERSION=2.12
 
 ## Cluster tests
 
-For Cluster-mode/detection tests, also ensure that `$SPARK_HOME/work` is writable.
+For Cluster-mode/detection tests that run on the `VectorEngine` scope, ensure that `$SPARK_HOME/work` is writable (`mkdir -p /opt/spark/work && chmod -R 777 /opt/spark/work`).
 
 ## Development for Spark 2.3 / Scala 2.11
 

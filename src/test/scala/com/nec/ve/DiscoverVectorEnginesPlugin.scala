@@ -37,7 +37,7 @@ class DiscoverVectorEnginesPlugin extends ResourceDiscoveryPlugin with Logging {
       if (request.amount > foundVEs.size) {
         logError(s"Only found ${foundVEs.size} Vector Engines - requested ${request.amount}")
       }
-      Optional.of(new ResourceInformation("ve", foundVEs.toArray.sorted))
+      Optional.of(new ResourceInformation("ve", foundVEs.toArray.sorted.take(request.amount.toInt)))
     } else Optional.empty()
   }
 
