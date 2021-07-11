@@ -82,7 +82,7 @@ To use the native CSV parser (default is 'off'):
 
 ## Clustering / resource support
 
-A variety of options are available:
+A variety of options are available - not tested with YARN yet.
 
 ```
 # for Driver, a VE is not needed (at least not yet)
@@ -101,3 +101,4 @@ A variety of options are available:
 # specifying resources via file
 --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh
 ```
+
