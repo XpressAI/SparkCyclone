@@ -79,3 +79,25 @@ To use the native CSV parser (default is 'off'):
 --conf spark.com.nec.native-csv=x86
 --conf spark.com.nec.native-csv=VE
 ```
+
+## Clustering / resource support
+
+A variety of options are available:
+
+```
+# for Driver, a VE is not needed (at least not yet)
+# this is definitely needed
+--conf spark.executor.resource.ve.amount=1
+
+# not clear if this is needed
+--conf spark.task.resource.ve.amount=1
+
+## This seems to be necessary for cluster-local mode
+--conf spark.worker.resource.ve.amount=1
+
+# detecting resources automatically
+--conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin
+
+# specifying resources via file
+--conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh
+```
