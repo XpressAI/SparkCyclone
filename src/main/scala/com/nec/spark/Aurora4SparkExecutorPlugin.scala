@@ -8,8 +8,11 @@ import com.nec.aurora.Aurora.veo_proc_handle
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.spark.Aurora4SparkExecutorPlugin._
-import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
+import org.apache.spark.api.plugin.ExecutorPlugin
+import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
+
+import java.nio.file.Files
 
 object Aurora4SparkExecutorPlugin {
 
@@ -42,12 +45,48 @@ object Aurora4SparkExecutorPlugin {
   }
 
   var DefaultVeNodeId = 0
+
+  trait LibraryStorage {
+
+    /** Get a local copy of the library for loading */
+    def getLibrary(original: String): String
+  }
+
+  final class DriverFetchingLibraryStorage(pluginContext: PluginContext) extends LibraryStorage {
+
+    private var locallyStoredLibs = Map.empty[String, String]
+
+    /** Get a local copy of the library for loading */
+    override def getLibrary(original: String): String = this.synchronized {
+      locallyStoredLibs.get(original) match {
+        case Some(result) => result
+        case None =>
+          val result = pluginContext.ask(RequestCompiledLibrary(original))
+          if (result == null) {
+            sys.error(s"Could not fetch library: ${original}")
+          } else {
+            val localPath = Files.createTempFile("ve_fn", ".lib")
+            Files.write(
+              localPath,
+              result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
+            )
+            locallyStoredLibs += original -> localPath.toString
+            localPath.toString
+          }
+      }
+    }
+  }
+
+  var libraryStorage: LibraryStorage = _
 }
 
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val resources = ctx.resources()
+    Aurora4SparkExecutorPlugin.synchronized {
+      Aurora4SparkExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
+    }
     logInfo(s"Executor has the following resources available => ${resources}")
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
       logInfo(

@@ -16,6 +16,11 @@ object Aurora4SparkDriverPlugin {
 }
 
 class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
+
+  override def receive(message: Any): AnyRef = {
+    super.receive(message)
+  }
+
   override def init(
     sc: SparkContext,
     pluginContext: PluginContext
@@ -26,6 +31,8 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
     pluginContext
       .conf()
       .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(","))
+
+    pluginContext.send()
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
       "ve_so_name" -> VeKernelCompiler
