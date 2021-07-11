@@ -8,7 +8,7 @@ import java.nio.file.Paths
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-ThisBuild / scalaVersion := "2.12.14"
+ThisBuild / scalaVersion := "2.12.10"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
@@ -59,7 +59,7 @@ lazy val `fun-bench` = project
       }
   )
 
-crossScalaVersions := Seq("2.12.14", "2.11.12")
+crossScalaVersions := Seq("2.12.10", "2.11.12")
 
 val sparkVersion = SettingKey[String]("sparkVersion")
 

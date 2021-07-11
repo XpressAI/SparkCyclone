@@ -45,12 +45,19 @@ object Aurora4SparkExecutorPlugin {
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+
+    logError(s"${ctx.executorID()}")
+    logError(s"Resources => ${ctx.resources}")
+
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(0)
       _veo_ctx = Aurora.veo_context_open(_veo_proc)
-      /** We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
+
+      /**
+       * We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
        * We're moving to the latter, however this is retained for compatibility for the previous set of sets we had.
-       * **/
+       * *
+       */
       if (extraConf.containsKey("ve_so_name")) {
         Aurora4SparkExecutorPlugin.lib =
           Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))

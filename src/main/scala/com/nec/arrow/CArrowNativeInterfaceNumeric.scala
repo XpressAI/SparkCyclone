@@ -35,11 +35,12 @@ object CArrowNativeInterfaceNumeric {
     val fn = nl.getFunction(functionName)
 
     val outputStructs = outputArguments.map(_.map {
-      case Float8VectorWrapper(doubleVector) => new non_null_double_vector(doubleVector.getValueCount)
-      case IntVectorWrapper(intVector) => new non_null_int_vector()
+      case Float8VectorWrapper(doubleVector) =>
+        new non_null_double_vector(doubleVector.getValueCount)
+      case IntVectorWrapper(intVector)         => new non_null_int_vector()
       case VarCharVectorWrapper(varCharVector) => new non_null_varchar_vector()
-      case BigIntVectorWrapper(bigIntVector) => new non_null_bigint_vector()
-      case other => throw new MatchError(s"Not supported for output: ${other}")
+      case BigIntVectorWrapper(bigIntVector)   => new non_null_bigint_vector()
+      case other                               => throw new MatchError(s"Not supported for output: ${other}")
     })
 
     val invokeArgs: Array[java.lang.Object] = inputArguments
@@ -75,7 +76,7 @@ object CArrowNativeInterfaceNumeric {
         non_null_varchar_vector_to_VarCharVector(struct.asInstanceOf[non_null_varchar_vector], vec)
       case (Some(struct), Some(output)) =>
         sys.error(s"Cannot transfer from ${struct} to ${output}: not supported")
-      case (None, _) =>
+      case (None, _)               =>
     }
 
   }

@@ -31,7 +31,12 @@ ln -f -s /opt/nec/ve/bin/ncc ~/.local/bin/ncc
 ln -f -s /opt/nec/ve/bin/nc++ ~/.local/bin/nc++
 ln -f -s /opt/nec/ve/bin/ps ~/.local/bin/veps
 source /opt/rh/devtoolset-9/enable
+export SPARK_SCALA_VERSION=2.12
 ```
+
+## Cluster tests
+
+For Cluster-mode/detection tests, also ensure that `$SPARK_HOME/work` is writable.
 
 ## Development for Spark 2.3 / Scala 2.11
 
