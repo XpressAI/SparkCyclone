@@ -6,7 +6,9 @@ import com.nec.arrow.{ArrowVectorBuilders, VeArrowNativeInterfaceNumeric}
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.GroupBySumPlanSpec.SimpleGroupBySum.GroupByMethod
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
-import com.nec.testing.Testing
+import com.nec.testing.SampleSource.{CSV, Parquet, SampleColA, SampleColB, SharedName}
+import com.nec.testing.{SampleSource, Testing}
+import com.nec.testing.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
 import com.nec.testing.Testing.TestingTarget
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
@@ -28,11 +30,13 @@ object GroupBySumPlanSpec {
   object SimpleGroupBySum {
     sealed trait GroupByMethod extends Serializable
     object GroupByMethod {
-        case object JvmArrowBased extends GroupByMethod
-        case object VEBased extends GroupByMethod
-      }
+      case object JvmArrowBased extends GroupByMethod
+      case object VEBased extends GroupByMethod
     }
-  final case class SimpleGroupBySum(child: SparkPlan, groupMethod: GroupByMethod)
+  }
+
+  final case class SimpleGroupBySum(child: SparkPlan,
+                                    groupMethod: GroupByMethod)
     extends UnaryExecNode {
     override protected def doExecute(): RDD[InternalRow] = {
       child
@@ -80,7 +84,8 @@ object GroupBySumPlanSpec {
     )
   }
 
-  final case class GroupBySumPlanTesting(groupByMethod: GroupByMethod) extends Testing {
+  final case class GroupBySumPlanTesting(groupByMethod: GroupByMethod,
+                                         source: SampleSource) extends Testing {
     type Result = (Double, Double)
     override def verifyResult(result: List[Result]): Unit = {
       assert(result.sortBy(_._1) == List((10.0, 25.0), (20.0, 0.0), (40.0, 42.0)))
@@ -121,17 +126,21 @@ object GroupBySumPlanSpec {
                                dataSize: Testing.DataSize
                              ): Dataset[Result] = {
       import sparkSession.sqlContext.implicits._
-      List[(Double, Double)](
-        (10.0, 5.0), (10.0, 20.0), (20.0, 1.0), (40.0, 42.0), (20.0, -1.0)
-      ).toDS
-        .withColumnRenamed("_1", "key")
-        .withColumnRenamed("_2", "value")
-        .createOrReplaceTempView("a")
+      dataSize match {
+        case SanityCheckSize => List[(Double, Double)](
+          (10.0, 5.0), (10.0, 20.0), (20.0, 1.0), (40.0, 42.0), (20.0, -1.0)
+        ).toDS
+          .withColumnRenamed("_1", SampleColA)
+          .withColumnRenamed("_2", SampleColB)
+          .createOrReplaceTempView(SampleSource.SharedName)
+
+        case BenchmarkSize => source.generate(sparkSession, dataSize)
+      }
 
       import sparkSession.sqlContext.implicits._
 
       sparkSession
-        .sql("SELECT key, sum(value) from a group by key")
+        .sql(s"SELECT ${SampleColA}, sum(${SampleColB}) from ${SharedName} group by ${SampleColA}")
         .as[(Double, Double)]
     }
     override def cleanUp(sparkSession: SparkSession): Unit = {
@@ -145,7 +154,7 @@ object GroupBySumPlanSpec {
 
   }
 
-  final case class GroupBySumPlainSparkTesting() extends Testing {
+  final case class GroupBySumPlainSparkTesting(source: SampleSource) extends Testing {
     type Result = (Double, Double)
     override def verifyResult(data: List[Result]): Unit = {
       assert(data.sortBy(_._1) == List((10.0, 25.0), (20.0, 0.0), (40.0, 42.0)))
@@ -155,17 +164,20 @@ object GroupBySumPlanSpec {
                                dataSize: Testing.DataSize
                              ): Dataset[(Double, Double)] = {
       import sparkSession.sqlContext.implicits._
-      List[(Double, Double)](
-        (10.0, 5.0), (10.0, 20.0), (20.0, 1.0), (40.0, 42.0), (20.0, -1.0)
-      ).toDS
-        .withColumnRenamed("_1", "key")
-        .withColumnRenamed("_2", "value")
-        .createOrReplaceTempView("a")
+      dataSize match {
+        case SanityCheckSize => List[(Double, Double)](
+          (10.0, 5.0), (10.0, 20.0), (20.0, 1.0), (40.0, 42.0), (20.0, -1.0)
+        ).toDS
+          .withColumnRenamed("_1", SampleColA)
+          .withColumnRenamed("_2", SampleColB)
+          .createOrReplaceTempView(SampleSource.SharedName)
 
+        case BenchmarkSize => source.generate(sparkSession, dataSize)
+      }
       import sparkSession.sqlContext.implicits._
 
       sparkSession
-        .sql("SELECT key, sum(value) from a group by key")
+        .sql(s"SELECT ${SampleColA}, sum(${SampleColB}) from ${SharedName} group by ${SampleColA}")
         .as[(Double, Double)]
     }
     override def prepareSession(): SparkSession = {
@@ -185,9 +197,12 @@ object GroupBySumPlanSpec {
   }
 
   val OurTesting: List[Testing] = List(
-    GroupBySumPlanTesting(GroupByMethod.VEBased),
-    GroupBySumPlanTesting(GroupByMethod.JvmArrowBased),
-    GroupBySumPlainSparkTesting()
+    GroupBySumPlanTesting(GroupByMethod.VEBased, CSV),
+    GroupBySumPlanTesting(GroupByMethod.JvmArrowBased,CSV),
+    GroupBySumPlainSparkTesting(CSV),
+    GroupBySumPlanTesting(GroupByMethod.VEBased, Parquet),
+    GroupBySumPlanTesting(GroupByMethod.JvmArrowBased, Parquet),
+    GroupBySumPlainSparkTesting(Parquet)
   )
 }
 
