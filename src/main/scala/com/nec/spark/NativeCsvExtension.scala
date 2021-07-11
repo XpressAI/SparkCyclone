@@ -4,6 +4,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 import com.nec.spark.planning.NativeCsvExec
 import com.nec.cmake._
+import com.nec.spark.planning.LocalVeoNativeEvaluator
 
 final class NativeCsvExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
@@ -13,7 +14,7 @@ final class NativeCsvExtension extends (SparkSessionExtensions => Unit) with Log
       selection match {
         case "x86" => NativeCsvExec.NativeCsvStrategy(CNativeEvaluator)
         case "ve" =>
-          NativeCsvExec.NativeCsvStrategy(new LocalVeoExtension.LocalVeoNativeEvaluator(conf))
+          NativeCsvExec.NativeCsvStrategy(new LocalVeoNativeEvaluator(conf))
         case other => EmptyStrategy
       }
     }

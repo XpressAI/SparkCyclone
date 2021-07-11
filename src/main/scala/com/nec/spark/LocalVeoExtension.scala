@@ -1,13 +1,8 @@
 package com.nec.spark
 
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.ExecutorDeferredVeArrowNativeInterfaceNumeric
-import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
-import com.nec.spark.LocalVeoExtension.LocalVeoNativeEvaluator
 import com.nec.spark.agile._
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
-import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.spark.planning.WordCountPlanner.WordCounter
 import com.nec.spark.planning.AddPlanExtractor
@@ -15,15 +10,13 @@ import com.nec.spark.planning.ArrowAveragingPlan
 import com.nec.spark.planning.ArrowGenericAggregationPlanOffHeap
 import com.nec.spark.planning.ArrowSummingPlan
 import com.nec.spark.planning.AveragingPlanOffHeap
+import com.nec.spark.planning.LocalVeoNativeEvaluator
 import com.nec.spark.planning.SingleColumnAvgPlanExtractor
 import com.nec.spark.planning.SingleColumnSumPlanExtractor
 import com.nec.spark.planning.SummingPlanOffHeap
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.spark.planning.VeoGenericPlanExtractor
 import com.nec.spark.planning.WordCountPlanner
-import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.compile_cpp
-import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.aggregate.Average
@@ -35,8 +28,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.RowToColumnarExec
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.SparkSessionExtensions
-
-import java.nio.file.Files
 
 object LocalVeoExtension {
   var _enabled = true
@@ -129,18 +120,6 @@ object LocalVeoExtension {
       .getOrElse(sparkPlan)
   }
 
-  final class LocalVeoNativeEvaluator(sparkConf: SparkConf) extends NativeEvaluator {
-    override def forCode(code: String): ArrowNativeInterfaceNumeric = {
-      val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
-      val soName = compile_cpp(
-        buildDir = tmpBuildDir,
-        config = VeKernelCompiler.VeCompilerConfig.fromSparkConf(sparkConf),
-        List(TransferDefinitions.TransferDefinitionsSourceCode, code).mkString("\n\n")
-      ).toAbsolutePath.toString
-
-      ExecutorDeferredVeArrowNativeInterfaceNumeric(soName)
-    }
-  }
 }
 
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
