@@ -20,7 +20,8 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
     assert(DiscoverVectorEnginesPlugin.detectVE() == List("0", "1"))
   }
 
-  override protected def logLevel: Level = Level.INFO
+  override protected def logLevel: Level = Level.ERROR
+  // override protected def logLevel: Level = Level.INFO
 
   val expectedItems =
     List(
@@ -74,8 +75,6 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
       .toDS()
       .createOrReplaceTempView("nums")
     val q = sparkSession.sql("select sum(value) from nums").as[Double]
-    println(q.queryExecution.executedPlan.toString())
-    println(sparkSession.sparkContext.resources)
     val result = q.collect().toList
     assert(result == List(1))
   }

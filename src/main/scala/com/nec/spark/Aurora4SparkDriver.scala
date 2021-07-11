@@ -20,7 +20,7 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
     sc: SparkContext,
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
-    logError("Aurora4Spark DriverPlugin is launched.")
+    logInfo("Aurora4Spark DriverPlugin is launched.")
     Aurora4SparkDriver.launched = true
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
     pluginContext
