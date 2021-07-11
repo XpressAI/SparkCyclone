@@ -32,6 +32,6 @@ final class AvgVeSpec extends AnyFreeSpec {
       } finally Aurora.veo_proc_destroy(proc)
 
     assert(avg.nonEmpty)
-    assert(avg == expectedAvg)
+    assert(avg.sorted == expectedAvg.sorted)
   }
 }

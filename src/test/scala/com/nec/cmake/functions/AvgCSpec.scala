@@ -18,8 +18,9 @@ final class AvgCSpec extends AnyFreeSpec {
 
     withArrowFloat8Vector(ss) { vector =>
       assert(
-        Avg.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, 3) == Avg
+        Avg.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, 3).sorted == Avg
           .avgJVM(vector, 3)
+          .sorted
       )
     }
   }

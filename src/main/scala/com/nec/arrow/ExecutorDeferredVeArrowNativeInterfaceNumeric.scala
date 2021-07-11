@@ -14,7 +14,6 @@ final case class ExecutorDeferredVeArrowNativeInterfaceNumeric(driverLibPath: St
     val libPath = Aurora4SparkExecutorPlugin.libraryStorage.getLibrary(driverLibPath)
     val lib = Aurora.veo_load_library(Aurora4SparkExecutorPlugin._veo_proc, libPath)
     require(lib != 0, s"Expected lib != 0, got ${lib}")
-    println(s"Evaluating $name on ${libPath}...")
     try {
       new VeArrowNativeInterfaceNumeric(
         Aurora4SparkExecutorPlugin._veo_proc,
