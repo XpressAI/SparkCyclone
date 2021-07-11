@@ -5,7 +5,6 @@ import com.nec.arrow.functions.GroupBySum
 import com.nec.arrow.{ArrowVectorBuilders, VeArrowNativeInterfaceNumeric}
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.GroupBySumPlanSpec.SimpleGroupBySum.GroupByMethod
-import com.nec.spark.planning.GroupBySumPlanSpec.SimpleGroupBySum.GroupByMethod.{JvmArrowBased, VEBased}
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
@@ -64,43 +63,6 @@ object GroupBySumPlanSpec {
           }
 
           resultsMap.zipWithIndex.map {
-          val resultMap = groupMethod match {
-            case GroupByMethod.InJVM =>
-              inputCols
-                .groupBy(_._1)
-                .map {
-                  case (groupingId, list) => {
-                    (groupingId, list.map(_._2).sum)
-                  }
-                }
-
-            case arrowBased: GroupByMethod.ArrowBased =>
-              ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._1)) {groupingVec =>
-                ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._2)) {valuesVec => {
-                  arrowBased match {
-                    case GroupByMethod.ArrowBased.JvmArrowBased =>
-                      GroupBySum.groupBySumJVM(groupingVec, valuesVec)
-                    case GroupByMethod.ArrowBased.VEBased =>
-                      val alloc = new RootAllocator(Integer.MAX_VALUE)
-                      val outValuesVector = new Float8Vector("values", alloc)
-                      val outGroupsVector = new Float8Vector("groups", alloc)
-
-                      GroupBySum.runOn(
-                        new VeArrowNativeInterfaceNumeric(
-                          Aurora4SparkExecutorPlugin._veo_proc,
-                          Aurora4SparkExecutorPlugin._veo_ctx,
-                          Aurora4SparkExecutorPlugin.lib
-                      )
-                      )(groupingVec, valuesVec, outGroupsVector, outValuesVector)
-                      (0 until outGroupsVector.getValueCount)
-                        .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
-                        .toMap
-                  }
-                }}
-              }
-          }
-
-          resultMap.zipWithIndex.map {
             case ((groupingId, sum), idx) => {
               val writer = new UnsafeRowWriter(2)
               writer.reset()
