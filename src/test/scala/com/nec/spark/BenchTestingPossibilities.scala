@@ -2,6 +2,7 @@ package com.nec.spark
 
 import com.nec.cmake.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
+import com.nec.spark.planning.LocalVeoNativeEvaluator
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import com.nec.spark.planning.{GroupBySumPlanSpec, JoinPlanSpec, VERewriteStrategy}
 
@@ -149,9 +150,7 @@ object BenchTestingPossibilities {
                 sse.injectPlannerStrategy(sparkSession =>
                   if (csvStrategy == CsvStrategy.NativeCsvVE)
                     NativeCsvStrategy(
-                      new LocalVeoExtension.LocalVeoNativeEvaluator(
-                        sparkSession.sparkContext.getConf
-                      )
+                      new LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf)
                     )
                   else
                     NativeCsvStrategy(CNativeEvaluator)

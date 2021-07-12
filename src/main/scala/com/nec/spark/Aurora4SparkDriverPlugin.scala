@@ -8,24 +8,37 @@ import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
 import com.nec.ve.VeKernelCompiler
+import okio.ByteString
 
-object Aurora4SparkDriver {
+import java.nio.file.Paths
+
+object Aurora4SparkDriverPlugin {
 
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
 }
 
-class Aurora4SparkDriver extends DriverPlugin with Logging {
+class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
+
+  override def receive(message: Any): AnyRef = {
+    message match {
+      case RequestCompiledLibrary(libPath) =>
+        RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(Paths.get(libPath)): _*))
+      case other => super.receive(message)
+    }
+  }
+
   override def init(
     sc: SparkContext,
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
     logInfo("Aurora4Spark DriverPlugin is launched.")
-    Aurora4SparkDriver.launched = true
+    Aurora4SparkDriverPlugin.launched = true
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
     pluginContext
       .conf()
       .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(","))
+
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
       "ve_so_name" -> VeKernelCompiler
@@ -40,6 +53,6 @@ class Aurora4SparkDriver extends DriverPlugin with Logging {
   }
 
   override def shutdown(): Unit = {
-    Aurora4SparkDriver.launched = false
+    Aurora4SparkDriverPlugin.launched = false
   }
 }

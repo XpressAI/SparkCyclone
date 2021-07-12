@@ -3,10 +3,10 @@ import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector
-import com.nec.spark.planning.CEvaluationPlan.NativeEvaluator
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.commons.lang3.reflect.FieldUtils
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -30,9 +30,6 @@ import org.apache.spark.sql.vectorized.ArrowColumnVector
 import scala.language.dynamics
 
 object CEvaluationPlan {
-  trait NativeEvaluator extends Serializable {
-    def forCode(code: String): ArrowNativeInterfaceNumeric
-  }
 
   object HasFloat8Vector {
     final class PrivateReader(val obj: Object) extends Dynamic {
