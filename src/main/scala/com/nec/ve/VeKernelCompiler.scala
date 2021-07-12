@@ -1,9 +1,7 @@
 package com.nec.ve
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.functions.Avg
+import com.nec.arrow.functions.{Avg, GroupBySum, Sum, WordCount}
 import com.nec.arrow.functions.Join.JoinSourceCode
-import com.nec.arrow.functions.Sum
-import com.nec.arrow.functions.WordCount
 import com.nec.older.AvgMultipleColumns
 import com.nec.older.AvgSimple
 import com.nec.older.SumMultipleColumns
@@ -11,8 +9,8 @@ import com.nec.older.SumPairwise
 import com.nec.older.SumSimple
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
-
 import java.nio.file._
+
 import org.apache.spark.SparkConf
 
 object VeKernelCompiler {
@@ -94,7 +92,8 @@ object VeKernelCompiler {
           AvgSimple.C_Definition,
           SumMultipleColumns.C_Definition,
           AvgMultipleColumns.C_Definition,
-          JoinSourceCode
+          JoinSourceCode,
+          GroupBySum.GroupBySumSourceCode
         ).mkString("\n\n\n")
       )
   }
