@@ -40,17 +40,44 @@ object Aurora4SparkExecutorPlugin {
     Aurora.veo_context_close(_veo_ctx)
     Aurora.veo_proc_destroy(_veo_proc)
   }
+
+  var DefaultVeNodeId = 0
 }
 
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    val resources = ctx.resources()
+    logInfo(s"Executor has the following resources available => ${resources}")
+    val selectedVeNodeId = if (!resources.containsKey("ve")) {
+      logInfo(
+        s"Do not have a VE resource available. Will use '${DefaultVeNodeId}' as the main resource."
+      )
+      DefaultVeNodeId
+    } else {
+      val veResources = resources.get("ve")
+      if (veResources.addresses.size > 1) {
+        logError(
+          s"${veResources.addresses.size} VEs were assigned; only 1 can be supported at a time per executor."
+        )
+        sys.error(
+          s"We have ${veResources.addresses.size} VEs assigned; only 1 can be supported per executor."
+        )
+      }
+      veResources.addresses.head.toInt
+    }
+
+    logInfo(s"Using VE node = ${selectedVeNodeId}")
+
     if (_veo_proc == null) {
-      _veo_proc = Aurora.veo_proc_create(0)
+      _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
       _veo_ctx = Aurora.veo_context_open(_veo_proc)
-      /** We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
+
+      /**
+       * We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
        * We're moving to the latter, however this is retained for compatibility for the previous set of sets we had.
-       * **/
+       * *
+       */
       if (extraConf.containsKey("ve_so_name")) {
         Aurora4SparkExecutorPlugin.lib =
           Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))

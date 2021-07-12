@@ -34,6 +34,8 @@ object SparkAdditions {}
 trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   this: TestSuite with Informing with BeforeAndAfter =>
 
+  protected def logLevel: Level = Level.ERROR
+
   protected def withSpark[T](configure: SparkConf => SparkConf)(f: SparkContext => T): T = {
     val conf = new SparkConf()
     conf.setMaster("local")
@@ -72,7 +74,7 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
 
   override protected def beforeAll(configMap: ConfigMap): Unit = {
     val rootLogger = Logger.getRootLogger
-    rootLogger.setLevel(Level.ERROR)
+    rootLogger.setLevel(logLevel)
 
     super.beforeAll(configMap)
 
