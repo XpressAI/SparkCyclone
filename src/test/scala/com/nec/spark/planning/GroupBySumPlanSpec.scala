@@ -1,88 +1,27 @@
 package com.nec.spark.planning
 
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.arrow.functions.GroupBySum
-import com.nec.arrow.{ArrowVectorBuilders, VeArrowNativeInterfaceNumeric}
+import com.nec.cmake.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.planning.GroupBySumPlanSpec.SimpleGroupBySum.GroupByMethod
-import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+ import com.nec.spark.{AuroraSqlPlugin, SparkAdditions}
+import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.testing.SampleSource.{CSV, Parquet, SampleColA, SampleColB, SharedName}
-import com.nec.testing.{SampleSource, Testing}
 import com.nec.testing.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
 import com.nec.testing.Testing.TestingTarget
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.Float8Vector
+import com.nec.testing.{SampleSource, Testing}
 import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.{BeforeAndAfter, Inside}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.{Dataset, SparkSession, Strategy}
 
 object GroupBySumPlanSpec {
-  object SimpleGroupBySum {
-    sealed trait GroupByMethod extends Serializable
-    object GroupByMethod {
-      case object JvmArrowBased extends GroupByMethod
-      case object VEBased extends GroupByMethod
-    }
-  }
-
-  final case class SimpleGroupBySum(child: SparkPlan,
-                                    groupMethod: GroupByMethod)
-    extends UnaryExecNode {
-    override protected def doExecute(): RDD[InternalRow] = {
-      child
-        .execute()
-        .coalesce(1)
-        .mapPartitions(iterator => {
-          val inputCols = iterator.map(row => (row.getDouble(0), row.getDouble(1))).toList
-          val alloc = new RootAllocator(Integer.MAX_VALUE)
-          val outValuesVector = new Float8Vector("values", alloc)
-          val outGroupsVector = new Float8Vector("groups", alloc)
-          val resultsMap = ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._1)) { groupingVec =>
-            ArrowVectorBuilders.withDirectFloat8Vector(inputCols.map(_._2)) { valuesVec => {
-              groupMethod match {
-                case JvmArrowBased =>
-                  GroupBySum.groupBySumJVM(groupingVec, valuesVec)
-                case VEBased =>
-                  GroupBySum.runOn(
-                    new VeArrowNativeInterfaceNumeric(
-                      Aurora4SparkExecutorPlugin._veo_proc,
-                      Aurora4SparkExecutorPlugin._veo_ctx,
-                      Aurora4SparkExecutorPlugin.lib
-                    ))(groupingVec, valuesVec, outGroupsVector, outValuesVector)
-                  (0 until outGroupsVector.getValueCount)
-                    .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
-                    .toMap
-              }
-            }}
-          }
-
-          resultsMap.zipWithIndex.map {
-            case ((groupingId, sum), idx) => {
-              val writer = new UnsafeRowWriter(2)
-              writer.reset()
-              writer.write(0, groupingId)
-              writer.write(1, sum)
-              writer.getRow
-            }
-          }.toIterator
-        })
-    }
-
-    override def output: Seq[Attribute] = Seq(
-      AttributeReference("group", DoubleType, false)(),
-      AttributeReference("value", DoubleType, false)()
-    )
-  }
 
   final case class GroupBySumPlanTesting(groupByMethod: GroupByMethod,
                                          source: SampleSource) extends Testing {
@@ -111,7 +50,7 @@ object GroupBySumPlanSpec {
               override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
                 plan match {
                   case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
-                    List(SimpleGroupBySum(planLater(child), groupByMethod))
+                    List(SimpleGroupBySumPlan(planLater(child),CNativeEvaluator,  groupByMethod))
                   case _ => Nil
                 }
               }
@@ -206,6 +145,51 @@ object GroupBySumPlanSpec {
   )
 }
 
-final class GroupBySumPlanSpec extends AnyFreeSpec with BenchTestAdditions {
+final class GroupBySumPlanSpec extends AnyFreeSpec with BenchTestAdditions with
+  BeforeAndAfter with SparkAdditions with Inside with Matchers {
   GroupBySumPlanSpec.OurTesting.filter(_.testingTarget.isPlainSpark).foreach(runTestCase)
+
+  "GroupBySum plan should be rewritten by VERewriteStrategy" in withSparkSession2(
+    _.withExtensions(sse =>
+      sse.injectPlannerStrategy(sparkSession =>
+        new VERewriteStrategy(sparkSession, CNativeEvaluator)
+      )
+    )
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    Seq[(Double, Double, Double)]((1, 2, 3), (3, 4, 4), (5, 6, 7))
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val plan = sparkSession.sql("SELECT nums._2, SUM(nums._1) FROM nums GROUP BY nums._2")
+      .queryExecution
+      .executedPlan
+
+    inside(plan) {
+      case SimpleGroupBySumPlan(LocalTableScanExec(output, rows), evaluator, method) =>
+        method shouldBe GroupByMethod.VEBased
+    }
+  }
+
+  "GroupBySum plan should correctly sum groups" in withSparkSession2(
+    _.withExtensions(sse =>
+      sse.injectPlannerStrategy(sparkSession =>
+        new VERewriteStrategy(sparkSession, CNativeEvaluator)
+      )
+    )
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    Seq[(Double, Double)](
+      (1, 5), (2, 1), (3, 9), (1, 9), (2, 78), (3, 91)
+    )
+      .toDS()
+      .createOrReplaceTempView("nums")
+
+    val plan = sparkSession.sql("SELECT nums._2, SUM(nums._1) FROM nums GROUP BY nums._2")
+      .as[(Double, Double)]
+
+    plan.collect().toSeq shouldEqual Seq((1.0, 14.0), (2.0, 79.0), (3.0, 100.0))
+  }
 }

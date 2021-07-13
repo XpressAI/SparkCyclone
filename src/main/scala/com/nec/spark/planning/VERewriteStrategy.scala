@@ -1,19 +1,16 @@
 package com.nec.spark.planning
+import com.nec.arrow.functions.GroupBySum
+import com.nec.spark.agile.CExpressionEvaluation
+import com.nec.spark.agile.CExpressionEvaluation.{NameCleaner, RichListStr}
+import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
+import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 
-import org.apache.spark.sql.catalyst.plans.logical
+import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
+import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
-import com.nec.spark.agile.CExpressionEvaluation
-import com.nec.spark.agile.CExpressionEvaluation.RichListStr
-import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -64,6 +61,12 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               nativeEvaluator
             )
           )
+        case logical.Aggregate(
+              groupingExpressions,
+              outerResultExpressions,
+              child
+            ) if(GroupBySum.isLogicalGroupBySum(plan)) =>
+          List(SimpleGroupBySumPlan(planLater(child),nativeEvaluator, GroupByMethod.VEBased))
         case logical.Aggregate(
               groupingExpressions,
               outerResultExpressions,

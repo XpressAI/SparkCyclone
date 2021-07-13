@@ -135,8 +135,8 @@ final class SummingSparkPlanSpec
       .createOrReplaceTempView("nums")
 
     val executionPlan = sparkSession
-      .sql("SELECT collect_list(_1) FROM nums GROUP BY (_2)")
-      .as[(Array[Double])]
+      .sql("SELECT _1, sum(_2) FROM nums GROUP BY (_1)")
+      .as[(Double, Double)]
 
     assert(
       SingleColumnSumPlanExtractor

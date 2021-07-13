@@ -4,6 +4,11 @@ import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.{Float8VectorWrapper, IntVectorWrapper}
 import org.apache.arrow.vector.{Float8Vector, IntVector}
 
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Sum => SparkSum}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Project}
+
 object GroupBySum {
 
   val GroupBySumSourceCode: String = {
@@ -45,5 +50,21 @@ object GroupBySum {
       .groupBy(_._1)
       .map(kv => (kv._1, kv._2.map(_._2).sum))
 
+  }
+
+  def isLogicalGroupBySum(logicalPlan: LogicalPlan): Boolean = {
+    logicalPlan match {
+      case agg @ Aggregate(groupingExpressions, aggregateExpressions, child) =>
+        val isSum = aggregateExpressions.collect {
+          case agg @ Alias(
+            AggregateExpression(SparkSum(expr), mode, isDistinct, filter, resultId),
+            name) => agg
+        }.size == 1
+
+        groupingExpressions.size == 1 && aggregateExpressions.size == 2 &&
+        aggregateExpressions.contains(groupingExpressions.head) && isSum
+
+      case _ => false
+    }
   }
 }
