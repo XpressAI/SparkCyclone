@@ -26,6 +26,7 @@ lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
   .dependsOn(root % "compile->test")
   .settings(
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion.value,
     name := "funbench",
     Jmh / run := (Jmh / run).dependsOn((Test / test)).evaluated,
     Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
