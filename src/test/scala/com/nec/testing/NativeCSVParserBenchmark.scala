@@ -60,7 +60,7 @@ final case class NativeCSVParserBenchmark(
     val c = new Float8Vector("c", state.bufferAllocator)
     CsvParse.runOn(state.interface)(Right(state.string), a, b, c)
 
-    val randomRow = scala.util.Random.nextInt(state.originalArray.length / 3)
+    val randomRow = scala.util.Random.nextInt(state.originalArray.length)
     val randomCol = scala.util.Random.nextInt(3)
 
     assert(
