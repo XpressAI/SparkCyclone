@@ -5,7 +5,6 @@ import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.CsvParse
 import com.nec.aurora.Aurora
 import com.nec.cmake.CNativeEvaluator
-import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.testing.NativeCSVParserBenchmark.ParserTestState
 import com.nec.testing.NativeCSVParserBenchmark.SimpleTestType
 import com.nec.testing.Testing.TestingTarget
@@ -16,7 +15,6 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import com.eed3si9n.expecty.Expecty._
 
-import java.nio.ByteBuffer
 import java.nio.file.Files
 
 object NativeCSVParserBenchmark {
@@ -34,7 +32,7 @@ object NativeCSVParserBenchmark {
     }
   }
   trait ParserTestState {
-    def originalArray: Array[Double]
+    def originalArray: Array[Array[Double]]
     def interface: ArrowNativeInterfaceNumeric
     def bufferAllocator: BufferAllocator
 
@@ -51,8 +49,10 @@ object NativeCSVParserBenchmark {
   }
 }
 
-final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType, dataSize: NativeCSVParserBenchmark.Megs = NativeCSVParserBenchmark.Megs.Default)
-  extends GenericTesting {
+final case class NativeCSVParserBenchmark(
+  simpleTestType: SimpleTestType,
+  dataSize: NativeCSVParserBenchmark.Megs = NativeCSVParserBenchmark.Megs.Default
+) extends GenericTesting {
   override type State = ParserTestState
   override def benchmark(state: State): Unit = {
     val a = new Float8Vector("a", state.bufferAllocator)
@@ -64,8 +64,9 @@ final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType, dataSi
     val randomCol = scala.util.Random.nextInt(3)
 
     assert(
-      state.originalArray
-        .apply(3 * randomRow + randomCol) == List(a, b, c).apply(randomCol).get(randomRow)
+      state.originalArray.apply(randomRow).apply(randomCol) == List(a, b, c)
+        .apply(randomCol)
+        .get(randomRow)
     )
   }
 
@@ -75,12 +76,12 @@ final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType, dataSi
   override def testingTarget: Testing.TestingTarget = simpleTestType.testingTarget
   override def init(): State = {
     val minimum = dataSize.bytes
-    val arrItems = scala.collection.mutable.Buffer.empty[Double]
+    val arrItems = scala.collection.mutable.Buffer.empty[Array[Double]]
     val stringBuilder = new StringBuilder()
     stringBuilder ++= "a,b,c\n"
     while (stringBuilder.size < minimum) {
-      val newItems = List.fill(3)(scala.util.Random.nextDouble())
-      arrItems ++= newItems
+      val newItems = List.fill(3)(scala.util.Random.nextDouble()).toArray
+      arrItems += newItems
       stringBuilder ++= (newItems.mkString(",") + "\n")
     }
     val inputString = stringBuilder.toString()
@@ -94,7 +95,7 @@ final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType, dataSi
           override def close(): Unit = ()
           override def string: String = inputString
 
-          override def originalArray: Array[Double] = inputArray
+          override def originalArray: Array[Array[Double]] = inputArray
         }
       case SimpleTestType.VEBased =>
         new ParserTestState {
@@ -122,7 +123,7 @@ final case class NativeCSVParserBenchmark(simpleTestType: SimpleTestType, dataSi
             Aurora.veo_proc_destroy(proc)
           }
 
-          override def originalArray: Array[Double] = inputArray
+          override def originalArray: Array[Array[Double]] = inputArray
         }
     }
   }
