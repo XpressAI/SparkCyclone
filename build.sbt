@@ -73,9 +73,6 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
-  "org.apache.spark" %% "spark-sql" % sparkVersion.value % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-core" % sparkVersion.value % "test,ve" classifier ("tests"),
   "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "provided",
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
@@ -111,7 +108,7 @@ inConfig(Test)(Defaults.testTasks)
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false
 lazy val VectorEngine = config("ve") extend Test
-inConfig(VectorEngine)(Defaults.testSettings)
+inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
 VectorEngine / run / fork := true
