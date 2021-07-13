@@ -4,7 +4,6 @@ import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.BigIntVectorWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.ByteBufferWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.IntVectorWrapper
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.VarCharVectorWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.{StringWrapper, Float8VectorWrapper}
 import org.apache.arrow.vector.BigIntVector
