@@ -109,12 +109,13 @@ object BenchTestingPossibilities {
         .set("nec.testing.target", testingTarget.label)
         .set("nec.testing.testing", this.toString)
         .set("spark.sql.codegen.comments", "true")
+      val MasterName = "local[*]"
       testingTarget match {
         case TestingTarget.Rapids =>
           SparkSession
             .builder()
             .appName(name.value)
-            .master("local[*]")
+            .master(MasterName)
             .config(key = "spark.plugins", value = "com.nvidia.spark.SQLPlugin")
             .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
             .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
@@ -126,7 +127,7 @@ object BenchTestingPossibilities {
           LocalVeoExtension._enabled = true
           var builder = SparkSession
             .builder()
-            .master("local[*]")
+            .master(MasterName)
             .appName(name.value)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
@@ -161,7 +162,7 @@ object BenchTestingPossibilities {
         case TestingTarget.PlainSpark =>
           SparkSession
             .builder()
-            .master("local[*]")
+            .master(MasterName)
             .appName(name.value)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)
@@ -170,7 +171,7 @@ object BenchTestingPossibilities {
         case TestingTarget.CMake =>
           SparkSession
             .builder()
-            .master("local[*]")
+            .master(MasterName)
             .appName(name.value)
             .withExtensions(sse =>
               if (csvStrategy.isNative)
