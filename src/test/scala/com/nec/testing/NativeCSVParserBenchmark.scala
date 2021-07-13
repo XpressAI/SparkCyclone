@@ -14,6 +14,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import com.eed3si9n.expecty.Expecty._
+import com.nec.cmake.functions.ParseCSVSpec
 
 import java.nio.file.Files
 
@@ -80,9 +81,13 @@ final case class NativeCSVParserBenchmark(
     val stringBuilder = new StringBuilder()
     stringBuilder ++= "a,b,c\n"
     while (stringBuilder.size < minimum) {
-      val newItems = List.fill(3)(scala.util.Random.nextDouble()).toArray
-      arrItems += newItems
-      stringBuilder ++= (newItems.mkString(",") + "\n")
+      val line = (
+        scala.util.Random.nextDouble(),
+        scala.util.Random.nextDouble(),
+        scala.util.Random.nextDouble()
+      )
+      arrItems += Array(line._1, line._2, line._3)
+      stringBuilder ++= (ParseCSVSpec.renderLine(line) + "\n")
     }
     val inputString = stringBuilder.toString()
     val inputArray = arrItems.toArray

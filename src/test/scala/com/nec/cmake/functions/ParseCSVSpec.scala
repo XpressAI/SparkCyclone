@@ -8,13 +8,18 @@ import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.functions.CsvParse
 import com.nec.cmake.CMakeBuilder
+import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
+import com.nec.cmake.functions.ParseCSVSpec.doublesToCsv
 import com.nec.cmake.functions.ParseCSVSpec.verifyOn
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.BigIntVector
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.IntVector
 import org.apache.arrow.vector.VarCharVector
+import org.scalacheck.Gen
+import org.scalacheck.Prop
 import org.scalatest.freespec.AnyFreeSpec
+import org.scalatestplus.scalacheck.Checkers
 
 object ParseCSVSpec {
   implicit class RichFloat8(float8Vector: Float8Vector) {
@@ -84,7 +89,13 @@ object ParseCSVSpec {
     val long0 = new BigIntVector("longs", alloc)
     val inputStr4 =
       """a,b,c,d\n1.0,"one point zero",1,10000000000000\n2,twoPointZero,2,10000000000001\n"""
-    CsvParse.double1str2int3long4(arrowInterfaceNumeric)(Right(inputStr4), double0, strO, int0, long0)
+    CsvParse.double1str2int3long4(arrowInterfaceNumeric)(
+      Right(inputStr4),
+      double0,
+      strO,
+      int0,
+      long0
+    )
     expect(
       double0.toList == List[Double](1.0, 2.0),
       strO.toList == List[String]("one point zero", "twoPointZero"),
@@ -94,9 +105,18 @@ object ParseCSVSpec {
 
   }
 
+  def renderLine(line: (Double, Double, Double)): String = {
+    List(line._1, line._2, line._3).map(num => "%.12f".format(num)).mkString(",")
+  }
+  def doublesToCsv(list: List[(Double, Double, Double)]): String = {
+    list
+      .map(renderLine)
+      .mkString(start = "a,b,c\n", sep = "\n", end = "\n")
+  }
+
 }
 
-final class ParseCSVSpec extends AnyFreeSpec {
+final class ParseCSVSpec extends AnyFreeSpec with Checkers {
 
   "Through Arrow, it works" in {
     val cLib = CMakeBuilder.buildC(
@@ -104,6 +124,41 @@ final class ParseCSVSpec extends AnyFreeSpec {
         .mkString("\n\n")
     )
     verifyOn(new CArrowNativeInterfaceNumeric(cLib.toString))
+  }
+
+  def notTooFar(lst: List[Double], doubles: List[Double]): Boolean = {
+    lst.size == doubles.size && lst.zip(doubles).forall { case (in, out) =>
+      if (out == 0d) in == out else in / out > 0.9
+    }
+  }
+
+  "We do a property test" in {
+    val cLib = CMakeBuilder.buildC(
+      List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
+        .mkString("\n\n")
+    )
+    val iFace = new CArrowNativeInterfaceNumeric(cLib.toString)
+    val alloc = new RootAllocator(Integer.MAX_VALUE)
+
+    val goodDouble: Gen[Double] = Gen.double
+    val prop: Prop = Prop.forAll(Gen.listOf(Gen.zip(goodDouble, goodDouble, goodDouble)))(list => {
+      val str = doublesToCsv(list)
+      val a = new Float8Vector("a", alloc)
+      val b = new Float8Vector("b", alloc)
+      val c = new Float8Vector("c", alloc)
+      try {
+        CsvParse.runOn(iFace)(input = Right(str), a = a, b = b, c = c)
+        notTooFar(a.toList, list.map(_._1)) &&
+        notTooFar(b.toList, list.map(_._2)) &&
+        notTooFar(c.toList, list.map(_._3))
+      } finally {
+        a.close()
+        b.close()
+        c.close()
+      }
+    })
+
+    check(prop)
   }
 
 }
