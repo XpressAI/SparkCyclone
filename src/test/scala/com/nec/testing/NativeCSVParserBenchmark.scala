@@ -15,6 +15,7 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import com.eed3si9n.expecty.Expecty._
 import com.nec.cmake.functions.ParseCSVSpec
+import com.nec.cmake.functions.ParseCSVSpec.inTolerance
 
 import java.nio.file.Files
 
@@ -68,7 +69,7 @@ final case class NativeCSVParserBenchmark(
     val expectedCell = List(a, b, c)
       .apply(randomCol)
       .get(randomRow)
-    assert(theCell == expectedCell)
+    assert(inTolerance(theCell, expectedCell))
   }
 
   override def cleanUp(state: State): Unit = {

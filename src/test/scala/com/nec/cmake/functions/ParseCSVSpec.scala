@@ -10,6 +10,7 @@ import com.nec.arrow.functions.CsvParse
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
 import com.nec.cmake.functions.ParseCSVSpec.doublesToCsv
+import com.nec.cmake.functions.ParseCSVSpec.inTolerance
 import com.nec.cmake.functions.ParseCSVSpec.verifyOn
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.BigIntVector
@@ -114,6 +115,10 @@ object ParseCSVSpec {
       .mkString(start = "a,b,c\n", sep = "\n", end = "\n")
   }
 
+  def inTolerance(in: Double, out: Double): Boolean = {
+    if (out == 0d) in == out else in / out > 0.9
+  }
+
 }
 
 final class ParseCSVSpec extends AnyFreeSpec with Checkers {
@@ -128,7 +133,7 @@ final class ParseCSVSpec extends AnyFreeSpec with Checkers {
 
   def notTooFar(lst: List[Double], doubles: List[Double]): Boolean = {
     lst.size == doubles.size && lst.zip(doubles).forall { case (in, out) =>
-      if (out == 0d) in == out else in / out > 0.9
+      inTolerance(in, out)
     }
   }
 
