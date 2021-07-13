@@ -69,7 +69,11 @@ object VeArrowNativeInterfaceNumeric {
     val vc = new non_null_c_bounded_string()
     vc.length = size
     byteBuffer.position(0)
-    vc.data = copyBufferToVe(proc, byteBuffer, Some(size))
+    val theBuf = ByteBuffer
+      .allocateDirect(size)
+      .put(byteBuffer)
+    theBuf.position(0)
+    vc.data = copyBufferToVe(proc, theBuf, Some(size))
     vc
   }
 

@@ -72,7 +72,7 @@ case class NativeCsvExec(
       evaluator.callFunction(
         name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
         inputArguments = List(
-          Some(ByteBufferWrapper(ByteBuffer.wrap(text.getBytes), text.getLength))
+          Some(ByteBufferWrapper(ByteBuffer.wrap(text.getBytes), text.getBytes.size))
         ) ++ outColumns.map(_ => None),
         outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
       )
