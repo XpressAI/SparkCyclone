@@ -64,11 +64,11 @@ final case class NativeCSVParserBenchmark(
     val randomRow = scala.util.Random.nextInt(state.originalArray.length)
     val randomCol = scala.util.Random.nextInt(3)
 
-    assert(
-      state.originalArray.apply(randomRow).apply(randomCol) == List(a, b, c)
-        .apply(randomCol)
-        .get(randomRow)
-    )
+    val theCell = state.originalArray.apply(randomRow).apply(randomCol)
+    val expectedCell = List(a, b, c)
+      .apply(randomCol)
+      .get(randomRow)
+    assert(theCell == expectedCell)
   }
 
   override def cleanUp(state: State): Unit = {
