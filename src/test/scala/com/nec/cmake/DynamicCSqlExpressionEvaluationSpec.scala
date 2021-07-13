@@ -1,5 +1,6 @@
 package com.nec.cmake
 
+import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
@@ -46,7 +47,7 @@ final class DynamicCSqlExpressionEvaluationSpec
       s"(n${idx}) ${sql}" in withSparkSession2(configuration) { sparkSession =>
         SampleSource.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
-        sparkSession.sql(sql).debugSqlHere { ds =>
+        sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }
@@ -57,7 +58,7 @@ final class DynamicCSqlExpressionEvaluationSpec
   "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
       assert(ds.as[(Double)].collect().toList == List(3, 5, 7, 9, 58))
     }
   }
@@ -66,7 +67,7 @@ final class DynamicCSqlExpressionEvaluationSpec
   "Support multi-column inputs" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_mci).debugSqlHere { ds =>
+    sparkSession.sql(sql_mci).ensureCEvaluating().debugSqlHere { ds =>
       assert(ds.as[(Double)].collect().toList == List(82.0))
     }
   }
@@ -76,7 +77,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_mci_2).debugSqlHere { ds =>
+      sparkSession.sql(sql_mci_2).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[Double].collect().toList == List(-42.0))
       }
   }
@@ -87,9 +88,21 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_mcio).debugSqlHere { ds =>
+    sparkSession.sql(sql_mcio).ensureCEvaluating().debugSqlHere { ds =>
       assert(ds.as[(Double, Double)].collect().toList == List(-42.0 -> 82.0))
     }
+  }
+
+  "Support multi-column inputs and outputs with a .limit()" in withSparkSession2(configuration) {
+    val sql_pairwise =
+      s"SELECT ${SampleColA} + ${SampleColB}, ${SampleColA} - ${SampleColB} FROM nums"
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql_pairwise).limit(1).ensureCEvaluating().debugSqlHere { ds =>
+        expect(ds.as[(Double, Double)].collect().toList == List[(Double, Double)](3.0 -> -1.0))
+      }
   }
 
   "Different multi-column expressions can be evaluated" - {
@@ -98,7 +111,7 @@ final class DynamicCSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql1).debugSqlHere { ds =>
+      sparkSession.sql(sql1).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[(Double, Double)].collect().toList == List(24.8 -> 62.0))
       }
     }
@@ -110,13 +123,18 @@ final class DynamicCSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql2).debugSqlHere { ds =>
+      sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[(Double, Double, Double)].collect().toList == Nil)
       }
     }
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
+    def ensureCEvaluating(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("CEvaluation"))
+      dataSet
+    }
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       withClue(dataSet.queryExecution.executedPlan.toString()) {
         f(dataSet)

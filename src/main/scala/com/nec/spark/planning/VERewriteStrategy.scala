@@ -68,9 +68,19 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               groupingExpressions,
               outerResultExpressions,
               logical.Project(exprs, child)
+            )
+            if outerResultExpressions.forall(e =>
+              e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
             ) =>
           val resultExpressions =
-            meldAggregateAndProject(outerResultExpressions.toList, exprs.toList)
+            try meldAggregateAndProject(outerResultExpressions.toList, exprs.toList)
+            catch {
+              case e: Throwable =>
+                throw new IllegalArgumentException(
+                  s"Could not process project+aggregate of ${exprs} ==> ${outerResultExpressions}: $e",
+                  e
+                )
+            }
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
@@ -96,7 +106,12 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               nativeEvaluator
             )
           )
-        case logical.Aggregate(groupingExpressions, resultExpressions, child) =>
+
+        /** There can be plans where we have Cast(Alias(AggEx) as String) - this is not yet supported */
+        case logical.Aggregate(groupingExpressions, resultExpressions, child)
+            if resultExpressions.forall(e =>
+              e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
+            ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(

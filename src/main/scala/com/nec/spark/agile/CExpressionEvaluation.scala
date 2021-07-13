@@ -58,7 +58,7 @@ object CExpressionEvaluation {
       case NamedExpression(name, DoubleType | IntegerType) =>
         input.indexWhere(_.name == name) match {
           case -1 =>
-            sys.error(s"Could not find a reference for ${expression} from set of: ${input}")
+            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
           case idx => s"input_${idx}->data[i]"
         }
     }
