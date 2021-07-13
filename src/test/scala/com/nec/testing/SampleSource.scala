@@ -1,6 +1,5 @@
 package com.nec.testing
 
-import com.nec.spark.SampleTestData.SampleCSV
 import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
 import org.apache.spark.sql.SparkSession
@@ -11,7 +10,6 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 
-import java.nio.file.Path
 import java.nio.file.Paths
 
 sealed trait SampleSource extends Serializable {
@@ -86,8 +84,11 @@ object SampleSource {
       .createOrReplaceTempView(SharedName)
   }
 
-  lazy val LargeCSV: Path =
-    Paths.get("/data/large-sample-csv-10_9/")
+  lazy val LargeCSV: String =
+    sys.env.getOrElse(
+      key = "LARGE_CSV",
+      default = Paths.get("/data/large-sample-csv-10_9/").toString
+    )
 
   def makeCsvNumsLarge(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
@@ -102,7 +103,7 @@ object SampleSource {
     sparkSession.read
       .format("csv")
       .schema(schema)
-      .load(LargeCSV.toString)
+      .load(LargeCSV)
       .createOrReplaceTempView(SharedName)
   }
 
@@ -117,15 +118,17 @@ object SampleSource {
       .createOrReplaceTempView(SharedName)
   }
 
-  lazy val LargeParquet: Path =
-    Paths.get("/data/large-sample-parquet-20_9/")
-
+  lazy val LargeParquet: String =
+    sys.env.getOrElse(
+      key = "LARGE_PARQUET",
+      default = Paths.get("/data/large-sample-parquet-20_9/").toString
+    )
   def makeParquetNumsLarge(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
 
     sparkSession.read
       .format("parquet")
-      .load(LargeParquet.toString)
+      .load(LargeParquet)
       .withColumnRenamed("a", SampleColA)
       .withColumnRenamed("b", SampleColB)
       .createOrReplaceTempView(SharedName)

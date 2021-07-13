@@ -71,11 +71,11 @@ ThisBuild / sparkVersion := {
 libraryDependencies ++= Seq(
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
-  "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+  "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "test,ve" classifier ("tests"),
   "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "test,ve" classifier ("tests"),
   "org.apache.spark" %% "spark-core" % sparkVersion.value % "test,ve" classifier ("tests"),
-  "org.apache.spark" %% "spark-catalyst" % sparkVersion.value,
+  "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "provided",
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
   "com.nec" % "aveo4j" % "0.0.1",
@@ -173,7 +173,7 @@ assembly / assemblyMergeStrategy := {
   case v if v.contains("module-info.class")   => MergeStrategy.discard
   case v if v.contains("UnusedStub")          => MergeStrategy.first
   case v if v.contains("aopalliance")         => MergeStrategy.first
-  case v if v.contains("/inject")             => MergeStrategy.first
+  case v if v.contains("inject")              => MergeStrategy.first
   case v if v.contains("reflect-config.json") => MergeStrategy.discard
   case v if v.contains("jni-config.json")     => MergeStrategy.discard
   case v if v.contains("git.properties")      => MergeStrategy.discard
