@@ -1,15 +1,16 @@
 package com.nec.spark.planning
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.ByteBufferWrapper
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
 import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
+import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.planning.ScanOperation
@@ -18,6 +19,8 @@ import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.vectorized.ArrowColumnVector
+
+import java.nio.ByteBuffer
 
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
@@ -59,7 +62,7 @@ case class NativeCsvExec(
     val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
-    sparkContext.wholeTextFiles(imfi.rootPaths.head.toString).map { case (x, y) =>
+    sparkContext.wholeRawTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>
       val allocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"CSV read allocator", 0, Long.MaxValue)
 
@@ -68,7 +71,9 @@ case class NativeCsvExec(
       }.toList
       evaluator.callFunction(
         name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
-        inputArguments = List(Some(StringWrapper(y))) ++ outColumns.map(_ => None),
+        inputArguments = List(
+          Some(ByteBufferWrapper(ByteBuffer.wrap(text.getBytes), text.getBytes.size))
+        ) ++ outColumns.map(_ => None),
         outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
       )
       new ColumnarBatch(
