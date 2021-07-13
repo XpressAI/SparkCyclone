@@ -137,7 +137,7 @@ final class ParseCSVSpec extends AnyFreeSpec with Checkers {
     }
   }
 
-  "We do a property test" in {
+  "We do a property test" ignore {
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
         .mkString("\n\n")
