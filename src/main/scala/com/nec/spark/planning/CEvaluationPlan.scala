@@ -1,12 +1,10 @@
 package com.nec.spark.planning
-import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.commons.lang3.reflect.FieldUtils
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -115,9 +113,8 @@ final case class CEvaluationPlan(
                 inputArguments = inputVectors.toList.map(iv =>
                   Some(Float8VectorWrapper(iv))
                 ) ++ outputVectors.map(_ => None),
-                outputArguments =
-                  inputVectors.toList.map(_ => None) ++
-                    outputVectors.map(v => Some(Float8VectorWrapper(v)))
+                outputArguments = inputVectors.toList.map(_ => None) ++
+                  outputVectors.map(v => Some(Float8VectorWrapper(v)))
               )
             } finally {
               inputVectors.foreach(_.close())
@@ -206,7 +203,6 @@ final case class CEvaluationPlan(
               case (attr, idx) =>
                 columnarBatch.column(idx) match {
                   case HasFloat8Vector(float8Vector) =>
-                    println("Reusing!! :-)  \\o/ ") // for now let's celebrate!
                     float8Vector
                   case theCol =>
                     val fv = root.getVector(idx).asInstanceOf[Float8Vector]
@@ -239,13 +235,15 @@ final case class CEvaluationPlan(
                 inputArguments = inputVectors.toList.map(iv =>
                   Some(Float8VectorWrapper(iv))
                 ) ++ outputVectors.map(_ => None),
-                outputArguments =
-                  inputVectors.toList.map(_ => None) ++ outputVectors.map(v => Some(Float8VectorWrapper(v)))
+                outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v =>
+                  Some(Float8VectorWrapper(v))
+                )
               )
             } finally {
               inputVectors.foreach(_.close())
             }
 
+            val last = outputVectors.head.getValueCount - 1
             (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
               val writer = new UnsafeRowWriter(outputVectors.size)
               writer.reset()
@@ -253,7 +251,11 @@ final case class CEvaluationPlan(
                 val doubleV = v.getValueAsDouble(v_idx)
                 writer.write(c_idx, doubleV)
               }
-              writer.getRow
+              val res = writer.getRow
+              if (v_idx == last) {
+                outputVectors.foreach(_.close())
+              }
+              res
             }
 
           }

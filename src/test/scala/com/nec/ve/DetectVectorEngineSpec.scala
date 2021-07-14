@@ -25,10 +25,10 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
 
   val expectedItems =
     List(
-      "/ve-classes/",
       "/classes/",
       "/test-classes/",
       "aurora-presets",
+      "scala-logging",
       "aveo4j",
       "javacpp",
       "jna",

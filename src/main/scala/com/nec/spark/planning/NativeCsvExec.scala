@@ -1,16 +1,16 @@
 package com.nec.spark.planning
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.ByteBufferWrapper
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
 import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
-import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.planning.ScanOperation
@@ -19,8 +19,6 @@ import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.vectorized.ArrowColumnVector
-
-import java.nio.ByteBuffer
 
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
@@ -53,7 +51,8 @@ case class NativeCsvExec(
   output: Seq[Attribute],
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
-  with LeafExecNode {
+  with LeafExecNode
+  with Logging {
   override def supportsColumnar: Boolean = true
   override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
     "Source here is only columnar"
@@ -62,20 +61,23 @@ case class NativeCsvExec(
     val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
-    sparkContext.wholeRawTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>
+    sparkContext.wholeTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>
       val allocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"CSV read allocator", 0, Long.MaxValue)
 
       val outColumns = (0 until numColumns).map { idx =>
         new Float8Vector(s"out_${idx}", allocator)
       }.toList
+      val startTime = System.currentTimeMillis()
       evaluator.callFunction(
         name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
-        inputArguments = List(
-          Some(ByteBufferWrapper(ByteBuffer.wrap(text.getBytes), text.getBytes.size))
-        ) ++ outColumns.map(_ => None),
+        inputArguments =
+          List(Some(StringWrapper(new String(text.getBytes)))) ++ outColumns.map(_ => None),
         outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
       )
+      val millis = System.currentTimeMillis() - startTime
+      logInfo(s"Took ${millis} ms to process CSV: ${name}")
+      logInfo(s"Took ${millis} ms to process CSV: ${name} (${text.length} bytes)")
       new ColumnarBatch(
         outColumns.map(col => new ArrowColumnVector(col)).toArray,
         outColumns.head.getValueCount

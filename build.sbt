@@ -26,10 +26,15 @@ lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
   .dependsOn(root % "compile->test")
   .settings(
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+      "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
+      "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve"
+    ),
     name := "funbench",
     Jmh / run := (Jmh / run).dependsOn((Test / test)).evaluated,
     Jmh / run / javaOptions += "-Djmh.separateClasspathJAR=true",
+    Jmh / run / fork := true,
     Test / test :=
       Def.taskDyn {
         val basicTests = Def
@@ -83,8 +88,12 @@ libraryDependencies ++= Seq(
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
   "org.reflections" % "reflections" % "0.9.12",
   "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve,cmake",
-  "commons-io" % "commons-io" % "2.10.0"
-)
+  "commons-io" % "commons-io" % "2.10.0",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+  /** Log with logback in our scopes but not in production runs */
+  "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
+  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve"
+).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 libraryDependencies ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {

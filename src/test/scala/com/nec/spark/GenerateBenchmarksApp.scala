@@ -6,15 +6,22 @@ import java.nio.file.Files
 
 object GenerateBenchmarksApp extends App {
   val expectedTarget = new File(args.last).getAbsoluteFile
+
   val fixtures: List[String] = {
     BenchTestingPossibilities.possibilitiesMap
       .filterNot(_._2.testingTarget.isCMake)
       .keysIterator
       .map { name =>
+        val benchPath = s"nec.DynamicBenchmark.${name}-SingleShotTime"
         s"""
 @State(Scope.Benchmark)
 class State_${name} {
-  lazy val testing = com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}")
+  lazy val testing = {
+    System.setProperty("BENCH_NAME", "${name}")
+    System.setProperty("BENCH_FULL_NAME", "${benchPath}")
+    System.setProperty("logback.configurationFile", "./logback-bench.xml")
+    com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}")
+  }
   lazy val sparkSession: SparkSession = testing.prepareSession()
   lazy val input = testing.prepareInput(sparkSession, com.nec.testing.Testing.DataSize.defaultForBenchmarks)
   lazy val benchDebugging = com.nec.spark.agile.BenchmarkDebugging(testing)
@@ -39,10 +46,16 @@ class State_${name} {
       .toList
   } ++ {
     GenericTesting.possibilitiesMap.keysIterator.map { name =>
+      val benchPath = s"nec.DynamicBenchmark.${name}-SingleShotTime"
       s"""
 @State(Scope.Benchmark)
 class State_${name} {
-  val testing = com.nec.testing.GenericTesting.possibilitiesMap("${name}")
+  val testing = {
+    System.setProperty("BENCH_NAME", "${name}")
+    System.setProperty("BENCH_FULL_NAME", "${benchPath}")
+    System.setProperty("logback.configurationFile", "./logback-bench.xml")
+    com.nec.testing.GenericTesting.possibilitiesMap("${name}")
+  }
   var state: testing.State = _
 
   def executeTest(): Unit = {
