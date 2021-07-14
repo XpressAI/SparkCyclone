@@ -347,8 +347,8 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
 
 def main(args: argparse.Namespace) -> None:
     appName = f'{args.which}_benchmark'
-    # conf = SparkConf().setAll([('spark.executor.memory', args.executor), ('spark.driver.memory',args.driver)]) 
-    spark = SparkSession.builder.appName(appName).getOrCreate()
+    conf = SparkConf().setAll([('spark.executor.memory', args.executor), ('spark.driver.memory',args.driver)]) 
+    spark = SparkSession.builder.appName(appName).config(conf=conf).getOrCreate()
     callSiteShortOrig = spark.sparkContext.getLocalProperty('callSite.short')
 
     result = None
