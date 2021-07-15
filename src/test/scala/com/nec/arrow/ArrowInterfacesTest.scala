@@ -36,7 +36,7 @@ final class ArrowInterfacesTest extends AnyFreeSpec {
             .asInstanceOf[sun.nio.ch.DirectBuffer]
             .address()
           non_null_double_vector_to_float8Vector(ndv, vector)
-//          assert(vector.toList == list)
+          assert(vector.toList == list)
         } finally vector.close()
       } finally alloc.close()
     }

@@ -150,10 +150,8 @@ object ArrowInterfaces {
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,
       float8Vector.getDataBufferAddress,
-      input.count * 8
+      input.size()
     )
-    // with this uncommented, the process exited by itself, it's probably because it is managed by JavaCPP
-//    SummingPlanOffHeap.getUnsafe.freeMemory(input.data)
   }
 
   def non_null_int2_vector_to_IntVector(
