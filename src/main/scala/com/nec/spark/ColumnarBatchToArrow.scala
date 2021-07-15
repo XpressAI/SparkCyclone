@@ -13,10 +13,11 @@ object ColumnarBatchToArrow extends LazyLogging {
     val vectors = VectorSchemaRoot.create(arrowSchema, bufferAllocator)
     val nr = columnarBatch.numRows()
     vectors.setRowCount(nr)
-    vectors -> (0 until columnarBatch.numCols()).map { idx =>
-      columnarBatch.column(idx) match {
+    val nc = columnarBatch.numCols()
+    vectors -> (0 until nc).map { colId =>
+      columnarBatch.column(colId) match {
         case theCol =>
-          val fv = vectors.getVector(idx).asInstanceOf[Float8Vector]
+          val fv = vectors.getVector(colId).asInstanceOf[Float8Vector]
           var rowId = 0
           while (rowId < nr) {
             fv.set(rowId, theCol.getDouble(rowId))

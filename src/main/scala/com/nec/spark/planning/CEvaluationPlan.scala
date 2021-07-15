@@ -198,6 +198,7 @@ final case class CEvaluationPlan(
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
         val nr = columnarBatch.numRows()
         root.setRowCount(nr)
+        println(arrowSchema.toJson)
 
         val uuid = java.util.UUID.randomUUID()
         logger.debug(s"[$uuid] loading input vectors...")

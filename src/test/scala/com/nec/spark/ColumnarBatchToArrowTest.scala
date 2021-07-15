@@ -11,7 +11,17 @@ import org.scalatest.freespec.AnyFreeSpec
 object ColumnarBatchToArrowTest {
   lazy val schema: Schema = {
     org.apache.arrow.vector.types.pojo.Schema.fromJSON(
-      """{"fields": [{"name": "value", "nullable" : true, "type": {"name": "floatingpoint", "precision": "DOUBLE"}, "children": []}]}"""
+"""{
+        "fields" : [ {
+        "name" : "ColA",
+        "nullable" : true,
+        "type" : {
+          "name" : "floatingpoint",
+          "precision" : "DOUBLE"
+        },
+        "children" : [ ]
+      }]
+      }"""
     )
   }
 }
@@ -23,12 +33,13 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
       val source = new OnHeapColumnVector(2, DoubleType)
       source.putDouble(0, 1.3)
       source.putDouble(1, 1.4)
-      val sampleBatch = new ColumnarBatch(Array(source), 1)
+      val sampleBatch = new ColumnarBatch(Array(source), 2)
       val (vectorSchemaRoot, columns) =
         ColumnarBatchToArrow.fromBatch(ColumnarBatchToArrowTest.schema, allocator)(sampleBatch)
-      expect(columns.size == 1, columns.head.toList == List[Double](1.3, 1.4))
-      columns.foreach(_.close())
-      vectorSchemaRoot.close()
+      try {
+        expect(columns.size == 1, columns.head.toList == List[Double](1.3, 1.4))
+        columns.foreach(_.close())
+      } finally vectorSchemaRoot.close()
     } finally {
       allocator.close()
     }
