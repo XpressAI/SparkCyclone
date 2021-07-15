@@ -234,7 +234,6 @@ object BenchTestingPossibilities {
           testing.verifyResult(data.collect().toList)
         } catch {
           case e: Throwable =>
-            throw new RuntimeException(s"${data.queryExecution.executedPlan}, ${e}", e)
             logger.debug(data.queryExecution.executedPlan.toString(), e)
             throw e
         } finally testing.cleanUp(sparkSession)

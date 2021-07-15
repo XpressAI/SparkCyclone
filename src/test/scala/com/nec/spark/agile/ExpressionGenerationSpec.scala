@@ -46,6 +46,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       List(
         "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_sum) {",
         "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_sum->count = 1;",
         "double summy_accumulated = 0;",
         "for (int i = 0; i < input_0->count; i++) {",
         "summy_accumulated += input_0->data[i] - 1.0;",
@@ -76,7 +77,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       List(
         "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_average_sum->count = 1;",
         "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_average_count->count = 1;",
         "double avy12351_accumulated = 0;",
         "int avy12351_counted = 0;",
         "for (int i = 0; i < input_0->count; i++) {",
@@ -109,7 +112,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       List(
         "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_average_sum->count = 1;",
         "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_average_count->count = 1;",
         "double avy1232_accumulated = 0;",
         "int avy1232_counted = 0;",
         "for (int i = 0; i < input_0->count; i++) {",
@@ -148,7 +153,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       List(
         "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_average_sum->count = 1;",
         "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
+        "output_0_average_count->count = 1;",
         "double avy123avy124_accumulated = 0;",
         "int avy123avy124_counted = 0;",
         "for (int i = 0; i < input_0->count; i++) {",
@@ -231,9 +238,12 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         List(
           """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_sum, non_null_double_vector* output_1_average_sum, non_null_double_vector* output_1_average_count) {""",
           """output_0_sum->data = (double *)malloc(1 * sizeof(double));""",
+          "output_0_sum->count = 1;",
           """double summy_accumulated = 0;""",
           """output_1_average_sum->data = (double *)malloc(1 * sizeof(double));""",
+          "output_1_average_sum->count = 1;",
           """output_1_average_count->data = (double *)malloc(1 * sizeof(double));""",
+          "output_1_average_count->count = 1;",
           """double avy12310_accumulated = 0;""",
           "int avy12310_counted = 0;",
           "for (int i = 0; i < input_0->count; i++) {",

@@ -2,21 +2,32 @@ package com.nec.arrow
 
 import org.apache.arrow.vector._
 import com.nec.arrow.ArrowNativeInterfaceNumeric._
+import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.ByteBuffer
 
-trait ArrowNativeInterfaceNumeric extends Serializable {
+trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
   final def callFunction(
     name: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
     try {
-      callFunctionGen(
+      val startTime = System.currentTimeMillis()
+      logger.debug(s"Calling '${name}''")
+      logger.whenTraceEnabled {
+        logger.trace(s"Input is: ${inputArguments}")
+      }
+      val result = callFunctionGen(
         name = name,
         inputArguments = inputArguments,
         outputArguments = outputArguments
       )
+      val endTime = System.currentTimeMillis()
+      logger.whenTraceEnabled {
+        logger.trace(s"Output is: ${outputArguments}")
+      }
+      logger.debug(s"Took ${endTime - startTime}ms to execute '$name'.")
     } catch {
       case e: Throwable =>
         throw new RuntimeException(

@@ -104,8 +104,6 @@ final case class CEvaluationPlan(
               .zipWithIndex
               .map { case (ne, idx) =>
                 val outputVector = new Float8Vector(s"out_${idx}", allocator)
-                outputVector.allocateNew(1)
-                outputVector.setValueCount(1)
                 outputVector
               }
 
@@ -207,12 +205,13 @@ final case class CEvaluationPlan(
         logger.debug(s"[$uuid] allocated output vectors")
         try {
           val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-          logger.debug(s"[$uuid] loading input vectors...")
-          val (root, inputVectors) =
+          logger.debug(s"[$uuid] loading input vectors - there are ${columnarBatch.numRows()} rows of data")
+          val (inputVectorSchemaRoot, inputVectors) =
             ColumnarBatchToArrow.fromBatch(arrowSchema, allocatorIn)(columnarBatch)
           logger.debug(s"[$uuid] loaded input vectors.")
 
           try {
+            logger.debug(s"[$uuid] executing the function 'f'.")
             evaluator.callFunction(
               name = "f",
               inputArguments = inputVectors.toList.map(iv =>
@@ -222,8 +221,9 @@ final case class CEvaluationPlan(
                 Some(Float8VectorWrapper(v))
               )
             )
+            logger.debug(s"[$uuid] executed the function 'f'.")
           } finally {
-            root.close()
+            inputVectorSchemaRoot.close()
             logger.debug(s"[$uuid] cleared input vectors")
           }
         } finally allocatorIn.close()
@@ -231,17 +231,22 @@ final case class CEvaluationPlan(
         logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
         val writer = new UnsafeRowWriter(outputVectors.size)
         writer.reset()
+        logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items.")
 
-        val result = (0 until outputVectors.head.getValueCount).map { v_idx =>
-          outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-            val doubleV = v.getValueAsDouble(v_idx)
-            writer.write(c_idx, doubleV)
+        val result =
+          try {
+            (0 until outputVectors.head.getValueCount).map { v_idx =>
+              outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                val doubleV = v.getValueAsDouble(v_idx)
+                writer.write(c_idx, doubleV)
+              }
+              writer.getRow.copy()
+            }
+          } finally {
+            outputVectors.foreach(_.close())
+            allocatorOut.close()
           }
-          writer.getRow.copy()
-        }
 
-        outputVectors.foreach(_.close())
-        allocatorOut.close()
         logger.debug(s"[$uuid] completed transfer.")
 
         result
