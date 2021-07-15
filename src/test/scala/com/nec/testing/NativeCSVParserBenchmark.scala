@@ -37,8 +37,6 @@ object NativeCSVParserBenchmark {
     def originalArray: Array[Array[Double]]
     def interface: ArrowNativeInterfaceNumeric
     def bufferAllocator: BufferAllocator
-
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
     def close(): Unit
     def string: String
   }

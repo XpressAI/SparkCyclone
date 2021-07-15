@@ -15,6 +15,7 @@ import com.nec.testing.SampleSource.SampleColB
 import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -74,7 +75,7 @@ object BenchTestingPossibilities {
     source: SampleSource,
     testingTarget: TestingTarget,
     offHeapMode: Option[VeColumnMode],
-    csvStrategy: CsvStrategy
+    csvStrategy: Option[CsvStrategy]
   ) extends Testing {
 
     type Result = (Double, Double)
@@ -84,7 +85,9 @@ object BenchTestingPossibilities {
     }
 
     def expectedStrings: List[String] =
-      testingTarget.expectedString.toList ++ csvStrategy.expectedString.toList ++ {
+      testingTarget.expectedString.toList ++ csvStrategy.toList.flatMap(
+        _.expectedString.toList
+      ) ++ {
         if (testingTarget.isNative) List("CEvaluation") else Nil
       }
 
@@ -147,9 +150,9 @@ object BenchTestingPossibilities {
 
           builder
             .withExtensions(sse =>
-              if (csvStrategy.isNative)
+              if (csvStrategy.exists(_.isNative))
                 sse.injectPlannerStrategy(sparkSession =>
-                  if (csvStrategy == CsvStrategy.NativeCsvVE)
+                  if (csvStrategy.contains(CsvStrategy.NativeCsvVE))
                     NativeCsvStrategy(
                       new LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf)
                     )
@@ -174,7 +177,7 @@ object BenchTestingPossibilities {
             .master(MasterName)
             .appName(name.value)
             .withExtensions(sse =>
-              if (csvStrategy.isNative)
+              if (csvStrategy.exists(_.isNative))
                 sse.injectPlannerStrategy(sparkSession => NativeCsvStrategy(CNativeEvaluator))
             )
             .withExtensions(sse =>
@@ -203,8 +206,9 @@ object BenchTestingPossibilities {
         )
         csvStrat <-
           if (testingTarget.isNative && source == SampleSource.CSV)
-            CsvStrategy.All
-          else List(CsvStrategy.NormalCsv)
+            CsvStrategy.All.map(strat => Some(strat))
+          else if (source == SampleSource.CSV) List(Some(CsvStrategy.NormalCsv))
+          else List(None)
         colMode <-
           if (testingTarget == TestingTarget.VectorEngine && source != SampleSource.CSV)
             VeColumnMode.All.map(v => Some(v))
@@ -221,7 +225,7 @@ object BenchTestingPossibilities {
       GroupBySumPlanSpec.OurTesting
     ).flatten
 
-  trait BenchTestAdditions { this: AnyFreeSpec =>
+  trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>
     def runTestCase(testing: Testing): Unit = {
       testing.name.value in {
         val sparkSession = testing.prepareSession()
@@ -230,7 +234,8 @@ object BenchTestingPossibilities {
           testing.verifyResult(data.collect().toList)
         } catch {
           case e: Throwable =>
-            throw new RuntimeException(s"${data.queryExecution.executedPlan}, ${e}", e)
+            logger.debug(data.queryExecution.executedPlan.toString(), e)
+            throw e
         } finally testing.cleanUp(sparkSession)
       }
     }

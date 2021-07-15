@@ -6,11 +6,11 @@ import java.time.Instant
 import com.nec.arrow.ArrowVectorBuilders.withDirectFloat8Vector
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
+import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.Sort
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.SortCSpec.SorterSource
 import com.nec.spark.agile.CppResource
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -30,11 +30,14 @@ final class SortCSpec extends AnyFreeSpec {
     )
 
     withDirectFloat8Vector(input) { vector =>
-      val alloc = new RootAllocator(Integer.MAX_VALUE)
-      val outVector = new Float8Vector("value", alloc)
-      Sort.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, outVector)
-      val outData = (0 until outVector.getValueCount).map(idx => outVector.get(idx))
-      assert(outData == Sort.sortJVM(vector))
+      WithTestAllocator { alloc =>
+        val outVector = new Float8Vector("value", alloc)
+        try {
+          Sort.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, outVector)
+          val outData = (0 until outVector.getValueCount).map(idx => outVector.get(idx))
+          assert(outData == Sort.sortJVM(vector))
+        } finally outVector.close()
+      }
     }
   }
 

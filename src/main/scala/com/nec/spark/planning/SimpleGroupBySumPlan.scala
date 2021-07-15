@@ -22,49 +22,51 @@ object SimpleGroupBySumPlan {
     case object VEBased extends GroupByMethod
   }
 }
-final case class SimpleGroupBySumPlan(child: SparkPlan,
-                                      nativeEvaluator: NativeEvaluator,
-                                      groupMethod: GroupByMethod)
-    extends UnaryExecNode {
-    override protected def doExecute(): RDD[InternalRow] = {
-      val evaluator = nativeEvaluator.forCode(GroupBySum.GroupBySumSourceCode)
+final case class SimpleGroupBySumPlan(
+  child: SparkPlan,
+  nativeEvaluator: NativeEvaluator,
+  groupMethod: GroupByMethod
+) extends UnaryExecNode {
+  override protected def doExecute(): RDD[InternalRow] = {
+    val evaluator = nativeEvaluator.forCode(GroupBySum.GroupBySumSourceCode)
 
-      child
-        .execute()
-        .coalesce(1, shuffle = true)
-        .mapPartitions(iterator => {
-          val timeZoneId = conf.sessionLocalTimeZone
-          val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-            s"writer for word count",
-            0,
-            Long.MaxValue
-          )
-          val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-          val root = VectorSchemaRoot.create(arrowSchema, allocator)
-          val arrowWriter = ArrowWriter.create(root)
-          iterator.foreach(row => arrowWriter.write(row))
-          arrowWriter.finish()
+    child
+      .execute()
+      .coalesce(1, shuffle = true)
+      .mapPartitions(iterator => {
+        val timeZoneId = conf.sessionLocalTimeZone
+        val allocator = ArrowUtilsExposed.rootAllocator
+          .newChildAllocator(s"writer for word count", 0, Long.MaxValue)
+        val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+        val root = VectorSchemaRoot.create(arrowSchema, allocator)
+        val arrowWriter = ArrowWriter.create(root)
+        iterator.foreach(row => arrowWriter.write(row))
+        arrowWriter.finish()
 
-          val groupingVec = root.getVector(0).asInstanceOf[Float8Vector]
-          val valuesVec = root.getVector(1).asInstanceOf[Float8Vector]
-          val outGroupsVector = new Float8Vector("groups", ArrowUtilsExposed.rootAllocator)
-          val outValuesVector = new Float8Vector("values", ArrowUtilsExposed.rootAllocator)
+        val groupingVec = root.getVector(0).asInstanceOf[Float8Vector]
+        val valuesVec = root.getVector(1).asInstanceOf[Float8Vector]
+        val outGroupsVector = new Float8Vector("groups", ArrowUtilsExposed.rootAllocator)
+        val outValuesVector = new Float8Vector("values", ArrowUtilsExposed.rootAllocator)
 
+        try {
           val resultsMap = groupMethod match {
             case JvmArrowBased =>
               GroupBySum.groupBySumJVM(groupingVec, valuesVec)
             case VEBased =>
-              evaluator.callFunction("group_by_sum", List(
-                Some(Float8VectorWrapper(groupingVec)),
-                Some(Float8VectorWrapper(valuesVec)),
-                None,
-                None
-              ), List(
-                None,
-                None,
-                Some(Float8VectorWrapper(outValuesVector)),
-                Some(Float8VectorWrapper(outGroupsVector)),
-              )
+              evaluator.callFunction(
+                "group_by_sum",
+                List(
+                  Some(Float8VectorWrapper(groupingVec)),
+                  Some(Float8VectorWrapper(valuesVec)),
+                  None,
+                  None
+                ),
+                List(
+                  None,
+                  None,
+                  Some(Float8VectorWrapper(outValuesVector)),
+                  Some(Float8VectorWrapper(outGroupsVector))
+                )
               )
               (0 until outGroupsVector.getValueCount)
                 .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
@@ -80,11 +82,15 @@ final case class SimpleGroupBySumPlan(child: SparkPlan,
               writer.getRow
             }
           }.toIterator
-        })
-    }
-
-    override def output: Seq[Attribute] = Seq(
-      AttributeReference("group", DoubleType, false)(),
-      AttributeReference("value", DoubleType, false)()
-    )
+        } finally {
+          groupingVec.close()
+          valuesVec.close()
+        }
+      })
   }
+
+  override def output: Seq[Attribute] = Seq(
+    AttributeReference("group", DoubleType, false)(),
+    AttributeReference("value", DoubleType, false)()
+  )
+}
