@@ -84,7 +84,7 @@ final class JoinVeSpec extends AnyFreeSpec {
           val firstColumnKeys: Seq[Int] = Seq(1, 2)
           val secondColumnKeys: Seq[Int] = Seq(1, 2)
           val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
-          ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
+          try ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
             ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
               ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
                 ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
@@ -103,6 +103,8 @@ final class JoinVeSpec extends AnyFreeSpec {
                 }
               }
             }
+          } finally {
+            outVector.close()
           }
         }
       } finally Aurora.veo_context_close(ctx)
