@@ -16,9 +16,10 @@ import java.nio.file.Paths
 object ReadFullCSVSpec {
 
   final case class SampleRow(a: Double, b: Double, c: Double)
+  final case class SampleRow2(a: Double, b: Double)
   val targetPath = Paths.get("target").toAbsolutePath
   val samplePartedCsv = targetPath.resolve("sample.csv").toString
-
+  val samplePartedCsv2 = targetPath.resolve("sample-2.csv").toString
 }
 
 final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
@@ -51,6 +52,38 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
         .toList
 
       expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
+  }
+
+  "We can write and read back a .csv collection via Hadoop (2-column)" in withSparkSession2(identity) {
+    sparkSession =>
+      info(
+        "This shows that we can read these files from hdfs, and then should be able to read them as a whole and push to the VE."
+      )
+      info(
+        "Currently we get a String however to make a Byte array is very straightforward, and will bring good performance gains."
+      )
+      import sparkSession.sqlContext.implicits._
+      List[SampleRow2](
+        SampleRow2(1, 2),
+        SampleRow2(2, 3),
+        SampleRow2(3, 4),
+        SampleRow2(4, 5),
+        SampleRow2(52, 6)
+      )
+        .toDF()
+        .repartition(numPartitions = 3)
+        .write
+        .format("csv")
+        .option("header", "true")
+        .mode("overwrite")
+        .save(samplePartedCsv2)
+
+      val listOfPairs = sparkSession.sparkContext
+        .wholeTextFiles(samplePartedCsv2)
+        .collect()
+        .toList
+
+      expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("52.0,6.0")))
   }
 
   "Execute a read of files via SQL, to see what plans it gives us" in withSparkSession2(

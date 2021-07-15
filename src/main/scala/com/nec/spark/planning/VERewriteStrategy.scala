@@ -65,7 +65,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               groupingExpressions,
               outerResultExpressions,
               child
-            ) if(GroupBySum.isLogicalGroupBySum(plan)) =>
+            ) if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child),nativeEvaluator, GroupByMethod.VEBased))
         case logical.Aggregate(
               groupingExpressions,

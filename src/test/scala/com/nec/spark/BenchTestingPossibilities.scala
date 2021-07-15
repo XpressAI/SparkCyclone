@@ -4,8 +4,9 @@ import com.nec.cmake.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.LocalVeoNativeEvaluator
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
-import com.nec.spark.planning.{GroupBySumPlanSpec, JoinPlanSpec, VERewriteStrategy}
-
+import com.nec.spark.planning.GroupBySumPlanSpec
+import com.nec.spark.planning.JoinPlanSpec
+import com.nec.spark.planning.VERewriteStrategy
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.testing.SampleSource
@@ -14,7 +15,6 @@ import com.nec.testing.SampleSource.SampleColB
 import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -202,7 +202,7 @@ object BenchTestingPossibilities {
           TestingTarget.CMake
         )
         csvStrat <-
-          if (testingTarget == TestingTarget.VectorEngine && source == SampleSource.CSV)
+          if (testingTarget.isNative && source == SampleSource.CSV)
             CsvStrategy.All
           else List(CsvStrategy.NormalCsv)
         colMode <-

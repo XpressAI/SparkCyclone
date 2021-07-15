@@ -51,7 +51,7 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
           )
         )
     )(s"SELECT SUM(${SampleColA}), SUM(${SampleColB}) FROM nums")(result =>
-      assert(result.map(_._1) == List[Double](1, 2, 3, 4, 52))
+      assert(result.map(_._1).sorted == List[Double](1, 2, 3, 4, 52).sorted)
     )
   }
 
@@ -72,7 +72,7 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
           )
         )
     )(s"SELECT SUM(${SampleColA}), SUM(${SampleColB}) FROM nums")(result =>
-      assert(result.map(_._1) == List[Double](1, 2, 3, 4, 52))
+      assert(result.map(_._1).sorted == List[Double](1, 2, 3, 4, 52).sorted)
     )
   }
 

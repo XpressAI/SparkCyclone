@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.Strategy
@@ -52,7 +53,7 @@ case class NativeCsvExec(
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with LeafExecNode
-  with Logging {
+  with LazyLogging {
   override def supportsColumnar: Boolean = true
   override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
     "Source here is only columnar"
@@ -76,7 +77,6 @@ case class NativeCsvExec(
         outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
       )
       val millis = System.currentTimeMillis() - startTime
-      logInfo(s"Took ${millis} ms to process CSV: ${name}")
       logInfo(s"Took ${millis} ms to process CSV: ${name} (${text.length} bytes)")
       new ColumnarBatch(
         outColumns.map(col => new ArrowColumnVector(col)).toArray,

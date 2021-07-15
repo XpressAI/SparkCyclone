@@ -3,6 +3,7 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.SampleColA
@@ -59,7 +60,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[(Double)].collect().toList == List(3, 5, 7, 9, 58))
+      assert(ds.as[(Double)].collect().toList.sorted == List[Double](3, 5, 7, 9, 58).sorted)
     }
   }
 
@@ -100,8 +101,17 @@ final class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql_pairwise).limit(1).ensureCEvaluating().debugSqlHere { ds =>
-        expect(ds.as[(Double, Double)].collect().toList == List[(Double, Double)](3.0 -> -1.0))
+      sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
+        expect(
+          ds.as[(Double, Double)].collect().toList.sortBy(_._1) == List[(Double, Double)](
+            5.0 -> -1,
+            58.0 -> 46.0,
+            3.0 -> -1.0,
+            9.0 -> -1.0,
+            7.0 -> -1.0
+          )
+            .sortBy(_._1)
+        )
       }
   }
 
