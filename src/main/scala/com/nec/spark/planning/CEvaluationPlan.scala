@@ -202,6 +202,7 @@ final case class CEvaluationPlan(
 
         val uuid = java.util.UUID.randomUUID()
         logger.debug(s"[$uuid] loading input vectors...")
+
         val inputVectors: List[Float8Vector] = inputAttributes.zipWithIndex.map {
           case (attr, idx) =>
             columnarBatch.column(idx) match {
