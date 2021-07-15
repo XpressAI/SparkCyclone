@@ -1,5 +1,7 @@
 package com.nec.cmake.functions
 
+import com.eed3si9n.expecty.Expecty.expect
+
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
@@ -61,7 +63,16 @@ final class GroupByCSpec extends AnyFreeSpec {
 
           val result = groupKeys.zip(values._1)
           assert(result.nonEmpty)
-          assert(result.toMap == groupJVM(groupingColumnVec, valuesColumnVec))
+          val resultMap = result.toMap
+          expect(
+            resultMap == Map[Double, Seq[Double]](
+              (5: Double) -> Seq[Double](10, 43),
+              (20: Double) -> Seq[Double](55, 23),
+              (40: Double) -> Seq[Double](41, 44),
+              (91: Double) -> Seq[Double](55),
+              (100: Double) -> Seq[Double](84, 109)
+            )
+          )
         }
       } finally {
         outGroupsVector.close()
