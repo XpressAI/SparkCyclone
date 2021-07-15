@@ -7,14 +7,15 @@ from pyspark import StorageLevel
 import argparse
 import sys
 from timeit import default_timer as timer
+import os
 
 from column_operation_dict import operations, aggregate, large_queries
 from nyctaxi import queries
 
 def arguments() -> argparse.Namespace:
     args = argparse.ArgumentParser(description='Run Benchmark. Please generate dataset using generate_data.py first.')
-    args.add_argument('-x','--executor', type=str, default='4g', help='Set Executor Memory')
-    args.add_argument('-d','--driver', type=str, default='4g', help='Set Driver Memory')
+    # args.add_argument('-x','--executor', type=str, default='4g', help='Set Executor Memory')
+    # args.add_argument('-d','--driver', type=str, default='4g', help='Set Driver Memory')
     args.add_argument('-sl','--storageLevel', type=str, default='11001', help='Set Storage Level')
     args.add_argument('-n','--ntest', type=int, default=5, help='Number of Tests')
     args.add_argument('-cc', '--clearcache', action='store_true', default=False, help="Clear cache for every tasks")
@@ -197,6 +198,7 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFram
                 new_df.explain(extended=True)
                 print(f'Finished {op}_benchmark_test_{i} = {time_taken}')
                 print("="*240)
+                os.system("/opt/hadoop/bin/hadoop dfs -rm -r -f temp")
                 col_op.append(time_taken)
 
             avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (args.ntest-2)
@@ -254,7 +256,7 @@ def random_data(spark: SparkSession, args: argparse.Namespace) -> list:
         T.StructField("float_y", T.DoubleType()),
         # T.StructField("int_x", T.LongType()),
         # T.StructField("int_y", T.LongType()),
-        T.StructField("float_a", T.DoubleType()),
+        # T.StructField("float_a", T.DoubleType()),
         # T.StructField("float_b", T.DoubleType()),
         # T.StructField("int_a", T.LongType()),
         # T.StructField("int_b", T.LongType()),
@@ -347,8 +349,8 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
 
 def main(args: argparse.Namespace) -> None:
     appName = f'{args.which}_benchmark'
-    conf = SparkConf().setAll([('spark.executor.memory', args.executor), ('spark.driver.memory',args.driver)]) 
-    spark = SparkSession.builder.appName(appName).config(conf=conf).getOrCreate()
+    # conf = SparkConf().setAll([('spark.executor.memory', args.executor), ('spark.driver.memory',args.driver)]) 
+    spark = SparkSession.builder.appName(appName).getOrCreate()
     callSiteShortOrig = spark.sparkContext.getLocalProperty('callSite.short')
 
     result = None

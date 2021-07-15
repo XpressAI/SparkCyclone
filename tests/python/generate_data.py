@@ -42,7 +42,7 @@ def main(args):
         .withColumn('float_y', F.rand(seed=8675367)*10000)
         # .withColumn('int_x', F.col('float_x').cast(T.LongType()))
         # .withColumn('int_y', F.col('float_y').cast(T.LongType()))
-        .withColumn('float_a', F.rand(seed=8675309)*1000)
+        # .withColumn('float_a', F.rand(seed=8675309)*1000)
         # .withColumn('float_b', F.rand(seed=8675367)*100)
         # .withColumn('int_a', F.col('float_a').cast(T.LongType()))
         # .withColumn('int_b', F.col('float_b').cast(T.LongType()))
