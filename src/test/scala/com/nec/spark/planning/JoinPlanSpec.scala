@@ -67,7 +67,7 @@ object JoinPlanSpec {
                 case jm: JoinMethod.ArrowBased =>
                   WithTestAllocator { alloc =>
                     val outVector = new Float8Vector("value", alloc)
-                    ArrowVectorBuilders.withDirectFloat8Vector(leftSide.map(_._2)) {
+                    try ArrowVectorBuilders.withDirectFloat8Vector(leftSide.map(_._2)) {
                       firstColumnVec =>
                         ArrowVectorBuilders.withDirectFloat8Vector(rightSide.map(_._2)) {
                           secondColumnVec =>
@@ -124,7 +124,7 @@ object JoinPlanSpec {
                                 }
                             }
                         }
-                    }
+                    } finally outVector.close()
                   }
               }
             }

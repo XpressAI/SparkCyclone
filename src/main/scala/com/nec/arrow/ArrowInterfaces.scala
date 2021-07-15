@@ -25,11 +25,6 @@ object ArrowInterfaces {
     non_null_bigint_vector_to_bigintVector(input, output)
   }
 
-  def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, output: IntVector): Unit = {
-    val nBytes = input.count * 4
-    non_null_int2_vector_to_IntVector(input, output, output.getAllocator)
-  }
-
   def c_double_vector(float8Vector: Float8Vector): non_null_double_vector = {
     val vc = new non_null_double_vector()
     vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -131,23 +126,14 @@ object ArrowInterfaces {
 
   def non_null_int2_vector_to_IntVector(
     input: non_null_int2_vector,
-    intVector: IntVector,
-    rootAllocator: BufferAllocator
+    intVector: IntVector
   ): Unit = {
-
-    /** Set up the validity buffer -- everything is valid here * */
-    val res = rootAllocator.newReservation()
-    res.add(input.count)
-    val validityBuffer = res.allocateBuffer()
-    validityBuffer.reallocIfNeeded(input.count.toLong)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
-    import scala.collection.JavaConverters._
-    intVector.loadFieldBuffers(
-      new ArrowFieldNode(input.count.toLong, 0),
-      List(
-        validityBuffer,
-        new ArrowBuf(validityBuffer.getReferenceManager, null, input.count * 4, input.data)
-      ).asJava
+    intVector.setValueCount(input.count)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.data,
+      intVector.getDataBufferAddress,
+      input.size()
     )
   }
 

@@ -34,14 +34,16 @@ final class AddVeSpec extends AnyFreeSpec {
             withArrowFloat8Vector(firstColumn) { firstVector =>
               withArrowFloat8Vector(secondColumn) { secondVector =>
                 val outVector = new Float8Vector("value", alloc)
-                runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
-                  firstVector,
-                  secondVector,
-                  outVector
-                )
-                val pairwiseSum = (0 until outVector.getValueCount).map(outVector.get).toList
+                try {
+                  runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                    firstVector,
+                    secondVector,
+                    outVector
+                  )
+                  val pairwiseSum = (0 until outVector.getValueCount).map(outVector.get).toList
 
-                (pairwiseSum, addJVM(firstVector, secondVector))
+                  (pairwiseSum, addJVM(firstVector, secondVector))
+                } finally outVector.close()
               }
             }
           }
