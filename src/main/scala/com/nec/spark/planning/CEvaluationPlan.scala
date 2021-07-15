@@ -205,11 +205,19 @@ final case class CEvaluationPlan(
         logger.debug(s"[$uuid] allocated output vectors")
         try {
           val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-          logger.debug(s"[$uuid] loading input vectors - there are ${columnarBatch.numRows()} rows of data")
+          logger.debug(
+            s"[$uuid] loading input vectors - there are ${columnarBatch.numRows()} rows of data"
+          )
           val (inputVectorSchemaRoot, inputVectors) =
             ColumnarBatchToArrow.fromBatch(arrowSchema, allocatorIn)(columnarBatch)
           logger.debug(s"[$uuid] loaded input vectors.")
-
+          val clearedInputCols: Int = (0 until columnarBatch.numCols()).view
+            .map { colNo =>
+              columnarBatch.column(colNo)
+            }
+            .collect { case acv: ArrowColumnVector => acv }
+            .count(avc => { avc.close(); true })
+          logger.debug(s"[$uuid] cleared ${clearedInputCols} input cols.")
           try {
             logger.debug(s"[$uuid] executing the function 'f'.")
             evaluator.callFunction(
