@@ -9,10 +9,8 @@ import java.util
 
 object ArrowVectorBuilders {
   def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
-    import org.apache.arrow.memory.RootAllocator
     import org.apache.arrow.vector.VectorSchemaRoot
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
-    try {
+    WithTestAllocator { alloc =>
       val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
       vcv.allocateNew()
       try {
@@ -24,32 +22,30 @@ object ArrowVectorBuilders {
         root.setRowCount(stringBatch.length)
         f(vcv)
       } finally vcv.close()
-    } finally alloc.close()
+    }
   }
 
   def withArrowFloat8Vector[T](inputColumns: Seq[Seq[Double]])(f: Float8Vector => T): T = {
-    import org.apache.arrow.memory.RootAllocator
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
-    val data = inputColumns.flatten
-    try {
-      val vcv = new Float8Vector("value", alloc)
-      vcv.allocateNew()
+    WithTestAllocator { alloc =>
+      val data = inputColumns.flatten
       try {
-        inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
-          vcv.setSafe(idx, str)
-        }
-        if (data.nonEmpty)
-          vcv.setValueCount(data.size)
+        val vcv = new Float8Vector("value", alloc)
+        vcv.allocateNew()
+        try {
+          inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
+            vcv.setSafe(idx, str)
+          }
+          if (data.nonEmpty)
+            vcv.setValueCount(data.size)
 
-        f(vcv)
-      } finally vcv.close()
-    } finally alloc.close()
+          f(vcv)
+        } finally vcv.close()
+      }
+    }
   }
 
-  def withDirectFloat8Vector[T](data: Seq[Double])(f: Float8Vector => T): T = {
-    import org.apache.arrow.memory.RootAllocator
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
-    try {
+  def withDirectFloat8Vector[T](data: Seq[Double])(f: Float8Vector => T): T =
+    WithTestAllocator { alloc =>
       val vcv = new Float8Vector("value", alloc)
       vcv.allocateNew()
       try {
@@ -60,13 +56,10 @@ object ArrowVectorBuilders {
 
         f(vcv)
       } finally vcv.close()
-    } finally alloc.close()
-  }
+    }
 
   def withDirectIntVector[T](data: Seq[Int])(f: IntVector => T): T = {
-    import org.apache.arrow.memory.RootAllocator
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
-    try {
+    WithTestAllocator { alloc =>
       val vcv = new IntVector("value", alloc)
       vcv.allocateNew()
       try {
@@ -77,6 +70,6 @@ object ArrowVectorBuilders {
 
         f(vcv)
       } finally vcv.close()
-    } finally alloc.close()
+    }
   }
 }

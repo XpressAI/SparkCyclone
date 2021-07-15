@@ -4,14 +4,12 @@ import java.nio.file.Paths
 import java.time.Instant
 import com.nec.arrow.functions.AddPairwise.addJVM
 import com.nec.arrow.functions.AddPairwise.runOn
-import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8Vector
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.AddPairwise
 import com.nec.aurora.Aurora
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -32,18 +30,19 @@ final class AddVeSpec extends AnyFreeSpec {
           val secondColumn: Seq[Seq[Double]] = Seq(Seq(10, 20, 30, 40, 50, 60, 70, 80, 90, 100))
 
           val lib: Long = Aurora.veo_load_library(proc, libPath.toString)
-          withArrowFloat8Vector(firstColumn) { firstVector =>
-            withArrowFloat8Vector(secondColumn) { secondVector =>
-              val alloc = new RootAllocator(Integer.MAX_VALUE)
-              val outVector = new Float8Vector("value", alloc)
-              runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
-                firstVector,
-                secondVector,
-                outVector
-              )
-              val pairwiseSum = (0 until outVector.getValueCount).map(outVector.get).toList
+          WithTestAllocator { alloc =>
+            withArrowFloat8Vector(firstColumn) { firstVector =>
+              withArrowFloat8Vector(secondColumn) { secondVector =>
+                val outVector = new Float8Vector("value", alloc)
+                runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                  firstVector,
+                  secondVector,
+                  outVector
+                )
+                val pairwiseSum = (0 until outVector.getValueCount).map(outVector.get).toList
 
-              (pairwiseSum, addJVM(firstVector, secondVector))
+                (pairwiseSum, addJVM(firstVector, secondVector))
+              }
             }
           }
         } finally Aurora.veo_context_close(ctx)

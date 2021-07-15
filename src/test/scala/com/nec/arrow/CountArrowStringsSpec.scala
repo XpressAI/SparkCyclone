@@ -23,13 +23,10 @@ object CountArrowStringsSpec {
 final class CountArrowStringsSpec extends AnyFreeSpec {
 
   def stringsToArrow(strings: String*): Array[Byte] = {
-    import org.apache.arrow.memory.RootAllocator
     import org.apache.arrow.vector.VectorSchemaRoot
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
+    WithTestAllocator { alloc =>
+      val baos = new ByteArrayOutputStream()
 
-    val baos = new ByteArrayOutputStream()
-
-    try {
       val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
       vcv.allocateNew()
       try {
@@ -47,7 +44,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
         arrowStreamWriter.end()
         baos.toByteArray
       } finally vcv.close()
-    } finally alloc.close()
+    }
   }
 
   "We can get a Byte Array which contains both the Strings" in {
@@ -170,11 +167,8 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
 
   def writeAndGet(stringBatch: String*): List[StringInfo] = {
 
-    import org.apache.arrow.memory.RootAllocator
     import org.apache.arrow.vector.VectorSchemaRoot
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
-
-    try {
+    WithTestAllocator { alloc =>
       val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
       vcv.allocateNew()
       try {
@@ -202,7 +196,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
           )
         }.toList
       } finally vcv.close()
-    } finally alloc.close()
+    }
   }
 
   "A set of Strings can be turned into an Arrow buffer, and we can just read it back" in {
@@ -212,9 +206,9 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
 
   "We can pass a VarCharVector to the C program and get an output" in {
     import org.apache.arrow.memory.RootAllocator
-    val alloc = new RootAllocator(Integer.MAX_VALUE)
-
-    val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+    WithTestAllocator { alloc =>
+        val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+    }
 
   }
 

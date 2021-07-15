@@ -1,26 +1,31 @@
 package com.nec.spark.planning
 
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.arrow.{ArrowVectorBuilders, VeArrowNativeInterfaceNumeric}
+import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.ArrowVectorBuilders
+import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.Join
-import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.JoinPlanSpec.OurSimpleJoin.JoinMethod
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
-
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, SparkSession, Strategy}
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.plans.{Inner, logical}
+import org.apache.spark.sql.catalyst.plans.Inner
+import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan}
+import org.apache.spark.sql.execution.BinaryExecNode
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 
 object JoinPlanSpec {
@@ -60,60 +65,62 @@ object JoinPlanSpec {
                     Iterator(writer.getRow)
                   }
                 case jm: JoinMethod.ArrowBased =>
-                  val alloc = new RootAllocator(Integer.MAX_VALUE)
-                  val outVector = new Float8Vector("value", alloc)
-                  ArrowVectorBuilders.withDirectFloat8Vector(leftSide.map(_._2)) { firstColumnVec =>
-                    ArrowVectorBuilders.withDirectFloat8Vector(rightSide.map(_._2)) {
-                      secondColumnVec =>
-                        ArrowVectorBuilders.withDirectIntVector(leftSide.map(_._1)) {
-                          firstKeysVec =>
-                            ArrowVectorBuilders.withDirectIntVector(rightSide.map(_._1)) {
-                              secondKeysVec =>
-                                jm match {
-                                  case JoinMethod.ArrowBased.VEBased =>
-                                    Join.runOn(
-                                      new VeArrowNativeInterfaceNumeric(
-                                        Aurora4SparkExecutorPlugin._veo_proc,
-                                        Aurora4SparkExecutorPlugin._veo_ctx,
-                                        Aurora4SparkExecutorPlugin.lib
-                                      )
-                                    )(
-                                      firstColumnVec,
-                                      secondColumnVec,
-                                      firstKeysVec,
-                                      secondKeysVec,
-                                      outVector
-                                    )
+                  WithTestAllocator { alloc =>
+                    val outVector = new Float8Vector("value", alloc)
+                    ArrowVectorBuilders.withDirectFloat8Vector(leftSide.map(_._2)) {
+                      firstColumnVec =>
+                        ArrowVectorBuilders.withDirectFloat8Vector(rightSide.map(_._2)) {
+                          secondColumnVec =>
+                            ArrowVectorBuilders.withDirectIntVector(leftSide.map(_._1)) {
+                              firstKeysVec =>
+                                ArrowVectorBuilders.withDirectIntVector(rightSide.map(_._1)) {
+                                  secondKeysVec =>
+                                    jm match {
+                                      case JoinMethod.ArrowBased.VEBased =>
+                                        Join.runOn(
+                                          new VeArrowNativeInterfaceNumeric(
+                                            Aurora4SparkExecutorPlugin._veo_proc,
+                                            Aurora4SparkExecutorPlugin._veo_ctx,
+                                            Aurora4SparkExecutorPlugin.lib
+                                          )
+                                        )(
+                                          firstColumnVec,
+                                          secondColumnVec,
+                                          firstKeysVec,
+                                          secondKeysVec,
+                                          outVector
+                                        )
 
-                                    val res = (0 until outVector.getValueCount)
-                                      .map(i => outVector.get(i))
-                                      .toList
-                                      .splitAt(outVector.getValueCount / 2)
-                                    res._1
-                                      .zip(res._2)
-                                      .map { case (a, b) =>
-                                        val writer = new UnsafeRowWriter(2)
-                                        writer.reset()
-                                        writer.write(0, a)
-                                        writer.write(1, b)
-                                        Iterator(writer.getRow)
-                                      }
+                                        val res = (0 until outVector.getValueCount)
+                                          .map(i => outVector.get(i))
+                                          .toList
+                                          .splitAt(outVector.getValueCount / 2)
+                                        res._1
+                                          .zip(res._2)
+                                          .map { case (a, b) =>
+                                            val writer = new UnsafeRowWriter(2)
+                                            writer.reset()
+                                            writer.write(0, a)
+                                            writer.write(1, b)
+                                            Iterator(writer.getRow)
+                                          }
 
-                                  case JoinMethod.ArrowBased.JvmArrowBased =>
-                                    Join
-                                      .joinJVM(
-                                        firstColumnVec,
-                                        secondColumnVec,
-                                        firstKeysVec,
-                                        secondKeysVec
-                                      )
-                                      .map { case (a, b) =>
-                                        val writer = new UnsafeRowWriter(2)
-                                        writer.reset()
-                                        writer.write(0, a)
-                                        writer.write(1, b)
-                                        Iterator(writer.getRow)
-                                      }
+                                      case JoinMethod.ArrowBased.JvmArrowBased =>
+                                        Join
+                                          .joinJVM(
+                                            firstColumnVec,
+                                            secondColumnVec,
+                                            firstKeysVec,
+                                            secondKeysVec
+                                          )
+                                          .map { case (a, b) =>
+                                            val writer = new UnsafeRowWriter(2)
+                                            writer.reset()
+                                            writer.write(0, a)
+                                            writer.write(1, b)
+                                            Iterator(writer.getRow)
+                                          }
+                                    }
                                 }
                             }
                         }

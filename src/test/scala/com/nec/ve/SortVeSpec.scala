@@ -9,11 +9,9 @@ import com.nec.arrow.functions.Sort.sortJVM
 import com.nec.aurora.Aurora
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
-import com.nec.arrow.functions.Sum
-import com.nec.cmake.functions.JoinCSpec.JoinerSource
+import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.functions.SortCSpec
 import org.scalatest.freespec.AnyFreeSpec
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 
 import java.nio.file.Files
@@ -31,15 +29,16 @@ final class SortVeSpec extends AnyFreeSpec {
       try {
         val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
         try {
-          
-          val alloc = new RootAllocator(Integer.MAX_VALUE)
-          val outVector = new Float8Vector("value", alloc)
-          val data: Seq[Double] = Seq(5, 1, 2, 34, 6)
-          val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
-          ArrowVectorBuilders.withDirectFloat8Vector(data) { vcv =>
-            runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, outVector)
-            val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
-            (res, sortJVM(vcv))
+
+          WithTestAllocator { alloc =>
+            val outVector = new Float8Vector("value", alloc)
+            val data: Seq[Double] = Seq(5, 1, 2, 34, 6)
+            val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
+            ArrowVectorBuilders.withDirectFloat8Vector(data) { vcv =>
+              runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, outVector)
+              val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
+              (res, sortJVM(vcv))
+            }
           }
         } finally Aurora.veo_context_close(ctx)
       } finally Aurora.veo_proc_destroy(proc)

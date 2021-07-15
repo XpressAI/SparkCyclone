@@ -3,9 +3,9 @@ package com.nec.cmake.functions
 import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8Vector
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.TransferDefinitions
+import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.AddPairwise
 import com.nec.cmake.CMakeBuilder
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -23,19 +23,20 @@ final class AddCSpec extends AnyFreeSpec {
     withArrowFloat8Vector(firstColumnNumbers) { firstColumn =>
       {
         withArrowFloat8Vector(secondColumnNumbers) { secondColumn =>
-          val alloc = new RootAllocator(Integer.MAX_VALUE)
-          val outVector = new Float8Vector("value", alloc)
+          WithTestAllocator { alloc =>
+            val outVector = new Float8Vector("value", alloc)
             AddPairwise.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(
               firstColumn,
               secondColumn,
               outVector
             )
 
-          val pairwiseSum = (0 until outVector.getValueCount).map(outVector.get).toList
+            val pairwiseSum = (0 until outVector.getValueCount).map(outVector.get).toList
 
-          val jvmSum = AddPairwise.addJVM(firstColumn, secondColumn).toList
+            val jvmSum = AddPairwise.addJVM(firstColumn, secondColumn).toList
 
-          assert(pairwiseSum == jvmSum)
+            assert(pairwiseSum == jvmSum)
+          }
         }
       }
 
