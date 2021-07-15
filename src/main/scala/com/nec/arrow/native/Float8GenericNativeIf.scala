@@ -90,7 +90,7 @@ object Float8GenericNativeIf {
       fn.invokeLong(invokeArgs)
       val ra = new RootAllocator()
       val outputVector = new Float8Vector("result", ra)
-      non_null_double_vector_to_float8Vector(input = outputStruct, output = outputVector)
+      non_null_double_vector_to_float8Vector(outputStruct, outputVector)
       InVh(outputVector)
     }
   }

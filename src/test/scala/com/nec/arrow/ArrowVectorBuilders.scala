@@ -1,6 +1,10 @@
 package com.nec.arrow
 import com.nec.arrow.CountArrowStringsSpec.schema
-import org.apache.arrow.vector.{FieldVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector.FieldVector
+import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.IntVector
+import org.apache.arrow.vector.VarCharVector
+
 import java.util
 
 object ArrowVectorBuilders {
@@ -34,7 +38,8 @@ object ArrowVectorBuilders {
         inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
           vcv.setSafe(idx, str)
         }
-        vcv.setValueCount(data.size)
+        if (data.nonEmpty)
+          vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()

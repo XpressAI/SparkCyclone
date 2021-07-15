@@ -9,6 +9,7 @@ import org.apache.arrow.memory.BufferAllocator
 import sun.nio.ch.DirectBuffer
 import org.apache.arrow.vector.IntVector
 import com.nec.arrow.ArrowTransferStructures._
+import com.nec.spark.planning.SummingPlanOffHeap
 
 import java.nio.ByteBuffer
 
@@ -31,16 +32,6 @@ object ArrowInterfaces {
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, output: IntVector): Unit = {
     val nBytes = input.count * 4
     non_null_int2_vector_to_IntVector(input, output, output.getAllocator)
-  }
-
-  def non_null_double_vector_to_float8Vector(
-    input: non_null_double_vector,
-    output: Float8Vector
-  ): Unit = {
-    val nBytes = input.count * 8
-    output.getAllocator.newReservation().reserve(nBytes)
-
-    non_null_double_vector_to_float8Vector(input, output, output.getAllocator)
   }
 
   def c_double_vector(float8Vector: Float8Vector): non_null_double_vector = {
@@ -152,24 +143,17 @@ object ArrowInterfaces {
 
   def non_null_double_vector_to_float8Vector(
     input: non_null_double_vector,
-    intVector: Float8Vector,
-    rootAllocator: BufferAllocator
+    float8Vector: Float8Vector
   ): Unit = {
-
-    /** Set up the validity buffer -- everything is valid here * */
-    val res = rootAllocator.newReservation()
-    res.add(input.count)
-    val validityBuffer = res.allocateBuffer()
-    validityBuffer.reallocIfNeeded(input.count.toLong)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
-    import scala.collection.JavaConverters._
-    intVector.loadFieldBuffers(
-      new ArrowFieldNode(input.count.toLong, 0),
-      List(
-        validityBuffer,
-        new ArrowBuf(validityBuffer.getReferenceManager, null, input.count * 8, input.data)
-      ).asJava
+    float8Vector.setValueCount(input.count)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.data,
+      float8Vector.getDataBufferAddress,
+      input.count * 8
     )
+    // with this uncommented, the process exited by itself, it's probably because it is managed by JavaCPP
+//    SummingPlanOffHeap.getUnsafe.freeMemory(input.data)
   }
 
   def non_null_int2_vector_to_IntVector(

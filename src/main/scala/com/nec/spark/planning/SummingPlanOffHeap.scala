@@ -19,6 +19,12 @@ import sun.misc.Unsafe
 
 object SummingPlanOffHeap {
 
+  def getUnsafe: Unsafe = {
+    val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+    theUnsafe.setAccessible(true)
+    theUnsafe.get(null).asInstanceOf[Unsafe]
+  }
+
   trait MultipleColumnsOffHeapSummer extends Serializable {
     def sum(inputMemoryAddress: Long, count: Int): Double
   }
@@ -26,11 +32,6 @@ object SummingPlanOffHeap {
   object MultipleColumnsOffHeapSummer {
 
     object UnsafeBased extends MultipleColumnsOffHeapSummer {
-      private def getUnsafe: Unsafe = {
-        val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
-        theUnsafe.setAccessible(true)
-        theUnsafe.get(null).asInstanceOf[Unsafe]
-      }
 
       def sum(inputMemoryAddress: Long, count: Int): Double = {
         (0 until count)

@@ -38,7 +38,6 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
         ColumnarBatchToArrow.fromBatch(ColumnarBatchToArrowTest.schema, allocator)(sampleBatch)
       try {
         expect(columns.size == 1, columns.head.toList == List[Double](1.3, 1.4))
-        columns.foreach(_.close())
       } finally vectorSchemaRoot.close()
     } finally {
       allocator.close()

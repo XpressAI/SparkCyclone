@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
+import com.nec.spark.ColumnarBatchToArrow
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -189,37 +189,11 @@ final case class CEvaluationPlan(
       .executeColumnar()
       .flatMap { columnarBatch =>
         val timeZoneId = conf.sessionLocalTimeZone
-        val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-          s"writer for word count",
-          0,
-          Long.MaxValue
-        )
-        val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-        val root = VectorSchemaRoot.create(arrowSchema, allocator)
-        val nr = columnarBatch.numRows()
-        root.setRowCount(nr)
-        println(arrowSchema.toJson)
-
+        val allocatorIn =
+          ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create input data", 0, Long.MaxValue)
+        val allocatorOut =
+          ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create output data", 0, Long.MaxValue)
         val uuid = java.util.UUID.randomUUID()
-        logger.debug(s"[$uuid] loading input vectors...")
-
-        val inputVectors: List[Float8Vector] = inputAttributes.zipWithIndex.map {
-          case (attr, idx) =>
-            columnarBatch.column(idx) match {
-              case HasFloat8Vector(float8Vector) =>
-                float8Vector
-              case theCol =>
-                val fv = root.getVector(idx).asInstanceOf[Float8Vector]
-                var rowId = 0
-                while (rowId < nr) {
-                  fv.set(rowId, theCol.getDouble(rowId))
-                  rowId = rowId + 1
-                }
-                fv
-            }
-        }.toList
-        logger.debug(s"[$uuid] loaded input vectors.")
-
         val outputVectors = resultExpressions
           .flatMap(_.asInstanceOf[Alias].child match {
             case ae: AggregateExpression =>
@@ -228,44 +202,49 @@ final case class CEvaluationPlan(
           })
           .zipWithIndex
           .map { case (ne, idx) =>
-            val outputVector = new Float8Vector(s"out_${idx}", allocator)
-            outputVector.allocateNew(1)
-            outputVector.setValueCount(1)
-            outputVector
+            new Float8Vector(s"out_${idx}", allocatorOut)
           }
         logger.debug(s"[$uuid] allocated output vectors")
-
         try {
-          evaluator.callFunction(
-            name = "f",
-            inputArguments = inputVectors.toList.map(iv =>
-              Some(Float8VectorWrapper(iv))
-            ) ++ outputVectors.map(_ => None),
-            outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v =>
-              Some(Float8VectorWrapper(v))
-            )
-          )
-        } finally {
-          inputVectors.foreach(_.close())
-          logger.debug(s"[$uuid] cleared input vectors")
-        }
-        logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
+          val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+          logger.debug(s"[$uuid] loading input vectors...")
+          val (root, inputVectors) =
+            ColumnarBatchToArrow.fromBatch(arrowSchema, allocatorIn)(columnarBatch)
+          logger.debug(s"[$uuid] loaded input vectors.")
 
-        val last = outputVectors.head.getValueCount - 1
-        (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
-          val writer = new UnsafeRowWriter(outputVectors.size)
-          writer.reset()
+          try {
+            evaluator.callFunction(
+              name = "f",
+              inputArguments = inputVectors.toList.map(iv =>
+                Some(Float8VectorWrapper(iv))
+              ) ++ outputVectors.map(_ => None),
+              outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v =>
+                Some(Float8VectorWrapper(v))
+              )
+            )
+          } finally {
+            root.close()
+            logger.debug(s"[$uuid] cleared input vectors")
+          }
+        } finally allocatorIn.close()
+
+        logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
+        val writer = new UnsafeRowWriter(outputVectors.size)
+        writer.reset()
+
+        val result = (0 until outputVectors.head.getValueCount).map { v_idx =>
           outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
             val doubleV = v.getValueAsDouble(v_idx)
             writer.write(c_idx, doubleV)
           }
-          val res = writer.getRow
-          if (v_idx == last) {
-            outputVectors.foreach(_.close())
-            logger.debug(s"[$uuid] completed transfer.")
-          }
-          res
+          writer.getRow.copy()
         }
+
+        outputVectors.foreach(_.close())
+        allocatorOut.close()
+        logger.debug(s"[$uuid] completed transfer.")
+
+        result
 
       }
       .coalesce(numPartitions = 1, shuffle = true)
