@@ -35,7 +35,8 @@ final class AddCSpec extends AnyFreeSpec {
 
             val jvmSum = AddPairwise.addJVM(firstColumn, secondColumn).toList
 
-            assert(pairwiseSum == jvmSum)
+            try assert(pairwiseSum == jvmSum)
+            finally outVector.close()
           }
         }
       }

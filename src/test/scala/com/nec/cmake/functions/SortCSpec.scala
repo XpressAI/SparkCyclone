@@ -32,9 +32,11 @@ final class SortCSpec extends AnyFreeSpec {
     withDirectFloat8Vector(input) { vector =>
       WithTestAllocator { alloc =>
         val outVector = new Float8Vector("value", alloc)
-        Sort.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, outVector)
-        val outData = (0 until outVector.getValueCount).map(idx => outVector.get(idx))
-        assert(outData == Sort.sortJVM(vector))
+        try {
+          Sort.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, outVector)
+          val outData = (0 until outVector.getValueCount).map(idx => outVector.get(idx))
+          assert(outData == Sort.sortJVM(vector))
+        } finally outVector.close()
       }
     }
   }

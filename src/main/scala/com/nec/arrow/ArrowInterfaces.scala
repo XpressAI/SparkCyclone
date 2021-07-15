@@ -16,17 +16,13 @@ import java.nio.ByteBuffer
 object ArrowInterfaces {
 
   def non_null_int_vector_to_IntVector(input: non_null_int_vector, output: IntVector): Unit = {
-    val nBytes = input.count * 4
-    output.getAllocator.newReservation().reserve(nBytes)
-    non_null_int_vector_to_intVector(input, output, output.getAllocator)
+    non_null_int_vector_to_intVector(input, output)
   }
   def non_null_bigint_vector_to_bigIntVector(
     input: non_null_bigint_vector,
     output: BigIntVector
   ): Unit = {
-    val nBytes = input.count * 8
-    output.getAllocator.newReservation().reserve(nBytes)
-    non_null_bigint_vector_to_bigintVector(input, output, output.getAllocator)
+    non_null_bigint_vector_to_bigintVector(input, output)
   }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, output: IntVector): Unit = {
@@ -97,47 +93,26 @@ object ArrowInterfaces {
     vc
   }
 
-  def non_null_int_vector_to_intVector(
-    input: non_null_int_vector,
-    intVector: IntVector,
-    rootAllocator: BufferAllocator
-  ): Unit = {
-
-    /** Set up the validity buffer -- everything is valid here * */
-    val res = rootAllocator.newReservation()
-    res.add(input.count)
-    val validityBuffer = res.allocateBuffer()
-    validityBuffer.reallocIfNeeded(input.count.toLong)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
-
-    import scala.collection.JavaConverters._
-    intVector.loadFieldBuffers(
-      new ArrowFieldNode(input.count.toLong, 0),
-      List(
-        validityBuffer,
-        new ArrowBuf(validityBuffer.getReferenceManager, null, input.count * 4, input.data)
-      ).asJava
+  def non_null_int_vector_to_intVector(input: non_null_int_vector, intVector: IntVector): Unit = {
+    intVector.setValueCount(input.count)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.data,
+      intVector.getDataBufferAddress,
+      input.size()
     )
   }
 
   def non_null_bigint_vector_to_bigintVector(
     input: non_null_bigint_vector,
-    bigintVector: BigIntVector,
-    rootAllocator: BufferAllocator
+    bigintVector: BigIntVector
   ): Unit = {
-    val res = rootAllocator.newReservation()
-    res.add(input.count)
-    val validityBuffer = res.allocateBuffer()
-    validityBuffer.reallocIfNeeded(input.count.toLong)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
-
-    import scala.collection.JavaConverters._
-    bigintVector.loadFieldBuffers(
-      new ArrowFieldNode(input.count.toLong, 0),
-      List(
-        validityBuffer,
-        new ArrowBuf(validityBuffer.getReferenceManager, null, input.count * 8, input.data)
-      ).asJava
+    bigintVector.setValueCount(input.count)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.data,
+      bigintVector.getDataBufferAddress,
+      input.size()
     )
   }
 
@@ -176,6 +151,10 @@ object ArrowInterfaces {
     )
   }
 
+  /**
+   * TODO fix allocations here; fortunately we don't use this in our initial version - this is specifically
+   * to return strings from C code.
+   */
   def nun_null_varchar_vector_to_VarCharVector(
     input: non_null_varchar_vector,
     varCharVector: VarCharVector,

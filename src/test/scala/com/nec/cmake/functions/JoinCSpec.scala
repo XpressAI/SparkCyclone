@@ -7,7 +7,6 @@ import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
-import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.arrow.functions.Join._
@@ -36,7 +35,7 @@ final class JoinCSpec extends AnyFreeSpec {
       val secondColumn: Seq[Double] = Seq(100, 15, 92, 331, 49)
       val firstColumnKeys: Seq[Int] = Seq(1, 2, 3, 4, 5)
       val secondColumnKeys: Seq[Int] = Seq(4, 2, 5, 200, 800)
-      ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
+      try ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
         ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
           ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
             ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
@@ -56,7 +55,7 @@ final class JoinCSpec extends AnyFreeSpec {
             }
           }
         }
-      }
+      } finally outVector.close()
     }
   }
 

@@ -1,14 +1,15 @@
 package com.nec.cmake.functions
 
-import java.nio.file.{Paths, Files}
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.time.Instant
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.GroupBySum._
-import com.nec.arrow.{CArrowNativeInterfaceNumeric, ArrowVectorBuilders}
+import com.nec.arrow.ArrowVectorBuilders
+import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{IntVector, Float8Vector}
+import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
 final class GroupBySumCSpec extends AnyFreeSpec {
@@ -29,7 +30,7 @@ final class GroupBySumCSpec extends AnyFreeSpec {
       val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
       val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109)
 
-      ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
+      try ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
         ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
           runOn(new CArrowNativeInterfaceNumeric(soPath.toString))(
             groupingColumnVec,
@@ -40,9 +41,12 @@ final class GroupBySumCSpec extends AnyFreeSpec {
           val result = (0 until outGroupsVector.getValueCount)
             .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
 
-          assert(!result.isEmpty)
+          assert(result.nonEmpty)
           assert(result.toMap == groupBySumJVM(groupingColumnVec, valuesColumnVec))
         }
+      } finally {
+        outGroupsVector.close()
+        outValuesVector.close()
       }
     }
   }
