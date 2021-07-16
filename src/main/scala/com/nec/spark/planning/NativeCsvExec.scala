@@ -63,7 +63,7 @@ case class NativeCsvExec(
     "Source here is only columnar"
   )
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    if (sparkContext.getConf.getBoolean(key = SkipStringsKey, defaultValue = false))
+    if (sparkContext.getConf.getBoolean(key = SkipStringsKey, defaultValue = true))
       doExecuteColumnarByteArray()
     else
       doExecuteColumnarString()
