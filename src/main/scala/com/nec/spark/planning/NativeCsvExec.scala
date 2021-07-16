@@ -1,9 +1,8 @@
 package com.nec.spark.planning
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.ByteBufferWrapper
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.sql.catalyst.InternalRow
