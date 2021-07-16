@@ -6,7 +6,7 @@ zip dep.zip *.py
 export VE_OMP_NUM_THREADS=1
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
---name VE_Benchmark_random \
+--name VE_Benchmark_random_1B \
 --py-files dep.zip \
 --num-executors=8 --executor-cores=6 --executor-memory=16G \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
@@ -14,16 +14,18 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.com.nec.native-csv=VE \
-run_benchmark.py  --outputfile "yarn_test_ve_1B" --clearcache --ntest 5 \
+--conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
+run_benchmark.py  --outputfile "yarn_test_ve_1B_1" --clearcache --ntest 5 \
 random "data/XY_doubles_R1000000000_P100_csv" -t column \
---list "sum_float,avg_float,(x+y)_float,avg(x+y)_float,sum(x+y)_float"
+--list "(x+y)_float,sum_float,avg_float,avg(x+y)_float,sum(x+y)_float"
 
 # GPU 
 /opt/spark/bin/spark-submit --master yarn \
---name GPU_Benchmark \
+--name GPU_Benchmark_random_1B \
 --deploy-mode cluster \
 --py-files dep.zip \
 --jars 'rapids.jar,cudf.jar' \
+--num-executors=1 --executor-cores=1 --executor-memory=16G \
 --conf spark.plugins=com.nvidia.spark.SQLPlugin \
 --conf spark.rapids.sql.incompatibleOps.enabled=true \
 --conf spark.rapids.sql.explain=ALL \
@@ -42,8 +44,9 @@ random "data/XY_doubles_R1000000000_P100_csv" -t column \
 # JVM
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
---name CPU_Benchmark \
+--name CPU_Benchmark_random_1B \
 --py-files dep.zip \
+--num-executors=24 --executor-cores=2 --executor-memory=16G \
 run_benchmark.py  --outputfile "yarn_test_cpu_1B" --clearcache --ntest 5 \
 random "data/XY_doubles_R1000000000_P100_csv" -t column \
---list "sum_float,avg_float,(x+y)_float,avg(x+y)_float,sum(x+y)_float" "data/XY_doubles_R1000_P100_csv"
+--list "sum_float,avg_float,(x+y)_float,avg(x+y)_float,sum(x+y)_float"
