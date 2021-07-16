@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
+import com.nec.spark.planning.NativeCsvExec.SkipStringsKey
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
 import org.apache.spark.sql.execution.SparkPlan
@@ -47,6 +48,8 @@ object NativeCsvExec {
         .toList
     }
   }
+
+  val SkipStringsKey = "spark.com.nec.native-csv-skip-strings"
 }
 
 case class NativeCsvExec(
@@ -61,6 +64,13 @@ case class NativeCsvExec(
     "Source here is only columnar"
   )
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    if (sparkContext.getConf.getBoolean(key = SkipStringsKey, defaultValue = false))
+      doExecuteColumnarByteArray()
+    else
+      doExecuteColumnarString()
+  }
+
+  protected def doExecuteColumnarByteArray(): RDD[ColumnarBatch] = {
     val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
@@ -88,4 +98,32 @@ case class NativeCsvExec(
       )
     }
   }
+
+  protected def doExecuteColumnarString(): RDD[ColumnarBatch] = {
+    val numColumns = output.size
+    val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
+    val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
+    sparkContext.wholeTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>
+      val allocator = ArrowUtilsExposed.rootAllocator
+        .newChildAllocator(s"CSV read allocator", 0, Long.MaxValue)
+
+      val outColumns = (0 until numColumns).map { idx =>
+        new Float8Vector(s"out_${idx}", allocator)
+      }.toList
+      val startTime = System.currentTimeMillis()
+      evaluator.callFunction(
+        name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
+        inputArguments =
+          List(Some(StringWrapper(new String(text.getBytes)))) ++ outColumns.map(_ => None),
+        outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
+      )
+      val millis = System.currentTimeMillis() - startTime
+      logInfo(s"Took ${millis} ms to process CSV: ${name} (${text.length} bytes)")
+      new ColumnarBatch(
+        outColumns.map(col => new ArrowColumnVector(col)).toArray,
+        outColumns.head.getValueCount
+      )
+    }
+  }
+
 }

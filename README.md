@@ -75,9 +75,16 @@ A good set of NCC defaults is set up, however if further overriding is needed, i
 For safety, if an argument key is not recognized, it will fail to launch.
 
 To use the native CSV parser (default is 'off'):
+
 ```
 --conf spark.com.nec.native-csv=x86
 --conf spark.com.nec.native-csv=VE
+```
+
+To use String allocation as opposed to ByteArray optimization in `NativeCsvExec`, use: 
+
+```
+--conf spark.com.nec.native-csv-skip-strings=false
 ```
 
 ## Clustering / resource support
