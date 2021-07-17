@@ -12,6 +12,10 @@ import com.sun.jna.Structure
 import com.typesafe.scalalogging.LazyLogging
 import sun.nio.ch.DirectBuffer
 
+import java.io.FileNotFoundException
+import java.nio.file.Files
+import java.nio.file.Paths
+
 final class VeArrowNativeInterfaceNumeric(
   proc: Aurora.veo_proc_handle,
   ctx: Aurora.veo_thr_ctxt,
@@ -43,6 +47,9 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = {
+      if (!Files.exists(Paths.get(libPath))) {
+        throw new FileNotFoundException(s"Required fille ${libPath} does not exist")
+      }
       val lib = Aurora.veo_load_library(proc, libPath)
       require(lib != 0, s"Expected lib != 0, got ${lib}")
       try new VeArrowNativeInterfaceNumeric(proc, ctx, lib).callFunctionGen(
