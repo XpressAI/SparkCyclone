@@ -186,3 +186,5 @@ java.hprof.txt
 .attach_*
 *.csv.gz
 *.crc
+
+thread-samples.json
