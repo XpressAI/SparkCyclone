@@ -2,6 +2,7 @@ package com.nec.cmake
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
+import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import com.nec.spark.planning.VERewriteStrategy

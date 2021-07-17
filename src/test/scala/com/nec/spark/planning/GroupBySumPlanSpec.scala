@@ -1,11 +1,11 @@
 package com.nec.spark.planning
 
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.cmake.CNativeEvaluator
+import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
- import com.nec.spark.{AuroraSqlPlugin, SparkAdditions}
+import com.nec.spark.{SparkAdditions, AuroraSqlPlugin}
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
-import com.nec.testing.SampleSource.{CSV, Parquet, SampleColA, SampleColB, SharedName}
+import com.nec.testing.SampleSource.{SampleColB, Parquet, CSV, SharedName, SampleColA}
 import com.nec.testing.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
 import com.nec.testing.Testing.TestingTarget
 import com.nec.testing.{SampleSource, Testing}
@@ -13,13 +13,12 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.{BeforeAndAfter, Inside}
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.{LocalTableScanExec, SparkPlan}
+import org.apache.spark.sql.execution.{SparkPlan, LocalTableScanExec}
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.{Dataset, SparkSession, Strategy}
+import org.apache.spark.sql.{SparkSession, Dataset, Strategy}
 
 object GroupBySumPlanSpec {
 

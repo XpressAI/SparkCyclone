@@ -108,6 +108,7 @@ object VeKernelCompiler {
   }
 
 }
+
 final case class VeKernelCompiler(
   compilationPrefix: String,
   buildDir: Path,

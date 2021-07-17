@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
+import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.NativeCsvExec.SkipStringsKey
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
@@ -58,7 +59,9 @@ case class NativeCsvExec(
 ) extends SparkPlan
   with LeafExecNode
   with LazyLogging {
+
   override def supportsColumnar: Boolean = true
+
   override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
     "Source here is only columnar"
   )

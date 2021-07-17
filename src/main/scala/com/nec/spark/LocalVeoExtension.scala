@@ -1,6 +1,7 @@
 package com.nec.spark
 
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.native.NativeEvaluator
 import com.nec.spark.agile._
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
 import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
@@ -10,7 +11,6 @@ import com.nec.spark.planning.ArrowAveragingPlan
 import com.nec.spark.planning.ArrowGenericAggregationPlanOffHeap
 import com.nec.spark.planning.ArrowSummingPlan
 import com.nec.spark.planning.AveragingPlanOffHeap
-import com.nec.spark.planning.LocalVeoNativeEvaluator
 import com.nec.spark.planning.SingleColumnAvgPlanExtractor
 import com.nec.spark.planning.SingleColumnSumPlanExtractor
 import com.nec.spark.planning.SummingPlanOffHeap
@@ -127,7 +127,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       new VERewriteStrategy(
         sparkSession,
-        new LocalVeoNativeEvaluator(sparkSession.sparkContext.getConf)
+        NativeEvaluator.fromConfig(sparkSession.sparkContext.getConf)
       )
     )
   }

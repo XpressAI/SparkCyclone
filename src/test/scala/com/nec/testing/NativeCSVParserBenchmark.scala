@@ -4,7 +4,6 @@ import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.CsvParse
 import com.nec.aurora.Aurora
-import com.nec.cmake.CNativeEvaluator
 import com.nec.testing.NativeCSVParserBenchmark.ParserTestState
 import com.nec.testing.NativeCSVParserBenchmark.SimpleTestType
 import com.nec.testing.Testing.TestingTarget
@@ -16,6 +15,7 @@ import org.apache.arrow.vector.Float8Vector
 import com.eed3si9n.expecty.Expecty._
 import com.nec.cmake.functions.ParseCSVSpec
 import com.nec.cmake.functions.ParseCSVSpec.inTolerance
+import com.nec.native.NativeEvaluator.CNativeEvaluator
 
 import java.nio.file.Files
 
