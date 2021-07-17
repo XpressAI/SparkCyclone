@@ -30,7 +30,7 @@ object NativeEvaluator {
     with LazyLogging {
     override def forCode(code: String): ArrowNativeInterfaceNumeric = {
       val localLib = nativeCompiler.forCode(code).toString
-      logger.info(s"For evaluation, will use local lib '$localLib'")
+      logger.debug(s"For evaluation, will use local lib '$localLib'")
       new VeArrowNativeInterfaceNumericLazyLib(proc, ctx, localLib)
     }
   }
@@ -38,7 +38,7 @@ object NativeEvaluator {
   case object ExecutorPluginManagedEvaluator extends NativeEvaluator with LazyLogging {
     def forCode(code: String): ArrowNativeInterfaceNumeric = {
       // defer because we need the executors to initialize first
-      logger.info(s"For evaluation, will refer to the Executor Plugin")
+      logger.debug(s"For evaluation, will refer to the Executor Plugin")
       DeferredArrowInterfaceNumeric(() =>
         new VeArrowNativeInterfaceNumericLazyLib(
           Aurora4SparkExecutorPlugin._veo_proc,

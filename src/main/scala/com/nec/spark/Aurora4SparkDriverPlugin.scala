@@ -24,10 +24,10 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
   override def receive(message: Any): AnyRef = {
     message match {
       case RequestCompiledLibraryForCode(code) =>
-        logger.debug(s"Received request for compiled code: '${code}''")
-        RequestCompiledLibraryResponse(
-          ByteString.of(Files.readAllBytes(nativeCompiler.forCode(code)): _*)
-        )
+        logger.debug(s"Received request for compiled code: '${code}'")
+        val localLocation = nativeCompiler.forCode(code)
+        logger.info(s"Local compiled location = '${localLocation}'")
+        RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(localLocation): _*))
       case other => super.receive(message)
     }
   }
