@@ -55,4 +55,13 @@ object ArrowNativeInterfaceNumeric {
     final case class IntVectorWrapper(intVector: IntVector) extends SupportedVectorWrapper
     final case class BigIntVectorWrapper(bigIntVector: BigIntVector) extends SupportedVectorWrapper
   }
+
+  final case class DeferredArrowInterfaceNumeric(subInterface: () => ArrowNativeInterfaceNumeric)
+    extends ArrowNativeInterfaceNumeric {
+    override def callFunctionGen(
+      name: String,
+      inputArguments: List[Option[SupportedVectorWrapper]],
+      outputArguments: List[Option[SupportedVectorWrapper]]
+    ): Unit = subInterface().callFunction(name, inputArguments, outputArguments)
+  }
 }

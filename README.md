@@ -109,3 +109,17 @@ A variety of options are available - not tested with YARN yet.
 --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh
 ```
 
+## Compilation lifecycle
+
+### Use a precompiled directory
+```
+--conf spark.com.nec.spark.kernel.precompiled=/path/to/precompiled/dir
+```
+
+### If not, then you can also specify a destination for on-demand compilation:
+
+```
+--conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
+```
+
+If this is not specified, then a random temporary directory will be used (not removed, however).

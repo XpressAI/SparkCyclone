@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
+import com.nec.native.NativeEvaluator
 import com.nec.spark.ColumnarBatchToArrow
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
@@ -186,12 +187,14 @@ final case class CEvaluationPlan(
     child
       .executeColumnar()
       .flatMap { columnarBatch =>
+        val uuid = java.util.UUID.randomUUID()
+        logger.debug(s"[$uuid] Starting evaluation of a columnar batch...")
+        val batchStartTime = System.currentTimeMillis()
         val timeZoneId = conf.sessionLocalTimeZone
         val allocatorIn =
           ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create input data", 0, Long.MaxValue)
         val allocatorOut =
           ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create output data", 0, Long.MaxValue)
-        val uuid = java.util.UUID.randomUUID()
         val outputVectors = resultExpressions
           .flatMap(_.asInstanceOf[Alias].child match {
             case ae: AggregateExpression =>
@@ -239,7 +242,7 @@ final case class CEvaluationPlan(
         logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
         val writer = new UnsafeRowWriter(outputVectors.size)
         writer.reset()
-        logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items.")
+          logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items from VE.")
 
         val result =
           try {
@@ -256,6 +259,9 @@ final case class CEvaluationPlan(
           }
 
         logger.debug(s"[$uuid] completed transfer.")
+        logger.debug(
+          s"[$uuid] Evaluation of batch took ${System.currentTimeMillis() - batchStartTime}ms."
+        )
 
         result
 
