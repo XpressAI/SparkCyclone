@@ -36,7 +36,7 @@ final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
 
   "When we try to load from a directory which has had compilation, we should not have any exception" in {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
-    val someCode = "long test() { return 0; }"
+    val someCode = "extern \"C\" long test() { return 0; }"
     new VectorEngineNativeEvaluator(proc, ctx, compiler)
       .forCode(someCode)
       .callFunction("test", Nil, Nil)
@@ -47,7 +47,7 @@ final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
 
   "When we try to load from a directory which has had compilation, but not for this .so, it should fail" in {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
-    val someCode = "long test() { return 0; }"
+    val someCode = "extern \"C\" long test() { return 0; }"
     new VectorEngineNativeEvaluator(proc, ctx, compiler)
       .forCode(someCode)
       .callFunction("test", Nil, Nil)
