@@ -1,6 +1,7 @@
 package com.nec.native
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterfaceNumeric.DeferredArrowInterfaceNumeric
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.VeArrowNativeInterfaceNumeric.VeArrowNativeInterfaceNumericLazyLib
 import com.nec.aurora.Aurora
@@ -32,10 +33,12 @@ object NativeEvaluator {
 
   case object ExecutorPluginManagedEvaluator extends NativeEvaluator {
     def forCode(code: String): ArrowNativeInterfaceNumeric = {
-      new VeArrowNativeInterfaceNumericLazyLib(
-        Aurora4SparkExecutorPlugin._veo_proc,
-        Aurora4SparkExecutorPlugin._veo_ctx,
-        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
+      DeferredArrowInterfaceNumeric(() =>
+        new VeArrowNativeInterfaceNumericLazyLib(
+          Aurora4SparkExecutorPlugin._veo_proc,
+          Aurora4SparkExecutorPlugin._veo_ctx,
+          Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
+        )
       )
     }
   }
