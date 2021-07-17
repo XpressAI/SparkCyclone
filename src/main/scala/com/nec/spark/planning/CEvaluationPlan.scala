@@ -242,7 +242,7 @@ final case class CEvaluationPlan(
         logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
         val writer = new UnsafeRowWriter(outputVectors.size)
         writer.reset()
-        logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items.")
+          logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items from VE.")
 
         val result =
           try {
