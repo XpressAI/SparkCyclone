@@ -48,10 +48,13 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = {
       logger.debug(s"Will load: '$libPath' to call '$name'")
+      val startLoad = System.currentTimeMillis()
       if (!Files.exists(Paths.get(libPath))) {
         throw new FileNotFoundException(s"Required fille $libPath does not exist")
       }
       val lib = Aurora.veo_load_library(proc, libPath)
+      val loadTime = System.currentTimeMillis() - startLoad
+      logger.debug(s"Loaded: '${libPath} in $loadTime")
       require(lib != 0, s"Expected lib != 0, got $lib")
       try new VeArrowNativeInterfaceNumeric(proc, ctx, lib).callFunctionGen(
         name,
