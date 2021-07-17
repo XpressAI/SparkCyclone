@@ -61,7 +61,7 @@ object NativeCompiler {
   final case class PreCompiled(sourceDir: String) extends NativeCompiler with LazyLogging {
     override def forCode(code: String): Path = {
       val cc = combinedCode(code)
-      val sourcePath = Paths.get(sourceDir).resolve(s"_spark_${cc.hashCode}").toAbsolutePath
+      val sourcePath = Paths.get(sourceDir).resolve(s"_spark_${cc.hashCode}.so").toAbsolutePath
       logger.debug(s"Will be loading source from path: $sourcePath")
       sourcePath
     }
