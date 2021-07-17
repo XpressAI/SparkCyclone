@@ -47,11 +47,12 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = {
+      logger.debug(s"Will load: '$libPath' to call '$name'")
       if (!Files.exists(Paths.get(libPath))) {
-        throw new FileNotFoundException(s"Required fille ${libPath} does not exist")
+        throw new FileNotFoundException(s"Required fille $libPath does not exist")
       }
       val lib = Aurora.veo_load_library(proc, libPath)
-      require(lib != 0, s"Expected lib != 0, got ${lib}")
+      require(lib != 0, s"Expected lib != 0, got $lib")
       try new VeArrowNativeInterfaceNumeric(proc, ctx, lib).callFunctionGen(
         name,
         inputArguments,
@@ -193,7 +194,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
   class Cleanup(var items: List[Long] = Nil) {
     def add(long: Long, size: Long): Unit = items = {
-      logger.debug(s"Adding to clean-up: ${long}, ${size} bytes")
+      logger.debug(s"Adding to clean-up: $long, $size bytes")
       long :: items
     }
   }
@@ -340,14 +341,14 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
       val startTime = System.currentTimeMillis()
       val uuid = java.util.UUID.randomUUID()
-      logger.debug(s"[$uuid] Starting VE call to ${functionName}...")
+      logger.debug(s"[$uuid] Starting VE call to '$functionName'...")
       val req_id = Aurora.veo_call_async_by_name(ctx, lib, functionName, our_args)
-      logger.debug(s"[$uuid] Async call to '${functionName}' completed (waiting for result) ")
+      logger.debug(s"[$uuid] Async call to '$functionName' completed (waiting for result) ")
       val fnCallResult = new LongPointer(8)
       val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
       val time = System.currentTimeMillis() - startTime
       logger.debug(
-        s"[$uuid] Got result from VE call to ${functionName}: ${callRes}. Took ${time}ms"
+        s"[$uuid] Got result from VE call to '$functionName': '$callRes'. Took ${time}ms"
       )
       require(
         callRes == 0,

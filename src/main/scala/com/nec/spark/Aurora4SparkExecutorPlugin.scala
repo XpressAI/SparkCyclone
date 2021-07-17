@@ -8,6 +8,7 @@ import com.nec.aurora.Aurora.veo_proc_handle
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.spark.Aurora4SparkExecutorPlugin._
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.ExecutorPlugin
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
@@ -52,15 +53,20 @@ object Aurora4SparkExecutorPlugin {
     def getLocalLibraryPath(code: String): Path
   }
 
-  final class DriverFetchingLibraryStorage(pluginContext: PluginContext) extends LibraryStorage {
+  final class DriverFetchingLibraryStorage(pluginContext: PluginContext)
+    extends LibraryStorage
+    with LazyLogging {
 
     private var locallyStoredLibs = Map.empty[String, Path]
 
     /** Get a local copy of the library for loading */
     override def getLocalLibraryPath(code: String): Path = this.synchronized {
       locallyStoredLibs.get(code) match {
-        case Some(result) => result
+        case Some(result) =>
+          logger.info("Cache hit for executor-fetch for code.")
+          result
         case None =>
+          logger.info("Cache miss for executor-fetch for code; asking Driver.")
           val result = pluginContext.ask(RequestCompiledLibraryForCode(code))
           if (result == null) {
             sys.error(s"Could not fetch library: ${code}")
@@ -70,6 +76,7 @@ object Aurora4SparkExecutorPlugin {
               localPath,
               result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
             )
+            logger.info(s"Saved file to '$localPath'")
             locallyStoredLibs += code -> localPath
             localPath
           }
