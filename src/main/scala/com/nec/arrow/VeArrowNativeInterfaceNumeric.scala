@@ -33,6 +33,27 @@ final class VeArrowNativeInterfaceNumeric(
 
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
+  final class VeArrowNativeInterfaceNumericLazyLib(
+    proc: Aurora.veo_proc_handle,
+    ctx: Aurora.veo_thr_ctxt,
+    libPath: String
+  ) extends ArrowNativeInterfaceNumeric {
+    override def callFunctionGen(
+      name: String,
+      inputArguments: List[Option[SupportedVectorWrapper]],
+      outputArguments: List[Option[SupportedVectorWrapper]]
+    ): Unit = {
+      val lib = Aurora.veo_load_library(proc, libPath)
+      require(lib != 0, s"Expected lib != 0, got ${lib}")
+      try new VeArrowNativeInterfaceNumeric(proc, ctx, lib).callFunctionGen(
+        name,
+        inputArguments,
+        outputArguments
+      )
+      finally Aurora.veo_unload_library(proc, lib)
+    }
+  }
+
   private def make_veo_double_vector(proc: Aurora.veo_proc_handle, float8Vector: Float8Vector)(
     implicit cleanup: Cleanup
   ): non_null_double_vector = {

@@ -1,7 +1,7 @@
 package com.nec.spark
 
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
-import com.nec.native.NativeEvaluator
+import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.agile._
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer.VeoBased
 import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
@@ -125,10 +125,7 @@ object LocalVeoExtension {
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
-      new VERewriteStrategy(
-        sparkSession,
-        NativeEvaluator.fromConfig(sparkSession.sparkContext.getConf)
-      )
+      new VERewriteStrategy(sparkSession, ExecutorPluginManagedEvaluator)
     )
   }
 }
