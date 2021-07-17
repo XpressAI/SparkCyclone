@@ -33,6 +33,7 @@ object NativeEvaluator {
 
   case object ExecutorPluginManagedEvaluator extends NativeEvaluator {
     def forCode(code: String): ArrowNativeInterfaceNumeric = {
+      // defer because we need the executors to initialize first
       DeferredArrowInterfaceNumeric(() =>
         new VeArrowNativeInterfaceNumericLazyLib(
           Aurora4SparkExecutorPlugin._veo_proc,
