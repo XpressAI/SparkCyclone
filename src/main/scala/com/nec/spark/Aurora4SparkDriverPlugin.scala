@@ -1,5 +1,7 @@
 package com.nec.spark
 
+import com.nec.native.NativeCompiler
+
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.DriverPlugin
@@ -10,20 +12,20 @@ import java.nio.file.Files
 import com.nec.ve.VeKernelCompiler
 import okio.ByteString
 
-import java.nio.file.Paths
-
 object Aurora4SparkDriverPlugin {
-
-  /** For assumption testing purposes only for now */
+  // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
 }
 
 class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
 
+  private[spark] var nativeCompiler: NativeCompiler = _
   override def receive(message: Any): AnyRef = {
     message match {
-      case RequestCompiledLibrary(libPath) =>
-        RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(Paths.get(libPath)): _*))
+      case RequestCompiledLibraryForCode(code) =>
+        RequestCompiledLibraryResponse(
+          ByteString.of(Files.readAllBytes(nativeCompiler.forCode(code)): _*)
+        )
       case other => super.receive(message)
     }
   }
@@ -32,6 +34,7 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with Logging {
     sc: SparkContext,
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
+    nativeCompiler = NativeCompiler.fromConfig(sc.getConf)
     logInfo("Aurora4Spark DriverPlugin is launched.")
     Aurora4SparkDriverPlugin.launched = true
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])

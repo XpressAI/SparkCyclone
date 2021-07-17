@@ -35,7 +35,7 @@ object NativeEvaluator {
       new VeArrowNativeInterfaceNumericLazyLib(
         Aurora4SparkExecutorPlugin._veo_proc,
         Aurora4SparkExecutorPlugin._veo_ctx,
-        Aurora4SparkExecutorPlugin.libraryStorage.getLibrary(code)
+        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
       )
     }
   }

@@ -13,6 +13,7 @@ import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
+import java.nio.file.Path
 
 object Aurora4SparkExecutorPlugin {
 
@@ -47,31 +48,30 @@ object Aurora4SparkExecutorPlugin {
   var DefaultVeNodeId = 0
 
   trait LibraryStorage {
-
-    /** Get a local copy of the library for loading */
-    def getLibrary(original: String): String
+    // Get a local copy of the library for loading
+    def getLocalLibraryPath(code: String): Path
   }
 
   final class DriverFetchingLibraryStorage(pluginContext: PluginContext) extends LibraryStorage {
 
-    private var locallyStoredLibs = Map.empty[String, String]
+    private var locallyStoredLibs = Map.empty[String, Path]
 
     /** Get a local copy of the library for loading */
-    override def getLibrary(original: String): String = this.synchronized {
-      locallyStoredLibs.get(original) match {
+    override def getLocalLibraryPath(code: String): Path = this.synchronized {
+      locallyStoredLibs.get(code) match {
         case Some(result) => result
         case None =>
-          val result = pluginContext.ask(RequestCompiledLibrary(original))
+          val result = pluginContext.ask(RequestCompiledLibraryForCode(code))
           if (result == null) {
-            sys.error(s"Could not fetch library: ${original}")
+            sys.error(s"Could not fetch library: ${code}")
           } else {
             val localPath = Files.createTempFile("ve_fn", ".lib")
             Files.write(
               localPath,
               result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
             )
-            locallyStoredLibs += original -> localPath.toString
-            localPath.toString
+            locallyStoredLibs += code -> localPath
+            localPath
           }
       }
     }
