@@ -187,12 +187,14 @@ final case class CEvaluationPlan(
     child
       .executeColumnar()
       .flatMap { columnarBatch =>
+        val uuid = java.util.UUID.randomUUID()
+        logger.debug(s"[$uuid] Starting evaluation of a columnar batch...")
+        val batchStartTime = System.currentTimeMillis()
         val timeZoneId = conf.sessionLocalTimeZone
         val allocatorIn =
           ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create input data", 0, Long.MaxValue)
         val allocatorOut =
           ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create output data", 0, Long.MaxValue)
-        val uuid = java.util.UUID.randomUUID()
         val outputVectors = resultExpressions
           .flatMap(_.asInstanceOf[Alias].child match {
             case ae: AggregateExpression =>
@@ -257,6 +259,9 @@ final case class CEvaluationPlan(
           }
 
         logger.debug(s"[$uuid] completed transfer.")
+        logger.debug(
+          s"[$uuid] Evaluation of batch took ${System.currentTimeMillis() - batchStartTime}ms."
+        )
 
         result
 
