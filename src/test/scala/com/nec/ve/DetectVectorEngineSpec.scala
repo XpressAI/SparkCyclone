@@ -17,7 +17,19 @@ import com.eed3si9n.expecty.Expecty._
 
 final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
   "It works" in {
-    assert(DiscoverVectorEnginesPlugin.detectVE() == List("0", "1"))
+    import scala.collection.JavaConverters._
+
+    // Check using a different regex.
+    val regex = "^veslot[0-7]$".r
+    val veSlots = Files
+      .list(Paths.get("/dev/"))
+      .iterator()
+      .asScala
+      .filter(path => regex.unapplySeq(path.getFileName().toString()).nonEmpty)
+      .map(_.toString.drop(11))
+      .toList
+      .sorted
+    assert(DiscoverVectorEnginesPlugin.detectVE() == veSlots)
   }
 
   override protected def logLevel: Level = Level.ERROR

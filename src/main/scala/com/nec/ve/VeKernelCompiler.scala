@@ -22,16 +22,20 @@ object VeKernelCompiler {
   import VeCompilerConfig.ExtraArgumentPrefix
   final case class VeCompilerConfig(
     nccPath: String = "ncc",
-    optimizationLevel: Int = 3,
+    optimizationLevel: Int = 4,
     doDebug: Boolean = false,
     additionalOptions: Map[Int, String] = Map.empty,
-    useOpenmp: Boolean = true
+    useOpenmp: Boolean = false
   ) {
     def compilerArguments: List[String] = {
+      // Optimizations used in frovedis: -fno-defer-inline-template-instantiation -finline-functions -finline-max-depth = 10 -msched-block
       val ret = List(
         s"-O$optimizationLevel",
         "-fpic",
+        "-fno-defer-inline-template-instantiation",
         "-finline-functions",
+        "-finline-max-depth=10",
+        "-msched-block",
         "-pthread",
         "-report-all",
         "-fdiag-vector=2"
