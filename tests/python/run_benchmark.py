@@ -7,14 +7,15 @@ from pyspark import StorageLevel
 import argparse
 import sys
 from timeit import default_timer as timer
+import os
 
-from column_operation_dict import operations, aggregate
+from column_operation_dict import operations, aggregate, large_queries
 from nyctaxi import queries
 
 def arguments() -> argparse.Namespace:
     args = argparse.ArgumentParser(description='Run Benchmark. Please generate dataset using generate_data.py first.')
-    args.add_argument('-x','--executor', type=str, default='4g', help='Set Executor Memory')
-    args.add_argument('-d','--driver', type=str, default='4g', help='Set Driver Memory')
+    # args.add_argument('-x','--executor', type=str, default='4g', help='Set Executor Memory')
+    # args.add_argument('-d','--driver', type=str, default='4g', help='Set Driver Memory')
     args.add_argument('-sl','--storageLevel', type=str, default='11001', help='Set Storage Level')
     args.add_argument('-n','--ntest', type=int, default=5, help='Number of Tests')
     args.add_argument('-cc', '--clearcache', action='store_true', default=False, help="Clear cache for every tasks")
@@ -26,6 +27,10 @@ def arguments() -> argparse.Namespace:
     random.add_argument('-r','--repartitions', type=int, default=200, help='Number of partitions')
     random.add_argument('-t','--type', type=str, default='groupbyagg', help='Set Benchmark Type', choices=['groupbyagg','repart','innerjoin','broadinnerjoin', 'column'])
     random.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
+    
+    large = subparsers.add_parser('large', help='Large Dataset')
+    large.add_argument('inputfile', type=str, metavar='file_url', help='Input file URL')
+    large.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
     
     nyc = subparsers.add_parser('nycdata', help='NYC-taxi-data Dataset')
     nyc.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
@@ -161,6 +166,7 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFram
     res = []
     dicts = None
     if(args.which == "random"): dicts = {**operations, **aggregate}
+    elif(args.which == "large"): dicts = large_queries
     elif(args.which == "nycdata"): dicts = queries
     else: raise Exception("Data not supported")
     
@@ -192,6 +198,7 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFram
                 new_df.explain(extended=True)
                 print(f'Finished {op}_benchmark_test_{i} = {time_taken}')
                 print("="*240)
+                os.system("/opt/hadoop/bin/hdfs dfs -rm -r -f temp")
                 col_op.append(time_taken)
 
             avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (args.ntest-2)
@@ -212,6 +219,27 @@ def parse_storage_level(level: list) -> list:
         level[i] = bool(int(level[i]))
     level[4] = int(level[4])
     return level
+
+def large_data(spark: SparkSession, args: argparse.Namespace) -> list:
+    print("="*240)
+    print(f'Shuffle Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
+    print("="*240)
+
+    schema = T.StructType([
+        T.StructField("a", T.DoubleType()),
+        T.StructField("b", T.DoubleType()),
+        T.StructField("c", T.DoubleType()),
+    ])
+    
+    level = parse_storage_level(list(tuple(args.storageLevel)))
+
+    df = spark.read.csv(args.inputfile, header=True, schema=schema).persist(StorageLevel(*tuple(level)))
+    df.createOrReplaceTempView("large")
+    df.printSchema()
+    
+    result = column_benchmark(spark, args)
+
+    return result
 
 def random_data(spark: SparkSession, args: argparse.Namespace) -> list:
     print("="*240)
@@ -312,8 +340,8 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
     
     df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi).persist(StorageLevel(*tuple(level)))
     df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab).persist(StorageLevel(*tuple(level)))
-    df.registerTempTable('trips')
-    df1.registerTempTable('cab_types')
+    df.createOrReplaceTempView('trips')
+    df1.createOrReplaceTempView('cab_types')
     df.printSchema()
     df1.printSchema()
 
@@ -321,12 +349,13 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
 
 def main(args: argparse.Namespace) -> None:
     appName = f'{args.which}_benchmark'
-    conf = SparkConf().setAll([('spark.executor.memory', args.executor), ('spark.driver.memory',args.driver)]) 
-    spark = SparkSession.builder.appName(appName).config(conf=conf).getOrCreate()
+    # conf = SparkConf().setAll([('spark.executor.memory', args.executor), ('spark.driver.memory',args.driver)]) 
+    spark = SparkSession.builder.appName(appName).getOrCreate()
     callSiteShortOrig = spark.sparkContext.getLocalProperty('callSite.short')
 
     result = None
-    if(args.which == "random"): result = random_data(spark,args)
+    if(args.which == "random"): result = random_data(spark, args)
+    elif(args.which == "large"): result = large_data(spark, args)
     elif(args.which == "nycdata"): result = nyc_benchmark(spark, args)
     else: raise Exception("Data not supported")
 
@@ -352,7 +381,7 @@ def main(args: argparse.Namespace) -> None:
             header=True,
             mode='overwrite'
         )
-        results_df.show()
+        print(results_df.collect())
 
 if __name__ == '__main__':
     args = arguments()
