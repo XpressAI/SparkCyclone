@@ -11,7 +11,7 @@ import org.apache.spark.resource.ResourceInformation
 import org.apache.hadoop.yarn.api.records
 
 object DiscoverVectorEnginesPlugin {
-  val regex = "ve[0-9]+".r
+  val regex = "^ve[0-7]$".r
   def detectVE(): List[String] = {
     import scala.collection.JavaConverters._
     Files
