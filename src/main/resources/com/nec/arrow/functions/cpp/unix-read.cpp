@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 /** Based on input socket name specified in the first vector, connect to that socket, fetch the data,
 then put it into output_data
 

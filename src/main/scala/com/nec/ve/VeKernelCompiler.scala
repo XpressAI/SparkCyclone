@@ -1,6 +1,6 @@
 package com.nec.ve
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.functions.{Avg, GroupBySum, Sum, WordCount}
+import com.nec.arrow.functions.{Avg, WordCount, GroupBySum, Sum}
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.older.AvgMultipleColumns
 import com.nec.older.AvgSimple
@@ -9,8 +9,9 @@ import com.nec.older.SumPairwise
 import com.nec.older.SumSimple
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
-import java.nio.file._
+import com.typesafe.scalalogging.LazyLogging
 
+import java.nio.file._
 import org.apache.spark.SparkConf
 
 object VeKernelCompiler {
@@ -113,7 +114,7 @@ final case class VeKernelCompiler(
   compilationPrefix: String,
   buildDir: Path,
   config: VeKernelCompiler.VeCompilerConfig = VeCompilerConfig.testConfig
-) {
+) extends LazyLogging {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
 
   import scala.sys.process._
@@ -137,7 +138,7 @@ final case class VeKernelCompiler(
     val proc = process.run(io)
     val ev = proc.exitValue()
     if (config.doDebug) {
-      System.err.println(s"NCC output: \n${res}; \n${resErr}")
+      logger.debug(s"NCC output: \n${res}; \n${resErr}")
     }
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }
