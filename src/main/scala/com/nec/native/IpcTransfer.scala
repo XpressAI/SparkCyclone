@@ -1,5 +1,7 @@
 package com.nec.native
 
+import com.typesafe.scalalogging.LazyLogging
+
 import java.io.InputStream
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 import org.scalasbt.ipcsocket.UnixDomainSocket
@@ -12,7 +14,7 @@ import java.nio.ByteOrder
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-object IpcTransfer {
+object IpcTransfer extends LazyLogging {
 
   def inputStreamToOutputStream(
     inputStream: InputStream,
@@ -56,18 +58,18 @@ object IpcTransfer {
 
   def newClientSocket(socketName: String): Socket = new UnixDomainSocket(socketName, false)
 
-  def transferIPC(
-    inputStream: InputStream,
-    bufSize: Int
-  ): (String, ServerSocket) = {
+  def transferIPC(inputStream: InputStream, bufSize: Int): (String, ServerSocket) = {
     val socketName = s"/tmp/test-sock-${scala.util.Random.nextInt()}"
     val serverSocket = newServerSocket(socketName)
     val serverRespond = Future.apply {
-      println("Waiting for a connection...")
+      logger.debug("Waiting for a connection...")
       val sockie = serverSocket.accept()
-      println(s"Got a client connection! ${sockie}")
+      logger.debug(s"Got a client connection! ${sockie}; beginning transfer")
+      val startTime = System.currentTimeMillis()
       try inputStreamToOutputStream(inputStream, sockie.getOutputStream, bufSize)
       finally sockie.close()
+      val endTime = System.currentTimeMillis()
+      logger.debug(s"Transfer out time = ${endTime - startTime}ms")
     }
 
     (socketName, serverSocket)
