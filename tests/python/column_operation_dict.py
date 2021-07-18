@@ -1,8 +1,10 @@
 import pyspark.sql.functions as F
 import pyspark.sql.types as T
+from pyspark.sql import DataFrame
+from typing import Callable
 
 # helper function for looping 
-def loop(op, df = None):
+def loop(op: Callable[[DataFrame], DataFrame], df: DataFrame = None) -> DataFrame:
     for _ in range(10):
         df = op(df)
     return df
@@ -98,4 +100,16 @@ aggregate = {
     'sumDistinct' : lambda df : df.agg(F.sumDistinct(df['int_x'])), 
     'var_pop' : lambda df : df.agg(F.var_pop(df['small_int'])), 
     'var_samp' : lambda df : df.agg(F.var_samp(df['int_x']))
+}
+
+from pyspark.sql import SparkSession, DataFrame
+
+def query_1(spark: SparkSession) -> DataFrame:
+    print("""Query: SELECT SUM(a), AVG(b) FROM large
+        """)
+    res = spark.sql('SELECT SUM(a), AVG(b) FROM large')
+    return res
+
+large_queries = {
+    'q1': query_1,
 }
