@@ -38,7 +38,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     serverAddr.sun_family = AF_UNIX;
     strncpy(serverAddr.sun_path, input_sock_name->data, input_sock_name->length);
 #ifdef DEBUG
-    std::cout << "Will via IPC: " << serverAddr.sun_path << "\n" << std::flush;
+    std::cout << "Will read via IPC: " << serverAddr.sun_path << "\n" << std::flush;
 #endif
 	if( connect(clientFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1 )
 	{
@@ -51,18 +51,21 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     FILE *stream;
     char* bp;
     stream = open_memstream (&bp, &size);
-    char c;
+    
+#ifdef DEBUG
+    std::cout << "Preparing to read from '" << serverAddr.sun_path << "'\n"  << std::flush;
+#endif
+
+    int BUF_SIZE = 4 * 1024;
+    char c[BUF_SIZE];
     while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
 #ifdef DEBUG
-        std::cout << "From '" << serveraddr.sun_path << "' received " << sizeAvailable << " bytes" << std::flush;
+        std::cout << "From '" << serveraddr.sun_path << "' received " << sizeAvailable << " bytes\n" << std::flush;
 #endif
-        if ( sizeAvailable != 0 ) {
-            for ( int i = 0; i < sizeAvailable; i++ ) {
-                // I'm aware this is not ideal :-F
-                // Just need to get it working and hand off to the C++ gods to optimize
-                recv(clientFd, &c, 1, 0);
-                fwrite(&c, 1, 1, stream);
-            }
+        // note we don't yet support receiving in sizeAvailable more than is in BUF_SIZE
+        if ( sizeAvailable > 0 ) {
+            recv(clientFd, &c, sizeAvailable, 0);
+            fwrite(&c, sizeAvailable, 1, stream);
         }
     }
     close(clientFd);
