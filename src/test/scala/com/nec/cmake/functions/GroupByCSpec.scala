@@ -20,7 +20,7 @@ import org.scalatest.freespec.AnyFreeSpec
 final class GroupByCSpec extends AnyFreeSpec {
 
   // TODO new failure for some reason
-  "Through Arrow, it works" ignore {
+  "Through Arrow, it works" in {
     val veBuildPath = Paths.get("target", "c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
 
@@ -32,7 +32,7 @@ final class GroupByCSpec extends AnyFreeSpec {
     WithTestAllocator { alloc =>
       val outGroupsVector = new Float8Vector("groups", alloc)
       val outValuesVector = new Float8Vector("values", alloc)
-      val outCountVector = new IntVector("count", alloc)
+      val outCountVector = new Float8Vector("count", alloc)
 
       val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
       val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109)

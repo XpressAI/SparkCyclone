@@ -29,7 +29,7 @@ final class GroupByVeSpec extends AnyFreeSpec {
           WithTestAllocator { alloc =>
             val outValuesVector = new Float8Vector("values", alloc)
             val outGroupsVector = new Float8Vector("groups", alloc)
-            val outCountVector = new IntVector("groupCounts", alloc)
+            val outCountVector = new Float8Vector("groupCounts", alloc)
 
             try {
               val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100, 100, 100, 100)

@@ -8,7 +8,7 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
                          non_null_double_vector* values_col,
                          non_null_double_vector* values,
                          non_null_double_vector* groups,
-                         non_null_int_vector* counts)
+                         non_null_double_vector* counts)
 {
     std::vector<double> grouping_vec(grouping_col->data, grouping_col->data + grouping_col->count);
     size_t count = grouping_col->count;
@@ -27,7 +27,7 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
     size_t groups_count = groups_indicies.size();
 
     double *values_data = (double *) malloc(grouping_vec.size() * sizeof(double));
-    int *counts_data = (int *) malloc((groups_count - 1) * sizeof(int));
+    double *counts_data = (double *) malloc((groups_count - 1) * sizeof(double));
     double *groups_data = (double *) malloc((groups_count - 1) * sizeof(double));
 
     #pragma _NEC vector
