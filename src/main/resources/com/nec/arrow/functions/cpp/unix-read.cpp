@@ -55,7 +55,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     std::cout << "Preparing to read from '" << serverAddr.sun_path << "'\n"  << std::flush;
 #endif
 
-    int BUF_SIZE = 4 * 1024;
+    int BUF_SIZE = 16 * 1024;
     char c[BUF_SIZE];
     while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
 #ifdef DEBUG
