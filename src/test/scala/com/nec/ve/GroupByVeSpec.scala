@@ -11,6 +11,7 @@ import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.aurora.Aurora
 import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.IntVector
 import org.scalatest.freespec.AnyFreeSpec
 
 final class GroupByVeSpec extends AnyFreeSpec {
@@ -28,7 +29,7 @@ final class GroupByVeSpec extends AnyFreeSpec {
           WithTestAllocator { alloc =>
             val outValuesVector = new Float8Vector("values", alloc)
             val outGroupsVector = new Float8Vector("groups", alloc)
-            val outCountVector = new Float8Vector("groupCounts", alloc)
+            val outCountVector = new IntVector("groupCounts", alloc)
 
             try {
               val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100, 100, 100, 100)

@@ -17,7 +17,7 @@ object GroupBy {
     groupingVector: Float8Vector,
     valuesVector: Float8Vector,
     outputGroupsVector: Float8Vector,
-    outputGroupsCountVector: Float8Vector,
+    outputGroupsCountVector: IntVector,
     outputValuesVector: Float8Vector
   ): Unit = {
 
@@ -35,7 +35,7 @@ object GroupBy {
         None ,
         Some(Float8VectorWrapper(outputValuesVector)),
         Some(Float8VectorWrapper(outputGroupsVector)),
-        Some(Float8VectorWrapper(outputGroupsCountVector))
+        Some(IntVectorWrapper(outputGroupsCountVector))
       )
     )
   }
