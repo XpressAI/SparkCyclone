@@ -25,34 +25,47 @@ object IpcTransfer extends LazyLogging {
     var hasMore = true
     val byteBuffer = ByteBuffer.allocate(4)
     byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-    var bytesRead = inputStream.read(buf)
-    if (bytesRead < 1) {
-      hasMore = false
+    logger.whenTraceEnabled {
+      logger.debug(s"Preparing to read input stream")
     }
-    while (hasMore) {
-      byteBuffer.position(0)
-      byteBuffer.putInt(bytesRead)
-      byteBuffer.position(0)
-      logger.whenTraceEnabled {
-        logger.trace(s"Writing ${bytesRead} bytes to client...")
-      }
-      outputStream.write(byteBuffer.array())
-      outputStream.write(buf, 0, bytesRead)
-      outputStream.flush()
-      bytesRead = inputStream.read(buf)
+    try {
+      var bytesRead = inputStream.read(buf)
       if (bytesRead < 1) {
         hasMore = false
       }
-    }
+      logger.whenTraceEnabled {
+        logger.debug(s"Read ${bytesRead} bytes (initially)")
+      }
+      while (hasMore) {
+        byteBuffer.position(0)
+        byteBuffer.putInt(bytesRead)
+        byteBuffer.position(0)
+        logger.whenTraceEnabled {
+          logger.trace(s"Writing ${bytesRead} bytes to client...")
+        }
+        outputStream.write(byteBuffer.array())
+        outputStream.write(buf, 0, bytesRead)
+        outputStream.flush()
+        bytesRead = inputStream.read(buf)
+        if (bytesRead < 1) {
+          hasMore = false
+        }
+        logger.whenTraceEnabled {
+          logger.trace(s"Read ${bytesRead} bytes.")
+        }
+      }
 
-    byteBuffer.position(0)
-    byteBuffer.putInt(0)
-    byteBuffer.position(0)
-    logger.trace("Ending stream")
-    outputStream.write(byteBuffer.array())
-    outputStream.flush()
-    outputStream.close()
-    logger.trace("Ended stream.")
+      byteBuffer.position(0)
+      byteBuffer.putInt(0)
+      byteBuffer.position(0)
+      logger.debug("Ending stream")
+      outputStream.write(byteBuffer.array())
+      outputStream.flush()
+      logger.debug("Ended stream.")
+    } finally {
+      outputStream.close()
+      inputStream.close()
+    }
   }
 
   def newServerSocket(socketName: String): ServerSocket =
