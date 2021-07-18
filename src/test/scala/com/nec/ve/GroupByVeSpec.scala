@@ -15,8 +15,7 @@ import org.apache.arrow.vector.IntVector
 import org.scalatest.freespec.AnyFreeSpec
 
 final class GroupByVeSpec extends AnyFreeSpec {
-  "We can group by column" ignore {
-    // TODO new failure for some reason
+  "We can group by column" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val oPath = VeKernelCompiler("avg", veBuildPath).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, GroupBy.GroupBySourceCode)
@@ -33,8 +32,8 @@ final class GroupByVeSpec extends AnyFreeSpec {
             val outCountVector = new IntVector("groupCounts", alloc)
             try {
 
-              val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
-              val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109)
+              val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100, 100, 100, 100)
+              val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109, 101, 102, 103)
 
               val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
               ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
@@ -46,24 +45,23 @@ final class GroupByVeSpec extends AnyFreeSpec {
                     outCountVector,
                     outValuesVector
                   )
-                  val counts = (0 until outCountVector.getValueCount)
-                    .map(i => outCountVector.get(i))
-                    .toList
 
-                  val values = counts.zipWithIndex.foldLeft((Seq.empty[Seq[Double]], 0L)) {
-                    case (state, (value, idx)) => {
-                      val totalCountSoFar = state._2
-                      val elemsSoFar = state._1
-                      val valz = (totalCountSoFar until totalCountSoFar + value).map(index =>
-                        outValuesVector.get(index.toInt)
-                      )
-                      (elemsSoFar :+ valz, totalCountSoFar + valz.size)
-                    }
+                  val groups = (0 to outGroupsVector.getValueCount - 1).map { i => outGroupsVector.get(i) }.toList
+                  val groupCounts = (0 to outCountVector.getValueCount - 1).map { i => outCountVector.get(i).toInt }.toList
+                  val values = (0 to outValuesVector.getValueCount - 1).map { i => outValuesVector.get(i) }.toList
+
+                  println("groups: " + groups.mkString(", "))
+                  println("groupCounts: " + groupCounts.mkString(", "))
+                  println("values: " + values.mkString(", "))
+
+                  var valueStart = 0
+                  var result = scala.collection.mutable.Map[Double, List[Double]]()
+                  groups.zipWithIndex.foreach { case (group, index) =>
+                    val groupValues = values.slice(valueStart, valueStart + groupCounts(index))
+                    valueStart += groupCounts(index)
+                    result(group) = groupValues
                   }
-                  val groupKeys =
-                    (0 until outGroupsVector.getValueCount).map(idx => outGroupsVector.get(idx))
 
-                  val result = groupKeys.zip(values._1).toMap
                   (result, groupJVM(groupingColumnVec, valuesColumnVec))
                 }
               }

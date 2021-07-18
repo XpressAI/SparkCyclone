@@ -4,15 +4,45 @@
 #include <vector>
 #include <iostream>
 
+template<typename T>
+void print_vec(std::string name, std::vector<T>& v) {
+    std::cout << name << ": ";
+    bool first = true;
+    for (auto x : v) {
+        if (!first) {
+            std::cout << ", ";
+        }
+        first = false;
+        std::cout << x;
+    }
+    std::cout << std::endl;
+}
+
+template<typename T>
+void print_arr(std::string name, T* v, size_t count) {
+    std::cout << name << ": ";
+    bool first = true;
+    for (int i = 0; i < count; i++) {
+        if (!first) {
+            std::cout << ", ";
+        }
+        first = false;
+        std::cout << v[i];
+    }
+    std::cout << std::endl;
+}
+
 extern "C" long group_by(non_null_double_vector* grouping_col,
                          non_null_double_vector* values_col,
                          non_null_double_vector* values,
                          non_null_double_vector* groups,
-                         non_null_int_vector* counts
-                         ) {
-
-    std::vector<double> grouping_vec(grouping_col -> data, grouping_col->data + grouping_col -> count);
+                         non_null_int_vector* counts)
+{
+    std::vector<double> grouping_vec(grouping_col->data, grouping_col->data + grouping_col->count);
     size_t count = grouping_col->count;
+
+   print_vec("grouping_vec", grouping_vec);
+
     std::vector<size_t> idx(count);
 
     #pragma _NEC vector
@@ -20,48 +50,61 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
         idx[i] = i;
     }
 
-     frovedis::radix_sort(grouping_vec, idx, grouping_vec.size());
+    print_vec("idx", idx);
 
-     values->data = (double *) malloc(grouping_vec.size() * sizeof(double));
-     values->count = grouping_vec.size();
+    frovedis::radix_sort(grouping_vec, idx, grouping_vec.size());
 
-     //Pre-allocate enough data so that we can return even if only unique ids are there
-     counts->data = (int *) malloc(values_col->count * sizeof(int));
-     groups->data = (double *) malloc(values_col->count * sizeof(double));
+    print_vec("After soft grouping_vec", grouping_vec);
+    print_vec("After sort idx", idx);
 
-     double last = grouping_vec[0];
-     int groups_count = 0;
-     int curr_group_size = 0;
+    // {0,0,2,3,4,4,4,5} -> {0,2,3,4,7,8}
+    std::vector<size_t> groups_indicies = frovedis::set_separate(grouping_vec);
+    size_t groups_count = groups_indicies.size();
 
-     for(size_t i = 0; i < count; i++) {
-        if(grouping_vec[i] == last) {
-           curr_group_size++;
-        } else {
-          groups->data[groups_count] = last;
-          counts->data[groups_count] = curr_group_size;
-          curr_group_size = 1;
-          last = grouping_vec[i];
-          groups_count++;
-        }
-        values->data[i] = values_col->data[idx[i]];
-     }
+    double *values_data = (double *) malloc(grouping_vec.size() * sizeof(double));
+    int *counts_data = (int *) malloc((groups_count - 1) * sizeof(int));
+    double *groups_data = (double *) malloc((groups_count - 1) * sizeof(double));
 
-     groups->data[groups_count] = last;
-     counts->data[groups_count] = curr_group_size;
-     groups_count++;
-     groups->count =  groups_count;
-     counts->count = groups_count;
+    #pragma _NEC novector
+    for (size_t i = 0; i < groups_count - 1; i++) {
+        size_t idx_1 = groups_indicies[i];
+        size_t idx_2 = groups_indicies[i + 1];
+        size_t count = idx_2 - idx_1;
+        counts_data[i] = count;
+    }
 
-     return 0;
+    #pragma _NEC vector
+    for (size_t i = 0; i < groups_count - 1; i++) {
+        groups_data[i] = grouping_vec[groups_indicies[i]];
+    }
+
+    #pragma _NEC vector
+    for (size_t i = 0; i < grouping_vec.size(); i++) {
+        values_data[i] = values_col->data[idx[i]];
+    }
+
+
+    groups->data = groups_data;
+    groups->count =  groups_count - 1;
+    print_arr("groups", groups->data, groups->count);
+
+    counts->data = counts_data;
+    counts->count = groups_count - 1;
+    print_arr("counts", counts->data, counts->count);
+
+    values->data = values_data;
+    values->count = grouping_vec.size();
+    print_arr("values", values->data, values->count);
+
+    return 0;
 }
 
 extern "C" long group_by_sum(non_null_double_vector* grouping_col,
-                         non_null_double_vector* values_col,
-                         non_null_double_vector* values,
-                         non_null_double_vector* groups
-                         ) {
-
-     std::vector<double> grouping_vec(grouping_col -> data, grouping_col->data + grouping_col -> count);
+                            non_null_double_vector* values_col,
+                            non_null_double_vector* values,
+                            non_null_double_vector* groups)
+{
+     std::vector<double> grouping_vec(grouping_col->data, grouping_col->data + grouping_col->count);
      size_t count = grouping_col->count;
 
      std::vector<size_t> idx(count);
@@ -70,31 +113,44 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
        idx[i] = i;
      }
      frovedis::radix_sort(grouping_vec, idx, grouping_vec.size());
+    // {0,0,2,3,4,4,4,5} -> {0,2,3,4,7,8}
+    std::vector<size_t> groups_indicies = frovedis::set_separate(grouping_vec);
+    size_t groups_count = groups_indicies.size();
 
-     values->data = (double *) malloc(grouping_vec.size() * sizeof(double));
-     values->count = grouping_vec.size();
-     //Pre-allocate enough data so that we can return even if only unique ids are there
-     groups->data = (double *) malloc(values_col->count * sizeof(double));
+    double *values_data = (double *) malloc(grouping_vec.size() * sizeof(double));
+    int *counts_data = (int *) malloc((groups_count - 1) * sizeof(int));
+    double *groups_data = (double *) malloc((groups_count - 1) * sizeof(double));
 
-     double last = grouping_vec[0];
-     double curr_sum = 0.0;
-     int groups_count = 0;
-     for(size_t i = 0; i < grouping_vec.size(); i++) {
-        if(grouping_vec[i] == last) {
-          curr_sum += values_col->data[idx[i]];
-        } else {
-          groups->data[groups_count] = last;
-          values->data[groups_count] = curr_sum;
-          last = grouping_vec[i];
-          groups_count++;
-          curr_sum = values_col->data[idx[i]];
+    #pragma _NEC vector
+    for (size_t i = 0; i < groups_count - 1; i++) {
+        size_t idx_1 = groups_indicies[i];
+        size_t idx_2 = groups_indicies[i + 1];
+        size_t count = idx_2 - idx_1;
+        counts_data[i] = count;
+    }
+
+    #pragma _NEC vector
+    for (size_t i = 0; i < groups_count - 1; i++) {
+        groups_data[i] = grouping_vec[groups_indicies[i]];
+    }
+
+    for (size_t i = 0; i < groups_count - 1; i++) {
+        size_t start = groups_indicies[i];
+        size_t end = groups_indicies[i + 1];
+        double sum = 0;
+
+        #pragma _NEC vector
+        for (size_t j = start; j < end; j++) {
+            sum += values_col->data[idx[j]];
         }
-     }
-     groups->data[groups_count] = last;
-     values->data[groups_count] = curr_sum;
-     groups_count++;
-     groups->count = groups_count;
-     values->count = groups_count;
+        values_data[i] = sum;
+    }
+
+    groups->data = groups_data;
+    groups->count =  groups_count - 1;
+
+    values->data = values_data;
+    values->count = groups_count - 1;
 
      return 0;
 }

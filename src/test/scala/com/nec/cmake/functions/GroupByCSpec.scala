@@ -53,7 +53,7 @@ final class GroupByCSpec extends AnyFreeSpec {
             case (state, (value, idx)) => {
               val totalCountSoFar = state._2
               val elemsSoFar = state._1
-              val valz = (totalCountSoFar until totalCountSoFar + value).map(index =>
+              val valz = (totalCountSoFar until (totalCountSoFar + value).toInt).map(index =>
                 outValuesVector.get(index.toInt)
               )
               (elemsSoFar :+ valz, totalCountSoFar + valz.size)
