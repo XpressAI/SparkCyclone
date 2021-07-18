@@ -20,7 +20,7 @@ object IpcTransfer extends LazyLogging {
     inputStream: InputStream,
     outputStream: OutputStream,
     bufSize: Int
-  ): Unit = {
+  ): Int = {
     val buf = Array.ofDim[Byte](bufSize)
     var hasMore = true
     val byteBuffer = ByteBuffer.allocate(4)
@@ -28,6 +28,7 @@ object IpcTransfer extends LazyLogging {
     logger.whenTraceEnabled {
       logger.debug(s"Preparing to read input stream")
     }
+    var totalTransferred = 0
     try {
       var bytesRead = inputStream.read(buf)
       if (bytesRead < 1) {
@@ -37,6 +38,7 @@ object IpcTransfer extends LazyLogging {
         logger.debug(s"Read ${bytesRead} bytes (initially)")
       }
       while (hasMore) {
+        totalTransferred += bytesRead
         byteBuffer.position(0)
         byteBuffer.putInt(bytesRead)
         byteBuffer.position(0)
@@ -62,6 +64,7 @@ object IpcTransfer extends LazyLogging {
       outputStream.write(byteBuffer.array())
       outputStream.flush()
       logger.debug("Ended stream.")
+      totalTransferred
     } finally {
       outputStream.close()
       inputStream.close()
@@ -82,10 +85,10 @@ object IpcTransfer extends LazyLogging {
       val sockie = serverSocket.accept()
       logger.debug(s"Got a client connection! ${sockie}; beginning transfer")
       val startTime = System.currentTimeMillis()
-      try inputStreamToOutputStream(inputStream, sockie.getOutputStream, bufSize)
+      val totalTransferred = try inputStreamToOutputStream(inputStream, sockie.getOutputStream, bufSize)
       finally sockie.close()
       val endTime = System.currentTimeMillis()
-      logger.debug(s"Transfer out time = ${endTime - startTime}ms")
+      logger.debug(s"Transfer out time = ${endTime - startTime}ms, total was ${totalTransferred} bytes (${totalTransferred / (endTime - startTime)}K/s)")
     }
 
     (socketName, serverSocket)

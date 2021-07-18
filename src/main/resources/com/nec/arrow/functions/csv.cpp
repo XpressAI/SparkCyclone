@@ -12,6 +12,7 @@
 #include "parsefloat.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
+#define DEBUG 1
 #include "unix-read.cpp"
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,

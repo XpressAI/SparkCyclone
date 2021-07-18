@@ -92,7 +92,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
   }
 
   "We can write and read back a .csv collection via Hadoop (2-column) via UNIX pipes" in withSparkSession2(
-    identity
+    _.config("spark.com.nec.native-csv-ipc", value = true)
   ) { sparkSession =>
     info(
       "This shows that we can read these files from hdfs, and then should be able to read them as a whole and push to the VE."
