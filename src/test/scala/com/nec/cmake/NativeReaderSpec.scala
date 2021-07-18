@@ -33,10 +33,6 @@ import org.scalatest.Informing
 
 import java.io.ByteArrayInputStream
 import java.io.InputStream
-import java.io.OutputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import scala.concurrent.duration.DurationInt
 
 object NativeReaderSpec {
   val isWin: Boolean = System.getProperty("os.name", "").toLowerCase.startsWith("win")
@@ -54,100 +50,23 @@ object NativeReaderSpec {
   ): String = {
     val res = nativeEvaluator
       .forCode("""#include "unix-read.cpp"""")
-    println("Compiled.")
-    val socketName =
-      if (NativeReaderSpec.isWin) "\\\\.\\pipe\\tpipe"
-      else s"/tmp/test-sock-${scala.util.Random.nextInt()}"
-    val serverSocket = newServerSocket(socketName)
-    val serverRespond = IO
-      .blocking {
-        println("Waiting for a connection...")
-        val sockie = serverSocket.accept()
-        println(s"Got a client connection! ${sockie}")
-        try {
-          val byteBuffer = ByteBuffer.allocate(4)
-          inputList.foreach { str =>
-            byteBuffer.position(0)
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-            byteBuffer.putInt(str.length)
-            byteBuffer.position(0)
-            println("Writing to client...")
-            sockie.getOutputStream.write(byteBuffer.array())
-            sockie.getOutputStream.write(str.getBytes())
-            sockie.getOutputStream.flush()
-          }
-          byteBuffer.position(0)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          byteBuffer.putInt(0)
-          byteBuffer.position(0)
-          sockie.getOutputStream.write(byteBuffer.array())
-          sockie.getOutputStream.close()
-          println("Ended writing to client.")
-        } finally sockie.close()
-      }
-      .timeout(15.seconds)
-
-    val (x, y) = serverRespond.background.allocated.unsafeRunSync()
-
-    println("HERE got here..")
-
+    val inputStream = new ByteArrayInputStream(inputList.mkString.getBytes())
+    val bufSize = 4
+    val (socketName, serverSocket) = transferIPC(inputStream, bufSize)
+    val allocator = new RootAllocator(Integer.MAX_VALUE)
+    val vcv = new VarCharVector("test", allocator)
     try {
-      val allocator = new RootAllocator(Integer.MAX_VALUE)
-      val vcv = new VarCharVector("test", allocator)
-      try {
-        println("Calling...")
-        res
-          .callFunction(
-            "read_fully_2",
-            List(Some(StringWrapper(socketName)), None),
-            List(None, Some(VarCharVectorWrapper(vcv)))
-          )
-        println("ENded calling...")
-        new String(vcv.get(0))
-      } finally {
-        vcv.close()
-        serverSocket.close()
-      }
+      res
+        .callFunction(
+          "read_fully_2",
+          List(Some(StringWrapper(socketName)), None),
+          List(None, Some(VarCharVectorWrapper(vcv)))
+        )
+      new String(vcv.get(0))
     } finally {
-      y.unsafeRunSync()
+      vcv.close()
+      serverSocket.close()
     }
-  }
-
-  def inputStreamToOutputStream(
-    inputStream: InputStream,
-    outputStream: OutputStream,
-    bufSize: Int
-  ): Unit = {
-    val buf = Array.ofDim[Byte](bufSize)
-    var hasMore = true
-    val byteBuffer = ByteBuffer.allocate(4)
-    byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-    var bytesRead = inputStream.read(buf)
-    if (bytesRead < 1) {
-      hasMore = false
-    }
-    while (hasMore) {
-      byteBuffer.position(0)
-      byteBuffer.putInt(bytesRead)
-      byteBuffer.position(0)
-      println("Writing to client...")
-      outputStream.write(byteBuffer.array())
-      outputStream.write(buf, 0, bytesRead)
-      outputStream.flush()
-      bytesRead = inputStream.read(buf)
-      if (bytesRead < 1) {
-        hasMore = false
-      }
-    }
-
-    byteBuffer.position(0)
-    byteBuffer.putInt(0)
-    byteBuffer.position(0)
-    println("Writing to client...")
-    outputStream.write(byteBuffer.array())
-    outputStream.flush()
-    outputStream.close()
-    println("Ended writing to client.")
   }
 
   def dataISunixSocketToNativeToArrow(
@@ -155,22 +74,17 @@ object NativeReaderSpec {
     inputStream: InputStream,
     bufSize: Int
   ): String = {
-    println("Compiled.")
     val (socketName, serverSocket) = transferIPC(inputStream, bufSize)
-
-    println("HERE got here..")
 
     val allocator = new RootAllocator(Integer.MAX_VALUE)
     val vcv = new VarCharVector("test", allocator)
     try {
-      println("Calling...")
       res
         .callFunction(
           "read_fully_2",
           List(Some(StringWrapper(socketName)), None),
           List(None, Some(VarCharVectorWrapper(vcv)))
         )
-      println("ENded calling...")
       new String(vcv.get(0))
     } finally {
       vcv.close()

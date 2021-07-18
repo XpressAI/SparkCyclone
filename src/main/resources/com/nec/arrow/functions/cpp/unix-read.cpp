@@ -37,7 +37,9 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
 
     serverAddr.sun_family = AF_UNIX;
     strncpy(serverAddr.sun_path, input_sock_name->data, input_sock_name->length);
-    std::cout << "A, will read file" << serverAddr.sun_path << "\n" << std::flush;
+#ifdef DEBUG
+    std::cout << "Will via IPC: " << serverAddr.sun_path << "\n" << std::flush;
+#endif
 	if( connect(clientFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1 )
 	{
 		printf("Client: Error on connect call \n");
@@ -51,7 +53,9 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     stream = open_memstream (&bp, &size);
     char c;
     while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
-        std::cout << "Received " << sizeAvailable << std::flush;
+#ifdef DEBUG
+        std::cout << "From '" << serveraddr.sun_path << "' received " << sizeAvailable << " bytes" << std::flush;
+#endif
         if ( sizeAvailable != 0 ) {
             for ( int i = 0; i < sizeAvailable; i++ ) {
                 // I'm aware this is not ideal :-F

@@ -33,7 +33,9 @@ object IpcTransfer extends LazyLogging {
       byteBuffer.position(0)
       byteBuffer.putInt(bytesRead)
       byteBuffer.position(0)
-      println("Writing to client...")
+      logger.whenTraceEnabled {
+        logger.trace(s"Writing ${bytesRead} bytes to client...")
+      }
       outputStream.write(byteBuffer.array())
       outputStream.write(buf, 0, bytesRead)
       outputStream.flush()
@@ -46,11 +48,11 @@ object IpcTransfer extends LazyLogging {
     byteBuffer.position(0)
     byteBuffer.putInt(0)
     byteBuffer.position(0)
-    println("Writing to client...")
+    logger.trace("Ending stream")
     outputStream.write(byteBuffer.array())
     outputStream.flush()
     outputStream.close()
-    println("Ended writing to client.")
+    logger.trace("Ended stream.")
   }
 
   def newServerSocket(socketName: String): ServerSocket =
