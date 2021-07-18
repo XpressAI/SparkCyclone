@@ -94,7 +94,7 @@ object ArrowInterfaces {
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,
       intVector.getDataBufferAddress,
-      input.size()
+      input.count * 4
     )
   }
 

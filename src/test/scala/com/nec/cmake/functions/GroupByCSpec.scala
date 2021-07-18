@@ -11,13 +11,14 @@ import com.nec.arrow.functions.GroupBy._
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
+import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
+import com.nec.cmake.functions.ParseCSVSpec.RichIntVector
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
 final class GroupByCSpec extends AnyFreeSpec {
 
-  // TODO new failure for some reason
-  "Through Arrow, it works" ignore {
+  "Through Arrow, it works" in {
     val veBuildPath = Paths.get("target", "c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
 
@@ -49,14 +50,13 @@ final class GroupByCSpec extends AnyFreeSpec {
             .toList
 
           val values = counts.zipWithIndex.foldLeft((Seq.empty[Seq[Double]], 0L)) {
-            case (state, (value, idx)) => {
+            case (state, (value, idx)) =>
               val totalCountSoFar = state._2
               val elemsSoFar = state._1
               val valz = (totalCountSoFar until (totalCountSoFar + value).toInt).map(index =>
                 outValuesVector.get(index.toInt)
               )
               (elemsSoFar :+ valz, totalCountSoFar + valz.size)
-            }
           }
           val groupKeys =
             (0 until outGroupsVector.getValueCount).map(idx => outGroupsVector.get(idx))
