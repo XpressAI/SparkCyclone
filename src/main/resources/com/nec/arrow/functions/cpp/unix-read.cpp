@@ -60,7 +60,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     char c[BUF_SIZE];
     while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
 #ifdef DEBUG
-        std::cout << "From '" << serveraddr.sun_path << "' received " << sizeAvailable << " bytes\n" << std::flush;
+        std::cout << "From '" << serverAddr.sun_path << "' received " << sizeAvailable << " bytes\n" << std::flush;
 #endif
         // note we don't yet support receiving in sizeAvailable more than is in BUF_SIZE
         if ( sizeAvailable > 0 ) {
