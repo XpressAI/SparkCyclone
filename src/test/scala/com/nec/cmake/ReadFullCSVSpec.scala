@@ -132,8 +132,9 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
 
   "Execute a read of files via SQL, to see what plans it gives us" in withSparkSession2(
     _.config(CODEGEN_FALLBACK.key, value = false)
+      .config("spark.com.nec.native-csv-ipc", value = true)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession => new NativeCsvStrategy(CNativeEvaluator))
+        sse.injectPlannerStrategy(sparkSession => NativeCsvStrategy(CNativeEvaluator))
       )
   ) { sparkSession =>
     import sparkSession.implicits._
@@ -145,6 +146,15 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
         StructField("c", DoubleType)
       )
     )
+    List[SampleRow](SampleRow(1, 2, 3), SampleRow(4, 5, 6), SampleRow(5, 4, 3), SampleRow(2, 1, -1))
+      .toDF()
+      .repartition(numPartitions = 3)
+      .write
+      .format("csv")
+      .option("header", "true")
+      .mode("overwrite")
+      .option("compression", "gzip")
+      .save(samplePartedCsv)
 
     val sumDs = sparkSession.sqlContext.read
       .schema(schema)
