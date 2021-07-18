@@ -28,8 +28,12 @@ lazy val `fun-bench` = project
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
-      "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
-      "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve"
+      "org.slf4j" % "log4j-over-slf4j" % "1.7.25",
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "co.fs2" %% "fs2-io" % "3.0.6",
+      "io.circe" %% "circe-literal" % "0.14.1",
+      "io.circe" %% "circe-generic" % "0.14.1",
+      "io.circe" %% "circe-parser" % "0.14.1"
     ),
     name := "funbench",
     Jmh / run := (Jmh / run).dependsOn((Test / test)).evaluated,
@@ -38,7 +42,11 @@ lazy val `fun-bench` = project
     Test / test :=
       Def.taskDyn {
         val basicTests = Def
-          .sequential((root / Test / testQuick).toTask(""), (root / CMake / testQuick).toTask(""))
+          .sequential(
+            (ThisProject / Test / testQuick).toTask(""),
+            (root / Test / testQuick).toTask(""),
+            (root / CMake / testQuick).toTask("")
+          )
         val testsWithVe = Def.sequential(basicTests, (root / VectorEngine / testQuick).toTask(""))
         val doSkipTests = (Test / skip).value
         val isOnVe = sys.env.contains("NLC_LIB_I64")
