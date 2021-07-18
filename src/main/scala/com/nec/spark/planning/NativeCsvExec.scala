@@ -13,6 +13,7 @@ import com.nec.arrow.functions.CsvParse
 import com.nec.native.IpcTransfer
 import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.NativeCsvExec.SkipStringsKey
+import com.nec.spark.planning.NativeCsvExec.UseIpc
 import com.nec.spark.planning.NativeCsvExec.transformPortableDataStream
 import com.nec.spark.planning.NativeCsvExec.transformRawTextFile
 import com.typesafe.scalalogging.LazyLogging
@@ -58,6 +59,7 @@ object NativeCsvExec {
   }
 
   val SkipStringsKey = "spark.com.nec.native-csv-skip-strings"
+  val UseIpc = "spark.com.nec.native-csv-ipc"
 
   def transformRawTextFile(
     numColumns: Int,
@@ -149,12 +151,16 @@ case class NativeCsvExec(
   )
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    if (sparkContext.getConf.getBoolean(key = SkipStringsKey, defaultValue = true)) {
-      if (!scala.util.Properties.isWin)
-        doExecuteColumnarIPC()
-      else
-        doExecuteColumnarByteArray()
-    } else
+    if (
+      sparkContext.getConf.getBoolean(
+        key = UseIpc,
+        defaultValue = true
+      ) && !scala.util.Properties.isWin
+    )
+      doExecuteColumnarIPC()
+    else if (sparkContext.getConf.getBoolean(key = SkipStringsKey, defaultValue = true))
+      doExecuteColumnarByteArray()
+    else
       doExecuteColumnarString()
   }
 

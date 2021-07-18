@@ -81,6 +81,11 @@ To use the native CSV parser (default is 'off'):
 --conf spark.com.nec.native-csv=VE
 ```
 
+To skip using IPC for parsing CSV:
+```
+--conf spark.com.nec.native-csv-ipc=false
+```
+
 To use String allocation as opposed to ByteArray optimization in `NativeCsvExec`, use: 
 
 ```
