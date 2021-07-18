@@ -41,7 +41,7 @@ final class NativeVeCsvExecSpec
       new VectorEngineNativeEvaluator(proc, ctx, compiler).forCode(CsvParse.CsvParseCode)
     val is = new ByteArrayInputStream("a,b,c\n1,2,3\n4.1,5,6\n".getBytes())
     val colBatch =
-      transformInputStream(3, evaluator, "test-file", is)(logger)
+      transformInputStream(3, 3, evaluator, "test-file", is)(logger)
 
     val allItems = (0 until colBatch.numRows()).map { rowNum =>
       (

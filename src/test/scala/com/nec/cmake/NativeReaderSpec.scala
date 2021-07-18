@@ -3,6 +3,7 @@ package com.nec.cmake
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.eed3si9n.expecty.Expecty.expect
+import com.google.common.io.ByteStreams
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.VarCharVectorWrapper
@@ -15,10 +16,11 @@ import com.nec.native.IpcTransfer.transferIPC
 import com.nec.native.NativeEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.NativeCsvExec.maybeDecodePds
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VarCharVector
 import org.apache.arrow.vector.util.Text
-import org.apache.spark.WholeTextFileNativeRDD.RichSparkContext
+import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.net.ServerSocket
@@ -130,18 +132,24 @@ final class NativeReaderSpec
     }
   }
 
-  "We can transfer Hadoop data to the native app" ignore withSparkSession2(identity) {
-
-    /** Not yet implemented properly - this tests fails */
-
+  "We can transfer Hadoop data to the native app" in withSparkSession2(identity) {
     sparkSession =>
-      val listOfPairs = sparkSession.sparkContext
-        .wholeNativeTextFiles(samplePartedCsv)
-        .collect()
-        .toList
-        .map { case (name, ver) =>
-          name -> new String(ver.getRawData)
-        }
+      val listOfPairs =
+        sparkSession.sparkContext
+          .binaryFiles(samplePartedCsv)
+          .collect()
+          .toList
+          .map { case (name, pds) =>
+            name -> new String(
+              ByteStreams.toByteArray(
+                maybeDecodePds(
+                  name,
+                  SparkSession.getActiveSession.orNull.sparkContext.hadoopConfiguration,
+                  pds
+                )
+              )
+            )
+          }
 
       expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
   }

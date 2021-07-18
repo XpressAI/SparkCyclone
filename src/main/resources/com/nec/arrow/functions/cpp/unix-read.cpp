@@ -69,10 +69,10 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     }
     close(clientFd);
     fflush(stream);
-    output_data->data = bp ;
+    fclose(stream);
+    output_data->data = bp;
     output_data->offsets[1] = size;
     output_data->size = size;
-    fclose(stream);
     return 0;
 }
 

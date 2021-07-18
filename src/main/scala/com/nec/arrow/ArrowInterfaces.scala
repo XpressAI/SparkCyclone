@@ -115,6 +115,9 @@ object ArrowInterfaces {
     input: non_null_double_vector,
     float8Vector: Float8Vector
   ): Unit = {
+    if (input.count == 0xffffffff) {
+      sys.error(s"Returned count was infinite; input ${input}")
+    }
     float8Vector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
     SummingPlanOffHeap.getUnsafe.copyMemory(
@@ -124,10 +127,7 @@ object ArrowInterfaces {
     )
   }
 
-  def non_null_int2_vector_to_IntVector(
-    input: non_null_int2_vector,
-    intVector: IntVector
-  ): Unit = {
+  def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {
     intVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
     SummingPlanOffHeap.getUnsafe.copyMemory(

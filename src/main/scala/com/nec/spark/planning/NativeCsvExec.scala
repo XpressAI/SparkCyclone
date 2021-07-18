@@ -14,13 +14,18 @@ import com.nec.native.IpcTransfer
 import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.NativeCsvExec.SkipStringsKey
 import com.nec.spark.planning.NativeCsvExec.UseIpc
-import com.nec.spark.planning.NativeCsvExec.transformPortableDataStream
+import com.nec.spark.planning.NativeCsvExec.transformLazyDataStream
 import com.nec.spark.planning.NativeCsvExec.transformRawTextFile
 import com.typesafe.scalalogging.LazyLogging
 import com.typesafe.scalalogging.Logger
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.Text
+import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.spark.SparkContext
 import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
 import org.apache.spark.input.PortableDataStream
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.planning.ScanOperation
@@ -30,6 +35,7 @@ import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 
+import java.io.DataInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
 
@@ -39,7 +45,7 @@ object NativeCsvExec {
       ScanOperation
         .unapply(plan)
         .collect {
-          case (a, b, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
+          case i @ (a, b, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
               if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
             NativeCsvExec(
               hadoopRelation = rel,
@@ -49,7 +55,7 @@ object NativeCsvExec {
         }
         .orElse {
           PartialFunction.condOpt(plan) {
-            case LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
+            case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
                 if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
               NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator)
           }
@@ -63,6 +69,7 @@ object NativeCsvExec {
 
   def transformRawTextFile(
     numColumns: Int,
+    outCols: Int,
     evaluator: ArrowNativeInterfaceNumeric,
     name: String,
     text: Text
@@ -94,6 +101,7 @@ object NativeCsvExec {
 
   def transformInputStream(
     numColumns: Int,
+    outCols: Int,
     evaluator: ArrowNativeInterfaceNumeric,
     name: String,
     inputStream: InputStream
@@ -117,25 +125,50 @@ object NativeCsvExec {
     finally serverSocket.close()
     val millis = System.currentTimeMillis() - startTime
     logger.debug(s"Took ${millis} ms to process CSV: ${name}")
+    // need to dealloc() the ignored columns here
+    println(outColumns)
     new ColumnarBatch(
       outColumns.map(col => new ArrowColumnVector(col)).toArray,
       outColumns.head.getValueCount
     )
   }
 
-  def transformPortableDataStream(
+  def maybeDecodePds(
+    name: String,
+    hadoopConfiguration: Configuration,
+    portableDataStream: PortableDataStream
+  ): InputStream = {
+    val original = portableDataStream.open()
+    val theCodec =
+      new CompressionCodecFactory(hadoopConfiguration).getCodec(new Path(name))
+    if (theCodec != null) new DataInputStream(theCodec.createInputStream(original))
+    else original
+  }
+
+  def transformLazyDataStream(
     numColumns: Int,
+    outCols: Int,
     evaluator: ArrowNativeInterfaceNumeric,
     name: String,
-    portableDataStream: PortableDataStream
+    portableDataStream: PortableDataStream,
+    hadoopConfiguration: Configuration
   )(implicit logger: Logger): ColumnarBatch = {
     logger.debug("Will use portable data stream transfer...")
     val startTime = System.currentTimeMillis()
-    val columnarBatch = transformInputStream(numColumns, evaluator, name, portableDataStream.open())
+
+    val columnarBatch =
+      transformInputStream(
+        numColumns,
+        outCols,
+        evaluator,
+        name,
+        maybeDecodePds(name, hadoopConfiguration, portableDataStream)
+      )
     val endTime = System.currentTimeMillis()
     logger.debug(s"Took ${endTime - startTime}ms")
     columnarBatch
   }
+
 }
 
 case class NativeCsvExec(
@@ -152,6 +185,9 @@ case class NativeCsvExec(
     "Source here is only columnar"
   )
 
+  val numColumns = hadoopRelation.schema.length
+  val outCols = output.length
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     if (
       sparkContext.getConf.getBoolean(
@@ -167,24 +203,31 @@ case class NativeCsvExec(
   }
 
   protected def doExecuteColumnarIPC(): RDD[ColumnarBatch] = {
-    val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
-    sparkContext.binaryFiles(imfi.rootPaths.head.toString).map { case (name, pds) =>
-      transformPortableDataStream(numColumns, evaluator, name, pds)(logger)
-    }
+    sparkContext
+      .binaryFiles(imfi.rootPaths.head.toString)
+      .map { case (name, pds) =>
+        transformLazyDataStream(
+          numColumns,
+          outCols,
+          evaluator,
+          name,
+          pds,
+          SparkContext.getOrCreate().hadoopConfiguration
+        )(logger)
+      }
   }
+
   protected def doExecuteColumnarByteArray(): RDD[ColumnarBatch] = {
-    val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
     sparkContext.wholeRawTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>
-      transformRawTextFile(numColumns, evaluator, name, text)(logger)
+      transformRawTextFile(numColumns, outCols, evaluator, name, text)(logger)
     }
   }
 
   protected def doExecuteColumnarString(): RDD[ColumnarBatch] = {
-    val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
     sparkContext.wholeTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>

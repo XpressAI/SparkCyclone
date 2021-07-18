@@ -6,6 +6,7 @@ import com.nec.arrow.ArrowInterfaces._
 import com.sun.jna.Library
 import com.nec.arrow.ArrowNativeInterfaceNumeric._
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
+import com.typesafe.scalalogging.LazyLogging
 
 final class CArrowNativeInterfaceNumeric(libPath: String) extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
@@ -20,7 +21,7 @@ final class CArrowNativeInterfaceNumeric(libPath: String) extends ArrowNativeInt
   )
 }
 
-object CArrowNativeInterfaceNumeric {
+object CArrowNativeInterfaceNumeric extends LazyLogging {
 
   private def executeC(
     libPath: String,
@@ -33,6 +34,7 @@ object CArrowNativeInterfaceNumeric {
       new Library.Handler(libPath, classOf[Library], Map.empty[String, Any].asJava)
     val nl = nativeLibraryHandler.getNativeLibrary
     val fn = nl.getFunction(functionName)
+    logger.debug(s"Inputs are = ${inputArguments}, outputs are = ${outputArguments}")
 
     val outputStructs = outputArguments.map(_.map {
       case Float8VectorWrapper(doubleVector) =>
@@ -63,7 +65,11 @@ object CArrowNativeInterfaceNumeric {
       }
       .toArray
 
+    logger.debug(s"Invoke args are => ${invokeArgs.mkString(", ")}")
+
     fn.invokeLong(invokeArgs)
+
+    logger.debug(s"Result of invoke args => ${invokeArgs.mkString(", ")}")
 
     outputStructs.zip(outputArguments).foreach {
       case (Some(struct), Some(Float8VectorWrapper(vec))) =>

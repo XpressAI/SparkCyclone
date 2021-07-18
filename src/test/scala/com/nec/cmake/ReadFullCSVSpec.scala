@@ -130,7 +130,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
     expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("52.0,6.0")))
   }
 
-  "Execute a read of files via SQL, to see what plans it gives us" in withSparkSession2(
+  "Execute a read of files via SQL, to see what plans it gives us when going through Native" in withSparkSession2(
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.com.nec.native-csv-ipc", value = true)
       .withExtensions(sse =>

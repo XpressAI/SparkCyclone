@@ -20,6 +20,7 @@ final class NativeCsvExecSpec
   "Transform a Text into a columnar batch" ignore {
     val colBatch = transformRawTextFile(
       3,
+      3,
       CNativeEvaluator.forCode(CsvParse.CsvParseCode),
       "test-file",
       new Text("a,b,c\n1,2,3\n4.1,5,6\n")
@@ -39,7 +40,7 @@ final class NativeCsvExecSpec
   "Transform this input stream thing into a columnar batch" in {
     val is = new ByteArrayInputStream("a,b,c\n1,2,3\n4.1,5,6\n".getBytes())
     val colBatch =
-      transformInputStream(3, CNativeEvaluator.forCode(CsvParse.CsvParseCode), "test-file", is)(
+      transformInputStream(3, 3, CNativeEvaluator.forCode(CsvParse.CsvParseCode), "test-file", is)(
         logger
       )
 
