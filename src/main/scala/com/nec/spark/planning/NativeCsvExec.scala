@@ -126,7 +126,6 @@ object NativeCsvExec {
     val millis = System.currentTimeMillis() - startTime
     logger.debug(s"Took ${millis} ms to process CSV: ${name}")
     // need to dealloc() the ignored columns here
-    println(outColumns)
     new ColumnarBatch(
       outColumns.map(col => new ArrowColumnVector(col)).toArray,
       outColumns.head.getValueCount
