@@ -53,6 +53,9 @@ ${CppResources.All.all
         .mkString("\n")}
 
 add_library(aurora4spark SHARED aurora4spark.cpp)
+if(WIN32)
+  target_link_libraries(aurora4spark wsock32 ws2_32)
+endif()
 """
 
     val tgtCl = targetDir.resolve("CMakeLists.txt")
