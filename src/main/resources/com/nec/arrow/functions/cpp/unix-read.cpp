@@ -44,13 +44,13 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
 		return 1;
 	}
 
-    int sizeAvailable = -1;
+    int sizeAvailable = 1;
     size_t size;
     FILE *stream;
     char* bp;
     stream = open_memstream (&bp, &size);
     char c;
-    while (sizeAvailable != 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
+    while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
         std::cout << "Received " << sizeAvailable << std::flush;
         if ( sizeAvailable != 0 ) {
             for ( int i = 0; i < sizeAvailable; i++ ) {

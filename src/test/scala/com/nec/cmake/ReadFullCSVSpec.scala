@@ -79,9 +79,11 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
       .option("header", "true")
       .mode("overwrite")
       .save(samplePartedCsv2)
-
     val listOfPairs = sparkSession.sparkContext
-      .wholeTextFiles(samplePartedCsv2)
+      .binaryFiles(samplePartedCsv2)
+      .map { case (name, pds) =>
+        name -> new String(pds.toArray())
+      }
       .collect()
       .toList
 
