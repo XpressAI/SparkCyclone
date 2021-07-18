@@ -103,6 +103,7 @@ object NativeCsvExec {
       new Float8Vector(s"out_${idx}", allocator)
     }.toList
     val startTime = System.currentTimeMillis()
+    logger.debug(s"Beginning transfer process..")
 
     val bufSize = 4 * 1024
     val (socketPath, serverSocket) = IpcTransfer.transferIPC(inputStream, bufSize)
@@ -114,7 +115,7 @@ object NativeCsvExec {
     )
     finally serverSocket.close()
     val millis = System.currentTimeMillis() - startTime
-    logger.info(s"Took ${millis} ms to process CSV: ${name}")
+    logger.debug(s"Took ${millis} ms to process CSV: ${name}")
     new ColumnarBatch(
       outColumns.map(col => new ArrowColumnVector(col)).toArray,
       outColumns.head.getValueCount

@@ -60,6 +60,7 @@ object IpcTransfer extends LazyLogging {
 
   def transferIPC(inputStream: InputStream, bufSize: Int): (String, ServerSocket) = {
     val socketName = s"/tmp/test-sock-${scala.util.Random.nextInt()}"
+    logger.debug("Launching IPC server socket...")
     val serverSocket = newServerSocket(socketName)
     val serverRespond = Future.apply {
       logger.debug("Waiting for a connection...")
