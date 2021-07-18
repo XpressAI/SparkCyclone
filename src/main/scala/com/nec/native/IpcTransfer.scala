@@ -9,6 +9,8 @@ import org.scalasbt.ipcsocket.UnixDomainSocket
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -21,6 +23,8 @@ object IpcTransfer extends LazyLogging {
   ): Int = {
     val buf = Array.ofDim[Byte](bufSize)
     var hasMore = true
+    val byteBuffer = ByteBuffer.allocate(4)
+    byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
     logger.whenTraceEnabled {
       logger.debug(s"Preparing to read input stream")
     }
@@ -35,9 +39,13 @@ object IpcTransfer extends LazyLogging {
       }
       while (hasMore) {
         totalTransferred += bytesRead
+        byteBuffer.position(0)
+        byteBuffer.putInt(bytesRead)
+        byteBuffer.position(0)
         logger.whenTraceEnabled {
           logger.trace(s"Writing ${bytesRead} bytes to client...")
         }
+        outputStream.write(byteBuffer.array())
         outputStream.write(buf, 0, bytesRead)
         outputStream.flush()
         bytesRead = inputStream.read(buf)
@@ -48,6 +56,12 @@ object IpcTransfer extends LazyLogging {
           logger.trace(s"Read ${bytesRead} bytes.")
         }
       }
+
+      byteBuffer.position(0)
+      byteBuffer.putInt(0)
+      byteBuffer.position(0)
+      logger.debug("Ending stream")
+      outputStream.write(byteBuffer.array())
       outputStream.flush()
       logger.debug("Ended stream.")
       totalTransferred

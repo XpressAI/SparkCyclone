@@ -90,8 +90,6 @@ object NativeCsvExec {
     )
   }
 
-  val bufSize = 4 * 1024 * 1024
-
   def transformInputStream(
     numColumns: Int,
     evaluator: ArrowNativeInterfaceNumeric,
@@ -107,6 +105,7 @@ object NativeCsvExec {
     val startTime = System.currentTimeMillis()
     logger.debug(s"Beginning transfer process..")
 
+    val bufSize = 4 * 1024
     val (socketPath, serverSocket) = IpcTransfer.transferIPC(inputStream, bufSize)
 
     try evaluator.callFunction(
