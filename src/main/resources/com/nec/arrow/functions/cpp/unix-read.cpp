@@ -45,7 +45,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
 		return 1;
 	}
 
-    int sizeAvailable = 1;
+    int bytesRead = 1;
     size_t size;
     FILE *stream;
     char* bp;
@@ -55,18 +55,15 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     std::cout << "Preparing to read from '" << serverAddr.sun_path << "'\n"  << std::flush;
 #endif
 
-    int BUF_SIZE = 4 * 1024;
+    int BUF_SIZE = 163840;
     char c[BUF_SIZE];
-    while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
+    while ((bytesRead = recv(clientFd, &c, BUF_SIZE, 0)) > 0) {
 #ifdef DEBUG
-        std::cout << "From '" << serverAddr.sun_path << "' received " << sizeAvailable << " bytes\n" << std::flush;
+        std::cout << "From '" << serverAddr.sun_path << "' received " << bytesRead << " bytes\n" << std::flush;
 #endif
-        // note we don't yet support receiving in sizeAvailable more than is in BUF_SIZE
-        if ( sizeAvailable > 0 ) {
-            recv(clientFd, &c, sizeAvailable, 0);
-            fwrite(&c, sizeAvailable, 1, stream);
-        }
+        fwrite(&c, bytesRead, 1, stream);
     }
+    free(c);
     close(clientFd);
     fflush(stream);
     output_data->data = bp ;
