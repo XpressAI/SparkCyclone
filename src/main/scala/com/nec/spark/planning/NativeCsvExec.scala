@@ -13,6 +13,7 @@ import com.nec.arrow.functions.CsvParse
 import com.nec.native.IpcTransfer
 import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.NativeCsvExec.SkipStringsKey
+import com.nec.spark.planning.NativeCsvExec.transformPortableDataStream
 import com.nec.spark.planning.NativeCsvExec.transformRawTextFile
 import com.typesafe.scalalogging.LazyLogging
 import com.typesafe.scalalogging.Logger
@@ -117,13 +118,19 @@ object NativeCsvExec {
       outColumns.head.getValueCount
     )
   }
+
   def transformPortableDataStream(
     numColumns: Int,
     evaluator: ArrowNativeInterfaceNumeric,
     name: String,
     portableDataStream: PortableDataStream
   )(implicit logger: Logger): ColumnarBatch = {
-    transformInputStream(numColumns, evaluator, name, portableDataStream.open())
+    logger.debug("Will use portable data stream transfer...")
+    val startTime = System.currentTimeMillis()
+    val columnarBatch = transformInputStream(numColumns, evaluator, name, portableDataStream.open())
+    val endTime = System.currentTimeMillis()
+    logger.debug(s"Took ${endTime - startTime}ms")
+    columnarBatch
   }
 }
 
@@ -155,8 +162,8 @@ case class NativeCsvExec(
     val numColumns = output.size
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
-    sparkContext.wholeRawTextFiles(imfi.rootPaths.head.toString).map { case (name, text) =>
-      transformRawTextFile(numColumns, evaluator, name, text)(logger)
+    sparkContext.binaryFiles(imfi.rootPaths.head.toString).map { case (name, pds) =>
+      transformPortableDataStream(numColumns, evaluator, name, pds)(logger)
     }
   }
   protected def doExecuteColumnarByteArray(): RDD[ColumnarBatch] = {
