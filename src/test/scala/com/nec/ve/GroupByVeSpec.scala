@@ -11,7 +11,6 @@ import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.aurora.Aurora
 import org.apache.arrow.vector.Float8Vector
-import org.apache.arrow.vector.IntVector
 import org.scalatest.freespec.AnyFreeSpec
 
 final class GroupByVeSpec extends AnyFreeSpec {
@@ -29,9 +28,9 @@ final class GroupByVeSpec extends AnyFreeSpec {
           WithTestAllocator { alloc =>
             val outValuesVector = new Float8Vector("values", alloc)
             val outGroupsVector = new Float8Vector("groups", alloc)
-            val outCountVector = new IntVector("groupCounts", alloc)
-            try {
+            val outCountVector = new Float8Vector("groupCounts", alloc)
 
+            try {
               val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100, 100, 100, 100)
               val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109, 101, 102, 103)
 
@@ -49,10 +48,6 @@ final class GroupByVeSpec extends AnyFreeSpec {
                   val groups = (0 to outGroupsVector.getValueCount - 1).map { i => outGroupsVector.get(i) }.toList
                   val groupCounts = (0 to outCountVector.getValueCount - 1).map { i => outCountVector.get(i).toInt }.toList
                   val values = (0 to outValuesVector.getValueCount - 1).map { i => outValuesVector.get(i) }.toList
-
-                  println("groups: " + groups.mkString(", "))
-                  println("groupCounts: " + groupCounts.mkString(", "))
-                  println("values: " + values.mkString(", "))
 
                   var valueStart = 0
                   var result = scala.collection.mutable.Map[Double, List[Double]]()

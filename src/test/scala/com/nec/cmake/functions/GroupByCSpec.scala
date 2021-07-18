@@ -12,7 +12,6 @@ import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.cmake.CMakeBuilder
 import org.apache.arrow.vector.Float8Vector
-import org.apache.arrow.vector.IntVector
 import org.scalatest.freespec.AnyFreeSpec
 
 final class GroupByCSpec extends AnyFreeSpec {
@@ -30,7 +29,7 @@ final class GroupByCSpec extends AnyFreeSpec {
     WithTestAllocator { alloc =>
       val outGroupsVector = new Float8Vector("groups", alloc)
       val outValuesVector = new Float8Vector("values", alloc)
-      val outCountVector = new IntVector("count", alloc)
+      val outCountVector = new Float8Vector("count", alloc)
 
       val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100)
       val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109)
