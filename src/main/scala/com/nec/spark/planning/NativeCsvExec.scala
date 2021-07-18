@@ -97,7 +97,7 @@ object NativeCsvExec {
     )
   }
 
-  val bufSize = 32 * 1024
+  val bufSize = 16 * 1024
 
   def transformInputStream(
     numColumns: Int,

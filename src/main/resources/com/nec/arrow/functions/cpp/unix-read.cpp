@@ -22,7 +22,6 @@ The protocol is simple:
 **/
 extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_null_varchar_vector* output_data)
 {
-    output_data->data = (char*) malloc(0);
     output_data->offsets = (int*) malloc(4 * 2);
     output_data->offsets[0] = 0;
     output_data->count = 1;
@@ -42,7 +41,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
 	if( connect(clientFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1 )
 	{
 		printf("Client: Error on connect call \n");
-		return 1;
+		return 1009;
 	}
 
     int sizeAvailable = 1;
@@ -57,8 +56,9 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
 
     int BUF_SIZE = 16 * 1024;
     char c[BUF_SIZE];
+    int fetch_size;
     while (sizeAvailable > 0 && recv(clientFd, &sizeAvailable, sizeof(sizeAvailable), 0) != -1) {
-#ifdef DEBUG
+#ifdef TRACE
         std::cout << "From '" << serverAddr.sun_path << "' received " << sizeAvailable << " bytes\n" << std::flush;
 #endif
         // note we don't yet support receiving in sizeAvailable more than is in BUF_SIZE
@@ -66,6 +66,10 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
             recv(clientFd, &c, sizeAvailable, 0);
             fwrite(&c, sizeAvailable, 1, stream);
         }
+        
+#ifdef TRACE
+        std::cout << "Proceeding to read more...\n" << std::flush;
+#endif
     }
     close(clientFd);
     fflush(stream);
@@ -73,6 +77,10 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     output_data->data = bp;
     output_data->offsets[1] = size;
     output_data->size = size;
+#ifdef TRACE
+    std::string collected = string(bp, size);
+    std::cout << "Got data [" << collected << "]\n" << std::flush;
+#endif
     return 0;
 }
 
