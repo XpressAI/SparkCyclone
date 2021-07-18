@@ -168,4 +168,36 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
 
     expect(sumDs.executionPlan.toString().contains("NativeCsv"), totalSum.head == 12)
   }
+
+  "We don't replace project if that's aggregate projection" in withSparkSession2(
+    _.config(CODEGEN_FALLBACK.key, value = false)
+      .withExtensions(sse =>
+        sse.injectPlannerStrategy(sparkSession => new NativeCsvStrategy(CNativeEvaluator))
+      )
+  ) { sparkSession =>
+    import sparkSession.implicits._
+
+    val schema = StructType(
+      Array(
+        StructField("a", DoubleType),
+        StructField("b", DoubleType),
+        StructField("c", DoubleType)
+      )
+    )
+
+    val sumDs = sparkSession.sqlContext.read
+      .schema(schema)
+      .option("header", "true")
+      .csv(SampleTestData.SampleCSV.toString)
+      .as[SampleRow]
+      .selectExpr("a + b")
+      .as[Double]
+
+
+    val totalSum = sumDs
+      .collect()
+      .toList
+
+    expect(sumDs.executionPlan.toString().contains("Project"), totalSum == List(3, 6, 9, 14, 121))
+  }
 }

@@ -47,7 +47,7 @@ object NativeCsvExec {
         .unapply(plan)
         .collect {
           case i @ (a, b, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
-              if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
+              if rel.fileFormat.isInstanceOf[CSVFileFormat] && isNotAggProjection(plan) =>
             NativeCsvExec(
               hadoopRelation = rel,
               output = a.map(_.toAttribute),
@@ -65,6 +65,20 @@ object NativeCsvExec {
     }
   }
 
+  private def isNotAggProjection(logicalPlan: LogicalPlan): Boolean = {
+  logicalPlan match {
+    case Project(projectList, child) => {
+     projectList.collect{
+       case Alias(Add(_, _, _), name) =>
+       case Alias(Subtract(_, _, _), name) =>
+       case Alias(Multiply(_, _, _), name) =>
+       case Alias(Divide(_, _, _), name) =>
+     }.size == 0
+    }
+    case _ => false
+  }
+
+  }
   val SkipStringsKey = "spark.com.nec.native-csv-skip-strings"
   val UseIpc = "spark.com.nec.native-csv-ipc"
 
