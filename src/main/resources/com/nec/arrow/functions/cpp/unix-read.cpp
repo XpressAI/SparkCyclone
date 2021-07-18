@@ -28,7 +28,6 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     output_data->offsets[0] = 0;
     output_data->count = 1;
 
-    std::cout << "A\n" << std::flush;
 
     int clientFd = socket(AF_UNIX, SOCK_STREAM, 0);
 
@@ -38,6 +37,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
 
     serverAddr.sun_family = AF_UNIX;
     strncpy(serverAddr.sun_path, input_sock_name->data, input_sock_name->length);
+    std::cout << "A, will read file" << serverAddr.sun_path << "\n" << std::flush;
 	if( connect(clientFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1 )
 	{
 		printf("Client: Error on connect call \n");

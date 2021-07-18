@@ -12,6 +12,7 @@
 #include "parsefloat.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
+#include "unix-read.cpp"
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
@@ -73,6 +74,20 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
     output_c->count = count;
     
     return 0;
+}
+
+extern "C" long parse_csv_ipc(  non_null_c_bounded_string* input_sock_name,
+                            non_null_double_vector* output_a,
+                            non_null_double_vector* output_b,
+                            non_null_double_vector* output_c) {
+
+    non_null_varchar_vector temp_input_str;
+    read_fully_2(input_sock_name, &temp_input_str);
+    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+    non_null_c_bounded_string temp_input_str_;
+    temp_input_str_.data = temp_input_str.data;
+    temp_input_str_.length = temp_input_str.size;
+    return parse_csv(&temp_input_str_, output_a, output_b, output_c);
 }
 
 extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
