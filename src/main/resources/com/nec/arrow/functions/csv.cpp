@@ -12,6 +12,7 @@
 #include "parsefloat.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
+#include "unix-read.cpp"
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
@@ -74,7 +75,6 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
     
     return 0;
 }
-
 extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
                             non_null_double_vector* output_b)
@@ -133,6 +133,40 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
 }
 
 
+extern "C" long parse_csv_ipc(  non_null_c_bounded_string* input_sock_name,
+                            non_null_double_vector* output_a,
+                            non_null_double_vector* output_b,
+                            non_null_double_vector* output_c) {
+
+    non_null_varchar_vector temp_input_str;
+    read_fully_2(input_sock_name, &temp_input_str);
+#ifdef DEBUG
+    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+#endif
+    non_null_c_bounded_string temp_input_str_;
+    temp_input_str_.data = temp_input_str.data;
+    temp_input_str_.length = temp_input_str.size;
+    long result = parse_csv(&temp_input_str_, output_a, output_b, output_c);
+#ifdef DEBUG
+    std::cout << "output_a count = " << output_a->count << std::endl << std::flush;
+#endif
+    return result;
+}
+
+extern "C" long parse_csv_2_ipc(  non_null_c_bounded_string* input_sock_name,
+                            non_null_double_vector* output_a,
+                            non_null_double_vector* output_b) {
+
+    non_null_varchar_vector temp_input_str;
+    read_fully_2(input_sock_name, &temp_input_str);
+#ifdef DEBUG
+    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+#endif
+    non_null_c_bounded_string temp_input_str_;
+    temp_input_str_.data = temp_input_str.data;
+    temp_input_str_.length = temp_input_str.size;
+    return parse_csv_2(&temp_input_str_, output_a, output_b);
+}
 
 extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a)
@@ -184,6 +218,20 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     output_a->count = count;
     
     return 0;
+}
+
+extern "C" long parse_csv_1_ipc(  non_null_c_bounded_string* input_sock_name,
+                            non_null_double_vector* output_a) {
+
+    non_null_varchar_vector temp_input_str;
+    read_fully_2(input_sock_name, &temp_input_str);
+#ifdef DEBUG
+    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+#endif
+    non_null_c_bounded_string temp_input_str_;
+    temp_input_str_.data = temp_input_str.data;
+    temp_input_str_.length = temp_input_str.size;
+    return parse_csv_1(&temp_input_str_, output_a);
 }
 
 /** Static stub implementation -- requires reimplementation for dynamic inputs here **/

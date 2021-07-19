@@ -3,19 +3,24 @@ package com.nec.cmake
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.eed3si9n.expecty.Expecty.expect
+import com.google.common.io.ByteStreams
+import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.VarCharVectorWrapper
+import com.nec.cmake.NativeReaderSpec.dataISunixSocketToNativeToArrow
 import com.nec.cmake.NativeReaderSpec.newClientSocket
 import com.nec.cmake.NativeReaderSpec.newServerSocket
 import com.nec.cmake.NativeReaderSpec.unixSocketToNativeToArrow
 import com.nec.cmake.ReadFullCSVSpec.samplePartedCsv
+import com.nec.native.IpcTransfer.transferIPC
 import com.nec.native.NativeEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
+import com.nec.spark.planning.NativeCsvExec.maybeDecodePds
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VarCharVector
 import org.apache.arrow.vector.util.Text
-import org.apache.spark.WholeTextFileNativeRDD.RichSparkContext
+import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.net.ServerSocket
@@ -28,9 +33,8 @@ import org.scalasbt.ipcsocket.Win32SecurityLevel
 import org.scalatest.BeforeAndAfter
 import org.scalatest.Informing
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import scala.concurrent.duration.DurationInt
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 object NativeReaderSpec {
   val isWin: Boolean = System.getProperty("os.name", "").toLowerCase.startsWith("win")
@@ -48,62 +52,45 @@ object NativeReaderSpec {
   ): String = {
     val res = nativeEvaluator
       .forCode("""#include "unix-read.cpp"""")
-    println("Compiled.")
-    val socketName =
-      if (NativeReaderSpec.isWin) "\\\\.\\pipe\\tpipe"
-      else s"/tmp/test-sock-${scala.util.Random.nextInt()}"
-    val serverSocket = newServerSocket(socketName)
-    val serverRespond = IO
-      .blocking {
-        println("Waiting for a connection...")
-        val sockie = serverSocket.accept()
-        println(s"Got a client connection! ${sockie}")
-        try {
-          val byteBuffer = ByteBuffer.allocate(4)
-          inputList.foreach { str =>
-            byteBuffer.position(0)
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-            byteBuffer.putInt(str.length)
-            byteBuffer.position(0)
-            println("Writing to client...")
-            sockie.getOutputStream.write(byteBuffer.array())
-            sockie.getOutputStream.write(str.getBytes())
-            sockie.getOutputStream.flush()
-          }
-          byteBuffer.position(0)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          byteBuffer.putInt(0)
-          byteBuffer.position(0)
-          sockie.getOutputStream.write(byteBuffer.array())
-          sockie.getOutputStream.close()
-          println("Ended writing to client.")
-        } finally sockie.close()
-      }
-      .timeout(15.seconds)
-
-    val (x, y) = serverRespond.background.allocated.unsafeRunSync()
-
-    println("HERE got here..")
-
+    val inputStream = new ByteArrayInputStream(inputList.mkString.getBytes())
+    val bufSize = 4
+    val (socketName, serverSocket) = transferIPC(inputStream, bufSize)
+    val allocator = new RootAllocator(Integer.MAX_VALUE)
+    val vcv = new VarCharVector("test", allocator)
     try {
-      val allocator = new RootAllocator(Integer.MAX_VALUE)
-      val vcv = new VarCharVector("test", allocator)
-      try {
-        println("Calling...")
-        res
-          .callFunction(
-            "read_fully_2",
-            List(Some(StringWrapper(socketName)), None),
-            List(None, Some(VarCharVectorWrapper(vcv)))
-          )
-        println("ENded calling...")
-        new String(vcv.get(0))
-      } finally {
-        vcv.close()
-        serverSocket.close()
-      }
+      res
+        .callFunction(
+          "read_fully_2",
+          List(Some(StringWrapper(socketName)), None),
+          List(None, Some(VarCharVectorWrapper(vcv)))
+        )
+      new String(vcv.get(0))
     } finally {
-      y.unsafeRunSync()
+      vcv.close()
+      serverSocket.close()
+    }
+  }
+
+  def dataISunixSocketToNativeToArrow(
+    res: ArrowNativeInterfaceNumeric,
+    inputStream: InputStream,
+    bufSize: Int
+  ): String = {
+    val (socketName, serverSocket) = transferIPC(inputStream, bufSize)
+
+    val allocator = new RootAllocator(Integer.MAX_VALUE)
+    val vcv = new VarCharVector("test", allocator)
+    try {
+      res
+        .callFunction(
+          "read_fully_2",
+          List(Some(StringWrapper(socketName)), None),
+          List(None, Some(VarCharVectorWrapper(vcv)))
+        )
+      new String(vcv.get(0))
+    } finally {
+      vcv.close()
+      serverSocket.close()
     }
   }
 }
@@ -145,18 +132,24 @@ final class NativeReaderSpec
     }
   }
 
-  "We can transfer Hadoop data to the native app" ignore withSparkSession2(identity) {
-
-    /** Not yet implemented properly - this tests fails */
-
+  "We can transfer Hadoop data to the native app" in withSparkSession2(identity) {
     sparkSession =>
-      val listOfPairs = sparkSession.sparkContext
-        .wholeNativeTextFiles(samplePartedCsv)
-        .collect()
-        .toList
-        .map { case (name, ver) =>
-          name -> new String(ver.getRawData)
-        }
+      val listOfPairs =
+        sparkSession.sparkContext
+          .binaryFiles(samplePartedCsv)
+          .collect()
+          .toList
+          .map { case (name, pds) =>
+            name -> new String(
+              ByteStreams.toByteArray(
+                maybeDecodePds(
+                  name,
+                  SparkSession.getActiveSession.orNull.sparkContext.hadoopConfiguration,
+                  pds
+                )
+              )
+            )
+          }
 
       expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
   }
@@ -181,11 +174,27 @@ final class NativeReaderSpec
 //    }
   }
 
-  "We can read-write with a unix socket" in {
+  "We can read-write with a unix socket" ignore {
     val inputList = List("ABC", "DEF", "GHQEWE")
     if (!scala.util.Properties.isWin) {
       val expectedString = inputList.mkString
       assert(unixSocketToNativeToArrow(CNativeEvaluator, inputList) == expectedString)
+    }
+  }
+
+  "We can read-write with a unix socket from an input stream" in {
+    val inputList = List("ABC", "DEF", "GHQEWE123")
+    if (!scala.util.Properties.isWin) {
+      val inputStream = new ByteArrayInputStream(inputList.mkString.getBytes())
+      val expectedString = inputList.mkString
+      assert(
+        dataISunixSocketToNativeToArrow(
+          CNativeEvaluator
+            .forCode("""#include "unix-read.cpp""""),
+          inputStream,
+          4
+        ) == expectedString
+      )
     }
   }
 

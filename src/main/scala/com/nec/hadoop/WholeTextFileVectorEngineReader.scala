@@ -2,7 +2,7 @@ package com.nec.hadoop
 
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
-import com.nec.hadoop.WholeTextFileVectorEngineReader.VectorEngineRecord
+import org.apache.spark.input.PortableDataStream
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.conf.{Configurable => HConfigurable}
 import org.apache.hadoop.io.Text
@@ -22,56 +22,8 @@ trait Configurable extends HConfigurable {
 }
 
 object WholeTextFileVectorEngineReader {
-  final case class VectorEngineRecord(pointer: Long, length: Int) {
+  final case class  VectorEngineRecord(pointer: Long, length: Int) {
     def getRawData: Array[Byte] = Array.empty
-  }
-}
-
-class WholeTextFileVectorEngineReader(
-  split: CombineFileSplit,
-  context: TaskAttemptContext,
-  index: Integer
-) extends RecordReader[Text, VectorEngineRecord]
-  with Configurable {
-
-  private[this] val path = split.getPath(index)
-  private[this] val fs = path.getFileSystem(context.getConfiguration)
-
-  // True means the current file has been processed, then skip it.
-  private[this] var processed = false
-
-  private[this] val key: Text = new Text(path.toString)
-  private[this] var value: VectorEngineRecord = null
-
-  override def initialize(split: InputSplit, context: TaskAttemptContext): Unit = {}
-
-  override def close(): Unit = {}
-
-  override def getProgress: Float = if (processed) 1.0f else 0.0f
-
-  override def getCurrentKey: Text = key
-
-  override def getCurrentValue: VectorEngineRecord = value
-
-  override def nextKeyValue(): Boolean = {
-    if (!processed) {
-      val conf = getConf
-      val factory = new CompressionCodecFactory(conf)
-      val codec = factory.getCodec(path) // infers from file ext.
-      val fileIn = fs.open(path)
-      val innerBuffer = if (codec != null) {
-        ByteStreams.toByteArray(codec.createInputStream(fileIn))
-      } else {
-        ByteStreams.toByteArray(fileIn)
-      }
-
-      value = VectorEngineRecord(innerBuffer.size.toLong, innerBuffer.size)
-      Closeables.close(fileIn, false)
-      processed = true
-      true
-    } else {
-      false
-    }
   }
 }
 

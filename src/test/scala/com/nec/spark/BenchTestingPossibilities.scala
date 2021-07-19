@@ -113,7 +113,7 @@ object BenchTestingPossibilities {
         .set("nec.testing.target", testingTarget.label)
         .set("nec.testing.testing", this.toString)
         .set("spark.sql.codegen.comments", "true")
-      val MasterName = "local[*]"
+      val MasterName = "local[8]"
       testingTarget match {
         case TestingTarget.Rapids =>
           SparkSession
