@@ -134,6 +134,8 @@ final class NativeReaderSpec
 
   "We can transfer Hadoop data to the native app" in withSparkSession2(identity) {
     sparkSession =>
+      import org.apache.spark.util.SerializableConfiguration
+      val hadoopConf = new SerializableConfiguration(sparkSession.sparkContext.hadoopConfiguration)
       val listOfPairs =
         sparkSession.sparkContext
           .binaryFiles(samplePartedCsv)
@@ -144,7 +146,7 @@ final class NativeReaderSpec
               ByteStreams.toByteArray(
                 maybeDecodePds(
                   name,
-                  SparkSession.getActiveSession.orNull.sparkContext.hadoopConfiguration,
+                  hadoopConf,
                   pds
                 )
               )
