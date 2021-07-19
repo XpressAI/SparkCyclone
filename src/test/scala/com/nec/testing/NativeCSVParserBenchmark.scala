@@ -120,7 +120,7 @@ final case class NativeCSVParserBenchmark(
           require(lib != 0, s"Expected lib != 0, got ${lib}")
 
           val interface =
-            new VeArrowNativeInterfaceNumeric(proc, ctx, lib)
+            new VeArrowNativeInterfaceNumeric(proc, lib)
 
           def close(): Unit = {
             Aurora.veo_context_close(ctx)

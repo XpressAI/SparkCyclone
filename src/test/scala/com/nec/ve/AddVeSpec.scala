@@ -35,7 +35,7 @@ final class AddVeSpec extends AnyFreeSpec {
               withArrowFloat8Vector(secondColumn) { secondVector =>
                 val outVector = new Float8Vector("value", alloc)
                 try {
-                  runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                  runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
                     firstVector,
                     secondVector,
                     outVector

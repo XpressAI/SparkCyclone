@@ -3,7 +3,9 @@ package com.nec.spark.planning
 import com.nec.arrow.functions.Sum
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.aurora.Aurora
 import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile.Column
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import org.apache.arrow.vector.Float8Vector
@@ -41,15 +43,17 @@ object ArrowSummingPlan {
 
     case object VeoBased extends ArrowSummer {
       override def sum(vector: Float8Vector, columnCount: Int): Double = {
-        Sum
-          .runOn(
-            new VeArrowNativeInterfaceNumeric(
-              Aurora4SparkExecutorPlugin._veo_proc,
-              Aurora4SparkExecutorPlugin._veo_ctx,
-              Aurora4SparkExecutorPlugin.lib
-            )
-          )(vector, columnCount)
-          .head
+        val ctx = Aurora.veo_context_open(_veo_proc)
+        try {
+          Sum
+            .runOn(
+              new VeArrowNativeInterfaceNumeric(
+                Aurora4SparkExecutorPlugin._veo_proc,
+                Aurora4SparkExecutorPlugin.lib
+              )
+            )(vector, columnCount)
+            .head
+        } finally Aurora.veo_context_close(ctx)
       }
     }
 
@@ -63,7 +67,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val timeZoneId = conf.sessionLocalTimeZone
-   if (child.supportsColumnar) {
+    if (child.supportsColumnar) {
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
@@ -78,7 +82,6 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
             val arrowWriter = ColumnarArrowWriter.create(root)
 
             arrowWriter.writeColumns(colBatch)
-
 
             try summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
             finally {

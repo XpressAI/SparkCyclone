@@ -1,7 +1,9 @@
 package com.nec.spark.agile
 
+import com.nec.aurora.Aurora
 import com.nec.older.SubSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.ve.VeJavaContext
 import sun.misc.Unsafe
 
@@ -30,13 +32,16 @@ object MultipleColumnsOffHeapSubtractor {
   case object VeoBased extends MultipleColumnsOffHeapSubtractor {
 
     override def subtract(inputMemoryAddress: Long, count: Int): Double = {
-      val vej =
-        new VeJavaContext(
-          Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin._veo_ctx,
-          Aurora4SparkExecutorPlugin.lib
-        )
-      SubSimple.subtract_doubles_mem(vej, inputMemoryAddress, count)
+      val ctx = Aurora.veo_context_open(_veo_proc)
+      try {
+        val vej =
+          new VeJavaContext(
+            Aurora4SparkExecutorPlugin._veo_proc,
+            ctx,
+            Aurora4SparkExecutorPlugin.lib
+          )
+        SubSimple.subtract_doubles_mem(vej, inputMemoryAddress, count)
+      } finally Aurora.veo_context_close(ctx)
     }
   }
 }

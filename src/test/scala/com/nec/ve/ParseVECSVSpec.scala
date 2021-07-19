@@ -34,7 +34,7 @@ final class ParseVECSVSpec extends AnyFreeSpec {
         WithTestAllocator { alloc =>
           val outVector = new Float8Vector("value", alloc)
           val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
-          verifyOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))
+          verifyOn(new VeArrowNativeInterfaceNumeric(proc, lib))
         }
       } finally Aurora.veo_context_close(ctx)
     } finally Aurora.veo_proc_destroy(proc)

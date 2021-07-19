@@ -38,7 +38,7 @@ final class GroupByVeSpec extends AnyFreeSpec {
               val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
               ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
                 ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-                  GroupBy.runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                  GroupBy.runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
                     groupingColumnVec,
                     valuesColumnVec,
                     outGroupsVector,

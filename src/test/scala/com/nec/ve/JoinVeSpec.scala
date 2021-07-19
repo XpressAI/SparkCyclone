@@ -37,7 +37,7 @@ final class JoinVeSpec extends AnyFreeSpec {
               ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
                 ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
                   ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
-                    runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                    runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
                       firstColumnVec,
                       secondColumnVec,
                       firstKeysVec,
@@ -88,7 +88,7 @@ final class JoinVeSpec extends AnyFreeSpec {
             ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
               ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
                 ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
-                  runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                  runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
                     firstColumnVec,
                     secondColumnVec,
                     firstKeysVec,

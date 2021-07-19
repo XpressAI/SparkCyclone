@@ -16,32 +16,30 @@ import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
 
-final class VeArrowNativeInterfaceNumeric(
-  proc: Aurora.veo_proc_handle,
-  ctx: Aurora.veo_thr_ctxt,
-  lib: Long
-) extends ArrowNativeInterfaceNumeric {
+final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Long)
+  extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
     name: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
-  ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
-    proc = proc,
-    ctx = ctx,
-    lib = lib,
-    functionName = name,
-    inputArguments = inputArguments,
-    outputArguments = outputArguments
-  )
+  ): Unit = {
+    val ctx = Aurora.veo_context_open(proc)
+    try VeArrowNativeInterfaceNumeric.executeVe(
+      proc = proc,
+      ctx = ctx,
+      lib = lib,
+      functionName = name,
+      inputArguments = inputArguments,
+      outputArguments = outputArguments
+    )
+    finally Aurora.veo_context_close(ctx)
+  }
 }
 
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
-  final class VeArrowNativeInterfaceNumericLazyLib(
-    proc: Aurora.veo_proc_handle,
-    ctx: Aurora.veo_thr_ctxt,
-    libPath: String
-  ) extends ArrowNativeInterfaceNumeric {
+  final class VeArrowNativeInterfaceNumericLazyLib(proc: Aurora.veo_proc_handle, libPath: String)
+    extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
       name: String,
       inputArguments: List[Option[SupportedVectorWrapper]],
@@ -56,7 +54,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       val loadTime = System.currentTimeMillis() - startLoad
       logger.debug(s"Loaded: '${libPath} in $loadTime")
       require(lib != 0, s"Expected lib != 0, got $lib")
-      try new VeArrowNativeInterfaceNumeric(proc, ctx, lib).callFunctionGen(
+      try new VeArrowNativeInterfaceNumeric(proc, lib).callFunctionGen(
         name,
         inputArguments,
         outputArguments

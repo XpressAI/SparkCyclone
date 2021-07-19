@@ -24,14 +24,13 @@ object NativeEvaluator {
 
   final class VectorEngineNativeEvaluator(
     proc: Aurora.veo_proc_handle,
-    ctx: Aurora.veo_thr_ctxt,
     nativeCompiler: NativeCompiler
   ) extends NativeEvaluator
     with LazyLogging {
     override def forCode(code: String): ArrowNativeInterfaceNumeric = {
       val localLib = nativeCompiler.forCode(code).toString
       logger.debug(s"For evaluation, will use local lib '$localLib'")
-      new VeArrowNativeInterfaceNumericLazyLib(proc, ctx, localLib)
+      new VeArrowNativeInterfaceNumericLazyLib(proc, localLib)
     }
   }
 
@@ -42,7 +41,6 @@ object NativeEvaluator {
       DeferredArrowInterfaceNumeric(() =>
         new VeArrowNativeInterfaceNumericLazyLib(
           Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin._veo_ctx,
           Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
         )
       )

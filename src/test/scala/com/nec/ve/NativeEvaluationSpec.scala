@@ -28,7 +28,7 @@ final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
 
   "When we try to load from a random non-existing directory, it would fail" in {
     an[Exception] shouldBe thrownBy {
-      new VectorEngineNativeEvaluator(proc, ctx, NativeCompiler.PreCompiled("/abced"))
+      new VectorEngineNativeEvaluator(proc, NativeCompiler.PreCompiled("/abced"))
         .forCode("abcd")
         .callFunction("test", Nil, Nil)
     }
@@ -37,10 +37,10 @@ final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
   "When we try to load from a directory which has had compilation, we should not have any exception" in {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
     val someCode = "extern \"C\" long test() { return 0; }"
-    new VectorEngineNativeEvaluator(proc, ctx, compiler)
+    new VectorEngineNativeEvaluator(proc, compiler)
       .forCode(someCode)
       .callFunction("test", Nil, Nil)
-    new VectorEngineNativeEvaluator(proc, ctx, NativeCompiler.PreCompiled(path.toString))
+    new VectorEngineNativeEvaluator(proc, NativeCompiler.PreCompiled(path.toString))
       .forCode(someCode)
       .callFunction("test", Nil, Nil)
   }
@@ -48,11 +48,11 @@ final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
   "When we try to load from a directory which has had compilation, but not for this .so, it should fail" in {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
     val someCode = "extern \"C\" long test() { return 0; }"
-    new VectorEngineNativeEvaluator(proc, ctx, compiler)
+    new VectorEngineNativeEvaluator(proc, compiler)
       .forCode(someCode)
       .callFunction("test", Nil, Nil)
     an[Exception] shouldBe thrownBy {
-      new VectorEngineNativeEvaluator(proc, ctx, NativeCompiler.PreCompiled(path.toString))
+      new VectorEngineNativeEvaluator(proc, NativeCompiler.PreCompiled(path.toString))
         .forCode(someCode)
         .callFunction("test2", Nil, Nil)
     }
