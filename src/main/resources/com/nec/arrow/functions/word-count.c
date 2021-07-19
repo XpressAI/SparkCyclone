@@ -76,7 +76,7 @@ extern "C" int sum_avg_subtract(non_null_double_vector* a, non_null_double_vecto
     the_avg->data[0] = running_total / a->count;
 
     the_sum->data = the_sum_data;
-    the_avg->data = the_avg_data
+    the_avg->data = the_avg_data;
     the_sum->count = 1;
     the_avg->count = 1;
 

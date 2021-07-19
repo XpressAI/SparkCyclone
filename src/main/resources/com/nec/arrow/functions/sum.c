@@ -6,10 +6,10 @@ extern "C" long sum_vectors(non_null_double_vector* input, non_null_double_vecto
 {
     double *input_data = input[0].data;
     int output_count = output->count;
-    int row_count = input_data.count / output_count;
+    int row_count = input[0].count / output_count;
 
 #if DEBUG
-    printf("Total number of elements received: %d \n", input_data.count);
+    printf("Total number of elements received: %d \n", input[0].count);
     printf("Row count of received dataset: %d \n", row_count);
 #endif
     double *output_data = (double *)malloc(output_count * sizeof(double));

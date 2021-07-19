@@ -10,7 +10,7 @@ extern "C" long add(non_null_double_vector* input_a, non_null_double_vector* inp
     long output_count = output->count;
 
 #if DEBUG
-    printf("Total number of elements received: %d \n", input_data.count);
+    printf("Total number of elements received: %d \n", input_a[0].count);
     printf("Row count of received dataset: %d \n", row_count);
 #endif
 

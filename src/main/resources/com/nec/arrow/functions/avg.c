@@ -5,11 +5,11 @@
 extern "C"  long vector_avg(non_null_double_vector* input, non_null_double_vector* output)
 {
     double *input_data = input[0].data;
-    int row_count = input_data.count / output->count;
+    int row_count = input[0].count / output->count;
     long output_count = output->count;
 
     #if DEBUG
-        printf("Total number of elements received: %d \n", input_data.count);
+        printf("Total number of elements received: %d \n", input[0].count);
         printf("Row count of received dataset: %d \n", row_count);
     #endif
 
@@ -20,10 +20,10 @@ extern "C"  long vector_avg(non_null_double_vector* input, non_null_double_vecto
 
        #pragma _NEC ivdep
        for(int j = 0; j < row_count; j++){
-          sum += input_data.data[i + (j * output_count)];
+          sum += input_data[i + (j * output_count)];
        }
 
-       output->data[i] = sum / row_count;
+       output_data[i] = sum / row_count;
     }
 
     output->data = output_data;
