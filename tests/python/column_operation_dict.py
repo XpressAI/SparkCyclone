@@ -105,11 +105,39 @@ aggregate = {
 from pyspark.sql import SparkSession, DataFrame
 
 def query_1(spark: SparkSession) -> DataFrame:
-    print("""Query: SELECT SUM(a), AVG(b) FROM large
-        """)
-    res = spark.sql('SELECT SUM(a), AVG(b) FROM large')
-    return res
+    print("Query: SELECT id, SUM(float_x) FROM table GROUP BY id")
+    return spark.sql('SELECT id, SUM(float_x) FROM table GROUP BY id')
 
-large_queries = {
+def query_2(spark: SparkSession) -> DataFrame:
+    print("Query: SELECT id, AVG(float_x) FROM table GROUP BY id")
+    return spark.sql('SELECT id, AVG(float_x) FROM table GROUP BY id')
+
+def query_3(spark: SparkSession) -> DataFrame:
+    print("Query: SELECT id, SUM(float_x + float_y) FROM table GROUP BY id")
+    return spark.sql('SELECT id, SUM(float_x + float_y) FROM table GROUP BY id')
+
+def query_4(spark: SparkSession) -> DataFrame:
+    print("Query: SELECT id, AVG(float_x + float_y) FROM table GROUP BY id")
+    return spark.sql('SELECT id, AVG(float_x + float_y) FROM table GROUP BY id')
+
+def query_5(spark: SparkSession) -> DataFrame:
+    print("Query: SELECT id, COUNT(*) FROM table GROUP BY id")
+    return spark.sql('SELECT id, COUNT(*) FROM table GROUP BY id')
+
+def query_6(spark: SparkSession) -> DataFrame:
+    print("Query: SELECT id, SUM(float_x - float_y) FROM table GROUP BY id")
+    return spark.sql('SELECT id, SUM(float_x - float_y) FROM table GROUP BY id')
+
+def query_7(spark: SparkSession) -> DataFrame:
+    print("Query: SELCT id, SUM(float_x + float_y) AS res FROM table GROUP BY id HAVING res > 405008")
+    return spark.sql("SELCT id, SUM(float_x + float_y) AS res FROM table GROUP BY id HAVING res > 405008")
+
+group_by_queries = {
     'q1': query_1,
+    'q2': query_2,
+    'q3': query_3,
+    'q4': query_4,
+    'q5': query_5,
+    'q6': query_6,
+    'q7': query_7,
 }
