@@ -4,11 +4,8 @@
 
 extern "C" long add(non_null_double_vector* input_a, non_null_double_vector* input_b, non_null_double_vector* output)
 {
-    int i;
-    int j;
-
-    non_null_double_vector input_data_a = input_a[0];
-    non_null_double_vector input_data_b = input_b[0];
+    double *input_data_a = input_a[0].data;
+    double *input_data_b = input_b[0].data;
 
     long output_count = output->count;
 
@@ -19,9 +16,9 @@ extern "C" long add(non_null_double_vector* input_a, non_null_double_vector* inp
 
     double *output_data = (double*) malloc(output_count * sizeof(double));
 
-    #pragma _NEC vector
-    for (i = 0; i < output_count; i++) {
-       output_data[i] = input_data_a.data[i] + input_data_b.data[i];
+    #pragma _NEC ivdep
+    for (int i = 0; i < output_count; i++) {
+       output_data[i] = input_data_a[i] + input_data_b[i];
     }
 
     output->data = output_data;
