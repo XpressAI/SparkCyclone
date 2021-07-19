@@ -34,6 +34,7 @@ import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.vectorized.ArrowColumnVector
+import org.apache.spark.util.SerializableConfiguration
 
 import java.io.DataInputStream
 import java.io.InputStream
@@ -134,12 +135,12 @@ object NativeCsvExec {
 
   def maybeDecodePds(
     name: String,
-    hadoopConfiguration: Configuration,
+    hadoopConfiguration: SerializableConfiguration,
     portableDataStream: PortableDataStream
   ): InputStream = {
     val original = portableDataStream.open()
     val theCodec =
-      new CompressionCodecFactory(hadoopConfiguration).getCodec(new Path(name))
+      new CompressionCodecFactory(hadoopConfiguration.value).getCodec(new Path(name))
     if (theCodec != null) new DataInputStream(theCodec.createInputStream(original))
     else original
   }
@@ -150,7 +151,7 @@ object NativeCsvExec {
     evaluator: ArrowNativeInterfaceNumeric,
     name: String,
     portableDataStream: PortableDataStream,
-    hadoopConfiguration: Configuration
+    hadoopConfiguration: SerializableConfiguration
   )(implicit logger: Logger): ColumnarBatch = {
     logger.debug("Will use portable data stream transfer...")
     val startTime = System.currentTimeMillis()
@@ -204,6 +205,7 @@ case class NativeCsvExec(
   protected def doExecuteColumnarIPC(): RDD[ColumnarBatch] = {
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
+    val hadoopConf = new SerializableConfiguration(sparkContext.hadoopConfiguration)
     sparkContext
       .binaryFiles(imfi.rootPaths.head.toString)
       .map { case (name, pds) =>
@@ -213,7 +215,7 @@ case class NativeCsvExec(
           evaluator,
           name,
           pds,
-          SparkContext.getOrCreate().hadoopConfiguration
+          hadoopConf
         )(logger)
       }
   }
