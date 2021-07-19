@@ -129,8 +129,8 @@ def query_6(spark: SparkSession) -> DataFrame:
     return spark.sql('SELECT id, SUM(float_x - float_y) FROM table GROUP BY id')
 
 def query_7(spark: SparkSession) -> DataFrame:
-    print("Query: SELCT id, SUM(float_x + float_y) AS res FROM table GROUP BY id HAVING res > 405008")
-    return spark.sql("SELCT id, SUM(float_x + float_y) AS res FROM table GROUP BY id HAVING res > 405008")
+    print("Query: SELECT id, SUM(float_x + float_y) AS res FROM table GROUP BY id HAVING res > 405008")
+    return spark.sql("SELECT id, SUM(float_x + float_y) AS res FROM table GROUP BY id HAVING res > 405008")
 
 group_by_queries = {
     'q1': query_1,
