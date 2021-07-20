@@ -35,6 +35,10 @@ final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Lon
 
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
+  def requireOk(result: Int): Unit = {
+    require(result >= 0, s"Result should be >=0, got ${result}")
+  }
+
   final class VeArrowNativeInterfaceNumericLazyLib(proc: Aurora.veo_proc_handle, libPath: String)
     extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
@@ -126,7 +130,9 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     val dataCount = byteBuffer.getInt(8)
     val dataSize = dataCount * 8
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    requireOk(
+      Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    )
     vec.count = dataCount
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(veoPtr, dataSize)
@@ -141,7 +147,9 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     val dataCount = byteBuffer.getInt(8)
     val dataSize = dataCount * 8
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    requireOk(
+      Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    )
     vec.count = dataCount
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(veoPtr, dataSize)
@@ -156,7 +164,9 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     val dataCount = byteBuffer.getInt(8)
     val dataSize = dataCount * 8
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    requireOk(
+      Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    )
     vec.count = dataCount
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(veoPtr, dataSize)
@@ -171,18 +181,23 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     val veoPtrData = byteBuffer.getLong(0)
     val dataSize = byteBuffer.getInt(16)
     val vhTargetData = ByteBuffer.allocateDirect(dataSize)
-    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetData), veoPtrData, dataSize)
+    requireOk(
+      Aurora
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetData), veoPtrData, dataSize)
+    )
     vec.size = dataSize
     vec.data = vhTargetData.asInstanceOf[sun.nio.ch.DirectBuffer].address()
 
     val veoPtrOffsets = byteBuffer.getLong(8)
     val dataCount = byteBuffer.getInt(20)
     val vhTargetOffsets = ByteBuffer.allocateDirect((dataCount + 1) * 4)
-    Aurora.veo_read_mem(
-      proc,
-      new org.bytedeco.javacpp.Pointer(vhTargetOffsets),
-      veoPtrOffsets,
-      (dataCount + 1) * 4
+    requireOk(
+      Aurora.veo_read_mem(
+        proc,
+        new org.bytedeco.javacpp.Pointer(vhTargetOffsets),
+        veoPtrOffsets,
+        (dataCount + 1) * 4
+      )
     )
     vec.count = dataCount
     vec.offsets = vhTargetOffsets.asInstanceOf[sun.nio.ch.DirectBuffer].address()
@@ -206,13 +221,15 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
     val size = len.getOrElse(byteBuffer.capacity().toLong)
-    Aurora.veo_alloc_mem(proc, veInputPointer, size)
-    Aurora.veo_write_mem(
-      proc,
-      /** after allocating, this pointer now contains a value of the VE storage address * */
-      veInputPointer.get(),
-      new org.bytedeco.javacpp.Pointer(byteBuffer),
-      size
+    requireOk(Aurora.veo_alloc_mem(proc, veInputPointer, size))
+    requireOk(
+      Aurora.veo_write_mem(
+        proc,
+        /** after allocating, this pointer now contains a value of the VE storage address * */
+        veInputPointer.get(),
+        new org.bytedeco.javacpp.Pointer(byteBuffer),
+        size
+      )
     )
     veInputPointer.get()
     val ptr = veInputPointer.get()
@@ -278,30 +295,34 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
           case (ByteBufferWrapper(byteBuffer, size), index) =>
             val wr = make_veo_string_of_byteBuffer(proc, byteBuffer, size)
 
-            Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L)
+            requireOk(Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L))
           case (StringWrapper(stringValue), index) =>
             val wr = make_veo_string(proc, stringValue)
 
-            Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L)
+            requireOk(Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L))
           case (Float8VectorWrapper(doubleVector), index) =>
             val double_vector_raw = make_veo_double_vector(proc, doubleVector)
 
-            Aurora.veo_args_set_stack(
-              our_args,
-              0,
-              index,
-              nonNullDoubleVectorToByteBuffer(double_vector_raw),
-              12L
+            requireOk(
+              Aurora.veo_args_set_stack(
+                our_args,
+                0,
+                index,
+                nonNullDoubleVectorToByteBuffer(double_vector_raw),
+                12L
+              )
             )
           case (IntVectorWrapper(intVector), index) =>
             val int_vector_raw = make_veo_int2_vector(proc, intVector)
 
-            Aurora.veo_args_set_stack(
-              our_args,
-              0,
-              index,
-              nonNullInt2VectorToByteBuffer(int_vector_raw),
-              12L
+            requireOk(
+              Aurora.veo_args_set_stack(
+                our_args,
+                0,
+                index,
+                nonNullInt2VectorToByteBuffer(int_vector_raw),
+                12L
+              )
             )
         }
 
@@ -368,7 +389,10 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
             non_null_varchar_vector_to_VarCharVector(struct, vec)
         }
     } finally {
-      cleanup.items.foreach(ptr => Aurora.veo_free_mem(proc, ptr))
+      val cleanupResult = cleanup.items.map(ptr => ptr -> Aurora.veo_free_mem(proc, ptr))
+      if (cleanupResult.exists(_._2 < 0)) {
+        logger.error(s"Clean-up failed for some cases: ${cleanupResult}")
+      }
       Aurora.veo_args_free(our_args)
     }
   }

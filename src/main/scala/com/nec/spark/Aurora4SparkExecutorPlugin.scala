@@ -41,7 +41,9 @@ object Aurora4SparkExecutorPlugin {
    */
   var closeAutomatically: Boolean = false
   def closeProcAndCtx(): Unit = {
-    Aurora.veo_proc_destroy(_veo_proc)
+    if (_veo_proc != null) {
+      Aurora.veo_proc_destroy(_veo_proc)
+    }
   }
 
   var DefaultVeNodeId = 0
@@ -115,6 +117,9 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
+      require(_veo_proc != null, s"Proc could not be allocated for node ${selectedVeNodeId}, got null")
+      require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
+      logInfo(s"Opened process: ${_veo_proc}")
 
       /**
        * We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
@@ -135,6 +140,7 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def shutdown(): Unit = {
     if (closeAutomatically) {
+      logInfo(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()
     }
     super.shutdown()

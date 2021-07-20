@@ -246,7 +246,8 @@ object JoinPlanSpec {
   }
   val OurTesting: List[Testing] = List(
     TestingOUR(JoinMethod.InJVM),
-    TestingOUR(JoinMethod.ArrowBased.VEBased),
+    // Disabled - uses old approach of loading the lib rather than the new one
+    // TestingOUR(JoinMethod.ArrowBased.VEBased),
     TestingOUR(JoinMethod.ArrowBased.JvmArrowBased),
     TestingSimpleJoinSparkJVM()
   )

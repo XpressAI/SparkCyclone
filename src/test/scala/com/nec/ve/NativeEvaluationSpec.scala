@@ -12,16 +12,14 @@ object NativeEvaluationSpec {}
 final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
 
   private var initialized = false
-  private lazy val proc = Aurora.veo_proc_create(0)
-  private lazy val ctx: Aurora.veo_thr_ctxt = {
+  private lazy val proc = {
     initialized = true
-    Aurora.veo_context_open(proc)
+    Aurora.veo_proc_create(0)
   }
 
   override protected def afterAll(): Unit = {
     super.afterAll()
     if (initialized) {
-      Aurora.veo_context_close(ctx)
       Aurora.veo_proc_destroy(proc)
     }
   }

@@ -102,6 +102,7 @@ object SampleSource {
 
     sparkSession.read
       .format("csv")
+      .option("header", "true")
       .schema(schema)
       .load(LargeCSV)
       .createOrReplaceTempView(SharedName)
