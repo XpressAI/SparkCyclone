@@ -49,7 +49,6 @@ object LocalVeoExtension {
         AdditionAggregator(
           new VeArrowNativeInterfaceNumeric(
             Aurora4SparkExecutorPlugin._veo_proc,
-            Aurora4SparkExecutorPlugin._veo_ctx,
             Aurora4SparkExecutorPlugin.lib
           )
         )

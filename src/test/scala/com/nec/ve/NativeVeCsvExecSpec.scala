@@ -38,7 +38,7 @@ final class NativeVeCsvExecSpec
   "We can parse a CSV with a unix socket + VE" in {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
     val evaluator =
-      new VectorEngineNativeEvaluator(proc, ctx, compiler).forCode(CsvParse.CsvParseCode)
+      new VectorEngineNativeEvaluator(proc,  compiler).forCode(CsvParse.CsvParseCode)
     val is = new ByteArrayInputStream("a,b,c\n1,2,3\n4.1,5,6\n".getBytes())
     val colBatch =
       transformInputStream(3, 3, evaluator, "test-file", is)(logger)

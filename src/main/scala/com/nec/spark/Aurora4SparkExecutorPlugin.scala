@@ -24,7 +24,6 @@ object Aurora4SparkExecutorPlugin {
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
-  var _veo_ctx: Aurora.veo_thr_ctxt = _
   var lib: Long = -1
   var veArrowNativeInterface: VeArrowNativeInterface = _
   var veArrowNativeInterfaceNumeric: VeArrowNativeInterfaceNumeric = _
@@ -42,7 +41,6 @@ object Aurora4SparkExecutorPlugin {
    */
   var closeAutomatically: Boolean = false
   def closeProcAndCtx(): Unit = {
-    Aurora.veo_context_close(_veo_ctx)
     Aurora.veo_proc_destroy(_veo_proc)
   }
 
@@ -117,7 +115,6 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
-      _veo_ctx = Aurora.veo_context_open(_veo_proc)
 
       /**
        * We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
@@ -128,8 +125,8 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
         Aurora4SparkExecutorPlugin.lib =
           Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
       }
-      veArrowNativeInterface = new VeArrowNativeInterface(_veo_proc, _veo_ctx, lib)
-      veArrowNativeInterfaceNumeric = new VeArrowNativeInterfaceNumeric(_veo_proc, _veo_ctx, lib)
+      veArrowNativeInterface = new VeArrowNativeInterface(_veo_proc, lib)
+      veArrowNativeInterfaceNumeric = new VeArrowNativeInterfaceNumeric(_veo_proc, lib)
     }
     logInfo("Initializing Aurora4SparkExecutorPlugin.")
     params = params ++ extraConf.asScala

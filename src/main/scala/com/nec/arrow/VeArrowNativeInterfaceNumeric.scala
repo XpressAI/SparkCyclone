@@ -16,32 +16,27 @@ import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
 
-final class VeArrowNativeInterfaceNumeric(
-  proc: Aurora.veo_proc_handle,
-  ctx: Aurora.veo_thr_ctxt,
-  lib: Long
-) extends ArrowNativeInterfaceNumeric {
+final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Long)
+  extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
     name: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
-  ): Unit = VeArrowNativeInterfaceNumeric.executeVe(
-    proc = proc,
-    ctx = ctx,
-    lib = lib,
-    functionName = name,
-    inputArguments = inputArguments,
-    outputArguments = outputArguments
-  )
+  ): Unit = {
+    VeArrowNativeInterfaceNumeric.executeVe(
+      proc = proc,
+      lib = lib,
+      functionName = name,
+      inputArguments = inputArguments,
+      outputArguments = outputArguments
+    )
+  }
 }
 
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
-  final class VeArrowNativeInterfaceNumericLazyLib(
-    proc: Aurora.veo_proc_handle,
-    ctx: Aurora.veo_thr_ctxt,
-    libPath: String
-  ) extends ArrowNativeInterfaceNumeric {
+  final class VeArrowNativeInterfaceNumericLazyLib(proc: Aurora.veo_proc_handle, libPath: String)
+    extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
       name: String,
       inputArguments: List[Option[SupportedVectorWrapper]],
@@ -56,7 +51,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       val loadTime = System.currentTimeMillis() - startLoad
       logger.debug(s"Loaded: '${libPath} in $loadTime")
       require(lib != 0, s"Expected lib != 0, got $lib")
-      try new VeArrowNativeInterfaceNumeric(proc, ctx, lib).callFunctionGen(
+      try new VeArrowNativeInterfaceNumeric(proc, lib).callFunctionGen(
         name,
         inputArguments,
         outputArguments
@@ -266,7 +261,6 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
   private def executeVe(
     proc: Aurora.veo_proc_handle,
-    ctx: Aurora.veo_thr_ctxt,
     lib: Long,
     functionName: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
@@ -345,10 +339,9 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       val startTime = System.currentTimeMillis()
       val uuid = java.util.UUID.randomUUID()
       logger.debug(s"[$uuid] Starting VE call to '$functionName'...")
-      val req_id = Aurora.veo_call_async_by_name(ctx, lib, functionName, our_args)
-      logger.debug(s"[$uuid] Async call to '$functionName' completed (waiting for result) ")
+      val fnAddr = Aurora.veo_get_sym(proc, lib, functionName)
       val fnCallResult = new LongPointer(8)
-      val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
+      val callRes = Aurora.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
       val time = System.currentTimeMillis() - startTime
       logger.debug(
         s"[$uuid] Got result from VE call to '$functionName': '$callRes'. Took ${time}ms"

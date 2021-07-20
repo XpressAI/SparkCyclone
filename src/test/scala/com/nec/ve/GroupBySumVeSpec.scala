@@ -36,7 +36,7 @@ final class GroupBySumVeSpec extends AnyFreeSpec {
             val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
             try ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
               ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-                runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(
+                runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
                   groupingColumnVec,
                   valuesColumnVec,
                   outGroupsVector,

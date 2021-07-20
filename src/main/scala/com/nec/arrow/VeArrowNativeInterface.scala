@@ -6,29 +6,28 @@ import com.nec.arrow.ArrowTransferStructures.non_null_int_vector
 import com.nec.arrow.ArrowTransferStructures.varchar_vector_raw
 import com.nec.aurora.Aurora
 import com.nec.arrow.ArrowInterfaces.non_null_int_vector_to_IntVector
-import com.sun.jna.Pointer
 import org.bytedeco.javacpp.LongPointer
+
 import java.nio.ByteBuffer
 
-import com.nec.spark.Aurora4SparkExecutorPlugin
-
-final class VeArrowNativeInterface(
-  proc: Aurora.veo_proc_handle,
-  ctx: Aurora.veo_thr_ctxt,
-  lib: Long
-) extends ArrowNativeInterface {
+final class VeArrowNativeInterface(proc: Aurora.veo_proc_handle, lib: Long)
+  extends ArrowNativeInterface {
   override def callFunction(
     name: String,
     inputArguments: List[Option[VarCharVector]],
     outputArguments: List[Option[IntVector]]
-  ): Unit = VeArrowNativeInterface.executeVe(
-    proc = proc,
-    ctx = ctx,
-    lib = lib,
-    functionName = name,
-    inputArguments = inputArguments,
-    outputArguments = outputArguments
-  )
+  ): Unit = {
+    val ctx = Aurora.veo_context_open(proc)
+    try VeArrowNativeInterface.executeVe(
+      proc = proc,
+      ctx = ctx,
+      lib = lib,
+      functionName = name,
+      inputArguments = inputArguments,
+      outputArguments = outputArguments
+    )
+    finally Aurora.veo_context_close(ctx)
+  }
 }
 
 object VeArrowNativeInterface {

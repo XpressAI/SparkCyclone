@@ -35,7 +35,7 @@ final class SortVeSpec extends AnyFreeSpec {
             val data: Seq[Double] = Seq(5, 1, 2, 34, 6)
             val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
             try ArrowVectorBuilders.withDirectFloat8Vector(data) { vcv =>
-              runOn(new VeArrowNativeInterfaceNumeric(proc, ctx, lib))(vcv, outVector)
+              runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(vcv, outVector)
               val res = (0 until outVector.getValueCount).map(i => outVector.get(i)).toList
               (res, sortJVM(vcv))
             } finally outVector.close()

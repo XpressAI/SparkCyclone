@@ -2,13 +2,10 @@ package com.nec.spark.agile
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.AddPairwise
+import com.nec.aurora.Aurora
 import com.nec.older.SumPairwise
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.ve.VeJavaContext
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.Float8Vector
-import sun.misc.Unsafe
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.ve.VeJavaContext
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -17,10 +14,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
@@ -63,19 +58,22 @@ object PairwiseAdditionOffHeap {
         memoryLocationOut: Long,
         count: Int
       ): Unit = {
-        val vej =
-          new VeJavaContext(
-            Aurora4SparkExecutorPlugin._veo_proc,
-            Aurora4SparkExecutorPlugin._veo_ctx,
-            Aurora4SparkExecutorPlugin.lib
+        val ctx = Aurora.veo_context_open(_veo_proc)
+        try {
+          val vej =
+            new VeJavaContext(
+              Aurora4SparkExecutorPlugin._veo_proc,
+              ctx,
+              Aurora4SparkExecutorPlugin.lib
+            )
+          SumPairwise.pairwise_sum_doubles_mem(
+            vej,
+            memoryLocationA,
+            memoryLocationB,
+            memoryLocationOut,
+            count
           )
-        SumPairwise.pairwise_sum_doubles_mem(
-          vej,
-          memoryLocationA,
-          memoryLocationB,
-          memoryLocationOut,
-          count
-        )
+        } finally Aurora.veo_context_close(ctx)
       }
     }
   }

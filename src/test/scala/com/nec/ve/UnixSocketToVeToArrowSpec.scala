@@ -30,7 +30,7 @@ final class UnixSocketToVeToArrowSpec extends AnyFreeSpec with BeforeAndAfterAll
       val expectedString = inputList.mkString
       assert(
         unixSocketToNativeToArrow(
-          new VectorEngineNativeEvaluator(proc, ctx, compiler),
+          new VectorEngineNativeEvaluator(proc,  compiler),
           inputList
         ) == expectedString
       )
