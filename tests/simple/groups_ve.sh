@@ -7,6 +7,7 @@ $SPARK_HOME/bin/spark-submit \
     --name groups.py_VE \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    --conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.com.nec.native-csv=VE \
