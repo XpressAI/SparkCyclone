@@ -16,7 +16,7 @@ def arguments() -> argparse.Namespace:
     args = argparse.ArgumentParser(description='Run Benchmark. Please generate dataset using generate_data.py first.')
     # args.add_argument('-x','--executor', type=str, default='4g', help='Set Executor Memory')
     # args.add_argument('-d','--driver', type=str, default='4g', help='Set Driver Memory')
-    args.add_argument('-sl','--storageLevel', type=str, default='11001', help='Set Storage Level')
+    # args.add_argument('-sl','--storageLevel', type=str, default='11001', help='Set Storage Level')
     args.add_argument('-n','--ntest', type=int, default=5, help='Number of Tests')
     args.add_argument('-cc', '--clearcache', action='store_true', default=False, help="Clear cache for every tasks")
     args.add_argument('-o','--outputfile', type=str, default=None, help='Output file name (CSV)')
@@ -214,15 +214,15 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFram
 
     return res
 
-def parse_storage_level(level: list) -> list:
-    for i in range(4):
-        level[i] = bool(int(level[i]))
-    level[4] = int(level[4])
-    return level
+# def parse_storage_level(level: list) -> list:
+#     for i in range(4):
+#         level[i] = bool(int(level[i]))
+#     level[4] = int(level[4])
+#     return level
 
 def group_by(spark: SparkSession, args: argparse.Namespace) -> list:
     print("="*240)
-    print(f'Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
+    print(f'Benchmark using input file = {args.inputfile}')
     print("="*240)
 
     schema = T.StructType([
@@ -231,10 +231,10 @@ def group_by(spark: SparkSession, args: argparse.Namespace) -> list:
         T.StructField("float_y", T.DoubleType()),
     ])
     
-    level = parse_storage_level(list(tuple(args.storageLevel)))
-
-    df = spark.read.csv(args.inputfile, header=True, schema=schema).persist(StorageLevel(*tuple(level)))
+    df = spark.read.csv(args.inputfile, header=True, schema=schema)
     df.createOrReplaceTempView("table")
+    print('Caching Temp View Table...')
+    spark.sql("CACHE TABLE table")
     df.printSchema()
     
     result = column_benchmark(spark, args)
@@ -243,7 +243,7 @@ def group_by(spark: SparkSession, args: argparse.Namespace) -> list:
 
 def random_data(spark: SparkSession, args: argparse.Namespace) -> list:
     print("="*240)
-    print(f'Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
+    print(f'Benchmark using input file = {args.inputfile}')
     print("="*240)
 
 
@@ -266,22 +266,21 @@ def random_data(spark: SparkSession, args: argparse.Namespace) -> list:
         # T.StructField("degree", T.LongType()),
         # T.StructField("small_int", T.LongType()),
     ])
-
-    level = parse_storage_level(list(tuple(args.storageLevel)))
-
     # initialize df
     df = None
     
     if "csv" in args.inputfile:
-        df = spark.read.csv(args.inputfile, header=True, schema=schema).persist(StorageLevel(*tuple(level)))
+        df = spark.read.csv(args.inputfile, header=True, schema=schema).cache()
     elif "json" in args.inputfile:
-        df = spark.read.json(args.inputfile, schema=schema).persist(StorageLevel(*tuple(level)))
+        df = spark.read.json(args.inputfile, schema=schema).cache()
     elif "parquet" in args.inputfile:
-        df = spark.read.parquet(args.inputfile, schema=schema).persist(StorageLevel(*tuple(level)))
+        df = spark.read.parquet(args.inputfile, schema=schema).cache()
 
     assert df, (f"Filetype not found in {args.inputfile}! Ensure that the path dir is correct.")
 
     result = None
+    # run this to cache everything
+    print(f'Caching all {len(df.select("*").collect())} rows...')
 
     if(args.type == 'groupbyagg'):
         result = groupby_agg_benchmark(df, spark, args)
@@ -336,13 +335,14 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
         T.StructField("id", T.StringType(),False),
         T.StructField("type", T.StringType()),
     ])
-
-    level = parse_storage_level(list(tuple(args.storageLevel)))
     
-    df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi).persist(StorageLevel(*tuple(level)))
-    df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab).persist(StorageLevel(*tuple(level)))
+    df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi)
+    df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab)
     df.createOrReplaceTempView('trips')
     df1.createOrReplaceTempView('cab_types')
+    print('Caching Temp View Table...')
+    spark.sql("CACHE TABLE trips")
+    spark.sql("CACHE TABLE cab_types")
     df.printSchema()
     df1.printSchema()
 
@@ -364,10 +364,10 @@ def main(args: argparse.Namespace) -> None:
     
     print("="*240)
     print('RESULTS')
-    print(f'Test Run = {appName}, StorageLevel = {args.storageLevel}, Operation = {args.type if args.which == "random" else str(args.list)}.')
+    print(f'Test Run = {appName}, Operation = {args.type if args.which == "random" else str(args.list)}.')
 
     if args.outputfile is not None:
-        output_name = f'output/{args.which}_{args.outputfile}_{args.storageLevel}{"_" + args.type if args.which == "random" else ""}'
+        output_name = f'output/{args.which}_{args.outputfile}{"_" + args.type if args.which == "random" else ""}'
         print(f'Writing results to {output_name}')
         print("="*240)
         
