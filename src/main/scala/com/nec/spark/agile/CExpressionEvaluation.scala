@@ -33,15 +33,29 @@ object CExpressionEvaluation {
       List(s"""extern "C" long f(${arguments.mkString(", ")})""", "{"),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
-          s"output_${idx}->count = input_0->count;",
-          s"output_${idx}->data = (double*) malloc(output_${idx}->count * sizeof(double));"
+          s"long output_${idx}_count = input_0->count;",
+          s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));"
         )
       }.toList,
-      List("#pragma omp parallel for", "for (int i = 0; i < output_0->count; i++) {"),
-      resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
-        List(s"output_${idx}->data[i] = ${evaluateExpression(inputs, re)};")
+      List(
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < output_0_count; i++) {"),
+        resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
+          List(s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};")
+        }.toList,
+      List("}"),
+      // Set outputs
+      resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
+        List(
+          s"output_${idx}->count = output_${idx}_count;",
+          s"output_${idx}->data = output_${idx}_data;"
+        )
       }.toList,
-      List("}", "return 0;", "}")
+
+      List(
+        "return 0;", 
+        "}"
+      )
     ).flatten.codeLines
   }
 
@@ -165,6 +179,7 @@ object CExpressionEvaluation {
         .flatMap(_.outputArguments)
         .mkString(", ")}) {"""),
       ads.flatMap(_.init),
+      List("#pragma _NEC vector"),
       List("for (int i = 0; i < input_0->count; i++) {"),
       ads.flatMap(_.iter),
       List("}"),
