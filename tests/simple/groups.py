@@ -32,11 +32,11 @@ def main():
     csv.createOrReplaceTempView("test1")
     #spark.sql("CACHE TABLE test1")
 
-    print(spark.sql("SELECT AVG(_c0), AVG(_c1), AVG(_c2) from test1").collect())
+    print(spark.sql("SELECT SUM(_c0), SUM(_c1), SUM(_c2) from test1").collect())
 
     print("Starting 27 Group By SUM queries:")
     print("Query Plan: ")
-    spark.sql(f"WITH t(a) AS (SELECT AVG(_c1) as a FROM test1 GROUP BY _c2) SELECT AVG(a) FROM t").explain(extended=True)
+    spark.sql(f"WITH t(a) AS (SELECT SUM(_c1) as a FROM test1 GROUP BY _c2) SELECT SUM(a) FROM t").explain(extended=True)
 
     start = timer()
 
