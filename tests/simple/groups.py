@@ -36,7 +36,7 @@ def main():
 
     print("Starting 27 Group By SUM queries:")
     print("Query Plan: ")
-    spark.sql(f"WITH t(a) AS (SELECT AVG({col}) as a FROM test1 GROUP BY {group}) SELECT AVG(a) FROM t").explain(extended=True)
+    spark.sql(f"WITH t(a) AS (SELECT AVG(_c1) as a FROM test1 GROUP BY _c2) SELECT AVG(a) FROM t").explain(extended=True)
 
     start = timer()
 
