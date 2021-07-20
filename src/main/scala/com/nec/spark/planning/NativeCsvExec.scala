@@ -39,6 +39,8 @@ import org.apache.spark.util.SerializableConfiguration
 import java.io.DataInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
+import org.apache.spark.sql.catalyst.plans.logical.Project
+import org.apache.spark.sql.catalyst.expressions._
 
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {

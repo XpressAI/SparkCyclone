@@ -13,6 +13,8 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.Multiply
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.Divide
+import org.apache.spark.sql.catalyst.expressions.Abs
 
 object CExpressionEvaluation {
   def cGenProject(inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
@@ -93,6 +95,10 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
       case Add(left, right, _) =>
         s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
+      case Divide(left, right, _) => 
+        s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
+      case Abs(v) =>
+        s"abs(${evaluateSub(inputs, v)})"
       case Literal(v, DoubleType | IntegerType) =>
         s"$v"
     }
@@ -130,11 +136,10 @@ object CExpressionEvaluation {
           ),
           iter = List(
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
-            s"${cleanName}_counted += 1;"
           ),
           result = List(
             s"${outputSum}->data[0] = ${cleanName}_accumulated;",
-            s"${outputCount}->data[0] = ${cleanName}_counted;"
+            s"${outputCount}->data[0] = input_0->count;"
           ),
           outputArguments =
             List(s"non_null_double_vector* ${outputSum}", s"non_null_double_vector* ${outputCount}")
@@ -179,7 +184,7 @@ object CExpressionEvaluation {
         .flatMap(_.outputArguments)
         .mkString(", ")}) {"""),
       ads.flatMap(_.init),
-      List("#pragma _NEC vector"),
+      List("#pragma _NEC ivdep"),
       List("for (int i = 0; i < input_0->count; i++) {"),
       ads.flatMap(_.iter),
       List("}"),
