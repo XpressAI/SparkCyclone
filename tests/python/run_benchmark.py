@@ -9,7 +9,7 @@ import sys
 from timeit import default_timer as timer
 import os
 
-from column_operation_dict import operations, aggregate, large_queries
+from column_operation_dict import operations, aggregate, group_by_queries
 from nyctaxi import queries
 
 def arguments() -> argparse.Namespace:
@@ -28,9 +28,9 @@ def arguments() -> argparse.Namespace:
     random.add_argument('-t','--type', type=str, default='groupbyagg', help='Set Benchmark Type', choices=['groupbyagg','repart','innerjoin','broadinnerjoin', 'column'])
     random.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
     
-    large = subparsers.add_parser('large', help='Large Dataset')
-    large.add_argument('inputfile', type=str, metavar='file_url', help='Input file URL')
-    large.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
+    group_by = subparsers.add_parser('group_by', help='group-by Dataset')
+    group_by.add_argument('inputfile', type=str, metavar='file_url', help='Input file URL')
+    group_by.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
     
     nyc = subparsers.add_parser('nycdata', help='NYC-taxi-data Dataset')
     nyc.add_argument('-l', '--list', help='Comma delimited list input', type=lambda s: [item for item in s.split(',')], default=None)
@@ -166,7 +166,7 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFram
     res = []
     dicts = None
     if(args.which == "random"): dicts = {**operations, **aggregate}
-    elif(args.which == "large"): dicts = large_queries
+    elif(args.which == "group_by"): dicts = group_by_queries
     elif(args.which == "nycdata"): dicts = queries
     else: raise Exception("Data not supported")
     
@@ -220,21 +220,21 @@ def parse_storage_level(level: list) -> list:
     level[4] = int(level[4])
     return level
 
-def large_data(spark: SparkSession, args: argparse.Namespace) -> list:
+def group_by(spark: SparkSession, args: argparse.Namespace) -> list:
     print("="*240)
-    print(f'Shuffle Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
+    print(f'Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
     print("="*240)
 
     schema = T.StructType([
-        T.StructField("a", T.DoubleType()),
-        T.StructField("b", T.DoubleType()),
-        T.StructField("c", T.DoubleType()),
+        T.StructField("id", T.DoubleType()),
+        T.StructField("float_x", T.DoubleType()),
+        T.StructField("float_y", T.DoubleType()),
     ])
     
     level = parse_storage_level(list(tuple(args.storageLevel)))
 
     df = spark.read.csv(args.inputfile, header=True, schema=schema).persist(StorageLevel(*tuple(level)))
-    df.createOrReplaceTempView("large")
+    df.createOrReplaceTempView("table")
     df.printSchema()
     
     result = column_benchmark(spark, args)
@@ -243,7 +243,7 @@ def large_data(spark: SparkSession, args: argparse.Namespace) -> list:
 
 def random_data(spark: SparkSession, args: argparse.Namespace) -> list:
     print("="*240)
-    print(f'Shuffle Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
+    print(f'Benchmark using input file = {args.inputfile} with storage level = {args.storageLevel}')
     print("="*240)
 
 
@@ -252,11 +252,12 @@ def random_data(spark: SparkSession, args: argparse.Namespace) -> list:
         # T.StructField("prefix2", T.StringType()),
         # T.StructField("prefix4", T.StringType()),
         # T.StructField("prefix8", T.StringType()),
+        T.StructField("id", T.DoubleType()),
         T.StructField("float_x", T.DoubleType()),
         T.StructField("float_y", T.DoubleType()),
         #T.StructField("int_x", T.LongType()),
         #T.StructField("int_y", T.LongType()),
-        T.StructField("float_a", T.DoubleType()),
+        # T.StructField("float_a", T.DoubleType()),
         #T.StructField("float_b", T.DoubleType()),
         #T.StructField("int_a", T.LongType()),
         #T.StructField("int_b", T.LongType()),
@@ -355,7 +356,7 @@ def main(args: argparse.Namespace) -> None:
 
     result = None
     if(args.which == "random"): result = random_data(spark, args)
-    elif(args.which == "large"): result = large_data(spark, args)
+    elif(args.which == "group_by"): result = group_by(spark, args)
     elif(args.which == "nycdata"): result = nyc_benchmark(spark, args)
     else: raise Exception("Data not supported")
 

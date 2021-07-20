@@ -38,11 +38,13 @@ def main(args):
         # .withColumn('prefix2', F.substring(F.col('value'),1,2))
         # .withColumn('prefix4', F.substring(F.col('value'),1,4))
         # .withColumn('prefix8', F.substring(F.col('value'),1,8))
+        .drop('id')
+        .withColumn('id', (F.rand()*(args.rows/10)).cast(T.LongType()).cast(T.DoubleType()))
         .withColumn('float_x', F.rand(seed=8675309)*100000)
         .withColumn('float_y', F.rand(seed=8675367)*10000)
         #.withColumn('int_x', F.col('float_x').cast(T.LongType()))
         #.withColumn('int_y', F.col('float_y').cast(T.LongType()))
-        .withColumn('float_a', F.rand(seed=8675309)*1000)
+        # .withColumn('float_a', F.rand(seed=8675309)*1000)
         #.withColumn('float_b', F.rand(seed=8675367)*100)
         #.withColumn('int_a', F.col('float_a').cast(T.LongType()))
         #.withColumn('int_b', F.col('float_b').cast(T.LongType()))
@@ -50,7 +52,7 @@ def main(args):
         # .withColumn("randn1", F.randn()) 
         # .withColumn('degree', (F.randn()*360).cast(T.LongType())) 
         # .withColumn('small_int', (F.rand()*10).cast(T.LongType()))
-        .drop('id'))
+    )
 
 
     output_folder =  args.outfile + "_R" + str(args.rows) + "_P" + str(args.partitions) + "_" + args.filetype 
