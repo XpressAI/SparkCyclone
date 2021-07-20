@@ -6,7 +6,7 @@ zip dep.zip *.py
 export VE_OMP_NUM_THREADS=1
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
---name VE_Benchmark_random_1B \
+--name VE_Benchmark_column_1B \
 --py-files dep.zip \
 --num-executors=8 --executor-cores=6 --executor-memory=16G \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
@@ -16,12 +16,12 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
 run_benchmark.py  --outputfile "yarn_test_ve_1B_1" --clearcache --ntest 5 \
-random "data/XY_doubles_R1000000000_P100_csv" -t column \
---list "(x+y)_float,sum_float,avg_float,avg(x+y)_float,sum(x+y)_float"
+column "data/XY_doubles_R1000000000_P100_csv" \
+--list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
 
 # GPU 
 /opt/spark/bin/spark-submit --master yarn \
---name GPU_Benchmark_random_1B \
+--name GPU_Benchmark_column_1B \
 --deploy-mode cluster \
 --py-files dep.zip \
 --jars 'rapids.jar,cudf.jar' \
@@ -37,16 +37,19 @@ random "data/XY_doubles_R1000000000_P100_csv" -t column \
 --conf spark.rapids.sql.csv.read.double.enabled=true \
 --conf spark.rapids.sql.csv.read.long.enabled=true \
 --conf spark.rapids.sql.castFloatToString.enabled=true \
+--conf spark.sql.columnVector.offheap.enabled=true \
 run_benchmark.py  --outputfile "yarn_test_gpu_1B" --clearcache --ntest 5 \
-random "data/XY_doubles_R1000000000_P100_csv" -t column \
---list "sum_float,avg_float,(x+y)_float,avg(x+y)_float,sum(x+y)_float"
+column "data/XY_doubles_R1000000000_P100_csv" \
+--list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
 
 # JVM
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
---name CPU_Benchmark_random_1B \
+--name CPU_Benchmark_column_1B \
 --py-files dep.zip \
 --num-executors=24 --executor-cores=2 --executor-memory=16G \
+--conf spark.sql.columnVector.offheap.enabled=true \
 run_benchmark.py  --outputfile "yarn_test_cpu_1B" --clearcache --ntest 5 \
-random "data/XY_doubles_R1000000000_P100_csv" -t column \
---list "sum_float,avg_float,(x+y)_float,avg(x+y)_float,sum(x+y)_float"
+column "data/XY_doubles_R1000000000_P100_csv" \
+--list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
+

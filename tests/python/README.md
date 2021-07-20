@@ -16,25 +16,20 @@ spark-submit --master spark://spark-master:7077 run_benchmark.py  --outputfile "
 ```
 ### run_benchmark.py -h
 ```
-usage: run_benchmark.py [-h] [-x EXECUTOR] [-d DRIVER] [-sl STORAGELEVEL]
-                        [-n NTEST] [-cc] [-o OUTPUTFILE]
-                        {random,nycdata} ...
+usage: run_benchmark.py [-h] [-n NTEST] [-cc] [-o OUTPUTFILE]
+                        {column,group_by,nycdata} ...
 
 Run Benchmark. Please generate dataset using generate_data.py first.
 
 positional arguments:
-  {random,nycdata}      Dataset Options
-    random              Random Dataset
-    nycdata             NYC-taxi-data Dataset
+  {column,group_by,nycdata}
+                        Dataset Options
+    column              Column Benchmark
+    group_by            group-by Benchmark
+    nycdata             NYC-taxi-data Benchmark
 
 optional arguments:
   -h, --help            show this help message and exit
-  -x EXECUTOR, --executor EXECUTOR
-                        Set Executor Memory
-  -d DRIVER, --driver DRIVER
-                        Set Driver Memory
-  -sl STORAGELEVEL, --storageLevel STORAGELEVEL
-                        Set Storage Level
   -n NTEST, --ntest NTEST
                         Number of Tests
   -cc, --clearcache     Clear cache for every tasks
@@ -42,22 +37,15 @@ optional arguments:
                         Output file name (CSV)
 ```
 
-### run_bencmark.py random -h
+### run_bencmark.py column -h
 ```
-usage: run_benchmark.py random [-h] [-r REPARTITIONS]
-                               [-t {groupbyagg,repart,innerjoin,broadinnerjoin,column}]
-                               [-l LIST]
-                               file_url
+usage: run_benchmark.py column [-h] [-l LIST] file_url
 
 positional arguments:
   file_url              Input file URL
 
 optional arguments:
   -h, --help            show this help message and exit
-  -r REPARTITIONS, --repartitions REPARTITIONS
-                        Number of partitions
-  -t {groupbyagg,repart,innerjoin,broadinnerjoin,column}, --type {groupbyagg,repart,innerjoin,broadinnerjoin,column}
-                        Set Benchmark Type
   -l LIST, --list LIST  Comma delimited list input
 ```
 ### run_benchmark.py nycdata -h
@@ -69,25 +57,22 @@ optional arguments:
   -l LIST, --list LIST  Comma delimited list input
 ```
 
-### Repartition Notes
-- Need to state partition number (-r / --repartitions)
-- 200 partitions by default
+### run_benchmark.py group_by -h
+```
+usage: run_benchmark.py group_by [-h] [-l LIST] file_url
 
-### Column Notes
+positional arguments:
+  file_url              Input file URL
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -l LIST, --list LIST  Comma delimited list input
+```
+
+
+### Queries Notes
 - Need to list out operations otherwise it will compute all operations by default (-l / --list)
-- List of operations stated in `column_operation_dict.py`
-### Pick Storage Level (-sl / --storageLevel)
-- DISK_ONLY = 10001
-- DISK_ONLY_2 = 10002
-- MEMORY_AND_DISK = 11001
-- MEMORY_AND_DISK_2 = 11002
-- MEMORY_AND_DISK_SER = 11001
-- MEMORY_AND_DISK_SER_2 = 11002
-- MEMORY_ONLY = 01001
-- MEMORY_ONLY_2 = 01002
-- MEMORY_ONLY_SER = 01001
-- MEMORY_ONLY_SER_2 = 01002
-- OFF_HEAP = 11101
+- List of operations stated in `queries.py`, take the functions name as query name
 
 ## Run with GPU
 
