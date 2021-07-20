@@ -9,10 +9,11 @@ def loop(op: Callable[[DataFrame], DataFrame], df: DataFrame = None) -> DataFram
         df = op(df)
     return df
 
-class column_queries(object):
-    
+class query(object):
     def __getitem__(self, name):
         return getattr(self, name)
+    
+class column_queries(query):
     
     def avg_x_double(self, spark: SparkSession) -> DataFrame:
         print("Query: SELECT AVG(double_x) FROM table")
@@ -35,10 +36,7 @@ class column_queries(object):
         return spark.sql('SELECT double_x + double_y FROM table') 
 
 
-class group_by_queries(object):
-    
-    def __getitem__(self, name):
-        return getattr(self, name)
+class group_by_queries(query):
     
     def group_by_sum_x(self, spark: SparkSession) -> DataFrame:
         print("Query: SELECT id, SUM(double_x) FROM table GROUP BY id")
@@ -68,10 +66,7 @@ class group_by_queries(object):
         print("Query: SELECT id, SUM(double_x + double_y) AS res FROM table GROUP BY id HAVING res > 405008")
         return spark.sql("SELECT id, SUM(double_x + double_y) AS res FROM table GROUP BY id HAVING res > 405008")
 
-class nyctaxi_queries(object):
-    
-    def __getitem__(self, name):
-        return getattr(self, name)
+class nyctaxi_queries(query):
     
     def q1(self, spark: SparkSession) -> DataFrame:
         print("""Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 

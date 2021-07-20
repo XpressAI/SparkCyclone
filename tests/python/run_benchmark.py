@@ -9,7 +9,7 @@ import sys
 from timeit import default_timer as timer
 import os
 
-from queries import column_queries, group_by_queries, nyctaxi_queries
+from queries import column_queries, group_by_queries, nyctaxi_queries, query
 
 def arguments() -> argparse.Namespace:
     args = argparse.ArgumentParser(description='Run Benchmark. Please generate dataset using generate_data.py first.')
@@ -34,15 +34,9 @@ def arguments() -> argparse.Namespace:
 
     return args.parse_args()
     
-def benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFrame = None) -> list:
+def benchmark(spark: SparkSession, args: argparse.Namespace, queries: query) -> list:
     res = []
-    dicts = None
-    if(args.which == "column"): dicts = column_queries()
-    elif(args.which == "group_by"): dicts = group_by_queries()
-    elif(args.which == "nycdata"): dicts = nyctaxi_queries()
-    else: raise Exception("Option not supported")
-    
-    ops = [method for method in dir(dicts) if method.startswith('__') is False] if args.list is None else args.list
+    ops = [method for method in dir(queries) if method.startswith('__') is False] if args.list is None else args.list
     
     print("="*240)
     print(f'Starting Benchmark for {args.which}_benchmark() : {str(ops)}')
@@ -60,7 +54,7 @@ def benchmark(spark: SparkSession, args: argparse.Namespace, df: DataFrame = Non
                     spark.catalog.clearCache() 
 
                 start_time = timer()
-                new_df = dicts[op](spark)
+                new_df = queries[op](spark)
                 new_df.write.csv(
                     f'temp/{op}_{i}',
                     header=True,
@@ -111,7 +105,7 @@ def group_by_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
         spark.sql("CACHE TABLE table")
     df.printSchema()
     
-    return benchmark(spark, args)
+    return benchmark(spark, args, group_by_queries())
 
 def column_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
     print("="*240)
@@ -157,9 +151,14 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
         spark.sql("CACHE TABLE table")
     df.printSchema()
 
-    return benchmark(spark, args)
+    return benchmark(spark, args, column_queries())
 
 def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
+    
+    print("="*240)
+    print('Benchmark using input file = data/trips_2020.csv and data/cab_types.csv')
+    print("="*240)
+    
     schema_nyctaxi = T.StructType([
         T.StructField("id",T.StringType(), False),
         T.StructField("cab_type_id",T.StringType()),
@@ -208,7 +207,7 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
     df.printSchema()
     df1.printSchema()
 
-    return benchmark(spark, args)
+    return benchmark(spark, args, nyctaxi_queries())
 
 def main(args: argparse.Namespace) -> None:
     appName = f'{args.which}_benchmark'
