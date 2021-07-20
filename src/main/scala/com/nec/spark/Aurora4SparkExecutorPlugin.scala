@@ -115,6 +115,8 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
+      require(_veo_proc != null, "Proc could not be allocated, got null")
+      require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
 
       /**
        * We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
