@@ -1,5 +1,4 @@
 #include "frovedis/core/radix_sort.hpp"
-#include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
 #include <vector>
 #include <iostream>
@@ -15,7 +14,7 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
 
     std::vector<size_t> idx(count);
 
-    #pragma _NEC vector
+    #pragma _NEC ivdep
     for (size_t i = 0; i < count; i++) {
         idx[i] = i;
     }
@@ -30,7 +29,7 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
     double *counts_data = (double *) malloc((groups_count - 1) * sizeof(double));
     double *groups_data = (double *) malloc((groups_count - 1) * sizeof(double));
 
-    #pragma _NEC vector
+    #pragma _NEC ivdep
     for (size_t i = 0; i < groups_count - 1; i++) {
         size_t idx_1 = groups_indicies[i];
         size_t idx_2 = groups_indicies[i + 1];
@@ -38,12 +37,12 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
         counts_data[i] = count;
     }
 
-    #pragma _NEC vector
+    #pragma _NEC ivdep
     for (size_t i = 0; i < groups_count - 1; i++) {
         groups_data[i] = grouping_vec[groups_indicies[i]];
     }
 
-    #pragma _NEC vector
+    #pragma _NEC ivdep
     for (size_t i = 0; i < grouping_vec.size(); i++) {
         values_data[i] = values_col->data[idx[i]];
     }
@@ -70,7 +69,7 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
      size_t count = grouping_col->count;
 
      std::vector<size_t> idx(count);
-     #pragma _NEC vector
+     #pragma _NEC ivdep
      for(size_t i = 0; i < count; i++) {
        idx[i] = i;
      }
@@ -83,7 +82,7 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
     int *counts_data = (int *) malloc((groups_count - 1) * sizeof(int));
     double *groups_data = (double *) malloc((groups_count - 1) * sizeof(double));
 
-    #pragma _NEC vector
+    #pragma _NEC ivdep
     for (size_t i = 0; i < groups_count - 1; i++) {
         size_t idx_1 = groups_indicies[i];
         size_t idx_2 = groups_indicies[i + 1];
@@ -91,19 +90,21 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
         counts_data[i] = count;
     }
 
-    #pragma _NEC vector
+    #pragma _NEC ivdep
     for (size_t i = 0; i < groups_count - 1; i++) {
         groups_data[i] = grouping_vec[groups_indicies[i]];
     }
+
+    double *values_col_data = values_col->data;
 
     for (size_t i = 0; i < groups_count - 1; i++) {
         size_t start = groups_indicies[i];
         size_t end = groups_indicies[i + 1];
         double sum = 0;
 
-        #pragma _NEC vector
+        #pragma _NEC ivdep
         for (size_t j = start; j < end; j++) {
-            sum += values_col->data[idx[j]];
+            sum += values_col_data[idx[j]];
         }
         values_data[i] = sum;
     }
@@ -114,5 +115,5 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
     values->data = values_data;
     values->count = groups_count - 1;
 
-     return 0;
+    return 0;
 }

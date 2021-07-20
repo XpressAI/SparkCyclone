@@ -39,11 +39,12 @@ object VeKernelCompiler {
         "-msched-block",
         "-pthread",
         "-report-all",
-        "-fdiag-vector=2"
+        /* "-ftrace", */
+        "-fdiag-vector=2",
       ) ++
         List(
           if (doDebug) List("-D", "DEBUG=1") else Nil,
-          if (useOpenmp) List("-fopenmp", "-mparallel") else Nil
+          if (useOpenmp) List("-fopenmp") else Nil
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
       ret
     }
@@ -177,7 +178,7 @@ final case class VeKernelCompiler(
       runHopeOk(Process(command = command, cwd = buildDir.toFile))
 
       val command2 =
-        Seq(nccPath, "-shared", "-pthread") ++ Seq("-o", soFile.toString, oFile.toString)
+        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/) ++ Seq("-o", soFile.toString, oFile.toString)
       runHopeOk(Process(command = command2, cwd = buildDir.toFile))
 
       soFile

@@ -54,23 +54,31 @@ extern "C" long count_strings(varchar_vector* strings, non_null_int_vector* coun
 
 
 /** SUM(a-b), AVG(b) **/
-extern "C" int sum_avg_subtract(non_null_double_vector* a, non_null_double_vector* b, non_null_double_vector* c, non_null_double_vector* the_sum, non_null_double_vector* the_avg) {
-    
-    the_sum->data = (double*)malloc(1 * sizeof(double));
-    the_avg->data = (double*)malloc(1 * sizeof(double));
-    the_sum->count = 1;
-    the_avg->count = 1;
+extern "C" int sum_avg_subtract(non_null_double_vector* a, non_null_double_vector* b, non_null_double_vector* c, non_null_double_vector* the_sum, non_null_double_vector* the_avg)
+{
+    double *the_sum_data = (double*)malloc(1 * sizeof(double));
+    double *the_avg_data = (double*)malloc(1 * sizeof(double));
+    double *a_data = a->data;
+    int a_count = a->count;
+    double *b_data = b->data;
+    int b_count = b->count;
 
     double total_sum = 0;
     double running_total = 0;
-    for ( int i = 0; i < a->count; i++ ) {
-         total_sum += a->data[i] - b->data[i];
+
+    #pragma _NEC vector
+    for (int i = 0; i < a_count; i++ ) {
+         total_sum += a_data[i] - b_data[i];
          running_total += b->data[i];
     }
 
     the_sum->data[0] = total_sum;
     the_avg->data[0] = running_total / a->count;
 
+    the_sum->data = the_sum_data;
+    the_avg->data = the_avg_data;
+    the_sum->count = 1;
+    the_avg->count = 1;
+
     return 0;
 }
-
