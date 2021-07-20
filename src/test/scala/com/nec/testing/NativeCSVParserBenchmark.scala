@@ -114,7 +114,6 @@ final case class NativeCSVParserBenchmark(
             )
           ).toAbsolutePath.toString
           val proc = Aurora.veo_proc_create(0)
-          val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
 
           val lib = Aurora.veo_load_library(proc, soName)
           require(lib != 0, s"Expected lib != 0, got ${lib}")
@@ -123,7 +122,6 @@ final case class NativeCSVParserBenchmark(
             new VeArrowNativeInterfaceNumeric(proc, lib)
 
           def close(): Unit = {
-            Aurora.veo_context_close(ctx)
             Aurora.veo_proc_destroy(proc)
           }
 
