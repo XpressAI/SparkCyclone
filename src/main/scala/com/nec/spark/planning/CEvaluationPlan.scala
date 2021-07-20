@@ -306,6 +306,10 @@ final case class  CEvaluationPlan(
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getDouble(idx)).sum
                   writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Count(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val result = unsafeRowsList.map(_.getInt(idx)).sum
+                  writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
               Iterator(writer.getRow)
