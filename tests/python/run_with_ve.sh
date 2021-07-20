@@ -45,7 +45,7 @@ zip dep.zip *.py
 export VE_OMP_NUM_THREADS=1
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
---name VE_Benchmark_random_1K \
+--name VE_Benchmark_column_100M \
 --py-files dep.zip \
 --num-executors=8 --executor-cores=6 --executor-memory=16G \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
@@ -54,6 +54,7 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
-run_benchmark.py  --outputfile "yarn_test_ve_1K" --ntest 3 \
-column "data/XY_doubles_R1000000_P100_csv" \
+--conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
+run_benchmark.py  --outputfile "yarn_test_ve_100M" --ntest 3 \
+column "data/XY_doubles_R100000000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"

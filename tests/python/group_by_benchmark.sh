@@ -15,7 +15,8 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
-run_benchmark.py  --outputfile "yarn_test_ve_1K" --ntest 5 \
+--conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
+run_benchmark.py  --outputfile "yarn_test_ve_1K" --clearcache --ntest 5 \
 group_by "data/XY_doubles_R1000_P100_csv" \
 --list "group_by_avg_x,group_by_avg_x_plus_y"
 
