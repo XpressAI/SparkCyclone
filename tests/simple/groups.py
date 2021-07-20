@@ -24,7 +24,7 @@ def main():
                 ]
             )
         )
-        .load("/data/test_file_100m_R100000000_P1000_csv")
+        .load("/data/XY_doubles_R10000000_P100_csv")
     )
 
     print("Caching test1 table.")
