@@ -133,10 +133,9 @@ object CExpressionEvaluation {
             s"int ${cleanName}_accumulated = 0;"
           ),
           iter = List(
-            s"${cleanName}_accumulated += 1;"
           ),
           result = List(
-            s"${outputCount}->data[0] = ${cleanName}_accumulated;"
+            s"${outputCount}->data[0] = input_${idx}->count;"
           ),
           outputArguments = List(
             s"non_null_int_vector* ${outputCount}"
