@@ -74,7 +74,7 @@ def benchmark(spark: SparkSession, args: argparse.Namespace, queries: query) -> 
             res.append(tuple(col_op))
 
         except Exception as e:
-            print(f'Error {str(e)}. Skipping operation {op}')
+            print(f'Error: {str(e)}. Skipping operation {op}')
     
     print("="*240)
 
@@ -224,26 +224,32 @@ def main(args: argparse.Namespace) -> None:
     spark.sparkContext.setLocalProperty('callSite.short', callSiteShortOrig)
     
     print("="*240)
-    print('RESULTS')
-    print(f'Test Run = {appName}, Operation = {str(args.list)}.')
+    print('RESULTS:')
+    
+    try:
+        print(f'Test Run = {appName}, Operation = {str([op[0] for op in result])}.')
 
-    if args.outputfile is not None:
-        output_name = f'output/{args.which}_{args.outputfile}'
-        print(f'Writing results to {output_name}')
-        print("="*240)
-        
-        schema = ['test']
-        for i in range(args.ntest):
-            schema.append(f'test_{i}')
-        schema.append('mean_exclude_max_and_min')
+        if args.outputfile is not None:
+            output_name = f'output/{args.which}_{args.outputfile}'
+            
+            
+            schema = ['test']
+            for i in range(args.ntest):
+                schema.append(f'test_{i}')
+            schema.append('mean_exclude_max_and_min')
 
-        results_df = spark.createDataFrame(result, schema).coalesce(1)
-        results_df.write.csv(
-            output_name,
-            header=True,
-            mode='overwrite'
-        )
-        print(results_df.collect())
+            results_df = spark.createDataFrame(result, schema).coalesce(1)
+            results_df.write.csv(
+                output_name,
+                header=True,
+                mode='overwrite'
+            )
+            print(f'Saved results to {output_name}')
+            print("="*240)
+            print(results_df.collect())
+            
+    except Exception as e:
+        print(f"Error: {str(e)}. No result Recorded")
 
 if __name__ == '__main__':
     args = arguments()
