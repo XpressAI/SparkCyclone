@@ -1,13 +1,11 @@
 package com.nec.spark.agile
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.aggregate.Average
 import org.apache.spark.sql.catalyst.expressions.Subtract
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.Add
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -124,6 +122,25 @@ object CExpressionEvaluation {
           ),
           outputArguments =
             List(s"non_null_double_vector* ${outputSum}", s"non_null_double_vector* ${outputCount}")
+        )
+      case Count(el) =>
+        val outputCount = s"output_${idx}_count"
+
+        AggregateDescription(
+          init = List(
+            s"${outputCount}->data = (int *)malloc(1 * sizeof(int));",
+            s"${outputCount}->count = 1;",
+            s"int ${cleanName}_accumulated = 0;"
+          ),
+          iter = List(
+          ),
+          result = List(
+            s"${outputCount}->data[0] = input_${idx}->count;"
+          ),
+          outputArguments = List(
+            s"non_null_int_vector* ${outputCount}"
+          )
+
         )
     }
   }
