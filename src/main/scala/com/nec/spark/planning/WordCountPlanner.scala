@@ -25,7 +25,7 @@ object WordCountPlanner {
       case hae @ HashAggregateExec(
             requiredChildDistributionExpressions,
             groupingExpressions,
-            Seq(AggregateExpression(Count(_), mode, isDistinct, filter, resultId)),
+            Seq(AggregateExpression(Count(_), mode, isDistinct, resultId)),
             aggregateAttributes,
             initialInputBufferOffset,
             resultExpressions,
@@ -113,7 +113,7 @@ case class WordCountPlanner(childPlan: SparkPlan, output: Seq[Attribute], wordCo
               try {
                 partitionInternalRows.foreach(row => arrowWriter.write(row))
                 arrowWriter.finish()
-                val res = wordCounter.countWords(root.getVector(0).asInstanceOf[VarCharVector])
+                val res = wordCounter.countWords(root.getFieldVectors.get(0).asInstanceOf[VarCharVector])
                 res
               } finally arrowWriter.reset()
             rr

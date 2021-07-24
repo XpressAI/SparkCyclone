@@ -4,7 +4,8 @@ import com.nec.spark.cgescape.UnsafeExternalProcessorBase.UnsafeBatchProcessor
 import com.nec.spark.planning.ArrowSummingPlan.ArrowSummer
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
+
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 
 /** Container to aggregate all the data coming in and place it in the right spots */
@@ -13,7 +14,7 @@ import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 /** There're many variations we can do here */
 final class ArrowUnsafeSummer(summer: ArrowSummer, vectorSchemaRoot: VectorSchemaRoot)
   extends UnsafeBatchProcessor {
-  private val theVector = vectorSchemaRoot.getVector(0).asInstanceOf[Float8Vector]
+  private val theVector = vectorSchemaRoot.getFieldVectors.get(0).asInstanceOf[Float8Vector]
   private var counter: Int = 0
   override def insertRow(unsafeRow: UnsafeRow): Unit = {
     val vl = unsafeRow.getDouble(0)
@@ -28,9 +29,11 @@ final class ArrowUnsafeSummer(summer: ArrowSummer, vectorSchemaRoot: VectorSchem
   }
   override def execute(): Iterator[InternalRow] = {
     val result = summer.sum(theVector, 1)
-    val writer = new UnsafeRowWriter(1)
-    writer.reset()
+    val row = new UnsafeRow(1)
+    val holder = new BufferHolder(row)
+    val writer = new UnsafeRowWriter(holder, 2)
+    holder.reset()
     writer.write(0, result)
-    Iterator(writer.getRow)
+    Iterator(row)
   }
 }

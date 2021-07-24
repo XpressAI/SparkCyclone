@@ -6,3 +6,9 @@
 - How to read batches properly? ColumnarBatch exists however `executeColumnar()` does not exist; CB is available only via WSCG for which we have some code already.
 - Extensions --> works much better here
 
+## Stages
+
+1. Make `compile` work
+2. Make `Test / compile` work
+3. Make tests pass
+4. Make benchmarks work

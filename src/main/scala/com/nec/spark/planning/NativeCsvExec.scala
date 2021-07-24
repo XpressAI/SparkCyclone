@@ -71,10 +71,10 @@ object NativeCsvExec {
   logicalPlan match {
     case Project(projectList, child) => {
      projectList.collect{
-       case Alias(Add(_, _, _), name) =>
-       case Alias(Subtract(_, _, _), name) =>
-       case Alias(Multiply(_, _, _), name) =>
-       case Alias(Divide(_, _, _), name) =>
+       case Alias(Add(_, _), name) =>
+       case Alias(Subtract(_, _), name) =>
+       case Alias(Multiply(_, _), name) =>
+       case Alias(Divide(_, _), name) =>
      }.size == 0
     }
     case _ => false
@@ -109,8 +109,7 @@ object NativeCsvExec {
     val millis = System.currentTimeMillis() - startTime
     logger.info(s"Took ${millis} ms to process CSV: ${name} (${text.getLength} bytes)")
     new ColumnarBatch(
-      outColumns.map(col => new ArrowColumnVector(col)).toArray,
-      outColumns.head.getValueCount
+      outColumns.map(col => new ArrowColumnVector(col)).toArray
     )
   }
 
@@ -144,8 +143,7 @@ object NativeCsvExec {
     logger.debug(s"Took ${millis} ms to process CSV: ${name}")
     // need to dealloc() the ignored columns here
     new ColumnarBatch(
-      outColumns.map(col => new ArrowColumnVector(col)).toArray,
-      outColumns.head.getValueCount
+      outColumns.map(col => new ArrowColumnVector(col)).toArray
     )
   }
 

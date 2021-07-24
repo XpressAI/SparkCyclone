@@ -57,7 +57,7 @@ object GroupBySum {
       case agg @ Aggregate(groupingExpressions, aggregateExpressions, child) =>
         val isSum = aggregateExpressions.collect {
           case agg @ Alias(
-            AggregateExpression(SparkSum(expr), mode, isDistinct, filter, resultId),
+            AggregateExpression(SparkSum(expr), mode, isDistinct, resultId),
             name) => agg
         }.size == 1
 

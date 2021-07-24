@@ -45,14 +45,14 @@ object LocalVeoExtension {
 
   def createExpressionAggregator(aggregationFunction: Expression): ColumnAggregator = {
     aggregationFunction match {
-      case Add(_, _, _) =>
+      case Add(_, _) =>
         AdditionAggregator(
           new VeArrowNativeInterfaceNumeric(
             Aurora4SparkExecutorPlugin._veo_proc,
             Aurora4SparkExecutorPlugin.lib
           )
         )
-      case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
+      case Subtract(_, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.VeoBased)
       case _                 => NoAggregationAggregator
     }
   }

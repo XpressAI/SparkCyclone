@@ -73,11 +73,11 @@ object CExpressionEvaluation {
           case idx =>
             s"input_${idx}->data[i]"
         }
-      case Subtract(left, right, _) =>
+      case Subtract(left, right) =>
         s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
-      case Multiply(left, right, _) =>
+      case Multiply(left, right) =>
         s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
-      case Add(left, right, _) =>
+      case Add(left, right) =>
         s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
       case Literal(v, DoubleType | IntegerType) =>
         s"$v"
@@ -140,8 +140,12 @@ object CExpressionEvaluation {
   }
 
   object NameCleaner {
-    val simple: NameCleaner = _.replaceAll("[^A-Z_a-z0-9]", "")
-    val verbose: NameCleaner = v => CleanName.fromString(v).value
+    val simple: NameCleaner = new NameCleaner {
+      override def cleanName(input: String): String = input.replaceAll("[^A-Z_a-z0-9]", "")
+    }
+    val verbose: NameCleaner = new NameCleaner {
+      override def cleanName(input: String): String = CleanName.fromString(input).value
+    }
   }
 
   def cGen(input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit

@@ -4,15 +4,12 @@ import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod
 import com.nec.spark.planning.simplesum.SimpleSumPlan.SumMethod.NonCodegen
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.pojo.Schema
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
-import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
-import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, CodeGenerator, CodegenContext, ExprCode, UnsafeRowWriter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
 import org.apache.spark.sql.execution.CodegenSupport
@@ -119,13 +116,16 @@ final case class SimpleSumPlan(child: SparkPlan, sumMethod: SimpleSumPlan.SumMet
               Iterator.continually(iterRows.map(row => row.getDouble(0)).sum).take(1)
             )
             .coalesce(numPartitions = 1)
-            .mapPartitions(iterDoubles =>
+            .mapPartitions(iterDoubles => {
+              val row = new UnsafeRow(1)
+              val holder = new BufferHolder(row)
+              val writer = new UnsafeRowWriter(holder, 1)
               Iterator.continually(iterDoubles.sum).take(1).map { result =>
-                val writer = new UnsafeRowWriter(1)
-                writer.reset()
+                holder.reset()
                 writer.write(0, result)
-                writer.getRow
+                row
               }
+            }
             )
       case _ => sys.error(s"Not supported for doExecute: ${sumMethod}")
     }

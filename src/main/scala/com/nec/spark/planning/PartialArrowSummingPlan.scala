@@ -33,11 +33,11 @@ case class PartialArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column
         val arrowWriter = ArrowWriter.create(root)
         rows.foreach(row => arrowWriter.write(row))
         arrowWriter.finish()
-        val result = summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1)
+        val result = summer.sum(root.getFieldVectors.get(0).asInstanceOf[Float8Vector], 1)
         val outVector = new OffHeapColumnVector(1, DoubleType)
         outVector.putDouble(0, result)
 
-        Iterator(new ColumnarBatch(Array(outVector), 1))
+        Iterator(new ColumnarBatch(Array(outVector)))
       }
   }
 

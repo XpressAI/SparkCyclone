@@ -125,7 +125,7 @@ final case class CEvaluationPlan(
               val writer = new UnsafeRowWriter(outputVectors.size)
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                val doubleV = v.getValueAsDouble(v_idx)
+                val doubleV = v.get(v_idx)
                 writer.write(c_idx, doubleV)
               }
               writer.getRow
@@ -148,7 +148,7 @@ final case class CEvaluationPlan(
               val startingIndices = resultExpressions.view
                 .flatMap {
                   case ne @ Alias(
-                        AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
+                        AggregateExpression(aggregateFunction, mode, isDistinct, resultId),
                         name
                       ) =>
                     aggregateFunction.aggBufferAttributes.map(attr => ne)
@@ -162,15 +162,15 @@ final case class CEvaluationPlan(
               writer.reset()
 
               resultExpressions.view.zipWithIndex.foreach {
-                case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Average(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
-                  val sum = unsafeRowsList.map(_.getDouble(idx)).sum
-                  val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
+                  val sum = unsafeRowsList.map(_.get(idx)).sum
+                  val count = unsafeRowsList.map(_.get(idx + 1)).sum
                   val result = sum / count
                   writer.write(outIdx, result)
-                case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Sum(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
-                  val result = unsafeRowsList.map(_.getDouble(idx)).sum
+                  val result = unsafeRowsList.map(_.get(idx)).sum
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
@@ -279,7 +279,7 @@ final case class CEvaluationPlan(
               val startingIndices = resultExpressions.view
                 .flatMap {
                   case ne @ Alias(
-                        AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
+                        AggregateExpression(aggregateFunction, mode, isDistinct, resultId),
                         name
                       ) =>
                     aggregateFunction.aggBufferAttributes.map(attr => ne)
@@ -293,13 +293,13 @@ final case class CEvaluationPlan(
               writer.reset()
 
               resultExpressions.view.zipWithIndex.foreach {
-                case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Average(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
-                  val sum = unsafeRowsList.map(_.getDouble(idx)).sum
-                  val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
+                  val sum = unsafeRowsList.map(_.get(idx)).sum
+                  val count = unsafeRowsList.map(_.get(idx + 1)).sum
                   val result = sum / count
                   writer.write(outIdx, result)
-                case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Sum(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getDouble(idx)).sum
                   writer.write(outIdx, result)

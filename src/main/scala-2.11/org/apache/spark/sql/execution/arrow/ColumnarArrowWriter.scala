@@ -6,14 +6,12 @@ import org.apache.spark.sql.types.StructType
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.MapVector
-import org.apache.arrow.vector.complex.StructVector
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.catalyst.util.MapData
 import org.apache.spark.sql.execution.arrow.ColumnarArrowWriter.SpecializedColumnVectorGetters
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.ArrowUtils
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.CalendarInterval

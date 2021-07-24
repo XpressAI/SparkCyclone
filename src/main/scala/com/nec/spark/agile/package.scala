@@ -43,7 +43,7 @@ package object agile {
 
   case class AdditionAggregator(interface: ArrowNativeInterfaceNumeric) extends ColumnAggregator {
     override def aggregate(inputData: Seq[Double]): Double = {
-      val rootAllocator = new RootAllocator()
+      val rootAllocator = new RootAllocator(Long.MaxValue)
       val vector = new Float8Vector("value", rootAllocator)
       vector.allocateNew()
       inputData.zipWithIndex

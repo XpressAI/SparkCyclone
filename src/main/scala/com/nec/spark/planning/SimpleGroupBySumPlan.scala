@@ -5,11 +5,12 @@ import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod.{JvmArrowBased, VEBased}
-import org.apache.arrow.vector.{VectorSchemaRoot, Float8Vector}
+import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, UnsafeRow}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.types.DoubleType
@@ -43,8 +44,8 @@ final case class SimpleGroupBySumPlan(
         iterator.foreach(row => arrowWriter.write(row))
         arrowWriter.finish()
 
-        val groupingVec = root.getVector(0).asInstanceOf[Float8Vector]
-        val valuesVec = root.getVector(1).asInstanceOf[Float8Vector]
+        val groupingVec = root.getFieldVectors.get(0).asInstanceOf[Float8Vector]
+        val valuesVec = root.getFieldVectors.get(1).asInstanceOf[Float8Vector]
         val outGroupsVector = new Float8Vector("groups", ArrowUtilsExposed.rootAllocator)
         val outValuesVector = new Float8Vector("values", ArrowUtilsExposed.rootAllocator)
 
@@ -72,14 +73,18 @@ final case class SimpleGroupBySumPlan(
                 .map(idx => (outGroupsVector.get(idx), outValuesVector.get(idx)))
                 .toMap
           }
-
+          //TODO: Verify if that's the correct way to do that, I've based this solution on
+          // `TextFileFormat`
+          val row = new UnsafeRow(2)
+          val holder = new BufferHolder(row)
+          val writer = new UnsafeRowWriter(holder, 2)
           resultsMap.zipWithIndex.map {
             case ((groupingId, sum), idx) => {
-              val writer = new UnsafeRowWriter(2)
-              writer.reset()
+              holder.reset()
               writer.write(0, groupingId)
               writer.write(1, sum)
-              writer.getRow
+              row.setTotalSize(holder.totalSize())
+              row
             }
           }.toIterator
         } finally {

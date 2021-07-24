@@ -82,7 +82,7 @@ case class SummingPlanOffHeap(
       val offHeapVector = new OffHeapColumnVector(1, DoubleType)
       offHeapVector.putDouble(0, result)
 
-      Iterator(new ColumnarBatch(Array(offHeapVector), 1))
+      Iterator(new ColumnarBatch(Array(offHeapVector)))
     })
 
   override def output: Seq[Attribute] = Seq(

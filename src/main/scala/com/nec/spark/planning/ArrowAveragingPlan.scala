@@ -33,7 +33,7 @@ case class ArrowAveragingPlan(child: SparkPlan, offHeapSummer: ArrowSummer, colu
         val arrowWriter = ArrowWriter.create(root)
         rows.foreach(row => arrowWriter.write(row))
         arrowWriter.finish()
-        val vector = root.getVector(0).asInstanceOf[Float8Vector]
+        val vector = root.getFieldVectors.get(0).asInstanceOf[Float8Vector]
         arrowWriter.finish()
 
         Iterator((offHeapSummer.sum(vector, 1), vector.getValueCount))
@@ -45,7 +45,7 @@ case class ArrowAveragingPlan(child: SparkPlan, offHeapSummer: ArrowSummer, colu
         val avg = result._1 / result._2
         outVector.putDouble(0, avg)
 
-        Iterator(new ColumnarBatch(Array(outVector), 1))
+        Iterator(new ColumnarBatch(Array(outVector)))
       }
   }
 

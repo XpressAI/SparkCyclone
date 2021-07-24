@@ -55,7 +55,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   }
 
   def readStrings(bytes: Array[Byte]): List[String] = {
-    val allocator = new RootAllocator()
+    val allocator = new RootAllocator(Long.MaxValue)
     val arrowStreamReader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
     val root = arrowStreamReader.getVectorSchemaRoot()
 
@@ -110,7 +110,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   case class StringInfo(startAddr: Long, position: Int, length: Int, value: String)
 
   def readStringPositionsValuesLengths(bytes: Array[Byte]): List[StringInfo] = {
-    val allocator = new RootAllocator()
+    val allocator = new RootAllocator(Long.MaxValue)
     val arrowStreamReader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
     val root = arrowStreamReader.getVectorSchemaRoot
 

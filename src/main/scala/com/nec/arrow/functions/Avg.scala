@@ -16,7 +16,7 @@ object Avg {
   def runOn(
     nativeInterface: ArrowNativeInterfaceNumeric
   )(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
-    val ra = new RootAllocator()
+    val ra = new RootAllocator(Long.MaxValue)
     val outputVector = new Float8Vector("count", ra)
     outputVector.allocateNew(columnsCount)
     outputVector.setValueCount(columnsCount)
@@ -27,13 +27,13 @@ object Avg {
     )
 
     (0 until outputVector.getValueCount).map { idx =>
-      outputVector.getValueAsDouble(idx)
+      outputVector.get(idx)
     }
   }
 
   def avgJVM(float8Vector: Float8Vector, columnsCount: Int): Seq[Double] = {
     (0 until float8Vector.getValueCount)
-      .map(idx => float8Vector.getValueAsDouble(idx))
+      .map(idx => float8Vector.get(idx))
       .zipWithIndex
       .groupBy { case (elem, idx) =>
         idx % columnsCount

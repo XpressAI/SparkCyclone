@@ -108,8 +108,8 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
             val outputVector = new Float8Vector("result", ArrowUtilsExposed.rootAllocator)
 
             AddPairwise.runOn(arrowInterface)(
-              root.getVector(0).asInstanceOf[Float8Vector],
-              root.getVector(1).asInstanceOf[Float8Vector],
+              root.getFieldVectors.get(0).asInstanceOf[Float8Vector],
+              root.getFieldVectors.get(1).asInstanceOf[Float8Vector],
               outputVector
             )
 

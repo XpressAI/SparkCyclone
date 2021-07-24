@@ -30,7 +30,7 @@ object AddPlanExtractor {
      * computation has been pushed down - at the point of [[LocalTableScanExec]].
      */
     PartialFunction
-      .condOpt(sparkPlan) { case pe @ ProjectExec(Seq(Alias(Add(_, _, _), name)), child) =>
+      .condOpt(sparkPlan) { case pe @ ProjectExec(Seq(Alias(Add(_, _), name)), child) =>
         PairwiseAdditionOffHeap(
           if (child.supportsColumnar) child else RowToColumnarExec(child),
           arrowInterface

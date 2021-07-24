@@ -97,7 +97,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
           val outVector = new OffHeapColumnVector(1, DoubleType)
           outVector.putDouble(0, result)
 
-          Iterator(new ColumnarBatch(Array(outVector), 1))
+          Iterator(new ColumnarBatch(Array(outVector)))
         }
     } else {
       child
@@ -114,7 +114,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
           rows.foreach(row => arrowWriter.write(row))
           arrowWriter.finish()
 
-          Iterator(summer.sum(root.getVector(0).asInstanceOf[Float8Vector], 1))
+          Iterator(summer.sum(root.getFieldVectors.get(0).asInstanceOf[Float8Vector], 1))
         }
         .coalesce(1)
         .mapPartitions { it =>
@@ -122,7 +122,7 @@ case class ArrowSummingPlan(child: SparkPlan, summer: ArrowSummer, column: Colum
           val outVector = new OffHeapColumnVector(1, DoubleType)
           outVector.putDouble(0, result)
 
-          Iterator(new ColumnarBatch(Array(outVector), 1))
+          Iterator(new ColumnarBatch(Array(outVector)))
         }
     }
   }

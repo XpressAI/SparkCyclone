@@ -30,7 +30,7 @@ object VectorEngineArrowReader {
           inVe.size
         )
         val nndv = new non_null_double_vector()
-        val ra = new RootAllocator()
+        val ra = new RootAllocator(Long.MaxValue)
 
         nndv.count = inVe.count.toInt
         nndv.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
