@@ -8,7 +8,7 @@ export VE_OMP_NUM_THREADS=1
 --deploy-mode cluster \
 --name VE_Benchmark_column_1M \
 --py-files dep.zip \
---num-executors=8 --executor-cores=6 --executor-memory=16G \
+--num-executors=8 --executor-cores=1 --executor-memory=16G \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
 --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
 --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
@@ -16,9 +16,15 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
 --conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
+--conf spark.driver.resource.ve.amount=1 \
+--conf spark.executor.resource.ve.amount=1 \
+--conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin \
+--conf spark.com.nec.spark.kernel.precompiled=/opt/spark/work/muhdlaziem \
 run_benchmark.py  --outputfile "yarn_test_ve_1M" --clearcache --ntest 5 \
 column "data/XY_doubles_R1000000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
+
+/opt/hadoop/bin/hadoop dfs -rm -r -f temp/
 
 # GPU 
 /opt/spark/bin/spark-submit --master yarn \
@@ -43,13 +49,17 @@ run_benchmark.py  --outputfile "yarn_test_gpu_1M" --clearcache --ntest 5 \
 column "data/XY_doubles_R1000000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
 
+/opt/hadoop/bin/hadoop dfs -rm -r -f temp/
+
 # JVM
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
 --name CPU_Benchmark_column_1M \
 --py-files dep.zip \
---num-executors=24 --executor-cores=2 --executor-memory=16G \
+--num-executors=2 --executor-cores=12 --executor-memory=16G \
 --conf spark.sql.columnVector.offheap.enabled=true \
 run_benchmark.py  --outputfile "yarn_test_cpu_1M" --clearcache --ntest 5 \
 column "data/XY_doubles_R1000000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
+
+/opt/hadoop/bin/hadoop dfs -rm -r -f temp/

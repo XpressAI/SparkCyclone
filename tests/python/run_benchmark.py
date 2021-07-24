@@ -98,11 +98,13 @@ def group_by_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
     ])
     
     df = spark.read.csv(args.inputfile, header=True, schema=schema)
-    df.createOrReplaceTempView("table")
     
     if (args.clearcache is False):
         print('Caching Temp View Table...')
-        spark.sql("CACHE TABLE table")
+        # spark.sql("CACHE TABLE table")
+        df.cache()
+        
+    df.createOrReplaceTempView("table")
     df.printSchema()
     
     return benchmark(spark, args, group_by_queries())
@@ -144,11 +146,13 @@ def column_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
 
     assert df, (f"Filetype not found in {args.inputfile}! Ensure that the path dir is correct.")
 
-    df.createOrReplaceTempView("table")
     
     if (args.clearcache is False):
         print('Caching Temp View Table...')
-        spark.sql("CACHE TABLE table")
+        # spark.sql("CACHE TABLE table")
+        df.cache()
+        
+    df.createOrReplaceTempView("table")
     df.printSchema()
 
     return benchmark(spark, args, column_queries())
@@ -197,13 +201,16 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
     
     df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi)
     df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab)
-    df.createOrReplaceTempView('trips')
-    df1.createOrReplaceTempView('cab_types')
     
     if (args.clearcache is False):
         print('Caching Temp View Table...')
-        spark.sql("CACHE TABLE trips")
-        spark.sql("CACHE TABLE cab_types")
+        # spark.sql("CACHE TABLE trips")
+        # spark.sql("CACHE TABLE cab_types")
+        df.cache()
+        df1.cache()
+    
+    df.createOrReplaceTempView('trips')
+    df1.createOrReplaceTempView('cab_types')
     df.printSchema()
     df1.printSchema()
 
