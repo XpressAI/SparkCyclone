@@ -40,7 +40,7 @@ object VeKernelCompiler {
         "-pthread",
         "-report-all",
         /* "-ftrace", */
-        "-fdiag-vector=2",
+        "-fdiag-vector=2"
       ) ++
         List(
           if (doDebug) List("-D", "DEBUG=1") else Nil,

@@ -1,7 +1,5 @@
 package com.nec.spark
 
-import okio.ByteString
-
-final case class RequestCompiledLibraryResponse(byteString: ByteString) extends Serializable {
+final case class RequestCompiledLibraryResponse(byteString: Vector[Byte]) extends Serializable {
 
 }

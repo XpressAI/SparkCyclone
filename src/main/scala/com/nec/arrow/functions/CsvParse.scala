@@ -17,7 +17,7 @@ object CsvParse {
 
   val CsvParseCode: String = {
     val sources = Seq(
-      scala.io.Source.fromInputStream(getClass.getResourceAsStream("csv.cpp")),
+      scala.io.Source.fromInputStream(getClass.getResourceAsStream("csv.cpp"))
     )
     try sources.map(_.mkString("")).mkString("\n")
     finally sources.map(_.close())
@@ -49,7 +49,7 @@ object CsvParse {
   def runOn2(nativeInterface: ArrowNativeInterfaceNumeric)(
     input: Either[(ByteBuffer, Int), String],
     a: Float8Vector,
-    b: Float8Vector,
+    b: Float8Vector
   ): Unit = {
     nativeInterface.callFunction(
       name = "parse_csv_2",
@@ -71,7 +71,7 @@ object CsvParse {
     a: Float8Vector,
     b: VarCharVector,
     c: IntVector,
-    d: BigIntVector,
+    d: BigIntVector
   ): Unit = {
     nativeInterface.callFunction(
       name = "parse_csv_double1_str2_int3_long4",

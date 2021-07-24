@@ -49,7 +49,7 @@ sources.
 
 As such, any Spark 2.3-specific tests should be done through `src/test/scala-2.11`.
 
-In the shell, switch using `+ 2.11.12`. We tried to use https://github.com/sbt/sbt-projectmatrix - while it worked it
+In the shell, switch using `++ 2.11.12`. We tried to use https://github.com/sbt/sbt-projectmatrix - while it worked it
 did not gel so well with IntelliJ.
 
 ## SBT commands

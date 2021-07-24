@@ -30,13 +30,13 @@ object GroupBySum {
         Some(Float8VectorWrapper(groupingVector)),
         Some(Float8VectorWrapper(valuesVector)),
         None,
-        None,
+        None
       ),
       outputArguments = List(
         None,
         None,
         Some(Float8VectorWrapper(outputValuesVector)),
-        Some(Float8VectorWrapper(outputGroupsVector)),
+        Some(Float8VectorWrapper(outputGroupsVector))
       )
     )
   }

@@ -9,8 +9,6 @@ import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.spark.Aurora4SparkExecutorPlugin._
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.api.plugin.ExecutorPlugin
-import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
@@ -53,7 +51,7 @@ object Aurora4SparkExecutorPlugin {
     def getLocalLibraryPath(code: String): Path
   }
 
-  final class DriverFetchingLibraryStorage(pluginContext: PluginContext)
+  final class DriverFetchingLibraryStorage(f: RequestCompiledLibraryForCode => RequestCompiledLibraryResponse)
     extends LibraryStorage
     with LazyLogging {
 
@@ -67,14 +65,14 @@ object Aurora4SparkExecutorPlugin {
           result
         case None =>
           logger.debug("Cache miss for executor-fetch for code; asking Driver.")
-          val result = pluginContext.ask(RequestCompiledLibraryForCode(code))
+          val result = f(RequestCompiledLibraryForCode(code))
           if (result == null) {
             sys.error(s"Could not fetch library: ${code}")
           } else {
             val localPath = Files.createTempFile("ve_fn", ".lib")
             Files.write(
               localPath,
-              result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
+              result.byteString.toArray
             )
             logger.debug(s"Saved file to '$localPath'")
             locallyStoredLibs += code -> localPath
@@ -87,31 +85,10 @@ object Aurora4SparkExecutorPlugin {
   var libraryStorage: LibraryStorage = _
 }
 
-class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
+class Aurora4SparkExecutorPlugin extends Logging {
 
-  override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    val resources = ctx.resources()
-    Aurora4SparkExecutorPlugin.synchronized {
-      Aurora4SparkExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
-    }
-    logInfo(s"Executor has the following resources available => ${resources}")
-    val selectedVeNodeId = if (!resources.containsKey("ve")) {
-      logInfo(
-        s"Do not have a VE resource available. Will use '${DefaultVeNodeId}' as the main resource."
-      )
-      DefaultVeNodeId
-    } else {
-      val veResources = resources.get("ve")
-      if (veResources.addresses.size > 1) {
-        logError(
-          s"${veResources.addresses.size} VEs were assigned; only 1 can be supported at a time per executor."
-        )
-        sys.error(
-          s"We have ${veResources.addresses.size} VEs assigned; only 1 can be supported per executor."
-        )
-      }
-      veResources.addresses.head.toInt
-    }
+  def init(extraConf: util.Map[String, String]): Unit = {
+    val selectedVeNodeId = DefaultVeNodeId
 
     logInfo(s"Using VE node = ${selectedVeNodeId}")
 
@@ -138,11 +115,10 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
     launched = true
   }
 
-  override def shutdown(): Unit = {
+  def shutdown(): Unit = {
     if (closeAutomatically) {
       logInfo(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()
     }
-    super.shutdown()
   }
 }
