@@ -7,15 +7,14 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.commons.lang3.reflect.FieldUtils
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.aggregate.Average
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
@@ -26,7 +25,6 @@ import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
-
 import scala.language.dynamics
 
 object CEvaluationPlan {
@@ -54,7 +52,7 @@ object CEvaluationPlan {
     }
   }
 }
-final case class CEvaluationPlan(
+final case class  CEvaluationPlan(
   resultExpressions: Seq[NamedExpression],
   lines: CodeLines,
   child: SparkPlan,
@@ -171,6 +169,11 @@ final case class CEvaluationPlan(
                 case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getDouble(idx)).sum
+                  writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Count(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val result = unsafeRowsList.map(_.getInt(idx)).sum
+
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
@@ -302,6 +305,10 @@ final case class CEvaluationPlan(
                 case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getDouble(idx)).sum
+                  writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Count(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val result = unsafeRowsList.map(_.getInt(idx)).sum
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }

@@ -15,9 +15,10 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
-run_benchmark.py  --outputfile "yarn_test_ve_1K" --ntest 5 \
+--conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
+run_benchmark.py  --outputfile "yarn_test_ve_1K" --clearcache --ntest 5 \
 group_by "data/XY_doubles_R1000_P100_csv" \
---list "q1,q2"
+--list "group_by_avg_x,group_by_avg_x_plus_y"
 
 # GPU 
 /opt/spark/bin/spark-submit --master yarn \
@@ -39,7 +40,7 @@ group_by "data/XY_doubles_R1000_P100_csv" \
 --conf spark.rapids.sql.castFloatToString.enabled=true \
 run_benchmark.py  --outputfile "yarn_test_gpu_1K" --ntest 5 \
 group_by "data/XY_doubles_R1000_P100_csv" \
---list "q1,q2"
+--list "group_by_avg_x,group_by_avg_x_plus_y"
 
 # JVM
 /opt/spark/bin/spark-submit --master yarn \
@@ -49,4 +50,4 @@ group_by "data/XY_doubles_R1000_P100_csv" \
 --num-executors=24 --executor-cores=2 --executor-memory=16G \
 run_benchmark.py  --outputfile "yarn_test_cpu_1K" --ntest 5 \
 group_by "data/XY_doubles_R1000_P100_csv" \
---list "q1,q2"
+--list "group_by_avg_x,group_by_avg_x_plus_y"

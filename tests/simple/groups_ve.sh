@@ -17,8 +17,8 @@ $SPARK_HOME/bin/spark-submit \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.com.nec.spark.kernel.precompiled=/opt/spark/work/egonzalez \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
+    --conf spark.executorEnv.VE_PROGINF=YES \
     groups.py
 
-#    --conf spark.executorEnv.VE_PROGINF=YES \
-#        --conf spark.executor.extraJavaOptions=-agentpath:/opt/yjp/bin/linux-x86-64/libyjpagent.so \
+#   --conf spark.executor.extraJavaOptions=-agentpath:/opt/yjp/bin/linux-x86-64/libyjpagent.so \
 

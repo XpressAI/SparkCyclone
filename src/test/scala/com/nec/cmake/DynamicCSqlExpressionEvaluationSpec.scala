@@ -84,6 +84,26 @@ final class DynamicCSqlExpressionEvaluationSpec
       }
   }
 
+  val sql_cnt = s"SELECT COUNT(*) FROM nums"
+  "Support count"  in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[Long].collect().toList == List(5))
+      }
+  }
+
+  val sql_cnt_multiple_ops = s"SELECT COUNT(*), SUM(${SampleColB} - ${SampleColA}) FROM nums"
+  "Support count with other operations in the same query"  in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Long, Double)].collect().toList == List((5, -42)))
+      }
+  }
+
   val sql_mcio =
     s"SELECT SUM(${SampleColB} - ${SampleColA}), SUM(${SampleColA} + ${SampleColB}) FROM nums"
   "Support multi-column inputs and outputs" in withSparkSession2(configuration) { sparkSession =>
