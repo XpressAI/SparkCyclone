@@ -27,6 +27,8 @@ import com.nec.testing.Testing.DataSize.SanityCheckSize
 object ExpressionGenerationSpec {}
 
 final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
+
+  def testFName: String = "test_f"
   private implicit val nameCleaner: NameCleaner = NameCleaner.simple
   "SUM((value#14 - 1.0)) is evaluated" in {
     val ref = AttributeReference(
@@ -42,9 +44,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(Seq(ref), Alias(null, "summy")() -> expr) == {
+    assert(cGen(testFName, Seq(ref), Alias(null, "summy")() -> expr) == {
       List(
-        "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_sum) {",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_sum) {""",
         "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
         "output_0_sum->count = 1;",
         "double summy_accumulated = 0;",
@@ -73,9 +75,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
+    assert(cGen(testFName, Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
       List(
-        "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
         "output_0_average_sum->count = 1;",
         "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
@@ -108,9 +110,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
+    assert(cGen(testFName, Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
       List(
-        "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
         "output_0_average_sum->count = 1;",
         "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
@@ -149,9 +151,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
+    assert(cGen(testFName, Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
       List(
-        "extern \"C\" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
         "output_0_average_sum->count = 1;",
         "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
@@ -234,9 +236,14 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     )
 
     assert(
-      cGen(Seq(ref), Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2) ==
+      cGen(
+        testFName,
+        Seq(ref),
+        Alias(null, "summy")() -> expr,
+        Alias(null, "avy#123 - 1.0")() -> expr2
+      ) ==
         List(
-          """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_sum, non_null_double_vector* output_1_average_sum, non_null_double_vector* output_1_average_count) {""",
+          s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_sum, non_null_double_vector* output_1_average_sum, non_null_double_vector* output_1_average_count) {""",
           """output_0_sum->data = (double *)malloc(1 * sizeof(double));""",
           "output_0_sum->count = 1;",
           """double summy_accumulated = 0;""",
@@ -277,10 +284,11 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   "Addition projection: value#14 + value#15" in {
     assert(
       cGenProject(
+        testFName,
         Seq(ref_value14, ref_value15),
         Seq(Alias(Add(ref_value14, ref_value15), "oot")())
       ) == List(
-        """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
         "{",
         "output_0->count = input_0->count;",
         "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
@@ -297,10 +305,11 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   "Subtraction projection: value#14 - value#15" in {
     assert(
       cGenProject(
+        testFName,
         Seq(ref_value14, ref_value15),
         Seq(Alias(Subtract(ref_value14, ref_value15), "oot")())
       ) == List(
-        """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
         "{",
         "output_0->count = input_0->count;",
         "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
@@ -317,13 +326,14 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   "Multiple column projection: value#14 + value#15, value#14 - value#15" in {
     assert(
       cGenProject(
+        testFName,
         Seq(ref_value14, ref_value15),
         Seq(
           Alias(Add(ref_value14, ref_value15), "oot")(),
           Alias(Subtract(ref_value14, ref_value15), "oot")()
         )
       ) == List(
-        """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0, non_null_double_vector* output_1)""",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0, non_null_double_vector* output_1)""",
         "{",
         "output_0->count = input_0->count;",
         "output_0->data = (double*) malloc(output_0->count * sizeof(double));",

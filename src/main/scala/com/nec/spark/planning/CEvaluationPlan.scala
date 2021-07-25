@@ -53,6 +53,7 @@ object CEvaluationPlan {
   }
 }
 final case class  CEvaluationPlan(
+  fName: String,
   resultExpressions: Seq[NamedExpression],
   lines: CodeLines,
   child: SparkPlan,
@@ -108,7 +109,7 @@ final case class  CEvaluationPlan(
 
             try {
               evaluator.callFunction(
-                name = "f",
+                name = fName,
                 inputArguments = inputVectors.toList.map(iv =>
                   Some(Float8VectorWrapper(iv))
                 ) ++ outputVectors.map(_ => None),
@@ -227,7 +228,7 @@ final case class  CEvaluationPlan(
           try {
             logger.debug(s"[$uuid] executing the function 'f'.")
             evaluator.callFunction(
-              name = "f",
+              name = fName,
               inputArguments = inputVectors.toList.map(iv =>
                 Some(Float8VectorWrapper(iv))
               ) ++ outputVectors.map(_ => None),
