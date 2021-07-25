@@ -232,14 +232,21 @@ deploy := {
   logger.info("Preparing deployment: assembling.")
   val generatedFile = assembly.value
   logger.info(s"Assembled file: ${generatedFile}")
-  logger.info(s"Uploading JAR to ${targetBox}")
-  Seq("ssh", targetBox, "mkdir", "-p", "/opt/aurora4spark/") ! logger
-  Seq(
-    "scp",
-    generatedFile.toString,
-    s"${targetBox}:/opt/aurora4spark/aurora4spark-sql-plugin.jar"
-  ) ! logger
-  logger.info(s"Uploaded JAR")
+
+  if (targetBox == "local") {
+    logger.info(s"Copying JAR locally to /opt/aurora4spark/aurora4spark-sql-plugin.jar:")
+    Seq("cp", generatedFile.toString, "/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
+    logger.info(s"Copied.")
+  } else {
+    logger.info(s"Uploading JAR to ${targetBox}")
+    Seq("ssh", targetBox, "mkdir", "-p", "/opt/aurora4spark/") ! logger
+    Seq(
+      "scp",
+      generatedFile.toString,
+      s"${targetBox}:/opt/aurora4spark/aurora4spark-sql-plugin.jar"
+    ) ! logger
+    logger.info(s"Uploaded JAR")
+  }
 }
 
 deployExamples := {
