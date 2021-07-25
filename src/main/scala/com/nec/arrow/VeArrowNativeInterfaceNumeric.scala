@@ -16,6 +16,8 @@ import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
 
+import com.nec.util.LruVeoMemCache
+
 final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Long)
   extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
@@ -35,6 +37,9 @@ final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Lon
 
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
   private var libs: Map[String, Long] = Map()
+  private var functionAddrs: Map[(Long, String), Long] = Map()
+  private val columnCache: LruVeoMemCache = new LruVeoMemCache(100)
+  private val cacheCleanup: Cleanup = new Cleanup(Nil)
 
   def requireOk(result: Int): Unit = {
     require(result >= 0, s"Result should be >=0, got ${result}")
@@ -57,8 +62,11 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
         val loadTime = System.currentTimeMillis() - startLoad
         logger.debug(s"Loaded: '${libPath} in $loadTime")
         require(lib != 0, s"Expected lib != 0, got $lib")
+
+        libs += (libPath -> lib)
         lib
       } else {
+        logger.debug(s"Using cached: '$libPath' to call '$name'")
         libs(libPath)
       }
 
@@ -69,18 +77,34 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       )
     }
   }
-
+  
   private def make_veo_double_vector(proc: Aurora.veo_proc_handle, float8Vector: Float8Vector)(
     implicit cleanup: Cleanup
   ): non_null_double_vector = {
-    val vcvr = new non_null_double_vector()
-    vcvr.count = float8Vector.getValueCount
-    vcvr.data = copyBufferToVe(
-      proc,
-      float8Vector.getDataBuffer.nioBuffer(),
-      Some(float8Vector.getDataBuffer.capacity())
-    )
-    vcvr
+    val keyName = "double_" + float8Vector.getName + "_" + float8Vector.getDataBuffer().capacity()
+
+    columnCache(proc, keyName) match {
+      case None => {
+        logger.debug(s"Copying Buffer to VE for $keyName")
+        val vcvr = new non_null_double_vector()
+        vcvr.count = float8Vector.getValueCount
+        vcvr.data = copyBufferToVe(
+          proc,
+          float8Vector.getDataBuffer.nioBuffer(),
+          Some(float8Vector.getDataBuffer.capacity())
+        )(cacheCleanup)
+      
+        columnCache.put(proc, keyName, vcvr.data)
+        vcvr
+      }
+      case Some(ptr) => 
+        logger.debug(s"Using cached value for $keyName")
+
+        val vcvr = new non_null_double_vector()
+        vcvr.count = float8Vector.getValueCount
+        vcvr.data = ptr
+        vcvr
+    }
   }
 
   private def make_veo_string(proc: Aurora.veo_proc_handle, string: String)(implicit
@@ -119,10 +143,27 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
   private def make_veo_int2_vector(proc: Aurora.veo_proc_handle, intVector: IntVector)(implicit
     cleanup: Cleanup
   ): non_null_int2_vector = {
-    val vcvr = new non_null_int2_vector()
-    vcvr.count = intVector.getValueCount
-    vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())
-    vcvr
+    val keyName = "int2_" + intVector.getName + "_" + intVector.getDataBuffer().capacity()
+
+    columnCache(proc, keyName) match {
+      case None => {
+        logger.debug(s"Copying Buffer to VE for $keyName")
+
+        val vcvr = new non_null_int2_vector()
+        vcvr.count = intVector.getValueCount
+        vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())(cacheCleanup)
+
+        columnCache.put(proc, keyName, vcvr.data)
+        vcvr
+      }
+      case Some(ptr) => 
+        logger.debug(s"Using cached value for $keyName")
+
+        val vcvr = new non_null_int2_vector()
+        vcvr.count = intVector.getValueCount
+        vcvr.data = ptr
+        vcvr
+    }
   }
 
   /** Take a vec, and rewrite the pointer to our local so we can read it */
@@ -365,8 +406,16 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
       val startTime = System.currentTimeMillis()
       val uuid = java.util.UUID.randomUUID()
+      
       logger.debug(s"[$uuid] Starting VE call to '$functionName'...")
-      val fnAddr = Aurora.veo_get_sym(proc, lib, functionName)
+      val fnAddr = if (functionAddrs.contains((lib, functionName))) {
+        functionAddrs((lib, functionName))
+      } else {
+        val addr = Aurora.veo_get_sym(proc, lib, functionName)
+        functionAddrs += ((lib, functionName) -> addr)
+        addr
+      }
+
       val fnCallResult = new LongPointer(8)
       val callRes = Aurora.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
       val time = System.currentTimeMillis() - startTime
