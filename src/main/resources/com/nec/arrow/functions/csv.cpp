@@ -12,7 +12,10 @@
 #include "parsefloat.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
+
+#ifndef _WIN32
 #include "unix-read.cpp"
+#endif
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a,
@@ -132,6 +135,7 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
     return 0;
 }
 
+#ifndef _WIN32
 
 extern "C" long parse_csv_ipc(  non_null_c_bounded_string* input_sock_name,
                             non_null_double_vector* output_a,
@@ -167,7 +171,7 @@ extern "C" long parse_csv_2_ipc(  non_null_c_bounded_string* input_sock_name,
     temp_input_str_.length = temp_input_str.size;
     return parse_csv_2(&temp_input_str_, output_a, output_b);
 }
-
+#endif
 extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
                             non_null_double_vector* output_a)
 {
@@ -220,6 +224,8 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     return 0;
 }
 
+#ifndef _WIN32
+
 extern "C" long parse_csv_1_ipc(  non_null_c_bounded_string* input_sock_name,
                             non_null_double_vector* output_a) {
 
@@ -269,3 +275,5 @@ extern "C" long parse_csv_double1_str2_int3_long4(
 
     return 0;
 }
+
+#endif
