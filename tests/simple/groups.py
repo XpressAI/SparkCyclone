@@ -10,31 +10,35 @@ def main():
     app_name = f'groups_benchmark'
     spark = SparkSession.builder.appName(app_name).getOrCreate()
 
+    start_time = timer()
+
     print("Loading data")
 
-    csv = (spark
-        .read
-        .format("csv")
-        .schema(
-            T.StructType(
-                [
-                    T.StructField("_c0", T.DoubleType()), 
-                    T.StructField("_c1", T.DoubleType()), 
-                    T.StructField("_c2", T.DoubleType())
-                ]
-            )
-        )
-        .load("/data/XY_doubles_R10000000_P100_csv")
-    )
+    #csv = (spark
+    #    .read
+    #    .format("csv")
+    #    .schema(
+    #        T.StructType(
+    #            [
+    #                T.StructField("_c0", T.DoubleType()), 
+    #                T.StructField("_c1", T.DoubleType()), 
+    #                T.StructField("_c2", T.DoubleType())
+    #            ]
+    #        )
+    #    )
+    #    .load("hdfs://localhost:9000/data/test_file_62m_3f_R62000000_P48_csv")
+    #    #.load("/data/test_file_500M_3f_R500000000_P1000_csv")
+    #)
+    csv = (spark.read.parquet("/data/test_file_62m_3f_R62000000_P48_parquet"))
 
     print("Caching test1 table.")
     csv.cache()
     csv.createOrReplaceTempView("test1")
     #spark.sql("CACHE TABLE test1")
 
-    print(spark.sql("SELECT AVG(_c0), AVG(_c1), AVG(_c2) from test1").collect())
+    print(spark.sql("SELECT SUM(_c0), SUM(_c1), SUM(_c2) from test1").collect())
 
-    print("Starting 27 Group By SUM queries:")
+    print("Starting 54 Group By SUM queries:")
     print("Query Plan: ")
     spark.sql(f"WITH t(a) AS (SELECT AVG(_c1) as a FROM test1 GROUP BY _c2) SELECT AVG(a) FROM t").explain(extended=True)
 
@@ -44,15 +48,23 @@ def main():
         for j, col in enumerate(["_c0", "_c1", "_c2"]):
             for k, group in enumerate(["_c0", "_c1", "_c2"]):
                 query_start = timer()
-                print(spark.sql(f"WITH t(a) AS (SELECT AVG({col}) as a FROM test1 GROUP BY {group}) SELECT AVG(a) FROM t").collect())
+                print(spark.sql(f"WITH t(a) AS (SELECT SUM({col}) as a FROM test1 GROUP BY {group}) SELECT SUM(a) FROM t").collect())
                 query_end = timer()
-                print(f"Finished Iter: {i} Col: {j} Group: {k} Elapsed: {query_end - query_start}s")
+                print(f"Finished SUM Iter: {i} Col: {j} Group: {k} Elapsed: {query_end - query_start}s")
+                avg_query_start = timer()
+                print(spark.sql(f"WITH t(a) AS (SELECT AVG(ABS({col})) as a FROM test1 GROUP BY {group}) SELECT AVG(a) FROM t").collect())
+                avg_query_end = timer()
+                print(f"Finished AVG Iter: {i} Col: {j} Group: {k} Elapsed: {avg_query_end - avg_query_start}s")
+
     
     end = timer()
 
     elapsed = end - start
-    print(f"Total time for 27 Group By SUM queries: {elapsed}s")
+    print(f"Total time for 54 Group By SUM and AVG queries: {elapsed}s")
 
+    end_time = timer()
+
+    print(f"Total time for entire job: {end_time - start_time}s")
 
 if __name__ == '__main__':
     main()

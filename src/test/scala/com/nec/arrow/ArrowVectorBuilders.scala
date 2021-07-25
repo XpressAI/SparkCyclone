@@ -28,19 +28,17 @@ object ArrowVectorBuilders {
   def withArrowFloat8Vector[T](inputColumns: Seq[Seq[Double]])(f: Float8Vector => T): T = {
     WithTestAllocator { alloc =>
       val data = inputColumns.flatten
+      val vcv = new Float8Vector("value", alloc)
+      vcv.allocateNew()
       try {
-        val vcv = new Float8Vector("value", alloc)
-        vcv.allocateNew()
-        try {
-          inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
-            vcv.setSafe(idx, str)
-          }
-          if (data.nonEmpty)
-            vcv.setValueCount(data.size)
+        inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str)
+        }
+        if (data.nonEmpty)
+          vcv.setValueCount(data.size)
 
-          f(vcv)
-        } finally vcv.close()
-      }
+        f(vcv)
+      } finally vcv.close()
     }
   }
 
