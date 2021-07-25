@@ -149,12 +149,14 @@ object CExpressionEvaluation {
           init = List(
             s"${outputCount}->data = (int *)malloc(1 * sizeof(int));",
             s"${outputCount}->count = 1;",
-            s"int ${cleanName}_accumulated = 0;"
+            s"int ${cleanName}_counted = 0;"
+
           ),
           iter = List(
+            s"${cleanName}_counted += 1;"
           ),
           result = List(
-            s"${outputCount}->data[0] = input_${idx}->count;"
+            s"${outputCount}->data[0] = ${cleanName}_counted;"
           ),
           outputArguments = List(
             s"non_null_int_vector* ${outputCount}"
