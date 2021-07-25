@@ -2,11 +2,16 @@ package com.nec.spark.planning
 import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation
-import com.nec.spark.agile.CExpressionEvaluation.{RichListStr, NameCleaner}
+import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
+import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, Alias, AttributeReference}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -44,6 +49,7 @@ object VERewriteStrategy {
 final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: NativeEvaluator)
   extends Strategy {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+    def fName: String = s"eval_${Math.abs(plan.hashCode())}"
     if (VERewriteStrategy._enabled) {
       plan match {
         case logical.Project(resultExpressions, child) if !resultExpressions.forall {
@@ -54,19 +60,17 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
+              fName,
               resultExpressions,
               CExpressionEvaluation
-                .cGenProject(child.output, resultExpressions),
+                .cGenProject(fName, child.output, resultExpressions),
               planLater(child),
               nativeEvaluator
             )
           )
-        case logical.Aggregate(
-              groupingExpressions,
-              outerResultExpressions,
-              child
-            ) if GroupBySum.isLogicalGroupBySum(plan) =>
-          List(SimpleGroupBySumPlan(planLater(child),nativeEvaluator, GroupByMethod.VEBased))
+        case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
+            if GroupBySum.isLogicalGroupBySum(plan) =>
+          List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
         case logical.Aggregate(
               groupingExpressions,
               outerResultExpressions,
@@ -80,17 +84,19 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
             catch {
               case e: Throwable =>
                 throw new IllegalArgumentException(
-                  s"Could not process project+aggregate of ${exprs} ==> ${outerResultExpressions}: $e",
+                  s"Could not process project+aggregate of $exprs ==> $outerResultExpressions: $e",
                   e
                 )
             }
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
+              fName,
               resultExpressions,
               List(
                 CExpressionEvaluation
                   .cGen(
+                    fName,
                     child.output,
                     resultExpressions.map { re =>
                       (
@@ -118,10 +124,12 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
+              fName,
               resultExpressions,
               List(
                 CExpressionEvaluation
                   .cGen(
+                    fName,
                     child.output,
                     resultExpressions.map { re =>
                       (

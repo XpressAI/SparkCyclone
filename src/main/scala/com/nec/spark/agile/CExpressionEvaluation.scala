@@ -15,7 +15,7 @@ import org.apache.spark.sql.catalyst.expressions.Divide
 import org.apache.spark.sql.catalyst.expressions.Abs
 
 object CExpressionEvaluation {
-  def cGenProject(inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
+  def cGenProject(fName: String, inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
     val inputBits = inputs.zipWithIndex
@@ -30,7 +30,7 @@ object CExpressionEvaluation {
     val arguments = inputBits ++ outputBits
 
     List[List[String]](
-      List(s"""extern "C" long f(${arguments.mkString(", ")})""", "{"),
+      List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"long output_${idx}_count = input_0->count;",
@@ -182,7 +182,7 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def cGen(input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
+  def cGen(fName: String, input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
     val cleanNames = pairs.map(_._1.name).map(nameCleaner.cleanName).toList
@@ -199,7 +199,7 @@ object CExpressionEvaluation {
       .mkString(", ")
 
     List[List[String]](
-      List(s"""extern "C" long f(${inputBits}, ${ads
+      List(s"""extern "C" long ${fName}(${inputBits}, ${ads
         .flatMap(_.outputArguments)
         .mkString(", ")}) {"""),
       ads.flatMap(_.init),
