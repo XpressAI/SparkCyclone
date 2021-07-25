@@ -7,6 +7,7 @@ zip dep.zip *.py
 --deploy-mode cluster \
 --py-files dep.zip \
 --jars 'rapids.jar,cudf.jar' \
+--num-executors=1 --executor-cores=1 --executor-memory=16G \
 --conf spark.plugins=com.nvidia.spark.SQLPlugin \
 --conf spark.rapids.sql.incompatibleOps.enabled=true \
 --conf spark.rapids.sql.explain=ALL \
@@ -18,6 +19,6 @@ zip dep.zip *.py
 --conf spark.rapids.sql.csv.read.double.enabled=true \
 --conf spark.rapids.sql.csv.read.long.enabled=true \
 --conf spark.rapids.sql.castFloatToString.enabled=true \
-run_benchmark.py  --outputfile "test_gpu_nyc_taxi" --clearcache --ntest 5 nycdata --list "q1,q2,q3,q4,q5"
+run_benchmark.py  --outputfile "test_gpu_nyc_taxi" --ntest 3 nycdata --list "q1,q2"
 
-/opt/hadoop/bin/hadoop dfs -rm -r -f temp
+# /opt/hadoop/bin/hadoop dfs -rm -r -f temp
