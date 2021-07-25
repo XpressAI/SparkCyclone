@@ -48,6 +48,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
         "output_0_sum->count = 1;",
         "double summy_accumulated = 0;",
+        "#pragma _NEC ivdep",
         "for (int i = 0; i < input_0->count; i++) {",
         "summy_accumulated += input_0->data[i] - 1.0;",
         "}",
@@ -82,12 +83,12 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "output_0_average_count->count = 1;",
         "double avy12351_accumulated = 0;",
         "int avy12351_counted = 0;",
+        "#pragma _NEC ivdep",
         "for (int i = 0; i < input_0->count; i++) {",
         "avy12351_accumulated += input_0->data[i] - 1.0;",
-        "avy12351_counted += 1;",
         "}",
         "output_0_average_sum->data[0] = avy12351_accumulated;",
-        "output_0_average_count->data[0] = avy12351_counted;",
+        "output_0_average_count->data[0] = input_0->count;",
         "return 0;"
       )
     }.codeLines)
@@ -117,12 +118,12 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "output_0_average_count->count = 1;",
         "double avy1232_accumulated = 0;",
         "int avy1232_counted = 0;",
+        "#pragma _NEC ivdep",
         "for (int i = 0; i < input_0->count; i++) {",
         "avy1232_accumulated += input_0->data[i] + 2.0;",
-        "avy1232_counted += 1;",
         "}",
         "output_0_average_sum->data[0] = avy1232_accumulated;",
-        "output_0_average_count->data[0] = avy1232_counted;",
+        "output_0_average_count->data[0] = input_0->count;",
         "return 0;"
       )
     }.codeLines)
@@ -158,12 +159,12 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "output_0_average_count->count = 1;",
         "double avy123avy124_accumulated = 0;",
         "int avy123avy124_counted = 0;",
+        "#pragma _NEC ivdep",
         "for (int i = 0; i < input_0->count; i++) {",
         "avy123avy124_accumulated += input_0->data[i] + input_1->data[i];",
-        "avy123avy124_counted += 1;",
         "}",
         "output_0_average_sum->data[0] = avy123avy124_accumulated;",
-        "output_0_average_count->data[0] = avy123avy124_counted;",
+        "output_0_average_count->data[0] = input_0->count;",
         "return 0;"
       )
     }.codeLines)
@@ -237,23 +238,23 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       cGen(Seq(ref), Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2) ==
         List(
           """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* output_0_sum, non_null_double_vector* output_1_average_sum, non_null_double_vector* output_1_average_count) {""",
-          """output_0_sum->data = (double *)malloc(1 * sizeof(double));""",
+          "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
           "output_0_sum->count = 1;",
-          """double summy_accumulated = 0;""",
-          """output_1_average_sum->data = (double *)malloc(1 * sizeof(double));""",
+          "double summy_accumulated = 0;",
+          "output_1_average_sum->data = (double *)malloc(1 * sizeof(double));",
           "output_1_average_sum->count = 1;",
-          """output_1_average_count->data = (double *)malloc(1 * sizeof(double));""",
+          "output_1_average_count->data = (double *)malloc(1 * sizeof(double));",
           "output_1_average_count->count = 1;",
-          """double avy12310_accumulated = 0;""",
+          "double avy12310_accumulated = 0;",
           "int avy12310_counted = 0;",
+          "#pragma _NEC ivdep",
           "for (int i = 0; i < input_0->count; i++) {",
           "summy_accumulated += input_0->data[i] - 1.0;",
           "avy12310_accumulated += input_0->data[i] - 1.0;",
-          "avy12310_counted += 1;",
           "}",
           "output_0_sum->data[0] = summy_accumulated;",
           "output_1_average_sum->data[0] = avy12310_accumulated;",
-          "output_1_average_count->data[0] = avy12310_counted;",
+          "output_1_average_count->data[0] = input_0->count;",
           "return 0;"
         ).codeLines
     )
@@ -282,12 +283,14 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       ) == List(
         """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
         "{",
-        "output_0->count = input_0->count;",
-        "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
-        "#pragma omp parallel for",
-        "for (int i = 0; i < output_0->count; i++) {",
-        "output_0->data[i] = input_0->data[i] + input_1->data[i];",
+        "long output_0_count = input_0->count;",
+        "double *output_0_data = (double*) malloc(output_0_count * sizeof(double));",
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < output_0_count; i++) {",
+        "output_0_data[i] = input_0->data[i] + input_1->data[i];",
         "}",
+        "output_0->count = output_0_count;",
+        "output_0->data = output_0_data;",
         "return 0;",
         "}"
       ).codeLines
@@ -302,12 +305,14 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       ) == List(
         """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0)""",
         "{",
-        "output_0->count = input_0->count;",
-        "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
-        "#pragma omp parallel for",
-        "for (int i = 0; i < output_0->count; i++) {",
-        "output_0->data[i] = input_0->data[i] - input_1->data[i];",
+        "long output_0_count = input_0->count;",
+        "double *output_0_data = (double*) malloc(output_0_count * sizeof(double));",
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < output_0_count; i++) {",
+        "output_0_data[i] = input_0->data[i] - input_1->data[i];",
         "}",
+        "output_0->count = output_0_count;",
+        "output_0->data = output_0_data;",
         "return 0;",
         "}"
       ).codeLines
@@ -325,15 +330,19 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       ) == List(
         """extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0, non_null_double_vector* output_1)""",
         "{",
-        "output_0->count = input_0->count;",
-        "output_0->data = (double*) malloc(output_0->count * sizeof(double));",
-        "output_1->count = input_0->count;",
-        "output_1->data = (double*) malloc(output_1->count * sizeof(double));",
-        "#pragma omp parallel for",
-        "for (int i = 0; i < output_0->count; i++) {",
-        "output_0->data[i] = input_0->data[i] + input_1->data[i];",
-        "output_1->data[i] = input_0->data[i] - input_1->data[i];",
+        "long output_0_count = input_0->count;",
+        "double *output_0_data = (double*) malloc(output_0_count * sizeof(double));",
+        "long output_1_count = input_0->count;",
+        "double *output_1_data = (double*) malloc(output_1_count * sizeof(double));",
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < output_0_count; i++) {",
+        "output_0_data[i] = input_0->data[i] + input_1->data[i];",
+        "output_1_data[i] = input_0->data[i] - input_1->data[i];",
         "}",
+        "output_0->count = output_0_count;",
+        "output_0->data = output_0_data;",
+        "output_1->count = output_1_count;",
+        "output_1->data = output_1_data;",
         "return 0;",
         "}"
       ).codeLines
