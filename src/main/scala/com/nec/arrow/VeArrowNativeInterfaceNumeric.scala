@@ -38,7 +38,7 @@ final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Lon
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
   private var libs: Map[String, Long] = Map()
   private var functionAddrs: Map[(Long, String), Long] = Map()
-  private val columnCache: LruVeoMemCache = new LruVeoMemCache(100)
+  private val columnCache: LruVeoMemCache = new LruVeoMemCache(3)
   private val cacheCleanup: Cleanup = new Cleanup(Nil)
 
   def requireOk(result: Int): Unit = {
@@ -53,11 +53,23 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = {
       val lib = if (!libs.contains(libPath)) {
+        // XXX: Can probably cache more than just 1 library but can't know how much space we have with
+        // the current AVEO API.  Caching the last library is sufficient for our purposes now.
+        if (libs.nonEmpty) {
+          val (libPath, lib) = libs.head
+          logger.debug(s"Unloading: $libPath")
+          val startUnload = System.currentTimeMillis()
+          Aurora.veo_unload_library(proc, lib)
+          val unloadTime = System.currentTimeMillis() - startUnload
+          logger.debug(s"Unloaded: $libPath in $unloadTime")
+          libs -= (libPath)
+          functionAddrs = Map()
+        }
         logger.debug(s"Will load: '$libPath' to call '$name'")
-        val startLoad = System.currentTimeMillis()
         if (!Files.exists(Paths.get(libPath))) {
           throw new FileNotFoundException(s"Required fille $libPath does not exist")
         }
+        val startLoad = System.currentTimeMillis()
         val lib = Aurora.veo_load_library(proc, libPath)
         val loadTime = System.currentTimeMillis() - startLoad
         logger.debug(s"Loaded: '${libPath} in $loadTime")
