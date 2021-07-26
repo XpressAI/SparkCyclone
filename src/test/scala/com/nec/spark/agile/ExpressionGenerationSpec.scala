@@ -38,9 +38,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     val expr = AggregateExpression(
       aggregateFunction = Sum(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
-      isDistinct = false,
-      filter = None
-    )
+      isDistinct = false)
 
     assert(cGen(Seq(ref), Alias(null, "summy")() -> expr) == {
       List(
@@ -69,9 +67,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     val expr = AggregateExpression(
       aggregateFunction = Average(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
-      isDistinct = false,
-      filter = None
-    )
+      isDistinct = false)
 
     assert(cGen(Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
       List(
@@ -104,9 +100,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     val expr = AggregateExpression(
       aggregateFunction = Average(Add(ref, Literal(2.0, DoubleType))),
       mode = Complete,
-      isDistinct = false,
-      filter = None
-    )
+      isDistinct = false)
 
     assert(cGen(Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
       List(
@@ -145,9 +139,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     val expr = AggregateExpression(
       aggregateFunction = Average(Add(ref1, ref2)),
       mode = Complete,
-      isDistinct = false,
-      filter = None
-    )
+      isDistinct = false)
 
     assert(cGen(Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
       List(
@@ -189,7 +181,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
                       info(s"Grouping ==> ${groupingExpressions.mkString}")
                       info(s"Result ==> ${resultExpressions.mkString}")
                       info(s"Result ==> ${resultExpressions.collect {
-                        case Alias(ae @ AggregateExpression(Sum(sth), mode, isDistinct, filter, resultId), name) =>
+                        case Alias(ae @ AggregateExpression(Sum(sth), mode, isDistinct, resultId), name) =>
                           info(sth.toString)
                           info(sth.getClass.getCanonicalName)
                           ae.productIterator.mkString("|")
@@ -222,16 +214,12 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     val expr = AggregateExpression(
       aggregateFunction = Sum(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
-      isDistinct = false,
-      filter = None
-    )
+      isDistinct = false)
 
     val expr2 = AggregateExpression(
       aggregateFunction = Average(Subtract(ref, Literal(1.0, DoubleType))),
       mode = Complete,
-      isDistinct = false,
-      filter = None
-    )
+      isDistinct = false)
 
     assert(
       cGen(Seq(ref), Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2) ==

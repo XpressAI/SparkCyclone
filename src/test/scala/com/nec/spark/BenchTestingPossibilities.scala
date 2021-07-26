@@ -20,7 +20,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
 
 object BenchTestingPossibilities {
 
@@ -124,7 +123,6 @@ object BenchTestingPossibilities {
             .config(key = "spark.rapids.sql.concurrentGpuTasks", 1)
             .config(key = "spark.rapids.sql.variableFloatAgg.enabled", "true")
             .config(key = "spark.ui.enabled", value = false)
-            .config(CODEGEN_COMMENTS.key, value = true)
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.VectorEngine =>
@@ -133,7 +131,6 @@ object BenchTestingPossibilities {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
             .config(key = "spark.ui.enabled", value = false)
 
@@ -166,7 +163,6 @@ object BenchTestingPossibilities {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)
             .config(sparkConf)
             .getOrCreate()
@@ -185,7 +181,6 @@ object BenchTestingPossibilities {
               )
             )
             .config(CODEGEN_FALLBACK.key, value = false)
-            .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)
             .config(sparkConf)
             .getOrCreate()

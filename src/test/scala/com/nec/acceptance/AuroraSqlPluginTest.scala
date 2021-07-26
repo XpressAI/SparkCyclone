@@ -8,6 +8,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.BeforeAndAfter
 
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.COLUMN_VECTOR_OFFHEAP_ENABLED
 
 final class AuroraSqlPluginTest
@@ -31,18 +33,22 @@ final class AuroraSqlPluginTest
       .toDS()
       .createOrReplaceTempView("nums")
     SparkSqlPlanExtension.rulesToApply.clear()
-    SparkSqlPlanExtension.rulesToApply.append { (sparkPlan) =>
-      SingleColumnAvgPlanExtractor
-        .matchPlan(sparkPlan)
-        .map { childPlan =>
-          AveragingPlanOffHeap(
-            childPlan.sparkPlan,
-            MultipleColumnsOffHeapSummer.UnsafeBased,
-            childPlan.column
-          )
+    SparkSqlPlanExtension.rulesToApply.append(
+      new Rule[SparkPlan] {
+        override def apply(plan: SparkPlan): SparkPlan = {
+          SingleColumnAvgPlanExtractor
+            .matchPlan(plan)
+            .map { childPlan =>
+              AveragingPlanOffHeap(
+                childPlan.sparkPlan,
+                MultipleColumnsOffHeapSummer.UnsafeBased,
+                childPlan.column
+              )
+            }
+            .getOrElse(fail("Not expected to be here"))
         }
-        .getOrElse(fail("Not expected to be here"))
-    }
+      })
+
 
     val sumDataSet =
       sparkSession.sql("SELECT AVG(value) FROM nums").as[Double]

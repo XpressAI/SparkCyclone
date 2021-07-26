@@ -1,16 +1,10 @@
 package com.nec.spark.planning
 import com.nec.arrow.ArrowNativeInterfaceNumeric
-
-import org.apache.spark.sql.catalyst.expressions.Alias
-import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
-
-import org.apache.spark.sql.execution.LocalTableScanExec
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.catalyst.expressions.Add
-import org.apache.spark.sql.execution.RowToColumnarExec
 import com.nec.spark.agile.PairwiseAdditionOffHeap
+import com.nec.spark.planning.SparkPortingUtils.{PortedSparkPlan, RowToColumnarExec}
 
-import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias}
+import org.apache.spark.sql.execution.{LocalTableScanExec, ProjectExec, SparkPlan}
 
 /**
  * Basic SparkPlan matcher that will match a plan that sums a bunch of BigDecimals, and gets them

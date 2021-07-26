@@ -18,7 +18,6 @@ object Debugging {
         Files.createDirectory(plansDir)
       }
       val target = plansDir.resolve(s"$name.txt")
-      dataSet.queryExecution.debug.toFile(target.toAbsolutePath.toString)
       Files.write(
         target,
         s"\n\n${dataSet.showAsString()}\n".getBytes("UTF-8"),

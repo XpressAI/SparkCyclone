@@ -15,7 +15,7 @@ final class ArrowJVMGroupBySumSpec extends AnyFreeSpec {
       20.0 -> 1100.0,
       30.0 -> 300.0,
       40.0 -> 400.0,
-      50.0 -> 1000.0,
+      50.0 -> 1000.0
 
     )
     withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>

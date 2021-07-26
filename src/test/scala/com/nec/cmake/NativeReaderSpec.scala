@@ -20,11 +20,12 @@ import com.nec.spark.planning.NativeCsvExec.maybeDecodePds
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VarCharVector
 import org.apache.arrow.vector.util.Text
+import com.nec.spark.planning.SparkPortingUtils.SerializableConfiguration
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
-
 import java.net.ServerSocket
 import java.net.Socket
+
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 import org.scalasbt.ipcsocket.UnixDomainSocket
 import org.scalasbt.ipcsocket.Win32NamedPipeServerSocket
@@ -32,9 +33,10 @@ import org.scalasbt.ipcsocket.Win32NamedPipeSocket
 import org.scalasbt.ipcsocket.Win32SecurityLevel
 import org.scalatest.BeforeAndAfter
 import org.scalatest.Informing
-
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+
+import com.nec.spark.planning.SparkPortingUtils
 
 object NativeReaderSpec {
   val isWin: Boolean = System.getProperty("os.name", "").toLowerCase.startsWith("win")
@@ -162,7 +164,7 @@ final class NativeReaderSpec
     val vcv = new VarCharVector("test", allocator)
     val inputSock = new VarCharVector("inputSock", allocator)
     inputSock.setValueCount(1)
-    inputSock.setSafe(0, new Text("ABC"))
+    inputSock.setSafe(0, new Text("ABC").getBytes)
     try {
       CNativeEvaluator
         .forCode("""#include "unix-read.cpp"""")

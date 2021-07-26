@@ -1,18 +1,13 @@
 package com.nec.arrow
-import org.apache.arrow.vector.ipc.message.ArrowFieldNode
-import org.apache.arrow.vector.BitVectorHelper
-import com.nec.arrow.ArrowTransferStructures.non_null_int_vector
-import org.apache.arrow.vector._
-import com.nec.arrow.ArrowTransferStructures.varchar_vector
-import org.apache.arrow.memory.{AllocationManager, BufferAllocator}
-import sun.nio.ch.DirectBuffer
-import org.apache.arrow.vector.IntVector
-import com.nec.arrow.ArrowTransferStructures._
-import com.nec.spark.planning.SummingPlanOffHeap
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicInteger
 
-import io.netty.buffer.ArrowBuf
+import com.nec.arrow.ArrowTransferStructures.{non_null_int_vector, varchar_vector, _}
+import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
+import com.nec.spark.planning.SummingPlanOffHeap
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.{BitVectorHelper, IntVector, _}
+import org.apache.arrow.vector.ipc.message.ArrowFieldNode
+import sun.nio.ch.DirectBuffer
 
 object ArrowInterfaces {
 
@@ -157,10 +152,10 @@ object ArrowInterfaces {
     (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(validityBuffer, i))
     import scala.collection.JavaConverters._
 
-    val dataBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
+    //TODO: Not sure if that's correct. It should probably work fine, but not sure if it won't cause memory leaks.
+    val dataBuffer = rootAllocator.buffer(input.offsets.toInt)
     val offBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
+      rootAllocator.buffer(input.offsets.toInt)
 
     varCharVector.loadFieldBuffers(
       new ArrowFieldNode(input.count, 0),

@@ -3,19 +3,18 @@ package com.nec.spark.planning
 import com.nec.aurora.Aurora
 import com.nec.older.AvgSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
-import com.nec.spark.agile.ColumnIndex
+import com.nec.spark.agile.{Column, ColumnIndex}
+import com.nec.spark.planning.SparkPortingUtils.PortedSparkPlan
+import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.ve.VeJavaContext
 import sun.misc.Unsafe
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan}
-import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.DoubleType
-import com.nec.spark.agile.Column
-import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
-
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object AveragingPlanOffHeap {
@@ -60,9 +59,8 @@ case class AveragingPlanOffHeap(child: SparkPlan,
                                 column: Column)
   extends SparkPlan {
 
-  override def supportsColumnar: Boolean = true
 
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .executeColumnar()
       .map { columnarBatch =>
@@ -78,7 +76,7 @@ case class AveragingPlanOffHeap(child: SparkPlan,
         val totalAvg = sum._1/sum._2
         val offHeapColumnVector = new OffHeapColumnVector(1, DoubleType)
         offHeapColumnVector.putDouble(0, totalAvg)
-        Iterator(new ColumnarBatch(Array(offHeapColumnVector), 1))
+        Iterator(new ColumnarBatch(Array(offHeapColumnVector)))
       }
   }
 

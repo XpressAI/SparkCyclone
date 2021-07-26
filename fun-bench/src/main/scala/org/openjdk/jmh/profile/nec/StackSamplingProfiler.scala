@@ -1,7 +1,6 @@
 package org.openjdk.jmh.profile.nec
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import org.openjdk.jmh.profile.nec.StackSamplingProfiler.DefaultInterval
 import org.openjdk.jmh.profile.nec.StackSamplingProfiler.SamplingTask
 import org.openjdk.jmh.infra.BenchmarkParams
@@ -11,7 +10,7 @@ import org.openjdk.jmh.results.IterationResult
 import org.openjdk.jmh.results.Result
 import org.openjdk.jmh.results.TextResult
 import org.openjdk.jmh.runner.IterationType
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
 import java.time.Instant
@@ -24,6 +23,7 @@ import scala.language.existentials
 object StackSamplingProfiler {
 
   type ThreadsSamples = List[ThreadsSample]
+  implicit val globalTimer = IO.timer(global)
   final case class ThreadsSample(instant: Instant, threads: List[ThreadSample])
   final case class ThreadSample(threadName: String, stack: List[StackTraceElementScala])
   final case class StackTraceElementScala(

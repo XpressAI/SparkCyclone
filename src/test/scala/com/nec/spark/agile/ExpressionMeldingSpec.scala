@@ -17,13 +17,13 @@ final class ExpressionMeldingSpec extends AnyFreeSpec {
     val a0 = AttributeReference("a", DoubleType)(ExprId.apply(0))
 
     val expected = Alias(
-      child = AggregateExpression(Sum(a0), Complete, isDistinct = false, filter = None),
+      child = AggregateExpression(Sum(a0), Complete, isDistinct = false),
       name = "sum(value)"
     )(ExprId(13))
 
     val inputColumnsA: List[NamedExpression] = List(
       Alias(
-        child = AggregateExpression(Sum(value4), Complete, isDistinct = false, filter = None),
+        child = AggregateExpression(Sum(value4), Complete, isDistinct = false),
         name = "sum(value)"
       )(ExprId(13))
     )

@@ -16,9 +16,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan, outputColumns: Seq[OutputColumn])
   extends SparkPlan {
 
-  override def supportsColumnar: Boolean = true
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .execute()
       .mapPartitions { it =>

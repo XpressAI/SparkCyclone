@@ -5,8 +5,10 @@ import com.nec.older.SumSimple
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
 import com.nec.spark.agile.Column
+import com.nec.spark.planning.SparkPortingUtils.PortedSparkPlan
 import com.nec.spark.planning.SummingPlanOffHeap.MultipleColumnsOffHeapSummer
 import com.nec.ve.VeJavaContext
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -65,9 +67,7 @@ case class SummingPlanOffHeap(
   column: Column
 ) extends SparkPlan {
 
-  override def supportsColumnar: Boolean = true
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .executeColumnar()
       .map { columnarBatch =>
