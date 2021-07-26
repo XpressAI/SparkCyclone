@@ -1,8 +1,7 @@
 package org.openjdk.jmh.profile.nec
 
-import cats.effect.IO
-import org.openjdk.jmh.profile.nec.StackSamplingProfiler.DefaultInterval
-import org.openjdk.jmh.profile.nec.StackSamplingProfiler.SamplingTask
+import cats.effect.{IO, Resource}
+import org.openjdk.jmh.profile.nec.StackSamplingProfiler.{DefaultInterval, SamplingTask, StackTraceElementScala, ThreadSample, ThreadsSample}
 import org.openjdk.jmh.infra.BenchmarkParams
 import org.openjdk.jmh.infra.IterationParams
 import org.openjdk.jmh.profile.InternalProfiler
@@ -16,15 +15,21 @@ import java.nio.file.Paths
 import java.time.Instant
 import java.util
 import java.util.Collections
+
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
+import scala.util.Try
+
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.{JsonCodec, semiauto}
+import io.circe.syntax._
 
 object StackSamplingProfiler {
 
   type ThreadsSamples = List[ThreadsSample]
   implicit val globalTimer = IO.timer(global)
-  final case class ThreadsSample(instant: Instant, threads: List[ThreadSample])
+  case class ThreadsSample(instant: Instant, threads: List[ThreadSample])
   final case class ThreadSample(threadName: String, stack: List[StackTraceElementScala])
   final case class StackTraceElementScala(
     className: String,
@@ -48,7 +53,7 @@ object StackSamplingProfiler {
 
   final class SamplingTask(interval: FiniteDuration) {
     var end: IO[Unit] = _
-
+    implicit val globalShift = IO.contextShift(global)
     def stop(): Unit = end.unsafeRunSync()
     def getSample: IO[ThreadsSample] = IO.delay {
       val threadInfos = ManagementFactory.getThreadMXBean.dumpAllThreads(false, false)
@@ -66,8 +71,8 @@ object StackSamplingProfiler {
     }
     var collectedItems = scala.collection.mutable.Buffer.empty[ThreadsSample]
     def start(): Unit = {
-      val (allocated, end) =
-        fs2.Stream
+
+        val stream = fs2.Stream
           .awakeEvery[IO](interval)
           .evalMap { _ =>
             getSample
@@ -75,10 +80,10 @@ object StackSamplingProfiler {
           .evalMap(sample => IO.delay(collectedItems.append(sample)))
           .compile
           .drain
-          .background
-          .allocated
-          .unsafeRunSync()
 
+      val (allocated, end) = Resource.make(stream.start)(_.cancel).map(_.join)
+        .allocated
+        .unsafeRunSync()
       this.end = end
     }
     def result(benchmarkParams: BenchmarkParams): TextResult = {
@@ -87,8 +92,7 @@ object StackSamplingProfiler {
         .resolve(benchmarkParams.id())
         .resolve("thread-samples.json")
         .toAbsolutePath
-      import io.circe.syntax._
-      import io.circe.generic.auto._
+      import JsonCodecs._
       java.nio.file.Files.write(theFile, collectedItems.toList.asJson.spaces2.getBytes())
       new TextResult(s"Saved a log of thread samples to file: ${theFile}", "ssp")
     }
@@ -145,4 +149,33 @@ final class StackSamplingProfiler(params: Option[String]) extends InternalProfil
 
   override def getDescription: String =
     "Java stack profiler to collect stack traces periodically for a picture of activity"
+}
+object JsonCodecs {
+  implicit val listStackTracesEncoder: Encoder[List[StackTraceElementScala]] = Encoder
+    .encodeList(
+      Encoder
+        .forProduct4("className", "methodName", "fileName", "lineNumber")(
+          prod =>(prod.className, prod.methodName, prod.fileName, prod.lineNumber)
+        )
+    )
+  implicit val sampleEncoder: Encoder[ThreadSample] = Encoder.forProduct2("threadName", "stack")(prod =>
+    (prod.threadName, prod.stack))
+  implicit val instantEncoder: Encoder[Instant] = Encoder.encodeString.contramap[Instant](_.toString)
+  implicit val samplesEncoder: Encoder[ThreadsSample] = Encoder.forProduct2("instant", "threads")(prod =>
+    (prod.instant, prod.threads))
+  implicit val listEncoder: Encoder[List[ThreadsSample]] = Encoder.encodeList[ThreadsSample]
+
+  implicit val listStackTracesDecoder: Decoder[List[StackTraceElementScala]] = Decoder
+    .decodeList(
+      Decoder
+        .forProduct4("className", "methodName", "fileName", "lineNumber")(StackTraceElementScala.apply))
+
+
+  implicit val sampleDecoder: Decoder[ThreadSample] = Decoder.forProduct2("threadName", "stack")(ThreadSample.apply)
+  implicit val instantDecoder: Decoder[Instant] = Decoder.decodeString.emapTry { str =>
+    Try(Instant.parse(str))
+  }
+  implicit val samplesDecoder: Decoder[ThreadsSample] = Decoder.forProduct2("instant", "threads")(ThreadsSample.apply)
+  implicit val listDecoder: Decoder[List[ThreadsSample]] = Decoder.decodeList[ThreadsSample]
+
 }

@@ -103,6 +103,7 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
   "co.fs2" %% "fs2-io" % "2.1.0" % "test,acc,cmake,ve"
+
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 libraryDependencies ++= {

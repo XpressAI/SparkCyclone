@@ -66,4 +66,5 @@ object SparkPortingUtils {
 
   case class ResourceInformation(name: String, resources: Array[String])
 
+
 }
