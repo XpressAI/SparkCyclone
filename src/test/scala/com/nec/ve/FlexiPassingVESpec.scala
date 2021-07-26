@@ -56,7 +56,7 @@ object FlexiPassingVESpec {
   implicit class RichFloat8(float8Vector: Float8Vector) {
     def toList: List[Double] =
       (0 until float8Vector.getValueCount).map { idx =>
-        float8Vector.getValueAsDouble(idx)
+        float8Vector.get(idx)
       }.toList
   }
 

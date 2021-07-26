@@ -13,14 +13,15 @@ import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
+
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
+import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
 import org.apache.spark.sql.catalyst.plans.Inner
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -50,7 +51,9 @@ object JoinPlanSpec {
             .continually {
               val leftSide = leftIter.map(ir => (ir.getInt(0), ir.getDouble(1))).toList
               val rightSide = rightIter.map(ir => (ir.getInt(0), ir.getDouble(1))).toList
-
+              val row = new UnsafeRow(2)
+              val holder = new BufferHolder(row)
+              val writer = new UnsafeRowWriter(holder, 2)
               joinMethod match {
                 case JoinMethod.InJVM =>
                   for {
@@ -58,11 +61,10 @@ object JoinPlanSpec {
                     (rk, rv) <- rightSide
                     if lk == rk
                   } yield {
-                    val writer = new UnsafeRowWriter(2)
-                    writer.reset()
+                    holder.reset()
                     writer.write(0, lv)
                     writer.write(1, rv)
-                    Iterator(writer.getRow)
+                    Iterator(row)
                   }
                 case jm: JoinMethod.ArrowBased =>
                   WithTestAllocator { alloc =>
@@ -89,7 +91,9 @@ object JoinPlanSpec {
                                           secondKeysVec,
                                           outVector
                                         )
-
+                                        val row = new UnsafeRow(2)
+                                        val holder = new BufferHolder(row)
+                                        val writer = new UnsafeRowWriter(holder, 2)
                                         val res = (0 until outVector.getValueCount)
                                           .map(i => outVector.get(i))
                                           .toList
@@ -97,14 +101,18 @@ object JoinPlanSpec {
                                         res._1
                                           .zip(res._2)
                                           .map { case (a, b) =>
-                                            val writer = new UnsafeRowWriter(2)
+                                            holder.reset()
                                             writer.reset()
                                             writer.write(0, a)
                                             writer.write(1, b)
-                                            Iterator(writer.getRow)
+                                            Iterator(row)
                                           }
 
+
                                       case JoinMethod.ArrowBased.JvmArrowBased =>
+                                        val row = new UnsafeRow(2)
+                                        val holder = new BufferHolder(row)
+                                        val writer = new UnsafeRowWriter(holder, 2)
                                         Join
                                           .joinJVM(
                                             firstColumnVec,
@@ -113,11 +121,11 @@ object JoinPlanSpec {
                                             secondKeysVec
                                           )
                                           .map { case (a, b) =>
-                                            val writer = new UnsafeRowWriter(2)
+                                            holder.reset()
                                             writer.reset()
                                             writer.write(0, a)
                                             writer.write(1, b)
-                                            Iterator(writer.getRow)
+                                            Iterator(row)
                                           }
                                     }
                                 }
@@ -159,7 +167,7 @@ object JoinPlanSpec {
             new Strategy {
               override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
                 plan match {
-                  case logical.Join(left, right, joinType, condition, hint) =>
+                  case logical.Join(left, right, joinType, hint) =>
                     require(joinType == Inner)
                     List(OurSimpleJoin(planLater(left), planLater(right), joinMethod))
                   case _ => Nil

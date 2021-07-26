@@ -16,9 +16,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan, outputColumns: Seq[OutputColumn])
   extends SparkPlan {
 
-  override def supportsColumnar: Boolean = true
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .execute()
       .mapPartitions { it =>
@@ -41,7 +39,7 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan, outputColumns: S
                 outputAggregator
               ) => {
             val results = inputColumns
-              .map(col => root.getVector(col.index).asInstanceOf[Float8Vector])
+              .map(col => root.getFieldVectors.get(col.index).asInstanceOf[Float8Vector])
               .map(vector => outputAggregator.aggregateOffHeap(vector))
 
             OutputColumnAggregated(outputColumnIndex, columnAggregation, results, root.getRowCount)
@@ -67,7 +65,7 @@ case class ArrowGenericAggregationPlanOffHeap(child: SparkPlan, outputColumns: S
             vector.putDouble(0, result)
             vector
           })
-        Iterator(new ColumnarBatch(vectors.toArray, 1))
+        Iterator(new ColumnarBatch(vectors.toArray))
       })
   }
 

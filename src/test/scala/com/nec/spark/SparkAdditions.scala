@@ -9,7 +9,6 @@ import com.nec.spark.agile.MultipleColumnsOffHeapSubtractor
 import com.nec.spark.agile.NoAggregationAggregator
 import com.nec.spark.agile.SubtractionAggregator
 import com.nec.spark.agile.SumAggregator
-import com.nec.spark.planning.SparkSqlPlanExtension
 import org.apache.log4j.Level
 import org.apache.log4j.Logger
 import org.scalatest.BeforeAndAfter
@@ -108,14 +107,10 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
 
   protected def createUnsafeColumnAggregator(aggregationFunction: Expression): ColumnAggregator = {
     aggregationFunction match {
-      case Add(_, _, _) =>
+      case Add(_, _) =>
         AdditionAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-      case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
+      case Subtract(_, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
       case _                 => NoAggregationAggregator
     }
-  }
-
-  after {
-    SparkSqlPlanExtension.rulesToApply.clear()
   }
 }

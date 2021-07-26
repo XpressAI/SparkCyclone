@@ -1,12 +1,11 @@
 package com.nec.jmh
-import cats.effect.unsafe.implicits.global
 import com.nec.jmh.AnalyzeSamplesSpec.TestSample
 import org.apache.commons.io.IOUtils
 import org.openjdk.jmh.profile.nec.StackSamplingProfiler.ThreadsSamples
 import org.scalatest.freespec.AnyFreeSpec
-
+import cats.syntax.either._
 import java.nio.charset.Charset
-
+import org.openjdk.jmh.profile.nec.JsonCodecs._
 object AnalyzeSamplesSpec {
   import io.circe.generic.auto._
   val TestSample: ThreadsSamples = io.circe.parser

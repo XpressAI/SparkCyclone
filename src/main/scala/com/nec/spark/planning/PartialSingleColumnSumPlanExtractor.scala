@@ -13,7 +13,7 @@ object PartialSingleColumnSumPlanExtractor {
       case first @ HashAggregateExec(
             requiredChildDistributionExpressions,
             groupingExpressions,
-            Seq(AggregateExpression(avg @ Sum(exr), mode, isDistinct, filter, resultId)),
+            Seq(AggregateExpression(avg @ Sum(exr), mode, isDistinct, resultId)),
             aggregateAttributes,
             initialInputBufferOffset,
             resultExpressions,

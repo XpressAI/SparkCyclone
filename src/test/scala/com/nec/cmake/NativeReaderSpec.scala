@@ -1,7 +1,6 @@
 package com.nec.cmake
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.effect.{ContextShift, IO, Resource}
 import com.eed3si9n.expecty.Expecty.expect
 import com.google.common.io.ByteStreams
 import com.nec.arrow.ArrowNativeInterfaceNumeric
@@ -20,11 +19,13 @@ import com.nec.spark.planning.NativeCsvExec.maybeDecodePds
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VarCharVector
 import org.apache.arrow.vector.util.Text
+import com.nec.spark.planning.SparkPortingUtils.SerializableConfiguration
+
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
-
 import java.net.ServerSocket
 import java.net.Socket
+
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 import org.scalasbt.ipcsocket.UnixDomainSocket
 import org.scalasbt.ipcsocket.Win32NamedPipeServerSocket
@@ -32,9 +33,12 @@ import org.scalasbt.ipcsocket.Win32NamedPipeSocket
 import org.scalasbt.ipcsocket.Win32SecurityLevel
 import org.scalatest.BeforeAndAfter
 import org.scalatest.Informing
-
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+
+import scala.concurrent.ExecutionContext.global
+
+import com.nec.spark.planning.SparkPortingUtils
 
 object NativeReaderSpec {
   val isWin: Boolean = System.getProperty("os.name", "").toLowerCase.startsWith("win")
@@ -100,6 +104,8 @@ final class NativeReaderSpec
   with BeforeAndAfter
   with Informing
   with SparkAdditions {
+  implicit val contextShift: ContextShift[IO] = IO.contextShift(global)
+
   "We can put stuff into a UNIX socket, and it will give us data back" ignore {
     val socketName =
       if (NativeReaderSpec.isWin) "\\\\.\\pipe\\ipcsockettest"
@@ -114,8 +120,10 @@ final class NativeReaderSpec
         sockie.getOutputStream.close()
       } finally sockie.close()
     }
+    val (x, y) =  Resource.make(serverRespond.start)(_.cancel).map(_.join)
+      .allocated
+      .unsafeRunSync()
 
-    val (x, y) = serverRespond.background.allocated.unsafeRunSync()
     try {
       val clientConnect = newClientSocket(socketName)
       clientConnect.getOutputStream.write(9)
@@ -134,7 +142,6 @@ final class NativeReaderSpec
 
   "We can transfer Hadoop data to the native app" in withSparkSession2(identity) {
     sparkSession =>
-      import org.apache.spark.util.SerializableConfiguration
       val hadoopConf = new SerializableConfiguration(sparkSession.sparkContext.hadoopConfiguration)
       val listOfPairs =
         sparkSession.sparkContext
@@ -162,7 +169,7 @@ final class NativeReaderSpec
     val vcv = new VarCharVector("test", allocator)
     val inputSock = new VarCharVector("inputSock", allocator)
     inputSock.setValueCount(1)
-    inputSock.setSafe(0, new Text("ABC"))
+    inputSock.setSafe(0, new Text("ABC").getBytes)
     try {
       CNativeEvaluator
         .forCode("""#include "unix-read.cpp"""")

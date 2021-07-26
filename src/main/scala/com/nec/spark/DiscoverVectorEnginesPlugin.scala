@@ -1,14 +1,13 @@
-package com.nec.ve
+package com.nec.spark
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import org.apache.spark.api.resource.ResourceDiscoveryPlugin
+
 import org.apache.spark.internal.Logging
-import org.apache.spark.resource.ResourceRequest
 import org.apache.spark.SparkConf
 import java.util.Optional
-import org.apache.spark.resource.ResourceInformation
-import org.apache.hadoop.yarn.api.records
+
+import com.nec.spark.planning.SparkPortingUtils.{ResourceInformation, ResourceRequest}
 
 object DiscoverVectorEnginesPlugin {
   val regex = "^ve[0-7]$".r
@@ -25,11 +24,11 @@ object DiscoverVectorEnginesPlugin {
   }
 }
 
-class DiscoverVectorEnginesPlugin extends ResourceDiscoveryPlugin with Logging {
+class DiscoverVectorEnginesPlugin extends Logging {
 
-  override def discoverResource(
-    request: ResourceRequest,
-    conf: SparkConf
+  def discoverResource(
+                                 request: ResourceRequest,
+                                 conf: SparkConf
   ): Optional[ResourceInformation] = {
     if (request.id.resourceName == "ve") {
       logInfo(s"Requested ${request.amount} Vector Engines...")

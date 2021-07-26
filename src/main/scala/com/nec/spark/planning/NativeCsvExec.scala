@@ -1,46 +1,32 @@
 package com.nec.spark.planning
+import java.io.{DataInputStream, InputStream}
+import java.nio.ByteBuffer
+
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
-
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Attribute, Divide, Multiply, Subtract}
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
-import org.apache.arrow.vector.Float8Vector
-
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.execution.LeafExecNode
 import com.nec.arrow.functions.CsvParse
-import com.nec.native.IpcTransfer
-import com.nec.native.NativeEvaluator
-import com.nec.spark.planning.NativeCsvExec.SkipStringsKey
-import com.nec.spark.planning.NativeCsvExec.UseIpc
-import com.nec.spark.planning.NativeCsvExec.transformLazyDataStream
-import com.nec.spark.planning.NativeCsvExec.transformRawTextFile
-import com.typesafe.scalalogging.LazyLogging
-import com.typesafe.scalalogging.Logger
-import org.apache.hadoop.conf.Configuration
+import com.nec.native.{IpcTransfer, NativeEvaluator}
+import com.nec.spark.planning.NativeCsvExec.{SkipStringsKey, UseIpc, transformLazyDataStream, transformRawTextFile}
+import com.nec.spark.planning.SparkPortingUtils.ScanOperation
+import com.typesafe.scalalogging.{LazyLogging, Logger}
+import org.apache.arrow.vector.Float8Vector
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 
-import org.apache.spark.SparkContext
 import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
 import org.apache.spark.input.PortableDataStream
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.planning.ScanOperation
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Attribute, Divide, Multiply, Subtract}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
-import org.apache.spark.sql.execution.datasources.LogicalRelation
+import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, InMemoryFileIndex, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
-import org.apache.spark.sql.vectorized.ArrowColumnVector
-import org.apache.spark.util.SerializableConfiguration
-import java.io.DataInputStream
-import java.io.InputStream
-import java.nio.ByteBuffer
+import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import com.nec.spark.planning.SparkPortingUtils.SerializableConfiguration
 
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
@@ -71,10 +57,10 @@ object NativeCsvExec {
   logicalPlan match {
     case Project(projectList, child) => {
      projectList.collect{
-       case Alias(Add(_, _, _), name) =>
-       case Alias(Subtract(_, _, _), name) =>
-       case Alias(Multiply(_, _, _), name) =>
-       case Alias(Divide(_, _, _), name) =>
+       case Alias(Add(_, _), name) =>
+       case Alias(Subtract(_, _), name) =>
+       case Alias(Multiply(_, _), name) =>
+       case Alias(Divide(_, _), name) =>
      }.size == 0
     }
     case _ => false
@@ -109,8 +95,7 @@ object NativeCsvExec {
     val millis = System.currentTimeMillis() - startTime
     logger.info(s"Took ${millis} ms to process CSV: ${name} (${text.getLength} bytes)")
     new ColumnarBatch(
-      outColumns.map(col => new ArrowColumnVector(col)).toArray,
-      outColumns.head.getValueCount
+      outColumns.map(col => new ArrowColumnVector(col)).toArray
     )
   }
 
@@ -144,8 +129,7 @@ object NativeCsvExec {
     logger.debug(s"Took ${millis} ms to process CSV: ${name}")
     // need to dealloc() the ignored columns here
     new ColumnarBatch(
-      outColumns.map(col => new ArrowColumnVector(col)).toArray,
-      outColumns.head.getValueCount
+      outColumns.map(col => new ArrowColumnVector(col)).toArray
     )
   }
 
@@ -195,7 +179,6 @@ case class NativeCsvExec(
   with LeafExecNode
   with LazyLogging {
 
-  override def supportsColumnar: Boolean = true
 
   override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
     "Source here is only columnar"
@@ -204,7 +187,7 @@ case class NativeCsvExec(
   val numColumns = hadoopRelation.schema.length
   val outCols = output.length
 
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     if (
       sparkContext.getConf.getBoolean(
         key = UseIpc,
@@ -264,9 +247,7 @@ case class NativeCsvExec(
       val millis = System.currentTimeMillis() - startTime
       logInfo(s"Took ${millis} ms to process CSV: ${name} (${text.length} bytes)")
       new ColumnarBatch(
-        outColumns.map(col => new ArrowColumnVector(col)).toArray,
-        outColumns.head.getValueCount
-      )
+        outColumns.map(col => new ArrowColumnVector(col)).toArray)
     }
   }
 

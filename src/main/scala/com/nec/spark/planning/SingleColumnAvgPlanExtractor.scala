@@ -12,7 +12,7 @@ object SingleColumnAvgPlanExtractor {
       case first @ HashAggregateExec(
             requiredChildDistributionExpressions,
             groupingExpressions,
-            Seq(AggregateExpression(avg @ Average(exr), mode, isDistinct, filter, resultId)),
+            Seq(AggregateExpression(avg @ Average(exr), mode, isDistinct, resultId)),
             aggregateAttributes,
             initialInputBufferOffset,
             resultExpressions,

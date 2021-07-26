@@ -15,7 +15,7 @@ object WordCount {
   def runOn(
     nativeInterface: ArrowNativeInterface
   )(varCharVector: VarCharVector): Map[String, Int] = {
-    val ra = new RootAllocator()
+    val ra = new RootAllocator(Long.MaxValue)
     val idVector = new IntVector("id", ra)
     val frequencyVector = new IntVector("frequency", ra)
 

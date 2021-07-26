@@ -88,7 +88,7 @@ object Float8GenericNativeIf {
       val outputStruct = new non_null_double_vector()
       val invokeArgs: Array[AnyRef] = List(c_double_vector(input.contents), outputStruct).toArray
       fn.invokeLong(invokeArgs)
-      val ra = new RootAllocator()
+      val ra = new RootAllocator(Long.MaxValue)
       val outputVector = new Float8Vector("result", ra)
       non_null_double_vector_to_float8Vector(outputStruct, outputVector)
       InVh(outputVector)

@@ -5,7 +5,7 @@ import cats.effect.IO
 object AnalyzeSamples {
   val IgnoreFiles = Set("Object.java", "Unsafe.java", "ThreadImpl.java")
   val TopN = 10
-  def apply(threadsSamples: ThreadsSamples): IO[String] = IO.blocking {
+  def apply(threadsSamples: ThreadsSamples): IO[String] = IO{
     threadsSamples
       .flatMap(threadsSample =>
         threadsSample.threads.filter(_.stack.nonEmpty).flatMap(_.stack.headOption)

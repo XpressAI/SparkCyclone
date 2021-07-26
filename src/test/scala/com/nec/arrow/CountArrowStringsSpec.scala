@@ -55,7 +55,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   }
 
   def readStrings(bytes: Array[Byte]): List[String] = {
-    val allocator = new RootAllocator()
+    val allocator = new RootAllocator(Long.MaxValue)
     val arrowStreamReader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
     val root = arrowStreamReader.getVectorSchemaRoot()
 
@@ -110,7 +110,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   case class StringInfo(startAddr: Long, position: Int, length: Int, value: String)
 
   def readStringPositionsValuesLengths(bytes: Array[Byte]): List[StringInfo] = {
-    val allocator = new RootAllocator()
+    val allocator = new RootAllocator(Long.MaxValue)
     val arrowStreamReader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
     val root = arrowStreamReader.getVectorSchemaRoot
 
@@ -124,9 +124,12 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
             root.getFieldVectors.asScala
               .collect { case vc: VarCharVector =>
                 (0 until root.getRowCount).map { i =>
-                  val startOffset = vc.getStartOffset(i)
+                  val startOffset = vc
+                    .getOffsetBuffer()
+                    .getInt(i * BaseVariableWidthVector.OFFSET_WIDTH)
+
                   val dataLength = vc.getOffsetBuffer.getInt(
-                    (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+                    (i + 1) * BaseVariableWidthVector.OFFSET_WIDTH
                   ) - startOffset
                   val result = new Array[Byte](dataLength)
                   vc.getDataBuffer.getBytes(startOffset, result, 0, dataLength)
@@ -180,9 +183,12 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
         vcv.setValueCount(stringBatch.length)
         val vc = vcv
         (0 until root.getRowCount).map { i =>
-          val startOffset = vc.getStartOffset(i)
+          val startOffset = vc
+            .getOffsetBuffer()
+            .getInt(i * BaseVariableWidthVector.OFFSET_WIDTH)
+
           val dataLength = vc.getOffsetBuffer.getInt(
-            (i + 1).toLong * BaseVariableWidthVector.OFFSET_WIDTH
+            (i + 1) * BaseVariableWidthVector.OFFSET_WIDTH
           ) - startOffset
           val result = new Array[Byte](dataLength)
           vc.getDataBuffer.getBytes(startOffset, result, 0, dataLength)

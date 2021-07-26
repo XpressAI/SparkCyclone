@@ -7,27 +7,25 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.commons.lang3.reflect.FieldUtils
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, NamedExpression, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.aggregate.Average
 import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.execution.ColumnarToRowTransition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
-
 import scala.language.dynamics
+
+import com.nec.spark.planning.SparkPortingUtils.PortedSparkPlan
 
 object CEvaluationPlan {
 
@@ -61,7 +59,6 @@ final case class CEvaluationPlan(
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
-  with ColumnarToRowTransition
   with LazyLogging {
 
   protected def inputAttributes: Seq[Attribute] = child.output
@@ -92,7 +89,7 @@ final case class CEvaluationPlan(
             arrowWriter.finish()
 
             val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
-              root.getVector(idx).asInstanceOf[Float8Vector]
+              root.getFieldVectors.get(idx).asInstanceOf[Float8Vector]
             }
             arrowWriter.finish()
 
@@ -120,15 +117,16 @@ final case class CEvaluationPlan(
             } finally {
               inputVectors.foreach(_.close())
             }
-
+            val row = new UnsafeRow(outputVectors.size)
+            val holder = new BufferHolder(row)
+            val writer = new UnsafeRowWriter(holder, outputVectors.size)
             (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
-              val writer = new UnsafeRowWriter(outputVectors.size)
-              writer.reset()
+              holder.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                val doubleV = v.getValueAsDouble(v_idx)
+                val doubleV = v.get(v_idx)
                 writer.write(c_idx, doubleV)
               }
-              writer.getRow
+              row
             }
 
           }
@@ -148,7 +146,7 @@ final case class CEvaluationPlan(
               val startingIndices = resultExpressions.view
                 .flatMap {
                   case ne @ Alias(
-                        AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
+                        AggregateExpression(aggregateFunction, mode, isDistinct, resultId),
                         name
                       ) =>
                     aggregateFunction.aggBufferAttributes.map(attr => ne)
@@ -158,23 +156,24 @@ final case class CEvaluationPlan(
                 .mapValues(_.map(_._2).min)
 
               /** total Aggregation */
-              val writer = new UnsafeRowWriter(resultExpressions.size)
-              writer.reset()
+              val row = new UnsafeRow(resultExpressions.size)
+              val holder = new BufferHolder(row)
+              val writer = new UnsafeRowWriter(holder, resultExpressions.size)
 
               resultExpressions.view.zipWithIndex.foreach {
-                case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Average(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val sum = unsafeRowsList.map(_.getDouble(idx)).sum
                   val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
                   val result = sum / count
                   writer.write(outIdx, result)
-                case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Sum(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getDouble(idx)).sum
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
-              Iterator(writer.getRow)
+              Iterator(row)
             } else unsafeRowsList.iterator
           }
           .take(1)
@@ -240,18 +239,21 @@ final case class CEvaluationPlan(
         } finally allocatorIn.close()
 
         logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
-        val writer = new UnsafeRowWriter(outputVectors.size)
-        writer.reset()
-          logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items from VE.")
+        val row = new UnsafeRow(resultExpressions.size)
+        val holder = new BufferHolder(row)
+        val writer = new UnsafeRowWriter(holder, resultExpressions.size)
+        holder.reset()
+        logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items from VE.")
 
         val result =
           try {
             (0 until outputVectors.head.getValueCount).map { v_idx =>
+              holder.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                val doubleV = v.getValueAsDouble(v_idx)
+                val doubleV = v.get(v_idx)
                 writer.write(c_idx, doubleV)
               }
-              writer.getRow.copy()
+              row
             }
           } finally {
             outputVectors.foreach(_.close())
@@ -279,7 +281,7 @@ final case class CEvaluationPlan(
               val startingIndices = resultExpressions.view
                 .flatMap {
                   case ne @ Alias(
-                        AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
+                        AggregateExpression(aggregateFunction, mode, isDistinct, resultId),
                         name
                       ) =>
                     aggregateFunction.aggBufferAttributes.map(attr => ne)
@@ -289,23 +291,25 @@ final case class CEvaluationPlan(
                 .mapValues(_.map(_._2).min)
 
               /** total Aggregation */
-              val writer = new UnsafeRowWriter(resultExpressions.size)
-              writer.reset()
-
+              val row = new UnsafeRow(resultExpressions.size)
+              val holder = new BufferHolder(row)
+              val writer = new UnsafeRowWriter(holder, resultExpressions.size)
+              holder.reset()
+               
               resultExpressions.view.zipWithIndex.foreach {
-                case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Average(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val sum = unsafeRowsList.map(_.getDouble(idx)).sum
                   val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
                   val result = sum / count
                   writer.write(outIdx, result)
-                case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
+                case (a @ Alias(AggregateExpression(Sum(_), _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getDouble(idx)).sum
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
-              Iterator(writer.getRow)
+              Iterator(row)
             } else unsafeRowsList.iterator
           }
           .take(1)

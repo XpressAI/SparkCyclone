@@ -29,11 +29,11 @@ lazy val `fun-bench` = project
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
       "org.slf4j" % "log4j-over-slf4j" % "1.7.25",
-      "ch.qos.logback" % "logback-classic" % "1.2.3"
-//      "co.fs2" %% "fs2-io" % "3.0.6",
-//      "io.circe" %% "circe-literal" % "0.14.1",
-//      "io.circe" %% "circe-generic" % "0.14.1",
-//      "io.circe" %% "circe-parser" % "0.14.1"
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "co.fs2" %% "fs2-io" % "2.1.0",
+      "io.circe" %% "circe-literal" % "0.11.2",
+      "io.circe" %% "circe-generic" % "0.11.2",
+      "io.circe" %% "circe-parser" % "0.11.2"
     ),
     name := "funbench",
     Jmh / run := (Jmh / run).dependsOn((Test / test)).evaluated,
@@ -95,14 +95,15 @@ libraryDependencies ++= Seq(
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
   "org.reflections" % "reflections" % "0.9.12",
-//  "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve,cmake",
+  "org.scalatestplus" %% "scalacheck-1-15" % "3.2.3.0" % "test,ve,cmake",
   "commons-io" % "commons-io" % "2.10.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
   "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.4.0",
   /** Log with logback in our scopes but not in production runs */
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
-//  "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve"
+  "co.fs2" %% "fs2-io" % "2.1.0" % "test,acc,cmake,ve"
+
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 libraryDependencies ++= {

@@ -6,10 +6,12 @@ import com.nec.aurora.Aurora
 import com.nec.older.SumPairwise
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.Aurora4SparkExecutorPlugin._veo_proc
+import com.nec.spark.planning.SparkPortingUtils.PortedSparkPlan
 import com.nec.ve.VeJavaContext
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import sun.misc.Unsafe
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -82,9 +84,7 @@ object PairwiseAdditionOffHeap {
 case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
   extends SparkPlan {
 
-  override def supportsColumnar: Boolean = true
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     child
       .executeColumnar()
       .mapPartitions { partitionInternalRows =>
@@ -108,8 +108,8 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
             val outputVector = new Float8Vector("result", ArrowUtilsExposed.rootAllocator)
 
             AddPairwise.runOn(arrowInterface)(
-              root.getVector(0).asInstanceOf[Float8Vector],
-              root.getVector(1).asInstanceOf[Float8Vector],
+              root.getFieldVectors.get(0).asInstanceOf[Float8Vector],
+              root.getFieldVectors.get(1).asInstanceOf[Float8Vector],
               outputVector
             )
 

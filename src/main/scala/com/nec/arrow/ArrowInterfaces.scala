@@ -1,17 +1,13 @@
 package com.nec.arrow
-import org.apache.arrow.vector.ipc.message.ArrowFieldNode
-import org.apache.arrow.vector.BitVectorHelper
-import com.nec.arrow.ArrowTransferStructures.non_null_int_vector
-import org.apache.arrow.memory.ArrowBuf
-import org.apache.arrow.vector._
-import com.nec.arrow.ArrowTransferStructures.varchar_vector
-import org.apache.arrow.memory.BufferAllocator
-import sun.nio.ch.DirectBuffer
-import org.apache.arrow.vector.IntVector
-import com.nec.arrow.ArrowTransferStructures._
-import com.nec.spark.planning.SummingPlanOffHeap
-
 import java.nio.ByteBuffer
+
+import com.nec.arrow.ArrowTransferStructures.{non_null_int_vector, varchar_vector, _}
+import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
+import com.nec.spark.planning.SummingPlanOffHeap
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.{BitVectorHelper, IntVector, _}
+import org.apache.arrow.vector.ipc.message.ArrowFieldNode
+import sun.nio.ch.DirectBuffer
 
 object ArrowInterfaces {
 
@@ -38,7 +34,10 @@ object ArrowInterfaces {
     vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.offsets = varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = varCharVector.getValueCount
-    vc.size = varCharVector.sizeOfValueBuffer()
+    // Not sure if this fully correct
+    vc.size = varCharVector
+      .getOffsetBuffer()
+      .getInt(varCharVector.getValueCount * BaseVariableWidthVector.OFFSET_WIDTH)
     vc
   }
 
@@ -90,7 +89,7 @@ object ArrowInterfaces {
 
   def non_null_int_vector_to_intVector(input: non_null_int_vector, intVector: IntVector): Unit = {
     intVector.setValueCount(input.count)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
+    (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(intVector.getValidityBuffer, i))
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,
       intVector.getDataBufferAddress,
@@ -103,7 +102,7 @@ object ArrowInterfaces {
     bigintVector: BigIntVector
   ): Unit = {
     bigintVector.setValueCount(input.count)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
+    (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(bigintVector.getValidityBuffer, i))
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,
       bigintVector.getDataBufferAddress,
@@ -119,7 +118,7 @@ object ArrowInterfaces {
       sys.error(s"Returned count was infinite; input ${input}")
     }
     float8Vector.setValueCount(input.count)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
+    (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(float8Vector.getValidityBuffer, i))
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,
       float8Vector.getDataBufferAddress,
@@ -129,7 +128,7 @@ object ArrowInterfaces {
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {
     intVector.setValueCount(input.count)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
+    (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(intVector.getValidityBuffer, i))
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,
       intVector.getDataBufferAddress,
@@ -149,17 +148,17 @@ object ArrowInterfaces {
     val res = rootAllocator.newReservation()
     res.add(input.count)
     val validityBuffer = res.allocateBuffer()
-    validityBuffer.reallocIfNeeded(input.count.toLong)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
+    validityBuffer.reallocIfNeeded(input.count)
+    (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(validityBuffer, i))
     import scala.collection.JavaConverters._
 
-    val dataBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, input.size.toLong, input.data)
-
+    //TODO: Not sure if that's correct. It should probably work fine, but not sure if it won't cause memory leaks.
+    val dataBuffer = rootAllocator.buffer(input.offsets.toInt)
     val offBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
+      rootAllocator.buffer(input.offsets.toInt)
+
     varCharVector.loadFieldBuffers(
-      new ArrowFieldNode(input.count.toLong, 0),
+      new ArrowFieldNode(input.count, 0),
       List(validityBuffer, offBuffer, dataBuffer).asJava
     )
   }
