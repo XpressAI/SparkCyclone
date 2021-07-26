@@ -38,7 +38,7 @@ final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Lon
 object VeArrowNativeInterfaceNumeric extends LazyLogging {
   private var libs: Map[String, Long] = Map()
   private var functionAddrs: Map[(Long, String), Long] = Map()
-  private val columnCache: LruVeoMemCache = new LruVeoMemCache(3)
+  private val columnCache: LruVeoMemCache = new LruVeoMemCache(100)
   private val cacheCleanup: Cleanup = new Cleanup(Nil)
 
   def requireOk(result: Int): Unit = {
@@ -104,7 +104,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
           proc,
           float8Vector.getDataBuffer.nioBuffer(),
           Some(float8Vector.getDataBuffer.capacity())
-        )(cacheCleanup)
+        )(cleanup)
       
         columnCache.put(proc, keyName, vcvr.data)
         vcvr
@@ -163,7 +163,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
         val vcvr = new non_null_int2_vector()
         vcvr.count = intVector.getValueCount
-        vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())(cacheCleanup)
+        vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())(cleanup)
 
         columnCache.put(proc, keyName, vcvr.data)
         vcvr
