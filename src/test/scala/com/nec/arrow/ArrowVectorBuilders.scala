@@ -8,6 +8,8 @@ import org.apache.arrow.vector.VarCharVector
 import java.util
 
 object ArrowVectorBuilders {
+  var vectorCount = 0
+
   def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
     import org.apache.arrow.vector.VectorSchemaRoot
     WithTestAllocator { alloc =>
@@ -28,7 +30,8 @@ object ArrowVectorBuilders {
   def withArrowFloat8Vector[T](inputColumns: Seq[Seq[Double]])(f: Float8Vector => T): T = {
     WithTestAllocator { alloc =>
       val data = inputColumns.flatten
-      val vcv = new Float8Vector("value", alloc)
+      val vcv = new Float8Vector(s"value$vectorCount", alloc)
+      vectorCount += 1
       vcv.allocateNew()
       try {
         inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
@@ -44,7 +47,8 @@ object ArrowVectorBuilders {
 
   def withDirectFloat8Vector[T](data: Seq[Double])(f: Float8Vector => T): T =
     WithTestAllocator { alloc =>
-      val vcv = new Float8Vector("value", alloc)
+      val vcv = new Float8Vector(s"value$vectorCount", alloc)
+      vectorCount += 1
       vcv.allocateNew()
       try {
         data.zipWithIndex.foreach { case (str, idx) =>
@@ -58,7 +62,8 @@ object ArrowVectorBuilders {
 
   def withDirectIntVector[T](data: Seq[Int])(f: IntVector => T): T = {
     WithTestAllocator { alloc =>
-      val vcv = new IntVector("value", alloc)
+      val vcv = new IntVector(s"value$vectorCount", alloc)
+      vectorCount += 1
       vcv.allocateNew()
       try {
         data.zipWithIndex.foreach { case (str, idx) =>

@@ -19,11 +19,12 @@ class LruVeoMemCache(val maxSize: Int) {
     }
 
     def apply(veo_proc_handle: Aurora.veo_proc_handle, key: String): Option[Long] = {
-        if (map.containsKey((veo_proc_handle, key))) {
+        None
+        /*if (map.containsKey((veo_proc_handle, key))) {
             Some(map.get((veo_proc_handle, key)))
         } else {
             None
-        }
+        }*/
     }
 
     def put(veo_proc_handle: Aurora.veo_proc_handle, key: String, value: Long): Unit = {
