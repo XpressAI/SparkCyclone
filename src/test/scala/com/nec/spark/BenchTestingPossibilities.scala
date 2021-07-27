@@ -76,7 +76,7 @@ object BenchTestingPossibilities {
     source: SampleSource,
     testingTarget: TestingTarget,
     offHeapMode: Option[VeColumnMode],
-    csvStrategy: Option[CsvStrategy]
+    csvStrategy: Option[CsvStrategy],
   ) extends Testing {
 
     type Result = (Double, Double, Long)
@@ -184,6 +184,7 @@ object BenchTestingPossibilities {
                 VERewriteStrategy(sparkSession, CNativeEvaluator)
               )
             )
+//            .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)

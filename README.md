@@ -128,3 +128,14 @@ A variety of options are available - not tested with YARN yet.
 ```
 
 If this is not specified, then a random temporary directory will be used (not removed, however).
+
+## Batching
+
+This is to batch ColumnarBatch together, to allow for larger input sizes into the VE.
+This may however use more on-heap and off-heap memory.
+
+```
+--conf spark.com.nec.spark.batch-batches=3
+```
+
+Default is 0, which is just to pass ColumnarBatch directly in.

@@ -8,24 +8,26 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarBatchToArrow extends LazyLogging {
   def fromBatch(arrowSchema: Schema, bufferAllocator: BufferAllocator)(
-    columnarBatch: ColumnarBatch
+    columnarBatches: ColumnarBatch*
   ): (VectorSchemaRoot, List[Float8Vector]) = {
     val vectors = VectorSchemaRoot.create(arrowSchema, bufferAllocator)
-    val nr = columnarBatch.numRows()
+    val nr = columnarBatches.map(_.numRows()).sum
     vectors.setRowCount(nr)
-    val nc = columnarBatch.numCols()
+    val nc = columnarBatches.head.numCols()
+    var putRowId = 0
     vectors -> (0 until nc).map { colId =>
-      columnarBatch.column(colId) match {
-        case theCol =>
-          val fv = vectors.getVector(colId).asInstanceOf[Float8Vector]
-          var rows = theCol.getDoubles(0, nr)
-          var rowId = 0
-          while (rowId < nr) {
-            fv.set(rowId, rows(rowId))
-            rowId = rowId + 1
-          }
-          fv
+      val fv = vectors.getVector(colId).asInstanceOf[Float8Vector]
+      columnarBatches.foreach { columnarBatch =>
+        val theCol = columnarBatch.column(colId)
+        val colRows = columnarBatch.numRows()
+        var rowId = 0
+        while (rowId < colRows) {
+          fv.set(putRowId, theCol.getDouble(rowId))
+          rowId = rowId + 1
+          putRowId = putRowId + 1
+        }
       }
+      fv
     }.toList
   }
 }
