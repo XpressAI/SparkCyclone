@@ -16,55 +16,55 @@ class query(object):
 class column_queries(query):
     
     def avg_x_double(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT AVG(double_x) FROM table")
-        return spark.sql('SELECT AVG(double_x) FROM table')
+        print("Query: SELECT AVG(double_x) AS avg1 FROM table")
+        return spark.sql('SELECT AVG(double_x) as avg1 FROM table')
 
     def avg_x_plus_y_double(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT AVG(double_x + double_y) FROM table")
-        return spark.sql('SELECT AVG(double_x + double_y) FROM table')
+        print("Query: SELECT AVG(double_x + double_y) AS avg2 FROM table")
+        return spark.sql('SELECT AVG(double_x + double_y) AS avg2 FROM table')
     
     def sum_x_double(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT SUM(double_x) FROM table")
-        return spark.sql('SELECT SUM(double_x) FROM table')
+        print("Query: SELECT SUM(double_x) AS sum1 FROM table")
+        return spark.sql('SELECT SUM(double_x) AS sum1 FROM table')
 
     def sum_x_plus_y_double(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT SUM(double_x + double_y) FROM table")
-        return spark.sql('SELECT SUM(double_x + double_y) FROM table')
+        print("Query: SELECT SUM(double_x + double_y) AS sum2 FROM table")
+        return spark.sql('SELECT SUM(double_x + double_y) AS sum2 FROM table')
     
     def x_plus_y_double(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT double_x + double_y FROM table")
-        return spark.sql('SELECT double_x + double_y FROM table') 
+        print("Query: SELECT double_x + double_y AS x_plus_y_1 FROM table")
+        return spark.sql('SELECT double_x + double_y AS x_plus_y_1 FROM table') 
 
 
 class group_by_queries(query):
     
     def group_by_sum_x(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, SUM(double_x) FROM table GROUP BY id")
-        return spark.sql('SELECT id, SUM(double_x) FROM table GROUP BY id')
+        print("Query: SELECT SUM(double_x) AS sum3 FROM table GROUP BY id")
+        return spark.sql('SELECT SUM(double_x) AS sum3 FROM table GROUP BY id')
 
     def group_by_avg_x(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, AVG(double_x) FROM table GROUP BY id")
-        return spark.sql('SELECT id, AVG(double_x) FROM table GROUP BY id')
+        print("Query: SELECT AVG(double_x) AS sum4 FROM table GROUP BY id")
+        return spark.sql('SELECT AVG(double_x) AS sum4 FROM table GROUP BY id')
 
     def group_by_sum_x_plus_y(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, SUM(double_x + double_y) FROM table GROUP BY id")
-        return spark.sql('SELECT id, SUM(double_x + double_y) FROM table GROUP BY id')
+        print("Query: SELECT SUM(double_x + double_y) AS sum5 FROM table GROUP BY id")
+        return spark.sql('SELECT SUM(double_x + double_y) AS sum5 FROM table GROUP BY id')
 
     def group_by_avg_x_plus_y(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, AVG(double_x + double_y) FROM table GROUP BY id")
-        return spark.sql('SELECT id, AVG(double_x + double_y) FROM table GROUP BY id')
+        print("Query: SELECT AVG(double_x + double_y) AS avg3 FROM table GROUP BY id")
+        return spark.sql('SELECT AVG(double_x + double_y) AS avg3 FROM table GROUP BY id')
 
     def group_by_count_asterisk(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, COUNT(*) FROM table GROUP BY id")
-        return spark.sql('SELECT id, COUNT(*) FROM table GROUP BY id')
+        print("Query: SELECT COUNT(*) AS count1 FROM table GROUP BY id")
+        return spark.sql('SELECT COUNT(*) AS count1 FROM table GROUP BY id')
 
     def group_by_sum_x_minus_y(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, SUM(double_x - double_y) FROM table GROUP BY id")
-        return spark.sql('SELECT id, SUM(double_x - double_y) FROM table GROUP BY id')
+        print("Query: SELECT SUM(double_x - double_y) AS sum6 FROM table GROUP BY id")
+        return spark.sql('SELECT SUM(double_x - double_y) AS sum6 FROM table GROUP BY id')
 
     def group_by_sum_x_plus_y_as_res_filter_res(self, spark: SparkSession) -> DataFrame:
-        print("Query: SELECT id, SUM(double_x + double_y) AS res FROM table GROUP BY id HAVING res > 405008")
-        return spark.sql("SELECT id, SUM(double_x + double_y) AS res FROM table GROUP BY id HAVING res > 405008")
+        print("Query: SELECT SUM(double_x + double_y) AS res FROM table GROUP BY id HAVING res > 405008")
+        return spark.sql("SELECT SUM(double_x + double_y) AS res FROM table GROUP BY id HAVING res > 405008")
 
 class nyctaxi_queries(query):
     

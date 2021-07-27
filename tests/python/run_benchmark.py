@@ -38,44 +38,49 @@ def benchmark(spark: SparkSession, args: argparse.Namespace, queries: query) -> 
     res = []
     ops = [method for method in dir(queries) if method.startswith('__') is False] if args.list is None else args.list
     
-    print("="*240)
-    print(f'Starting Benchmark for {args.which}_benchmark() : {str(ops)}')
+    op_results = {}
 
-    for op in ops:
-        col_op = [op]
+    for i in range(args.ntest):
+
+        print("="*240)
+        print(f'Starting Benchmark for {args.which}_benchmark() : {str(ops)}')
 
         try:
-            for i in range(args.ntest):
-                spark.sparkContext.setLocalProperty('callSite.short', f'{op}_benchmark_test_{i}')
-                print("="*240)
-                print(f'Running {op}_benchmark_test_{i}')
-
+            for op in ops:
+                if op in op_results:
+                    col_op = op_results[op]
+                else:
+                    col_op = [op]
+                    op_results[op] = col_op
+        
                 if (args.clearcache):
                     spark.catalog.clearCache() 
 
-                start_time = timer()
                 new_df = queries[op](spark)
-                new_df.write.csv(
-                    f'temp/{op}_{i}',
-                    header=True,
-                    mode='overwrite'
-                )
-                time_taken = timer() - start_time
                 new_df.explain(extended=True)
+
+                spark.sparkContext.setLocalProperty('callSite.short', f'{op}_benchmark_test_{i}')
+                print("="*240)
+
+                print(f'Running {op}_benchmark_test_{i}')
+                start_time = timer()
+
+                new_df.collect()
+                
+                time_taken = timer() - start_time
                 print(f'Finished {op}_benchmark_test_{i} = {time_taken}')
                 print("="*240)
-                os.system("/opt/hadoop/bin/hdfs dfs -rm -r -f temp")
                 col_op.append(time_taken)
-
-            avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (args.ntest-2)
-            print(f'AVG for {op}_benchmark_test = {avg}')
-
-            col_op.append(avg)
-            res.append(tuple(col_op))
 
         except Exception as e:
             print(f'Error: {str(e)}. Skipping operation {op}')
-    
+
+    for key, col_op in op_results.items():
+        avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (args.ntest - 2)
+        print(f'AVG for {op}_benchmark_test = {avg}')
+        col_op.append(avg)
+        res.append(tuple(col_op))
+
     print("="*240)
 
     return res

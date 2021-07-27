@@ -6,6 +6,8 @@ $SPARK_HOME/bin/spark-submit \
     --deploy-mode cluster \
     --name groups.py_VE \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --conf spark.sql.inMemoryColumnarStorage.batchSize=174592 \
+    --conf spark.sql.files.minPartitionNum=8 \
     --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
     --conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
@@ -15,7 +17,7 @@ $SPARK_HOME/bin/spark-submit \
     --conf spark.driver.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
-    --conf spark.com.nec.spark.kernel.precompiled=/opt/spark/work/egonzalez \
+    --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/egonzalez \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.executorEnv.VE_PROGINF=YES \
     groups.py

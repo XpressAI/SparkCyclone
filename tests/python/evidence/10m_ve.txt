@@ -1,0 +1,1004 @@
+Namespace(clearcache=True, inputfile='data/XY_doubles_R10000000_P100_csv', list=['avg_x_double', 'avg_x_plus_y_double', 'sum_x_double', 'sum_x_plus_y_double', 'x_plus_y_double'], ntest=5, outputfile='yarn_test_ve_10M', which='column')
+/tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0046/container_1627191832073_0046_01_000001/pyspark.zip/pyspark/context.py:267: RuntimeWarning: Failed to add file [file:///home/egonzalez/nec_spark/aurora4spark/tests/python/dep.zip] specified in 'spark.submit.pyFiles' to Python path:
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/filecache/264
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0046/spark-367b93e4-716d-4517-bc80-1a556cae4b92/userFiles-1fbd87ef-0ab7-489c-b5fb-7cbb8cffd605
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/filecache/262/__spark_libs__6168783418155313488.zip/spark-core_2.12-3.1.1.jar
+  /opt/rh/devtoolset-8/root/usr/lib64/python2.7/site-packages
+  /opt/rh/devtoolset-8/root/usr/lib/python2.7/site-packages
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0046/container_1627191832073_0046_01_000001/pyspark.zip
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0046/container_1627191832073_0046_01_000001/py4j-0.10.9-src.zip
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0046/container_1627191832073_0046_01_000001/dep.zip
+  /usr/lib64/python36.zip
+  /usr/lib64/python3.6
+  /usr/lib64/python3.6/lib-dynload
+  /usr/lib64/python3.6/site-packages
+  /opt/nec/ve/nlcpy/1.0.1/lib/python3.6
+  /usr/lib/python3.6/site-packages
+  RuntimeWarning)
+================================================================================================================================================================================================================================================
+Benchmark using input file = data/XY_doubles_R10000000_P100_csv
+================================================================================================================================================================================================================================================
+root
+ |-- id: double (nullable = true)
+ |-- double_x: double (nullable = true)
+ |-- double_y: double (nullable = true)
+
+================================================================================================================================================================================================================================================
+Starting Benchmark for column_benchmark() : ['avg_x_double', 'avg_x_plus_y_double', 'sum_x_double', 'sum_x_plus_y_double', 'x_plus_y_double']
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_0
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#7]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#7]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg(double_x#1) AS avg(double_x)#7], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x__accumulated = 0;
+int avg_double_x__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x__accumulated += input_1->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_double_benchmark_test_0 = 10.179459761995531
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_1
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#21]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#21]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg(double_x#1) AS avg(double_x)#21], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x__accumulated = 0;
+int avg_double_x__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x__accumulated += input_1->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_double_benchmark_test_1 = 4.03639293499873
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_2
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#35]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#35]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg(double_x#1) AS avg(double_x)#35], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x__accumulated = 0;
+int avg_double_x__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x__accumulated += input_1->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_double_benchmark_test_2 = 3.985729802006972
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_3
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#49]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#49]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg(double_x#1) AS avg(double_x)#49], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x__accumulated = 0;
+int avg_double_x__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x__accumulated += input_1->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_double_benchmark_test_3 = 3.752545472001657
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_4
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#63]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#63]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg(double_x#1) AS avg(double_x)#63], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x__accumulated = 0;
+int avg_double_x__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x__accumulated += input_1->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_double_benchmark_test_4 = 3.531852127998718
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for avg_x_double_benchmark_test = 3.924889403002453
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_0
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#77]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#77]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#77], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x_plus_double_y__accumulated = 0;
+int avg_double_x_plus_double_y__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x_plus_double_y__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_0 = 4.168020365999837
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_1
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#91]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#91]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#91], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x_plus_double_y__accumulated = 0;
+int avg_double_x_plus_double_y__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x_plus_double_y__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_1 = 3.4995048430064344
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_2
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#105]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#105]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#105], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x_plus_double_y__accumulated = 0;
+int avg_double_x_plus_double_y__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x_plus_double_y__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_2 = 3.436843528004829
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_3
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#119]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#119]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#119], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x_plus_double_y__accumulated = 0;
+int avg_double_x_plus_double_y__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x_plus_double_y__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_3 = 3.474799138995877
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_4
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#133]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#133]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#133], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {
+output_0_average_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_average_sum->count = 1;
+output_0_average_count->data = (double *)malloc(1 * sizeof(double));
+output_0_average_count->count = 1;
+double avg_double_x_plus_double_y__accumulated = 0;
+int avg_double_x_plus_double_y__counted = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+avg_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_average_sum->data[0] = avg_double_x_plus_double_y__accumulated;
+output_0_average_count->data[0] = input_0->count;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_4 = 3.2763303620013176
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for avg_x_plus_y_double_benchmark_test = 3.4703825033357134
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_0
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#147]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#147]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum(double_x#1) AS sum(double_x)#147], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x__accumulated += input_1->data[i];
+}
+output_0_sum->data[0] = sum_double_x__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_double_benchmark_test_0 = 3.7695022499974584
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_1
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#161]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#161]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum(double_x#1) AS sum(double_x)#161], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x__accumulated += input_1->data[i];
+}
+output_0_sum->data[0] = sum_double_x__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_double_benchmark_test_1 = 3.7720246679964475
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_2
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#175]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#175]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum(double_x#1) AS sum(double_x)#175], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x__accumulated += input_1->data[i];
+}
+output_0_sum->data[0] = sum_double_x__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_double_benchmark_test_2 = 3.7471558140023262
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_3
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#189]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#189]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum(double_x#1) AS sum(double_x)#189], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x__accumulated += input_1->data[i];
+}
+output_0_sum->data[0] = sum_double_x__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_double_benchmark_test_3 = 3.6680006250026054
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_4
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#203]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#203]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum(double_x#1) AS sum(double_x)#203], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x__accumulated += input_1->data[i];
+}
+output_0_sum->data[0] = sum_double_x__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_double_benchmark_test_4 = 3.3183980519970646
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for sum_x_double_benchmark_test = 3.728219563000797
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_0
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#217]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#217]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#217], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x_plus_double_y__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_sum->data[0] = sum_double_x_plus_double_y__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_0 = 3.3302276879985584
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_1
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#231]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#231]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#231], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x_plus_double_y__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_sum->data[0] = sum_double_x_plus_double_y__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_1 = 3.7166681599992444
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_2
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#245]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#245]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#245], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x_plus_double_y__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_sum->data[0] = sum_double_x_plus_double_y__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_2 = 3.400463550002314
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_3
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#259]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#259]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#259], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x_plus_double_y__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_sum->data[0] = sum_double_x_plus_double_y__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_3 = 3.2848437860011472
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_4
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#273]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#273]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#273], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0_sum) {
+output_0_sum->data = (double *)malloc(1 * sizeof(double));
+output_0_sum->count = 1;
+double sum_double_x_plus_double_y__accumulated = 0;
+#pragma _NEC ivdep
+for (int i = 0; i < input_0->count; i++) {
+sum_double_x_plus_double_y__accumulated += input_1->data[i] + input_2->data[i];
+}
+output_0_sum->data[0] = sum_double_x_plus_double_y__accumulated;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_4 = 3.346525950000796
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for sum_x_plus_y_double_benchmark_test = 3.359072396000556
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_0
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#286]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#286]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [(double_x#1 + double_y#2) AS (double_x + double_y)#286], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0)
+{
+long output_0_count = input_0->count;
+double *output_0_data = (double*) malloc(output_0_count * sizeof(double));
+#pragma _NEC ivdep
+for (int i = 0; i < output_0_count; i++) {
+output_0_data[i] = input_1->data[i] + input_2->data[i];
+}
+output_0->count = output_0_count;
+output_0->data = output_0_data;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_0 = 36.92982985700655
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_1
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#299]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#299]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [(double_x#1 + double_y#2) AS (double_x + double_y)#299], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0)
+{
+long output_0_count = input_0->count;
+double *output_0_data = (double*) malloc(output_0_count * sizeof(double));
+#pragma _NEC ivdep
+for (int i = 0; i < output_0_count; i++) {
+output_0_data[i] = input_1->data[i] + input_2->data[i];
+}
+output_0->count = output_0_count;
+output_0->data = output_0_data;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_1 = 38.122373856000195
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_2
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#312]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#312]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [(double_x#1 + double_y#2) AS (double_x + double_y)#312], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0)
+{
+long output_0_count = input_0->count;
+double *output_0_data = (double*) malloc(output_0_count * sizeof(double));
+#pragma _NEC ivdep
+for (int i = 0; i < output_0_count; i++) {
+output_0_data[i] = input_1->data[i] + input_2->data[i];
+}
+output_0->count = output_0_count;
+output_0->data = output_0_data;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_2 = 38.581212907003646
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_3
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#325]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#325]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [(double_x#1 + double_y#2) AS (double_x + double_y)#325], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0)
+{
+long output_0_count = input_0->count;
+double *output_0_data = (double*) malloc(output_0_count * sizeof(double));
+#pragma _NEC ivdep
+for (int i = 0; i < output_0_count; i++) {
+output_0_data[i] = input_1->data[i] + input_2->data[i];
+}
+output_0->count = output_0_count;
+output_0->data = output_0_data;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_3 = 39.68061082599888
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_4
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#338]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#338]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+CEvaluationPlan [(double_x#1 + double_y#2) AS (double_x + double_y)#338], CodeLines(
+extern "C" long f(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* input_2, non_null_double_vector* output_0)
+{
+long output_0_count = input_0->count;
+double *output_0_data = (double*) malloc(output_0_count * sizeof(double));
+#pragma _NEC ivdep
+for (int i = 0; i < output_0_count; i++) {
+output_0_data[i] = input_1->data[i] + input_2->data[i];
+}
+output_0->count = output_0_count;
+output_0->data = output_0_data;
+return 0;
+}
+), ExecutorPluginManagedEvaluator
++- FileScan csv [id#0,double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R10000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:double,double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_4 = 44.01055181200354
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for x_plus_y_double_benchmark_test = 38.79473252966758
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+RESULTS:
+Test Run = column_benchmark, Operation = ['avg_x_double', 'avg_x_plus_y_double', 'sum_x_double', 'sum_x_plus_y_double', 'x_plus_y_double'].
+Saved results to output/column_yarn_test_ve_10M
+================================================================================================================================================================================================================================================
+[Row(test='avg_x_double', test_0=10.179459761995531, test_1=4.03639293499873, test_2=3.985729802006972, test_3=3.752545472001657, test_4=3.531852127998718, mean_exclude_max_and_min=3.924889403002453), Row(test='avg_x_plus_y_double', test_0=4.168020365999837, test_1=3.4995048430064344, test_2=3.436843528004829, test_3=3.474799138995877, test_4=3.2763303620013176, mean_exclude_max_and_min=3.4703825033357134), Row(test='sum_x_double', test_0=3.7695022499974584, test_1=3.7720246679964475, test_2=3.7471558140023262, test_3=3.6680006250026054, test_4=3.3183980519970646, mean_exclude_max_and_min=3.728219563000797), Row(test='sum_x_plus_y_double', test_0=3.3302276879985584, test_1=3.7166681599992444, test_2=3.400463550002314, test_3=3.2848437860011472, test_4=3.346525950000796, mean_exclude_max_and_min=3.359072396000556), Row(test='x_plus_y_double', test_0=36.92982985700655, test_1=38.122373856000195, test_2=38.581212907003646, test_3=39.68061082599888, test_4=44.01055181200354, mean_exclude_max_and_min=38.79473252966758)]

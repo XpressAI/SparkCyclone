@@ -1,0 +1,152 @@
+Loading data
+Caching test1 table.
+[Row(sum(_c0)=24998739742061.12, sum(_c1)=2499898536866.275, sum(_c2)=249987397420.6127)]
+Starting 54 Group By SUM queries:
+Query Plan: 
+== Parsed Logical Plan ==
+CTE [t]
+:  +- 'SubqueryAlias t
+:     +- 'UnresolvedSubqueryColumnAliases [a]
+:        +- 'Aggregate ['_c2], ['AVG('_c1) AS a#99]
+:           +- 'UnresolvedRelation [test1], [], false
++- 'Project [unresolvedalias('AVG('a), None)]
+   +- 'UnresolvedRelation [t], [], false
+
+== Analyzed Logical Plan ==
+avg(a): double
+Aggregate [avg(a#101) AS avg(a)#103]
++- SubqueryAlias t
+   +- Project [a#99 AS a#101]
+      +- Aggregate [_c2#2], [avg(_c1#1) AS a#99]
+         +- SubqueryAlias test1
+            +- Relation[_c0#0,_c1#1,_c2#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(a#101) AS avg(a)#103]
++- Aggregate [_c2#2], [avg(_c1#1) AS a#101]
+   +- Project [_c1#1, _c2#2]
+      +- InMemoryRelation [_c0#0, _c1#1, _c2#2], StorageLevel(disk, memory, deserialized, 1 replicas)
+            +- FileScan csv [_c0#0,_c1#1,_c2#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/data/test_file_500M_3f_R500000000_P1000_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<_c0:double,_c1:double,_c2:double>
+
+== Physical Plan ==
+*(3) HashAggregate(keys=[], functions=[avg(a#101)], output=[avg(a)#103])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#69]
+   +- *(2) HashAggregate(keys=[], functions=[partial_avg(a#101)], output=[sum#152, count#153L])
+      +- *(2) HashAggregate(keys=[_c2#2], functions=[avg(_c1#1)], output=[a#101])
+         +- Exchange hashpartitioning(_c2#2, 200), ENSURE_REQUIREMENTS, [id=#64]
+            +- *(1) HashAggregate(keys=[knownfloatingpointnormalized(normalizenanandzero(_c2#2)) AS _c2#2], functions=[partial_avg(_c1#1)], output=[_c2#2, sum#156, count#157L])
+               +- *(1) ColumnarToRow
+                  +- InMemoryTableScan [_c1#1, _c2#2]
+                        +- InMemoryRelation [_c0#0, _c1#1, _c2#2], StorageLevel(disk, memory, deserialized, 1 replicas)
+                              +- FileScan csv [_c0#0,_c1#1,_c2#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/data/test_file_500M_3f_R500000000_P1000_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<_c0:double,_c1:double,_c2:double>
+
+[Row(sum(a)=24998739742061.23)]
+Finished SUM Iter: 0 Col: 0 Group: 0 Elapsed: 56.02734225099266s
+[Row(avg(a)=49997.47890103407)]
+Finished AVG Iter: 0 Col: 0 Group: 0 Elapsed: 74.10055346900481s
+[Row(sum(a)=24998739742061.133)]
+Finished SUM Iter: 0 Col: 0 Group: 1 Elapsed: 82.52883575500164s
+[Row(avg(a)=49997.479837011684)]
+Finished AVG Iter: 0 Col: 0 Group: 1 Elapsed: 79.66232105900417s
+[Row(sum(a)=24998739742061.19)]
+Finished SUM Iter: 0 Col: 0 Group: 2 Elapsed: 62.26753019601165s
+[Row(avg(a)=49997.47906377512)]
+Finished AVG Iter: 0 Col: 0 Group: 2 Elapsed: 63.466707883999334s
+[Row(sum(a)=2499898536866.269)]
+Finished SUM Iter: 0 Col: 1 Group: 0 Elapsed: 71.60136732200044s
+[Row(avg(a)=4999.797092013252)]
+Finished AVG Iter: 0 Col: 1 Group: 0 Elapsed: 73.88807862398971s
+[Row(sum(a)=2499898536866.2803)]
+Finished SUM Iter: 0 Col: 1 Group: 1 Elapsed: 48.79562921299657s
+[Row(avg(a)=4999.7970230645615)]
+Finished AVG Iter: 0 Col: 1 Group: 1 Elapsed: 56.647497051002574s
+[Row(sum(a)=2499898536866.2764)]
+Finished SUM Iter: 0 Col: 1 Group: 2 Elapsed: 90.38493789199856s
+[Row(avg(a)=4999.797096435219)]
+Finished AVG Iter: 0 Col: 1 Group: 2 Elapsed: 53.878506127002765s
+[Row(sum(a)=249987397420.61227)]
+Finished SUM Iter: 0 Col: 2 Group: 0 Elapsed: 74.34927779198915s
+[Row(avg(a)=499.9747890103402)]
+Finished AVG Iter: 0 Col: 2 Group: 0 Elapsed: 74.56829434999963s
+[Row(sum(a)=249987397420.61215)]
+Finished SUM Iter: 0 Col: 2 Group: 1 Elapsed: 61.500000040992745s
+[Row(avg(a)=499.97479837012014)]
+Finished AVG Iter: 0 Col: 2 Group: 1 Elapsed: 69.78349463699851s
+[Row(sum(a)=249987397420.6121)]
+Finished SUM Iter: 0 Col: 2 Group: 2 Elapsed: 49.30948273598915s
+[Row(avg(a)=499.974790637752)]
+Finished AVG Iter: 0 Col: 2 Group: 2 Elapsed: 49.97475792400655s
+[Row(sum(a)=24998739742061.227)]
+Finished SUM Iter: 1 Col: 0 Group: 0 Elapsed: 51.16281625400006s
+[Row(avg(a)=49997.478901034236)]
+Finished AVG Iter: 1 Col: 0 Group: 0 Elapsed: 56.641819790005684s
+[Row(sum(a)=24998739742061.176)]
+Finished SUM Iter: 1 Col: 0 Group: 1 Elapsed: 64.64774827500514s
+[Row(avg(a)=49997.479837011924)]
+Finished AVG Iter: 1 Col: 0 Group: 1 Elapsed: 63.03187509100826s
+[Row(sum(a)=24998739742061.25)]
+Finished SUM Iter: 1 Col: 0 Group: 2 Elapsed: 57.10090856900206s
+[Row(avg(a)=49997.479063775165)]
+Finished AVG Iter: 1 Col: 0 Group: 2 Elapsed: 62.50774953899963s
+[Row(sum(a)=2499898536866.2764)]
+Finished SUM Iter: 1 Col: 1 Group: 0 Elapsed: 67.19790843701048s
+[Row(avg(a)=4999.7970920132675)]
+Finished AVG Iter: 1 Col: 1 Group: 0 Elapsed: 56.56523145500978s
+[Row(sum(a)=2499898536866.283)]
+Finished SUM Iter: 1 Col: 1 Group: 1 Elapsed: 61.42059463800979s
+[Row(avg(a)=4999.797023064581)]
+Finished AVG Iter: 1 Col: 1 Group: 1 Elapsed: 48.29509042299469s
+[Row(sum(a)=2499898536866.266)]
+Finished SUM Iter: 1 Col: 1 Group: 2 Elapsed: 53.28439315198921s
+[Row(avg(a)=4999.797096435209)]
+Finished AVG Iter: 1 Col: 1 Group: 2 Elapsed: 56.97919596800057s
+[Row(sum(a)=249987397420.61212)]
+Finished SUM Iter: 1 Col: 2 Group: 0 Elapsed: 57.35706983300042s
+[Row(avg(a)=499.9747890103398)]
+Finished AVG Iter: 1 Col: 2 Group: 0 Elapsed: 61.392170154998894s
+[Row(sum(a)=249987397420.61166)]
+Finished SUM Iter: 1 Col: 2 Group: 1 Elapsed: 61.46831836500496s
+[Row(avg(a)=499.9747983701176)]
+Finished AVG Iter: 1 Col: 2 Group: 1 Elapsed: 65.52692976300023s
+[Row(sum(a)=249987397420.61096)]
+Finished SUM Iter: 1 Col: 2 Group: 2 Elapsed: 54.847314708007616s
+[Row(avg(a)=499.9747906377518)]
+Finished AVG Iter: 1 Col: 2 Group: 2 Elapsed: 48.04768889899424s
+[Row(sum(a)=24998739742061.203)]
+Finished SUM Iter: 2 Col: 0 Group: 0 Elapsed: 44.850649141997565s
+[Row(avg(a)=49997.478901034054)]
+Finished AVG Iter: 2 Col: 0 Group: 0 Elapsed: 50.95418403200165s
+[Row(sum(a)=24998739742061.17)]
+Finished SUM Iter: 2 Col: 0 Group: 1 Elapsed: 57.52866344999347s
+[Row(avg(a)=49997.47983701185)]
+Finished AVG Iter: 2 Col: 0 Group: 1 Elapsed: 59.097331608994864s
+[Row(sum(a)=24998739742061.2)]
+Finished SUM Iter: 2 Col: 0 Group: 2 Elapsed: 72.33257962900097s
+[Row(avg(a)=49997.4790637751)]
+Finished AVG Iter: 2 Col: 0 Group: 2 Elapsed: 69.1073289259948s
+[Row(sum(a)=2499898536866.2783)]
+Finished SUM Iter: 2 Col: 1 Group: 0 Elapsed: 67.83146555999701s
+[Row(avg(a)=4999.797092013266)]
+Finished AVG Iter: 2 Col: 1 Group: 0 Elapsed: 62.609999097010586s
+[Row(sum(a)=2499898536866.2725)]
+Finished SUM Iter: 2 Col: 1 Group: 1 Elapsed: 56.043034814996645s
+[Row(avg(a)=4999.79702306456)]
+Finished AVG Iter: 2 Col: 1 Group: 1 Elapsed: 51.496287612011656s
+[Row(sum(a)=2499898536866.278)]
+Finished SUM Iter: 2 Col: 1 Group: 2 Elapsed: 54.37871212599566s
+[Row(avg(a)=4999.797096435226)]
+Finished AVG Iter: 2 Col: 1 Group: 2 Elapsed: 61.76051535499573s
+[Row(sum(a)=249987397420.61218)]
+Finished SUM Iter: 2 Col: 2 Group: 0 Elapsed: 68.49136091100809s
+[Row(avg(a)=499.9747890103403)]
+Finished AVG Iter: 2 Col: 2 Group: 0 Elapsed: 64.5256531299965s
+[Row(sum(a)=249987397420.6123)]
+Finished SUM Iter: 2 Col: 2 Group: 1 Elapsed: 68.84171373100253s
+[Row(avg(a)=499.9747983701184)]
+Finished AVG Iter: 2 Col: 2 Group: 1 Elapsed: 72.02487176000432s
+[Row(sum(a)=249987397420.6112)]
+Finished SUM Iter: 2 Col: 2 Group: 2 Elapsed: 53.487960854996345s
+[Row(avg(a)=499.97479063775285)]
+Finished AVG Iter: 2 Col: 2 Group: 2 Elapsed: 56.26345846398908s
+Total time for 54 Group By SUM and AVG queries: 3336.1011498689913s
+Total time for entire job: 3448.516633634994s

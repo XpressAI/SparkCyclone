@@ -1,0 +1,699 @@
+Namespace(clearcache=True, inputfile='data/XY_doubles_R1000000_P100_csv', list=['avg_x_double', 'avg_x_plus_y_double', 'sum_x_double', 'sum_x_plus_y_double', 'x_plus_y_double'], ntest=5, outputfile='yarn_test_cpu_1M', which='column')
+/tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0045/container_1627191832073_0045_01_000001/pyspark.zip/pyspark/context.py:267: RuntimeWarning: Failed to add file [file:///home/egonzalez/nec_spark/aurora4spark/tests/python/dep.zip] specified in 'spark.submit.pyFiles' to Python path:
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/filecache/258
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0045/spark-9eecbd1a-31f0-4186-9bc5-f32d2a7dc19b/userFiles-c882a2b3-1ec4-4f08-9d2f-b69ec664b1c6
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/filecache/256/__spark_libs__2297341985023976847.zip/spark-core_2.12-3.1.1.jar
+  /opt/rh/devtoolset-8/root/usr/lib64/python2.7/site-packages
+  /opt/rh/devtoolset-8/root/usr/lib/python2.7/site-packages
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0045/container_1627191832073_0045_01_000001/pyspark.zip
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0045/container_1627191832073_0045_01_000001/py4j-0.10.9-src.zip
+  /tmp/hadoop-egonzalez/nm-local-dir/usercache/egonzalez/appcache/application_1627191832073_0045/container_1627191832073_0045_01_000001/dep.zip
+  /usr/lib64/python36.zip
+  /usr/lib64/python3.6
+  /usr/lib64/python3.6/lib-dynload
+  /usr/lib64/python3.6/site-packages
+  /opt/nec/ve/nlcpy/1.0.1/lib/python3.6
+  /usr/lib/python3.6/site-packages
+  RuntimeWarning)
+================================================================================================================================================================================================================================================
+Benchmark using input file = data/XY_doubles_R1000000_P100_csv
+================================================================================================================================================================================================================================================
+root
+ |-- id: double (nullable = true)
+ |-- double_x: double (nullable = true)
+ |-- double_y: double (nullable = true)
+
+================================================================================================================================================================================================================================================
+Starting Benchmark for column_benchmark() : ['avg_x_double', 'avg_x_plus_y_double', 'sum_x_double', 'sum_x_plus_y_double', 'x_plus_y_double']
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_0
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#7]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#7]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg(double_x#1)], output=[avg(double_x)#7])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#43]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg(double_x#1)], output=[sum#12, count#13L])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished avg_x_double_benchmark_test_0 = 4.905389659994398
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_1
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#16]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#16]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg(double_x#1)], output=[avg(double_x)#16])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#87]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg(double_x#1)], output=[sum#21, count#22L])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished avg_x_double_benchmark_test_1 = 0.6360438720003003
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_2
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#25]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#25]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg(double_x#1)], output=[avg(double_x)#25])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#131]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg(double_x#1)], output=[sum#30, count#31L])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished avg_x_double_benchmark_test_2 = 1.3403137480054284
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_3
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#34]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#34]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg(double_x#1)], output=[avg(double_x)#34])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#175]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg(double_x#1)], output=[sum#39, count#40L])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished avg_x_double_benchmark_test_3 = 0.5352859089980484
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_double_benchmark_test_4
+Query: SELECT AVG(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg(double_x): double
+Aggregate [avg(double_x#1) AS avg(double_x)#43]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg(double_x#1) AS avg(double_x)#43]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg(double_x#1)], output=[avg(double_x)#43])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#219]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg(double_x#1)], output=[sum#48, count#49L])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished avg_x_double_benchmark_test_4 = 2.6448935189982876
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for avg_x_double_benchmark_test = 1.540417046334672
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_0
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#52]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#52]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg((double_x#1 + double_y#2))], output=[avg((double_x + double_y))#52])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#263]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg((double_x#1 + double_y#2))], output=[sum#57, count#58L])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_0 = 0.7450745499954792
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_1
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#62]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#62]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg((double_x#1 + double_y#2))], output=[avg((double_x + double_y))#62])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#307]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg((double_x#1 + double_y#2))], output=[sum#67, count#68L])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_1 = 0.5406203780003125
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_2
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#72]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#72]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg((double_x#1 + double_y#2))], output=[avg((double_x + double_y))#72])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#351]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg((double_x#1 + double_y#2))], output=[sum#77, count#78L])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_2 = 0.5750871249983902
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_3
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#82]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#82]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg((double_x#1 + double_y#2))], output=[avg((double_x + double_y))#82])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#395]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg((double_x#1 + double_y#2))], output=[sum#87, count#88L])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_3 = 0.5201024320049328
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running avg_x_plus_y_double_benchmark_test_4
+Query: SELECT AVG(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('AVG(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+avg((double_x + double_y)): double
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#92]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [avg((double_x#1 + double_y#2)) AS avg((double_x + double_y))#92]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[avg((double_x#1 + double_y#2))], output=[avg((double_x + double_y))#92])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#439]
+   +- *(1) HashAggregate(keys=[], functions=[partial_avg((double_x#1 + double_y#2))], output=[sum#97, count#98L])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished avg_x_plus_y_double_benchmark_test_4 = 0.43115315699833445
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for avg_x_plus_y_double_benchmark_test = 0.5452699783345452
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_0
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#102]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#102]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum(double_x#1)], output=[sum(double_x)#102])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#483]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(double_x#1)], output=[sum#106])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished sum_x_double_benchmark_test_0 = 0.4848359379975591
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_1
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#109]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#109]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum(double_x#1)], output=[sum(double_x)#109])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#527]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(double_x#1)], output=[sum#113])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished sum_x_double_benchmark_test_1 = 0.40596914499474224
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_2
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#116]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#116]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum(double_x#1)], output=[sum(double_x)#116])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#571]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(double_x#1)], output=[sum#120])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished sum_x_double_benchmark_test_2 = 0.38660427700233413
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_3
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#123]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#123]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum(double_x#1)], output=[sum(double_x)#123])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#615]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(double_x#1)], output=[sum#127])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished sum_x_double_benchmark_test_3 = 0.7854859160070191
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_double_benchmark_test_4
+Query: SELECT SUM(double_x) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM('double_x), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum(double_x): double
+Aggregate [sum(double_x#1) AS sum(double_x)#130]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum(double_x#1) AS sum(double_x)#130]
++- Project [double_x#1]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum(double_x#1)], output=[sum(double_x)#130])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#659]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum(double_x#1)], output=[sum#134])
+      +- FileScan csv [double_x#1] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double>
+
+Finished sum_x_double_benchmark_test_4 = 0.47369554200122366
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for sum_x_double_benchmark_test = 0.45483354166450835
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_0
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#137]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#137]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum((double_x#1 + double_y#2))], output=[sum((double_x + double_y))#137])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#703]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum((double_x#1 + double_y#2))], output=[sum#141])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_0 = 0.5198322409996763
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_1
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#145]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#145]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum((double_x#1 + double_y#2))], output=[sum((double_x + double_y))#145])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#747]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum((double_x#1 + double_y#2))], output=[sum#149])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_1 = 0.4782123280019732
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_2
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#153]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#153]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum((double_x#1 + double_y#2))], output=[sum((double_x + double_y))#153])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#791]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum((double_x#1 + double_y#2))], output=[sum#157])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_2 = 0.45396061099745566
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_3
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#161]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#161]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum((double_x#1 + double_y#2))], output=[sum((double_x + double_y))#161])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#835]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum((double_x#1 + double_y#2))], output=[sum#165])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_3 = 0.4953016510044108
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running sum_x_plus_y_double_benchmark_test_4
+Query: SELECT SUM(double_x + double_y) FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias('SUM(('double_x + 'double_y)), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+sum((double_x + double_y)): double
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#169]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Aggregate [sum((double_x#1 + double_y#2)) AS sum((double_x + double_y))#169]
++- Project [double_x#1, double_y#2]
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(2) HashAggregate(keys=[], functions=[sum((double_x#1 + double_y#2))], output=[sum((double_x + double_y))#169])
++- Exchange SinglePartition, ENSURE_REQUIREMENTS, [id=#879]
+   +- *(1) HashAggregate(keys=[], functions=[partial_sum((double_x#1 + double_y#2))], output=[sum#173])
+      +- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished sum_x_plus_y_double_benchmark_test_4 = 0.42881280099391006
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for sum_x_plus_y_double_benchmark_test = 0.4758248633346132
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_0
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#176]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#176]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(1) Project [(double_x#1 + double_y#2) AS (double_x + double_y)#176]
++- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_0 = 0.7749341630042181
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_1
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#181]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#181]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(1) Project [(double_x#1 + double_y#2) AS (double_x + double_y)#181]
++- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_1 = 0.605583917000331
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_2
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#186]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#186]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(1) Project [(double_x#1 + double_y#2) AS (double_x + double_y)#186]
++- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_2 = 0.5059835840002052
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_3
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#191]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#191]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(1) Project [(double_x#1 + double_y#2) AS (double_x + double_y)#191]
++- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_3 = 0.7417357230006019
+================================================================================================================================================================================================================================================
+Deleted temp
+================================================================================================================================================================================================================================================
+Running x_plus_y_double_benchmark_test_4
+Query: SELECT double_x + double_y FROM table
+== Parsed Logical Plan ==
+'Project [unresolvedalias(('double_x + 'double_y), None)]
++- 'UnresolvedRelation [table], [], false
+
+== Analyzed Logical Plan ==
+(double_x + double_y): double
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#196]
++- SubqueryAlias table
+   +- Relation[id#0,double_x#1,double_y#2] csv
+
+== Optimized Logical Plan ==
+Project [(double_x#1 + double_y#2) AS (double_x + double_y)#196]
++- Relation[id#0,double_x#1,double_y#2] csv
+
+== Physical Plan ==
+*(1) Project [(double_x#1 + double_y#2) AS (double_x + double_y)#196]
++- FileScan csv [double_x#1,double_y#2] Batched: false, DataFilters: [], Format: CSV, Location: InMemoryFileIndex[hdfs://localhost:9000/user/egonzalez/data/XY_doubles_R1000000_P100_csv], PartitionFilters: [], PushedFilters: [], ReadSchema: struct<double_x:double,double_y:double>
+
+Finished x_plus_y_double_benchmark_test_4 = 0.9105431800053339
+================================================================================================================================================================================================================================================
+Deleted temp
+AVG for x_plus_y_double_benchmark_test = 0.7074179343350503
+================================================================================================================================================================================================================================================
+================================================================================================================================================================================================================================================
+RESULTS:
+Test Run = column_benchmark, Operation = ['avg_x_double', 'avg_x_plus_y_double', 'sum_x_double', 'sum_x_plus_y_double', 'x_plus_y_double'].
+Saved results to output/column_yarn_test_cpu_1M
+================================================================================================================================================================================================================================================
+[Row(test='avg_x_double', test_0=4.905389659994398, test_1=0.6360438720003003, test_2=1.3403137480054284, test_3=0.5352859089980484, test_4=2.6448935189982876, mean_exclude_max_and_min=1.540417046334672), Row(test='avg_x_plus_y_double', test_0=0.7450745499954792, test_1=0.5406203780003125, test_2=0.5750871249983902, test_3=0.5201024320049328, test_4=0.43115315699833445, mean_exclude_max_and_min=0.5452699783345452), Row(test='sum_x_double', test_0=0.4848359379975591, test_1=0.40596914499474224, test_2=0.38660427700233413, test_3=0.7854859160070191, test_4=0.47369554200122366, mean_exclude_max_and_min=0.45483354166450835), Row(test='sum_x_plus_y_double', test_0=0.5198322409996763, test_1=0.4782123280019732, test_2=0.45396061099745566, test_3=0.4953016510044108, test_4=0.42881280099391006, mean_exclude_max_and_min=0.4758248633346132), Row(test='x_plus_y_double', test_0=0.7749341630042181, test_1=0.605583917000331, test_2=0.5059835840002052, test_3=0.7417357230006019, test_4=0.9105431800053339, mean_exclude_max_and_min=0.7074179343350503)]
