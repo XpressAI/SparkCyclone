@@ -32,6 +32,7 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.immutable
 import scala.language.dynamics
 
 object CEvaluationPlan {
@@ -199,8 +200,6 @@ final case class CEvaluationPlan(
   private def executeColumnWise(): RDD[InternalRow] = {
     val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
     val maybeBatch = Option(sparkContext.getConf.getInt(batchColumnarBatches, 0)).filter(_ > 1)
-
-    println(maybeBatch)
     maybeBatch match {
       case Some(batchBatchSize) =>
         child
@@ -211,21 +210,13 @@ final case class CEvaluationPlan(
               .flatMap(seqBatch => executeColumnarPerBatch(evaluator, seqBatch: _*))
           )
           .coalesce(numPartitions = 1, shuffle = true)
-          .mapPartitions(unsafeRows =>
-            reduceRows(unsafeRows)
-              .take(1)
-              .flatten
-          )
+          .mapPartitions(unsafeRows => reduceRows(unsafeRows))
       case _ =>
         child
           .executeColumnar()
           .flatMap(colBatch => executeColumnarPerBatch(evaluator, colBatch))
           .coalesce(numPartitions = 1, shuffle = true)
-          .mapPartitions(unsafeRows =>
-            reduceRows(unsafeRows)
-              .take(1)
-              .flatten
-          )
+          .mapPartitions(unsafeRows => reduceRows(unsafeRows))
     }
   }
 
@@ -273,11 +264,13 @@ final case class CEvaluationPlan(
           Iterator(writer.getRow)
         } else unsafeRowsList.iterator
       }
+      .take(1)
+      .flatten
   }
   private def executeColumnarPerBatch(
     evaluator: ArrowNativeInterfaceNumeric,
     columnarBatch: ColumnarBatch*
-  ) = {
+  ): immutable.IndexedSeq[UnsafeRow] = {
     val uuid = java.util.UUID.randomUUID()
     logger.debug(s"[$uuid] Starting evaluation of a columnar batch...")
     val batchStartTime = System.currentTimeMillis()
@@ -317,12 +310,10 @@ final case class CEvaluationPlan(
         logger.debug(s"[$uuid] executing the function 'f'.")
         evaluator.callFunction(
           name = fName,
-          inputArguments = inputVectors.toList.map(iv =>
-            Some(Float8VectorWrapper(iv))
-          ) ++ outputVectors.map(_ => None),
-          outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v =>
-            Some(Float8VectorWrapper(v))
-          )
+          inputArguments =
+            inputVectors.map(iv => Some(Float8VectorWrapper(iv))) ++ outputVectors.map(_ => None),
+          outputArguments =
+            inputVectors.map(_ => None) ++ outputVectors.map(v => Some(Float8VectorWrapper(v)))
         )
         logger.debug(s"[$uuid] executed the function 'f'.")
       } finally {

@@ -184,7 +184,7 @@ object BenchTestingPossibilities {
                 VERewriteStrategy(sparkSession, CNativeEvaluator)
               )
             )
-//            .config(key = "spark.com.nec.spark.batch-batches", value = "3")
+            .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)
