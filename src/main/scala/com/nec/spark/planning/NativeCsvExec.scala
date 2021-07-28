@@ -2,6 +2,8 @@ package com.nec.spark.planning
 import java.io.{DataInputStream, InputStream}
 import java.nio.ByteBuffer
 
+import scala.collection.JavaConversions.asScalaIterator
+
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
 import com.nec.arrow.functions.CsvParse
@@ -31,25 +33,13 @@ import com.nec.spark.planning.SparkPortingUtils.SerializableConfiguration
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-      ScanOperation
-        .unapply(plan)
-        .collect {
-          case i @ (a, b, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
-              if rel.fileFormat.isInstanceOf[CSVFileFormat] && isNotAggProjection(plan) =>
-            NativeCsvExec(
-              hadoopRelation = rel,
-              output = a.map(_.toAttribute),
-              nativeEvaluator = nativeEvaluator
-            )
-        }
-        .orElse {
-          PartialFunction.condOpt(plan) {
-            case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
-                if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
-              NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator)
-          }
-        }
-        .toList
+    val d = plan match {
+        case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
+          if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
+          Some(NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator))
+        case _ => None
+    }
+      d.toSeq
     }
   }
 
@@ -180,9 +170,12 @@ case class NativeCsvExec(
   with LazyLogging {
 
 
-  override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
-    "Source here is only columnar"
-  )
+  override protected def doExecute(): RDD[InternalRow] = doExecuteColumnar()
+    .mapPartitions(batchIterator => {
+      val d = batchIterator.toList.map(batch => batch.rowIterator().toList)
+
+      d.flatten.toIterator
+    })
 
   val numColumns = hadoopRelation.schema.length
   val outCols = output.length

@@ -41,27 +41,13 @@ object SparkPortingUtils {
   case class ResourceRequest(id: ResourceId, amount: Int)
   object ScanOperation {
     def unapply(logicalPlan: LogicalPlan): Option[(Seq[NamedExpression], Expression, LogicalRelation)] = {
-      throw new RuntimeException("Just for porting")
+      println(logicalPlan.toString())
+      None
     }
   }
-  case class RowToColumnarExec(sparkPlan: SparkPlan) extends SparkPlan{
-    override protected def doExecute(): RDD[InternalRow] = {
-      throw new RuntimeException("Just for porting")
-    }
 
-    override def output: Seq[Attribute] = {
-      throw new RuntimeException("Just for porting")
-    }
-
-    override def children: Seq[SparkPlan] = {
-      throw new RuntimeException("Just for porting")
-    }
-  }
   implicit class PortedSparkPlan(sparkPlan: SparkPlan) {
     def supportsColumnar: Boolean = false
-    def executeColumnar(): RDD[ColumnarBatch] ={
-      throw new RuntimeException("Not implemented")
-    }
   }
 
   case class ResourceInformation(name: String, resources: Array[String])

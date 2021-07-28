@@ -51,9 +51,7 @@ object JoinPlanSpec {
             .continually {
               val leftSide = leftIter.map(ir => (ir.getInt(0), ir.getDouble(1))).toList
               val rightSide = rightIter.map(ir => (ir.getInt(0), ir.getDouble(1))).toList
-              val row = new UnsafeRow(2)
-              val holder = new BufferHolder(row)
-              val writer = new UnsafeRowWriter(holder, 2)
+
               joinMethod match {
                 case JoinMethod.InJVM =>
                   for {
@@ -61,6 +59,9 @@ object JoinPlanSpec {
                     (rk, rv) <- rightSide
                     if lk == rk
                   } yield {
+                    val row = new UnsafeRow(2)
+                    val holder = new BufferHolder(row)
+                    val writer = new UnsafeRowWriter(holder, 2)
                     holder.reset()
                     writer.write(0, lv)
                     writer.write(1, rv)
@@ -91,9 +92,7 @@ object JoinPlanSpec {
                                           secondKeysVec,
                                           outVector
                                         )
-                                        val row = new UnsafeRow(2)
-                                        val holder = new BufferHolder(row)
-                                        val writer = new UnsafeRowWriter(holder, 2)
+
                                         val res = (0 until outVector.getValueCount)
                                           .map(i => outVector.get(i))
                                           .toList
@@ -101,6 +100,10 @@ object JoinPlanSpec {
                                         res._1
                                           .zip(res._2)
                                           .map { case (a, b) =>
+                                            //TODO: Can we optimize this somehow??
+                                            val row = new UnsafeRow(2)
+                                            val holder = new BufferHolder(row)
+                                            val writer = new UnsafeRowWriter(holder, 2)
                                             holder.reset()
                                             writer.reset()
                                             writer.write(0, a)
@@ -110,9 +113,6 @@ object JoinPlanSpec {
 
 
                                       case JoinMethod.ArrowBased.JvmArrowBased =>
-                                        val row = new UnsafeRow(2)
-                                        val holder = new BufferHolder(row)
-                                        val writer = new UnsafeRowWriter(holder, 2)
                                         Join
                                           .joinJVM(
                                             firstColumnVec,
@@ -121,6 +121,9 @@ object JoinPlanSpec {
                                             secondKeysVec
                                           )
                                           .map { case (a, b) =>
+                                            val row = new UnsafeRow(2)
+                                            val holder = new BufferHolder(row)
+                                            val writer = new UnsafeRowWriter(holder, 2)
                                             holder.reset()
                                             writer.reset()
                                             writer.write(0, a)

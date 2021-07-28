@@ -14,8 +14,8 @@ import sun.misc.Unsafe
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.DoubleType
@@ -84,40 +84,44 @@ object PairwiseAdditionOffHeap {
 case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNativeInterfaceNumeric)
   extends SparkPlan {
 
-  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  protected def doExecute(): RDD[InternalRow] = {
     child
-      .executeColumnar()
+      .execute()
       .mapPartitions { partitionInternalRows =>
-        Iterator
-          .continually {
-            val timeZoneId = conf.sessionLocalTimeZone
-            val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
-              s"writer for pairwise addition",
-              0,
-              Long.MaxValue
-            )
-            val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-            val root = VectorSchemaRoot.create(arrowSchema, allocator)
-            val arrowWriter = ArrowWriter.create(root)
-            import scala.collection.JavaConverters._
-            partitionInternalRows.foreach { cb =>
-              cb.rowIterator().asScala.foreach { ir => arrowWriter.write(ir) }
-            }
-            arrowWriter.finish()
+        val timeZoneId = conf.sessionLocalTimeZone
+        val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
+          s"writer for pairwise addition",
+          0,
+          Long.MaxValue
+        )
+        val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+        val root = VectorSchemaRoot.create(arrowSchema, allocator)
+        val arrowWriter = ArrowWriter.create(root)
+        import scala.collection.JavaConverters._
+        partitionInternalRows.foreach { cb =>
+        arrowWriter.write(cb)
+        }
+        arrowWriter.finish()
 
-            val outputVector = new Float8Vector("result", ArrowUtilsExposed.rootAllocator)
+        val outputVector = new Float8Vector("result", ArrowUtilsExposed.rootAllocator)
 
-            AddPairwise.runOn(arrowInterface)(
-              root.getFieldVectors.get(0).asInstanceOf[Float8Vector],
-              root.getFieldVectors.get(1).asInstanceOf[Float8Vector],
-              outputVector
-            )
+        AddPairwise.runOn(arrowInterface)(
+          root.getFieldVectors.get(0).asInstanceOf[Float8Vector],
+          root.getFieldVectors.get(1).asInstanceOf[Float8Vector],
+          outputVector
+        )
 
-            val cb = new ColumnarBatch(Array(new ArrowColumnVector(outputVector)))
-            cb.setNumRows(root.getRowCount)
-            cb
-          }
-          .take(1)
+       val result: Iterator[InternalRow] =  (0 until outputVector.getValueCount)
+          .map(idx => {
+           val elem = outputVector.get(idx)
+            val row = new UnsafeRow(1)
+            val holder = new BufferHolder(row)
+            val writer = new UnsafeRowWriter(holder, 1)
+            holder.reset()
+            writer.write(0, elem)
+            row
+          }).toIterator
+        result
       }
   }
 
@@ -127,5 +131,4 @@ case class PairwiseAdditionOffHeap(child: SparkPlan, arrowInterface: ArrowNative
 
   override def children: Seq[SparkPlan] = Seq(child)
 
-  override protected def doExecute(): RDD[InternalRow] = sys.error("Row production not supported")
 }

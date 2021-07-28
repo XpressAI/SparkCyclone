@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.spark.agile.PairwiseAdditionOffHeap
-import com.nec.spark.planning.SparkPortingUtils.{PortedSparkPlan, RowToColumnarExec}
+import com.nec.spark.planning.SparkPortingUtils.PortedSparkPlan
 
 import org.apache.spark.sql.catalyst.expressions.{Add, Alias}
 import org.apache.spark.sql.execution.{LocalTableScanExec, ProjectExec, SparkPlan}
@@ -26,7 +26,7 @@ object AddPlanExtractor {
     PartialFunction
       .condOpt(sparkPlan) { case pe @ ProjectExec(Seq(Alias(Add(_, _), name)), child) =>
         PairwiseAdditionOffHeap(
-          if (child.supportsColumnar) child else RowToColumnarExec(child),
+          child,
           arrowInterface
         )
       }
