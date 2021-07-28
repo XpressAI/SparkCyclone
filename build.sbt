@@ -17,6 +17,12 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(CMake)
 
+lazy val `agent` = project.in(file("agent"))
+  .dependsOn(root)
+  .settings(
+    name := "agent",
+    assemblyJarName := "agent.jar"
+  )
 /**
  * Run with:
  *
@@ -173,17 +179,17 @@ addCommandAlias("check", ";scalafmtCheck;scalafmtSbtCheck;testQuick")
 
 addCommandAlias(
   "compile-all",
-  "; Test / compile ; ve-direct / Test / compile ; ve-direct / It / compile"
+  "; agent / compile ; ve-direct / agent / compile ; ve-direct / It / compile"
 )
 
 addCommandAlias(
   "testQuick-all",
-  "; Test / testQuick ; CMake / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
+  "; agent / testQuick ; CMake / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
 )
 
 addCommandAlias(
   "test-all",
-  "; Test / test ; CMake / test ; AcceptanceTest / test ; VectorEngine / test"
+  "; agent / test ; CMake / test ; AcceptanceTest / test ; VectorEngine / test"
 )
 
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
@@ -274,5 +280,5 @@ Test / testOptions += Tests.Argument("-oD")
 val bench = inputKey[Unit]("Runs JMH benchmarks in fun-bench")
 bench := (`fun-bench` / Jmh / run).evaluated
 
-addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
-addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")
+addCommandAlias("skipBenchTests", "; set `fun-bench` / agent / skip := true")
+addCommandAlias("unskipBenchTests", "; set `fun-bench` / agent / skip := false")

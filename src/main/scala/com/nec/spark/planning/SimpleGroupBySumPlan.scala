@@ -75,11 +75,12 @@ final case class SimpleGroupBySumPlan(
           }
           //TODO: Verify if that's the correct way to do that, I've based this solution on
           // `TextFileFormat`
-          val row = new UnsafeRow(2)
-          val holder = new BufferHolder(row)
-          val writer = new UnsafeRowWriter(holder, 2)
+
           resultsMap.zipWithIndex.map {
             case ((groupingId, sum), idx) => {
+              val row = new UnsafeRow(2)
+              val holder = new BufferHolder(row)
+              val writer = new UnsafeRowWriter(holder, 2)
               holder.reset()
               writer.write(0, groupingId)
               writer.write(1, sum)

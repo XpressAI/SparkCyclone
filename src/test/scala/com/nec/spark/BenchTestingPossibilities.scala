@@ -97,6 +97,7 @@ object BenchTestingPossibilities {
       val dataSet = sparkSession.sql(sql).as[Result]
 
       val planString = dataSet.queryExecution.executedPlan.toString()
+      println(planString)
       expectedStrings.foreach { expStr =>
         assert(
           planString.contains(expStr),

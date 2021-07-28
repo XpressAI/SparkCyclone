@@ -2,6 +2,8 @@ package com.nec.spark.planning
 import java.io.{DataInputStream, InputStream}
 import java.nio.ByteBuffer
 
+import scala.collection.JavaConversions.asScalaIterator
+
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
 import com.nec.arrow.functions.CsvParse
@@ -26,30 +28,17 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, InMemoryFil
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-import com.nec.spark.planning.SparkPortingUtils.SerializableConfiguration
 
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-      ScanOperation
-        .unapply(plan)
-        .collect {
-          case i @ (a, b, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
-              if rel.fileFormat.isInstanceOf[CSVFileFormat] && isNotAggProjection(plan) =>
-            NativeCsvExec(
-              hadoopRelation = rel,
-              output = a.map(_.toAttribute),
-              nativeEvaluator = nativeEvaluator
-            )
-        }
-        .orElse {
-          PartialFunction.condOpt(plan) {
-            case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
-                if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
-              NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator)
-          }
-        }
-        .toList
+    val d = plan match {
+        case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
+          if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
+          Some(NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator))
+        case _ => None
+    }
+      d.toSeq
     }
   }
 
@@ -140,7 +129,8 @@ object NativeCsvExec {
   ): InputStream = {
     val original = portableDataStream.open()
     val theCodec =
-      new CompressionCodecFactory(hadoopConfiguration.value).getCodec(new Path(name))
+      new CompressionCodecFactory(hadoopConfiguration.conf).getCodec(new Path(name))
+
     if (theCodec != null) new DataInputStream(theCodec.createInputStream(original))
     else original
   }
@@ -180,9 +170,12 @@ case class NativeCsvExec(
   with LazyLogging {
 
 
-  override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
-    "Source here is only columnar"
-  )
+  override protected def doExecute(): RDD[InternalRow] = doExecuteColumnar()
+    .mapPartitions(batchIterator => {
+      val d = batchIterator.toList.map(batch => batch.rowIterator().toList)
+
+      d.flatten.toIterator
+    })
 
   val numColumns = hadoopRelation.schema.length
   val outCols = output.length
@@ -205,6 +198,7 @@ case class NativeCsvExec(
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
     val hadoopConf = new SerializableConfiguration(sparkContext.hadoopConfiguration)
+
     sparkContext
       .binaryFiles(imfi.rootPaths.head.toString)
       .map { case (name, pds) =>
