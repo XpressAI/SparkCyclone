@@ -1,10 +1,12 @@
 package com.nec.arrow
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicInteger
 
 import com.nec.arrow.ArrowTransferStructures.{non_null_int_vector, varchar_vector, _}
 import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
 import com.nec.spark.planning.SummingPlanOffHeap
-import org.apache.arrow.memory.BufferAllocator
+import io.netty.buffer.ArrowBuf
+import org.apache.arrow.memory.{AllocationManager, BufferAllocator}
 import org.apache.arrow.vector.{BitVectorHelper, IntVector, _}
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
 import sun.nio.ch.DirectBuffer
@@ -151,11 +153,12 @@ object ArrowInterfaces {
     validityBuffer.reallocIfNeeded(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setValidityBitToOne(validityBuffer, i))
     import scala.collection.JavaConverters._
+    //TODO: Not sure if that's correct. It should probably work fine,
+    // but not sure if it won't cause memory leaks.
 
-    //TODO: Not sure if that's correct. It should probably work fine, but not sure if it won't cause memory leaks.
-    val dataBuffer = rootAllocator.buffer(input.offsets.toInt)
+    val dataBuffer = rootAllocator.buffer(input.size)
     val offBuffer =
-      rootAllocator.buffer(input.offsets.toInt)
+      rootAllocator.buffer((input.count + 1) * 4)
 
     varCharVector.loadFieldBuffers(
       new ArrowFieldNode(input.count, 0),

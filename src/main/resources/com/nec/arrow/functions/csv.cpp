@@ -5,7 +5,6 @@
 #include <utility>
 #include <sstream>
 #include <vector>
-#include <omp.h>
 #include "words.hpp"
 #include "words.cc"
 #include "parsefloat.hpp"
