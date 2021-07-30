@@ -38,12 +38,16 @@ object NativeEvaluator {
     def forCode(code: String): ArrowNativeInterfaceNumeric = {
       // defer because we need the executors to initialize first
       logger.debug(s"For evaluation, will refer to the Executor Plugin")
-      DeferredArrowInterfaceNumeric(() =>
+      DeferredArrowInterfaceNumeric(() => {
+        require(
+          Aurora4SparkExecutorPlugin.libraryStorage != null,
+          "libraryStorage has not been initialized. The Aurora Executor Plugin might not have been launched"
+        )
         new VeArrowNativeInterfaceNumericLazyLib(
           Aurora4SparkExecutorPlugin._veo_proc,
           Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
         )
-      )
+      })
     }
   }
 

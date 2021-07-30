@@ -51,8 +51,9 @@ object Aurora4SparkExecutorPlugin {
     def getLocalLibraryPath(code: String): Path
   }
 
-  final class DriverFetchingLibraryStorage(f: RequestCompiledLibraryForCode => RequestCompiledLibraryResponse)
-    extends LibraryStorage
+  final class DriverFetchingLibraryStorage(
+    f: RequestCompiledLibraryForCode => RequestCompiledLibraryResponse
+  ) extends LibraryStorage
     with LazyLogging {
 
     private var locallyStoredLibs = Map.empty[String, Path]
@@ -70,10 +71,7 @@ object Aurora4SparkExecutorPlugin {
             sys.error(s"Could not fetch library: ${code}")
           } else {
             val localPath = Files.createTempFile("ve_fn", ".lib")
-            Files.write(
-              localPath,
-              result.byteString.toArray
-            )
+            Files.write(localPath, result.byteString.toArray)
             logger.debug(s"Saved file to '$localPath'")
             locallyStoredLibs += code -> localPath
             localPath
@@ -92,9 +90,17 @@ class Aurora4SparkExecutorPlugin extends Logging {
 
     logInfo(s"Using VE node = ${selectedVeNodeId}")
 
+    Aurora4SparkExecutorPlugin.libraryStorage =
+      new Aurora4SparkExecutorPlugin.DriverFetchingLibraryStorage(_ =>
+        sys.error("Fetching functionality is not currently implemented")
+      )
+
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
-      require(_veo_proc != null, s"Proc could not be allocated for node ${selectedVeNodeId}, got null")
+      require(
+        _veo_proc != null,
+        s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
+      )
       require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
       logInfo(s"Opened process: ${_veo_proc}")
 

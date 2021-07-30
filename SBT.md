@@ -5,6 +5,7 @@ Requirements:
 - SBT
 - Hadoop
 - JDK 8
+- Run `agent/publishLocal` upon first set up - this is for the Java agent
 
 ## Hadoop set up on Windows
 

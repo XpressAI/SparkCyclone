@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.agent._
 import com.nec.spark.BenchTestingPossibilities
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.spark.Aurora4SparkExecutorPlugin
@@ -18,7 +19,12 @@ final class DynamicBenchmarkVeCheck
   override protected def beforeAll(): Unit = {
     val rootLogger = Logger.getRootLogger
     rootLogger.setLevel(Level.INFO)
-    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
+    Aurora4SparkExecutorPlugin.closeAutomatically = false
+    net.bytebuddy.agent.ByteBuddyAgent.install()
+    
+    ExecutorAttachmentBuilder
+      .using(AttachExecutorLifecycle.ServiceBasedExecutorLifecycle)
+      .installOnByteBuddyAgent()
     super.beforeAll()
   }
 
