@@ -179,17 +179,17 @@ addCommandAlias("check", ";scalafmtCheck;scalafmtSbtCheck;testQuick")
 
 addCommandAlias(
   "compile-all",
-  "; agent / compile ; ve-direct / agent / compile ; ve-direct / It / compile"
+  "; Test / compile ; ve-direct / Test / compile ; ve-direct / It / compile"
 )
 
 addCommandAlias(
   "testQuick-all",
-  "; agent / testQuick ; CMake / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
+  "; Test / testQuick ; CMake / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
 )
 
 addCommandAlias(
   "test-all",
-  "; agent / test ; CMake / test ; AcceptanceTest / test ; VectorEngine / test"
+  "; Test / test ; CMake / test ; AcceptanceTest / test ; VectorEngine / test"
 )
 
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
@@ -280,5 +280,5 @@ Test / testOptions += Tests.Argument("-oD")
 val bench = inputKey[Unit]("Runs JMH benchmarks in fun-bench")
 bench := (`fun-bench` / Jmh / run).evaluated
 
-addCommandAlias("skipBenchTests", "; set `fun-bench` / agent / skip := true")
-addCommandAlias("unskipBenchTests", "; set `fun-bench` / agent / skip := false")
+addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
+addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")
