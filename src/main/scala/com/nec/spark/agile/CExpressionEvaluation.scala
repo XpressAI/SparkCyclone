@@ -100,7 +100,6 @@ object CExpressionEvaluation {
           ),
           iter = List(
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
-            s"""printf("%f", ${evaluateSub(inputs, sub)});"""
           ),
           result = List(s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;"),
           outputArguments = List(s"non_null_double_vector* output_${idx}_sum")
@@ -116,15 +115,11 @@ object CExpressionEvaluation {
             s"${outputCount}->count = 1;",
             s"double ${cleanName}_accumulated = 0;",
             s"int ${cleanName}_counted = 0;",
-            s"""printf("HERE");"""
 
           ),
           iter = List(
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
-            s"${cleanName}_counted += 1;",
-            s"""printf("%f", ${evaluateSub(inputs, sub)});""",
-            s"""printf("%d", i);"""
-
+            s"${cleanName}_counted += 1;"
           ),
           result = List(
             s"${outputSum}->data[0] = ${cleanName}_accumulated;",

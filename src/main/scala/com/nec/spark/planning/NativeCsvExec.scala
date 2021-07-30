@@ -204,10 +204,6 @@ case class NativeCsvExec(
           newRow
         })
       }
-      elem.foreach(row => (0 until row.numFields).foreach(id => print(s"ROW AUT: ${row.getDouble(id)}")))
-
-      elem.toIterator.foreach(row => (0 until row.numFields).foreach(id => print(s"ROW OUT: ${row.getDouble(id)}")))
-      println("")
       elem.toIterator
     })
 
