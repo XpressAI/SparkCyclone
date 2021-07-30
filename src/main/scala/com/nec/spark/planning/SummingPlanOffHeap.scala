@@ -11,13 +11,14 @@ import com.nec.ve.VeJavaContext
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, UnsafeRow}
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import sun.misc.Unsafe
+
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
 
 object SummingPlanOffHeap {
 
@@ -67,29 +68,37 @@ case class SummingPlanOffHeap(
   column: Column
 ) extends SparkPlan {
 
-  protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     child
-      .executeColumnar()
-      .map { columnarBatch =>
-        val vector = columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector]
-        summer.sum(vector.valuesNativeAddress(), columnarBatch.numRows())
-      }
+      .execute()
+      .mapPartitions(rows => {
+        val rowsList = rows.toList
+        val offHeapVector = new OffHeapColumnVector(rowsList.size, DoubleType)
+        rowsList
+          .zipWithIndex
+          .foreach {
+            case (elem, idx) => offHeapVector.putDouble(idx, elem.getDouble(column.index))
+          }
+
+        Iterator(summer.sum(offHeapVector.valuesNativeAddress(), rowsList.size))
+      })
+      .coalesce(1)
+      .mapPartitions(its => {
+        val row = new UnsafeRow(1)
+        val holder = new BufferHolder(row)
+        val writer = new UnsafeRowWriter(holder, 1)
+        holder.reset()
+        val result = its.reduce((a, b) => a + b)
+        writer.write(0, result)
+        row.setTotalSize(holder.totalSize())
+        Iterator(row)
+      })
   }
-    .coalesce(1)
-    .mapPartitions(its => {
 
-      val result = its.reduce((a, b) => a + b)
-      val offHeapVector = new OffHeapColumnVector(1, DoubleType)
-      offHeapVector.putDouble(0, result)
+    override def output: Seq[Attribute] = Seq(
+      AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
+    )
 
-      Iterator(new ColumnarBatch(Array(offHeapVector)))
-    })
+    override def children: Seq[SparkPlan] = Seq(child)
 
-  override def output: Seq[Attribute] = Seq(
-    AttributeReference(name = "value", dataType = DoubleType, nullable = false)()
-  )
-
-  override def children: Seq[SparkPlan] = Seq(child)
-
-  override protected def doExecute(): RDD[InternalRow] = sys.error("Row production not supported")
 }

@@ -98,7 +98,8 @@ object CExpressionEvaluation {
             s"output_${idx}_sum->count = 1;",
             s"double ${cleanName}_accumulated = 0;"
           ),
-          iter = List(s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"),
+          iter = List(
+            s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"),
           result = List(s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;"),
           outputArguments = List(s"non_null_double_vector* output_${idx}_sum")
         )

@@ -2,6 +2,8 @@ package com.nec.spark.planning
 import java.io.{DataInputStream, InputStream}
 import java.nio.ByteBuffer
 
+import scala.collection.JavaConversions.asScalaIterator
+
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
 import com.nec.arrow.functions.CsvParse
@@ -19,37 +21,35 @@ import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Attribute, Divide, Multiply, Subtract}
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
+import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Attribute, Divide, Multiply, Subtract, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, InMemoryFileIndex, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-import com.nec.spark.planning.SparkPortingUtils.SerializableConfiguration
 
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-      ScanOperation
-        .unapply(plan)
-        .collect {
-          case i @ (a, b, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
-              if rel.fileFormat.isInstanceOf[CSVFileFormat] && isNotAggProjection(plan) =>
-            NativeCsvExec(
-              hadoopRelation = rel,
-              output = a.map(_.toAttribute),
-              nativeEvaluator = nativeEvaluator
-            )
-        }
-        .orElse {
-          PartialFunction.condOpt(plan) {
-            case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
-                if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
-              NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator)
-          }
-        }
-        .toList
+    val d = plan match {
+      case Project(a, LogicalRelation(rel: HadoopFsRelation, out, cat, iss))
+        if rel.fileFormat.isInstanceOf[CSVFileFormat] && isNotAggProjection(plan) =>
+        Option(NativeCsvExec(
+          hadoopRelation = rel,
+          output = a.map(_.toAttribute),
+          nativeEvaluator = nativeEvaluator
+        ))
+
+      case lr @ LogicalRelation(rel: HadoopFsRelation, out, cat, iss)
+          if rel.fileFormat.isInstanceOf[CSVFileFormat] =>
+          Option(NativeCsvExec(hadoopRelation = rel, output = out, nativeEvaluator = nativeEvaluator))
+
+      case _ => None
+
+    }
+      d.toSeq
     }
   }
 
@@ -92,11 +92,14 @@ object NativeCsvExec {
       ) ++ outColumns.map(_ => None),
       outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
     )
+    val outRows = outColumns.head.getValueCount
     val millis = System.currentTimeMillis() - startTime
     logger.info(s"Took ${millis} ms to process CSV: ${name} (${text.getLength} bytes)")
-    new ColumnarBatch(
+    val batch = new ColumnarBatch(
       outColumns.map(col => new ArrowColumnVector(col)).toArray
     )
+    batch.setNumRows(outRows)
+    batch
   }
 
   val bufSize = 16 * 1024
@@ -126,11 +129,15 @@ object NativeCsvExec {
     )
     finally serverSocket.close()
     val millis = System.currentTimeMillis() - startTime
+    val outRows = outColumns.head.getValueCount
     logger.debug(s"Took ${millis} ms to process CSV: ${name}")
     // need to dealloc() the ignored columns here
-    new ColumnarBatch(
+    val batch = new ColumnarBatch(
       outColumns.map(col => new ArrowColumnVector(col)).toArray
     )
+
+    batch.setNumRows(outRows)
+    batch
   }
 
   def maybeDecodePds(
@@ -140,7 +147,8 @@ object NativeCsvExec {
   ): InputStream = {
     val original = portableDataStream.open()
     val theCodec =
-      new CompressionCodecFactory(hadoopConfiguration.value).getCodec(new Path(name))
+      new CompressionCodecFactory(hadoopConfiguration.conf).getCodec(new Path(name))
+
     if (theCodec != null) new DataInputStream(theCodec.createInputStream(original))
     else original
   }
@@ -180,9 +188,24 @@ case class NativeCsvExec(
   with LazyLogging {
 
 
-  override protected def doExecute(): RDD[InternalRow] = throw new NotImplementedError(
-    "Source here is only columnar"
-  )
+  override protected def doExecute(): RDD[InternalRow] =
+    doExecuteColumnar()
+    .mapPartitions(batches => {
+
+      val elem = batches.toList.flatMap { batch =>
+        (0 until batch.numRows()).map(idx => {
+          val row = batch.getRow(idx)
+          val newRow = new UnsafeRow(row.numFields)
+          val holder = new BufferHolder(newRow)
+          val writer = new UnsafeRowWriter(holder, row.numFields)
+          holder.reset()
+          (0 until row.numFields)
+            .foreach(id => writer.write(id, row.getDouble(id)))
+          newRow
+        })
+      }
+      elem.toIterator
+    })
 
   val numColumns = hadoopRelation.schema.length
   val outCols = output.length
@@ -205,6 +228,7 @@ case class NativeCsvExec(
     val evaluator = nativeEvaluator.forCode(CsvParse.CsvParseCode)
     val imfi = hadoopRelation.location.asInstanceOf[InMemoryFileIndex]
     val hadoopConf = new SerializableConfiguration(sparkContext.hadoopConfiguration)
+
     sparkContext
       .binaryFiles(imfi.rootPaths.head.toString)
       .map { case (name, pds) =>
@@ -244,10 +268,14 @@ case class NativeCsvExec(
           List(Some(StringWrapper(new String(text.getBytes)))) ++ outColumns.map(_ => None),
         outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
       )
+      val outRows = outColumns.head.getValueCount
+
       val millis = System.currentTimeMillis() - startTime
       logInfo(s"Took ${millis} ms to process CSV: ${name} (${text.length} bytes)")
-      new ColumnarBatch(
+      val batch = new ColumnarBatch(
         outColumns.map(col => new ArrowColumnVector(col)).toArray)
+      batch.setNumRows(outRows)
+      batch
     }
   }
 

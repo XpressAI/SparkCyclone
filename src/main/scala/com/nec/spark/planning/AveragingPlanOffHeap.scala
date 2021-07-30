@@ -11,7 +11,8 @@ import sun.misc.Unsafe
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.DoubleType
@@ -59,24 +60,35 @@ case class AveragingPlanOffHeap(child: SparkPlan,
                                 column: Column)
   extends SparkPlan {
 
-
-  def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  override protected def doExecute(): RDD[InternalRow]  = {
     child
-      .executeColumnar()
-      .map { columnarBatch =>
-        val theCol = columnarBatch.column(column.index).asInstanceOf[OffHeapColumnVector]
-        (
-          summer.sum(theCol.valuesNativeAddress(), columnarBatch.numRows()),
-          columnarBatch.numRows()
+      .execute()
+      .mapPartitions { rows =>
+        val rowsList = rows.toList
+        val offHeapVector = new OffHeapColumnVector(rowsList.size, DoubleType)
+        rowsList
+          .zipWithIndex
+          .foreach {
+            case (elem, idx) => offHeapVector.putDouble(idx, elem.getDouble(column.index))
+          }
+        Iterator (
+          (
+          summer.sum(offHeapVector.valuesNativeAddress(), rowsList.size),
+          rowsList.size
+          )
         )
       }
       .coalesce(1)
       .mapPartitions { nums =>
         val sum = nums.reduce((a, b) => (a._1 + b._1, a._2 + b._2))
         val totalAvg = sum._1/sum._2
-        val offHeapColumnVector = new OffHeapColumnVector(1, DoubleType)
-        offHeapColumnVector.putDouble(0, totalAvg)
-        Iterator(new ColumnarBatch(Array(offHeapColumnVector)))
+        val row = new UnsafeRow(1)
+        val holder = new BufferHolder(row)
+        val writer = new UnsafeRowWriter(holder, 1)
+        holder.reset()
+        writer.write(0, totalAvg)
+        row.setTotalSize(holder.totalSize())
+        Iterator(row)
       }
   }
 
@@ -85,6 +97,4 @@ case class AveragingPlanOffHeap(child: SparkPlan,
   )
 
   override def children: Seq[SparkPlan] = Seq(child)
-
-  override protected def doExecute(): RDD[InternalRow] = sys.error("Row production not supported")
 }

@@ -17,6 +17,12 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(CMake)
 
+lazy val `agent` = project.in(file("agent"))
+  .dependsOn(root)
+  .settings(
+    name := "agent",
+    assemblyJarName := "agent.jar"
+  )
 /**
  * Run with:
  *
