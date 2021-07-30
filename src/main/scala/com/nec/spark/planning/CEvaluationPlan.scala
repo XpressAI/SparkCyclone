@@ -1,20 +1,25 @@
 package com.nec.spark.planning
+import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import com.nec.native.NativeEvaluator
 import com.nec.spark.ColumnarBatchToArrow
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.planning.CEvaluationPlan.batchColumnarBatches
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.commons.lang3.reflect.FieldUtils
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.aggregate.Average
+import org.apache.spark.sql.catalyst.expressions.aggregate.Count
+import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
@@ -25,6 +30,9 @@ import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.collection.immutable
 import scala.language.dynamics
 
 object CEvaluationPlan {
@@ -51,8 +59,11 @@ object CEvaluationPlan {
       }
     }
   }
+
+  val batchColumnarBatches = "spark.com.nec.spark.batch-batches"
+
 }
-final case class  CEvaluationPlan(
+final case class CEvaluationPlan(
   fName: String,
   resultExpressions: Seq[NamedExpression],
   lines: CodeLines,
@@ -188,139 +199,155 @@ final case class  CEvaluationPlan(
 
   private def executeColumnWise(): RDD[InternalRow] = {
     val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
-    child
-      .executeColumnar()
-      .flatMap { columnarBatch =>
-        val uuid = java.util.UUID.randomUUID()
-        logger.debug(s"[$uuid] Starting evaluation of a columnar batch...")
-        val batchStartTime = System.currentTimeMillis()
-        val timeZoneId = conf.sessionLocalTimeZone
-        val allocatorIn =
-          ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create input data", 0, Long.MaxValue)
-        val allocatorOut =
-          ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create output data", 0, Long.MaxValue)
-        val outputVectors = resultExpressions
-          .flatMap(_.asInstanceOf[Alias].child match {
-            case ae: AggregateExpression =>
-              ae.aggregateFunction.aggBufferAttributes
-            case other => List(other)
-          })
-          .zipWithIndex
-          .map { case (ne, idx) =>
-            new Float8Vector(s"out_${idx}", allocatorOut)
-          }
-        logger.debug(s"[$uuid] allocated output vectors")
-        try {
-          val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
-          logger.debug(
-            s"[$uuid] loading input vectors - there are ${columnarBatch.numRows()} rows of data"
+    val maybeBatch = Option(sparkContext.getConf.getInt(batchColumnarBatches, 0)).filter(_ > 1)
+    maybeBatch match {
+      case Some(batchBatchSize) =>
+        child
+          .executeColumnar()
+          .mapPartitions(iteratorBatches =>
+            iteratorBatches
+              .grouped(batchBatchSize)
+              .flatMap(seqBatch => executeColumnarPerBatch(evaluator, seqBatch: _*))
           )
-          val (inputVectorSchemaRoot, inputVectors) =
-            ColumnarBatchToArrow.fromBatch(arrowSchema, allocatorIn)(columnarBatch)
-          logger.debug(s"[$uuid] loaded input vectors.")
-          val clearedInputCols: Int = (0 until columnarBatch.numCols()).view
-            .map { colNo =>
-              columnarBatch.column(colNo)
-            }
-            .collect { case acv: ArrowColumnVector => acv }
-            .count(avc => { avc.close(); true })
-          logger.debug(s"[$uuid] cleared ${clearedInputCols} input cols.")
-          try {
-            logger.debug(s"[$uuid] executing the function 'f'.")
-            evaluator.callFunction(
-              name = fName,
-              inputArguments = inputVectors.toList.map(iv =>
-                Some(Float8VectorWrapper(iv))
-              ) ++ outputVectors.map(_ => None),
-              outputArguments = inputVectors.toList.map(_ => None) ++ outputVectors.map(v =>
-                Some(Float8VectorWrapper(v))
-              )
-            )
-            logger.debug(s"[$uuid] executed the function 'f'.")
-          } finally {
-            inputVectorSchemaRoot.close()
-            logger.debug(s"[$uuid] cleared input vectors")
-          }
-        } finally allocatorIn.close()
-
-        logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
-        val writer = new UnsafeRowWriter(outputVectors.size)
-        writer.reset()
-          logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items from VE.")
-
-        val result =
-          try {
-            (0 until outputVectors.head.getValueCount).map { v_idx =>
-              outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                val doubleV = v.getValueAsDouble(v_idx)
-                writer.write(c_idx, doubleV)
-              }
-              writer.getRow.copy()
-            }
-          } finally {
-            outputVectors.foreach(_.close())
-            allocatorOut.close()
-          }
-
-        logger.debug(s"[$uuid] completed transfer.")
-        logger.debug(
-          s"[$uuid] Evaluation of batch took ${System.currentTimeMillis() - batchStartTime}ms."
-        )
-
-        result
-
-      }
-      .coalesce(numPartitions = 1, shuffle = true)
-      .mapPartitions { unsafeRows =>
-        Iterator
-          .continually {
-            val unsafeRowsList = unsafeRows.toList
-            val isAggregation = resultExpressions.exists(
-              _.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-            )
-
-            if (isAggregation) {
-              val startingIndices = resultExpressions.view
-                .flatMap {
-                  case ne @ Alias(
-                        AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
-                        name
-                      ) =>
-                    aggregateFunction.aggBufferAttributes.map(attr => ne)
-                }
-                .zipWithIndex
-                .groupBy(_._1)
-                .mapValues(_.map(_._2).min)
-
-              /** total Aggregation */
-              val writer = new UnsafeRowWriter(resultExpressions.size)
-              writer.reset()
-
-              resultExpressions.view.zipWithIndex.foreach {
-                case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
-                  val idx = startingIndices(a)
-                  val sum = unsafeRowsList.map(_.getDouble(idx)).sum
-                  val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
-                  val result = sum / count
-                  writer.write(outIdx, result)
-                case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
-                  val idx = startingIndices(a)
-                  val result = unsafeRowsList.map(_.getDouble(idx)).sum
-                  writer.write(outIdx, result)
-                case (a @ Alias(AggregateExpression(Count(_), _, _, _, _), _), outIdx) =>
-                  val idx = startingIndices(a)
-                  val result = unsafeRowsList.map(_.getInt(idx)).sum
-                  writer.write(outIdx, result)
-                case other => sys.error(s"Other not supported: ${other}")
-              }
-              Iterator(writer.getRow)
-            } else unsafeRowsList.iterator
-          }
-          .take(1)
-          .flatten
-      }
+          .coalesce(numPartitions = 1, shuffle = true)
+          .mapPartitions(unsafeRows => reduceRows(unsafeRows))
+      case _ =>
+        child
+          .executeColumnar()
+          .flatMap(colBatch => executeColumnarPerBatch(evaluator, colBatch))
+          .coalesce(numPartitions = 1, shuffle = true)
+          .mapPartitions(unsafeRows => reduceRows(unsafeRows))
+    }
   }
 
+  private def reduceRows(unsafeRows: Iterator[UnsafeRow]) = {
+    Iterator
+      .continually {
+        val unsafeRowsList = unsafeRows.toList
+        val isAggregation =
+          resultExpressions.exists(_.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression])
+
+        if (isAggregation) {
+          val startingIndices = resultExpressions.view
+            .flatMap {
+              case ne @ Alias(
+                    AggregateExpression(aggregateFunction, mode, isDistinct, filter, resultId),
+                    name
+                  ) =>
+                aggregateFunction.aggBufferAttributes.map(attr => ne)
+            }
+            .zipWithIndex
+            .groupBy(_._1)
+            .mapValues(_.map(_._2).min)
+
+          /** total Aggregation */
+          val writer = new UnsafeRowWriter(resultExpressions.size)
+          writer.reset()
+
+          resultExpressions.view.zipWithIndex.foreach {
+            case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
+              val idx = startingIndices(a)
+              val sum = unsafeRowsList.map(_.getDouble(idx)).sum
+              val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
+              val result = sum / count
+              writer.write(outIdx, result)
+            case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
+              val idx = startingIndices(a)
+              val result = unsafeRowsList.map(_.getDouble(idx)).sum
+              writer.write(outIdx, result)
+            case (a @ Alias(AggregateExpression(Count(_), _, _, _, _), _), outIdx) =>
+              val idx = startingIndices(a)
+              val result = unsafeRowsList.map(_.getInt(idx)).sum
+              writer.write(outIdx, result)
+            case other => sys.error(s"Other not supported: ${other}")
+          }
+          Iterator(writer.getRow)
+        } else unsafeRowsList.iterator
+      }
+      .take(1)
+      .flatten
+  }
+  private def executeColumnarPerBatch(
+    evaluator: ArrowNativeInterfaceNumeric,
+    columnarBatch: ColumnarBatch*
+  ): immutable.IndexedSeq[UnsafeRow] = {
+    val uuid = java.util.UUID.randomUUID()
+    logger.debug(s"[$uuid] Starting evaluation of a columnar batch...")
+    val batchStartTime = System.currentTimeMillis()
+    val timeZoneId = conf.sessionLocalTimeZone
+    val allocatorIn =
+      ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create input data", 0, Long.MaxValue)
+    val allocatorOut =
+      ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create output data", 0, Long.MaxValue)
+    val outputVectors = resultExpressions
+      .flatMap(_.asInstanceOf[Alias].child match {
+        case ae: AggregateExpression =>
+          ae.aggregateFunction.aggBufferAttributes
+        case other => List(other)
+      })
+      .zipWithIndex
+      .map { case (ne, idx) =>
+        new Float8Vector(s"out_${idx}", allocatorOut)
+      }
+    logger.debug(s"[$uuid] allocated output vectors")
+    try {
+      val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+      logger.debug(
+        s"[$uuid] loading input vectors - there are ${columnarBatch.map(_.numRows()).sum} rows of data (${columnarBatch
+          .map(_.numRows())})"
+      )
+      val (inputVectorSchemaRoot, inputVectors) =
+        ColumnarBatchToArrow.fromBatch(arrowSchema, allocatorIn)(columnarBatch: _*)
+      logger.debug(s"[$uuid] loaded input vectors.")
+      val clearedInputCols: Int = (0 until columnarBatch.head.numCols()).view
+        .flatMap { colNo =>
+          columnarBatch.map(_.column(colNo))
+        }
+        .collect { case acv: ArrowColumnVector => acv }
+        .count(avc => { avc.close(); true })
+      logger.debug(s"[$uuid] cleared ${clearedInputCols} input cols.")
+      try {
+        logger.debug(s"[$uuid] executing the function 'f'.")
+        evaluator.callFunction(
+          name = fName,
+          inputArguments =
+            inputVectors.map(iv => Some(Float8VectorWrapper(iv))) ++ outputVectors.map(_ => None),
+          outputArguments =
+            inputVectors.map(_ => None) ++ outputVectors.map(v => Some(Float8VectorWrapper(v)))
+        )
+        logger.debug(s"[$uuid] executed the function 'f'.")
+      } finally {
+        inputVectorSchemaRoot.close()
+        logger.debug(s"[$uuid] cleared input vectors")
+      }
+    } finally allocatorIn.close()
+
+    logger.debug(s"[$uuid] preparing transfer to UnsafeRows...")
+    val writer = new UnsafeRowWriter(outputVectors.size)
+    writer.reset()
+    logger.debug(s"[$uuid] received ${outputVectors.head.getValueCount} items from VE.")
+
+    val result =
+      try {
+        (0 until outputVectors.head.getValueCount).map { v_idx =>
+          outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+            val doubleV = v.getValueAsDouble(v_idx)
+            writer.write(c_idx, doubleV)
+          }
+          writer.getRow.copy()
+        }
+      } finally {
+        outputVectors.foreach(_.close())
+        allocatorOut.close()
+      }
+
+    logger.debug(s"[$uuid] completed transfer.")
+    logger.debug(
+      s"[$uuid] Evaluation of batch took ${System.currentTimeMillis() - batchStartTime}ms."
+    )
+
+    result
+  }
   override protected def doExecute(): RDD[InternalRow] = {
     if (child.supportsColumnar) executeColumnWise() else executeRowWise()
   }
