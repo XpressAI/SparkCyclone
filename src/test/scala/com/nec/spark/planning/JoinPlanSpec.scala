@@ -51,7 +51,6 @@ object JoinPlanSpec {
             .continually {
               val leftSide = leftIter.map(ir => (ir.getInt(0), ir.getDouble(1))).toList
               val rightSide = rightIter.map(ir => (ir.getInt(0), ir.getDouble(1))).toList
-
               joinMethod match {
                 case JoinMethod.InJVM =>
                   for {
@@ -105,7 +104,6 @@ object JoinPlanSpec {
                                             val holder = new BufferHolder(row)
                                             val writer = new UnsafeRowWriter(holder, 2)
                                             holder.reset()
-                                            writer.reset()
                                             writer.write(0, a)
                                             writer.write(1, b)
                                             Iterator(row)
@@ -125,7 +123,6 @@ object JoinPlanSpec {
                                             val holder = new BufferHolder(row)
                                             val writer = new UnsafeRowWriter(holder, 2)
                                             holder.reset()
-                                            writer.reset()
                                             writer.write(0, a)
                                             writer.write(1, b)
                                             Iterator(row)
