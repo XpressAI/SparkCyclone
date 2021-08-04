@@ -225,7 +225,10 @@ final case class CEvaluationPlan(
       .continually {
         val unsafeRowsList = unsafeRows.toList
         val isAggregation =
-          resultExpressions.exists(_.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression])
+          resultExpressions.exists {
+            case Alias(child, name) => child.isInstanceOf[AggregateExpression]
+            case _ => false
+          }
 
         if (isAggregation) {
           val startingIndices = resultExpressions.view
@@ -280,9 +283,12 @@ final case class CEvaluationPlan(
     val allocatorOut =
       ArrowUtilsExposed.rootAllocator.newChildAllocator(s"create output data", 0, Long.MaxValue)
     val outputVectors = resultExpressions
-      .flatMap(_.asInstanceOf[Alias].child match {
-        case ae: AggregateExpression =>
-          ae.aggregateFunction.aggBufferAttributes
+      .flatMap({
+        case Alias(child, name) => child match {
+          case ae: AggregateExpression =>
+            ae.aggregateFunction.aggBufferAttributes
+          case other => List(other)
+        }
         case other => List(other)
       })
       .zipWithIndex
