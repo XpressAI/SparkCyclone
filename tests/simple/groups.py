@@ -14,27 +14,24 @@ def main():
 
     print("Loading data")
 
-    #csv = (spark
-    #    .read
-    #    .format("csv")
-    #    .schema(
-    #        T.StructType(
-    #            [
-    #                T.StructField("_c0", T.DoubleType()), 
-    #                T.StructField("_c1", T.DoubleType()), 
-    #                T.StructField("_c2", T.DoubleType())
-    #            ]
-    #        )
-    #    )
-    #    .load("hdfs://localhost:9000/data/test_file_62m_3f_R62000000_P48_csv")
-    #    #.load("/data/test_file_500M_3f_R500000000_P1000_csv")
-    #)
-    csv = (spark.read.parquet("/data/test_file_62m_3f_R62000000_P48_parquet"))
+    csv = (spark
+        .read
+        .format("csv")
+        .schema(
+            T.StructType(
+                [
+                    T.StructField("_c0", T.DoubleType()), 
+                    T.StructField("_c1", T.DoubleType()), 
+                    T.StructField("_c2", T.DoubleType())
+                ]
+            )
+        )
+        .load("data/XY_doubles_R100000_P100_csv")
+    )
 
     print("Caching test1 table.")
-    csv.cache()
     csv.createOrReplaceTempView("test1")
-    #spark.sql("CACHE TABLE test1")
+    spark.sql("CACHE TABLE test1")
 
     print(spark.sql("SELECT SUM(_c0), SUM(_c1), SUM(_c2) from test1").collect())
 

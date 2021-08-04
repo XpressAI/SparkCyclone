@@ -15,7 +15,7 @@ $SPARK_HOME/bin/spark-submit \
     --conf spark.driver.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
-    --conf spark.com.nec.spark.kernel.precompiled=/opt/spark/work/egonzalez \
+    --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/egonzalez \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.executorEnv.VE_PROGINF=YES \
     groups.py
