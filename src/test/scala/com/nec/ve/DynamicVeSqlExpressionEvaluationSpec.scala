@@ -205,7 +205,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql6).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double, Double)].collect().toList == List((6.0, 2.0)))
+        assert(ds.as[(Double, Double)].collect().toList == List((52.0, 2.0)))
       }
     }
   }
