@@ -104,9 +104,37 @@ final class DynamicCSqlExpressionEvaluationSpec
       }
   }
 
+  val sql_select_sort = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
+  "Support order by with select"  in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
+        assert(
+          ds.as[(Double, Double)].collect().toList == List(
+            (1.0, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, 5.0), (52.0, 6.0)
+          )
+        )
+      }
+  }
+
+  val sql_select_sort2 = s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
+  "Support order by with select with sum"  in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
+        assert(
+          ds.as[(Double, Double, Double)].ensureSortPlanEvaluated().ensureCEvaluating().collect().toList == List(
+            (1.0, 2.0, 3.0), (2.0, 3.0, 5.0), (3.0, 4.0, 7.0), (4.0, 5.0, 9.0), (52.0, 6.0, 58.0)
+          )
+        )
+      }
+  }
+
   val sql_mcio =
     s"SELECT SUM(${SampleColB} - ${SampleColA}), SUM(${SampleColA} + ${SampleColB}) FROM nums"
-  "Support multi-column inputs and outputs" in withSparkSession2(configuration) { sparkSession =>
+  "Support multi-column inputs and inputs" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
 
@@ -115,7 +143,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  "Support multi-column inputs and outputs with a .limit()" in withSparkSession2(configuration) {
+  "Support multi-column inputs and inputs with a .limit()" in withSparkSession2(configuration) {
     val sql_pairwise =
       s"SELECT ${SampleColA} + ${SampleColB}, ${SampleColA} - ${SampleColB} FROM nums"
     sparkSession =>
@@ -166,6 +194,13 @@ final class DynamicCSqlExpressionEvaluationSpec
       expect(thePlan.toString().contains("CEvaluation"))
       dataSet
     }
+
+    def ensureSortPlanEvaluated(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("SimpleSortPlan"))
+      dataSet
+    }
+
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       withClue(dataSet.queryExecution.executedPlan.toString()) {
         f(dataSet)

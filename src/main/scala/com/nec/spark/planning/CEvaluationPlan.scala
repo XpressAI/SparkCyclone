@@ -120,11 +120,15 @@ final case class CEvaluationPlan(
             arrowWriter.finish()
 
             val outputVectors = resultExpressions
-              .flatMap(_.asInstanceOf[Alias].child match {
-                case ae: AggregateExpression =>
-                  ae.aggregateFunction.aggBufferAttributes
-                case other => List(other)
-              })
+              .flatMap{
+                case Alias(child, _) => child match {
+                  case ae: AggregateExpression =>
+                    ae.aggregateFunction.aggBufferAttributes
+                  case other => List(other)
+                }
+                case a @ AttributeReference(_, _, _, _) =>
+                  List(a)
+              }
               .zipWithIndex
               .map { case (ne, idx) =>
                 val outputVector = new Float8Vector(s"out_${idx}", allocator)
@@ -165,9 +169,11 @@ final case class CEvaluationPlan(
         Iterator
           .continually {
             val unsafeRowsList = unsafeRows.toList
-            val isAggregation = resultExpressions.exists(
-              _.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-            )
+            val isAggregation = resultExpressions.exists {
+              case Alias(child, _) => child.isInstanceOf[AggregateExpression]
+              case _ => false
+            }
+
 
             if (isAggregation) {
               val startingIndices = resultExpressions.view

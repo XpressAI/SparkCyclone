@@ -6,12 +6,10 @@ import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
 import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -70,6 +68,21 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               nativeEvaluator
             )
           )
+
+        case sort @ logical.Sort(Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)), true, child) => {
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          List(
+            SimpleSortPlan(
+              fName,
+              sort.inputSet.toSeq,
+              CExpressionEvaluation.cGenSort(fName, sort.output, a),
+              planLater(child),
+              sort.references.map(_.name).toSet,
+              nativeEvaluator
+            )
+          )
+        }
+
         case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
             if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))

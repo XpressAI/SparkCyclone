@@ -165,7 +165,7 @@ object CExpressionEvaluation {
           List(s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};")
         }.toList,
       List("}"),
-      // Set outputs
+      // Set inputs
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"output_${idx}->count = output_${idx}_count;",
@@ -174,7 +174,60 @@ object CExpressionEvaluation {
       }.toList,
 
       List(
-        "return 0;", 
+        "return 0;",
+        "}"
+      )
+    ).flatten.codeLines
+  }
+
+  def cGenSort(fName: String, inputs: Seq[Attribute], sortingColumn: AttributeReference)
+              (implicit nameCleaner: NameCleaner): CodeLines = {
+
+    val inputBits = inputs.zipWithIndex
+      .map { case (i, idx) =>
+        s"non_null_double_vector* input_${idx}"
+      }
+
+    val outputBits = inputs.zipWithIndex.map { case (i, idx) =>
+      s"non_null_double_vector* output_${idx}"
+    }
+
+    val sortingIndex = inputs.indexWhere(att => att.name == sortingColumn.name)
+
+    val arguments = inputBits ++ outputBits
+
+    List[List[String]](
+      List("#include \"frovedis/core/radix_sort.hpp\""),
+      List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
+      List(s"int* indices = (int *) malloc(input_${sortingIndex}->count * sizeof(int));"),
+      List(s"for(int i = 0; i < input_${sortingIndex}->count; i++)", "{", "indices[i] = i;", "}"),
+      List(s"frovedis::radix_sort(input_${sortingIndex}->data, indices, input_${sortingIndex}->count);"),
+
+      inputs.zipWithIndex.flatMap { case (res, idx) =>
+        List(
+          s"long output_${idx}_count = input_0->count;",
+          s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));"
+        )
+      }.toList,
+      List(
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < output_0_count; i++) {"),
+      inputs.zipWithIndex.flatMap { case (re, idx) if(idx != sortingIndex) =>
+        List(s"output_${idx}_data[i] = ${evaluateExpressionSorted(inputs, re)};")
+      case (re, idx) =>
+        List(s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};")
+
+      }.toList,
+      List("}"),
+      // Set inputs
+      inputs.zipWithIndex.flatMap { case (res, idx) =>
+        List(
+          s"output_${idx}->count = output_${idx}_count;",
+          s"output_${idx}->data = output_${idx}_data;"
+        )
+      }.toList,
+      List(
+        "return 0;",
         "}"
       )
     ).flatten.codeLines
@@ -199,6 +252,18 @@ object CExpressionEvaluation {
     }
   }
 
+  def evaluateExpressionSorted(input: Seq[Attribute], expression: Expression): String = {
+    expression match {
+      case alias @ Alias(expr, name) => evaluateSubSorted(input, alias.child)
+      case NamedExpression(name, DoubleType | IntegerType) =>
+        input.indexWhere(_.name == name) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
+          case idx => s"input_${idx}->data[indices[i]]"
+        }
+    }
+  }
+
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
       case AttributeReference(name, _, _, _) =>
@@ -215,6 +280,30 @@ object CExpressionEvaluation {
       case Add(left, right, _) =>
         s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
       case Divide(left, right, _) => 
+        s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
+      case Abs(v) =>
+        s"abs(${evaluateSub(inputs, v)})"
+      case Literal(v, DoubleType | IntegerType) =>
+        s"$v"
+    }
+  }
+
+  def evaluateSubSorted(inputs: Seq[Attribute], expression: Expression): String = {
+    expression match {
+      case AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.name == name) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx =>
+            s"input_${idx}->data[indices[i]]"
+        }
+      case Subtract(left, right, _) =>
+        s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
+      case Multiply(left, right, _) =>
+        s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
+      case Add(left, right, _) =>
+        s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
+      case Divide(left, right, _) =>
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
