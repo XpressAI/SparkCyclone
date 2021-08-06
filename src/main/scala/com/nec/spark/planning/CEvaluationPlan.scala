@@ -180,7 +180,7 @@ final case class CEvaluationPlan(
                 case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
                   val sum = unsafeRowsList.map(_.getDouble(idx)).sum
-                  val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
+                  val count = unsafeRowsList.map(_.getLong(idx + 1)).sum
                   val result = sum / count
                   writer.write(outIdx, result)
                 case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>
@@ -270,7 +270,7 @@ final case class CEvaluationPlan(
             case (a @ Alias(AggregateExpression(Average(_), _, _, _, _), _), outIdx) =>
               val idx = startingIndices(a)
               val sum = unsafeRowsList.map(_.getDouble(idx)).sum
-              val count = unsafeRowsList.map(_.getDouble(idx + 1)).sum
+              val count = unsafeRowsList.map(_.getLong(idx + 1)).sum
               val result = sum / count
               writer.write(outIdx, result)
             case (a @ Alias(AggregateExpression(Sum(_), _, _, _, _), _), outIdx) =>

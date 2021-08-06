@@ -4,6 +4,8 @@ import org.apache.spark.sql.catalyst.expressions.Alias
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.LongType
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.expressions.Subtract
 import org.apache.spark.sql.catalyst.expressions.Add
@@ -16,18 +18,56 @@ import org.apache.spark.sql.catalyst.expressions.Abs
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
+import org.apache.spark.sql.types.DataType
 
 object CExpressionEvaluation {
+  def cType(d: DataType): String = {
+    d match {
+      case DoubleType => 
+        s"double"
+      case IntegerType => 
+        s"int"
+      case LongType =>
+        s"long"
+      case StringType =>
+        s"char"
+      case x =>
+        sys.error(s"unsupported dataType $x")
+    }
+  }
+
   def cGenProject(fName: String, inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
-        s"non_null_double_vector* input_${idx}"
+        i.dataType match {
+          case DoubleType => 
+            s"non_null_double_vector* input_${idx}"
+          case IntegerType => 
+            s"non_null_int_vector* input_${idx}"
+          case LongType =>
+            s"non_null_bigint_vector* input_${idx}"
+          case StringType =>
+            s"non_null_varchar_vector* input_${idx}"
+          case x =>
+            sys.error(s"Invalid input dataType $x")
+        }
       }
 
     val outputBits = resultExpressions.zipWithIndex.map { case (i, idx) =>
-      s"non_null_double_vector* output_${idx}"
+      i.dataType match {
+        case DoubleType => 
+          s"non_null_double_vector* output_${idx}"
+        case IntegerType => 
+          s"non_null_int_vector* output_${idx}"
+        case LongType => 
+          s"non_null_bigint_vector* output_${idx}"
+        case StringType => 
+          s"non_null_varchar_vector* output_${idx}"
+        case x =>
+          sys.error(s"Invalid output dataType $x")
+      }
     }
 
     val arguments = inputBits ++ outputBits
@@ -35,9 +75,10 @@ object CExpressionEvaluation {
     List[List[String]](
       List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
+
         List(
           s"long output_${idx}_count = input_0->count;",
-          s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));"
+          s"${cType(res.dataType)} *output_${idx}_data = (${cType(res.dataType)}*) malloc(output_${idx}_count * sizeof(${cType(res.dataType)}));"
         )
       }.toList,
       List(
@@ -115,13 +156,17 @@ object CExpressionEvaluation {
       case Sum(sub) =>
         AggregateDescription(
           init = List(
-            s"output_${idx}_sum->data = (double *)malloc(1 * sizeof(double));",
+            s"output_${idx}_sum->data = (${cType(inputs(idx).dataType)} *)malloc(1 * sizeof(${cType(inputs(idx).dataType)}));",
             s"output_${idx}_sum->count = 1;",
             s"double ${cleanName}_accumulated = 0;"
           ),
           iter = List(s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"),
           result = List(s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;"),
-          outputArguments = List(s"non_null_double_vector* output_${idx}_sum")
+          outputArguments = inputs(idx).dataType match {
+             case DoubleType => List(s"non_null_double_vector* output_${idx}_sum")
+             case IntegerType => List(s"non_null_int_vector* output_${idx}_sum")
+             case LongType => List(s"non_null_bigint_vector* output_${idx}_sum")
+          }            
         )
       case Average(sub) =>
         val outputSum = s"output_${idx}_average_sum"
@@ -130,10 +175,10 @@ object CExpressionEvaluation {
           init = List(
             s"${outputSum}->data = (double *)malloc(1 * sizeof(double));",
             s"${outputSum}->count = 1;",
-            s"${outputCount}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
             s"${outputCount}->count = 1;",
             s"double ${cleanName}_accumulated = 0;",
-            s"int ${cleanName}_counted = 0;"
+            s"long ${cleanName}_counted = 0;"
           ),
           iter = List(
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
@@ -143,16 +188,16 @@ object CExpressionEvaluation {
             s"${outputCount}->data[0] = input_0->count;"
           ),
           outputArguments =
-            List(s"non_null_double_vector* ${outputSum}", s"non_null_double_vector* ${outputCount}")
+            List(s"non_null_double_vector* ${outputSum}", s"non_null_bigint_vector* ${outputCount}")
         )
       case Count(el) =>
         val outputCount = s"output_${idx}_count"
 
         AggregateDescription(
           init = List(
-            s"${outputCount}->data = (int *)malloc(1 * sizeof(int));",
+            s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
             s"${outputCount}->count = 1;",
-            s"int ${cleanName}_counted = 0;"
+            s"long ${cleanName}_counted = 0;"
 
           ),
           iter = List(
@@ -162,7 +207,7 @@ object CExpressionEvaluation {
             s"${outputCount}->data[0] = ${cleanName}_counted;"
           ),
           outputArguments = List(
-            s"non_null_int_vector* ${outputCount}"
+            s"non_null_bigint_vector* ${outputCount}"
           )
 
         )
@@ -171,9 +216,9 @@ object CExpressionEvaluation {
         val outputMin = s"output_${idx}_min"
         AggregateDescription(
           init = List(
-            s"${outputMin}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputMin}->data = (${cType(inputs(idx).dataType)} *)malloc(1 * sizeof(${cType(inputs(idx).dataType)}));",
             s"${outputMin}->count = 1;",
-            s"double ${cleanName}_min = std::numeric_limits<double>::max();"
+            s"${cType(inputs(idx).dataType)} ${cleanName}_min = std::numeric_limits<${cType(inputs(idx).dataType)}>::max();"
           ),
           iter = List(
             s"if (${cleanName}_min > ${evaluateSub(inputs, sub)}) ${cleanName}_min = ${evaluateSub(inputs, sub)};"
@@ -181,18 +226,20 @@ object CExpressionEvaluation {
           result = List(
             s"${outputMin}->data[0] = ${cleanName}_min;",
           ),
-          outputArguments = List(
-              s"non_null_double_vector* ${outputMin}",
-          )
+          outputArguments = inputs(idx).dataType match {
+            case DoubleType => List(s"non_null_double_vector* ${outputMin}")
+            case IntegerType => List(s"non_null_int_vector* ${outputMin}")
+            case LongType => List(s"non_null_bigint_vector* ${outputMin}")
+          }
         )
 
       case Max(sub) =>
         val outputMax = s"output_${idx}_max"
         AggregateDescription(
           init = List(
-            s"${outputMax}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputMax}->data = (${cType(inputs(idx).dataType)} *)malloc(1 * sizeof(${cType(inputs(idx).dataType)}));",
             s"${outputMax}->count = 1;",
-            s"double ${cleanName}_max = std::numeric_limits<double>::min();"
+            s"${cType(inputs(idx).dataType)} ${cleanName}_max = std::numeric_limits<${cType(inputs(idx).dataType)}>::min();"
           ),
           iter = List(
             s"if (${cleanName}_max < ${evaluateSub(inputs, sub)}) ${cleanName}_max = ${evaluateSub(inputs, sub)};"
@@ -200,9 +247,11 @@ object CExpressionEvaluation {
           result = List(
             s"${outputMax}->data[0] = ${cleanName}_max;",
           ),
-          outputArguments = List(
-            s"non_null_double_vector* ${outputMax}",
-          )
+          outputArguments = inputs(idx).dataType match {
+            case DoubleType => List(s"non_null_double_vector* ${outputMax}")
+            case IntegerType => List(s"non_null_int_vector* ${outputMax}")
+            case LongType => List(s"non_null_bigint_vector* ${outputMax}")
+          }
         )
 
       case Corr(left, right, _) =>
