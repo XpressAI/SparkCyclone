@@ -110,7 +110,12 @@ final case class CEvaluationPlan(
             arrowWriter.finish()
 
             val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
-              root.getVector(idx).asInstanceOf[Float8Vector]
+              //try {
+                root.getVector(idx).asInstanceOf[Float8Vector]
+              //} catch {
+              //  case e: Exception =>
+              //    new Float8Vector(root.getVector(idx).getField(), root.getVector(idx).getAllocator())
+              //}
             }
             arrowWriter.finish()
 
