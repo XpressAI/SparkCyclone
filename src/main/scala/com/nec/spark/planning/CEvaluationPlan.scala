@@ -200,11 +200,11 @@ final case class CEvaluationPlan(
                   writer.write(outIdx, result)
                 case (a @ Alias(AggregateExpression(Min(_), _, _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
-                  val result = unsafeRowsList.map(_.getInt(idx)).min
+                  val result = unsafeRowsList.map(_.getDouble(idx)).min
                   writer.write(outIdx, result)
                 case (a @ Alias(AggregateExpression(Max(_), _, _, _, _), _), outIdx) =>
                   val idx = startingIndices(a)
-                  val result = unsafeRowsList.map(_.getInt(idx)).min
+                  val result = unsafeRowsList.map(_.getDouble(idx)).max
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
@@ -289,11 +289,11 @@ final case class CEvaluationPlan(
               writer.write(outIdx, result)
             case (a @ Alias(AggregateExpression(Min(_), _, _, _, _), _), outIdx) =>
               val idx = startingIndices(a)
-              val result = unsafeRowsList.map(_.getInt(idx)).min
+              val result = unsafeRowsList.map(_.getDouble(idx)).min
               writer.write(outIdx, result)
             case (a @ Alias(AggregateExpression(Max(_), _, _, _, _), _), outIdx) =>
               val idx = startingIndices(a)
-              val result = unsafeRowsList.map(_.getInt(idx)).min
+              val result = unsafeRowsList.map(_.getDouble(idx)).max
               writer.write(outIdx, result)
             case other => sys.error(s"Other not supported: ${other}")
           }

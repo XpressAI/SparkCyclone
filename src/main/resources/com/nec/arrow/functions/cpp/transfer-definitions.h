@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <limits>
+#include <iostream>
 #ifndef VE_TD_DEFS
 typedef struct
 {
