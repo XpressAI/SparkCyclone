@@ -1,4 +1,8 @@
+#!/usr/bin/env bash
 export VE_OMP_NUM_THREADS=1
+
+zip dep.zip *.py
+
 /opt/spark/bin/spark-submit --master yarn \
 --deploy-mode cluster \
 --name VE_Benchmark_nyc_data \
@@ -14,7 +18,7 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.driver.resource.ve.amount=1 \
 --conf spark.executor.resource.ve.amount=1 \
 --conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin \
---conf spark.com.nec.spark.kernel.directory=/opt/spark/work/muhdlaziem \
+--conf spark.com.nec.spark.kernel.directory=/opt/spark/work/egonzalez \
 run_benchmark.py  --outputfile "yarn_test_ve" --clearcache --ntest 5 \
 nycdata
 
