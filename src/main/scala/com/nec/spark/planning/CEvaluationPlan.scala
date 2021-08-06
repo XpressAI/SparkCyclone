@@ -71,7 +71,7 @@ final case class CEvaluationPlan(
                                   resultExpressions: Seq[NamedExpression],
                                   lines: CodeLines,
                                   child: SparkPlan,
-                                  inputReferences: Set[String],
+                                  inputReferenceNames: Set[String],
                                   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
@@ -81,7 +81,7 @@ final case class CEvaluationPlan(
   protected def inputAttributes: Seq[Attribute] = {
     val attrs = child
       .output
-      .filter(attr => inputReferences.contains(attr.name))
+      .filter(attr => inputReferenceNames.contains(attr.name))
 
     if (attrs.size == 0) child.output else attrs
   }
@@ -111,9 +111,12 @@ final case class CEvaluationPlan(
             rows.foreach(row => arrowWriter.write(row))
             arrowWriter.finish()
 
-            val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
-              root.getVector(idx)
-            }
+            val inputVectorIds = child.output
+              .zipWithIndex
+              .filter(tuple => inputReferenceNames.contains(tuple._1.name))
+              .map(_._2)
+
+            val inputVectors = inputVectorIds.map(id => root.getVector(id))
             arrowWriter.finish()
 
             val outputVectors = resultExpressions
