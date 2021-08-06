@@ -36,6 +36,8 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper
+
 object CEvaluationPlan {
 
   object HasFloat8Vector {
@@ -110,12 +112,7 @@ final case class CEvaluationPlan(
             arrowWriter.finish()
 
             val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
-              //try {
-                root.getVector(idx).asInstanceOf[Float8Vector]
-              //} catch {
-              //  case e: Exception =>
-              //    new Float8Vector(root.getVector(idx).getField(), root.getVector(idx).getAllocator())
-              //}
+              root.getVector(idx)
             }
             arrowWriter.finish()
 
@@ -135,10 +132,10 @@ final case class CEvaluationPlan(
               evaluator.callFunction(
                 name = fName,
                 inputArguments = inputVectors.toList.map(iv =>
-                  Some(Float8VectorWrapper(iv))
+                  Some(SupportedVectorWrapper.wrapVector(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments = inputVectors.toList.map(_ => None) ++
-                  outputVectors.map(v => Some(Float8VectorWrapper(v)))
+                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapVector(v)))
               )
             } finally {
               inputVectors.foreach(_.close())

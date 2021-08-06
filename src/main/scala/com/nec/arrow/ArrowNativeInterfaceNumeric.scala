@@ -46,6 +46,14 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
 object ArrowNativeInterfaceNumeric {
   sealed trait SupportedVectorWrapper {}
   object SupportedVectorWrapper {
+    def wrapVector(valueVector: ValueVector): SupportedVectorWrapper = {
+          valueVector match {
+            case intVector: IntVector => IntVectorWrapper(intVector)
+            case float8Vecot: Float8Vector => Float8VectorWrapper(float8Vecot)
+            case varcharVector: VarCharVector => VarCharVectorWrapper(varcharVector)
+            case bigintVector: BigIntVector => BigIntVectorWrapper(bigintVector)
+          }
+    }
     final case class StringWrapper(string: String) extends SupportedVectorWrapper
     final case class VarCharVectorWrapper(varCharVector: VarCharVector)
       extends SupportedVectorWrapper
