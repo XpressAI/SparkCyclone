@@ -44,7 +44,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Seq(ref), Alias(null, "summy")() -> expr) == {
+    assert(cGen(testFName, Set("value#14") ,Seq(ref), Alias(null, "summy")() -> expr) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_sum) {""",
         "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -76,7 +76,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
+    assert(cGen(testFName,Set("abcd"), Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -111,7 +111,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
+    assert(cGen(testFName, Set("abcd"), Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -152,7 +152,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
+    assert(cGen(testFName, Set("abcd", "abcd_2"), Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -239,6 +239,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     assert(
       cGen(
         testFName,
+        Set("abcd"),
         Seq(ref),
         Alias(null, "summy")() -> expr,
         Alias(null, "avy#123 - 1.0")() -> expr2
@@ -286,6 +287,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     assert(
       cGenProject(
         testFName,
+        Set("value#14", "value#15"),
         Seq(ref_value14, ref_value15),
         Seq(Alias(Add(ref_value14, ref_value15), "oot")())
       ) == List(
@@ -309,6 +311,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     assert(
       cGenProject(
         testFName,
+        Set("value#14", "value#15"),
         Seq(ref_value14, ref_value15),
         Seq(Alias(Subtract(ref_value14, ref_value15), "oot")())
       ) == List(
@@ -332,6 +335,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     assert(
       cGenProject(
         testFName,
+        Set("value#14", "value#15"),
         Seq(ref_value14, ref_value15),
         Seq(
           Alias(Add(ref_value14, ref_value15), "oot")(),

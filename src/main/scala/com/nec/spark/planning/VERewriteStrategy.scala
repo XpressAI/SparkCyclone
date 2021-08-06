@@ -52,7 +52,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
     def fName: String = s"eval_${Math.abs(plan.hashCode())}"
     if (VERewriteStrategy._enabled) {
       plan match {
-        case logical.Project(resultExpressions, child) if !resultExpressions.forall {
+        case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
               /** If it's just a rename, don't send to VE * */
               case a: Alias if a.child.isInstanceOf[Attribute] => true
               case a: AttributeReference                       => true
@@ -64,15 +64,16 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               fName,
               resultExpressions,
               CExpressionEvaluation
-                .cGenProject(fName, child.output, resultExpressions),
+                .cGenProject(fName, proj.references.map(_.name).toSet, child.output, resultExpressions),
               planLater(child),
+              proj.references.map(_.name).toSet,
               nativeEvaluator
             )
           )
         case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
             if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
-        case logical.Aggregate(
+        case agg @ logical.Aggregate(
               groupingExpressions,
               outerResultExpressions,
               logical.Project(exprs, child)
@@ -98,6 +99,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                 CExpressionEvaluation
                   .cGen(
                     fName,
+                    agg.references.map(_.name).toSet,
                     child.output,
                     resultExpressions.map { re =>
                       (
@@ -113,12 +115,13 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                 List("}")
               ).flatten.codeLines,
               planLater(child),
+              agg.references.map(_.name).toSet,
               nativeEvaluator
             )
           )
 
         /** There can be plans where we have Cast(Alias(AggEx) as String) - this is not yet supported */
-        case logical.Aggregate(groupingExpressions, resultExpressions, child)
+        case agg @ logical.Aggregate(groupingExpressions, resultExpressions, child)
             if resultExpressions.forall(e =>
               e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
             ) =>
@@ -131,6 +134,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                 CExpressionEvaluation
                   .cGen(
                     fName,
+                    agg.references.map(_.name).toSet,
                     child.output,
                     resultExpressions.map { re =>
                       (
@@ -146,6 +150,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                 List("}")
               ).flatten.codeLines,
               planLater(child),
+              agg.references.map(_.name).toSet,
               nativeEvaluator
             )
           )

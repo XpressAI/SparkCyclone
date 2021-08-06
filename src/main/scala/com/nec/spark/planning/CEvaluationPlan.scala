@@ -1,4 +1,6 @@
 package com.nec.spark.planning
+import java.util.UUID
+
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
 import com.nec.native.NativeEvaluator
@@ -9,13 +11,10 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.commons.lang3.reflect.FieldUtils
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, AttributeSet, NamedExpression, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.aggregate.Average
 import org.apache.spark.sql.catalyst.expressions.aggregate.Count
@@ -31,7 +30,6 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import scala.collection.immutable
 import scala.language.dynamics
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
@@ -67,17 +65,24 @@ object CEvaluationPlan {
 
 }
 final case class CEvaluationPlan(
-  fName: String,
-  resultExpressions: Seq[NamedExpression],
-  lines: CodeLines,
-  child: SparkPlan,
-  nativeEvaluator: NativeEvaluator
+                                  fName: String,
+                                  resultExpressions: Seq[NamedExpression],
+                                  lines: CodeLines,
+                                  child: SparkPlan,
+                                  inputReferences: Set[String],
+                                  nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
   with ColumnarToRowTransition
   with LazyLogging {
 
-  protected def inputAttributes: Seq[Attribute] = child.output
+  protected def inputAttributes: Seq[Attribute] = {
+    val attrs = child
+      .output
+      .filter(attr => inputReferences.contains(attr.name))
+
+    if (attrs.size == 0) child.output else attrs
+  }
 
   override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
     AttributeReference(name = s"value_${idx}", dataType = DoubleType, nullable = false)()

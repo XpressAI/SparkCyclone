@@ -36,9 +36,86 @@ object CExpressionEvaluation {
     }
   }
 
-  def cGenProject(fName: String, inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
-    nameCleaner: NameCleaner
-  ): CodeLines = {
+  def indexForInput(inputs: Seq[Attribute], expression: Expression): Int = {
+    expression match {
+      case AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.name == name) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx =>
+            idx
+        }
+      case _ => -1
+    }
+  }
+
+  def dataTypeOfSub(inputs: Seq[Attribute], expression: Expression): DataType = {
+    expression match {
+      case e: AttributeReference => 
+        inputs(indexForInput(inputs, expression)).dataType
+      case Subtract(left, right, _) =>
+        val leftType = dataTypeOfSub(inputs, left)
+        val rightType = dataTypeOfSub(inputs, right)
+        if (leftType == DoubleType || rightType == DoubleType) {
+          DoubleType
+        } else {
+          leftType
+        }
+      case Multiply(left, right, _) =>
+        val leftType = dataTypeOfSub(inputs, left)
+        val rightType = dataTypeOfSub(inputs, right)
+        if (leftType == DoubleType || rightType == DoubleType) {
+          DoubleType
+        } else {
+          leftType
+        }
+      case Add(left, right, _) =>
+        val leftType = dataTypeOfSub(inputs, left)
+        val rightType = dataTypeOfSub(inputs, right)
+        if (leftType == DoubleType || rightType == DoubleType) {
+          DoubleType
+        } else {
+          leftType
+        }
+      case Divide(left, right, _) => 
+        val leftType = dataTypeOfSub(inputs, left)
+        val rightType = dataTypeOfSub(inputs, right)
+        if (leftType == DoubleType || rightType == DoubleType) {
+          DoubleType
+        } else {
+          leftType
+        }
+      case Abs(v) =>
+        dataTypeOfSub(inputs, v)
+      case Sum(child) => 
+        dataTypeOfSub(inputs, child)
+      case Average(child) => 
+        dataTypeOfSub(inputs, child)
+      case Min(child) => 
+        dataTypeOfSub(inputs, child)
+      case Max(child) =>
+        dataTypeOfSub(inputs, child)
+      case Corr(_, _, _) => 
+        DoubleType
+      case Literal(v, DoubleType) =>
+        DoubleType
+      case Literal(v, IntegerType) =>
+        IntegerType
+    }
+  }
+
+  def cTypeOfSub(inputs: Seq[Attribute], expression: Expression): String = {
+    cType(dataTypeOfSub(inputs, expression))
+  }
+
+  def cGenProject(fName: String, inputReferences: Set[String], childOutputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit nameCleaner: NameCleaner): CodeLines = {
+    val inputs = {
+      val attrs = childOutputs
+        .filter(attr => inputReferences.contains(attr.name))
+
+      if (attrs.size == 0) childOutputs else attrs
+    }
+
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
         i.dataType match {
@@ -156,13 +233,13 @@ object CExpressionEvaluation {
       case Sum(sub) =>
         AggregateDescription(
           init = List(
-            s"output_${idx}_sum->data = (${cType(inputs(idx).dataType)} *)malloc(1 * sizeof(${cType(inputs(idx).dataType)}));",
+            s"output_${idx}_sum->data = (${cTypeOfSub(inputs, sub)} *)malloc(1 * sizeof(${cTypeOfSub(inputs, sub)}));",
             s"output_${idx}_sum->count = 1;",
             s"double ${cleanName}_accumulated = 0;"
           ),
           iter = List(s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"),
           result = List(s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;"),
-          outputArguments = inputs(idx).dataType match {
+          outputArguments = dataTypeOfSub(inputs, sub) match {
              case DoubleType => List(s"non_null_double_vector* output_${idx}_sum")
              case IntegerType => List(s"non_null_int_vector* output_${idx}_sum")
              case LongType => List(s"non_null_bigint_vector* output_${idx}_sum")
@@ -216,9 +293,9 @@ object CExpressionEvaluation {
         val outputMin = s"output_${idx}_min"
         AggregateDescription(
           init = List(
-            s"${outputMin}->data = (${cType(inputs(idx).dataType)} *)malloc(1 * sizeof(${cType(inputs(idx).dataType)}));",
+            s"${outputMin}->data = (${cTypeOfSub(inputs, sub)} *)malloc(1 * sizeof(${cTypeOfSub(inputs, sub)}));",
             s"${outputMin}->count = 1;",
-            s"${cType(inputs(idx).dataType)} ${cleanName}_min = std::numeric_limits<${cType(inputs(idx).dataType)}>::max();"
+            s"${cTypeOfSub(inputs, sub)} ${cleanName}_min = std::numeric_limits<${cTypeOfSub(inputs, sub)}>::max();"
           ),
           iter = List(
             s"if (${cleanName}_min > ${evaluateSub(inputs, sub)}) ${cleanName}_min = ${evaluateSub(inputs, sub)};"
@@ -237,9 +314,9 @@ object CExpressionEvaluation {
         val outputMax = s"output_${idx}_max"
         AggregateDescription(
           init = List(
-            s"${outputMax}->data = (${cType(inputs(idx).dataType)} *)malloc(1 * sizeof(${cType(inputs(idx).dataType)}));",
+            s"${outputMax}->data = (${cTypeOfSub(inputs, sub)} *)malloc(1 * sizeof(${cTypeOfSub(inputs, sub)}));",
             s"${outputMax}->count = 1;",
-            s"${cType(inputs(idx).dataType)} ${cleanName}_max = std::numeric_limits<${cType(inputs(idx).dataType)}>::min();"
+            s"${cTypeOfSub(inputs, sub)} ${cleanName}_max = std::numeric_limits<${cTypeOfSub(inputs, sub)}>::min();"
           ),
           iter = List(
             s"if (${cleanName}_max < ${evaluateSub(inputs, sub)}) ${cleanName}_max = ${evaluateSub(inputs, sub)};"
@@ -305,9 +382,15 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def cGen(fName: String, input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
+  def cGen(fName: String, inputReferences: Set[String], childOutputs: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
+    val input = {
+      val attrs = childOutputs
+        .filter(attr => inputReferences.contains(attr.name))
+
+      if (attrs.size == 0) childOutputs else attrs
+    }
     val cleanNames = pairs.map(_._1.name).map(nameCleaner.cleanName).toList
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
