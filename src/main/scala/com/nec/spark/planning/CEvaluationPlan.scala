@@ -377,8 +377,10 @@ final case class CEvaluationPlan(
       try {
         (0 until outputVectors.head.getValueCount).map { v_idx =>
           outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-            val doubleV = v.getValueAsDouble(v_idx)
-            writer.write(c_idx, doubleV)
+            if (v_idx < v.getValueCount()) {
+              val doubleV = v.getValueAsDouble(v_idx)
+              writer.write(c_idx, doubleV)
+            }
           }
           writer.getRow.copy()
         }
