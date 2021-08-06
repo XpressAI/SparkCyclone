@@ -201,16 +201,15 @@ def nyc_benchmark(spark: SparkSession, args: argparse.Namespace) -> list:
     
     df = spark.read.csv('data/trips_2020.csv', header=True, schema=schema_nyctaxi)
     df1 = spark.read.csv('data/cab_types.csv', header=True, schema=schema_cab)
-    
-    if (args.clearcache is False):
-        print('Caching Temp View Table...')
-        # spark.sql("CACHE TABLE trips")
-        # spark.sql("CACHE TABLE cab_types")
-        df.cache()
-        df1.cache()
-    
+
     df.createOrReplaceTempView('trips')
     df1.createOrReplaceTempView('cab_types')
+
+    if (args.clearcache is False):
+        print('Caching Temp View Table...')
+        spark.sql("CACHE TABLE trips")
+        spark.sql("CACHE TABLE cab_types")
+    
     df.printSchema()
     df1.printSchema()
 

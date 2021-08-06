@@ -106,9 +106,23 @@ class nyctaxi_queries(query):
 
     def q5(self, spark: SparkSession) -> DataFrame:
         print("""Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
-        as mean_distance, AVG(total_amount) as mean_amount from trips
+        as mean_distance, AVG(total_amount) as mean_amount from trips group by pickup_location_id
         """)
-        res = spark.sql('select corr(trip_distance, total_amount) as correlation, AVG(trip_distance) as mean_distance, AVG(total_amount) as mean_amount from trips')
+        res = spark.sql('select corr(trip_distance, total_amount) as correlation, AVG(trip_distance) as mean_distance, AVG(total_amount) as mean_amount from trips group by pickup_location_id')
+        return res
+
+    def q6(self, spark: SparkSession) -> DataFrame:
+        print("""Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+        as mean_distance, AVG(total_amount) as mean_amount from trips group by payment_type 
+        """)
+        res = spark.sql('select corr(trip_distance, total_amount) as correlation, AVG(trip_distance) as mean_distance, AVG(total_amount) as mean_amount from trips group by payment_type')
+        return res
+
+    def q7(self, spark: SparkSession) -> DataFrame:
+        print("""Query: select corr(trip_distance, total_amount) as correlation, AVG(trip_distance)
+        as mean_distance, AVG(total_amount) as mean_amount from trips group by dropoff_location_id 
+        """)
+        res = spark.sql('select corr(trip_distance, total_amount) as correlation, AVG(trip_distance) as mean_distance, AVG(total_amount) as mean_amount from trips group by dropoff_location_id')
         return res
 
 # operations = {

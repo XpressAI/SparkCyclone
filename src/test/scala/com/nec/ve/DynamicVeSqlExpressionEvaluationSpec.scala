@@ -154,7 +154,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
 
     val sql2 =
-      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)"
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA})"
 
     s"Group by is possible with ${sql2}" ignore withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
@@ -162,6 +162,50 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[(Double, Double, Double)].collect().toList == Nil)
+      }
+    }
+
+
+    val sql3 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
+
+    s"Simple Group by is possible with ${sql3}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql3).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(20.0))
+      }
+    }
+
+    /*
+    val sql4 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA} HAVING y > 3"
+    s"Simple filtering is possible with ${sql4}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql4).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(15.0))
+      }
+    }
+    */
+
+    val sql5 = s"SELECT CORR(${SampleColA}, ${SampleColB}) as c FROM nums"
+    s"Corr function is possible with ${sql5}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
+      }
+    }
+
+    val sql6 = s"SELECT MAX(${SampleColA}) AS a, MIN(${SampleColB}) AS b FROM nums"
+    s"MIN and MAX work with ${sql6}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql6).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double, Double)].collect().toList == List((52.0, 2.0)))
       }
     }
   }

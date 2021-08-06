@@ -178,6 +178,58 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     }
   }
 
+  private def make_veo_varchar_vector(proc: Aurora.veo_proc_handle, varcharVector: VarCharVector)(implicit
+    cleanup: Cleanup
+  ): non_null_varchar_vector = {
+    val keyName = "varchar_" + varcharVector.getName + "_" + varcharVector.getDataBuffer().capacity()
+
+    columnCache(proc, keyName) match {
+      case None => {
+        logger.debug(s"Copying Buffer to VE for $keyName")
+
+        val vcvr = new non_null_varchar_vector()
+        vcvr.count = varcharVector.getValueCount
+        vcvr.data = copyBufferToVe(proc, varcharVector.getDataBuffer.nioBuffer())(cleanup)
+
+        columnCache.put(proc, keyName, vcvr.data)
+        vcvr
+      }
+      case Some(ptr) => 
+        logger.debug(s"Using cached value for $keyName")
+
+        val vcvr = new non_null_varchar_vector()
+        vcvr.count = varcharVector.getValueCount
+        vcvr.data = ptr
+        vcvr
+    }
+  }
+
+  private def make_veo_bigint_vector(proc: Aurora.veo_proc_handle, bigintVector: BigIntVector)(implicit
+    cleanup: Cleanup
+  ): non_null_bigint_vector = {
+    val keyName = "biging_" + bigintVector.getName + "_" + bigintVector.getDataBuffer().capacity()
+
+    columnCache(proc, keyName) match {
+      case None => {
+        logger.debug(s"Copying Buffer to VE for $keyName")
+
+        val vcvr = new non_null_bigint_vector()
+        vcvr.count = bigintVector.getValueCount
+        vcvr.data = copyBufferToVe(proc, bigintVector.getDataBuffer.nioBuffer())(cleanup)
+
+        columnCache.put(proc, keyName, vcvr.data)
+        vcvr
+      }
+      case Some(ptr) => 
+        logger.debug(s"Using cached value for $keyName")
+
+        val vcvr = new non_null_bigint_vector()
+        vcvr.count = bigintVector.getValueCount
+        vcvr.data = ptr
+        vcvr
+    }
+  }
+
   /** Take a vec, and rewrite the pointer to our local so we can read it */
   /** Todo deallocate from VE! unless we pass it onward */
   private def veo_read_non_null_double_vector(
@@ -380,6 +432,32 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
                 0,
                 index,
                 nonNullInt2VectorToByteBuffer(int_vector_raw),
+                12L
+              )
+            )
+
+          case (VarCharVectorWrapper(varcharVector), index) =>
+            val varchar_vector_raw = make_veo_varchar_vector(proc, varcharVector)
+
+            requireOk(
+              Aurora.veo_args_set_stack(
+                our_args,
+                0,
+                index,
+                nonNullVarCharVectorVectorToByteBuffer(varchar_vector_raw),
+                12L
+              )
+            )
+
+          case (BigIntVectorWrapper(longVector), index) =>
+            val long_vector_raw = make_veo_bigint_vector(proc, longVector)
+
+            requireOk(
+              Aurora.veo_args_set_stack(
+                our_args,
+                0,
+                index,
+                nonNullBigIntVectorToByteBuffer(long_vector_raw),
                 12L
               )
             )
