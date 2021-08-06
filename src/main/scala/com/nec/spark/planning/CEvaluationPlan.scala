@@ -34,6 +34,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.immutable
 import scala.language.dynamics
+import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
+import org.apache.spark.sql.catalyst.expressions.aggregate.Min
+import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 
 object CEvaluationPlan {
 
@@ -135,8 +138,10 @@ final case class CEvaluationPlan(
               val writer = new UnsafeRowWriter(outputVectors.size)
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                val doubleV = v.getValueAsDouble(v_idx)
-                writer.write(c_idx, doubleV)
+                if (v_idx < v.getValueCount()) {
+                  val doubleV = v.getValueAsDouble(v_idx)
+                  writer.write(c_idx, doubleV)
+                }
               }
               writer.getRow
             }
@@ -186,6 +191,20 @@ final case class CEvaluationPlan(
                   val idx = startingIndices(a)
                   val result = unsafeRowsList.map(_.getInt(idx)).sum
 
+                  writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Corr(_, _, _), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val corrSum = unsafeRowsList.map(_.getDouble(idx)).sum
+                  val count = unsafeRowsList.size
+                  val result = corrSum / count
+                  writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Min(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val result = unsafeRowsList.map(_.getInt(idx)).min
+                  writer.write(outIdx, result)
+                case (a @ Alias(AggregateExpression(Max(_), _, _, _, _), _), outIdx) =>
+                  val idx = startingIndices(a)
+                  val result = unsafeRowsList.map(_.getInt(idx)).min
                   writer.write(outIdx, result)
                 case other => sys.error(s"Other not supported: ${other}")
               }
@@ -261,6 +280,20 @@ final case class CEvaluationPlan(
             case (a @ Alias(AggregateExpression(Count(_), _, _, _, _), _), outIdx) =>
               val idx = startingIndices(a)
               val result = unsafeRowsList.map(_.getInt(idx)).sum
+              writer.write(outIdx, result)
+            case (a @ Alias(AggregateExpression(Corr(_, _, _), _, _, _, _), _), outIdx) =>
+              val idx = startingIndices(a)
+              val corrSum = unsafeRowsList.map(_.getDouble(idx)).sum
+              val count = unsafeRowsList.size
+              val result = corrSum / count
+              writer.write(outIdx, result)
+            case (a @ Alias(AggregateExpression(Min(_), _, _, _, _), _), outIdx) =>
+              val idx = startingIndices(a)
+              val result = unsafeRowsList.map(_.getInt(idx)).min
+              writer.write(outIdx, result)
+            case (a @ Alias(AggregateExpression(Max(_), _, _, _, _), _), outIdx) =>
+              val idx = startingIndices(a)
+              val result = unsafeRowsList.map(_.getInt(idx)).min
               writer.write(outIdx, result)
             case other => sys.error(s"Other not supported: ${other}")
           }

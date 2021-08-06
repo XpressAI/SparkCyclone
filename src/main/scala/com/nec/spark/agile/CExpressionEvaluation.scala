@@ -13,6 +13,9 @@ import org.apache.spark.sql.catalyst.expressions.Multiply
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.expressions.Divide
 import org.apache.spark.sql.catalyst.expressions.Abs
+import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
+import org.apache.spark.sql.catalyst.expressions.aggregate.Min
+import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 
 object CExpressionEvaluation {
   def cGenProject(fName: String, inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
@@ -163,7 +166,78 @@ object CExpressionEvaluation {
           )
 
         )
-    }
+            
+      case Min(sub) =>
+        val outputMin = s"output_${idx}_min"
+        AggregateDescription(
+          init = List(
+            s"${outputMin}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputMin}->count = 1;",
+            s"double ${cleanName}_min = std::numeric_limits<double>::max();"
+          ),
+          iter = List(
+            s"if (${cleanName}_min > ${evaluateSub(inputs, sub)}) ${cleanName}_min = ${evaluateSub(inputs, sub)};"
+          ),
+          result = List(
+            s"${outputMin}->data[0] = ${cleanName}_min;",
+          ),
+          outputArguments = List(
+              s"non_null_double_vector* ${outputMin}",
+          )
+        )
+
+      case Max(sub) =>
+        val outputMax = s"output_${idx}_max"
+        AggregateDescription(
+          init = List(
+            s"${outputMax}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputMax}->count = 1;",
+            s"double ${cleanName}_max = std::numeric_limits<double>::min();"
+          ),
+          iter = List(
+            s"if (${cleanName}_max < ${evaluateSub(inputs, sub)}) ${cleanName}_max = ${evaluateSub(inputs, sub)};"
+          ),
+          result = List(
+            s"${outputMax}->data[0] = ${cleanName}_max;",
+          ),
+          outputArguments = List(
+            s"non_null_double_vector* ${outputMax}",
+          )
+        )
+
+      case Corr(left, right, _) =>
+        val outputCorr = s"output_${idx}_corr"
+
+        AggregateDescription(
+          init = List(
+            s"${outputCorr}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputCorr}->count = 1;",
+
+            s"double ${cleanName}_x_sum = 0;",
+            s"double ${cleanName}_y_sum = 0;",
+            s"double ${cleanName}_xy_sum = 0;",
+            s"double ${cleanName}_x_square_sum = 0;",
+            s"double ${cleanName}_y_square_sum = 0;"
+          ),
+          iter = List(
+            s"${cleanName}_x_sum += ${evaluateSub(inputs, left)};",
+            s"${cleanName}_y_sum += ${evaluateSub(inputs, right)};",
+            s"${cleanName}_xy_sum += ${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)};",
+            s"${cleanName}_x_square_sum += ${evaluateSub(inputs, left)} * ${evaluateSub(inputs, left)};",
+            s"${cleanName}_y_square_sum += ${evaluateSub(inputs, right)} * ${evaluateSub(inputs, right)};"
+          ),
+          result = List(
+            s"${outputCorr}->data[0] = (input_0->count * ${cleanName}_xy_sum - ${cleanName}_x_sum * ${cleanName}_y_sum) / " + 
+              s"sqrt(" + 
+                s"(input_0->count * ${cleanName}_x_square_sum - ${cleanName}_x_sum * ${cleanName}_x_sum) * " +
+                s"(input_0->count * ${cleanName}_y_square_sum - ${cleanName}_y_sum * ${cleanName}_y_sum));"
+          ),
+          outputArguments = List(
+            s"non_null_double_vector* ${outputCorr}"
+          )
+        )
+        
+      }
   }
 
   final case class CodeLines(lines: List[String]) {
