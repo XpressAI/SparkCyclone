@@ -15,9 +15,17 @@ import org.apache.spark.sql.catalyst.expressions.Divide
 import org.apache.spark.sql.catalyst.expressions.Abs
 
 object CExpressionEvaluation {
-  def cGenProject(fName: String, inputs: Seq[Attribute], resultExpressions: Seq[NamedExpression])(implicit
+  def cGenProject(fName: String, inputReferences: Set[String], childOutputs: Seq[Attribute],
+                  resultExpressions: Seq[NamedExpression])(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
+    val inputs = {
+      val attrs = childOutputs
+        .filter(attr => inputReferences.contains(attr.name))
+
+      if (attrs.size == 0) childOutputs else attrs
+    }
+
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
         s"non_null_double_vector* input_${idx}"
@@ -182,9 +190,15 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def cGen(fName: String, input: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
+  def cGen(fName: String, inputReferences: Set[String], childOutputs: Seq[Attribute], pairs: (Alias, AggregateExpression)*)(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
+    val input = {
+      val attrs = childOutputs
+        .filter(attr => inputReferences.contains(attr.name))
+
+      if (attrs.size == 0) childOutputs else attrs
+    }
     val cleanNames = pairs.map(_._1.name).map(nameCleaner.cleanName).toList
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
