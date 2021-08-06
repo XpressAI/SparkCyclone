@@ -33,6 +33,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import scala.collection.immutable
 import scala.language.dynamics
 
+import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper
+
 object CEvaluationPlan {
 
   object HasFloat8Vector {
@@ -107,7 +109,7 @@ final case class CEvaluationPlan(
             arrowWriter.finish()
 
             val inputVectors = inputAttributes.zipWithIndex.map { case (attr, idx) =>
-              root.getVector(idx).asInstanceOf[Float8Vector]
+              root.getVector(idx)
             }
             arrowWriter.finish()
 
@@ -127,10 +129,10 @@ final case class CEvaluationPlan(
               evaluator.callFunction(
                 name = fName,
                 inputArguments = inputVectors.toList.map(iv =>
-                  Some(Float8VectorWrapper(iv))
+                  Some(SupportedVectorWrapper.wrapVector(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments = inputVectors.toList.map(_ => None) ++
-                  outputVectors.map(v => Some(Float8VectorWrapper(v)))
+                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapVector(v)))
               )
             } finally {
               inputVectors.foreach(_.close())
