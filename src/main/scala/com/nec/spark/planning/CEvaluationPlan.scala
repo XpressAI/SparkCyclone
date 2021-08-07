@@ -37,6 +37,11 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper
+import org.apache.arrow.vector.IntVector
+import org.apache.spark.sql.types.LongType
+import org.apache.arrow.vector.BigIntVector
+import org.apache.parquet.format.IntType
+import org.apache.spark.sql.types.IntegerType
 
 object CEvaluationPlan {
 
@@ -129,8 +134,12 @@ final case class CEvaluationPlan(
               }
               .zipWithIndex
               .map { case (ne, idx) =>
-                val outputVector = new Float8Vector(s"out_${idx}", allocator)
-                outputVector
+                ne.dataType match {
+                  case DoubleType => new Float8Vector(s"out_${idx}", allocator)
+                  case LongType => new BigIntVector(s"out_${idx}", allocator)
+                  case IntegerType => new IntVector(s"out_${idx}", allocator)
+                  case _ => new Float8Vector(s"out_${idx}", allocator)
+                }
               }
 
             try {
@@ -151,8 +160,16 @@ final case class CEvaluationPlan(
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
                 if (v_idx < v.getValueCount()) {
-                  val doubleV = v.getValueAsDouble(v_idx)
-                  writer.write(c_idx, doubleV)
+                  if (v.isInstanceOf[Float8Vector]) {
+                    val doubleV = v.asInstanceOf[Float8Vector].getValueAsDouble(v_idx)
+                    writer.write(c_idx, doubleV)
+                  } else if (v.isInstanceOf[IntVector]) {
+                      val intV = v.asInstanceOf[IntVector].getValueAsLong(v_idx).toInt
+                      writer.write(c_idx, intV)
+                  } else if (v.isInstanceOf[BigIntVector]) {
+                      val longV = v.asInstanceOf[BigIntVector].getValueAsLong(v_idx)
+                      writer.write(c_idx, longV)
+                  }
                 }
               }
               writer.getRow
