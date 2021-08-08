@@ -514,7 +514,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       )
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function ${functionName}; inputs: ${inputArguments}; inputs: ${outputArguments}"
+        s"Expected 0, got $callRes; means VE call failed for function ${functionName}; inputs: ${inputArguments}; outputs: ${outputArguments}"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 

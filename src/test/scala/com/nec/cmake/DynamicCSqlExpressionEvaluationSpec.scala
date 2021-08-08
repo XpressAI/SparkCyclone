@@ -75,7 +75,7 @@ final class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_mci_2 = s"SELECT SUM(${SampleColB} - ${SampleColA}) FROM nums"
-  "Support multi-column inputs, order reversed" in withSparkSession2(configuration) {
+  "Support multi-column outputs, order reversed" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
@@ -143,7 +143,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  "Support multi-column inputs and inputs with a .limit()" in withSparkSession2(configuration) {
+  "Support multi-column inputs and outputs with a .limit()" in withSparkSession2(configuration) {
     val sql_pairwise =
       s"SELECT ${SampleColA} + ${SampleColB}, ${SampleColA} - ${SampleColB} FROM nums"
     sparkSession =>

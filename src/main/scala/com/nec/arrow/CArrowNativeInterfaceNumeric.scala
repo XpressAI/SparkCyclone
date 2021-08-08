@@ -34,7 +34,7 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
       new Library.Handler(libPath, classOf[Library], Map.empty[String, Any].asJava)
     val nl = nativeLibraryHandler.getNativeLibrary
     val fn = nl.getFunction(functionName)
-    logger.debug(s"Inputs are = ${inputArguments}, inputs are = ${outputArguments}")
+    logger.debug(s"Inputs are = ${inputArguments}, outputs are = ${outputArguments}")
 
     val outputStructs = outputArguments.map(_.map {
       case Float8VectorWrapper(doubleVector) =>

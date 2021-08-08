@@ -165,7 +165,7 @@ object CExpressionEvaluation {
           List(s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};")
         }.toList,
       List("}"),
-      // Set inputs
+      // Set outputs
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"output_${idx}->count = output_${idx}_count;",
