@@ -72,14 +72,14 @@ object BenchTestingPossibilities {
   import com.eed3si9n.expecty.Expecty.assert
   final case class SimpleSql(
     sql: String,
-    expectedResult: (Double, Double),
+    expectedResult: (Double, Double, Long),
     source: SampleSource,
     testingTarget: TestingTarget,
     offHeapMode: Option[VeColumnMode],
     csvStrategy: Option[CsvStrategy],
   ) extends Testing {
 
-    type Result = (Double, Double)
+    type Result = (Double, Double, Long)
 
     override def verifyResult(result: List[Result]): Unit = {
       assert(result == List(expectedResult))
@@ -214,8 +214,8 @@ object BenchTestingPossibilities {
             VeColumnMode.All.map(v => Some(v))
           else List(None)
       } yield SimpleSql(
-        sql = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColA}",
-        expectedResult = (62, 1),
+        sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}), COUNT(*) FROM nums",
+        expectedResult = (62, 4, 5),
         source = source,
         testingTarget = testingTarget,
         offHeapMode = colMode,
