@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.aurora.Aurora
+import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeCompiler.CNativeCompiler
 import com.nec.native.NativeEvaluator.{CNativeEvaluator, ExecutorPluginManagedEvaluator, VectorEngineNativeEvaluator}
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
@@ -90,6 +91,34 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
   }
 
+  val sql_select_sort = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
+  "Support order by with select"  in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
+        assert(
+          ds.as[(Double, Double)].collect().toList == List(
+            (1.0, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, 5.0), (52.0, 6.0)
+          )
+        )
+      }
+  }
+
+  val sql_select_sort2 = s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
+  "Support order by with select with sum"  in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
+        assert(
+          ds.as[(Double, Double, Double)].collect().toList == List(
+            (1.0, 2.0, 3.0), (2.0, 3.0, 5.0), (3.0, 4.0, 7.0), (4.0, 5.0, 9.0), (52.0, 6.0, 58.0)
+          )
+        )
+      }
+  }
+
   val sql_cnt = s"SELECT COUNT(*) FROM nums"
   "Support count"  in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
     sparkSession =>
@@ -112,7 +141,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
   val sql_mcio =
     s"SELECT SUM(${SampleColB} - ${SampleColA}), SUM(${SampleColA} + ${SampleColB}) FROM nums"
-  "Support multi-column inputs and outputs" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+  "Support multi-column inputs and inputs" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
 
@@ -121,7 +150,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
 
-  "Support multi-column inputs and outputs with a .limit()" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
+  "Support multi-column inputs and inputs with a .limit()" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
     val sql_pairwise =
       s"SELECT ${SampleColA} + ${SampleColB}, ${SampleColA} - ${SampleColB} FROM nums"
     sparkSession =>
@@ -208,6 +237,22 @@ final class DynamicVeSqlExpressionEvaluationSpec
         assert(ds.as[(Double, Double)].collect().toList == List((52.0, 2.0)))
       }
     }
+
+    val sql7 = s"SELECT ${SampleColA}, SUM(${SampleColB}), AVG(${SampleColA}) as y FROM nums GROUP BY ${SampleColA} ORDER BY y"
+    s"Ordering with a group by: ${sql7}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql7).debugSqlHere { ds =>
+        assert(ds.as[(Double, Double, Double)].collect().toList == List(
+          (1.0, 2.0, 2.0),
+          (2.0, 3.0, 3.0),
+          (3.0, 4.0, 4.0),
+          (4.0, 5.0, 5.0),
+          (52.0, 6.0, 6.0)
+        ))
+      }
+    }
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
@@ -216,6 +261,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
       expect(thePlan.toString().contains("CEvaluation"))
       dataSet
     }
+
+    def ensureSortPlanEvaluated(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("SimpleSortPlan"))
+      dataSet
+    }
+
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       withClue(dataSet.queryExecution.executedPlan.toString()) {
 

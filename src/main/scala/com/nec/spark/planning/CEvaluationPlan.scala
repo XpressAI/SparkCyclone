@@ -78,12 +78,14 @@ final case class CEvaluationPlan(
   with ColumnarToRowTransition
   with LazyLogging {
 
-  protected def inputAttributes: Seq[Attribute] = {
+  protected def inputVectorsIds: Seq[Int] = {
     val attrs = child
       .output
-      .filter(attr => inputReferenceNames.contains(attr.name))
+      .zipWithIndex
+      .filter(attr => inputReferenceNames.contains(attr._1.name))
+      .map(_._2)
 
-    if (attrs.size == 0) child.output else attrs
+    if (attrs.size == 0) 0 until child.output.size else attrs
   }
 
   override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
@@ -111,20 +113,20 @@ final case class CEvaluationPlan(
             rows.foreach(row => arrowWriter.write(row))
             arrowWriter.finish()
 
-            val inputVectorIds = child.output
-              .zipWithIndex
-              .filter(tuple => inputReferenceNames.contains(tuple._1.name))
-              .map(_._2)
-
-            val inputVectors = inputVectorIds.map(id => root.getVector(id))
+            val inputVectors = inputVectorsIds
+              .map(id => root.getVector(id))
             arrowWriter.finish()
 
             val outputVectors = resultExpressions
-              .flatMap(_.asInstanceOf[Alias].child match {
-                case ae: AggregateExpression =>
-                  ae.aggregateFunction.aggBufferAttributes
-                case other => List(other)
-              })
+              .flatMap{
+                case Alias(child, _) => child match {
+                  case ae: AggregateExpression =>
+                    ae.aggregateFunction.aggBufferAttributes
+                  case other => List(other)
+                }
+                case a @ AttributeReference(_, _, _, _) =>
+                  List(a)
+              }
               .zipWithIndex
               .map { case (ne, idx) =>
                 val outputVector = new Float8Vector(s"out_${idx}", allocator)
@@ -165,9 +167,11 @@ final case class CEvaluationPlan(
         Iterator
           .continually {
             val unsafeRowsList = unsafeRows.toList
-            val isAggregation = resultExpressions.exists(
-              _.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-            )
+            val isAggregation = resultExpressions.exists {
+              case Alias(child, _) => child.isInstanceOf[AggregateExpression]
+              case _ => false
+            }
+
 
             if (isAggregation) {
               val startingIndices = resultExpressions.view

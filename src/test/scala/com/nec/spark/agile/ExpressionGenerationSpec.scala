@@ -307,6 +307,39 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
     )
   }
 
+  "Sorting" in {
+    assert(
+      cGenSort(
+        testFName,
+        Seq(ref_value14, ref_value15),
+        ref_value14) == List(
+        "#include \"frovedis/core/radix_sort.hpp\"",
+        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0, non_null_double_vector* output_1)""",
+        "{",
+        "int* indices = (int *) malloc(input_0.count * sizeof(int));",
+        "for(int i = 0; i < input_0.count; i++)",
+        "{",
+        "indices[i] = i;",
+        "}",
+        "frovedis::radix_sort(indices, input_0.data, input_0.count);",
+        "long output_0_count = input_0->count;",
+        "double *output_0_data = (double*) malloc(output_0_count * sizeof(double));",
+        "long output_1_count = input_0->count;",
+        "double *output_1_data = (double*) malloc(output_1_count * sizeof(double));",
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < output_0_count; i++) {",
+        "output_0_data[indices[i]] = input_0->data[i];",
+        "output_1_data[indices[i]] = input_1->data[i];",
+        "}",
+        "output_0->count = output_0_count;",
+        "output_0->data = output_0_data;",
+        "output_1->count = output_1_count;",
+        "output_1->data = output_1_data;",
+        "return 0;",
+        "}"
+      ).codeLines
+    )
+  }
   "Subtraction projection: value#14 - value#15" in {
     assert(
       cGenProject(
