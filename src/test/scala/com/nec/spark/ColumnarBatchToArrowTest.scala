@@ -26,7 +26,7 @@ object ColumnarBatchToArrowTest {
   }
 }
 final class ColumnarBatchToArrowTest extends AnyFreeSpec {
-  "It does not leak memory after closing" ignore {
+  "It does not leak memory after closing" in {
     val allocator =
       ArrowUtilsExposed.rootAllocator.newChildAllocator("test columnar batch", 0L, Long.MaxValue)
     try {
