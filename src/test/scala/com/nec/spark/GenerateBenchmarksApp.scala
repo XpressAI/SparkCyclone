@@ -29,6 +29,11 @@ class State_${name} {
 
   @Setup
   def prepare(): Unit = {
+    net.bytebuddy.agent.ByteBuddyAgent.install()
+    import com.nec.agent._
+    ExecutorAttachmentBuilder
+      .using(AttachExecutorLifecycle.ServiceBasedExecutorLifecycle)
+      .installOnByteBuddyAgent()
     // initialize and also prepare the execution plan
     // I realised that the comparison includes the planning time as well
     // Depends how we want to do it, but I think we should keep it separate

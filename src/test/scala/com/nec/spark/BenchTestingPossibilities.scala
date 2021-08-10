@@ -157,6 +157,11 @@ object BenchTestingPossibilities {
                     NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
                 )
             )
+            .withExtensions(sse =>
+              sse.injectPlannerStrategy(sparkSession =>
+                VERewriteStrategy(sparkSession, ExecutorPluginManagedEvaluator)
+              )
+            )
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.PlainSpark =>

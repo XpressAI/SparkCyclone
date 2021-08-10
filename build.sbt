@@ -16,13 +16,49 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
   .configs(CMake)
+  .dependsOn(`agent-executor-control`)
 
-lazy val `agent` = project.in(file("agent"))
-  .dependsOn(root)
+val agentV = "0.1.7"
+
+lazy val agent = project
   .settings(
+    organization := "com.nec.spark",
     name := "agent",
-    assemblyJarName := "agent.jar"
+    version := agentV,
+    /** This is so that the agent-base is a self contained JAR */
+    Compile / packageBin := (`agent-base` / assembly).value
   )
+
+lazy val `agent-base` = project
+  .settings(
+    assembly / assemblyMergeStrategy := {
+      case v if v.contains("module-info.class") => MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+    },
+    assembly / packageOptions +=
+      Package.ManifestAttributes(
+        "Agent-Class" -> "com.nec.agent.AuroraSqlAgent",
+        "Premain-Class" -> "com.nec.agent.AuroraSqlAgent",
+        "Can-Redefine-Classes" -> "true",
+        "Can-Retransform-Classes" -> "true",
+        "Can-Set-Native-Method-Prefix" -> "true"
+      ),
+    scalacOptions += "-target:jvm-1.8",
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
+      "org.scalatest" %% "scalatest" % "3.2.9" % Test,
+      "net.bytebuddy" % "byte-buddy" % "1.11.9",
+      "net.bytebuddy" % "byte-buddy-agent" % "1.11.9"
+    ),
+    Test / fork := true
+  )
+  .dependsOn(`agent-executor-control`)
+
+lazy val `agent-executor-control` = project
+  .settings(scalacOptions += "-target:jvm-1.8", organization := "com.nec.spark")
+
 /**
  * Run with:
  *
@@ -31,6 +67,7 @@ lazy val `agent` = project.in(file("agent"))
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
   .dependsOn(root % "compile->test")
+  .dependsOn(`agent-base`)
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
@@ -89,6 +126,7 @@ ThisBuild / sparkVersion := {
 }
 
 libraryDependencies ++= Seq(
+  "com.nec.spark" %% "agent" % agentV,
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
@@ -109,7 +147,6 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
   "co.fs2" %% "fs2-io" % "2.1.0" % "test,acc,cmake,ve"
-
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 libraryDependencies ++= {
@@ -129,7 +166,6 @@ Test / unmanagedJars ++= sys.env
 
 /** Because of Spark */
 Test / parallelExecution := false
-inConfig(Test)(Defaults.testTasks)
 
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false
@@ -138,14 +174,6 @@ inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
 VectorEngine / run / fork := true
-
-/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
-VectorEngine / run / javaOptions ++= {
-  // The feature was removed in JDK9, however for Spark we must support JDK8
-  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
-    List("-agentlib:hprof=cpu=samples")
-  else Nil
-}
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 
