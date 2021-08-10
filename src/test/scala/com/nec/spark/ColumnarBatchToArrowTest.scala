@@ -34,6 +34,8 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
       source.putDouble(0, 1.3)
       source.putDouble(1, 1.4)
       val sampleBatch = new ColumnarBatch(Array(source))
+      sampleBatch.setNumRows(2)
+
       val (vectorSchemaRoot, columns) =
         ColumnarBatchToArrow.fromBatch(ColumnarBatchToArrowTest.schema, allocator)(sampleBatch)
       try {

@@ -189,7 +189,7 @@ final class NativeReaderSpec
       assert(unixSocketToNativeToArrow(CNativeEvaluator, inputList) == expectedString)
     }
   }
-  //TODO: Unignore when we fix handling varchar vectors
+
   "We can read-write with a unix socket from an input stream" in {
     val inputList = List("ABC", "DEF", "GHQEWE123")
     if (!scala.util.Properties.isWin) {
