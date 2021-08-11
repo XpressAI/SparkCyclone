@@ -238,18 +238,34 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
     }
 
-    val sql7 = s"SELECT ${SampleColA}, SUM(${SampleColB}), AVG(${SampleColA}) as y FROM nums GROUP BY ${SampleColA} ORDER BY y"
+    val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
     s"Ordering with a group by: ${sql7}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
       sparkSession.sql(sql7).debugSqlHere { ds =>
-        assert(ds.as[(Double, Double, Double)].collect().toList == List(
-          (1.0, 2.0, 2.0),
-          (2.0, 3.0, 3.0),
-          (3.0, 4.0, 4.0),
-          (4.0, 5.0, 5.0),
-          (52.0, 6.0, 6.0)
+        assert(ds.as[(Double, Double)].collect().toList == List(
+          (1.0, 2.0),
+          (2.0, 3.0),
+          (3.0, 4.0),
+          (4.0, 5.0),
+          (52.0, 6.0)
+        ))
+      }
+    }
+
+    val sql8 = s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
+    s"Ordering with a group by: ${sql8}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql8).debugSqlHere { ds =>
+        assert(ds.as[(Double, Double, Double, Double)].collect().toList == List(
+          (1.0, 2.0, 2.0, 2.0),
+          (2.0, 3.0, 3.0, 3.0),
+          (3.0, 4.0, 4.0, 4.0),
+          (4.0, 5.0, 5.0, 5.0),
+          (52.0, 6.0, 6.0, 6.0)
         ))
       }
     }
