@@ -64,7 +64,6 @@ def benchmark(spark: SparkSession, args: argparse.Namespace, queries: query) -> 
                 new_df.explain(extended=True)
                 print(f'Finished {op}_benchmark_test_{i} = {time_taken}')
                 print("="*240)
-                os.system("/opt/hadoop/bin/hdfs dfs -rm -r -f temp")
                 col_op.append(time_taken)
 
             avg = (sum(col_op[1:]) - max(col_op[1:]) - min(col_op[1:])) / (args.ntest-2)

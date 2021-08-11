@@ -69,31 +69,31 @@ class group_by_queries(query):
 class nyctaxi_queries(query):
     
     def q1(self, spark: SparkSession) -> DataFrame:
-        print("""Query: SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+        print("""Query: SELECT pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
             FROM trips WHERE payment_type = 2 
-            group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
+            group by pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id 
             having fare_amount > 20.0
             """)
-        res = spark.sql('SELECT id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id \
+        res = spark.sql('SELECT pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id \
             FROM trips WHERE payment_type = 2 \
-            group by id,pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id \
+            group by pickup_datetime,dropoff_datetime,fare_amount,pickup_location_id,dropoff_location_id \
             having fare_amount > 20.0')
         return res
 
     def q2(self, spark: SparkSession) -> DataFrame:
-        print("""Query: SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
-            FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type
+        print("""Query: SELECT pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) 
+            FROM trips group by pickup_location_id,dropoff_location_id,payment_type
         """)
-        res = spark.sql('SELECT id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) \
-            FROM trips group by id, pickup_location_id,dropoff_location_id,payment_type')
+        res = spark.sql('SELECT pickup_location_id,dropoff_location_id,payment_type, COUNT(*), AVG(fare_amount) \
+            FROM trips group by pickup_location_id,dropoff_location_id,payment_type')
         return res
 
     def q3(self, spark: SparkSession) -> DataFrame:
-        print("""Query: select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
-            from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
+        print("""Query: select pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) 
+            from trips group byd pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0
         """)
-        res = spark.sql('select id, pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) \
-            from trips group by id, pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0')
+        res = spark.sql('select pickup_location_id,dropoff_location_id,payment_type, COUNT(*), SUM(total_amount) \
+            from trips group by pickup_location_id,dropoff_location_id,payment_type having SUM(fare_amount + extra) < 0')
         return res
 
     def q4(self, spark: SparkSession) -> DataFrame:
