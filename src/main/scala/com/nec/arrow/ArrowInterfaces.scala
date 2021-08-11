@@ -2,6 +2,7 @@ package com.nec.arrow
 import java.nio.{Buffer, ByteBuffer}
 
 import com.nec.arrow.ArrowTransferStructures.{non_null_int_vector, varchar_vector, _}
+import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.planning.SummingPlanOffHeap
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
@@ -169,13 +170,9 @@ object ArrowInterfaces {
   }
   def wrapAddress(addr: Long, length: Int): ByteBuffer = {
     val bb = ByteBuffer.allocateDirect(0)
-    val address = classOf[Buffer].getDeclaredField("address")
-    address.setAccessible(true)
-    val capacity = classOf[Buffer].getDeclaredField("capacity")
-    capacity.setAccessible(true)
     try {
-      address.setLong(bb, addr)
-      capacity.setInt(bb, length)
+      bb.readPrivate.address = addr
+      bb.readPrivate.capacity = length
       bb.clear
     } catch {
       case e: IllegalAccessException =>
