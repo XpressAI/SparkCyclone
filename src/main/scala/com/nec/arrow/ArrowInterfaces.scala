@@ -1,14 +1,12 @@
 package com.nec.arrow
-import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicInteger
+import java.nio.{Buffer, ByteBuffer}
 
 import com.nec.arrow.ArrowTransferStructures.{non_null_int_vector, varchar_vector, _}
-import com.nec.spark.agile.PairwiseAdditionOffHeap.OffHeapPairwiseSummer
+import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.planning.SummingPlanOffHeap
-import io.netty.buffer.ArrowBuf
-import org.apache.arrow.memory.{AllocationManager, BufferAllocator}
-import org.apache.arrow.vector.{BitVectorHelper, IntVector, _}
+import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
+import org.apache.arrow.vector.{BitVectorHelper, IntVector, _}
 import sun.nio.ch.DirectBuffer
 
 object ArrowInterfaces {
@@ -160,10 +158,27 @@ object ArrowInterfaces {
     val offBuffer =
       rootAllocator.buffer((input.count + 1) * 4)
 
+    val wrappedData = wrapAddress(input.data, input.size)
+    val wrappedOffsets = wrapAddress(input.offsets, (input.count+1)*4)
+    dataBuffer.setBytes(0, wrappedData)
+    offBuffer.setBytes(0, wrappedOffsets)
     varCharVector.loadFieldBuffers(
       new ArrowFieldNode(input.count, 0),
       List(validityBuffer, offBuffer, dataBuffer).asJava
     )
+
+  }
+  def wrapAddress(addr: Long, length: Int): ByteBuffer = {
+    val bb = ByteBuffer.allocateDirect(0)
+    try {
+      bb.readPrivate.address = addr
+      bb.readPrivate.capacity = length
+      bb.clear
+    } catch {
+      case e: IllegalAccessException =>
+        throw new AssertionError(e)
+    }
+    bb
   }
 
 }

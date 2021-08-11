@@ -105,7 +105,7 @@ final class NativeReaderSpec
   with SparkAdditions {
   implicit val contextShift: ContextShift[IO] = IO.contextShift(global)
 
-  "We can put stuff into a UNIX socket, and it will give us data back" ignore {
+  "We can put stuff into a UNIX socket, and it will give us data back" in {
     val socketName =
       if (NativeReaderSpec.isWin) "\\\\.\\pipe\\ipcsockettest"
       else s"/tmp/test-sock-${scala.util.Random.nextInt()}"
@@ -189,8 +189,8 @@ final class NativeReaderSpec
       assert(unixSocketToNativeToArrow(CNativeEvaluator, inputList) == expectedString)
     }
   }
-  //TODO: Unignore when we fix handling varchar vectors
-  "We can read-write with a unix socket from an input stream" ignore {
+
+  "We can read-write with a unix socket from an input stream" in {
     val inputList = List("ABC", "DEF", "GHQEWE123")
     if (!scala.util.Properties.isWin) {
       val inputStream = new ByteArrayInputStream(inputList.mkString.getBytes())

@@ -26,7 +26,7 @@ object ColumnarBatchToArrowTest {
   }
 }
 final class ColumnarBatchToArrowTest extends AnyFreeSpec {
-  "It does not leak memory after closing" ignore {
+  "It does not leak memory after closing" in {
     val allocator =
       ArrowUtilsExposed.rootAllocator.newChildAllocator("test columnar batch", 0L, Long.MaxValue)
     try {
@@ -34,6 +34,8 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
       source.putDouble(0, 1.3)
       source.putDouble(1, 1.4)
       val sampleBatch = new ColumnarBatch(Array(source))
+      sampleBatch.setNumRows(2)
+
       val (vectorSchemaRoot, columns) =
         ColumnarBatchToArrow.fromBatch(ColumnarBatchToArrowTest.schema, allocator)(sampleBatch)
       try {

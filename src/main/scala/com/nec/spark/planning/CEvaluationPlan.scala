@@ -40,6 +40,16 @@ object CEvaluationPlan {
         field.setAccessible(true)
         new PrivateReader(field.get(obj))
       }
+
+      def updateDynamic(name: String)(value: Any): Unit = {
+        val clz = obj.getClass
+        val field = FieldUtils.getAllFields(clz).find(_.getName == name) match {
+          case Some(f) => f
+          case None    => throw new NoSuchFieldException(s"Class ${clz} does not seem to have ${name}")
+        }
+        field.setAccessible(true)
+        field.set(obj, value)
+      }
     }
 
     implicit class RichObject(obj: Object) {
