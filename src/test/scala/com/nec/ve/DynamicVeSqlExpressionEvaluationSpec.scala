@@ -32,10 +32,7 @@ object DynamicVeSqlExpressionEvaluationSpec {
         sse.injectPlannerStrategy(sparkSession =>
           new VERewriteStrategy(
             sparkSession,
-            )
-          InMemoryLibraryEvaluator
-            /** EndMarker */
-            (NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
+            InMemoryLibraryEvaluator(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
           )
         )
       )
