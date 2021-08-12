@@ -88,8 +88,6 @@ final case class CEvaluationPlan(
   private def executeRowWise(): RDD[InternalRow] = {
     val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
 
-    sparkContext.broadcast()
-
     child
       .execute()
       .mapPartitions { rows =>
