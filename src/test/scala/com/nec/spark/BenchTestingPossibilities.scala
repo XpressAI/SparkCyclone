@@ -2,7 +2,7 @@ package com.nec.spark
 
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeEvaluator
-import com.nec.native.NativeEvaluator.BroadcastEvaluator
+import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
@@ -154,7 +154,7 @@ object BenchTestingPossibilities {
                 sse.injectPlannerStrategy(sparkSession =>
                   if (csvStrategy.contains(CsvStrategy.NativeCsvVE))
                     NativeCsvStrategy(
-                      new BroadcastEvaluator(
+                      new InMemoryLibraryEvaluator(
                         NativeCompiler.fromConfig(sparkSession.sparkContext.getConf)
                       )
                     )
@@ -166,7 +166,7 @@ object BenchTestingPossibilities {
               sse.injectPlannerStrategy(sparkSession =>
                 VERewriteStrategy(
                   sparkSession,
-                  new BroadcastEvaluator(
+                  new InMemoryLibraryEvaluator(
                     NativeCompiler.fromConfig(sparkSession.sparkContext.getConf)
                   )
                 )

@@ -2,7 +2,7 @@ package com.nec.native
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.DeferredArrowInterfaceNumeric
-import com.nec.arrow.ArrowNativeInterfaceNumeric.ExecutorInterfaceWithDirectLibrary
+import com.nec.arrow.ArrowNativeInterfaceNumeric.ExecutorInterfaceWithInMemoryLibrary
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.VeArrowNativeInterfaceNumeric.VeArrowNativeInterfaceNumericLazyLib
 import com.nec.aurora.Aurora
@@ -37,13 +37,13 @@ object NativeEvaluator {
     }
   }
 
-  final case class BroadcastEvaluator(nativeCompiler: NativeCompiler) extends NativeEvaluator with LazyLogging {
+  final case class InMemoryLibraryEvaluator(nativeCompiler: NativeCompiler) extends NativeEvaluator with LazyLogging {
     override def forCode(
       code: String
     ): ArrowNativeInterfaceNumeric = {
       val localLib = nativeCompiler.forCode(code)
       val libValue = Files.readAllBytes(localLib)
-      ExecutorInterfaceWithDirectLibrary(code, libValue.toVector)
+      ExecutorInterfaceWithInMemoryLibrary(code, libValue.toVector)
     }
   }
 

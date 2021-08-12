@@ -49,12 +49,12 @@ object ArrowNativeInterfaceNumeric {
   sealed trait SupportedVectorWrapper {}
   object SupportedVectorWrapper {
     def wrapVector(valueVector: ValueVector): SupportedVectorWrapper = {
-          valueVector match {
-            case intVector: IntVector => IntVectorWrapper(intVector)
-            case float8Vecot: Float8Vector => Float8VectorWrapper(float8Vecot)
-            case varcharVector: VarCharVector => VarCharVectorWrapper(varcharVector)
-            case bigintVector: BigIntVector => BigIntVectorWrapper(bigintVector)
-          }
+      valueVector match {
+        case intVector: IntVector         => IntVectorWrapper(intVector)
+        case float8Vecot: Float8Vector    => Float8VectorWrapper(float8Vecot)
+        case varcharVector: VarCharVector => VarCharVectorWrapper(varcharVector)
+        case bigintVector: BigIntVector   => BigIntVectorWrapper(bigintVector)
+      }
     }
     final case class StringWrapper(string: String) extends SupportedVectorWrapper
     final case class VarCharVectorWrapper(varCharVector: VarCharVector)
@@ -75,14 +75,17 @@ object ArrowNativeInterfaceNumeric {
     ): Unit = subInterface().callFunction(name, inputArguments, outputArguments)
   }
 
-  final case class ExecutorInterfaceWithDirectLibrary(code: String, codeData: Vector[Byte])
-    extends ArrowNativeInterfaceNumeric {
+  final case class ExecutorInterfaceWithInMemoryLibrary(
+    originalCode: String,
+    compiledLibrary: Vector[Byte]
+  ) extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
       name: String,
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = {
-      val libPath = Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code, codeData)
+      val libPath =
+        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(originalCode, compiledLibrary)
       new VeArrowNativeInterfaceNumericLazyLib(
         Aurora4SparkExecutorPlugin._veo_proc,
         libPath.toString

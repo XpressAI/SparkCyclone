@@ -3,7 +3,7 @@ package com.nec.spark
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeCompiler.CachingNativeCompiler
-import com.nec.native.NativeEvaluator.BroadcastEvaluator
+import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
 import com.nec.spark.agile._
 import com.nec.spark.planning.VERewriteStrategy
 import org.apache.spark.internal.Logging
@@ -50,7 +50,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       new VERewriteStrategy(
         sparkSession,
-        new BroadcastEvaluator(
+        new InMemoryLibraryEvaluator(
           CachingNativeCompiler(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
         )
       )

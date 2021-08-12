@@ -5,7 +5,7 @@ import com.nec.agent.AttachExecutorLifecycle
 import com.nec.agent.ExecutorAttachmentBuilder
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeCompiler
-import com.nec.native.NativeEvaluator.BroadcastEvaluator
+import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.planning.VERewriteStrategy
@@ -32,7 +32,10 @@ object DynamicVeSqlExpressionEvaluationSpec {
         sse.injectPlannerStrategy(sparkSession =>
           new VERewriteStrategy(
             sparkSession,
-            BroadcastEvaluator(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
+            )
+          InMemoryLibraryEvaluator
+            /** EndMarker */
+            (NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
           )
         )
       )
