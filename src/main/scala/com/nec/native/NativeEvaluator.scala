@@ -37,7 +37,7 @@ object NativeEvaluator {
     }
   }
 
-  final class BroadcastEvaluator(nativeCompiler: NativeCompiler) extends NativeEvaluator with LazyLogging {
+  final case class BroadcastEvaluator(nativeCompiler: NativeCompiler) extends NativeEvaluator with LazyLogging {
     override def forCode(
       code: String
     ): ArrowNativeInterfaceNumeric = {

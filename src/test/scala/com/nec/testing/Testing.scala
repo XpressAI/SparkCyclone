@@ -37,7 +37,7 @@ object Testing {
     }
     case object VectorEngine extends TestingTarget {
       def label: String = "VE"
-      override def expectedString: Option[String] = Some("PluginManagedEvaluator")
+      override def expectedString: Option[String] = Some("BroadcastEvaluator")
     }
     case object CMake extends TestingTarget {
       def label: String = "CMake"
