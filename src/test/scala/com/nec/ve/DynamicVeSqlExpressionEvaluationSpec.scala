@@ -47,6 +47,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
   }
   override protected def beforeAll(): Unit = {
+    net.bytebuddy.agent.ByteBuddyAgent.install()
     ExecutorAttachmentBuilder
       .using(AttachExecutorLifecycle.ServiceBasedExecutorLifecycle)
       .installOnByteBuddyAgent()
