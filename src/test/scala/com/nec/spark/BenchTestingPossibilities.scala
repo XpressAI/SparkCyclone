@@ -1,8 +1,9 @@
 package com.nec.spark
 
+import com.nec.native.NativeCompiler
 import com.nec.native.NativeEvaluator
+import com.nec.native.NativeEvaluator.BroadcastEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import com.nec.spark.planning.GroupBySumPlanSpec
@@ -152,14 +153,23 @@ object BenchTestingPossibilities {
               if (csvStrategy.exists(_.isNative))
                 sse.injectPlannerStrategy(sparkSession =>
                   if (csvStrategy.contains(CsvStrategy.NativeCsvVE))
-                    NativeCsvStrategy(ExecutorPluginManagedEvaluator)
+                    NativeCsvStrategy(
+                      new BroadcastEvaluator(
+                        NativeCompiler.fromConfig(sparkSession.sparkContext.getConf)
+                      )
+                    )
                   else
                     NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
                 )
             )
             .withExtensions(sse =>
               sse.injectPlannerStrategy(sparkSession =>
-                VERewriteStrategy(sparkSession, ExecutorPluginManagedEvaluator)
+                VERewriteStrategy(
+                  sparkSession,
+                  new BroadcastEvaluator(
+                    NativeCompiler.fromConfig(sparkSession.sparkContext.getConf)
+                  )
+                )
               )
             )
             .config(sparkConf)

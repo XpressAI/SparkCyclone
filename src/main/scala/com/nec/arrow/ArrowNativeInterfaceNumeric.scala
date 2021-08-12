@@ -2,6 +2,8 @@ package com.nec.arrow
 
 import org.apache.arrow.vector._
 import com.nec.arrow.ArrowNativeInterfaceNumeric._
+import com.nec.arrow.VeArrowNativeInterfaceNumeric.VeArrowNativeInterfaceNumericLazyLib
+import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.ByteBuffer
@@ -63,5 +65,21 @@ object ArrowNativeInterfaceNumeric {
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = subInterface().callFunction(name, inputArguments, outputArguments)
+  }
+
+  final case class ExecutorInterfaceWithDirectLibrary(code: String, codeData: Vector[Byte])
+    extends ArrowNativeInterfaceNumeric {
+    override def callFunctionGen(
+      name: String,
+      inputArguments: List[Option[SupportedVectorWrapper]],
+      outputArguments: List[Option[SupportedVectorWrapper]]
+    ): Unit = {
+      val libPath = Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code, codeData)
+      new VeArrowNativeInterfaceNumericLazyLib(
+        Aurora4SparkExecutorPlugin._veo_proc,
+        libPath.toString
+      )
+        .callFunctionGen(name, inputArguments, outputArguments)
+    }
   }
 }
