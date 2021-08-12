@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.agent.{AttachExecutorLifecycle, ExecutorAttachmentBuilder}
 import com.nec.aurora.Aurora
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeCompiler.CNativeCompiler
@@ -39,7 +40,9 @@ final class DynamicVeSqlExpressionEvaluationSpec
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
   }
   override protected def beforeAll(): Unit = {
-    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
+    ExecutorAttachmentBuilder
+      .using(AttachExecutorLifecycle.ServiceBasedExecutorLifecycle)
+      .installOnByteBuddyAgent()
     super.beforeAll()
   }
   "Different single-column expressions can be evaluated" - {
