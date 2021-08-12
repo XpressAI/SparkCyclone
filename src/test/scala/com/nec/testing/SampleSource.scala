@@ -2,14 +2,13 @@ package com.nec.testing
 
 import com.nec.spark.SampleTestData.SampleMultiColumnCSV
 import com.nec.spark.SampleTestData.SampleTwoColumnParquet
+
 import org.apache.spark.sql.SparkSession
 import com.nec.testing.Testing.DataSize.BenchmarkSize
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.nec.testing.Testing.DataSize
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
 
+import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 import java.nio.file.Paths
 
 sealed trait SampleSource extends Serializable {

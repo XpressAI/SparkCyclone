@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <limits>
+#include <iostream>
 #ifndef VE_TD_DEFS
 typedef struct
 {
@@ -30,7 +33,7 @@ typedef struct
 
 typedef struct
 {
-    long long *data;
+    long *data;
     int count;
 } non_null_bigint_vector;
 

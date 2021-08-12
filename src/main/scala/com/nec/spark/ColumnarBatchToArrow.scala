@@ -6,7 +6,6 @@ import org.apache.arrow.vector.Float8Vector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
-
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarBatchToArrow extends LazyLogging {

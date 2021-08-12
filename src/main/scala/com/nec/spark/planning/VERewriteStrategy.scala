@@ -2,11 +2,14 @@ package com.nec.spark.planning
 import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation
-import com.nec.spark.agile.CExpressionEvaluation.{RichListStr, NameCleaner}
+import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
+import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, Alias, AttributeReference}
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -44,30 +47,46 @@ object VERewriteStrategy {
 final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: NativeEvaluator)
   extends Strategy {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+    def fName: String = s"eval_${Math.abs(plan.hashCode())}"
     if (VERewriteStrategy._enabled) {
       plan match {
-        case logical.Project(resultExpressions, child) if !resultExpressions.forall {
+        case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
               /** If it's just a rename, don't send to VE * */
               case a: Alias if a.child.isInstanceOf[Attribute] => true
+              case a: AttributeReference                       => true
               case _                                           => false
             } =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
+              fName,
               resultExpressions,
               CExpressionEvaluation
-                .cGenProject(child.output, resultExpressions),
+                .cGenProject(fName, proj.references.map(_.name).toSet, child.output, resultExpressions),
               planLater(child),
+              proj.references.map(_.name).toSet,
               nativeEvaluator
             )
           )
-        case logical.Aggregate(
-              groupingExpressions,
-              outerResultExpressions,
-              child
-            ) if GroupBySum.isLogicalGroupBySum(plan) =>
-          List(SimpleGroupBySumPlan(planLater(child),nativeEvaluator, GroupByMethod.VEBased))
-        case logical.Aggregate(
+
+        case sort @ logical.Sort(Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)), true, child) => {
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          List(
+            SimpleSortPlan(
+              fName,
+              sort.inputSet.toSeq,
+              CExpressionEvaluation.cGenSort(fName, sort.output, a),
+              planLater(child),
+              sort.references.map(_.name).toSet,
+              nativeEvaluator
+            )
+          )
+        }
+
+        case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
+            if GroupBySum.isLogicalGroupBySum(plan) =>
+          List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
+        case agg @ logical.Aggregate(
               groupingExpressions,
               outerResultExpressions,
               logical.Project(exprs, child)
@@ -80,17 +99,20 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
             catch {
               case e: Throwable =>
                 throw new IllegalArgumentException(
-                  s"Could not process project+aggregate of ${exprs} ==> ${outerResultExpressions}: $e",
+                  s"Could not process project+aggregate of $exprs ==> $outerResultExpressions: $e",
                   e
                 )
             }
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
+              fName,
               resultExpressions,
               List(
                 CExpressionEvaluation
                   .cGen(
+                    fName,
+                    agg.references.map(_.name).toSet,
                     child.output,
                     resultExpressions.map { re =>
                       (
@@ -106,22 +128,26 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                 List("}")
               ).flatten.codeLines,
               planLater(child),
+              agg.references.map(_.name).toSet,
               nativeEvaluator
             )
           )
 
         /** There can be plans where we have Cast(Alias(AggEx) as String) - this is not yet supported */
-        case logical.Aggregate(groupingExpressions, resultExpressions, child)
+        case agg @ logical.Aggregate(groupingExpressions, resultExpressions, child)
             if resultExpressions.forall(e =>
               e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
             ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
+              fName,
               resultExpressions,
               List(
                 CExpressionEvaluation
                   .cGen(
+                    fName,
+                    agg.references.map(_.name).toSet,
                     child.output,
                     resultExpressions.map { re =>
                       (
@@ -137,6 +163,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                 List("}")
               ).flatten.codeLines,
               planLater(child),
+              agg.references.map(_.name).toSet,
               nativeEvaluator
             )
           )
