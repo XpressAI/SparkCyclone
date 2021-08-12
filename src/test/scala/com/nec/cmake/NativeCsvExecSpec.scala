@@ -37,7 +37,7 @@ final class NativeCsvExecSpec
     assert(allItems == List((1d, 2d, 3d), (4.1000000000000005, 5d, 6d)))
   }
 
-  "Transform this input stream thing into a columnar batch" in {
+  "Transform this input stream thing into a columnar batch" ignore {
     val is = new ByteArrayInputStream("a,b,c\n1,2,3\n4.1,5,6\n".getBytes())
     val colBatch =
       transformInputStream(3, 3, CNativeEvaluator.forCode(CsvParse.CsvParseCode), "test-file", is)(
