@@ -42,7 +42,7 @@ final class NativeVeCsvExecSpec
     }
   }
 
-  "We can parse a CSV with a unix socket + VE" in {
+  "We can parse a CSV with a unix socket + VE" ignore {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
     val evaluator =
       new VectorEngineNativeEvaluator(proc, compiler).forCode(CsvParse.CsvParseCode)
