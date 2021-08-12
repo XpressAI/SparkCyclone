@@ -7,11 +7,10 @@ import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.codegen.{BufferHolder, UnsafeRowWriter}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, UnsafeRow}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 case class SimpleSortPlan( fName: String,
@@ -44,7 +43,7 @@ case class SimpleSortPlan( fName: String,
             arrowWriter.finish()
 
             val inputVectors = output.zipWithIndex.map { case (attr, idx) =>
-              root.getVector(idx)
+              root.getFieldVectors.get(idx)
             }
             arrowWriter.finish()
 
@@ -68,15 +67,17 @@ case class SimpleSortPlan( fName: String,
               inputVectors.foreach(_.close())
             }
             (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
-              val writer = new UnsafeRowWriter(outputVectors.size)
-              writer.reset()
+              val row = new UnsafeRow(outputVectors.size)
+              val holder = new BufferHolder(row)
+              val writer = new UnsafeRowWriter(holder, resultExpressions.size)
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
                 if (v_idx < v.getValueCount()) {
-                  val doubleV = v.getValueAsDouble(v_idx)
+                  val doubleV = v.get(v_idx)
+                  holder.reset()
                   writer.write(c_idx, doubleV)
                 }
               }
-              writer.getRow
+              row
             }
 
           }

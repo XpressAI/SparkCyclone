@@ -53,7 +53,7 @@ object CExpressionEvaluation {
     expression match {
       case e: AttributeReference => 
         inputs(indexForInput(inputs, expression)).dataType
-      case Subtract(left, right, _) =>
+      case Subtract(left, right) =>
         val leftType = dataTypeOfSub(inputs, left)
         val rightType = dataTypeOfSub(inputs, right)
         if (leftType == DoubleType || rightType == DoubleType) {
@@ -61,7 +61,7 @@ object CExpressionEvaluation {
         } else {
           leftType
         }
-      case Multiply(left, right, _) =>
+      case Multiply(left, right) =>
         val leftType = dataTypeOfSub(inputs, left)
         val rightType = dataTypeOfSub(inputs, right)
         if (leftType == DoubleType || rightType == DoubleType) {
@@ -69,7 +69,7 @@ object CExpressionEvaluation {
         } else {
           leftType
         }
-      case Add(left, right, _) =>
+      case Add(left, right) =>
         val leftType = dataTypeOfSub(inputs, left)
         val rightType = dataTypeOfSub(inputs, right)
         if (leftType == DoubleType || rightType == DoubleType) {
@@ -77,7 +77,7 @@ object CExpressionEvaluation {
         } else {
           leftType
         }
-      case Divide(left, right, _) => 
+      case Divide(left, right) =>
         val leftType = dataTypeOfSub(inputs, left)
         val rightType = dataTypeOfSub(inputs, right)
         if (leftType == DoubleType || rightType == DoubleType) {
@@ -95,7 +95,7 @@ object CExpressionEvaluation {
         dataTypeOfSub(inputs, child)
       case Max(child) =>
         dataTypeOfSub(inputs, child)
-      case Corr(_, _, _) => 
+      case Corr(_, _) =>
         DoubleType
       case Literal(v, DoubleType) =>
         DoubleType
@@ -286,7 +286,7 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
       case Add(left, right) =>
         s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
-      case Divide(left, right, _) => 
+      case Divide(left, right) =>
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
@@ -304,13 +304,13 @@ object CExpressionEvaluation {
           case idx =>
             s"input_${idx}->data[indices[i]]"
         }
-      case Subtract(left, right, _) =>
+      case Subtract(left, right) =>
         s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
-      case Multiply(left, right, _) =>
+      case Multiply(left, right) =>
         s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
-      case Add(left, right, _) =>
+      case Add(left, right) =>
         s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
-      case Divide(left, right, _) =>
+      case Divide(left, right) =>
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
@@ -355,7 +355,7 @@ object CExpressionEvaluation {
             s"long ${cleanName}_counted = 0;"
           ),
           iter = List(
-            s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
+            s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};"
           ),
           result = List(
             s"${outputSum}->data[0] = ${cleanName}_accumulated;",
@@ -398,7 +398,7 @@ object CExpressionEvaluation {
             s"if (${cleanName}_min > ${evaluateSub(inputs, sub)}) ${cleanName}_min = ${evaluateSub(inputs, sub)};"
           ),
           result = List(
-            s"${outputMin}->data[0] = ${cleanName}_min;",
+            s"${outputMin}->data[0] = ${cleanName}_min;"
           ),
           outputArguments = inputs(idx).dataType match {
             case DoubleType => List(s"non_null_double_vector* ${outputMin}")
@@ -419,7 +419,7 @@ object CExpressionEvaluation {
             s"if (${cleanName}_max < ${evaluateSub(inputs, sub)}) ${cleanName}_max = ${evaluateSub(inputs, sub)};"
           ),
           result = List(
-            s"${outputMax}->data[0] = ${cleanName}_max;",
+            s"${outputMax}->data[0] = ${cleanName}_max;"
           ),
           outputArguments = inputs(idx).dataType match {
             case DoubleType => List(s"non_null_double_vector* ${outputMax}")
@@ -428,7 +428,7 @@ object CExpressionEvaluation {
           }
         )
 
-      case Corr(left, right, _) =>
+      case Corr(left, right) =>
         val outputCorr = s"output_${idx}_corr"
 
         AggregateDescription(

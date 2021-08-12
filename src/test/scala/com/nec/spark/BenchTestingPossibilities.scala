@@ -75,7 +75,7 @@ object BenchTestingPossibilities {
     source: SampleSource,
     testingTarget: TestingTarget,
     offHeapMode: Option[VeColumnMode],
-    csvStrategy: Option[CsvStrategy],
+    csvStrategy: Option[CsvStrategy]
   ) extends Testing {
 
     type Result = (Double, Double, Long)
