@@ -1,10 +1,11 @@
 package com.nec.spark
 
+import com.nec.native.NativeCompiler
+import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 import com.nec.spark.planning.NativeCsvExec
 import com.nec.native.NativeEvaluator.CNativeEvaluator
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 
 final class NativeCsvExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
@@ -13,8 +14,9 @@ final class NativeCsvExtension extends (SparkSessionExtensions => Unit) with Log
       val selection = conf.get("spark.com.nec.native-csv", "false").toLowerCase()
       selection match {
         case "x86" => NativeCsvExec.NativeCsvStrategy(CNativeEvaluator)
-        case "ve"  => NativeCsvExec.NativeCsvStrategy(ExecutorPluginManagedEvaluator)
-        case _     => EmptyStrategy
+        case "ve" =>
+          NativeCsvExec.NativeCsvStrategy(new InMemoryLibraryEvaluator(NativeCompiler.fromConfig(conf)))
+        case _ => EmptyStrategy
       }
     }
   }

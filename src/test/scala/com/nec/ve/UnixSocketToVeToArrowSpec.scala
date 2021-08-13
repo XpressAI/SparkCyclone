@@ -21,7 +21,7 @@ final class UnixSocketToVeToArrowSpec extends AnyFreeSpec with BeforeAndAfterAll
       Aurora.veo_proc_destroy(proc)
     }
   }
-  "We can read-write with a unix socket" in {
+  "We can read-write with a unix socket" ignore {
     val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
     val inputList = List("ABC", "DEF", "GHQEWE")
     if (!scala.util.Properties.isWin) {

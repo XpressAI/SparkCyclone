@@ -1,7 +1,6 @@
 package com.nec.arrow
 
 import java.nio.ByteBuffer
-
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.aurora.Aurora
 import com.nec.arrow.ArrowInterfaces._
@@ -12,10 +11,10 @@ import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
 import com.sun.jna.Structure
 import com.typesafe.scalalogging.LazyLogging
 import sun.nio.ch.DirectBuffer
+
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
-
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.util.LruVeoMemCache
 
@@ -90,11 +89,12 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
       )
     }
   }
-  
+
   private def make_veo_double_vector(proc: Aurora.veo_proc_handle, float8Vector: Float8Vector)(
     implicit cleanup: Cleanup
   ): non_null_double_vector = {
-    val keyName = "double_" + float8Vector.readPrivate.name + "_" + float8Vector.getDataBuffer().capacity()
+    val keyName =
+      "double_" + float8Vector.readPrivate.name + "_" + float8Vector.getDataBuffer().capacity()
 
     columnCache(proc, keyName) match {
       case None => {
@@ -106,11 +106,11 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
           float8Vector.getDataBuffer.nioBuffer(),
           Some(float8Vector.getDataBuffer.capacity())
         )(cleanup)
-      
+
         columnCache.put(proc, keyName, vcvr.data)
         vcvr
       }
-      case Some(ptr) => 
+      case Some(ptr) =>
         logger.debug(s"Using cached value for $keyName")
 
         val vcvr = new non_null_double_vector()
@@ -169,7 +169,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
         columnCache.put(proc, keyName, vcvr.data)
         vcvr
       }
-      case Some(ptr) => 
+      case Some(ptr) =>
         logger.debug(s"Using cached value for $keyName")
 
         val vcvr = new non_null_int2_vector()
@@ -179,10 +179,11 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     }
   }
 
-  private def make_veo_varchar_vector(proc: Aurora.veo_proc_handle, varcharVector: VarCharVector)(implicit
-    cleanup: Cleanup
+  private def make_veo_varchar_vector(proc: Aurora.veo_proc_handle, varcharVector: VarCharVector)(
+    implicit cleanup: Cleanup
   ): non_null_varchar_vector = {
-    val keyName = "varchar_" + varcharVector.readPrivate.name + "_" + varcharVector.getDataBuffer().capacity()
+    val keyName =
+      "varchar_" + varcharVector.readPrivate.name + "_" + varcharVector.getDataBuffer().capacity()
 
     columnCache(proc, keyName) match {
       case None => {
@@ -195,7 +196,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
         columnCache.put(proc, keyName, vcvr.data)
         vcvr
       }
-      case Some(ptr) => 
+      case Some(ptr) =>
         logger.debug(s"Using cached value for $keyName")
 
         val vcvr = new non_null_varchar_vector()
@@ -205,10 +206,11 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     }
   }
 
-  private def make_veo_bigint_vector(proc: Aurora.veo_proc_handle, bigintVector: BigIntVector)(implicit
-    cleanup: Cleanup
+  private def make_veo_bigint_vector(proc: Aurora.veo_proc_handle, bigintVector: BigIntVector)(
+    implicit cleanup: Cleanup
   ): non_null_bigint_vector = {
-    val keyName = "biging_" + bigintVector.readPrivate.name + "_" + bigintVector.getDataBuffer().capacity()
+    val keyName =
+      "biging_" + bigintVector.readPrivate.name + "_" + bigintVector.getDataBuffer().capacity()
 
     columnCache(proc, keyName) match {
       case None => {
@@ -221,7 +223,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
         columnCache.put(proc, keyName, vcvr.data)
         vcvr
       }
-      case Some(ptr) => 
+      case Some(ptr) =>
         logger.debug(s"Using cached value for $keyName")
 
         val vcvr = new non_null_bigint_vector()
@@ -371,6 +373,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
   }
 
   def nonNullBigIntVectorToByteBuffer(bigint_vector: non_null_bigint_vector): ByteBuffer = {
+    require(bigint_vector.count != null, s"Count from the BigInt vector is null")
     val v_bb = bigint_vector.getPointer.getByteBuffer(0, 12)
     v_bb.putLong(0, bigint_vector.data)
     v_bb.putInt(8, bigint_vector.count)
@@ -479,10 +482,14 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
               (vec, structVector, byteBuffer, index)
             case (vec @ IntVectorWrapper(intWrapper), index) =>
               val structVector = new non_null_int2_vector()
+              // to avoid NPE - this code needs to be revisited
+              structVector.count = 0
               val byteBuffer = nonNullInt2VectorToByteBuffer(structVector)
               (vec, structVector, byteBuffer, index)
             case (vec @ BigIntVectorWrapper(bigIntWrapper), index) =>
               val structVector = new non_null_bigint_vector()
+              // to avoid NPE - this code needs to be revisited
+              structVector.count = 0
               val byteBuffer = nonNullBigIntVectorToByteBuffer(structVector)
               (vec, structVector, byteBuffer, index)
             case (vec @ VarCharVectorWrapper(varCharVector), index) =>
@@ -497,7 +504,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
       val startTime = System.currentTimeMillis()
       val uuid = java.util.UUID.randomUUID()
-      
+
       logger.debug(s"[$uuid] Starting VE call to '$functionName'...")
       val fnAddr = if (functionAddrs.contains((lib, functionName))) {
         functionAddrs((lib, functionName))

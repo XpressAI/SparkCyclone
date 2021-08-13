@@ -48,36 +48,29 @@ object Aurora4SparkExecutorPlugin {
 
   trait LibraryStorage {
     // Get a local copy of the library for loading
-    def getLocalLibraryPath(code: String): Path
+    def getLocalLibraryPath(code: String, libraryData: Vector[Byte]): Path
   }
 
-  final class DriverFetchingLibraryStorage(
-    f: RequestCompiledLibraryForCode => RequestCompiledLibraryResponse
-  ) extends LibraryStorage
-    with LazyLogging {
+  final class SimpleLibraryStorage extends LibraryStorage with LazyLogging {
 
     private var locallyStoredLibs = Map.empty[String, Path]
 
     /** Get a local copy of the library for loading */
-    override def getLocalLibraryPath(code: String): Path = this.synchronized {
-      locallyStoredLibs.get(code) match {
-        case Some(result) =>
-          logger.debug("Cache hit for executor-fetch for code.")
-          result
-        case None =>
-          logger.debug("Cache miss for executor-fetch for code; asking Driver.")
-          val result = f(RequestCompiledLibraryForCode(code))
-          if (result == null) {
-            sys.error(s"Could not fetch library: ${code}")
-          } else {
+    override def getLocalLibraryPath(code: String, libraryData: Vector[Byte]): Path =
+      this.synchronized {
+        locallyStoredLibs.get(code) match {
+          case Some(result) =>
+            logger.debug("Cache hit for executor-fetch for code.")
+            result
+          case None =>
+            logger.debug("Cache miss for executor-fetch for code; asking Driver.")
             val localPath = Files.createTempFile("ve_fn", ".lib")
-            Files.write(localPath, result.byteString.toArray)
+            Files.write(localPath, libraryData.toArray)
             logger.debug(s"Saved file to '$localPath'")
             locallyStoredLibs += code -> localPath
             localPath
-          }
+        }
       }
-    }
   }
 
   var libraryStorage: LibraryStorage = _
@@ -91,9 +84,7 @@ class Aurora4SparkExecutorPlugin extends Logging {
     logInfo(s"Using VE node = ${selectedVeNodeId}")
 
     Aurora4SparkExecutorPlugin.libraryStorage =
-      new Aurora4SparkExecutorPlugin.DriverFetchingLibraryStorage(_ =>
-        sys.error("Fetching functionality is not currently implemented")
-      )
+      new Aurora4SparkExecutorPlugin.SimpleLibraryStorage()
 
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)

@@ -2,12 +2,15 @@ package com.nec.native
 
 import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.DeferredArrowInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterfaceNumeric.ExecutorInterfaceWithInMemoryLibrary
 import com.nec.arrow.CArrowNativeInterfaceNumeric
 import com.nec.arrow.VeArrowNativeInterfaceNumeric.VeArrowNativeInterfaceNumericLazyLib
 import com.nec.aurora.Aurora
 import com.nec.native.NativeCompiler.CNativeCompiler
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.typesafe.scalalogging.LazyLogging
+
+import java.nio.file.Files
 
 trait NativeEvaluator extends Serializable {
   def forCode(code: String): ArrowNativeInterfaceNumeric
@@ -34,20 +37,13 @@ object NativeEvaluator {
     }
   }
 
-  case object ExecutorPluginManagedEvaluator extends NativeEvaluator with LazyLogging {
-    def forCode(code: String): ArrowNativeInterfaceNumeric = {
-      // defer because we need the executors to initialize first
-      logger.debug(s"For evaluation, will refer to the Executor Plugin")
-      DeferredArrowInterfaceNumeric(() => {
-        require(
-          Aurora4SparkExecutorPlugin.libraryStorage != null,
-          "libraryStorage has not been initialized. The Aurora Executor Plugin might not have been launched"
-        )
-        new VeArrowNativeInterfaceNumericLazyLib(
-          Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
-        )
-      })
+  final case class InMemoryLibraryEvaluator(nativeCompiler: NativeCompiler) extends NativeEvaluator with LazyLogging {
+    override def forCode(
+      code: String
+    ): ArrowNativeInterfaceNumeric = {
+      val localLib = nativeCompiler.forCode(code)
+      val libValue = Files.readAllBytes(localLib)
+      ExecutorInterfaceWithInMemoryLibrary(code, libValue.toVector)
     }
   }
 

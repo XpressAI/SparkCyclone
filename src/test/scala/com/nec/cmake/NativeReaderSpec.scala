@@ -190,7 +190,7 @@ final class NativeReaderSpec
     }
   }
 
-  "We can read-write with a unix socket from an input stream" in {
+  "We can read-write with a unix socket from an input stream" ignore {
     val inputList = List("ABC", "DEF", "GHQEWE123")
     if (!scala.util.Properties.isWin) {
       val inputStream = new ByteArrayInputStream(inputList.mkString.getBytes())
