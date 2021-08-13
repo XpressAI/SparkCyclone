@@ -33,7 +33,8 @@ ln -f -s /opt/nec/ve/bin/ncc ~/.local/bin/ncc
 ln -f -s /opt/nec/ve/bin/nc++ ~/.local/bin/nc++
 ln -f -s /opt/nec/ve/bin/ps ~/.local/bin/veps
 source /opt/rh/devtoolset-9/enable
-export SPARK_SCALA_VERSION=2.12
+export SPARK_SCALA_VERSION=2.11
+export SPARK_HOME=/opt/spark-2.3
 ```
 
 ## Cluster tests
