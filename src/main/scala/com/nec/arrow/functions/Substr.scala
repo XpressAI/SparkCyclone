@@ -18,7 +18,7 @@ object Substr {
   }
 
   val SourceCode: String = {
-    val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("substr.c"))
+    val source = scala.io.Source.fromInputStream(getClass.getResourceAsStream("substr.cpp"))
     try source.mkString
     finally source.close()
   }

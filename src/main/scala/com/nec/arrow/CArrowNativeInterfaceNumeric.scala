@@ -71,11 +71,13 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
       }
       .toArray
 
-    logger.debug(s"Invoke args are => ${invokeArgs.mkString(", ")}")
+    def ia: String = invokeArgs.mkString("[", ",", "]")
+
+    logger.debug(s"Invoke args are => $ia (size ${invokeArgs.length})")
 
     fn.invokeLong(invokeArgs)
 
-    logger.debug(s"Result of invoke args => ${invokeArgs.mkString(", ")}")
+    logger.debug(s"Result of invoke args => $ia (size ${invokeArgs.length})")
 
     outputStructs.zip(outputArguments).foreach {
       case (Some(struct), Some(Float8VectorWrapper(vec))) =>

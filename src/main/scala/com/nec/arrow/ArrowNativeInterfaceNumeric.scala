@@ -7,11 +7,18 @@ import com.typesafe.scalalogging.LazyLogging
 import java.nio.ByteBuffer
 
 trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
+
   final def callFunction(
     name: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
-  ): Unit = callFunction(name, Nil, inputArguments, outputArguments)
+  ): Unit = callFunction(
+    name = name,
+    stackInputs = List.fill(Math.max(inputArguments.size, outputArguments.size))(None),
+    inputArguments = inputArguments,
+    outputArguments = outputArguments
+  )
+
   final def callFunction(
     name: String,
     stackInputs: List[Option[SupportedStackInput]],
@@ -24,7 +31,7 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
       logger.whenTraceEnabled {
         logger.trace(s"Input is: ${inputArguments}")
       }
-      val result = callFunctionGen(
+      callFunctionGen(
         name = name,
         stackInputs = stackInputs,
         inputArguments = inputArguments,
@@ -49,7 +56,8 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
     stackInputs: List[Option[SupportedStackInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
-  )
+  ): Unit
+
 }
 object ArrowNativeInterfaceNumeric {
   object StackInput {

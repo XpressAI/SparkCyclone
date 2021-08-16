@@ -6,14 +6,20 @@ import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
 import com.nec.spark.agile.CExpressionEvaluation.RichListStr
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
+import org.apache.spark.sql.catalyst.expressions.SortOrder
+import org.apache.spark.sql.catalyst.expressions.Substring
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.IntegerType
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -50,6 +56,30 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
     def fName: String = s"eval_${Math.abs(plan.hashCode())}"
     if (VERewriteStrategy._enabled) {
       plan match {
+        case proj @ logical.Project(
+              Seq(
+                Alias(
+                  Substring(
+                    inputExpr,
+                    Literal(beginIndex: Int, IntegerType),
+                    Literal(endIndex: Int, IntegerType)
+                  ),
+                  tgt
+                )
+              ),
+              child
+            ) =>
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          List(
+            NewCEvaluationPlan(
+              fName,
+              child.output,
+              NewCExpressionEvaluation.evaluate(fName, child.output, tgt, beginIndex, endIndex),
+              planLater(child),
+              proj.references.map(_.name).toSet,
+              nativeEvaluator
+            )
+          )
         case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
               /** If it's just a rename, don't send to VE * */
               case a: Alias if a.child.isInstanceOf[Attribute] => true
@@ -57,19 +87,32 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               case _                                           => false
             } =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          List(
+          try List(
             CEvaluationPlan(
               fName,
               resultExpressions,
               CExpressionEvaluation
-                .cGenProject(fName, proj.references.map(_.name).toSet, child.output, resultExpressions),
+                .cGenProject(
+                  fName,
+                  proj.references.map(_.name).toSet,
+                  child.output,
+                  resultExpressions
+                ),
               planLater(child),
               proj.references.map(_.name).toSet,
               nativeEvaluator
             )
           )
+          catch {
+            case e: Throwable =>
+              throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
+          }
 
-        case sort @ logical.Sort(Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)), true, child) => {
+        case sort @ logical.Sort(
+              Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)),
+              true,
+              child
+            ) => {
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             SimpleSortPlan(
