@@ -33,6 +33,14 @@ typedef struct
 
 typedef struct
 {
+    double *data;
+    long count;
+    unsigned char* validityBuffer;
+
+} nullable_double_vector;
+
+typedef struct
+{
     long *data;
     int count;
 } non_null_bigint_vector;

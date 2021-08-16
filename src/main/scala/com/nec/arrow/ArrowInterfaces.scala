@@ -33,6 +33,14 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_double_vector(float8Vector: Float8Vector): nullable_double_vector = {
+    val vc = new nullable_double_vector()
+    vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = float8Vector.getValidityBufferAddress
+    vc.count = float8Vector.getValueCount
+    vc
+  }
+
   def c_non_null_varchar_vector(varCharVector: VarCharVector): non_null_varchar_vector = {
     val vc = new non_null_varchar_vector()
     vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -119,6 +127,27 @@ object ArrowInterfaces {
     float8Vector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
     getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.size())
+  }
+
+  def nullable_double_vector_to_float8Vector(
+                                              input: nullable_double_vector,
+                                              float8Vector: Float8Vector
+                                            ): Unit = {
+    if (input.count == 0xffffffff) {
+      sys.error(s"Returned count was infinite; input ${input}")
+    }
+    float8Vector.setValueCount(input.count)
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.validityBuffer,
+      float8Vector.getValidityBufferAddress,
+      Math.ceil(input.count/8).toInt
+    )
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.data,
+      float8Vector.getDataBufferAddress,
+      input.size()
+    )
+    println("PIESEK")
   }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {
