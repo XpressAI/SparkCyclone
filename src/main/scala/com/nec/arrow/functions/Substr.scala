@@ -1,12 +1,13 @@
 package com.nec.arrow.functions
+
+import com.nec.arrow.ArrowNativeInterfaceNumeric
 import com.nec.arrow.ArrowNativeInterfaceNumeric.StackInput
 import org.apache.arrow.vector.VarCharVector
 import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.VarCharVectorWrapper
-import com.nec.arrow.CArrowNativeInterfaceNumeric
 
 object Substr {
   def runOn(
-    numeric: CArrowNativeInterfaceNumeric
+    numeric: ArrowNativeInterfaceNumeric
   )(input: VarCharVector, output: VarCharVector, beginIndex: Int, endIndex: Int): Unit = {
     numeric.callFunction(
       name = "ve_substr",
