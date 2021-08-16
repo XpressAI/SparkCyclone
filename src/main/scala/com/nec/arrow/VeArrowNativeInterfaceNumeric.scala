@@ -17,6 +17,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 
 import com.nec.util.LruVeoMemCache
+import java.nio.ByteOrder
 
 final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Long)
   extends ArrowNativeInterfaceNumeric {
@@ -193,9 +194,9 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
         val vcvr = new non_null_varchar_vector()
         vcvr.count = varcharVector.getValueCount
+        vcvr.size = varcharVector.getOffsetBuffer.getInt(4 * vcvr.count)
         vcvr.data = copyBufferToVe(proc, varcharVector.getDataBuffer.nioBuffer())(cleanup)
-
-        columnCache.put(proc, keyName, vcvr.data)
+        vcvr.offsets = copyBufferToVe(proc, varcharVector.getOffsetBuffer.nioBuffer())(cleanup)
         vcvr
       }
       case Some(ptr) => 
@@ -386,6 +387,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     val v_bb = varchar_vector.getPointer.getByteBuffer(0, 24)
     v_bb.putLong(0, varchar_vector.data)
     v_bb.putLong(8, varchar_vector.offsets)
+    v_bb.order(ByteOrder.LITTLE_ENDIAN)
     v_bb.putInt(16, varchar_vector.size)
     v_bb.putInt(20, varchar_vector.count)
     v_bb
@@ -403,6 +405,12 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     val our_args = Aurora.veo_args_alloc()
     implicit val cleanup: Cleanup = new Cleanup()
     try {
+
+      stackInputs.zipWithIndex.collect {
+        case (Some(SupportedStackInput.ForInt(num)), idx) =>
+          requireOk(Aurora.veo_args_set_i32(our_args, idx, num))
+      }
+
       inputArguments.zipWithIndex
         .collect { case (Some(doubleVector), idx) =>
           doubleVector -> idx
@@ -450,7 +458,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
                 0,
                 index,
                 nonNullVarCharVectorVectorToByteBuffer(varchar_vector_raw),
-                12L
+                24L
               )
             )
 

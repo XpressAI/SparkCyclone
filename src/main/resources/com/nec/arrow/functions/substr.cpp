@@ -8,6 +8,7 @@
 extern "C" long ve_substr(non_null_varchar_vector* input_strings, non_null_varchar_vector* output_strings, int beginIndex, int endIndex) {
     int length = input_strings->offsets[input_strings->count];
     std::string output_result("");
+    std::string input_str(input_strings->data, input_strings->size);
     std::vector<int> output_offsets;
     int currentOffset = 0;
     for ( int i = 0; i < input_strings->count; i++ ) {
