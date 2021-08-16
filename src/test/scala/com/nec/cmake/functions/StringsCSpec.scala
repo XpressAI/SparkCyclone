@@ -19,7 +19,7 @@ final class StringsCSpec extends AnyFreeSpec {
         List(TransferDefinitions.TransferDefinitionsSourceCode, Substr.SourceCode)
           .mkString("\n\n")
       )
-      Substr.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vcv, outVector)
+      Substr.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vcv, outVector, 1, 3)
       val expectedOutput = inputStrings.map(_.substring(1, 3)).toList
 
       try assert(outVector.toList == expectedOutput)

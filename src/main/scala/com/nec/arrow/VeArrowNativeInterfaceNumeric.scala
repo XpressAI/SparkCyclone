@@ -22,6 +22,7 @@ final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Lon
   extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
     name: String,
+    stackInputs: List[Option[SupportedStackInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
@@ -29,6 +30,7 @@ final class VeArrowNativeInterfaceNumeric(proc: Aurora.veo_proc_handle, lib: Lon
       proc = proc,
       lib = lib,
       functionName = name,
+      stackInputs = stackInputs,
       inputArguments = inputArguments,
       outputArguments = outputArguments
     )
@@ -49,6 +51,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
       name: String,
+      stackInputs: List[Option[SupportedStackInput]],
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
     ): Unit = {
@@ -84,6 +87,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
 
       new VeArrowNativeInterfaceNumeric(proc, lib).callFunctionGen(
         name,
+        stackInputs,
         inputArguments,
         outputArguments
       )
@@ -391,6 +395,7 @@ object VeArrowNativeInterfaceNumeric extends LazyLogging {
     proc: Aurora.veo_proc_handle,
     lib: Long,
     functionName: String,
+    stackInputs: List[Option[SupportedStackInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {

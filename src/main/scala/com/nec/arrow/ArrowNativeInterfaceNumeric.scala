@@ -11,6 +11,12 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
     name: String,
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
+  ): Unit = callFunction(name, Nil, inputArguments, outputArguments)
+  final def callFunction(
+    name: String,
+    stackInputs: List[Option[SupportedStackInput]],
+    inputArguments: List[Option[SupportedVectorWrapper]],
+    outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
     try {
       val startTime = System.currentTimeMillis()
@@ -20,6 +26,7 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
       }
       val result = callFunctionGen(
         name = name,
+        stackInputs = stackInputs,
         inputArguments = inputArguments,
         outputArguments = outputArguments
       )
@@ -39,20 +46,28 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
 
   def callFunctionGen(
     name: String,
+    stackInputs: List[Option[SupportedStackInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   )
 }
 object ArrowNativeInterfaceNumeric {
+  object StackInput {
+    def apply(int: Int): SupportedStackInput = SupportedStackInput.ForInt(int)
+  }
+  sealed trait SupportedStackInput {}
+  object SupportedStackInput {
+    case class ForInt(value: Int) extends SupportedStackInput
+  }
   sealed trait SupportedVectorWrapper {}
   object SupportedVectorWrapper {
     def wrapVector(valueVector: ValueVector): SupportedVectorWrapper = {
-          valueVector match {
-            case intVector: IntVector => IntVectorWrapper(intVector)
-            case float8Vecot: Float8Vector => Float8VectorWrapper(float8Vecot)
-            case varcharVector: VarCharVector => VarCharVectorWrapper(varcharVector)
-            case bigintVector: BigIntVector => BigIntVectorWrapper(bigintVector)
-          }
+      valueVector match {
+        case intVector: IntVector         => IntVectorWrapper(intVector)
+        case float8Vecot: Float8Vector    => Float8VectorWrapper(float8Vecot)
+        case varcharVector: VarCharVector => VarCharVectorWrapper(varcharVector)
+        case bigintVector: BigIntVector   => BigIntVectorWrapper(bigintVector)
+      }
     }
     final case class StringWrapper(string: String) extends SupportedVectorWrapper
     final case class VarCharVectorWrapper(varCharVector: VarCharVector)
@@ -68,8 +83,9 @@ object ArrowNativeInterfaceNumeric {
     extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
       name: String,
+      stackInputs: List[Option[SupportedStackInput]],
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
-    ): Unit = subInterface().callFunction(name, inputArguments, outputArguments)
+    ): Unit = subInterface().callFunction(name, stackInputs, inputArguments, outputArguments)
   }
 }

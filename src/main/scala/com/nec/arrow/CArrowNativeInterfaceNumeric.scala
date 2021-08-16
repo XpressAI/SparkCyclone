@@ -11,11 +11,13 @@ import com.typesafe.scalalogging.LazyLogging
 final class CArrowNativeInterfaceNumeric(libPath: String) extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
     name: String,
+    stackInputs: List[Option[SupportedStackInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = CArrowNativeInterfaceNumeric.executeC(
     libPath = libPath,
     functionName = name,
+    stackInputs = stackInputs,
     inputArguments = inputArguments,
     outputArguments = outputArguments
   )
@@ -26,6 +28,7 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
   private def executeC(
     libPath: String,
     functionName: String,
+    stackInputs: List[Option[SupportedStackInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
@@ -47,19 +50,22 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
 
     val invokeArgs: Array[java.lang.Object] = inputArguments
       .zip(outputStructs)
+      .zip(stackInputs)
       .map {
-        case ((Some(ByteBufferWrapper(buffer, size)), _)) =>
+        case (((Some(ByteBufferWrapper(buffer, size)), _)), _) =>
           c_bounded_data(buffer, size)
-        case ((Some(StringWrapper(str)), _)) =>
+        case (((Some(StringWrapper(str)), _)), _) =>
           c_bounded_string(str)
-        case ((Some(Float8VectorWrapper(vcv)), _)) =>
+        case (((Some(Float8VectorWrapper(vcv)), _)), _) =>
           c_double_vector(vcv)
-        case ((Some(IntVectorWrapper(vcv)), _)) =>
+        case (((Some(IntVectorWrapper(vcv)), _)), _) =>
           c_int2_vector(vcv)
-        case ((Some(VarCharVectorWrapper(vcv)), _)) =>
+        case (((Some(VarCharVectorWrapper(vcv)), _)), _) =>
           c_non_null_varchar_vector(vcv)
-        case ((_, Some(structVector))) =>
+        case (((_, Some(structVector))), _) =>
           structVector
+        case (_, Some(SupportedStackInput.ForInt(int))) =>
+          java.lang.Integer.valueOf(int)
         case other =>
           throw new MatchError(s"Unmatched for input: ${other}")
       }
@@ -82,7 +88,7 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
         non_null_varchar_vector_to_VarCharVector(struct.asInstanceOf[non_null_varchar_vector], vec)
       case (Some(struct), Some(output)) =>
         sys.error(s"Cannot transfer from ${struct} to ${output}: not supported")
-      case (None, _)               =>
+      case (None, _) =>
     }
 
   }
