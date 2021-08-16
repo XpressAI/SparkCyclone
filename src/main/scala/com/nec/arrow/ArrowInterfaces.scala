@@ -146,6 +146,7 @@ object ArrowInterfaces {
     varCharVector: VarCharVector,
     rootAllocator: BufferAllocator
   ): Unit = {
+    println(input)
     val res = rootAllocator.newReservation()
     res.add(input.count)
     val validityBuffer = res.allocateBuffer()
