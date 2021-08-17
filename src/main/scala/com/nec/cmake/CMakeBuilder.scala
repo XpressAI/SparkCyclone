@@ -8,9 +8,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import scala.sys.process._
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.functions.AddPairwise
-import com.nec.arrow.functions.Avg
-import com.nec.arrow.functions.Sum
 import com.nec.spark.agile.CppResource.CppResources
 
 /**
@@ -21,12 +18,7 @@ import com.nec.spark.agile.CppResource.CppResources
 object CMakeBuilder {
 
   lazy val CLibPath = buildC(
-    List(
-      TransferDefinitions.TransferDefinitionsSourceCode,
-      Sum.SumSourceCode,
-      Avg.AvgSourceCode,
-      AddPairwise.PairwiseSumCode
-    ).mkString("\n \n")
+    List(TransferDefinitions.TransferDefinitionsSourceCode).mkString("\n \n")
   )
 
   def buildC(cSource: String): Path = {

@@ -91,43 +91,45 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
     expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("52.0,6.0")))
   }
 
-  "We can write and read back a .csv collection via Hadoop (2-column) via UNIX pipes" in withSparkSession2(
-    _.config("spark.com.nec.native-csv-ipc", value = true)
-  ) { sparkSession =>
-    info(
-      "This shows that we can read these files from hdfs, and then should be able to read them as a whole and push to the VE."
-    )
-    info(
-      "Currently we get a String however to make a Byte array is very straightforward, and will bring good performance gains."
-    )
-    import sparkSession.sqlContext.implicits._
-    List[SampleRow2](
-      SampleRow2(1, 2),
-      SampleRow2(2, 3),
-      SampleRow2(3, 4),
-      SampleRow2(4, 5),
-      SampleRow2(52, 6)
-    )
-      .toDF()
-      .repartition(numPartitions = 3)
-      .write
-      .format("csv")
-      .option("header", "true")
-      .mode("overwrite")
-      .save(samplePartedCsv2)
+  if (scala.util.Properties.isWin) {
+    "We can write and read back a .csv collection via Hadoop (2-column) via UNIX pipes" in withSparkSession2(
+      _.config("spark.com.nec.native-csv-ipc", value = true)
+    ) { sparkSession =>
+      info(
+        "This shows that we can read these files from hdfs, and then should be able to read them as a whole and push to the VE."
+      )
+      info(
+        "Currently we get a String however to make a Byte array is very straightforward, and will bring good performance gains."
+      )
+      import sparkSession.sqlContext.implicits._
+      List[SampleRow2](
+        SampleRow2(1, 2),
+        SampleRow2(2, 3),
+        SampleRow2(3, 4),
+        SampleRow2(4, 5),
+        SampleRow2(52, 6)
+      )
+        .toDF()
+        .repartition(numPartitions = 3)
+        .write
+        .format("csv")
+        .option("header", "true")
+        .mode("overwrite")
+        .save(samplePartedCsv2)
 
-    val nativeIf = CNativeEvaluator
-      .forCode("""#include "unix-read.cpp"""")
-    val listOfPairs = sparkSession.sparkContext
-      .binaryFiles(samplePartedCsv2)
-      .map { case (name, pds) =>
-        name ->
-          dataISunixSocketToNativeToArrow(nativeIf, pds.open(), 1024 * 4)
-      }
-      .collect()
-      .toList
+      val nativeIf = CNativeEvaluator
+        .forCode("""#include "unix-read.cpp"""")
+      val listOfPairs = sparkSession.sparkContext
+        .binaryFiles(samplePartedCsv2)
+        .map { case (name, pds) =>
+          name ->
+            dataISunixSocketToNativeToArrow(nativeIf, pds.open(), 1024 * 4)
+        }
+        .collect()
+        .toList
 
-    expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("52.0,6.0")))
+      expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("52.0,6.0")))
+    }
   }
 
   "Execute a read of files via SQL, to see what plans it gives us when going through Native" in withSparkSession2(
@@ -192,7 +194,6 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
       .as[SampleRow]
       .selectExpr("a + b")
       .as[Double]
-
 
     val totalSum = sumDs
       .collect()
