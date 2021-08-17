@@ -9,7 +9,7 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.GroupBy._
 import com.nec.arrow.ArrowVectorBuilders
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.CArrowNativeInterface
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
 import com.nec.cmake.functions.ParseCSVSpec.RichIntVector
@@ -39,7 +39,7 @@ final class GroupByCSpec extends AnyFreeSpec {
 
       try ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
         ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-          runOn(new CArrowNativeInterfaceNumeric(soPath.toString))(
+          runOn(new CArrowNativeInterface(soPath.toString))(
             groupingColumnVec,
             valuesColumnVec,
             outGroupsVector,

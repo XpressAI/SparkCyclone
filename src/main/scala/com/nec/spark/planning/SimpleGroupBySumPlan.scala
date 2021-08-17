@@ -1,17 +1,22 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.Float8VectorWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.Float8VectorOutputWrapper
+import com.nec.arrow.ArrowNativeInterface.Float8VectorWrapper
 import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
-import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod.{JvmArrowBased, VEBased}
-import org.apache.arrow.vector.{VectorSchemaRoot, Float8Vector}
+import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod.JvmArrowBased
+import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod.VEBased
+import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
@@ -53,6 +58,7 @@ final case class SimpleGroupBySumPlan(
             case JvmArrowBased =>
               GroupBySum.groupBySumJVM(groupingVec, valuesVec)
             case VEBased =>
+              import Float8VectorWrapper._
               evaluator.callFunction(
                 "group_by_sum",
                 List(

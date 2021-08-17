@@ -22,7 +22,7 @@ import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import scala.language.dynamics
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper
+import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import org.apache.arrow.vector.VarCharVector
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
@@ -93,10 +93,10 @@ final case class NewCEvaluationPlan(
               evaluator.callFunction(
                 name = fName,
                 inputArguments = inputVectors.toList.map(iv =>
-                  Some(SupportedVectorWrapper.wrapVector(iv))
+                  Some(SupportedVectorWrapper.wrapInput(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments = inputVectors.toList.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapVector(v)))
+                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
               )
             } finally {
               inputVectors.foreach(_.close())

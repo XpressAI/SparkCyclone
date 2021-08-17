@@ -7,7 +7,7 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.GroupBySum._
 import com.nec.arrow.ArrowVectorBuilders
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.CArrowNativeInterface
 import com.nec.cmake.CMakeBuilder
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
@@ -32,7 +32,7 @@ final class GroupBySumCSpec extends AnyFreeSpec {
 
       try ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
         ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-          runOn(new CArrowNativeInterfaceNumeric(soPath.toString))(
+          runOn(new CArrowNativeInterface(soPath.toString))(
             groupingColumnVec,
             valuesColumnVec,
             outGroupsVector,

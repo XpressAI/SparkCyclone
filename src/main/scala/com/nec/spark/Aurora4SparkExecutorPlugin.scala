@@ -1,7 +1,6 @@
 package com.nec.spark
 
 import com.nec.arrow.VeArrowNativeInterface
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.aurora.Aurora
 import com.nec.aurora.Aurora.veo_proc_handle
 
@@ -25,8 +24,7 @@ object Aurora4SparkExecutorPlugin {
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
   var lib: Long = -1
-  var veArrowNativeInterface: VeArrowNativeInterface = _
-  var veArrowNativeInterfaceNumeric: VeArrowNativeInterfaceNumeric = _
+  var veArrowNativeInterfaceNumeric: VeArrowNativeInterface = _
 
   /**
    * https://www.hpc.nec/documents/veos/en/veoffload/md_Restriction.html
@@ -130,8 +128,7 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
         Aurora4SparkExecutorPlugin.lib =
           Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
       }
-      veArrowNativeInterface = new VeArrowNativeInterface(_veo_proc, lib)
-      veArrowNativeInterfaceNumeric = new VeArrowNativeInterfaceNumeric(_veo_proc, lib)
+      veArrowNativeInterfaceNumeric = new VeArrowNativeInterface(_veo_proc, lib)
     }
     logInfo("Initializing Aurora4SparkExecutorPlugin.")
     params = params ++ extraConf.asScala

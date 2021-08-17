@@ -3,7 +3,7 @@ package com.nec.spark.planning
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.ArrowVectorBuilders
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.functions.Join
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
@@ -78,7 +78,7 @@ object JoinPlanSpec {
                                     jm match {
                                       case JoinMethod.ArrowBased.VEBased =>
                                         Join.runOn(
-                                          new VeArrowNativeInterfaceNumeric(
+                                          new VeArrowNativeInterface(
                                             Aurora4SparkExecutorPlugin._veo_proc,
                                             Aurora4SparkExecutorPlugin.lib
                                           )

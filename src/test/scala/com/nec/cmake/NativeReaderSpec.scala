@@ -4,9 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.eed3si9n.expecty.Expecty.expect
 import com.google.common.io.ByteStreams
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.StringWrapper
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.VarCharVectorWrapper
+import com.nec.arrow.ArrowNativeInterface
+import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.cmake.NativeReaderSpec.dataISunixSocketToNativeToArrow
 import com.nec.cmake.NativeReaderSpec.newClientSocket
 import com.nec.cmake.NativeReaderSpec.newServerSocket
@@ -20,7 +19,6 @@ import com.nec.spark.planning.NativeCsvExec.maybeDecodePds
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.VarCharVector
 import org.apache.arrow.vector.util.Text
-import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.net.ServerSocket
@@ -59,10 +57,9 @@ object NativeReaderSpec {
     val vcv = new VarCharVector("test", allocator)
     try {
       res
-        .callFunction(
+        .callFunctionWrapped(
           "read_fully_2",
-          List(Some(StringWrapper(socketName)), None),
-          List(None, Some(VarCharVectorWrapper(vcv)))
+          List(NativeArgument.scalar(socketName), NativeArgument.output(vcv))
         )
       new String(vcv.get(0))
     } finally {
@@ -72,7 +69,7 @@ object NativeReaderSpec {
   }
 
   def dataISunixSocketToNativeToArrow(
-    res: ArrowNativeInterfaceNumeric,
+    res: ArrowNativeInterface,
     inputStream: InputStream,
     bufSize: Int
   ): String = {
@@ -82,10 +79,9 @@ object NativeReaderSpec {
     val vcv = new VarCharVector("test", allocator)
     try {
       res
-        .callFunction(
+        .callFunctionWrapped(
           "read_fully_2",
-          List(Some(StringWrapper(socketName)), None),
-          List(None, Some(VarCharVectorWrapper(vcv)))
+          List(NativeArgument.scalar(socketName), NativeArgument.output(vcv))
         )
       new String(vcv.get(0))
     } finally {
@@ -132,28 +128,19 @@ final class NativeReaderSpec
     }
   }
 
-  "We can transfer Hadoop data to the native app" in withSparkSession2(identity) {
-    sparkSession =>
-      import org.apache.spark.util.SerializableConfiguration
-      val hadoopConf = new SerializableConfiguration(sparkSession.sparkContext.hadoopConfiguration)
-      val listOfPairs =
-        sparkSession.sparkContext
-          .binaryFiles(samplePartedCsv)
-          .collect()
-          .toList
-          .map { case (name, pds) =>
-            name -> new String(
-              ByteStreams.toByteArray(
-                maybeDecodePds(
-                  name,
-                  hadoopConf,
-                  pds
-                )
-              )
-            )
-          }
+  "We can transfer Hadoop data to the native app" in withSparkSession2(identity) { sparkSession =>
+    import org.apache.spark.util.SerializableConfiguration
+    val hadoopConf = new SerializableConfiguration(sparkSession.sparkContext.hadoopConfiguration)
+    val listOfPairs =
+      sparkSession.sparkContext
+        .binaryFiles(samplePartedCsv)
+        .collect()
+        .toList
+        .map { case (name, pds) =>
+          name -> new String(ByteStreams.toByteArray(maybeDecodePds(name, hadoopConf, pds)))
+        }
 
-      expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
+    expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
   }
 
   "We can read-write to a native app" ignore {
@@ -166,10 +153,9 @@ final class NativeReaderSpec
     try {
       CNativeEvaluator
         .forCode("""#include "unix-read.cpp"""")
-        .callFunction(
+        .callFunctionWrapped(
           "read_fully",
-          List(Some(VarCharVectorWrapper(inputSock)), None),
-          List(None, Some(VarCharVectorWrapper(vcv)))
+          List(NativeArgument.input(inputSock), NativeArgument.output(vcv))
         )
       assert(new String(vcv.get(0)) == "ABC")
     } finally vcv.close()

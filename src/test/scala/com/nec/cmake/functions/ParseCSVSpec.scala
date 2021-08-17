@@ -3,8 +3,8 @@ package com.nec.cmake.functions
 import scala.util.Random
 import com.eed3si9n.expecty.Expecty.expect
 import com.eed3si9n.expecty.Expecty.assert
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterface
+import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.CsvParse
@@ -41,7 +41,7 @@ object ParseCSVSpec {
     def toList: List[Int] = (0 until IntVector.getValueCount).map(IntVector.get).toList
   }
 
-  def verifyOn(arrowInterfaceNumeric: ArrowNativeInterfaceNumeric): Unit = {
+  def verifyOn(arrowInterfaceNumeric: ArrowNativeInterface): Unit = {
     val inputColumns = List[(Double, Double, Double)]((1, 2, 3), (4, 5, 6), (7, 8, 9))
     val inputStr = inputColumns
       .map { case (a, b, c) => List(a, b, c).mkString(",") }
@@ -176,7 +176,7 @@ final class ParseCSVSpec extends AnyFreeSpec with Checkers {
       List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
         .mkString("\n\n")
     )
-    verifyOn(new CArrowNativeInterfaceNumeric(cLib.toString))
+    verifyOn(new CArrowNativeInterface(cLib.toString))
   }
 
   def notTooFar(lst: List[Double], doubles: List[Double]): Boolean = {
@@ -190,7 +190,7 @@ final class ParseCSVSpec extends AnyFreeSpec with Checkers {
       List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
         .mkString("\n\n")
     )
-    val iFace = new CArrowNativeInterfaceNumeric(cLib.toString)
+    val iFace = new CArrowNativeInterface(cLib.toString)
     WithTestAllocator { alloc =>
       val goodDouble: Gen[Double] = Gen.double
       val prop: Prop =

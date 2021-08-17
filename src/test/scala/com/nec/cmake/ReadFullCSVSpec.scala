@@ -91,7 +91,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
     expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("52.0,6.0")))
   }
 
-  if (scala.util.Properties.isWin) {
+  if (!scala.util.Properties.isWin) {
     "We can write and read back a .csv collection via Hadoop (2-column) via UNIX pipes" in withSparkSession2(
       _.config("spark.com.nec.native-csv-ipc", value = true)
     ) { sparkSession =>
