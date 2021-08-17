@@ -1,5 +1,20 @@
 #undef UNICODE
 
+#ifdef _WIN32
+extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_null_varchar_vector* output_data)
+{
+    return 0;
+}
+
+extern "C" long read_fully(non_null_varchar_vector* input_sock_name, non_null_varchar_vector* output_data)
+{
+return 0;
+}
+
+#endif
+
+#ifndef _WIN32
+
 #include <iostream>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -101,3 +116,5 @@ output_data->size = i;
 output_data->count = 1;
 return 0;
 }
+
+#endif

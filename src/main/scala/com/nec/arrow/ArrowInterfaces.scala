@@ -146,6 +146,7 @@ object ArrowInterfaces {
     varCharVector: VarCharVector,
     rootAllocator: BufferAllocator
   ): Unit = {
+    varCharVector.setValueCount(input.count)
     val res = rootAllocator.newReservation()
     res.add(input.count)
     val validityBuffer = res.allocateBuffer()
@@ -153,11 +154,12 @@ object ArrowInterfaces {
     (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
     import scala.collection.JavaConverters._
 
+    val offBuffer =
+      new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
+
     val dataBuffer =
       new ArrowBuf(validityBuffer.getReferenceManager, null, input.size.toLong, input.data)
 
-    val offBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
     varCharVector.loadFieldBuffers(
       new ArrowFieldNode(input.count.toLong, 0),
       List(validityBuffer, offBuffer, dataBuffer).asJava

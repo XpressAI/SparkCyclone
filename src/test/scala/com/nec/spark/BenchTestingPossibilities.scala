@@ -76,7 +76,7 @@ object BenchTestingPossibilities {
     source: SampleSource,
     testingTarget: TestingTarget,
     offHeapMode: Option[VeColumnMode],
-    csvStrategy: Option[CsvStrategy],
+    csvStrategy: Option[CsvStrategy]
   ) extends Testing {
 
     type Result = (Double, Double, Long)
@@ -222,7 +222,8 @@ object BenchTestingPossibilities {
         csvStrategy = csvStrat
       ),
       JoinPlanSpec.OurTesting,
-      GroupBySumPlanSpec.OurTesting
+      GroupBySumPlanSpec.OurTesting,
+      List(SubstringTesting(isVe = true), SubstringTesting(isVe = false))
     ).flatten
 
   trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>
