@@ -1,12 +1,8 @@
 package com.nec.ve
+
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.functions.{Avg, WordCount, GroupBySum, Sum}
+import com.nec.arrow.functions.GroupBySum
 import com.nec.arrow.functions.Join.JoinSourceCode
-import com.nec.older.AvgMultipleColumns
-import com.nec.older.AvgSimple
-import com.nec.older.SumMultipleColumns
-import com.nec.older.SumPairwise
-import com.nec.older.SumSimple
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -40,7 +36,7 @@ object VeKernelCompiler {
         "-pthread",
         "-report-all",
         /* "-ftrace", */
-        "-fdiag-vector=2",
+        "-fdiag-vector=2"
       ) ++
         List(
           if (doDebug) List("-D", "DEBUG=1") else Nil,
@@ -88,19 +84,8 @@ object VeKernelCompiler {
   def compile_c(buildDir: Path = Paths.get("_ve_build"), config: VeCompilerConfig): Path = {
     VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(
-        List(
-          TransferDefinitionsSourceCode,
-          WordCount.WordCountSourceCode,
-          Avg.AvgSourceCode,
-          Sum.SumSourceCode,
-          SumSimple.C_Definition,
-          SumPairwise.C_Definition,
-          AvgSimple.C_Definition,
-          SumMultipleColumns.C_Definition,
-          AvgMultipleColumns.C_Definition,
-          JoinSourceCode,
-          GroupBySum.GroupBySumSourceCode
-        ).mkString("\n\n\n")
+        List(TransferDefinitionsSourceCode, JoinSourceCode, GroupBySum.GroupBySumSourceCode)
+          .mkString("\n\n\n")
       )
   }
 
@@ -178,7 +163,11 @@ final case class VeKernelCompiler(
       runHopeOk(Process(command = command, cwd = buildDir.toFile))
 
       val command2 =
-        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/) ++ Seq("-o", soFile.toString, oFile.toString)
+        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
+          "-o",
+          soFile.toString,
+          oFile.toString
+        )
       runHopeOk(Process(command = command2, cwd = buildDir.toFile))
 
       soFile

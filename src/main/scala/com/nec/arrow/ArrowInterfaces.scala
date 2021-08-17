@@ -9,7 +9,7 @@ import org.apache.arrow.memory.BufferAllocator
 import sun.nio.ch.DirectBuffer
 import org.apache.arrow.vector.IntVector
 import com.nec.arrow.ArrowTransferStructures._
-import com.nec.spark.planning.SummingPlanOffHeap
+import sun.misc.Unsafe
 
 import java.nio.ByteBuffer
 
@@ -80,6 +80,12 @@ object ArrowInterfaces {
     vc
   }
 
+  private def getUnsafe: Unsafe = {
+    val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+    theUnsafe.setAccessible(true)
+    theUnsafe.get(null).asInstanceOf[Unsafe]
+  }
+
   def c_varchar_vector(varCharVector: VarCharVector): varchar_vector = {
     val vc = new varchar_vector()
     vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -91,11 +97,7 @@ object ArrowInterfaces {
   def non_null_int_vector_to_intVector(input: non_null_int_vector, intVector: IntVector): Unit = {
     intVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
-    SummingPlanOffHeap.getUnsafe.copyMemory(
-      input.data,
-      intVector.getDataBufferAddress,
-      input.count * 4
-    )
+    getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.count * 4)
   }
 
   def non_null_bigint_vector_to_bigintVector(
@@ -104,11 +106,7 @@ object ArrowInterfaces {
   ): Unit = {
     bigintVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
-    SummingPlanOffHeap.getUnsafe.copyMemory(
-      input.data,
-      bigintVector.getDataBufferAddress,
-      input.size()
-    )
+    getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
   }
 
   def non_null_double_vector_to_float8Vector(
@@ -120,21 +118,13 @@ object ArrowInterfaces {
     }
     float8Vector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
-    SummingPlanOffHeap.getUnsafe.copyMemory(
-      input.data,
-      float8Vector.getDataBufferAddress,
-      input.size()
-    )
+    getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.size())
   }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {
     intVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
-    SummingPlanOffHeap.getUnsafe.copyMemory(
-      input.data,
-      intVector.getDataBufferAddress,
-      input.size()
-    )
+    getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
   }
 
   /**

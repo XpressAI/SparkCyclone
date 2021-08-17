@@ -1,14 +1,5 @@
 package com.nec.spark
-import com.nec.arrow.CArrowNativeInterfaceNumeric
-import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.AdditionAggregator
-import com.nec.spark.agile.Aggregator
-import com.nec.spark.agile.AvgAggregator
-import com.nec.spark.agile.ColumnAggregator
-import com.nec.spark.agile.MultipleColumnsOffHeapSubtractor
-import com.nec.spark.agile.NoAggregationAggregator
-import com.nec.spark.agile.SubtractionAggregator
-import com.nec.spark.agile.SumAggregator
+
 import com.nec.spark.planning.SparkSqlPlanExtension
 import org.apache.log4j.Level
 import org.apache.log4j.Logger
@@ -17,12 +8,6 @@ import org.scalatest.BeforeAndAfterAllConfigMap
 import org.scalatest.ConfigMap
 import org.scalatest.Informing
 import org.scalatest.TestSuite
-import org.apache.spark.sql.catalyst.expressions.Add
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.Subtract
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
-import org.apache.spark.sql.catalyst.expressions.aggregate.Average
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Dataset
@@ -95,24 +80,6 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
     }
 
     def executionPlan: SparkPlan = dataSet.extractQueryExecution.executedPlan
-  }
-
-  protected def createUnsafeAggregator(aggregationFunction: AggregateFunction): Aggregator = {
-    aggregationFunction match {
-      case Sum(_) =>
-        new SumAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-      case Average(_) =>
-        new AvgAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-    }
-  }
-
-  protected def createUnsafeColumnAggregator(aggregationFunction: Expression): ColumnAggregator = {
-    aggregationFunction match {
-      case Add(_, _, _) =>
-        AdditionAggregator(new CArrowNativeInterfaceNumeric(CMakeBuilder.CLibPath.toString))
-      case Subtract(_, _, _) => SubtractionAggregator(MultipleColumnsOffHeapSubtractor.UnsafeBased)
-      case _                 => NoAggregationAggregator
-    }
   }
 
   after {
