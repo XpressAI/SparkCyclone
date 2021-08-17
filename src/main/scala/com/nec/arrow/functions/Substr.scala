@@ -1,21 +1,25 @@
 package com.nec.arrow.functions
 
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.ArrowNativeInterfaceNumeric.ScalarInput
+import com.nec.arrow.ArrowNativeInterface
+import com.nec.arrow.ArrowNativeInterface.NativeArgument
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.VarCharVectorInputWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.VarCharVectorOutputWrapper
+import com.nec.arrow.ArrowNativeInterface.ScalarInput
 import org.apache.arrow.vector.VarCharVector
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper.VarCharVectorWrapper
 
 object Substr {
   def runOn(
-    numeric: ArrowNativeInterfaceNumeric
+    numeric: ArrowNativeInterface
   )(input: VarCharVector, output: VarCharVector, beginIndex: Int, endIndex: Int): Unit = {
-    numeric.callFunction(
+    numeric.callFunctionWrapped(
       name = "ve_substr",
-      scalarInputs = List(None, None, Some(ScalarInput(beginIndex)), Some(ScalarInput(endIndex))),
-      inputArguments = List(Some(VarCharVectorWrapper(input)), None, None, None),
-      outputArguments = List(None, Some(VarCharVectorWrapper(output)), None, None)
+      arguments = List(
+        NativeArgument.VectorInputNativeArgument(VarCharVectorInputWrapper(input)),
+        NativeArgument.VectorOutputNativeArgument(VarCharVectorOutputWrapper(output)),
+        NativeArgument.ScalarInputNativeArgument(ScalarInput(beginIndex)),
+        NativeArgument.ScalarInputNativeArgument(ScalarInput(endIndex))
+      )
     )
-
   }
 
   val SourceCode: String = {

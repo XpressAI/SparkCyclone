@@ -4,7 +4,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
 import com.nec.arrow.ArrowVectorBuilders
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
 import org.apache.arrow.vector.Float8Vector
@@ -39,7 +39,7 @@ final class JoinCSpec extends AnyFreeSpec {
         ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
           ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
             ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
-              runOn(new CArrowNativeInterfaceNumeric(soPath.toString))(
+              runOn(new CArrowNativeInterface(soPath.toString))(
                 firstColumnVec,
                 secondColumnVec,
                 firstKeysVec,

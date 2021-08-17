@@ -1,7 +1,7 @@
 package com.nec.cmake.functions
 
 import com.nec.arrow.ArrowVectorBuilders.withArrowStringVector
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.functions.Substr
 import com.nec.cmake.CMakeBuilder
@@ -19,7 +19,7 @@ final class StringsCSpec extends AnyFreeSpec {
         List(TransferDefinitions.TransferDefinitionsSourceCode, Substr.SourceCode)
           .mkString("\n\n")
       )
-      Substr.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vcv, outVector, 1, 3)
+      Substr.runOn(new CArrowNativeInterface(cLib.toString))(vcv, outVector, 1, 3)
       val expectedOutput = inputStrings.map(_.substring(1, 3)).toList
 
       try assert(outVector.toList == expectedOutput)

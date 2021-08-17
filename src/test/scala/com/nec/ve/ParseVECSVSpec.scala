@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.CsvParse
 import com.nec.aurora.Aurora
@@ -34,7 +34,7 @@ final class ParseVECSVSpec extends AnyFreeSpec {
         WithTestAllocator { alloc =>
           val outVector = new Float8Vector("value", alloc)
           val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
-          verifyOn(new VeArrowNativeInterfaceNumeric(proc, lib))
+          verifyOn(new VeArrowNativeInterface(proc, lib))
         }
       } finally Aurora.veo_context_close(ctx)
     } finally Aurora.veo_proc_destroy(proc)

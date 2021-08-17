@@ -1,7 +1,7 @@
 package com.nec.testing
-import com.nec.arrow.ArrowNativeInterfaceNumeric
+import com.nec.arrow.ArrowNativeInterface
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.functions.CsvParse
 import com.nec.aurora.Aurora
 import com.nec.testing.NativeCSVParserBenchmark.ParserTestState
@@ -35,7 +35,7 @@ object NativeCSVParserBenchmark {
   }
   trait ParserTestState {
     def originalArray: Array[Array[Double]]
-    def interface: ArrowNativeInterfaceNumeric
+    def interface: ArrowNativeInterface
     def bufferAllocator: BufferAllocator
     def close(): Unit
     def string: String
@@ -119,7 +119,7 @@ final case class NativeCSVParserBenchmark(
           require(lib != 0, s"Expected lib != 0, got ${lib}")
 
           val interface =
-            new VeArrowNativeInterfaceNumeric(proc, lib)
+            new VeArrowNativeInterface(proc, lib)
 
           def close(): Unit = {
             Aurora.veo_proc_destroy(proc)

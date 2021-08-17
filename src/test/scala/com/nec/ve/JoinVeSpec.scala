@@ -7,7 +7,7 @@ import java.nio.file.Paths
 import java.time.Instant
 import com.nec.aurora.Aurora
 import com.nec.arrow.functions.Join._
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.functions.JoinCSpec.JoinerSource
 import com.typesafe.scalalogging.LazyLogging
@@ -67,7 +67,7 @@ final class JoinVeSpec extends AnyFreeSpec
             ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
               ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
                 ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
-                  runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
+                  runOn(new VeArrowNativeInterface(proc, lib))(
                     firstColumnVec,
                     secondColumnVec,
                     firstKeysVec,
@@ -115,7 +115,7 @@ final class JoinVeSpec extends AnyFreeSpec
           ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
             ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
               ArrowVectorBuilders.withDirectIntVector(secondColumnKeys) { secondKeysVec =>
-                runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
+                runOn(new VeArrowNativeInterface(proc, lib))(
                   firstColumnVec,
                   secondColumnVec,
                   firstKeysVec,

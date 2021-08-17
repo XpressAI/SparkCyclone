@@ -1,13 +1,15 @@
 package com.nec.spark.planning
-import com.nec.arrow.ArrowNativeInterfaceNumeric
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper._
-
+import com.nec.arrow.ArrowNativeInterface
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.ByteBufferInputWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.StringInputWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.Float8VectorOutputWrapper
+import com.nec.arrow.ArrowNativeInterface.Float8VectorWrapper
+import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper._
 import org.apache.spark.sql.catalyst.expressions.{Add, Alias, Attribute, Divide, Multiply, Subtract}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.datasources.InMemoryFileIndex
 import org.apache.arrow.vector.Float8Vector
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.execution.LeafExecNode
@@ -24,7 +26,6 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.compress.CompressionCodecFactory
-
 import org.apache.spark.SparkContext
 import org.apache.spark.WholeTextFileRawRDD.RichSparkContext
 import org.apache.spark.input.PortableDataStream
@@ -38,12 +39,12 @@ import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.apache.spark.util.SerializableConfiguration
+
 import java.io.DataInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
 import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.catalyst.expressions._
-
 object NativeCsvExec {
   case class NativeCsvStrategy(nativeEvaluator: NativeEvaluator) extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
@@ -70,17 +71,17 @@ object NativeCsvExec {
   }
 
   private def isNotAggProjection(logicalPlan: LogicalPlan): Boolean = {
-  logicalPlan match {
-    case Project(projectList, child) => {
-     projectList.collect{
-       case Alias(Add(_, _, _), name) =>
-       case Alias(Subtract(_, _, _), name) =>
-       case Alias(Multiply(_, _, _), name) =>
-       case Alias(Divide(_, _, _), name) =>
-     }.size == 0
+    logicalPlan match {
+      case Project(projectList, child) => {
+        projectList.collect {
+          case Alias(Add(_, _, _), name)      =>
+          case Alias(Subtract(_, _, _), name) =>
+          case Alias(Multiply(_, _, _), name) =>
+          case Alias(Divide(_, _, _), name)   =>
+        }.size == 0
+      }
+      case _ => false
     }
-    case _ => false
-  }
 
   }
   val SkipStringsKey = "spark.com.nec.native-csv-skip-strings"
@@ -89,7 +90,7 @@ object NativeCsvExec {
   def transformRawTextFile(
     numColumns: Int,
     outCols: Int,
-    evaluator: ArrowNativeInterfaceNumeric,
+    evaluator: ArrowNativeInterface,
     name: String,
     text: Text
   )(implicit logger: Logger): ColumnarBatch = {
@@ -101,12 +102,13 @@ object NativeCsvExec {
     }.toList
     val startTime = System.currentTimeMillis()
 
+    import Float8VectorWrapper._
     evaluator.callFunction(
       name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
       inputArguments = List(
-        Some(ByteBufferWrapper(ByteBuffer.wrap(text.getBytes), text.getBytes.length))
+        Some(ByteBufferInputWrapper(ByteBuffer.wrap(text.getBytes), text.getBytes.length))
       ) ++ outColumns.map(_ => None),
-      outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
+      outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorOutputWrapper(col)))
     )
     val millis = System.currentTimeMillis() - startTime
     logger.info(s"Took ${millis} ms to process CSV: ${name} (${text.getLength} bytes)")
@@ -121,7 +123,7 @@ object NativeCsvExec {
   def transformInputStream(
     numColumns: Int,
     outCols: Int,
-    evaluator: ArrowNativeInterfaceNumeric,
+    evaluator: ArrowNativeInterface,
     name: String,
     inputStream: InputStream
   )(implicit logger: Logger): ColumnarBatch = {
@@ -138,8 +140,8 @@ object NativeCsvExec {
 
     try evaluator.callFunction(
       name = if (numColumns == 3) "parse_csv_ipc" else s"parse_csv_${numColumns}_ipc",
-      inputArguments = List(Some(StringWrapper(socketPath))) ++ outColumns.map(_ => None),
-      outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
+      inputArguments = List(Some(StringInputWrapper(socketPath))) ++ outColumns.map(_ => None),
+      outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorOutputWrapper(col)))
     )
     finally serverSocket.close()
     val millis = System.currentTimeMillis() - startTime
@@ -166,7 +168,7 @@ object NativeCsvExec {
   def transformLazyDataStream(
     numColumns: Int,
     outCols: Int,
-    evaluator: ArrowNativeInterfaceNumeric,
+    evaluator: ArrowNativeInterface,
     name: String,
     portableDataStream: PortableDataStream,
     hadoopConfiguration: SerializableConfiguration
@@ -227,14 +229,7 @@ case class NativeCsvExec(
     sparkContext
       .binaryFiles(imfi.rootPaths.head.toString)
       .map { case (name, pds) =>
-        transformLazyDataStream(
-          numColumns,
-          outCols,
-          evaluator,
-          name,
-          pds,
-          hadoopConf
-        )(logger)
+        transformLazyDataStream(numColumns, outCols, evaluator, name, pds, hadoopConf)(logger)
       }
   }
 
@@ -260,8 +255,8 @@ case class NativeCsvExec(
       evaluator.callFunction(
         name = if (numColumns == 3) "parse_csv" else s"parse_csv_${numColumns}",
         inputArguments =
-          List(Some(StringWrapper(new String(text.getBytes)))) ++ outColumns.map(_ => None),
-        outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorWrapper(col)))
+          List(Some(StringInputWrapper(new String(text.getBytes)))) ++ outColumns.map(_ => None),
+        outputArguments = List(None) ++ outColumns.map(col => Some(Float8VectorOutputWrapper(col)))
       )
       val millis = System.currentTimeMillis() - startTime
       logInfo(s"Took ${millis} ms to process CSV: ${name} (${text.length} bytes)")

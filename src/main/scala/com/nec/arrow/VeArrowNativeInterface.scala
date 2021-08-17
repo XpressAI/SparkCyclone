@@ -1,143 +1,160 @@
 package com.nec.arrow
 
-import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.VarCharVector
-import com.nec.arrow.ArrowTransferStructures.non_null_int_vector
-import com.nec.arrow.ArrowTransferStructures.varchar_vector_raw
-import com.nec.aurora.Aurora
-import com.nec.arrow.ArrowInterfaces.non_null_int_vector_to_IntVector
-import org.bytedeco.javacpp.LongPointer
-
 import java.nio.ByteBuffer
+import com.nec.aurora.Aurora
+import org.bytedeco.javacpp.LongPointer
+import com.nec.arrow.ArrowNativeInterface._
+import com.typesafe.scalalogging.LazyLogging
+
+import java.io.FileNotFoundException
+import java.nio.file.Files
+import java.nio.file.Paths
+import com.nec.util.LruVeoMemCache
 
 final class VeArrowNativeInterface(proc: Aurora.veo_proc_handle, lib: Long)
   extends ArrowNativeInterface {
-  override def callFunction(
-    name: String,
-    inputArguments: List[Option[VarCharVector]],
-    outputArguments: List[Option[IntVector]]
-  ): Unit = {
-    val ctx = Aurora.veo_context_open(proc)
-    try VeArrowNativeInterface.executeVe(
+  override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
+    VeArrowNativeInterface.executeVe(
       proc = proc,
-      ctx = ctx,
       lib = lib,
       functionName = name,
-      inputArguments = inputArguments,
-      outputArguments = outputArguments
+      arguments = arguments
     )
-    finally Aurora.veo_context_close(ctx)
   }
 }
 
-object VeArrowNativeInterface {
+object VeArrowNativeInterface extends LazyLogging {
+  private var libs: Map[String, Long] = Map()
+  private var functionAddrs: Map[(Long, String), Long] = Map()
 
-  private def make_veo_varchar_vector[T](
-    proc: Aurora.veo_proc_handle,
-    varCharVector: VarCharVector
-  ): varchar_vector_raw = {
-    val vcvr = new varchar_vector_raw()
-    vcvr.count = varCharVector.getValueCount
-    vcvr.data = copyBufferToVe(proc, varCharVector.getDataBuffer.nioBuffer())
-    vcvr.offsets = copyBufferToVe(proc, varCharVector.getOffsetBuffer.nioBuffer())
-    vcvr
+  def requireOk(result: Int): Unit = {
+    require(result >= 0, s"Result should be >=0, got $result")
   }
 
-  /** Take a vec, and rewrite the pointer to our local so we can read it */
-  /** Todo deallocate from VE! unless we pass it onward */
-  private def veo_read_non_null_int_vector(
-    proc: Aurora.veo_proc_handle,
-    vec: non_null_int_vector,
-    byteBuffer: ByteBuffer
-  ): Unit = {
-    val veoPtr = byteBuffer.getLong(0)
-    val dataCount = byteBuffer.getInt(8)
-    val dataSize = dataCount * 8
-    val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
-    vec.count = dataCount
-    vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+  final class VeArrowNativeInterfaceLazyLib(proc: Aurora.veo_proc_handle, libPath: String)
+    extends ArrowNativeInterface {
+    override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
+      val lib = if (!libs.contains(libPath)) {
+        // XXX: Can probably cache more than just 1 library but can't know how much space we have with
+        // the current AVEO API.  Caching the last library is sufficient for our purposes now.
+        if (libs.nonEmpty) {
+          val (libPath, lib) = libs.head
+          logger.debug(s"Unloading: $libPath")
+          val startUnload = System.currentTimeMillis()
+          Aurora.veo_unload_library(proc, lib)
+          val unloadTime = System.currentTimeMillis() - startUnload
+          logger.debug(s"Unloaded: $libPath in $unloadTime")
+          libs -= libPath
+          functionAddrs = Map()
+        }
+        logger.debug(s"Will load: '$libPath' to call '$name'")
+        if (!Files.exists(Paths.get(libPath))) {
+          throw new FileNotFoundException(s"Required fille $libPath does not exist")
+        }
+        val startLoad = System.currentTimeMillis()
+        val lib = Aurora.veo_load_library(proc, libPath)
+        val loadTime = System.currentTimeMillis() - startLoad
+        logger.debug(s"Loaded: '$libPath in $loadTime")
+        require(lib != 0, s"Expected lib != 0, got $lib")
+
+        libs += (libPath -> lib)
+        lib
+      } else {
+        logger.debug(s"Using cached: '$libPath' to call '$name'")
+        libs(libPath)
+      }
+
+      new VeArrowNativeInterface(proc, lib).callFunctionWrapped(name, arguments)
+    }
   }
 
-  def copyBufferToVe(proc: Aurora.veo_proc_handle, byteBuffer: ByteBuffer): Long = {
+  class Cleanup(var items: List[Long] = Nil) {
+    def add(long: Long, size: Long): Unit = items = {
+      logger.debug(s"Adding to clean-up: $long, $size bytes")
+      long :: items
+    }
+  }
+
+  def copyBufferToVe(
+    proc: Aurora.veo_proc_handle,
+    byteBuffer: ByteBuffer,
+    len: Option[Long] = None
+  )(implicit cleanup: Cleanup): Long = {
     val veInputPointer = new LongPointer(8)
-    val size = byteBuffer.capacity()
-    Aurora.veo_alloc_mem(proc, veInputPointer, size)
-    Aurora.veo_write_mem(
-      proc,
-      /** after allocating, this pointer now contains a value of the VE storage address * */
-      veInputPointer.get(),
-      new org.bytedeco.javacpp.Pointer(byteBuffer),
-      size
+
+    /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
+    val size = len.getOrElse(byteBuffer.capacity().toLong)
+    requireOk(Aurora.veo_alloc_mem(proc, veInputPointer, size))
+    requireOk(
+      Aurora.veo_write_mem(
+        proc,
+        /** after allocating, this pointer now contains a value of the VE storage address * */
+        veInputPointer.get(),
+        new org.bytedeco.javacpp.Pointer(byteBuffer),
+        size
+      )
     )
     veInputPointer.get()
-  }
-
-  /** Workaround - not sure why it does not work immediately */
-  private def varcharVectorRawToByteBuffer(varchar_vector_raw: varchar_vector_raw): ByteBuffer = {
-    val v_bb = varchar_vector_raw.getPointer.getByteBuffer(0, 20)
-    v_bb.putLong(0, varchar_vector_raw.data)
-    v_bb.putLong(8, varchar_vector_raw.offsets)
-    v_bb.putInt(16, varchar_vector_raw.count)
-    v_bb
+    val ptr = veInputPointer.get()
+    cleanup.add(ptr, size)
+    ptr
   }
 
   private def executeVe(
     proc: Aurora.veo_proc_handle,
-    ctx: Aurora.veo_thr_ctxt,
     lib: Long,
     functionName: String,
-    inputArguments: List[Option[VarCharVector]],
-    outputArguments: List[Option[IntVector]]
+    arguments: List[NativeArgument]
   ): Unit = {
-
+    assert(lib > 0, s"Expected lib to be >0, was $lib")
     val our_args = Aurora.veo_args_alloc()
+    implicit val cleanup: Cleanup = new Cleanup()
     try {
-      inputArguments.zipWithIndex
-        .collect { case (Some(inputVarChar), idx) =>
-          inputVarChar -> idx
-        }
-        .foreach { case (inputVarChar, index) =>
-          val varchar_vector_raw = make_veo_varchar_vector(proc, inputVarChar)
-          Aurora.veo_args_set_stack(
-            our_args,
-            0,
-            index,
-            varcharVectorRawToByteBuffer(varchar_vector_raw),
-            20L
-          )
-        }
 
-      val outputArgumentsVectors: List[(IntVector, Int)] = outputArguments.zipWithIndex.collect {
-        case (Some(intVector), index) => intVector -> index
+      val transferBack = scala.collection.mutable.Buffer.empty[() => Unit]
+      arguments.zipWithIndex.foreach {
+        case (NativeArgument.ScalarInputNativeArgument(ScalarInput.ForInt(num)), idx) =>
+          requireOk(Aurora.veo_args_set_i32(our_args, idx, num))
+        case (NativeArgument.VectorInputNativeArgument(wrapper), index) =>
+          VeArrowTransfers.transferInput(proc, our_args, wrapper, index)
+
+        case (NativeArgument.VectorOutputNativeArgument(wrapper), index) =>
+          VeArrowTransfers.transferOutput(proc, our_args, transferBack, wrapper, index)
       }
 
-      val outputArgumentsStructs: List[(non_null_int_vector, Int)] = outputArgumentsVectors.map {
-        case (intVector, index) =>
-          new non_null_int_vector() -> index
+      val startTime = System.currentTimeMillis()
+      val uuid = java.util.UUID.randomUUID()
+
+      logger.debug(s"[$uuid] Starting VE call to '$functionName'...")
+      val fnAddr = if (functionAddrs.contains((lib, functionName))) {
+        functionAddrs((lib, functionName))
+      } else {
+        val addr = Aurora.veo_get_sym(proc, lib, functionName)
+        functionAddrs += ((lib, functionName) -> addr)
+        addr
       }
 
-      val outputArgumentsByteBuffers: List[(ByteBuffer, Int)] = outputArgumentsStructs.map {
-        case (struct, index) =>
-          struct.getPointer.getByteBuffer(0, 12) -> index
-      }
-
-      outputArgumentsByteBuffers.foreach { case (byteBuffer, index) =>
-        Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
-      }
-
-      val req_id = Aurora.veo_call_async_by_name(ctx, lib, functionName, our_args)
       val fnCallResult = new LongPointer(8)
-      val callRes = Aurora.veo_call_wait_result(ctx, req_id, fnCallResult)
-      require(callRes == 0, s"Expected 0, got $callRes; means VE call failed")
+      val callRes = Aurora.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
+      val time = System.currentTimeMillis() - startTime
+      logger.debug(
+        s"[$uuid] Got result from VE call to '$functionName': '$callRes'. Took ${time}ms"
+      )
+
+      require(
+        callRes == 0,
+        s"Expected 0, got $callRes; means VE call failed for function $functionName; args: $arguments"
+      )
+
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      (outputArgumentsVectors.zip(outputArgumentsStructs).zip(outputArgumentsByteBuffers)).foreach {
-        case (((intVector, _), (non_null_int_vector, _)), (byteBuffer, _)) =>
-          veo_read_non_null_int_vector(proc, non_null_int_vector, byteBuffer)
-          non_null_int_vector_to_IntVector(non_null_int_vector, intVector)
+      transferBack.foreach(_.apply())
+    } finally {
+      val cleanupResult = cleanup.items.map(ptr => ptr -> Aurora.veo_free_mem(proc, ptr))
+      if (cleanupResult.exists(_._2 < 0)) {
+        logger.error(s"Clean-up failed for some cases: $cleanupResult")
       }
-    } finally Aurora.veo_args_free(our_args)
+      Aurora.veo_args_free(our_args)
+    }
   }
-
 }

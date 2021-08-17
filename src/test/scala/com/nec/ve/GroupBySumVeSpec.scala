@@ -8,7 +8,7 @@ import com.nec.arrow.functions.GroupBySum
 import com.nec.arrow.functions.GroupBySum._
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.aurora.Aurora
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
@@ -36,7 +36,7 @@ final class GroupBySumVeSpec extends AnyFreeSpec {
             val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
             try ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
               ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-                runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
+                runOn(new VeArrowNativeInterface(proc, lib))(
                   groupingColumnVec,
                   valuesColumnVec,
                   outGroupsVector,

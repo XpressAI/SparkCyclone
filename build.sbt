@@ -282,3 +282,5 @@ bench := (`fun-bench` / Jmh / run).evaluated
 
 addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
 addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")
+
+ThisBuild / scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation")

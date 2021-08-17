@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.arrow.ArrowVectorBuilders.withArrowStringVector
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.functions.Substr
 import com.nec.aurora.Aurora
 import com.nec.cmake.CMakeBuilder
@@ -28,7 +28,7 @@ final class StringsVESpec extends AnyFreeSpec {
       withArrowStringVector(inputStrings) { vcv =>
         val outVector = new VarCharVector("value", vcv.getAllocator)
         val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
-        Substr.runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(vcv, outVector, 1, 3)
+        Substr.runOn(new VeArrowNativeInterface(proc, lib))(vcv, outVector, 1, 3)
         val expectedOutput = inputStrings.map(_.substring(1, 3)).toList
 
         try assert(outVector.toList == expectedOutput)

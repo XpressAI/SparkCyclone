@@ -8,7 +8,7 @@ import com.nec.arrow.functions.GroupBy
 import com.nec.arrow.functions.GroupBy.groupJVM
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.TransferDefinitions
-import com.nec.arrow.VeArrowNativeInterfaceNumeric
+import com.nec.arrow.VeArrowNativeInterface
 import com.nec.aurora.Aurora
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.IntVector
@@ -38,7 +38,7 @@ final class GroupByVeSpec extends AnyFreeSpec {
               val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
               ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
                 ArrowVectorBuilders.withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-                  GroupBy.runOn(new VeArrowNativeInterfaceNumeric(proc, lib))(
+                  GroupBy.runOn(new VeArrowNativeInterface(proc, lib))(
                     groupingColumnVec,
                     valuesColumnVec,
                     outGroupsVector,

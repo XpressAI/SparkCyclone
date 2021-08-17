@@ -4,7 +4,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
 import com.nec.arrow.ArrowVectorBuilders.withDirectFloat8Vector
-import com.nec.arrow.CArrowNativeInterfaceNumeric
+import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.Sort
@@ -33,7 +33,7 @@ final class SortCSpec extends AnyFreeSpec {
       WithTestAllocator { alloc =>
         val outVector = new Float8Vector("value", alloc)
         try {
-          Sort.runOn(new CArrowNativeInterfaceNumeric(cLib.toString))(vector, outVector)
+          Sort.runOn(new CArrowNativeInterface(cLib.toString))(vector, outVector)
           val outData = (0 until outVector.getValueCount).map(idx => outVector.get(idx))
           assert(outData == Sort.sortJVM(vector))
         } finally outVector.close()

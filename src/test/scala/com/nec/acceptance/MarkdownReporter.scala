@@ -4,13 +4,14 @@ import com.nec.acceptance.MarkdownReporter.MarkdownQueryDescription
 
 import java.nio.file.Files
 import java.nio.file.Paths
-import org.apache.commons.io.Charsets
 import org.scalatest.Reporter
 import org.scalatest.events.Event
 import org.scalatest.events.MarkupProvided
 import org.scalatest.events.RecordableEvent
 import org.scalatest.events.RunCompleted
 import org.scalatest.events.TestSucceeded
+
+import java.nio.charset.StandardCharsets
 
 object MarkdownReporter {
   final case class MarkdownQueryDescription(value: String) extends AnyVal
@@ -44,7 +45,7 @@ final class MarkdownReporter extends Reporter {
       Seq(autogenerationWarn, " ", supportedFeaturesTitle, " ") ++ supportedFeaturesList
     Files.write(
       Paths.get("..").resolve("FEATURES.md"),
-      toWriteData.mkString("\n").getBytes(Charsets.UTF_8)
+      toWriteData.mkString("\n").getBytes(StandardCharsets.UTF_8)
     )
   }
 }

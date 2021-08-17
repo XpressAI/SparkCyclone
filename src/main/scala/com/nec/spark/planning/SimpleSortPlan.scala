@@ -1,10 +1,11 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.ArrowNativeInterfaceNumeric.SupportedVectorWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper
+import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
@@ -14,15 +15,15 @@ import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
-case class SimpleSortPlan( fName: String,
-                      resultExpressions: Seq[NamedExpression],
-                      lines: CodeLines,
-                      child: SparkPlan,
-                      inputReferences: Set[String],
-                      nativeEvaluator: NativeEvaluator
-) extends SparkPlan with UnaryExecNode {
-
-
+case class SimpleSortPlan(
+  fName: String,
+  resultExpressions: Seq[NamedExpression],
+  lines: CodeLines,
+  child: SparkPlan,
+  inputReferences: Set[String],
+  nativeEvaluator: NativeEvaluator
+) extends SparkPlan
+  with UnaryExecNode {
 
   override protected def doExecute(): RDD[InternalRow] = {
     val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
@@ -30,7 +31,8 @@ case class SimpleSortPlan( fName: String,
       .execute()
       .coalesce(1)
       .mapPartitions { rows =>
-        Iterator.continually {
+        Iterator
+          .continually {
             val timeZoneId = conf.sessionLocalTimeZone
             val allocator = ArrowUtilsExposed.rootAllocator.newChildAllocator(
               s"writer for word count",
@@ -48,21 +50,22 @@ case class SimpleSortPlan( fName: String,
             }
             arrowWriter.finish()
 
-            val outputVectors = resultExpressions
-              .zipWithIndex
+            val outputVectors = resultExpressions.zipWithIndex
               .map { case (ne, idx) =>
                 val outputVector = new Float8Vector(s"out_${idx}", allocator)
                 outputVector
               }
 
             try {
+              import SupportedVectorWrapper._
               evaluator.callFunction(
                 name = fName,
                 inputArguments = inputVectors.toList.map(iv =>
-                  Some(SupportedVectorWrapper.wrapVector(iv))
+                  Some(SupportedVectorWrapper.wrapInput(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments = inputVectors.toList.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapVector(v)))
+                  outputVectors
+                    .map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
               )
             } finally {
               inputVectors.foreach(_.close())
