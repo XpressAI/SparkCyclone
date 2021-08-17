@@ -14,14 +14,14 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = callFunction(
     name = name,
-    stackInputs = List.fill(Math.max(inputArguments.size, outputArguments.size))(None),
+    scalarInputs = List.fill(Math.max(inputArguments.size, outputArguments.size))(None),
     inputArguments = inputArguments,
     outputArguments = outputArguments
   )
 
   final def callFunction(
     name: String,
-    stackInputs: List[Option[SupportedStackInput]],
+    scalarInputs: List[Option[ScalarInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
@@ -33,7 +33,7 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
       }
       callFunctionGen(
         name = name,
-        stackInputs = stackInputs,
+        scalarInputs = scalarInputs,
         inputArguments = inputArguments,
         outputArguments = outputArguments
       )
@@ -53,19 +53,17 @@ trait ArrowNativeInterfaceNumeric extends Serializable with LazyLogging {
 
   def callFunctionGen(
     name: String,
-    stackInputs: List[Option[SupportedStackInput]],
+    scalarInputs: List[Option[ScalarInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit
 
 }
 object ArrowNativeInterfaceNumeric {
-  object StackInput {
-    def apply(int: Int): SupportedStackInput = SupportedStackInput.ForInt(int)
-  }
-  sealed trait SupportedStackInput {}
-  object SupportedStackInput {
-    case class ForInt(value: Int) extends SupportedStackInput
+  sealed trait ScalarInput extends Serializable
+  object ScalarInput {
+    def apply(int: Int): ScalarInput = ForInt(int)
+    case class ForInt(value: Int) extends ScalarInput
   }
   sealed trait SupportedVectorWrapper {}
   object SupportedVectorWrapper {
@@ -91,9 +89,9 @@ object ArrowNativeInterfaceNumeric {
     extends ArrowNativeInterfaceNumeric {
     override def callFunctionGen(
       name: String,
-      stackInputs: List[Option[SupportedStackInput]],
+      scalarInputs: List[Option[ScalarInput]],
       inputArguments: List[Option[SupportedVectorWrapper]],
       outputArguments: List[Option[SupportedVectorWrapper]]
-    ): Unit = subInterface().callFunction(name, stackInputs, inputArguments, outputArguments)
+    ): Unit = subInterface().callFunction(name, scalarInputs, inputArguments, outputArguments)
   }
 }

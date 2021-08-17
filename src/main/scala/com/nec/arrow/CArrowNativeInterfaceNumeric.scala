@@ -11,13 +11,13 @@ import com.typesafe.scalalogging.LazyLogging
 final class CArrowNativeInterfaceNumeric(libPath: String) extends ArrowNativeInterfaceNumeric {
   override def callFunctionGen(
     name: String,
-    stackInputs: List[Option[SupportedStackInput]],
+    scalarInputs: List[Option[ScalarInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = CArrowNativeInterfaceNumeric.executeC(
     libPath = libPath,
     functionName = name,
-    stackInputs = stackInputs,
+    stackInputs = scalarInputs,
     inputArguments = inputArguments,
     outputArguments = outputArguments
   )
@@ -28,7 +28,7 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
   private def executeC(
     libPath: String,
     functionName: String,
-    stackInputs: List[Option[SupportedStackInput]],
+    stackInputs: List[Option[ScalarInput]],
     inputArguments: List[Option[SupportedVectorWrapper]],
     outputArguments: List[Option[SupportedVectorWrapper]]
   ): Unit = {
@@ -64,7 +64,7 @@ object CArrowNativeInterfaceNumeric extends LazyLogging {
           c_non_null_varchar_vector(vcv)
         case (((_, Some(structVector))), _) =>
           structVector
-        case (_, Some(SupportedStackInput.ForInt(int))) =>
+        case (_, Some(ScalarInput.ForInt(int))) =>
           java.lang.Integer.valueOf(int)
         case other =>
           throw new MatchError(s"Unmatched for input: ${other}")
