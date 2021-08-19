@@ -117,6 +117,26 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
   }
 
+  def nullable_bigint_vector_to_bigintVector(
+                                              input: nullable_bigint_vector,
+                                              bigintVector: BigIntVector
+                                            ): Unit = {
+    bigintVector.setValueCount(input.count)
+    (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
+
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.validityBuffer,
+      bigintVector.getValidityBufferAddress,
+      Math.ceil(input.count/8.0).toInt
+    )
+
+    SummingPlanOffHeap.getUnsafe.copyMemory(
+      input.data,
+      bigintVector.getDataBufferAddress,
+      input.size()
+    )
+  }
+
   def non_null_double_vector_to_float8Vector(
     input: non_null_double_vector,
     float8Vector: Float8Vector
@@ -140,7 +160,7 @@ object ArrowInterfaces {
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.validityBuffer,
       float8Vector.getValidityBufferAddress,
-      Math.ceil(input.count/8).toInt
+      Math.ceil(input.count/8.0).toInt
     )
     SummingPlanOffHeap.getUnsafe.copyMemory(
       input.data,

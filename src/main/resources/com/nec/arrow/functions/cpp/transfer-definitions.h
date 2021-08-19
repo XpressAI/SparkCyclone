@@ -34,10 +34,19 @@ typedef struct
 typedef struct
 {
     double *data;
+    unsigned char *validityBuffer;
     long count;
-    unsigned char* validityBuffer;
 
 } nullable_double_vector;
+
+typedef struct
+{
+    long *data;
+    unsigned char *validityBuffer;
+    long count;
+
+} nullable_bigint_vector;
+
 
 typedef struct
 {

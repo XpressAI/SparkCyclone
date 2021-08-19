@@ -5,6 +5,8 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgum
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import org.apache.arrow.vector.{BitVectorHelper, Float8Vector, VectorSchemaRoot}
+
 import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -75,8 +77,10 @@ case class SimpleSortPlan(
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
                 if (v_idx < v.getValueCount()) {
-                  val doubleV = v.getValueAsDouble(v_idx)
-                  writer.write(c_idx, doubleV)
+//                  val double = v.asInstanceOf[Float8Vector].get(v_idx)
+//                  val nullw = BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx)
+                  val isNull = BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
+                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
                 }
               }
               writer.getRow

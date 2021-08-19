@@ -154,7 +154,6 @@ object CExpressionEvaluation {
       List(
         "#include <cmath>",
         "#include <bitset>",
-        "#include <vector>",
         "#include <iostream>",
         s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
@@ -162,8 +161,9 @@ object CExpressionEvaluation {
         List(
           s"long output_${idx}_count = input_0->count;",
           s"${cType(res.dataType)} *output_${idx}_data = (${cType(res.dataType)}*) malloc(output_${idx}_count * sizeof(${cType(res.dataType)}));",
-          s"std::vector<unsigned char> validity_buffer_${idx};",
-          s"std::bitset<8> validity_bitset_${idx};"
+          s"unsigned char *validity_buffer_${idx} = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));",
+          s"std::bitset<8> validity_bitset_${idx};",
+          s"int j_${idx} = 0;"
         )
       }.toList,
       List(
@@ -181,7 +181,8 @@ object CExpressionEvaluation {
             s"else { validity_bitset_${idx}.set(i%8, false);}",
             "if(i % 8 == 7 || i == output_0_count - 1) { ",
             s"""std::cout << validity_bitset_${idx} <<' ' << "for i =" << i;""",
-            s"validity_buffer_${idx}.push_back(static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
+            s"validity_buffer_${idx}[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
+            s"j_${idx} += 1;",
             s"validity_bitset_${idx}.reset(); }",
           )
         }.toList,
@@ -191,7 +192,8 @@ object CExpressionEvaluation {
         List(
           s"output_${idx}->count = output_${idx}_count;",
           s"output_${idx}->data = output_${idx}_data;",
-          s"output_${idx}->validityBuffer = validity_buffer_${idx}.data();"
+          s"output_${idx}->validityBuffer = validity_buffer_${idx};",
+          s"""printf(" OUTPUT: %d ", output_${idx}->validityBuffer[1]);"""
         )
       }.toList,
 
@@ -207,11 +209,11 @@ object CExpressionEvaluation {
 
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
-        s"non_null_double_vector* input_${idx}"
+        s"nullable_double_vector* input_${idx}"
       }
 
     val outputBits = inputs.zipWithIndex.map { case (i, idx) =>
-      s"non_null_double_vector* output_${idx}"
+      s"nullable_double_vector* output_${idx}"
     }
 
     val sortingIndex = inputs.indexWhere(att => att.name == sortingColumn.name)
@@ -222,30 +224,43 @@ object CExpressionEvaluation {
       List("#include \"frovedis/core/radix_sort.hpp\""),
       List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       List(s"int* indices = (int *) malloc(input_${sortingIndex}->count * sizeof(int));"),
+
       List(s"for(int i = 0; i < input_${sortingIndex}->count; i++)", "{", "indices[i] = i;", "}"),
       List(s"frovedis::radix_sort(input_${sortingIndex}->data, indices, input_${sortingIndex}->count);"),
 
       inputs.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"long output_${idx}_count = input_0->count;",
-          s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));"
+          s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));",
+          s"unsigned char *validity_buffer_${idx} = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));",
+          s"std::bitset<8> validity_bitset_${idx};",
+          s"int j_${idx} = 0;"
         )
       }.toList,
       List(
         "#pragma _NEC ivdep",
         "for (int i = 0; i < output_0_count; i++) {"),
-      inputs.zipWithIndex.flatMap { case (re, idx) if(idx != sortingIndex) =>
-        List(s"output_${idx}_data[i] = ${evaluateExpressionSorted(inputs, re)};")
+      inputs.zipWithIndex.flatMap {
       case (re, idx) =>
-        List(s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};")
-
+        List(s"if(${if (idx != sortingIndex) genNullCheckSorted(inputs, re) else genNullCheck(inputs, re)}) {",
+          s"validity_bitset_${idx}.set(i%8, true);",
+          s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re) else evaluateExpression(inputs, re)};",
+          "} else {",
+          s"validity_bitset_${idx}.set(i%8, false);}",
+          "if(i % 8 == 7 || i == output_0_count - 1) { ",
+          s"""std::cout << validity_bitset_${idx} <<' ' << "for i =" << i;""",
+          s"validity_buffer_${idx}[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
+          s"j_${idx} += 1;",
+          s"validity_bitset_${idx}.reset(); }",
+        )
       }.toList,
       List("}"),
       // Set inputs
       inputs.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"output_${idx}->count = output_${idx}_count;",
-          s"output_${idx}->data = output_${idx}_data;"
+          s"output_${idx}->data = output_${idx}_data;",
+          s"output_${idx}->validityBuffer = validity_buffer_${idx};"
         )
       }.toList,
       List(
@@ -319,6 +334,31 @@ object CExpressionEvaluation {
     }
   }
 
+  def genNullCheckSorted(inputs: Seq[Attribute], expression: Expression): String = {
+
+    expression match {
+      case AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.name == name) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx =>
+            s"((input_${idx}->validityBuffer[indices[i]/8]>> indices[i] % 8) & 0x1) == 1"
+        }
+      case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
+      case Subtract(left, right, _) =>
+        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
+      case Multiply(left, right, _) =>
+        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
+      case Add(left, right, _) =>
+        s"${genNullCheck(inputs, left)} &&  ${genNullCheck(inputs, right)}"
+      case Divide(left, right, _) =>
+        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
+      case Abs(v) =>
+        s"${genNullCheck(inputs, v)}"
+      case Literal(v, DoubleType | IntegerType) =>
+        "true"
+    }
+  }
 
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
@@ -380,18 +420,24 @@ object CExpressionEvaluation {
           init = List(
             s"output_${idx}_sum->data = (${cTypeOfSub(inputs, sub)} *)malloc(1 * sizeof(${cTypeOfSub(inputs, sub)}));",
             s"output_${idx}_sum->count = 1;",
+            s"unsigned char* output_${idx}_validity_buffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"output_${idx}_validity_buffer[0] = 0;",
             s"double ${cleanName}_accumulated = 0;"
           ),
           iter = List(
             s"if(${genNullCheck(inputs, sub)})",
             "{",
+            s"output_${idx}_validity_buffer[0] = 1;",
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
           "}"),
-          result = List(s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;"),
+          result = List(
+            s"output_${idx}_sum->data[0] = ${cleanName}_accumulated;",
+            s"output_${idx}_sum->validityBuffer = output_${idx}_validity_buffer;"
+          ),
           outputArguments = dataTypeOfSub(inputs, sub) match {
-             case DoubleType => List(s"non_null_double_vector* output_${idx}_sum")
-             case IntegerType => List(s"non_null_int_vector* output_${idx}_sum")
-             case LongType => List(s"non_null_bigint_vector* output_${idx}_sum")
+             case DoubleType => List(s"nullable_double_vector* output_${idx}_sum")
+             case IntegerType => List(s"nullable_int_vector* output_${idx}_sum")
+             case LongType => List(s"nullable_bigint_vector* output_${idx}_sum")
           }
         )
       case Average(sub) =>
@@ -403,22 +449,28 @@ object CExpressionEvaluation {
             s"${outputSum}->count = 1;",
             s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
             s"${outputCount}->count = 1;",
+            s"unsigned char* output_${idx}_validity_buffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"output_${idx}_validity_buffer[0] = 0;",
             s"double ${cleanName}_accumulated = 0;",
             s"long ${cleanName}_counted = 0;"
           ),
           iter = List(
             s"if(${genNullCheck(inputs, sub)})",
             "{",
+            s"output_${idx}_validity_buffer[0] = 1;",
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
             s"${cleanName}_counted += 1;",
             "}"
           ),
           result = List(
             s"${outputSum}->data[0] = ${cleanName}_accumulated;",
-            s"${outputCount}->data[0] = ${cleanName}_counted;"
+            s"${outputCount}->data[0] = ${cleanName}_counted;",
+            s"${outputCount}->validityBuffer = output_${idx}_validity_buffer;",
+            s"${outputSum}->validityBuffer = output_${idx}_validity_buffer;"
+
           ),
           outputArguments =
-            List(s"non_null_double_vector* ${outputSum}", s"non_null_bigint_vector* ${outputCount}")
+            List(s"nullable_double_vector* ${outputSum}", s"nullable_bigint_vector* ${outputCount}")
         )
       case Count(el) =>
         val outputCount = s"output_${idx}_count"
@@ -427,8 +479,9 @@ object CExpressionEvaluation {
           init = List(
             s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
             s"${outputCount}->count = 1;",
-            s"long ${cleanName}_counted = 0;"
-
+            s"long ${cleanName}_counted = 0;",
+            s"${outputCount}->validityBuffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"${outputCount}->validityBuffer[0] = 1;"
           ),
           iter = List(
             s"${cleanName}_counted += 1;"
@@ -437,7 +490,7 @@ object CExpressionEvaluation {
             s"${outputCount}->data[0] = ${cleanName}_counted;"
           ),
           outputArguments = List(
-            s"non_null_bigint_vector* ${outputCount}"
+            s"nullable_bigint_vector* ${outputCount}"
           )
 
         )
@@ -448,18 +501,23 @@ object CExpressionEvaluation {
           init = List(
             s"${outputMin}->data = (${cTypeOfSub(inputs, sub)} *)malloc(1 * sizeof(${cTypeOfSub(inputs, sub)}));",
             s"${outputMin}->count = 1;",
+            s"${outputMin}->validityBuffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"${outputMin}->validityBuffer[0] = 0;",
             s"${cTypeOfSub(inputs, sub)} ${cleanName}_min = std::numeric_limits<${cTypeOfSub(inputs, sub)}>::max();"
           ),
           iter = List(
-            s"if (${cleanName}_min > ${evaluateSub(inputs, sub)} && ${genNullCheck(inputs, sub)}) ${cleanName}_min = ${evaluateSub(inputs, sub)};"
+            s"if (${cleanName}_min > ${evaluateSub(inputs, sub)} && ${genNullCheck(inputs, sub)}) {",
+            s"${cleanName}_min = ${evaluateSub(inputs, sub)};",
+            s"${outputMin}->validityBuffer[0] = 1;",
+            "}"
           ),
           result = List(
             s"${outputMin}->data[0] = ${cleanName}_min;",
           ),
           outputArguments = inputs(idx).dataType match {
-            case DoubleType => List(s"non_null_double_vector* ${outputMin}")
-            case IntegerType => List(s"non_null_int_vector* ${outputMin}")
-            case LongType => List(s"non_null_bigint_vector* ${outputMin}")
+            case DoubleType => List(s"nullable_double_vector* ${outputMin}")
+            case IntegerType => List(s"nullable_int_vector* ${outputMin}")
+            case LongType => List(s"nullable_bigint_vector* ${outputMin}")
           }
         )
 
@@ -469,10 +527,15 @@ object CExpressionEvaluation {
           init = List(
             s"${outputMax}->data = (${cTypeOfSub(inputs, sub)} *)malloc(1 * sizeof(${cTypeOfSub(inputs, sub)}));",
             s"${outputMax}->count = 1;",
+            s"${outputMax}->validityBuffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"${outputMax}->validityBuffer[0] = 0;",
             s"${cTypeOfSub(inputs, sub)} ${cleanName}_max = std::numeric_limits<${cTypeOfSub(inputs, sub)}>::min();"
           ),
           iter = List(
-            s"if (${cleanName}_max < ${evaluateSub(inputs, sub)} && ${genNullCheck(inputs, sub)}) ${cleanName}_max = ${evaluateSub(inputs, sub)};"
+            s"if (${cleanName}_max < ${evaluateSub(inputs, sub)} && ${genNullCheck(inputs, sub)}) {",
+            s"${cleanName}_max = ${evaluateSub(inputs, sub)};",
+            s"${outputMax}->validityBuffer[0] = 1;",
+            "}"
           ),
           result = List(
             s"${outputMax}->data[0] = ${cleanName}_max;",
