@@ -221,12 +221,13 @@ object CExpressionEvaluation {
     val arguments = inputBits ++ outputBits
 
     List[List[String]](
-      List("#include \"frovedis/core/radix_sort.hpp\""),
+      List(
+        "#include \"frovedis/core/radix_sort.hpp\"",
+        "#include <tuple>"
+      ),
       List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       List(s"int* indices = (int *) malloc(input_${sortingIndex}->count * sizeof(int));"),
-
-      List(s"for(int i = 0; i < input_${sortingIndex}->count; i++)", "{", "indices[i] = i;", "}"),
-      List(s"frovedis::radix_sort(input_${sortingIndex}->data, indices, input_${sortingIndex}->count);"),
+      List(s"unsigned char* sort_column_validity_buffer = (unsigned char *) malloc(input_${sortingIndex}->count * sizeof(unsigned char));"),
 
       inputs.zipWithIndex.flatMap { case (res, idx) =>
         List(
@@ -237,14 +238,24 @@ object CExpressionEvaluation {
           s"int j_${idx} = 0;"
         )
       }.toList,
+      List(s"for(int i = 0; i < input_${sortingIndex}->count; i++)", "{",
+
+        s"""printf("At index %d value %f for id 0 ",i, input_0->data[i]);""",
+        s"""printf("At index %d value %f for id 1 ",i, input_1->data[i]);""",
+        "sort_column_validity_buffer = ((input_${idx}->validityBuffer[i/8] >> i % 8) & 0x1)",
+        "indices[i] = i;", "}"),
+      List(s"frovedis::radix_sort(input_${sortingIndex}->data, indices, input_${sortingIndex}->count);"),
       List(
         "#pragma _NEC ivdep",
         "for (int i = 0; i < output_0_count; i++) {"),
       inputs.zipWithIndex.flatMap {
       case (re, idx) =>
         List(s"if(${if (idx != sortingIndex) genNullCheckSorted(inputs, re) else genNullCheck(inputs, re)}) {",
+
           s"validity_bitset_${idx}.set(i%8, true);",
           s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re) else evaluateExpression(inputs, re)};",
+          s"""printf("At index %d value %f for id ${idx} ",i, output_${idx}_data[i]);""",
+          """printf("Setting index %d to true", i % 8);""",
           "} else {",
           s"validity_bitset_${idx}.set(i%8, false);}",
           "if(i % 8 == 7 || i == output_0_count - 1) { ",
