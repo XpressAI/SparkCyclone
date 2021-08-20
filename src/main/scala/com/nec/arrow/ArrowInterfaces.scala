@@ -124,13 +124,13 @@ object ArrowInterfaces {
     bigintVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
 
-    SummingPlanOffHeap.getUnsafe.copyMemory(
+    getUnsafe.copyMemory(
       input.validityBuffer,
       bigintVector.getValidityBufferAddress,
       Math.ceil(input.count/8.0).toInt
     )
 
-    SummingPlanOffHeap.getUnsafe.copyMemory(
+    getUnsafe.copyMemory(
       input.data,
       bigintVector.getDataBufferAddress,
       input.size()
@@ -157,12 +157,12 @@ object ArrowInterfaces {
       sys.error(s"Returned count was infinite; input ${input}")
     }
     float8Vector.setValueCount(input.count)
-    SummingPlanOffHeap.getUnsafe.copyMemory(
+    getUnsafe.copyMemory(
       input.validityBuffer,
       float8Vector.getValidityBufferAddress,
       Math.ceil(input.count/8.0).toInt
     )
-    SummingPlanOffHeap.getUnsafe.copyMemory(
+    getUnsafe.copyMemory(
       input.data,
       float8Vector.getDataBufferAddress,
       input.size()
