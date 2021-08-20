@@ -227,7 +227,7 @@ object CExpressionEvaluation {
       ),
       List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       List(s"int* indices = (int *) malloc(input_${sortingIndex}->count * sizeof(int));"),
-      List(s"unsigned char* sort_column_validity_buffer = (unsigned char *) malloc(input_${sortingIndex}->count * sizeof(unsigned char));"),
+      List(s"std::tuple<int, int>* sort_column_validity_buffer = (std::tuple<int, int> *) malloc(input_${sortingIndex}->count * sizeof(std::tuple<int, double>));"),
 
       inputs.zipWithIndex.flatMap { case (res, idx) =>
         List(
@@ -242,16 +242,15 @@ object CExpressionEvaluation {
 
         s"""printf("At index %d value %f for id 0 ",i, input_0->data[i]);""",
         s"""printf("At index %d value %f for id 1 ",i, input_1->data[i]);""",
-        "sort_column_validity_buffer = ((input_${idx}->validityBuffer[i/8] >> i % 8) & 0x1)",
+        s"sort_column_validity_buffer[i] = std::tuple<int, double>{((input_${sortingIndex}->validityBuffer[i/8] >> i % 8) & 0x1), i};",
         "indices[i] = i;", "}"),
-      List(s"frovedis::radix_sort(input_${sortingIndex}->data, indices, input_${sortingIndex}->count);"),
+      List(s"frovedis::radix_sort(input_${sortingIndex}->data, sort_column_validity_buffer, input_${sortingIndex}->count);"),
       List(
         "#pragma _NEC ivdep",
         "for (int i = 0; i < output_0_count; i++) {"),
       inputs.zipWithIndex.flatMap {
       case (re, idx) =>
-        List(s"if(${if (idx != sortingIndex) genNullCheckSorted(inputs, re) else genNullCheck(inputs, re)}) {",
-
+        List(s"if(${genNullCheckSorted(inputs, re, sortingIndex)}) {",
           s"validity_bitset_${idx}.set(i%8, true);",
           s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re) else evaluateExpression(inputs, re)};",
           s"""printf("At index %d value %f for id ${idx} ",i, output_${idx}_data[i]);""",
@@ -307,14 +306,14 @@ object CExpressionEvaluation {
         (input.indexWhere(_.name == name), typeName) match {
           case (-1, typeName) =>
             sys.error(s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}")
-          case (idx, (DoubleType | IntegerType | LongType)) => s"input_${idx}->data[indices[i]]"
+          case (idx, (DoubleType | IntegerType | LongType)) => s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
         }
       case NamedExpression(name, DoubleType | IntegerType | LongType) =>
         input.indexWhere(_.name == name) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx => s"input_${idx}->data[indices[i]]"
+          case idx => s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
         }
     }
   }
@@ -345,27 +344,31 @@ object CExpressionEvaluation {
     }
   }
 
-  def genNullCheckSorted(inputs: Seq[Attribute], expression: Expression): String = {
+  def genNullCheckSorted(inputs: Seq[Attribute],
+                         expression: Expression,
+                        sortingColumnIndex: Int): String = {
 
     expression match {
       case AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.name == name) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx if idx == sortingColumnIndex =>
+            s"std::get<0>(sort_column_validity_buffer[i]) == 1"
           case idx =>
-            s"((input_${idx}->validityBuffer[indices[i]/8]>> indices[i] % 8) & 0x1) == 1"
+            s"(input_${idx}->validityBuffer[std::get<1>(sort_column_validity_buffer[i])/8] >> (std::get<1>(sort_column_validity_buffer[i]) % 8) & 0x1) == 1"
         }
-      case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
+      case alias @ Alias(expr, name) => genNullCheckSorted(inputs, alias.child, sortingColumnIndex)
       case Subtract(left, right, _) =>
-        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
+        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
       case Multiply(left, right, _) =>
-        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
+        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
       case Add(left, right, _) =>
-        s"${genNullCheck(inputs, left)} &&  ${genNullCheck(inputs, right)}"
+        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
       case Divide(left, right, _) =>
-        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
+        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
       case Abs(v) =>
-        s"${genNullCheck(inputs, v)}"
+        s"${genNullCheckSorted(inputs, v, sortingColumnIndex)}"
       case Literal(v, DoubleType | IntegerType) =>
         "true"
     }
@@ -402,7 +405,7 @@ object CExpressionEvaluation {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
           case idx =>
-            s"input_${idx}->data[indices[i]]"
+            s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
         }
       case Subtract(left, right, _) =>
         s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"

@@ -80,6 +80,30 @@ public interface ArrowTransferStructures extends Library {
     }
 
     @Structure.FieldOrder({"data", "count"})
+    class nullable_int_vector extends Structure {
+        public long data;
+        public Integer count;
+
+        public nullable_int_vector() {
+            super();
+        }
+
+        public nullable_int_vector(Pointer p) {
+            super(p);
+            read();
+        }
+
+        public static class ByReference extends nullable_int_vector implements Structure.ByReference {
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
+        }
+    }
+
+    @Structure.FieldOrder({"data", "count"})
     class non_null_int2_vector extends Structure {
         public long data;
         public Integer count;
