@@ -215,7 +215,7 @@ object BenchTestingPossibilities {
           else List(None)
       } yield SimpleSql(
         sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}), COUNT(*) FROM nums",
-        expectedResult = (62, 4, 5),
+        expectedResult = (90.0,4.0,13),
         source = source,
         testingTarget = testingTarget,
         offHeapMode = colMode,

@@ -174,13 +174,10 @@ object CExpressionEvaluation {
             s"if(${genNullCheck(inputs, re)})",
             "{",
             s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};",
-            s"""printf("At index %d value %f ",i, output_${idx}_data[i]);""",
-            """printf("Setting index %d to true", i % 8);""",
             s"validity_bitset_${idx}.set(i%8, true);",
             "}",
             s"else { validity_bitset_${idx}.set(i%8, false);}",
             "if(i % 8 == 7 || i == output_0_count - 1) { ",
-            s"""std::cout << validity_bitset_${idx} <<' ' << "for i =" << i;""",
             s"validity_buffer_${idx}[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
             s"j_${idx} += 1;",
             s"validity_bitset_${idx}.reset(); }",
@@ -193,7 +190,6 @@ object CExpressionEvaluation {
           s"output_${idx}->count = output_${idx}_count;",
           s"output_${idx}->data = output_${idx}_data;",
           s"output_${idx}->validityBuffer = validity_buffer_${idx};",
-          s"""printf(" OUTPUT: %d ", output_${idx}->validityBuffer[1]);"""
         )
       }.toList,
 
@@ -226,7 +222,6 @@ object CExpressionEvaluation {
         "#include <tuple>"
       ),
       List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
-      List(s"int* indices = (int *) malloc(input_${sortingIndex}->count * sizeof(int));"),
       List(s"std::tuple<int, int>* sort_column_validity_buffer = (std::tuple<int, int> *) malloc(input_${sortingIndex}->count * sizeof(std::tuple<int, double>));"),
 
       inputs.zipWithIndex.flatMap { case (res, idx) =>
@@ -239,11 +234,8 @@ object CExpressionEvaluation {
         )
       }.toList,
       List(s"for(int i = 0; i < input_${sortingIndex}->count; i++)", "{",
-
-        s"""printf("At index %d value %f for id 0 ",i, input_0->data[i]);""",
-        s"""printf("At index %d value %f for id 1 ",i, input_1->data[i]);""",
         s"sort_column_validity_buffer[i] = std::tuple<int, double>{((input_${sortingIndex}->validityBuffer[i/8] >> i % 8) & 0x1), i};",
-        "indices[i] = i;", "}"),
+        "}"),
       List(s"frovedis::radix_sort(input_${sortingIndex}->data, sort_column_validity_buffer, input_${sortingIndex}->count);"),
       List(
         "#pragma _NEC ivdep",
@@ -253,12 +245,9 @@ object CExpressionEvaluation {
         List(s"if(${genNullCheckSorted(inputs, re, sortingIndex)}) {",
           s"validity_bitset_${idx}.set(i%8, true);",
           s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re) else evaluateExpression(inputs, re)};",
-          s"""printf("At index %d value %f for id ${idx} ",i, output_${idx}_data[i]);""",
-          """printf("Setting index %d to true", i % 8);""",
           "} else {",
           s"validity_bitset_${idx}.set(i%8, false);}",
           "if(i % 8 == 7 || i == output_0_count - 1) { ",
-          s"""std::cout << validity_bitset_${idx} <<' ' << "for i =" << i;""",
           s"validity_buffer_${idx}[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
           s"j_${idx} += 1;",
           s"validity_bitset_${idx}.reset(); }",

@@ -167,7 +167,6 @@ object ArrowInterfaces {
       float8Vector.getDataBufferAddress,
       input.size()
     )
-    println("PIESEK")
   }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {

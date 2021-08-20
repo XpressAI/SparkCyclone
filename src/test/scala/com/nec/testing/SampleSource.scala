@@ -1,7 +1,6 @@
 package com.nec.testing
 
-import com.nec.spark.SampleTestData.SampleMultiColumnCSV
-import com.nec.spark.SampleTestData.SampleTwoColumnParquet
+import com.nec.spark.SampleTestData.{SampleMultiColumnCSV, SampleTwoColumnParquet, SampleTwoColumnParquetNonNull}
 
 import org.apache.spark.sql.SparkSession
 import com.nec.testing.Testing.DataSize.BenchmarkSize
@@ -83,6 +82,22 @@ object SampleSource {
       .createOrReplaceTempView(SharedName)
   }
 
+  def makeCsvNumsMultiColumnNonNull(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    val schema = StructType(
+      Array(StructField(SampleColA, DoubleType), StructField(SampleColB, DoubleType))
+    )
+
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .option("header", "true")
+      .load(SampleMultiColumnCSV.toString)
+      .na
+      .drop(Seq(SampleColA, SampleColB))
+      .createOrReplaceTempView(SharedName)
+  }
+
   lazy val LargeCSV: String =
     sys.env.getOrElse(
       key = "LARGE_CSV",
@@ -113,6 +128,17 @@ object SampleSource {
     sparkSession.read
       .format("parquet")
       .load(SampleTwoColumnParquet.toString)
+      .withColumnRenamed("a", SampleColA)
+      .withColumnRenamed("b", SampleColB)
+      .createOrReplaceTempView(SharedName)
+  }
+
+  def makeParquetNumsNonNull(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+
+    sparkSession.read
+      .format("parquet")
+      .load(SampleTwoColumnParquetNonNull.toString)
       .withColumnRenamed("a", SampleColA)
       .withColumnRenamed("b", SampleColB)
       .createOrReplaceTempView(SharedName)

@@ -70,10 +70,8 @@ object CArrowNativeInterface extends LazyLogging {
     def ia: String = invokeArgs.mkString("[", ",", "]")
 
     logger.debug(s"Invoke args are => $ia (size ${invokeArgs.length})")
-    println("INVOKE")
 
     fn.invokeLong(invokeArgs)
-    println("INVOKED")
     vectorExtractions.foreach(_.apply())
 
     logger.debug(s"Result of invoke args => $ia (size ${invokeArgs.length})")
