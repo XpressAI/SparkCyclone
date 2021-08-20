@@ -2,12 +2,13 @@
 #include "frovedis/core/set_operations.hpp"
 #include <vector>
 #include <iostream>
+#include <cmath>
 
-extern "C" long group_by(non_null_double_vector* grouping_col,
-                         non_null_double_vector* values_col,
-                         non_null_double_vector* values,
-                         non_null_double_vector* groups,
-                         non_null_double_vector* counts)
+extern "C" long group_by(nullable_double_vector* grouping_col,
+                         nullable_double_vector* values_col,
+                         nullable_double_vector* values,
+                         nullable_double_vector* groups,
+                         nullable_double_vector* counts)
 {
     std::vector<double> grouping_vec(grouping_col->data, grouping_col->data + grouping_col->count);
     size_t count = grouping_col->count;
@@ -60,13 +61,14 @@ extern "C" long group_by(non_null_double_vector* grouping_col,
     return 0;
 }
 
-extern "C" long group_by_sum(non_null_double_vector* grouping_col,
-                            non_null_double_vector* values_col,
-                            non_null_double_vector* values,
-                            non_null_double_vector* groups)
+extern "C" long group_by_sum(nullable_double_vector* grouping_col,
+                            nullable_double_vector* values_col,
+                            nullable_double_vector* values,
+                            nullable_double_vector* groups)
 {
      std::vector<double> grouping_vec(grouping_col->data, grouping_col->data + grouping_col->count);
      size_t count = grouping_col->count;
+
 
      std::vector<size_t> idx(count);
      #pragma _NEC ivdep
@@ -97,6 +99,15 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
 
     double *values_col_data = values_col->data;
 
+    int validityBufferByteSize = ceil((groups_count - 1)/8.0);
+    values->validityBuffer = (unsigned char *)malloc(validityBufferByteSize * sizeof(unsigned char));
+    groups->validityBuffer = (unsigned char *)malloc(validityBufferByteSize * sizeof(unsigned char));
+
+    for (int i =0; i < validityBufferByteSize; i++) {
+    values->validityBuffer[i] = 255;
+    groups->validityBuffer[i] = 255;
+    }
+
     for (size_t i = 0; i < groups_count - 1; i++) {
         size_t start = groups_indicies[i];
         size_t end = groups_indicies[i + 1];
@@ -107,6 +118,7 @@ extern "C" long group_by_sum(non_null_double_vector* grouping_col,
             sum += values_col_data[idx[j]];
         }
         values_data[i] = sum;
+
     }
 
     groups->data = groups_data;
