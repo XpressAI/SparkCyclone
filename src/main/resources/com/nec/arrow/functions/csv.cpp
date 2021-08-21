@@ -5,7 +5,7 @@
 #include <utility>
 #include <sstream>
 #include <vector>
-#include <omp.h>
+#include <cmath>
 #include "words.hpp"
 #include "words.cc"
 #include "parsefloat.hpp"
@@ -18,9 +18,9 @@
 #endif
 
 extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
-                            non_null_double_vector* output_a,
-                            non_null_double_vector* output_b,
-                            non_null_double_vector* output_c)
+                            nullable_double_vector* output_a,
+                            nullable_double_vector* output_b,
+                            nullable_double_vector* output_c)
 {
     #if DEBUG
         std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
@@ -53,6 +53,8 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
     std::vector<double> doubles = frovedis::parsenumber<double>(words);
 
     int count = (doubles.size() / 3) - 1; // ignore header
+    int byteCount = ceil(count/8.0);
+    unsigned char* validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
     double *b_data = (double *)malloc(mem_len);
@@ -67,20 +69,26 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
         a_data[i - 1] = doubles[i * 3 + 0];
         b_data[i - 1] = doubles[i * 3 + 1];
         c_data[i - 1] = doubles[i * 3 + 2];
+        if(i <= byteCount) {
+            validityBuff[i - 1] = 255;
+        }
     }
 
     output_a->data = a_data;
+    output_a->validityBuffer = validityBuff;
     output_a->count = count;
     output_b->data = b_data;
+    output_b->validityBuffer = validityBuff;
     output_b->count = count;
     output_c->data = c_data;
+    output_c->validityBuffer = validityBuff;
     output_c->count = count;
     
     return 0;
 }
-extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
-                            non_null_double_vector* output_a,
-                            non_null_double_vector* output_b)
+extern "C" long parse_csv_2(non_null_c_bounded_string* csv_data,
+                            nullable_double_vector* output_a,
+                            nullable_double_vector* output_b)
 {
     #if DEBUG
         std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
@@ -113,6 +121,8 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
     std::vector<double> doubles = frovedis::parsenumber<double>(words);
 
     int count = (doubles.size() / 2) - 1; // ignore header
+    int byteCount = ceil(count/8.0);
+    unsigned char* validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
     double *b_data = (double *)malloc(mem_len);
@@ -125,11 +135,16 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
     for (int i = 1; i <= count; i++) {
         a_data[i - 1] = doubles[i * 2 + 0];
         b_data[i - 1] = doubles[i * 2 + 1];
+        if(i <= byteCount) {
+            validityBuff[i - 1] = 255;
+        }
     }
 
     output_a->data = a_data;
+    output_a->validityBuffer = validityBuff;
     output_a->count = count;
     output_b->data = b_data;
+    output_b->validityBuffer = validityBuff;
     output_b->count = count;
     
     return 0;
@@ -138,9 +153,9 @@ extern "C" long parse_csv_2(  non_null_c_bounded_string* csv_data,
 #ifndef _WIN32
 
 extern "C" long parse_csv_ipc(  non_null_c_bounded_string* input_sock_name,
-                            non_null_double_vector* output_a,
-                            non_null_double_vector* output_b,
-                            non_null_double_vector* output_c) {
+                            nullable_double_vector* output_a,
+                            nullable_double_vector* output_b,
+                            nullable_double_vector* output_c) {
 
     non_null_varchar_vector temp_input_str;
     read_fully_2(input_sock_name, &temp_input_str);
@@ -158,8 +173,8 @@ extern "C" long parse_csv_ipc(  non_null_c_bounded_string* input_sock_name,
 }
 
 extern "C" long parse_csv_2_ipc(  non_null_c_bounded_string* input_sock_name,
-                            non_null_double_vector* output_a,
-                            non_null_double_vector* output_b) {
+                            nullable_double_vector* output_a,
+                            nullable_double_vector* output_b) {
 
     non_null_varchar_vector temp_input_str;
     read_fully_2(input_sock_name, &temp_input_str);
@@ -173,7 +188,7 @@ extern "C" long parse_csv_2_ipc(  non_null_c_bounded_string* input_sock_name,
 }
 #endif
 extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
-                            non_null_double_vector* output_a)
+                            nullable_double_vector* output_a)
 {
     #if DEBUG
         std::cout << "Parsing " << csv_data->length / 1024.0 / 1024.0 << " MB" << std::endl;
@@ -227,7 +242,7 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
 #ifndef _WIN32
 
 extern "C" long parse_csv_1_ipc(  non_null_c_bounded_string* input_sock_name,
-                            non_null_double_vector* output_a) {
+                            nullable_double_vector* output_a) {
 
     non_null_varchar_vector temp_input_str;
     read_fully_2(input_sock_name, &temp_input_str);
@@ -243,10 +258,10 @@ extern "C" long parse_csv_1_ipc(  non_null_c_bounded_string* input_sock_name,
 /** Static stub implementation -- requires reimplementation for dynamic inputs here **/
 extern "C" long parse_csv_double1_str2_int3_long4(
     non_null_c_bounded_string* csv_data,
-    non_null_double_vector* output_a,
+    nullable_double_vector* output_a,
     non_null_varchar_vector* output_b,
     non_null_int_vector* output_c,
-    non_null_bigint_vector* output_d)
+    nullable_bigint_vector* output_d)
 {
     output_a->data = (double *)malloc(2 * sizeof(double));
     output_a->data[0] = 1.0;
