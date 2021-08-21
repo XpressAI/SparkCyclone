@@ -48,6 +48,19 @@ extern "C" long group_by(nullable_double_vector* grouping_col,
         values_data[i] = values_col->data[idx[i]];
     }
 
+    int groupsValidityBufferSize = ceil((groups_count - 1)/8.0);
+    int valuesValidityBufferSize = ceil(grouping_vec.size()/8.0);
+    values->validityBuffer = (unsigned char *)malloc(grouping_vec.size() * sizeof(unsigned char));
+    groups->validityBuffer = (unsigned char *)malloc(groupsValidityBufferSize * sizeof(unsigned char));
+    counts->validityBuffer = (unsigned char *)malloc(groupsValidityBufferSize * sizeof(unsigned char));
+
+     for (int i =0; i < valuesValidityBufferSize; i++) {
+        if(i < groupsValidityBufferSize) {
+            groups->validityBuffer[i] = 255;
+            counts->validityBuffer[i] = 255;
+        }
+        values->validityBuffer[i] = 255;
+    }
 
     groups->data = groups_data;
     groups->count =  groups_count - 1;

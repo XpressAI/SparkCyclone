@@ -3,12 +3,13 @@
 #include "frovedis/dataframe/join.cc"
 #include <iostream>
 #include <vector>
+#include <cmath>
 
-extern "C" long join_doubles(non_null_double_vector* left,
-                             non_null_double_vector* right,
-                             non_null_int_vector* left_key,
-                             non_null_int_vector* right_key,
-                             non_null_double_vector* out)
+extern "C" long join_doubles(nullable_double_vector* left,
+                             nullable_double_vector* right,
+                             nullable_int_vector* left_key,
+                             nullable_int_vector* right_key,
+                             nullable_double_vector* out)
 {
     double *left_data = left->data;
     double *right_data = right->data;
@@ -43,10 +44,17 @@ extern "C" long join_doubles(non_null_double_vector* left,
     int total_elems = left_out_size + right_out_size;
     double *out_data = (double *) malloc(total_elems * sizeof(double));
     int counter = 0;
+    int validityBufferSize = ceil(total_elems/8.0);
+    out->validityBuffer = (unsigned char *) malloc(validityBufferSize * sizeof(unsigned char));
 
     #pragma _NEC ivdep
     for(int i = 0; i < left_out_size; i++) {
         out_data[i] = left_data[left_out[i]];
+    }
+
+    #pragma _NEC ivdep
+    for(int i = 0; i < validityBufferSize ; i++) {
+        out->validityBuffer[i] = 255;
     }
 
     #pragma _NEC ivdep

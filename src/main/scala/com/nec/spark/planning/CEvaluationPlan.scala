@@ -414,14 +414,14 @@ final case class CEvaluationPlan(
             if (v_idx < v.getValueCount) {
               v match {
                 case vector: Float8Vector =>
-                  val doubleV = vector.getValueAsDouble(v_idx)
-                  writer.write(c_idx, doubleV)
+                  val isNull = BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
+                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
                 case vector: IntVector =>
-                  val intV = vector.getValueAsLong(v_idx).toInt
-                  writer.write(c_idx, intV)
+                  val isNull = BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
+                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
                 case vector: BigIntVector =>
-                  val longV = vector.getValueAsLong(v_idx)
-                  writer.write(c_idx, longV)
+                  val isNull = BitVectorHelper.get(v.asInstanceOf[BigIntVector].getValidityBuffer, v_idx) == 0
+                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
                 case _ =>
               }
             }

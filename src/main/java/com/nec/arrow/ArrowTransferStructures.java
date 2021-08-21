@@ -79,9 +79,10 @@ public interface ArrowTransferStructures extends Library {
         }
     }
 
-    @Structure.FieldOrder({"data", "count"})
+    @Structure.FieldOrder({"data","validityBuffer", "count"})
     class nullable_int_vector extends Structure {
         public long data;
+        public long validityBuffer;
         public Integer count;
 
         public nullable_int_vector() {

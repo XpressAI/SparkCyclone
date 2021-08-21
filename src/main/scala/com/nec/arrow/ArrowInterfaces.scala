@@ -88,6 +88,14 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_int_vector(intVector: IntVector): nullable_int_vector = {
+    val vc = new nullable_int_vector()
+    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = intVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = intVector.getValueCount
+    vc
+  }
+
   private def getUnsafe: Unsafe = {
     val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
     theUnsafe.setAccessible(true)
@@ -117,7 +125,7 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
   }
 
-  def nullable_bigint_vector_to_bigintVector(
+  def nullable_bigint_vector_to_BigIntVector(
                                               input: nullable_bigint_vector,
                                               bigintVector: BigIntVector
                                             ): Unit = {
@@ -173,6 +181,25 @@ object ArrowInterfaces {
     intVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
+  }
+
+  def nullable_int_vector_to_IntVector(input: nullable_int_vector,
+                                          intVector: IntVector
+                                            ): Unit = {
+    if (input.count == 0xffffffff) {
+      sys.error(s"Returned count was infinite; input ${input}")
+    }
+    intVector.setValueCount(input.count)
+    getUnsafe.copyMemory(
+      input.validityBuffer,
+      intVector.getValidityBufferAddress,
+      Math.ceil(input.count/8.0).toInt
+    )
+    getUnsafe.copyMemory(
+      input.data,
+      intVector.getDataBufferAddress,
+      input.size()
+    )
   }
 
   /**

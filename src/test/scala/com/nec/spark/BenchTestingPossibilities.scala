@@ -66,7 +66,7 @@ object BenchTestingPossibilities {
       override def isNative: Boolean = false
       override def expectedString: Option[String] = None
     }
-    val All: List[CsvStrategy] = List(NativeCsvVE, NormalCsv)
+    val All: List[CsvStrategy] = List(NormalCsv, NativeCsvVE)
   }
 
   import com.eed3si9n.expecty.Expecty.assert

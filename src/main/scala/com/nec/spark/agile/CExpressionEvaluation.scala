@@ -219,7 +219,8 @@ object CExpressionEvaluation {
     List[List[String]](
       List(
         "#include \"frovedis/core/radix_sort.hpp\"",
-        "#include <tuple>"
+        "#include <tuple>",
+        "#include <bitset>"
       ),
       List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
       List(s"std::tuple<int, int>* sort_column_validity_buffer = (std::tuple<int, int> *) malloc(input_${sortingIndex}->count * sizeof(std::tuple<int, double>));"),
@@ -544,9 +545,9 @@ object CExpressionEvaluation {
             s"${outputMax}->data[0] = ${cleanName}_max;",
           ),
           outputArguments = inputs(idx).dataType match {
-            case DoubleType => List(s"non_null_double_vector* ${outputMax}")
-            case IntegerType => List(s"non_null_int_vector* ${outputMax}")
-            case LongType => List(s"non_null_bigint_vector* ${outputMax}")
+            case DoubleType => List(s"nullable_double_vector* ${outputMax}")
+            case IntegerType => List(s"nullable_int_vector* ${outputMax}")
+            case LongType => List(s"nullable_bigint_vector* ${outputMax}")
           }
         )
 
@@ -578,7 +579,7 @@ object CExpressionEvaluation {
                 s"(input_0->count * ${cleanName}_y_square_sum - ${cleanName}_y_sum * ${cleanName}_y_sum));"
           ),
           outputArguments = List(
-            s"non_null_double_vector* ${outputCorr}"
+            s"nullable_double_vector* ${outputCorr}"
           )
         )
         

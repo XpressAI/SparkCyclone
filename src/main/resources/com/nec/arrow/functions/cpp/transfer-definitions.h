@@ -27,6 +27,13 @@ typedef struct
 
 typedef struct
 {
+    int *data;
+    unsigned char *validityBuffer;
+    int count;
+} nullable_int_vector;
+
+typedef struct
+{
     double *data;
     long count;
 } non_null_double_vector;

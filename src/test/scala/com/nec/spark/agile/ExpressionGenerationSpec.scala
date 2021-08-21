@@ -405,6 +405,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         ref_value14) == List(
         "#include \"frovedis/core/radix_sort.hpp\"",
         "#include <tuple>",
+        "#include <bitset>",
         s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* input_1, nullable_double_vector* output_0, nullable_double_vector* output_1)""",
         "{",
         "std::tuple<int, int>* sort_column_validity_buffer = (std::tuple<int, int> *) malloc(input_0->count * sizeof(std::tuple<int, double>));",

@@ -136,7 +136,7 @@ final class DynamicCSqlExpressionEvaluationSpec
           ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
             (Some(4.0),None,None), (Some(2.0),None,None), (None,None,None), (Some(2.0),None,None),
             (None,None,None), (Some(20.0),None,None), (Some(1.0),Some(2.0),Some(3.0)), (Some(2.0),
-              Some(3.0),Some(5.0)), (None,Some(4.0),None), (Some(3.0),Some(4.0),Some(7.0)),
+              Some(3.0),Some(5.0)), (None,Some(3.0),None), (Some(3.0),Some(4.0),Some(7.0)),
             (Some(4.0),Some(5.0),Some(9.0)), (None,Some(5.0),None), (Some(52.0),Some(6.0),Some(58.0))
           )
         )

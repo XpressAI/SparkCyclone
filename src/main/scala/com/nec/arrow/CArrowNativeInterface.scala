@@ -44,7 +44,7 @@ object CArrowNativeInterface extends LazyLogging {
       case NativeArgument.VectorInputNativeArgument(Float8VectorInputWrapper(vcv)) =>
         c_nullable_double_vector(vcv)
       case NativeArgument.VectorInputNativeArgument(IntVectorInputWrapper(vcv)) =>
-        c_int2_vector(vcv)
+        c_nullable_int_vector(vcv)
       case NativeArgument.VectorInputNativeArgument(VarCharVectorInputWrapper(vcv)) =>
         c_non_null_varchar_vector(vcv)
       case NativeArgument.VectorOutputNativeArgument(Float8VectorOutputWrapper(doubleVector)) =>
@@ -52,12 +52,12 @@ object CArrowNativeInterface extends LazyLogging {
         vectorExtractions.append(() => nullable_double_vector_to_float8Vector(struct, doubleVector))
         struct
       case NativeArgument.VectorOutputNativeArgument(IntVectorOutputWrapper(intVector)) =>
-        val struct = new non_null_int_vector()
-        vectorExtractions.append(() => non_null_int_vector_to_IntVector(struct, intVector))
+        val struct = new nullable_int_vector()
+        vectorExtractions.append(() => nullable_int_vector_to_IntVector(struct, intVector))
         struct
       case NativeArgument.VectorOutputNativeArgument(BigIntVectorOutputWrapper(bigIntVector)) =>
         val struct = new nullable_bigint_vector()
-        vectorExtractions.append(() => nullable_bigint_vector_to_bigintVector(struct, bigIntVector))
+        vectorExtractions.append(() => nullable_bigint_vector_to_BigIntVector(struct, bigIntVector))
         struct
       case NativeArgument.VectorOutputNativeArgument(VarCharVectorOutputWrapper(vec)) =>
         val struct = new non_null_varchar_vector()
