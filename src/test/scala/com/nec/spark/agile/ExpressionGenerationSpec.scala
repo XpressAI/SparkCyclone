@@ -44,7 +44,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Set("value#14") ,Seq(ref), Alias(null, "summy")() -> expr) == {
+    assert(cGen(testFName, Set("value#14"), Seq(ref), List(Alias(null, "summy")() -> expr)) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_sum) {""",
         "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -76,7 +76,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName,Set("abcd"), Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
+    assert(cGen(testFName, Set("abcd"), Seq(ref), List(Alias(null, "avy#123 + 51")() -> expr)) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -111,7 +111,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Set("abcd"), Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
+    assert(cGen(testFName, Set("abcd"), Seq(ref), List(Alias(null, "avy#123 + 2")() -> expr)) == {
       List(
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -152,24 +152,31 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Set("abcd", "abcd_2"), Seq(ref1, ref2), Alias(null, "avy#123 + avy#124")() -> expr) == {
-      List(
-        s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
-        "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
-        "output_0_average_sum->count = 1;",
-        "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
-        "output_0_average_count->count = 1;",
-        "double avy123avy124_accumulated = 0;",
-        "int avy123avy124_counted = 0;",
-        "#pragma _NEC ivdep",
-        "for (int i = 0; i < input_0->count; i++) {",
-        "avy123avy124_accumulated += input_0->data[i] + input_1->data[i];",
-        "}",
-        "output_0_average_sum->data[0] = avy123avy124_accumulated;",
-        "output_0_average_count->data[0] = input_0->count;",
-        "return 0;"
-      )
-    }.codeLines)
+    assert(
+      cGen(
+        testFName,
+        Set("abcd", "abcd_2"),
+        Seq(ref1, ref2),
+        List(Alias(null, "avy#123 + avy#124")() -> expr)
+      ) == {
+        List(
+          s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0_average_sum, non_null_double_vector* output_0_average_count) {""",
+          "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
+          "output_0_average_sum->count = 1;",
+          "output_0_average_count->data = (double *)malloc(1 * sizeof(double));",
+          "output_0_average_count->count = 1;",
+          "double avy123avy124_accumulated = 0;",
+          "int avy123avy124_counted = 0;",
+          "#pragma _NEC ivdep",
+          "for (int i = 0; i < input_0->count; i++) {",
+          "avy123avy124_accumulated += input_0->data[i] + input_1->data[i];",
+          "}",
+          "output_0_average_sum->data[0] = avy123avy124_accumulated;",
+          "output_0_average_count->data[0] = input_0->count;",
+          "return 0;"
+        )
+      }.codeLines
+    )
   }
 
   "Different expressions are found" - {
@@ -241,8 +248,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         testFName,
         Set("abcd"),
         Seq(ref),
-        Alias(null, "summy")() -> expr,
-        Alias(null, "avy#123 - 1.0")() -> expr2
+        List(Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2)
       ) ==
         List(
           s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* output_0_sum, non_null_double_vector* output_1_average_sum, non_null_double_vector* output_1_average_count) {""",
@@ -309,10 +315,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
 
   "Sorting" in {
     assert(
-      cGenSort(
-        testFName,
-        Seq(ref_value14, ref_value15),
-        ref_value14) == List(
+      cGenSort(testFName, Seq(ref_value14, ref_value15), ref_value14) == List(
         "#include \"frovedis/core/radix_sort.hpp\"",
         s"""extern "C" long ${testFName}(non_null_double_vector* input_0, non_null_double_vector* input_1, non_null_double_vector* output_0, non_null_double_vector* output_1)""",
         "{",

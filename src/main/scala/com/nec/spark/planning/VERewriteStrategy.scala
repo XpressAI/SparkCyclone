@@ -126,6 +126,41 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
           )
         }
 
+        case agg @ logical.Aggregate(
+              groupingExpressions,
+              resultExpressions,
+              logical.Project(projectList, logical.Filter(condition, child))
+            ) =>
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          List(
+            CEvaluationPlan(
+              fName,
+              resultExpressions,
+              List(
+                CExpressionEvaluation
+                  .cGen(
+                    fName,
+                    agg.references.map(_.name).toSet,
+                    child.output,
+                    resultExpressions.map { re =>
+                      (
+                        re.asInstanceOf[Alias],
+                        re
+                          .asInstanceOf[Alias]
+                          .child
+                          .asInstanceOf[AggregateExpression]
+                      )
+                    },
+                    Some(condition)
+                  )
+                  .lines,
+                List("}")
+              ).flatten.codeLines,
+              planLater(child),
+              agg.references.map(_.name).toSet,
+              nativeEvaluator
+            )
+          )
         case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
             if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
@@ -165,7 +200,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                           .child
                           .asInstanceOf[AggregateExpression]
                       )
-                    }: _*
+                    }
                   )
                   .lines,
                 List("}")
@@ -200,7 +235,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                           .child
                           .asInstanceOf[AggregateExpression]
                       )
-                    }: _*
+                    }
                   )
                   .lines,
                 List("}")
