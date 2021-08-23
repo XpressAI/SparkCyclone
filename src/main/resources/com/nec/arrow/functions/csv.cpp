@@ -54,12 +54,15 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
 
     int count = (doubles.size() / 3) - 1; // ignore header
     int byteCount = ceil(count/8.0);
-    unsigned char* validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    unsigned char* a_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    unsigned char* b_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    unsigned char* c_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
     double *b_data = (double *)malloc(mem_len);
     double *c_data  = (double *)malloc(mem_len);
-
+    u
     #if DEBUG
         std::cout << "Assigning" << std::endl;
     #endif
@@ -70,18 +73,20 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
         b_data[i - 1] = doubles[i * 3 + 1];
         c_data[i - 1] = doubles[i * 3 + 2];
         if(i <= byteCount) {
-            validityBuff[i - 1] = 255;
+            a_validityBuff[i - 1] = 255;
+            b_validityBuff[i - 1] = 255;
+            c_validityBuff[i - 1] = 255;
         }
     }
 
     output_a->data = a_data;
-    output_a->validityBuffer = validityBuff;
+    output_a->validityBuffer = a_validityBuff;
     output_a->count = count;
     output_b->data = b_data;
-    output_b->validityBuffer = validityBuff;
+    output_b->validityBuffer = b_validityBuff;
     output_b->count = count;
     output_c->data = c_data;
-    output_c->validityBuffer = validityBuff;
+    output_c->validityBuffer = c_validityBuff;
     output_c->count = count;
     
     return 0;
@@ -122,7 +127,9 @@ extern "C" long parse_csv_2(non_null_c_bounded_string* csv_data,
 
     int count = (doubles.size() / 2) - 1; // ignore header
     int byteCount = ceil(count/8.0);
-    unsigned char* validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    unsigned char* a_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    unsigned char* b_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
     double *b_data = (double *)malloc(mem_len);
@@ -136,15 +143,16 @@ extern "C" long parse_csv_2(non_null_c_bounded_string* csv_data,
         a_data[i - 1] = doubles[i * 2 + 0];
         b_data[i - 1] = doubles[i * 2 + 1];
         if(i <= byteCount) {
-            validityBuff[i - 1] = 255;
+            a_validityBuff[i - 1] = 255;
+            b_validityBuff[i - 1] = 255;
         }
     }
 
     output_a->data = a_data;
-    output_a->validityBuffer = validityBuff;
+    output_a->validityBuffer = a_validityBuff;
     output_a->count = count;
     output_b->data = b_data;
-    output_b->validityBuffer = validityBuff;
+    output_b->validityBuffer = b_validityBuff;
     output_b->count = count;
     
     return 0;
