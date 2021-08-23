@@ -62,7 +62,7 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
     double *a_data = (double *)malloc(mem_len);
     double *b_data = (double *)malloc(mem_len);
     double *c_data  = (double *)malloc(mem_len);
-    u
+
     #if DEBUG
         std::cout << "Assigning" << std::endl;
     #endif
@@ -227,10 +227,11 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     #endif
 
     std::vector<double> doubles = frovedis::parsenumber<double>(words);
-
     int count = doubles.size() - 1; // ignore header
+    int byteCount = ceil(count/8.0);
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
+    unsigned char* a_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
 
     #if DEBUG
         std::cout << "Assigning" << std::endl;
@@ -239,6 +240,9 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     #pragma _NEC vector
     for (int i = 1; i <= count; i++) {
         a_data[i - 1] = doubles[i];
+        if(i < byteCount) {
+            a_validityBuff[i] = 255;
+        }
     }
 
     output_a->data = a_data;
