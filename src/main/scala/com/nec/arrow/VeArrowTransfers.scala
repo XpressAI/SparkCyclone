@@ -258,7 +258,6 @@ object VeArrowTransfers extends LazyLogging {
     val validityPtr = byteBuffer.getLong(8)
     val dataCount = byteBuffer.getInt(16)
     val dataSize = dataCount * 8
-    println("DATA SIZE: " + dataCount)
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
     val validityTarget = ByteBuffer.allocateDirect(dataCount)
 

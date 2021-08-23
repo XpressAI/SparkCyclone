@@ -56,7 +56,6 @@ final class DynamicVeSqlExpressionEvaluationSpec
         SampleSource.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
         sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
-          println(ds.queryExecution.executedPlan)
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }

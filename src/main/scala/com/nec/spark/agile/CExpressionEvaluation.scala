@@ -453,15 +453,19 @@ object CExpressionEvaluation {
             s"${outputSum}->count = 1;",
             s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
             s"${outputCount}->count = 1;",
-            s"unsigned char* output_${idx}_validity_buffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
-            s"output_${idx}_validity_buffer[0] = 0;",
+            s"unsigned char* output_${idx}_sum_validity_buffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"unsigned char* output_${idx}_count_validity_buffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
+            s"output_${idx}_sum_validity_buffer[0] = 0;",
+            s"output_${idx}_count_validity_buffer[0] = 0;",
             s"double ${cleanName}_accumulated = 0;",
             s"long ${cleanName}_counted = 0;"
           ),
           iter = List(
             s"if(${genNullCheck(inputs, sub)})",
             "{",
-            s"output_${idx}_validity_buffer[0] = 1;",
+            s"output_${idx}_count_validity_buffer[0] = 1;",
+            s"output_${idx}_sum_validity_buffer[0] = 1;",
+
             s"${cleanName}_accumulated += ${evaluateSub(inputs, sub)};",
             s"${cleanName}_counted += 1;",
             "}"
@@ -469,8 +473,8 @@ object CExpressionEvaluation {
           result = List(
             s"${outputSum}->data[0] = ${cleanName}_accumulated;",
             s"${outputCount}->data[0] = ${cleanName}_counted;",
-            s"${outputCount}->validityBuffer = output_${idx}_validity_buffer;",
-            s"${outputSum}->validityBuffer = output_${idx}_validity_buffer;"
+            s"${outputCount}->validityBuffer = output_${idx}_count_validity_buffer;",
+            s"${outputSum}->validityBuffer = output_${idx}_sum_validity_buffer;"
 
           ),
           outputArguments =

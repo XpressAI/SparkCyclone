@@ -53,7 +53,6 @@ final class DynamicCSqlExpressionEvaluationSpec
 
 
         sparkSession.sql(sql).debugSqlHere { ds =>
-          println(ds.queryExecution.executedPlan)
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }
@@ -273,7 +272,6 @@ final class DynamicCSqlExpressionEvaluationSpec
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      println(thePlan)
       expect(thePlan.toString().contains("CEvaluation"))
       dataSet
     }
