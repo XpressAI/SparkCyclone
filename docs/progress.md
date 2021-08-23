@@ -4,10 +4,10 @@
 
 | Functions                                                                                                                                                              | Supported ✅? |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| [SparkSession](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.html#pyspark.sql.SparkSession)(sparkContext\[, jsparkSession\])  |⬜️|
-| [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.html#pyspark.sql.DataFrame)(jdf, sql\_ctx)                             |⬜️|
-| [Column](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.html#pyspark.sql.Column)(jc)                                                 |⬜️|
-| [Row](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Row.html#pyspark.sql.Row)                                                              |⬜️|
+| [SparkSession](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.html#pyspark.sql.SparkSession)(sparkContext\[, jsparkSession\])  |✅|
+| [DataFrame](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.html#pyspark.sql.DataFrame)(jdf, sql\_ctx)                             |✅|
+| [Column](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.html#pyspark.sql.Column)(jc)                                                 |✅|
+| [Row](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Row.html#pyspark.sql.Row)                                                              |✅|
 | [GroupedData](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.html#pyspark.sql.GroupedData)(jgd, df)                             |⬜️|
 | [PandasCogroupedOps](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.PandasCogroupedOps.html#pyspark.sql.PandasCogroupedOps)(gd1, gd2)       |⬜️|
 | [DataFrameNaFunctions](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameNaFunctions.html#pyspark.sql.DataFrameNaFunctions)(df)       |⬜️|
@@ -18,26 +18,26 @@
 
 | Functions                                                                                                                                                                                                            | Supported ✅? |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| [SparkSession.builder.config](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.config.html#pyspark.sql.SparkSession.builder.config)(\[key, value, conf\])              |⬜️|
-| [SparkSession.builder.appName](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.appName.html#pyspark.sql.SparkSession.builder.appName)(name)                           |⬜️|
+| [SparkSession.builder.config](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.config.html#pyspark.sql.SparkSession.builder.config)(\[key, value, conf\])              |✅|
+| [SparkSession.builder.appName](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.appName.html#pyspark.sql.SparkSession.builder.appName)(name)                           |✅|
 | [SparkSession.builder.enableHiveSupport](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.enableHiveSupport.html#pyspark.sql.SparkSession.builder.enableHiveSupport)() |⬜️|
-| [SparkSession.builder.getOrCreate](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.getOrCreate.html#pyspark.sql.SparkSession.builder.getOrCreate)()                   |⬜️|
+| [SparkSession.builder.getOrCreate](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.getOrCreate.html#pyspark.sql.SparkSession.builder.getOrCreate)()                   |✅|
 | [SparkSession.builder.master](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.builder.master.html#pyspark.sql.SparkSession.builder.master)(master)                            |⬜️|
 | [SparkSession.catalog](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.catalog.html#pyspark.sql.SparkSession.catalog)                                                         |⬜️|
-| [SparkSession.conf](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.conf.html#pyspark.sql.SparkSession.conf)                                                                  |⬜️|
+| [SparkSession.conf](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.conf.html#pyspark.sql.SparkSession.conf)                                                                  |✅|
 | [SparkSession.createDataFrame](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.createDataFrame.html#pyspark.sql.SparkSession.createDataFrame)(data\[, schema, …\])            |⬜️|
 | [SparkSession.getActiveSession](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.getActiveSession.html#pyspark.sql.SparkSession.getActiveSession)()                            |⬜️|
 | [SparkSession.newSession](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.newSession.html#pyspark.sql.SparkSession.newSession)()                                              |⬜️|
 | [SparkSession.range](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.range.html#pyspark.sql.SparkSession.range)(start\[, end, step, …\])                                      |⬜️|
-| [SparkSession.read](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.read.html#pyspark.sql.SparkSession.read)                                                                  |⬜️|
+| [SparkSession.read](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.read.html#pyspark.sql.SparkSession.read)                                                                  |✅|
 | [SparkSession.readStream](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.readStream.html#pyspark.sql.SparkSession.readStream)                                                |⬜️|
-| [SparkSession.sparkContext](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.sparkContext.html#pyspark.sql.SparkSession.sparkContext)                                          |⬜️|
-| [SparkSession.sql](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.sql.html#pyspark.sql.SparkSession.sql)(sqlQuery)                                                           |⬜️|
+| [SparkSession.sparkContext](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.sparkContext.html#pyspark.sql.SparkSession.sparkContext)                                          |✅|
+| [SparkSession.sql](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.sql.html#pyspark.sql.SparkSession.sql)(sqlQuery)                                                           |✅|
 | [SparkSession.stop](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.stop.html#pyspark.sql.SparkSession.stop)()                                                                |⬜️|
 | [SparkSession.streams](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.streams.html#pyspark.sql.SparkSession.streams)                                                         |⬜️|
 | [SparkSession.table](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.table.html#pyspark.sql.SparkSession.table)(tableName)                                                    |⬜️|
 | [SparkSession.udf](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.udf.html#pyspark.sql.SparkSession.udf)                                                                     |⬜️|
-| [SparkSession.version](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.version.html#pyspark.sql.SparkSession.version)                                                         |⬜️|
+| [SparkSession.version](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.SparkSession.version.html#pyspark.sql.SparkSession.version)                                                         |✅|
 
 ## Configuration
 
@@ -49,19 +49,19 @@
 
 | Functions                                                                                                                                                                                              | Supported ✅?                            |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
-| [DataFrameReader.csv](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.csv.html#pyspark.sql.DataFrameReader.csv)(path\[, schema, sep, …\])                    | ⬜️ |
-| [DataFrameReader.format](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.format.html#pyspark.sql.DataFrameReader.format)(source)                             | ⬜️ |
+| [DataFrameReader.csv](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.csv.html#pyspark.sql.DataFrameReader.csv)(path\[, schema, sep, …\])                    | ✅ |
+| [DataFrameReader.format](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.format.html#pyspark.sql.DataFrameReader.format)(source)                             | ✅ |
 | [DataFrameReader.jdbc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.jdbc.html#pyspark.sql.DataFrameReader.jdbc)(url, table\[, column, …\])                | ⬜️ |
 | [DataFrameReader.json](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.json.html#pyspark.sql.DataFrameReader.json)(path\[, schema, …\])                      | ⬜️ |
 | [DataFrameReader.load](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.load.html#pyspark.sql.DataFrameReader.load)(\[path, format, schema\])                 | ⬜️ |
 | [DataFrameReader.option](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.option.html#pyspark.sql.DataFrameReader.option)(key, value)                         | ⬜️ |
 | [DataFrameReader.options](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.options.html#pyspark.sql.DataFrameReader.options)(\*\*options)                     | ⬜️ |
 | [DataFrameReader.orc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.orc.html#pyspark.sql.DataFrameReader.orc)(path\[, mergeSchema, …\])                    | ⬜️ |
-| [DataFrameReader.parquet](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.parquet.html#pyspark.sql.DataFrameReader.parquet)(\*paths, \*\*options)            | ⬜️ |
-| [DataFrameReader.schema](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.schema.html#pyspark.sql.DataFrameReader.schema)(schema)                             | ⬜️ |
+| [DataFrameReader.parquet](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.parquet.html#pyspark.sql.DataFrameReader.parquet)(\*paths, \*\*options)            | ✅ |
+| [DataFrameReader.schema](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.schema.html#pyspark.sql.DataFrameReader.schema)(schema)                             | ✅ |
 | [DataFrameReader.table](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameReader.table.html#pyspark.sql.DataFrameReader.table)(tableName)                             | ⬜️ |
 | [DataFrameWriter.bucketBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.bucketBy.html#pyspark.sql.DataFrameWriter.bucketBy)(numBuckets, col, \*cols)      | ⬜️ |
-| [DataFrameWriter.csv](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.csv.html#pyspark.sql.DataFrameWriter.csv)(path\[, mode, …\])                           | ⬜️ |
+| [DataFrameWriter.csv](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.csv.html#pyspark.sql.DataFrameWriter.csv)(path\[, mode, …\])                           | ✅ |
 | [DataFrameWriter.format](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.format.html#pyspark.sql.DataFrameWriter.format)(source)                             | ⬜️ |
 | [DataFrameWriter.insertInto](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.insertInto.html#pyspark.sql.DataFrameWriter.insertInto)(tableName\[, …\])       | ⬜️ |
 | [DataFrameWriter.jdbc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.jdbc.html#pyspark.sql.DataFrameWriter.jdbc)(url, table\[, mode, …\])                  | ⬜️ |
@@ -70,33 +70,33 @@
 | [DataFrameWriter.option](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.option.html#pyspark.sql.DataFrameWriter.option)(key, value)                         | ⬜️ |
 | [DataFrameWriter.options](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.options.html#pyspark.sql.DataFrameWriter.options)(\*\*options)                     | ⬜️ |
 | [DataFrameWriter.orc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.orc.html#pyspark.sql.DataFrameWriter.orc)(path\[, mode, …\])                           | ⬜️ |
-| [DataFrameWriter.parquet](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.parquet.html#pyspark.sql.DataFrameWriter.parquet)(path\[, mode, …\])               | ⬜️ |
+| [DataFrameWriter.parquet](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.parquet.html#pyspark.sql.DataFrameWriter.parquet)(path\[, mode, …\])               | ✅ |
 | [DataFrameWriter.partitionBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.partitionBy.html#pyspark.sql.DataFrameWriter.partitionBy)(\*cols)              | ⬜️ |
-| [DataFrameWriter.save](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.save.html#pyspark.sql.DataFrameWriter.save)(\[path, format, mode, …\])                | ⬜️ |
+| [DataFrameWriter.save](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.save.html#pyspark.sql.DataFrameWriter.save)(\[path, format, mode, …\])                | ✅ |
 | [DataFrameWriter.saveAsTable](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.saveAsTable.html#pyspark.sql.DataFrameWriter.saveAsTable)(name\[, format, …\]) | ⬜️ |
-| [DataFrameWriter.sortBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.sortBy.html#pyspark.sql.DataFrameWriter.sortBy)(col, \*cols)                        | ⬜️ |
+| [DataFrameWriter.sortBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.sortBy.html#pyspark.sql.DataFrameWriter.sortBy)(col, \*cols)                        | ✅ |
 | [DataFrameWriter.text](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameWriter.text.html#pyspark.sql.DataFrameWriter.text)(path\[, compression, …\])                 | ⬜️ |
 
 ## DataFrame APIs
 
 | Functions                                                                                                                                                                                                                   | Supported ✅?                            |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| [DataFrame.agg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.agg.html#pyspark.sql.DataFrame.agg)(\*exprs)                                                                            | ⬜️ |
+| [DataFrame.agg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.agg.html#pyspark.sql.DataFrame.agg)(\*exprs)                                                                            | ✅ |
 | [DataFrame.alias](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.alias.html#pyspark.sql.DataFrame.alias)(alias)                                                                        | ⬜️ |
 | [DataFrame.approxQuantile](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.approxQuantile.html#pyspark.sql.DataFrame.approxQuantile)(col, probabilities, …)                             | ⬜️ |
-| [DataFrame.cache](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.cache.html#pyspark.sql.DataFrame.cache)()                                                                             | ⬜️ |
+| [DataFrame.cache](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.cache.html#pyspark.sql.DataFrame.cache)()                                                                             | ✅ |
 | [DataFrame.checkpoint](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.checkpoint.html#pyspark.sql.DataFrame.checkpoint)(\[eager\])                                                     | ⬜️ |
-| [DataFrame.coalesce](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.coalesce.html#pyspark.sql.DataFrame.coalesce)(numPartitions)                                                       | ⬜️ |
+| [DataFrame.coalesce](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.coalesce.html#pyspark.sql.DataFrame.coalesce)(numPartitions)                                                       | ✅ |
 | [DataFrame.colRegex](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.colRegex.html#pyspark.sql.DataFrame.colRegex)(colName)                                                             | ⬜️ |
-| [DataFrame.collect](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.collect.html#pyspark.sql.DataFrame.collect)()                                                                       | ⬜️ |
-| [DataFrame.columns](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.columns.html#pyspark.sql.DataFrame.columns)                                                                         | ⬜️ |
+| [DataFrame.collect](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.collect.html#pyspark.sql.DataFrame.collect)()                                                                       | ✅ |
+| [DataFrame.columns](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.columns.html#pyspark.sql.DataFrame.columns)                                                                         | ✅ |
 | [DataFrame.corr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.corr.html#pyspark.sql.DataFrame.corr)(col1, col2\[, method\])                                                          | ⬜️ |
-| [DataFrame.count](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.count.html#pyspark.sql.DataFrame.count)()                                                                             | ⬜️ |
+| [DataFrame.count](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.count.html#pyspark.sql.DataFrame.count)()                                                                             | ✅ |
 | [DataFrame.cov](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.cov.html#pyspark.sql.DataFrame.cov)(col1, col2)                                                                         | ⬜️ |
 | [DataFrame.createGlobalTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createGlobalTempView.html#pyspark.sql.DataFrame.createGlobalTempView)(name)                            | ⬜️ |
-| [DataFrame.createOrReplaceGlobalTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createOrReplaceGlobalTempView.html#pyspark.sql.DataFrame.createOrReplaceGlobalTempView)(name) | ⬜️ |
-| [DataFrame.createOrReplaceTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createOrReplaceTempView.html#pyspark.sql.DataFrame.createOrReplaceTempView)(name)                   | ⬜️ |
-| [DataFrame.createTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createTempView.html#pyspark.sql.DataFrame.createTempView)(name)                                              | ⬜️ |
+| [DataFrame.createOrReplaceGlobalTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createOrReplaceGlobalTempView.html#pyspark.sql.DataFrame.createOrReplaceGlobalTempView)(name) | ✅ |
+| [DataFrame.createOrReplaceTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createOrReplaceTempView.html#pyspark.sql.DataFrame.createOrReplaceTempView)(name)                   | ✅ |
+| [DataFrame.createTempView](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.createTempView.html#pyspark.sql.DataFrame.createTempView)(name)                                              | ✅ |
 | [DataFrame.crossJoin](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.crossJoin.html#pyspark.sql.DataFrame.crossJoin)(other)                                                            | ⬜️ |
 | [DataFrame.crosstab](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.crosstab.html#pyspark.sql.DataFrame.crosstab)(col1, col2)                                                          | ⬜️ |
 | [DataFrame.cube](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.cube.html#pyspark.sql.DataFrame.cube)(\*cols)                                                                          | ⬜️ |
@@ -115,7 +115,7 @@
 | [DataFrame.foreach](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.foreach.html#pyspark.sql.DataFrame.foreach)(f)                                                                      | ⬜️ |
 | [DataFrame.foreachPartition](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.foreachPartition.html#pyspark.sql.DataFrame.foreachPartition)(f)                                           | ⬜️ |
 | [DataFrame.freqItems](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.freqItems.html#pyspark.sql.DataFrame.freqItems)(cols\[, support\])                                                | ⬜️ |
-| [DataFrame.groupBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.groupBy.html#pyspark.sql.DataFrame.groupBy)(\*cols)                                                                 | ⬜️ |
+| [DataFrame.groupBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.groupBy.html#pyspark.sql.DataFrame.groupBy)(\*cols)                                                                 | ✅ |
 | [DataFrame.head](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.head.html#pyspark.sql.DataFrame.head)(\[n\])                                                                           | ⬜️ |
 | [DataFrame.hint](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.hint.html#pyspark.sql.DataFrame.hint)(name, \*parameters)                                                              | ⬜️ |
 | [DataFrame.inputFiles](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.inputFiles.html#pyspark.sql.DataFrame.inputFiles)()                                                              | ⬜️ |
@@ -128,12 +128,12 @@
 | [DataFrame.localCheckpoint](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.localCheckpoint.html#pyspark.sql.DataFrame.localCheckpoint)(\[eager\])                                      | ⬜️ |
 | [DataFrame.mapInPandas](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.mapInPandas.html#pyspark.sql.DataFrame.mapInPandas)(func, schema)                                               | ⬜️ |
 | [DataFrame.na](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.na.html#pyspark.sql.DataFrame.na)                                                                                        | ⬜️ |
-| [DataFrame.orderBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.orderBy.html#pyspark.sql.DataFrame.orderBy)(\*cols, \*\*kwargs)                                                     | ⬜️ |
-| [DataFrame.persist](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.persist.html#pyspark.sql.DataFrame.persist)(\[storageLevel\])                                                       | ⬜️ |
-| [DataFrame.printSchema](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.printSchema.html#pyspark.sql.DataFrame.printSchema)()                                                           | ⬜️ |
+| [DataFrame.orderBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.orderBy.html#pyspark.sql.DataFrame.orderBy)(\*cols, \*\*kwargs)                                                     | ✅ |
+| [DataFrame.persist](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.persist.html#pyspark.sql.DataFrame.persist)(\[storageLevel\])                                                       | ✅ |
+| [DataFrame.printSchema](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.printSchema.html#pyspark.sql.DataFrame.printSchema)()                                                           | ✅ |
 | [DataFrame.randomSplit](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.randomSplit.html#pyspark.sql.DataFrame.randomSplit)(weights\[, seed\])                                          | ⬜️ |
 | [DataFrame.rdd](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.rdd.html#pyspark.sql.DataFrame.rdd)                                                                                     | ⬜️ |
-| [DataFrame.registerTempTable](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.registerTempTable.html#pyspark.sql.DataFrame.registerTempTable)(name)                                     | ⬜️ |
+| [DataFrame.registerTempTable](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.registerTempTable.html#pyspark.sql.DataFrame.registerTempTable)(name)                                     | ✅ |
 | [DataFrame.repartition](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.repartition.html#pyspark.sql.DataFrame.repartition)(numPartitions, \*cols)                                      | ⬜️ |
 | [DataFrame.repartitionByRange](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.repartitionByRange.html#pyspark.sql.DataFrame.repartitionByRange)(numPartitions, …)                      | ⬜️ |
 | [DataFrame.replace](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.replace.html#pyspark.sql.DataFrame.replace)(to\_replace\[, value, subset\])                                         | ⬜️ |
@@ -141,15 +141,15 @@
 | [DataFrame.sameSemantics](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.sameSemantics.html#pyspark.sql.DataFrame.sameSemantics)(other)                                                | ⬜️ |
 | [DataFrame.sample](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.sample.html#pyspark.sql.DataFrame.sample)(\[withReplacement, …\])                                                    | ⬜️ |
 | [DataFrame.sampleBy](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.sampleBy.html#pyspark.sql.DataFrame.sampleBy)(col, fractions\[, seed\])                                            | ⬜️ |
-| [DataFrame.schema](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.schema.html#pyspark.sql.DataFrame.schema)                                                                            | ⬜️ |
-| [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.select.html#pyspark.sql.DataFrame.select)(\*cols)                                                                    | ⬜️ |
+| [DataFrame.schema](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.schema.html#pyspark.sql.DataFrame.schema)                                                                            | ✅ |
+| [DataFrame.select](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.select.html#pyspark.sql.DataFrame.select)(\*cols)                                                                    | ✅ |
 | [DataFrame.selectExpr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.selectExpr.html#pyspark.sql.DataFrame.selectExpr)(\*expr)                                                        | ⬜️ |
 | [DataFrame.semanticHash](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.semanticHash.html#pyspark.sql.DataFrame.semanticHash)()                                                        | ⬜️ |
 | [DataFrame.show](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.show.html#pyspark.sql.DataFrame.show)(\[n, truncate, vertical\])                                                       | ⬜️ |
-| [DataFrame.sort](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.sort.html#pyspark.sql.DataFrame.sort)(\*cols, \*\*kwargs)                                                              | ⬜️ |
+| [DataFrame.sort](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.sort.html#pyspark.sql.DataFrame.sort)(\*cols, \*\*kwargs)                                                              | ✅ |
 | [DataFrame.sortWithinPartitions](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.sortWithinPartitions.html#pyspark.sql.DataFrame.sortWithinPartitions)(\*cols, \*\*kwargs)              | ⬜️ |
 | [DataFrame.stat](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.stat.html#pyspark.sql.DataFrame.stat)                                                                                  | ⬜️ |
-| [DataFrame.storageLevel](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.storageLevel.html#pyspark.sql.DataFrame.storageLevel)                                                          | ⬜️ |
+| [DataFrame.storageLevel](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.storageLevel.html#pyspark.sql.DataFrame.storageLevel)                                                          | ✅ |
 | [DataFrame.subtract](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.subtract.html#pyspark.sql.DataFrame.subtract)(other)                                                               | ⬜️ |
 | [DataFrame.summary](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.summary.html#pyspark.sql.DataFrame.summary)(\*statistics)                                                           | ⬜️ |
 | [DataFrame.tail](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.tail.html#pyspark.sql.DataFrame.tail)(num)                                                                             | ⬜️ |
@@ -162,12 +162,12 @@
 | [DataFrame.union](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.union.html#pyspark.sql.DataFrame.union)(other)                                                                        | ⬜️ |
 | [DataFrame.unionAll](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.unionAll.html#pyspark.sql.DataFrame.unionAll)(other)                                                               | ⬜️ |
 | [DataFrame.unionByName](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.unionByName.html#pyspark.sql.DataFrame.unionByName)(other\[, …\])                                               | ⬜️ |
-| [DataFrame.unpersist](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.unpersist.html#pyspark.sql.DataFrame.unpersist)(\[blocking\])                                                     | ⬜️ |
-| [DataFrame.where](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.where.html#pyspark.sql.DataFrame.where)(condition)                                                                    | ⬜️ |
+| [DataFrame.unpersist](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.unpersist.html#pyspark.sql.DataFrame.unpersist)(\[blocking\])                                                     | ✅ |
+| [DataFrame.where](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.where.html#pyspark.sql.DataFrame.where)(condition)                                                                    | ✅ |
 | [DataFrame.withColumn](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.withColumn.html#pyspark.sql.DataFrame.withColumn)(colName, col)                                                  | ⬜️ |
 | [DataFrame.withColumnRenamed](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.withColumnRenamed.html#pyspark.sql.DataFrame.withColumnRenamed)(existing, new)                            | ⬜️ |
 | [DataFrame.withWatermark](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.withWatermark.html#pyspark.sql.DataFrame.withWatermark)(eventTime, …)                                         | ⬜️ |
-| [DataFrame.write](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.write.html#pyspark.sql.DataFrame.write)                                                                               | ⬜️ |
+| [DataFrame.write](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.write.html#pyspark.sql.DataFrame.write)                                                                               | ✅ |
 | [DataFrame.writeStream](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.writeStream.html#pyspark.sql.DataFrame.writeStream)                                                             | ⬜️ |
 | [DataFrame.writeTo](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.writeTo.html#pyspark.sql.DataFrame.writeTo)(table)                                                                  | ⬜️ |
 | [DataFrameNaFunctions.drop](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrameNaFunctions.drop.html#pyspark.sql.DataFrameNaFunctions.drop)(\[how, thresh, subset\])                        | ⬜️ |
@@ -212,7 +212,7 @@
 | [Column.over](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.over.html#pyspark.sql.Column.over)(window)                                 | ⬜️ |
 | [Column.rlike](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.rlike.html#pyspark.sql.Column.rlike)(other)                               | ⬜️ |
 | [Column.startswith](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.startswith.html#pyspark.sql.Column.startswith)(other)                | ⬜️ |
-| [Column.substr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.substr.html#pyspark.sql.Column.substr)(startPos, length)                 | ⬜️ |
+| [Column.substr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.substr.html#pyspark.sql.Column.substr)(startPos, length)                 | ✅ |
 | [Column.when](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.when.html#pyspark.sql.Column.when)(condition, value)                       | ⬜️ |
 | [Column.withField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.withField.html#pyspark.sql.Column.withField)(fieldName, col)          | ⬜️ |
 
@@ -227,10 +227,10 @@
 | [DataType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DataType.html#pyspark.sql.types.DataType)                                                  | ⬜️ |
 | [DateType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DateType.html#pyspark.sql.types.DateType)                                                  | ⬜️ |
 | [DecimalType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DecimalType.html#pyspark.sql.types.DecimalType)(\[precision, scale\])                   | ⬜️ |
-| [DoubleType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DoubleType.html#pyspark.sql.types.DoubleType)                                            | ⬜️ |
-| [FloatType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.FloatType.html#pyspark.sql.types.FloatType)                                               | ⬜️ |
-| [IntegerType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.IntegerType.html#pyspark.sql.types.IntegerType)                                         | ⬜️ |
-| [LongType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.LongType.html#pyspark.sql.types.LongType)                                                  | ⬜️ |
+| [DoubleType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DoubleType.html#pyspark.sql.types.DoubleType)                                            | ✅ |
+| [FloatType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.FloatType.html#pyspark.sql.types.FloatType)                                               | ✅ |
+| [IntegerType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.IntegerType.html#pyspark.sql.types.IntegerType)                                         | ✅ |
+| [LongType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.LongType.html#pyspark.sql.types.LongType)                                                  | ✅ |
 | [MapType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.MapType.html#pyspark.sql.types.MapType)(keyType, valueType\[, valueContainsNull\])          | ⬜️ |
 | [NullType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.NullType.html#pyspark.sql.types.NullType)                                                  | ⬜️ |
 | [ShortType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ShortType.html#pyspark.sql.types.ShortType)                                               | ⬜️ |
@@ -253,7 +253,7 @@
 | [acos](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.acos.html#pyspark.sql.functions.acos)(col)                                                                     | ⬜️ |
 | [acosh](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.acosh.html#pyspark.sql.functions.acosh)(col)                                                                  | ⬜️ |
 | [add\_months](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.add_months.html#pyspark.sql.functions.add_months)(start, months)                                        | ⬜️ |
-| [aggregate](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.aggregate.html#pyspark.sql.functions.aggregate)(col, initialValue, merge\[, finish\])                     | ⬜️ |
+| [aggregate](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.aggregate.html#pyspark.sql.functions.aggregate)(col, initialValue, merge\[, finish\])                     | ✅ |
 | [approxCountDistinct](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.approxCountDistinct.html#pyspark.sql.functions.approxCountDistinct)(col\[, rsd\])               | ⬜️ |
 | [approx\_count\_distinct](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.approx_count_distinct.html#pyspark.sql.functions.approx_count_distinct)(col\[, rsd\])       | ⬜️ |
 | [array](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.array.html#pyspark.sql.functions.array)(\*cols)                                                               | ⬜️ |
@@ -281,7 +281,7 @@
 | [atan](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.atan.html#pyspark.sql.functions.atan)(col)                                                                     | ⬜️ |
 | [atanh](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.atanh.html#pyspark.sql.functions.atanh)(col)                                                                  | ⬜️ |
 | [atan2](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.atan2.html#pyspark.sql.functions.atan2)(col1, col2)                                                           | ⬜️ |
-| [avg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.avg.html#pyspark.sql.functions.avg)(col)                                                                        | ⬜️ |
+| [avg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.avg.html#pyspark.sql.functions.avg)(col)                                                                        | ✅ |
 | [base64](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.base64.html#pyspark.sql.functions.base64)(col)                                                               | ⬜️ |
 | [bin](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.bin.html#pyspark.sql.functions.bin)(col)                                                                        | ⬜️ |
 | [bitwiseNOT](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.bitwiseNOT.html#pyspark.sql.functions.bitwiseNOT)(col)                                                   | ⬜️ |
@@ -294,14 +294,14 @@
 | [col](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.col.html#pyspark.sql.functions.col)(col)                                                                        | ⬜️ |
 | [collect\_list](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.collect_list.html#pyspark.sql.functions.collect_list)(col)                                            | ⬜️ |
 | [collect\_set](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.collect_set.html#pyspark.sql.functions.collect_set)(col)                                               | ⬜️ |
-| [column](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.column.html#pyspark.sql.functions.column)(col)                                                               | ⬜️ |
+| [column](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.column.html#pyspark.sql.functions.column)(col)                                                               | ✅ |
 | [concat](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.concat.html#pyspark.sql.functions.concat)(\*cols)                                                            | ⬜️ |
 | [concat\_ws](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.concat_ws.html#pyspark.sql.functions.concat_ws)(sep, \*cols)                                             | ⬜️ |
 | [conv](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.conv.html#pyspark.sql.functions.conv)(col, fromBase, toBase)                                                   | ⬜️ |
 | [corr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.corr.html#pyspark.sql.functions.corr)(col1, col2)                                                              | ⬜️ |
 | [cos](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.cos.html#pyspark.sql.functions.cos)(col)                                                                        | ⬜️ |
 | [cosh](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.cosh.html#pyspark.sql.functions.cosh)(col)                                                                     | ⬜️ |
-| [count](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.count.html#pyspark.sql.functions.count)(col)                                                                  | ⬜️ |
+| [count](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.count.html#pyspark.sql.functions.count)(col)                                                                  | ✅ |
 | [countDistinct](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.countDistinct.html#pyspark.sql.functions.countDistinct)(col, \*cols)                                  | ⬜️ |
 | [covar\_pop](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.covar_pop.html#pyspark.sql.functions.covar_pop)(col1, col2)                                              | ⬜️ |
 | [covar\_samp](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.covar_samp.html#pyspark.sql.functions.covar_samp)(col1, col2)                                           | ⬜️ |
@@ -332,7 +332,7 @@
 | [explode](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.explode.html#pyspark.sql.functions.explode)(col)                                                            | ⬜️ |
 | [explode\_outer](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.explode_outer.html#pyspark.sql.functions.explode_outer)(col)                                         | ⬜️ |
 | [expm1](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.expm1.html#pyspark.sql.functions.expm1)(col)                                                                  | ⬜️ |
-| [expr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.expr.html#pyspark.sql.functions.expr)(str)                                                                     | ⬜️ |
+| [expr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.expr.html#pyspark.sql.functions.expr)(str)                                                                     | ✅ |
 | [factorial](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.factorial.html#pyspark.sql.functions.factorial)(col)                                                      | ⬜️ |
 | [filter](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.filter.html#pyspark.sql.functions.filter)(col, f)                                                            | ⬜️ |
 | [first](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.first.html#pyspark.sql.functions.first)(col\[, ignorenulls\])                                                 | ⬜️ |
@@ -445,9 +445,9 @@
 | [stddev\_pop](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.stddev_pop.html#pyspark.sql.functions.stddev_pop)(col)                                                  | ⬜️ |
 | [stddev\_samp](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.stddev_samp.html#pyspark.sql.functions.stddev_samp)(col)                                               | ⬜️ |
 | [struct](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.struct.html#pyspark.sql.functions.struct)(\*cols)                                                            | ⬜️ |
-| [substring](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.substring.html#pyspark.sql.functions.substring)(str, pos, len)                                            | ⬜️ |
+| [substring](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.substring.html#pyspark.sql.functions.substring)(str, pos, len)                                            | ✅ |
 | [substring\_index](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.substring_index.html#pyspark.sql.functions.substring_index)(str, delim, count)                     | ⬜️ |
-| [sum](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.sum.html#pyspark.sql.functions.sum)(col)                                                                        | ⬜️ |
+| [sum](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.sum.html#pyspark.sql.functions.sum)(col)                                                                        | ✅ |
 | [sumDistinct](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.sumDistinct.html#pyspark.sql.functions.sumDistinct)(col)                                                | ⬜️ |
 | [tan](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.tan.html#pyspark.sql.functions.tan)(col)                                                                        | ⬜️ |
 | [tanh](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.tanh.html#pyspark.sql.functions.tanh)(col)                                                                     | ⬜️ |
@@ -504,15 +504,15 @@
 
 | Functions                                                                                                                                                                                                      | Supported ✅?                            |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| [GroupedData.agg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.agg.html#pyspark.sql.GroupedData.agg)(\*exprs)                                                         | ⬜️ |
+| [GroupedData.agg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.agg.html#pyspark.sql.GroupedData.agg)(\*exprs)                                                         | ✅ |
 | [GroupedData.apply](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.apply.html#pyspark.sql.GroupedData.apply)(udf)                                                       | ⬜️ |
 | [GroupedData.applyInPandas](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.applyInPandas.html#pyspark.sql.GroupedData.applyInPandas)(func, schema)                      | ⬜️ |
-| [GroupedData.avg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.avg.html#pyspark.sql.GroupedData.avg)(\*cols)                                                          | ⬜️ |
+| [GroupedData.avg](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.avg.html#pyspark.sql.GroupedData.avg)(\*cols)                                                          | ✅ |
 | [GroupedData.cogroup](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.cogroup.html#pyspark.sql.GroupedData.cogroup)(other)                                               | ⬜️ |
-| [GroupedData.count](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.count.html#pyspark.sql.GroupedData.count)()                                                          | ⬜️ |
+| [GroupedData.count](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.count.html#pyspark.sql.GroupedData.count)()                                                          | ✅ |
 | [GroupedData.max](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.max.html#pyspark.sql.GroupedData.max)(\*cols)                                                          | ⬜️ |
 | [GroupedData.mean](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.mean.html#pyspark.sql.GroupedData.mean)(\*cols)                                                       | ⬜️ |
 | [GroupedData.min](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.min.html#pyspark.sql.GroupedData.min)(\*cols)                                                          | ⬜️ |
 | [GroupedData.pivot](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.pivot.html#pyspark.sql.GroupedData.pivot)(pivot\_col\[, values\])                                    | ⬜️ |
-| [GroupedData.sum](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.sum.html#pyspark.sql.GroupedData.sum)(\*cols)                                                          | ⬜️ |
+| [GroupedData.sum](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.GroupedData.sum.html#pyspark.sql.GroupedData.sum)(\*cols)                                                          | ✅ |
 | [PandasCogroupedOps.applyInPandas](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.PandasCogroupedOps.applyInPandas.html#pyspark.sql.PandasCogroupedOps.applyInPandas)(func, schema) | ⬜️ |
