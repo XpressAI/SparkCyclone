@@ -11,6 +11,7 @@ import com.nec.testing.SampleSource.SampleColA
 import com.nec.testing.SampleSource.SampleColB
 import com.nec.testing.SampleSource.makeCsvNumsMultiColumn
 import com.nec.testing.Testing.DataSize.SanityCheckSize
+
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -178,20 +179,93 @@ final class DynamicCSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql1).debugSqlHere { ds =>
+      sparkSession.sql(sql1).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[(Double, Double)].collect().toList == List((20.0,90.0)))
       }
     }
 
     val sql2 =
-      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)"
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA})"
 
     s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql2).debugSqlHere { ds =>
+      sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[(Double, Double, Double)].collect().toList == Nil)
+      }
+    }
+
+
+    val sql3 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
+
+    s"Simple Group by is possible with ${sql3}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql3).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Option[Double])].collect().toList == List(Some(28.0)))
+      }
+    }
+
+    /*
+    val sql4 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA} HAVING y > 3"
+    s"Simple filtering is possible with ${sql4}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql4).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(15.0))
+      }
+    }
+    */
+
+    val sql5 = s"SELECT CORR(${SampleColA}, ${SampleColB}) as c FROM nums"
+    s"Corr function is possible with ${sql5}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
+      }
+    }
+
+    val sql6 = s"SELECT MAX(${SampleColA}) AS a, MIN(${SampleColB}) AS b FROM nums"
+    s"MIN and MAX work with ${sql6}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql6).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double, Double)].collect().toList == List((52.0, 2.0)))
+      }
+    }
+
+    val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
+    s"Ordering with a group by: ${sql7}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql7).debugSqlHere { ds =>
+        assert(ds.as[(Option[Double], Option[Double])].collect().toList == List(
+          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
+          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
+          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0))
+        ))
+      }
+    }
+
+    val sql8 = s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
+    s"Ordering with a group by: ${sql8}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql8).debugSqlHere { ds =>
+        assert(ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList == List(
+          (Some(20.0),None,None,None), (Some(1.0),Some(2.0),Some(2.0),Some(2.0)),
+          (Some(2.0),Some(3.0),Some(3.0),Some(3.0)), (Some(3.0),Some(4.0),Some(4.0),Some(4.0)),
+          (Some(4.0),Some(5.0),Some(5.0),Some(5.0)), (Some(52.0),Some(6.0),Some(6.0),Some(6.0)),
+          (None,Some(8.0),Some(5.0),Some(3.0))
+        ))
       }
     }
   }
@@ -199,6 +273,7 @@ final class DynamicCSqlExpressionEvaluationSpec
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
+      println(thePlan)
       expect(thePlan.toString().contains("CEvaluation"))
       dataSet
     }

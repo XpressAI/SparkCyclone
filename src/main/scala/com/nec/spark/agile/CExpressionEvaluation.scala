@@ -557,8 +557,10 @@ object CExpressionEvaluation {
         AggregateDescription(
           init = List(
             s"${outputCorr}->data = (double *)malloc(1 * sizeof(double));",
+            s"${outputCorr}->validityBuffer = (unsigned char *)malloc(1 * sizeof(unsigned char));",
+            s"${outputCorr}->validityBuffer[0] = 0;",
             s"${outputCorr}->count = 1;",
-
+            s"int non_null_count = 0;",
             s"double ${cleanName}_x_sum = 0;",
             s"double ${cleanName}_y_sum = 0;",
             s"double ${cleanName}_xy_sum = 0;",
@@ -566,17 +568,21 @@ object CExpressionEvaluation {
             s"double ${cleanName}_y_square_sum = 0;"
           ),
           iter = List(
+            s"if(${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}) {",
+            s"${outputCorr}->validityBuffer[0] =1;",
+            "non_null_count += 1;",
             s"${cleanName}_x_sum += ${evaluateSub(inputs, left)};",
             s"${cleanName}_y_sum += ${evaluateSub(inputs, right)};",
             s"${cleanName}_xy_sum += ${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)};",
             s"${cleanName}_x_square_sum += ${evaluateSub(inputs, left)} * ${evaluateSub(inputs, left)};",
-            s"${cleanName}_y_square_sum += ${evaluateSub(inputs, right)} * ${evaluateSub(inputs, right)};"
+            s"${cleanName}_y_square_sum += ${evaluateSub(inputs, right)} * ${evaluateSub(inputs, right)};",
+            "}"
           ),
           result = List(
-            s"${outputCorr}->data[0] = (input_0->count * ${cleanName}_xy_sum - ${cleanName}_x_sum * ${cleanName}_y_sum) / " + 
+            s"${outputCorr}->data[0] = (non_null_count * ${cleanName}_xy_sum - ${cleanName}_x_sum * ${cleanName}_y_sum) / " +
               s"sqrt(" + 
-                s"(input_0->count * ${cleanName}_x_square_sum - ${cleanName}_x_sum * ${cleanName}_x_sum) * " +
-                s"(input_0->count * ${cleanName}_y_square_sum - ${cleanName}_y_sum * ${cleanName}_y_sum));"
+                s"(non_null_count * ${cleanName}_x_square_sum - ${cleanName}_x_sum * ${cleanName}_x_sum) * " +
+                s"(non_null_count * ${cleanName}_y_square_sum - ${cleanName}_y_sum * ${cleanName}_y_sum));"
           ),
           outputArguments = List(
             s"nullable_double_vector* ${outputCorr}"
