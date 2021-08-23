@@ -5,6 +5,7 @@
 #include <utility>
 #include <sstream>
 #include <vector>
+#include <omp.h>
 #include <cmath>
 #include "words.hpp"
 #include "words.cc"

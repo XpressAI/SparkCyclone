@@ -14,7 +14,7 @@ import java.nio.file.Paths
 import java.time.Instant
 
 final class ParseVECSVSpec extends AnyFreeSpec {
-  "We can do a run of CSV" ignore  {
+  "We can do a run of CSV" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectories(veBuildPath)
     val soPath = VeKernelCompiler(

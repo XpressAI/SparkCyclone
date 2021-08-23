@@ -15,7 +15,7 @@ import java.nio.file.Paths
 import java.time.Instant
 
 final class StringsVESpec extends AnyFreeSpec {
-  "Substr works" ignore {
+  "Substr works" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectory(veBuildPath)
     val soPath = VeKernelCompiler("substr", veBuildPath).compile_c(
