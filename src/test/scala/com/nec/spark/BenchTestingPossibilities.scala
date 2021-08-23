@@ -56,11 +56,6 @@ object BenchTestingPossibilities {
     def isNative: Boolean
   }
   object CsvStrategy {
-    case object NativeCsvVE extends CsvStrategy {
-      override def label: String = "NativeCsvVE"
-      override def isNative: Boolean = true
-      override def expectedString: Option[String] = Some("NativeCsv")
-    }
     case object NormalCsv extends CsvStrategy {
       override def label: String = "NormalCsv"
       override def isNative: Boolean = false
@@ -153,9 +148,6 @@ object BenchTestingPossibilities {
             .withExtensions(sse =>
               if (csvStrategy.exists(_.isNative))
                 sse.injectPlannerStrategy(sparkSession =>
-                  if (csvStrategy.contains(CsvStrategy.NativeCsvVE))
-                    NativeCsvStrategy(ExecutorPluginManagedEvaluator)
-                  else
                     NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
                 )
             )
