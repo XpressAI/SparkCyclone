@@ -44,11 +44,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
   }
   "Different single-column expressions can be evaluated" - {
     List(
-      s"SELECT SUM(${SampleColA}) FROM nums" -> 62.0d,
-      s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 57.0d,
+      s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0D,
+      s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 81.0d,
       /** The below are ignored for now */
-      s"SELECT AVG(${SampleColA}) FROM nums" -> 12.4d,
-      s"SELECT AVG(2 * ${SampleColA}) FROM nums" -> 24.8d,
+      s"SELECT AVG(${SampleColA}) FROM nums" -> 10.0d,
+      s"SELECT AVG(2 * ${SampleColA}) FROM nums" -> 20d,
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums" -> 0.0d,
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)" -> 0.0d
     ).zipWithIndex.take(4).foreach { case ((sql, expectation), idx) =>
@@ -56,7 +56,6 @@ final class DynamicVeSqlExpressionEvaluationSpec
         SampleSource.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
         sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
-          println(ds.queryExecution.executedPlan)
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }
@@ -68,7 +67,9 @@ final class DynamicVeSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[(Double)].collect().toList.sorted == List[Double](3, 5, 7, 9, 58).sorted)
+      assert(ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
+        None, None, None, None, None, None, None, None, Some(3), Some(5), Some(7), Some(9), Some(58)
+      ).sorted)
     }
   }
 
@@ -97,10 +98,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
+        val a = ds.as[(Option[Double], Option[Double])].collect().toList
+        val b = List(
+          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
+          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
+          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0)))
         assert(
-          ds.as[(Double, Double)].collect().toList == List(
-            (1.0, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, 5.0), (52.0, 6.0)
-          )
+          a == b
         )
       }
   }
@@ -112,8 +116,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
       sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
         assert(
-          ds.as[(Double, Double, Double)].collect().toList == List(
-            (1.0, 2.0, 3.0), (2.0, 3.0, 5.0), (3.0, 4.0, 7.0), (4.0, 5.0, 9.0), (52.0, 6.0, 58.0)
+          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
+            (Some(4.0),None,None), (Some(2.0),None,None), (None,None,None), (Some(2.0),None,None),
+            (None,None,None), (Some(20.0),None,None), (Some(1.0),Some(2.0),Some(3.0)), (Some(2.0),
+              Some(3.0),Some(5.0)), (None,Some(3.0),None), (Some(3.0),Some(4.0),Some(7.0)),
+            (Some(4.0),Some(5.0),Some(9.0)), (None,Some(5.0),None), (Some(52.0),Some(6.0),Some(58.0))
           )
         )
       }
@@ -125,7 +132,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[Long].collect().toList == List(5))
+        assert(ds.as[Long].collect().toList == List(13))
       }
   }
 
@@ -135,7 +142,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Long, Double)].collect().toList == List((5, -42)))
+        assert(ds.as[(Long, Double)].collect().toList == List((13, -42)))
       }
   }
 
@@ -146,7 +153,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     sparkSession.sql(sql_mcio).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[(Double, Double)].collect().toList == List(-42.0 -> 82.0))
+      assert(ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0),Some(82.0))))
     }
   }
 
@@ -159,14 +166,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
         expect(
-          ds.as[(Double, Double)].collect().toList.sortBy(_._1) == List[(Double, Double)](
-            5.0 -> -1,
-            58.0 -> 46.0,
-            3.0 -> -1.0,
-            9.0 -> -1.0,
-            7.0 -> -1.0
+            ds.as[(Option[Double], Option[Double])].collect().toList == List(
+              (Some(5.0),Some(-1.0)), (Some(58.0),Some(46.0)), (None,None), (None,None), (None,None),
+              (Some(3.0),Some(-1.0)), (Some(9.0),Some(-1.0)), (None,None), (None,None), (None,None),
+              (Some(7.0),Some(-1.0)), (None,None), (None,None)
           )
-            .sortBy(_._1)
         )
       }
   }
@@ -178,7 +182,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql1).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double, Double)].collect().toList == List(24.8 -> 62.0))
+        assert(ds.as[(Double, Double)].collect().toList == List((20.0,90.0)))
       }
     }
 
@@ -202,7 +206,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql3).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double)].collect().toList == List(20.0))
+        assert(ds.as[(Option[Double])].collect().toList == List(Some(28.0)))
       }
     }
 
@@ -244,12 +248,10 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql7).debugSqlHere { ds =>
-        assert(ds.as[(Double, Double)].collect().toList == List(
-          (1.0, 2.0),
-          (2.0, 3.0),
-          (3.0, 4.0),
-          (4.0, 5.0),
-          (52.0, 6.0)
+        assert(ds.as[(Option[Double], Option[Double])].collect().toList == List(
+          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
+          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
+          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0))
         ))
       }
     }
@@ -260,12 +262,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql8).debugSqlHere { ds =>
-        assert(ds.as[(Double, Double, Double, Double)].collect().toList == List(
-          (1.0, 2.0, 2.0, 2.0),
-          (2.0, 3.0, 3.0, 3.0),
-          (3.0, 4.0, 4.0, 4.0),
-          (4.0, 5.0, 5.0, 5.0),
-          (52.0, 6.0, 6.0, 6.0)
+        assert(ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList == List(
+          (Some(20.0),None,None,None), (Some(1.0),Some(2.0),Some(2.0),Some(2.0)),
+          (Some(2.0),Some(3.0),Some(3.0),Some(3.0)), (Some(3.0),Some(4.0),Some(4.0),Some(4.0)),
+          (Some(4.0),Some(5.0),Some(5.0),Some(5.0)), (Some(52.0),Some(6.0),Some(6.0),Some(6.0)),
+          (None,Some(8.0),Some(5.0),Some(3.0))
         ))
       }
     }

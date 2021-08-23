@@ -56,17 +56,12 @@ object BenchTestingPossibilities {
     def isNative: Boolean
   }
   object CsvStrategy {
-    case object NativeCsvVE extends CsvStrategy {
-      override def label: String = "NativeCsvVE"
-      override def isNative: Boolean = true
-      override def expectedString: Option[String] = Some("NativeCsv")
-    }
     case object NormalCsv extends CsvStrategy {
       override def label: String = "NormalCsv"
       override def isNative: Boolean = false
       override def expectedString: Option[String] = None
     }
-    val All: List[CsvStrategy] = List(NativeCsvVE, NormalCsv)
+    val All: List[CsvStrategy] = List(NormalCsv) //TODO: Enable the NativeCSVVe when Null handling is implemented for csv parsing
   }
 
   import com.eed3si9n.expecty.Expecty.assert
@@ -153,9 +148,6 @@ object BenchTestingPossibilities {
             .withExtensions(sse =>
               if (csvStrategy.exists(_.isNative))
                 sse.injectPlannerStrategy(sparkSession =>
-                  if (csvStrategy.contains(CsvStrategy.NativeCsvVE))
-                    NativeCsvStrategy(ExecutorPluginManagedEvaluator)
-                  else
                     NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
                 )
             )
@@ -215,7 +207,7 @@ object BenchTestingPossibilities {
           else List(None)
       } yield SimpleSql(
         sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}), COUNT(*) FROM nums",
-        expectedResult = (62, 4, 5),
+        expectedResult = (90.0,4.0,13),
         source = source,
         testingTarget = testingTarget,
         offHeapMode = colMode,

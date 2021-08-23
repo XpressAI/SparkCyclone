@@ -1,22 +1,15 @@
 package com.nec.spark.cgescape
 
 import com.nec.spark.SparkAdditions
-import com.nec.testing.SampleSource.SampleColA
-import com.nec.testing.SampleSource.SampleColB
-import com.nec.testing.SampleSource.makeCsvNumsMultiColumn
-import com.nec.testing.SampleSource.makeMemoryNums
-import com.nec.testing.SampleSource.makeParquetNums
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.Encoder
-import org.apache.spark.sql.Encoders
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.Strategy
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, makeCsvNumsMultiColumnNonNull, makeMemoryNums, makeParquetNums, makeParquetNumsNonNull}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.freespec.AnyFreeSpec
+
+import org.apache.spark.sql.{Dataset, Encoder, Encoders, SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.scalatest.BeforeAndAfter
-import org.scalatest.freespec.AnyFreeSpec
 
 /**
  * These tests show us how to escape Codegen.
@@ -90,11 +83,11 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
     for {
       (title, fr) <- List(
         "Memory" -> makeMemoryNums _,
-        "CSV" -> makeCsvNumsMultiColumn _,
-        "Parquet" -> makeParquetNums _
+        "CSV" -> makeCsvNumsMultiColumnNonNull _,
+        "Parquet" -> makeParquetNumsNonNull _
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
-      import sparkSession.implicits._
+
       fr(sparkSession)
       sparkSession.sql(sql).debugSqlHere { ds =>
         f(ds.as[T].collect().toList)
