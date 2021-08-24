@@ -20,6 +20,7 @@ import org.apache.spark.sql.catalyst.expressions.Multiply
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.expressions.Divide
 import org.apache.spark.sql.catalyst.expressions.Abs
+import org.apache.spark.sql.catalyst.expressions.And
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
@@ -275,6 +276,8 @@ object CExpressionEvaluation {
   }
 
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
+    println(expression.getClass.getCanonicalName)
+    println(inputs)
     expression match {
       case AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.name == name) match {
@@ -295,6 +298,8 @@ object CExpressionEvaluation {
         s"abs(${evaluateSub(inputs, v)})"
       case Literal(v, DoubleType | IntegerType) =>
         s"$v"
+      case And(left, right) =>
+        s"${evaluateSub(inputs, left)} && ${evaluateSub(inputs, right)}"
     }
   }
 
@@ -442,7 +447,7 @@ object CExpressionEvaluation {
               s"(input_0->count * ${cleanName}_x_square_sum - ${cleanName}_x_sum * ${cleanName}_x_sum) * " +
               s"(input_0->count * ${cleanName}_y_square_sum - ${cleanName}_y_sum * ${cleanName}_y_sum));"
           ),
-          outputArguments = List(s"non_null_double_vector* ${outputCorr}")
+          outputArguments = List(s"non_null_double_vector* $outputCorr")
         )
 
     }
@@ -464,15 +469,21 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def filterInputs(cond: Expression, input: Seq[String]): List[String] = {
+  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = {
     // todo free the temporary vector
-    input.toList.map(i => s"std::vector<double> filtered_${i};") ++
-      List(s"for ( long i = 0; i < ${input.head}->count; i++ ) {", "if ( false ) {") ++
-      input.map(v => s"filtered_${v}.push_back(in->data[i]);") ++
-      List("}", "}") ++ input.toList.flatMap(i =>
-        List(s"${i}->data = filtered_${i}.data();", s"${i}->count = filtered_${i}.size();")
-      )
-  }
+    input.indices.map { i => s"std::vector<double> filtered_input_$i;" } ++
+      List(
+        s"for ( long i = 0; i < input_0->count; i++ ) {",
+        s"if ( ${evaluateExpression(input, cond)} ) {"
+      ) ++
+      input.indices.map { i => s"filtered_input_$i.push_back(input_$i->data[i]);" } ++
+      List("}", "}") ++ input.indices.toList.flatMap { i =>
+        List(
+          s"input_$i->data = filtered_input_$i.data();",
+          s"input_$i->count = filtered_input_$i.size();"
+        )
+      }
+  }.toList
 
   def cGen(
     fName: String,
@@ -481,6 +492,7 @@ object CExpressionEvaluation {
     pairs: Seq[(Alias, AggregateExpression)],
     condition: Option[Expression] = None
   )(implicit nameCleaner: NameCleaner): CodeLines = {
+    println(inputReferences)
     val input = {
       val attrs = childOutputs
         .filter(attr => inputReferences.contains(attr.name))
@@ -491,7 +503,7 @@ object CExpressionEvaluation {
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
         process(input, cleanName, aggregateExpression, idx)
-          .getOrElse(sys.error(s"Unknown: ${aggregateExpression}"))
+          .getOrElse(sys.error(s"Unknown: $aggregateExpression"))
     }
 
     val inputBits = input.zipWithIndex
@@ -504,7 +516,7 @@ object CExpressionEvaluation {
       List(s"""extern "C" long ${fName}(${inputBits}, ${ads
         .flatMap(_.outputArguments)
         .mkString(", ")}) {"""),
-      condition.toList.flatMap(cond => filterInputs(cond, cleanNames)),
+      condition.toList.flatMap(cond => filterInputs(cond, input)),
       ads.flatMap(_.init),
       List("#pragma _NEC ivdep"),
       List("for (int i = 0; i < input_0->count; i++) {"),

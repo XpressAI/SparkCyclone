@@ -4,6 +4,8 @@
 #include <math.h>
 #include <limits>
 #include <iostream>
+#include <vector>
+
 #ifndef VE_TD_DEFS
 typedef struct
 {
