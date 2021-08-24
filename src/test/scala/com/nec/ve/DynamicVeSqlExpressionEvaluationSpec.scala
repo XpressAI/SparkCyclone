@@ -69,9 +69,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
   }
 
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
-  "Support pairwise addition" in withSparkSession2(
-    DynamicVeSqlExpressionEvaluationSpec.configuration
-  ) { sparkSession =>
+  "Support pairwise addition" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
@@ -147,7 +145,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
   "Support order by with select with sum" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
+    sparkSession.sql(sql_select_sort2).ensureCEvaluating().debugSqlHere { ds =>
       assert(
         ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
           (Some(4.0), None, None),
@@ -261,7 +259,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
     }
 
-    val sql3 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
+
+    val sql3 = s"SELECT ${SampleColA}, SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
 
     s"Simple Group by is possible with ${sql3}" in withSparkSession2(
       DynamicVeSqlExpressionEvaluationSpec.configuration
@@ -269,8 +268,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql3).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Option[Double])].collect().toList == List(Some(28.0)))
+      sparkSession.sql(sql3).ensureGroupBySumPlanEvaluated().debugSqlHere { ds =>
+        assert(ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
+          List((Some(0.0),Some(8.0)), (Some(1.0),Some(2.0)),(Some(2.0),Some(3.0)),(Some(3.0),Some(4.0)),
+            (Some(4.0),Some(5.0)), (Some(20.0),Some(0.0)), (Some(52.0),Some(6.0)))
+        )
       }
     }
 
@@ -376,6 +378,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
       expect(thePlan.toString().contains("SimpleSortPlan"))
       dataSet
     }
+
+    def ensureGroupBySumPlanEvaluated(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("SimpleGroupBySumPlan"))
+      dataSet
+    }
+
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       withClue(dataSet.queryExecution.executedPlan.toString()) {
