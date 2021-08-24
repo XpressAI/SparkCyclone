@@ -4,11 +4,15 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.aurora.Aurora
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeCompiler.CNativeCompiler
-import com.nec.native.NativeEvaluator.{CNativeEvaluator, ExecutorPluginManagedEvaluator, VectorEngineNativeEvaluator}
+import com.nec.native.NativeEvaluator.{
+  CNativeEvaluator,
+  ExecutorPluginManagedEvaluator,
+  VectorEngineNativeEvaluator
+}
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, makeCsvNumsMultiColumn}
+import com.nec.testing.SampleSource.{makeCsvNumsMultiColumn, SampleColA, SampleColB}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -34,7 +38,8 @@ object DynamicVeSqlExpressionEvaluationSpec {
 }
 final class DynamicVeSqlExpressionEvaluationSpec
   extends AnyFreeSpec
-  with BeforeAndAfter with BeforeAndAfterAll {
+  with BeforeAndAfter
+  with BeforeAndAfterAll {
   override protected def afterAll(): Unit = {
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
   }
@@ -44,7 +49,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
   }
   "Different single-column expressions can be evaluated" - {
     List(
-      s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0D,
+      s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0d,
       s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 81.0d,
       /** The below are ignored for now */
       s"SELECT AVG(${SampleColA}) FROM nums" -> 10.0d,
@@ -52,29 +57,48 @@ final class DynamicVeSqlExpressionEvaluationSpec
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums" -> 0.0d,
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)" -> 0.0d
     ).zipWithIndex.take(4).foreach { case ((sql, expectation), idx) =>
-      s"(n${idx}) ${sql}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
-        SampleSource.CSV.generate(sparkSession, SanityCheckSize)
-        import sparkSession.implicits._
-        sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
-          assert(ds.as[Double].collect().toList == List(expectation))
-        }
+      s"(n${idx}) ${sql}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
+        sparkSession =>
+          SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+          import sparkSession.implicits._
+          sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
+            assert(ds.as[Double].collect().toList == List(expectation))
+          }
       }
     }
   }
 
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
-  "Support pairwise addition" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+  "Support pairwise addition" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
-        None, None, None, None, None, None, None, None, Some(3), Some(5), Some(7), Some(9), Some(58)
-      ).sorted)
+      assert(
+        ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
+          None,
+          None,
+          None,
+          None,
+          None,
+          None,
+          None,
+          None,
+          Some(3),
+          Some(5),
+          Some(7),
+          Some(9),
+          Some(58)
+        ).sorted
+      )
     }
   }
 
   val sql_mci = s"SELECT SUM(${SampleColA} + ${SampleColB}) FROM nums"
-  "Support multi-column inputs" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+  "Support multi-column inputs" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_mci).ensureCEvaluating().debugSqlHere { ds =>
@@ -83,51 +107,69 @@ final class DynamicVeSqlExpressionEvaluationSpec
   }
 
   val sql_mci_2 = s"SELECT SUM(${SampleColB} - ${SampleColA}) FROM nums"
-  "Support multi-column inputs, order reversed" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
-    sparkSession =>
-      makeCsvNumsMultiColumn(sparkSession)
-      import sparkSession.implicits._
-      sparkSession.sql(sql_mci_2).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[Double].collect().toList == List(-42.0))
-      }
+  "Support multi-column inputs, order reversed" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_mci_2).ensureCEvaluating().debugSqlHere { ds =>
+      assert(ds.as[Double].collect().toList == List(-42.0))
+    }
   }
 
   val sql_select_sort = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select"  in withSparkSession2(configuration) {
-    sparkSession =>
-      makeCsvNumsMultiColumn(sparkSession)
-      import sparkSession.implicits._
-      sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
-        val a = ds.as[(Option[Double], Option[Double])].collect().toList
-        val b = List(
-          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
-          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
-          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0)))
-        assert(
-          a == b
-        )
-      }
+  "Support order by with select" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
+      val a = ds.as[(Option[Double], Option[Double])].collect().toList
+      val b = List(
+        (Some(4.0), None),
+        (Some(2.0), None),
+        (None, None),
+        (Some(2.0), None),
+        (None, None),
+        (Some(20.0), None),
+        (Some(1.0), Some(2.0)),
+        (Some(2.0), Some(3.0)),
+        (None, Some(3.0)),
+        (Some(3.0), Some(4.0)),
+        (Some(4.0), Some(5.0)),
+        (None, Some(5.0)),
+        (Some(52.0), Some(6.0))
+      )
+      assert(a == b)
+    }
   }
 
-  val sql_select_sort2 = s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select with sum"  in withSparkSession2(configuration) {
-    sparkSession =>
-      makeCsvNumsMultiColumn(sparkSession)
-      import sparkSession.implicits._
-      sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
-        assert(
-          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
-            (Some(4.0),None,None), (Some(2.0),None,None), (None,None,None), (Some(2.0),None,None),
-            (None,None,None), (Some(20.0),None,None), (Some(1.0),Some(2.0),Some(3.0)), (Some(2.0),
-              Some(3.0),Some(5.0)), (None,Some(3.0),None), (Some(3.0),Some(4.0),Some(7.0)),
-            (Some(4.0),Some(5.0),Some(9.0)), (None,Some(5.0),None), (Some(52.0),Some(6.0),Some(58.0))
-          )
+  val sql_select_sort2 =
+    s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
+  "Support order by with select with sum" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
+      assert(
+        ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
+          (Some(4.0), None, None),
+          (Some(2.0), None, None),
+          (None, None, None),
+          (Some(2.0), None, None),
+          (None, None, None),
+          (Some(20.0), None, None),
+          (Some(1.0), Some(2.0), Some(3.0)),
+          (Some(2.0), Some(3.0), Some(5.0)),
+          (None, Some(3.0), None),
+          (Some(3.0), Some(4.0), Some(7.0)),
+          (Some(4.0), Some(5.0), Some(9.0)),
+          (None, Some(5.0), None),
+          (Some(52.0), Some(6.0), Some(58.0))
         )
-      }
+      )
+    }
   }
 
   val sql_cnt = s"SELECT COUNT(*) FROM nums"
-  "Support count"  in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
+  "Support count" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
@@ -137,27 +179,34 @@ final class DynamicVeSqlExpressionEvaluationSpec
   }
 
   val sql_cnt_multiple_ops = s"SELECT COUNT(*), SUM(${SampleColB} - ${SampleColA}) FROM nums"
-  "Support count with other operations in the same query"  in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
-    sparkSession =>
-      makeCsvNumsMultiColumn(sparkSession)
-      import sparkSession.implicits._
-      sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Long, Double)].collect().toList == List((13, -42)))
-      }
+  "Support count with other operations in the same query" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
+      assert(ds.as[(Long, Double)].collect().toList == List((13, -42)))
+    }
   }
 
   val sql_mcio =
     s"SELECT SUM(${SampleColB} - ${SampleColA}), SUM(${SampleColA} + ${SampleColB}) FROM nums"
-  "Support multi-column inputs and inputs" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+  "Support multi-column inputs and inputs" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
 
     sparkSession.sql(sql_mcio).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0),Some(82.0))))
+      assert(
+        ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0), Some(82.0)))
+      )
     }
   }
 
-  "Support multi-column inputs and inputs with a .limit()" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) {
+  "Support multi-column inputs and inputs with a .limit()" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) {
     val sql_pairwise =
       s"SELECT ${SampleColA} + ${SampleColB}, ${SampleColA} - ${SampleColB} FROM nums"
     sparkSession =>
@@ -166,10 +215,20 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
         expect(
-            ds.as[(Option[Double], Option[Double])].collect().toList == List(
-              (Some(5.0),Some(-1.0)), (Some(58.0),Some(46.0)), (None,None), (None,None), (None,None),
-              (Some(3.0),Some(-1.0)), (Some(9.0),Some(-1.0)), (None,None), (None,None), (None,None),
-              (Some(7.0),Some(-1.0)), (None,None), (None,None)
+          ds.as[(Option[Double], Option[Double])].collect().toList == List(
+            (Some(5.0), Some(-1.0)),
+            (Some(58.0), Some(46.0)),
+            (None, None),
+            (None, None),
+            (None, None),
+            (Some(3.0), Some(-1.0)),
+            (Some(9.0), Some(-1.0)),
+            (None, None),
+            (None, None),
+            (None, None),
+            (Some(7.0), Some(-1.0)),
+            (None, None),
+            (None, None)
           )
         )
       }
@@ -177,19 +236,23 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
   "Different multi-column expressions can be evaluated" - {
     val sql1 = s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums"
-    s"Multi-column: ${sql1}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    s"Multi-column: ${sql1}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
       sparkSession.sql(sql1).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double, Double)].collect().toList == List((20.0,90.0)))
+        assert(ds.as[(Double, Double)].collect().toList == List((20.0, 90.0)))
       }
     }
 
     val sql2 =
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA})"
 
-    s"Group by is possible with ${sql2}" ignore withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    s"Group by is possible with ${sql2}" ignore withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -198,10 +261,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
     }
 
-
     val sql3 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
 
-    s"Simple Group by is possible with ${sql3}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    s"Simple Group by is possible with ${sql3}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -220,10 +284,12 @@ final class DynamicVeSqlExpressionEvaluationSpec
         assert(ds.as[(Double)].collect().toList == List(15.0))
       }
     }
-    */
+     */
 
     val sql5 = s"SELECT CORR(${SampleColA}, ${SampleColB}) as c FROM nums"
-    s"Corr function is possible with ${sql5}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    s"Corr function is possible with ${sql5}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -233,7 +299,9 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
 
     val sql6 = s"SELECT MAX(${SampleColA}) AS a, MIN(${SampleColB}) AS b FROM nums"
-    s"MIN and MAX work with ${sql6}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    s"MIN and MAX work with ${sql6}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -243,31 +311,55 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
 
     val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
-    s"Ordering with a group by: ${sql7}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    s"Ordering with a group by: ${sql7}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
       sparkSession.sql(sql7).debugSqlHere { ds =>
-        assert(ds.as[(Option[Double], Option[Double])].collect().toList == List(
-          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
-          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
-          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0))
-        ))
+        assert(
+          ds.as[(Option[Double], Option[Double])].collect().toList == List(
+            (Some(4.0), None),
+            (Some(2.0), None),
+            (None, None),
+            (Some(2.0), None),
+            (None, None),
+            (Some(20.0), None),
+            (Some(1.0), Some(2.0)),
+            (Some(2.0), Some(3.0)),
+            (None, Some(3.0)),
+            (Some(3.0), Some(4.0)),
+            (Some(4.0), Some(5.0)),
+            (None, Some(5.0)),
+            (Some(52.0), Some(6.0))
+          )
+        )
       }
     }
 
-    val sql8 = s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
-    s"Ordering with a group by: ${sql8}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+    val sql8 =
+      s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
+    s"Ordering with a group by: ${sql8}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
       sparkSession.sql(sql8).debugSqlHere { ds =>
-        assert(ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList == List(
-          (Some(20.0),None,None,None), (Some(1.0),Some(2.0),Some(2.0),Some(2.0)),
-          (Some(2.0),Some(3.0),Some(3.0),Some(3.0)), (Some(3.0),Some(4.0),Some(4.0),Some(4.0)),
-          (Some(4.0),Some(5.0),Some(5.0),Some(5.0)), (Some(52.0),Some(6.0),Some(6.0),Some(6.0)),
-          (None,Some(8.0),Some(5.0),Some(3.0))
-        ))
+        assert(
+          ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])]
+            .collect()
+            .toList == List(
+            (Some(20.0), None, None, None),
+            (Some(1.0), Some(2.0), Some(2.0), Some(2.0)),
+            (Some(2.0), Some(3.0), Some(3.0), Some(3.0)),
+            (Some(3.0), Some(4.0), Some(4.0), Some(4.0)),
+            (Some(4.0), Some(5.0), Some(5.0), Some(5.0)),
+            (Some(52.0), Some(6.0), Some(6.0), Some(6.0)),
+            (None, Some(8.0), Some(5.0), Some(3.0))
+          )
+        )
       }
     }
   }
@@ -293,8 +385,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
   protected def withSparkSession2[T](
-                                      configure: SparkSession.Builder => SparkSession.Builder
-                                    )(f: SparkSession => T): T = {
+    configure: SparkSession.Builder => SparkSession.Builder
+  )(f: SparkSession => T): T = {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")

@@ -18,11 +18,11 @@ import org.scalatest.ConfigMap
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
-final class JoinVeSpec extends AnyFreeSpec
+final class JoinVeSpec
+  extends AnyFreeSpec
   with BeforeAndAfter
   with SparkAdditions
   with LazyLogging {
-
 
   implicit class RichVeProc(proc: Aurora.veo_proc_handle) {
     def ensureOk(): Aurora.veo_proc_handle = {

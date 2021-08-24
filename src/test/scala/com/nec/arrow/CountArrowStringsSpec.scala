@@ -207,7 +207,7 @@ final class CountArrowStringsSpec extends AnyFreeSpec {
   "We can pass a VarCharVector to the C program and get an output" in {
     import org.apache.arrow.memory.RootAllocator
     WithTestAllocator { alloc =>
-        val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+      val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
     }
 
   }

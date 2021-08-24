@@ -21,9 +21,7 @@ object H2DatabaseConnector {
 
     val resource = getClass.getResourceAsStream("init.sql")
 
-    RunScript.execute(
-      conn, new InputStreamReader(resource)
-    )
+    RunScript.execute(conn, new InputStreamReader(resource))
 
   }
 

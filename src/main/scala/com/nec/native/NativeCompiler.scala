@@ -44,6 +44,7 @@ object NativeCompiler {
     var cache: Map[String, Path] = Map.empty
   ) extends NativeCompiler
     with LazyLogging {
+
     /** Location of the compiled kernel library */
     override def forCode(code: String): Path = this.synchronized {
       cache.get(code) match {

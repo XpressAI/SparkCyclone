@@ -15,14 +15,11 @@ final class ArrowJVMGroupBySpec extends AnyFreeSpec {
       20.0 -> Seq(200.0, 900.0),
       30.0 -> Seq(300.0),
       40.0 -> Seq(400.0),
-      50.0 -> Seq(1000.0),
-
+      50.0 -> Seq(1000.0)
     )
     withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
       withDirectFloat8Vector(valuesColumn) { valuesColumnVec =>
-        assert(
-          GroupBy.groupJVM(groupingColumnVec, valuesColumnVec) == expectedResult
-        )
+        assert(GroupBy.groupJVM(groupingColumnVec, valuesColumnVec) == expectedResult)
       }
     }
   }

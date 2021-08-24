@@ -6,7 +6,13 @@ import com.nec.spark.ColumnarBatchToArrow
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.CEvaluationPlan.batchColumnarBatches
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, Float8Vector, IntVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  Float8Vector,
+  IntVector,
+  VectorSchemaRoot
+}
 import org.apache.commons.lang3.reflect.FieldUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -37,7 +43,6 @@ import scala.language.dynamics
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
-
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import org.apache.arrow.vector.IntVector
@@ -164,14 +169,24 @@ final case class CEvaluationPlan(
                 if (v_idx < v.getValueCount) {
                   v match {
                     case vector: Float8Vector =>
-                      val isNull = BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
-                      if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
+                      val isNull = BitVectorHelper.get(
+                        v.asInstanceOf[Float8Vector].getValidityBuffer,
+                        v_idx
+                      ) == 0
+                      if (isNull) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
                     case vector: IntVector =>
-                      val isNull = BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
-                      if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
+                      val isNull =
+                        BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
+                      if (isNull) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
                     case vector: BigIntVector =>
-                      val isNull = BitVectorHelper.get(v.asInstanceOf[BigIntVector].getValidityBuffer, v_idx) == 0
-                      if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
+                      val isNull = BitVectorHelper.get(
+                        v.asInstanceOf[BigIntVector].getValidityBuffer,
+                        v_idx
+                      ) == 0
+                      if (isNull) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
                   }
                 }
               }
@@ -414,14 +429,20 @@ final case class CEvaluationPlan(
             if (v_idx < v.getValueCount) {
               v match {
                 case vector: Float8Vector =>
-                  val isNull = BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
-                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
+                  val isNull =
+                    BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
+                  if (isNull) writer.setNullAt(c_idx)
+                  else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
                 case vector: IntVector =>
-                  val isNull = BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
-                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
+                  val isNull =
+                    BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
+                  if (isNull) writer.setNullAt(c_idx)
+                  else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
                 case vector: BigIntVector =>
-                  val isNull = BitVectorHelper.get(v.asInstanceOf[BigIntVector].getValidityBuffer, v_idx) == 0
-                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
+                  val isNull =
+                    BitVectorHelper.get(v.asInstanceOf[BigIntVector].getValidityBuffer, v_idx) == 0
+                  if (isNull) writer.setNullAt(c_idx)
+                  else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
                 case _ =>
               }
             }

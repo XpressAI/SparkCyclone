@@ -32,8 +32,10 @@ final class GroupByVeSpec extends AnyFreeSpec {
             val outCountVector = new Float8Vector("groupCounts", alloc)
 
             try {
-              val groupingColumn: Seq[Double] = Seq(5, 20, 40, 100, 5, 20, 40, 91, 100, 100, 100, 100)
-              val valuesColumn: Seq[Double] = Seq(10, 55, 41, 84, 43, 23, 44, 55, 109, 101, 102, 103)
+              val groupingColumn: Seq[Double] =
+                Seq(5, 20, 40, 100, 5, 20, 40, 91, 100, 100, 100, 100)
+              val valuesColumn: Seq[Double] =
+                Seq(10, 55, 41, 84, 43, 23, 44, 55, 109, 101, 102, 103)
 
               val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
               ArrowVectorBuilders.withDirectFloat8Vector(groupingColumn) { groupingColumnVec =>
@@ -46,9 +48,15 @@ final class GroupByVeSpec extends AnyFreeSpec {
                     outValuesVector
                   )
 
-                  val groups = (0 to outGroupsVector.getValueCount - 1).map { i => outGroupsVector.get(i) }.toList
-                  val groupCounts = (0 to outCountVector.getValueCount - 1).map { i => outCountVector.get(i).toInt }.toList
-                  val values = (0 to outValuesVector.getValueCount - 1).map { i => outValuesVector.get(i) }.toList
+                  val groups = (0 to outGroupsVector.getValueCount - 1).map { i =>
+                    outGroupsVector.get(i)
+                  }.toList
+                  val groupCounts = (0 to outCountVector.getValueCount - 1).map { i =>
+                    outCountVector.get(i).toInt
+                  }.toList
+                  val values = (0 to outValuesVector.getValueCount - 1).map { i =>
+                    outValuesVector.get(i)
+                  }.toList
 
                   var valueStart = 0
                   var result = scala.collection.mutable.Map[Double, List[Double]]()

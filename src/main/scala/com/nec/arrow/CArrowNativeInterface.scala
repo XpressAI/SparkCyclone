@@ -24,7 +24,11 @@ final class CArrowNativeInterface(libPath: String) extends ArrowNativeInterface 
 
 object CArrowNativeInterface extends LazyLogging {
 
-  private def executeC(libPath: String, functionName: String, arguments: List[NativeArgument]): Unit = {
+  private def executeC(
+    libPath: String,
+    functionName: String,
+    arguments: List[NativeArgument]
+  ): Unit = {
     import scala.collection.JavaConverters._
     val nativeLibraryHandler =
       new Library.Handler(libPath, classOf[Library], Map.empty[String, Any].asJava)
