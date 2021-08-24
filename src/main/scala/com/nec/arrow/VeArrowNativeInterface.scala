@@ -81,7 +81,6 @@ object VeArrowNativeInterface extends LazyLogging {
     len: Option[Long] = None
   )(implicit cleanup: Cleanup): Long = {
     val veInputPointer = new LongPointer(8)
-
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
     val size = len.getOrElse(byteBuffer.capacity().toLong)
     requireOk(Aurora.veo_alloc_mem(proc, veInputPointer, size))

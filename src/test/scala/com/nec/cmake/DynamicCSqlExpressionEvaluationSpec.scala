@@ -11,6 +11,7 @@ import com.nec.testing.SampleSource.SampleColA
 import com.nec.testing.SampleSource.SampleColB
 import com.nec.testing.SampleSource.makeCsvNumsMultiColumn
 import com.nec.testing.Testing.DataSize.SanityCheckSize
+
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -38,18 +39,20 @@ final class DynamicCSqlExpressionEvaluationSpec
 
   "Different single-column expressions can be evaluated" - {
     List(
-      s"SELECT SUM(${SampleColA}) FROM nums" -> 62.0d,
-      s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 57.0d,
+      s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0d,
+      s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 81.0d,
       /** The below are ignored for now */
-      s"SELECT AVG(${SampleColA}) FROM nums" -> 12.4d,
-      s"SELECT AVG(2 * ${SampleColA}) FROM nums" -> 24.8d,
+      s"SELECT AVG(${SampleColA}) FROM nums" -> 10d,
+      s"SELECT AVG(2 * ${SampleColA}) FROM nums" ->20d,
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums" -> 0.0d,
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)" -> 0.0d
     ).zipWithIndex.take(4).foreach { case ((sql, expectation), idx) =>
       s"(n${idx}) ${sql}" in withSparkSession2(configuration) { sparkSession =>
         SampleSource.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
-        sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
+
+
+        sparkSession.sql(sql).debugSqlHere { ds =>
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }
@@ -60,8 +63,10 @@ final class DynamicCSqlExpressionEvaluationSpec
   "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[(Double)].collect().toList.sorted == List[Double](3, 5, 7, 9, 58).sorted)
+    sparkSession.sql(sql_pairwise).debugSqlHere { ds =>
+      assert(ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
+        None, None, None, None, None, None, None, None, Some(3), Some(5), Some(7), Some(9), Some(58)
+      ).sorted)
     }
   }
 
@@ -69,7 +74,7 @@ final class DynamicCSqlExpressionEvaluationSpec
   "Support multi-column inputs" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_mci).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_mci).debugSqlHere { ds =>
       assert(ds.as[(Double)].collect().toList == List(82.0))
     }
   }
@@ -79,7 +84,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_mci_2).ensureCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql_mci_2).debugSqlHere { ds =>
         assert(ds.as[Double].collect().toList == List(-42.0))
       }
   }
@@ -89,8 +94,8 @@ final class DynamicCSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[Long].collect().toList == List(5))
+      sparkSession.sql(sql_cnt).debugSqlHere { ds =>
+        assert(ds.as[Long].collect().toList == List(13))
       }
   }
 
@@ -99,8 +104,8 @@ final class DynamicCSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Long, Double)].collect().toList == List((5, -42)))
+      sparkSession.sql(sql_cnt_multiple_ops).debugSqlHere { ds =>
+        assert(ds.as[(Long, Double)].collect().toList == List((13, -42)))
       }
   }
 
@@ -109,11 +114,14 @@ final class DynamicCSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
+      sparkSession.sql(sql_select_sort).debugSqlHere { ds =>
+        val a = ds.as[(Option[Double], Option[Double])].collect().toList
+        val b = List(
+          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
+          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
+          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0)))
         assert(
-          ds.as[(Double, Double)].collect().toList == List(
-            (1.0, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, 5.0), (52.0, 6.0)
-          )
+          a == b
         )
       }
   }
@@ -125,8 +133,11 @@ final class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
       sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
         assert(
-          ds.as[(Double, Double, Double)].ensureSortPlanEvaluated().ensureCEvaluating().collect().toList == List(
-            (1.0, 2.0, 3.0), (2.0, 3.0, 5.0), (3.0, 4.0, 7.0), (4.0, 5.0, 9.0), (52.0, 6.0, 58.0)
+          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
+            (Some(4.0),None,None), (Some(2.0),None,None), (None,None,None), (Some(2.0),None,None),
+            (None,None,None), (Some(20.0),None,None), (Some(1.0),Some(2.0),Some(3.0)), (Some(2.0),
+              Some(3.0),Some(5.0)), (None,Some(3.0),None), (Some(3.0),Some(4.0),Some(7.0)),
+            (Some(4.0),Some(5.0),Some(9.0)), (None,Some(5.0),None), (Some(52.0),Some(6.0),Some(58.0))
           )
         )
       }
@@ -138,8 +149,8 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_mcio).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[(Double, Double)].collect().toList == List(-42.0 -> 82.0))
+    sparkSession.sql(sql_mcio).debugSqlHere { ds =>
+      assert(ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0),Some(82.0))))
     }
   }
 
@@ -150,16 +161,13 @@ final class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
-        expect(
-          ds.as[(Double, Double)].collect().toList.sortBy(_._1) == List[(Double, Double)](
-            5.0 -> -1,
-            58.0 -> 46.0,
-            3.0 -> -1.0,
-            9.0 -> -1.0,
-            7.0 -> -1.0
+      sparkSession.sql(sql_pairwise).debugSqlHere { ds =>
+        assert(
+          ds.as[(Option[Double], Option[Double])].collect().toList == List(
+            (Some(5.0),Some(-1.0)), (Some(58.0),Some(46.0)), (None,None), (None,None), (None,None),
+            (Some(3.0),Some(-1.0)), (Some(9.0),Some(-1.0)), (None,None), (None,None), (None,None),
+            (Some(7.0),Some(-1.0)), (None,None), (None,None)
           )
-            .sortBy(_._1)
         )
       }
   }
@@ -171,12 +179,12 @@ final class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql1).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double, Double)].collect().toList == List(24.8 -> 62.0))
+        assert(ds.as[(Double, Double)].collect().toList == List((20.0,90.0)))
       }
     }
 
     val sql2 =
-      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)"
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA})"
 
     s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
@@ -184,6 +192,79 @@ final class DynamicCSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[(Double, Double, Double)].collect().toList == Nil)
+      }
+    }
+
+
+    val sql3 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
+
+    s"Simple Group by is possible with ${sql3}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql3).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Option[Double])].collect().toList == List(Some(28.0)))
+      }
+    }
+
+    /*
+    val sql4 = s"SELECT SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA} HAVING y > 3"
+    s"Simple filtering is possible with ${sql4}" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql4).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(15.0))
+      }
+    }
+    */
+
+    val sql5 = s"SELECT CORR(${SampleColA}, ${SampleColB}) as c FROM nums"
+    s"Corr function is possible with ${sql5}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
+      }
+    }
+
+    val sql6 = s"SELECT MAX(${SampleColA}) AS a, MIN(${SampleColB}) AS b FROM nums"
+    s"MIN and MAX work with ${sql6}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql6).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double, Double)].collect().toList == List((52.0, 2.0)))
+      }
+    }
+
+    val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
+    s"Ordering with a group by: ${sql7}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql7).debugSqlHere { ds =>
+        assert(ds.as[(Option[Double], Option[Double])].collect().toList == List(
+          (Some(4.0),None), (Some(2.0),None), (None,None), (Some(2.0),None), (None,None),
+          (Some(20.0),None), (Some(1.0),Some(2.0)), (Some(2.0),Some(3.0)), (None,Some(3.0)),
+          (Some(3.0),Some(4.0)), (Some(4.0),Some(5.0)), (None,Some(5.0)), (Some(52.0),Some(6.0))
+        ))
+      }
+    }
+
+    val sql8 = s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
+    s"Ordering with a group by: ${sql8}" in withSparkSession2(configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sql8).debugSqlHere { ds =>
+        assert(ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList == List(
+          (Some(20.0),None,None,None), (Some(1.0),Some(2.0),Some(2.0),Some(2.0)),
+          (Some(2.0),Some(3.0),Some(3.0),Some(3.0)), (Some(3.0),Some(4.0),Some(4.0),Some(4.0)),
+          (Some(4.0),Some(5.0),Some(5.0),Some(5.0)), (Some(52.0),Some(6.0),Some(6.0),Some(6.0)),
+          (None,Some(8.0),Some(5.0),Some(3.0))
+        ))
       }
     }
   }
