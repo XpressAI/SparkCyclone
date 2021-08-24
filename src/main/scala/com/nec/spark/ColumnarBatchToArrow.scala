@@ -24,7 +24,7 @@ object ColumnarBatchToArrow extends LazyLogging {
         val colRows = columnarBatch.numRows()
         var rowId = 0
         while (rowId < colRows) {
-          if(theCol.isNullAt(rowId)) {
+          if (theCol.isNullAt(rowId)) {
             fv.setNull(putRowId)
           } else {
             fv.set(putRowId, theCol.getDouble(rowId))

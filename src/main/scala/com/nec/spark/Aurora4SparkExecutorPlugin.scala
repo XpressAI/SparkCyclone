@@ -115,7 +115,10 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
     if (_veo_proc == null) {
       _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
-      require(_veo_proc != null, s"Proc could not be allocated for node ${selectedVeNodeId}, got null")
+      require(
+        _veo_proc != null,
+        s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
+      )
       require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
       logInfo(s"Opened process: ${_veo_proc}")
 

@@ -17,10 +17,12 @@ import org.apache.spark.sql.execution.SparkPlan
  * This will enable very high performance processing as the methods are very simple.
  */
 object UnsafeExternalProcessorBase {
-  /** This is a dead-simple interface that receives UnsafeRows. Once all the rows are submitted, the caller will call
+
+  /**
+   * This is a dead-simple interface that receives UnsafeRows. Once all the rows are submitted, the caller will call
    * .execute() to request results.
    * TODO - Memory safety not yet implemented - TODO
-   * */
+   */
   trait UnsafeBatchProcessor {
     def insertRow(unsafeRow: UnsafeRow): Unit
     def execute(): Iterator[InternalRow]

@@ -31,6 +31,7 @@ final case class IdentityCodegenBatchPlan(child: SparkPlan)
 }
 
 object IdentityCodegenBatchPlan {
+
   /** Collect UnsafeRows, and then emit UnsafeRows */
   final class UnsafeExternalDuplicator extends UnsafeBatchProcessor {
     private val rows = scala.collection.mutable.Buffer.empty[UnsafeRow]

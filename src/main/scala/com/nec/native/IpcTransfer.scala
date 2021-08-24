@@ -85,10 +85,13 @@ object IpcTransfer extends LazyLogging {
       val sockie = serverSocket.accept()
       logger.debug(s"Got a client connection! ${sockie}; beginning transfer")
       val startTime = System.currentTimeMillis()
-      val totalTransferred = try inputStreamToOutputStream(inputStream, sockie.getOutputStream, bufSize)
-      finally sockie.close()
+      val totalTransferred =
+        try inputStreamToOutputStream(inputStream, sockie.getOutputStream, bufSize)
+        finally sockie.close()
       val endTime = System.currentTimeMillis()
-      logger.debug(s"Transfer out time = ${endTime - startTime}ms, total was ${totalTransferred} bytes (${totalTransferred / (endTime - startTime)}K/s)")
+      logger.debug(
+        s"Transfer out time = ${endTime - startTime}ms, total was ${totalTransferred} bytes (${totalTransferred / (endTime - startTime)}K/s)"
+      )
     }
 
     (socketName, serverSocket)

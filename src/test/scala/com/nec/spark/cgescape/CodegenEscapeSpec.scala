@@ -1,7 +1,14 @@
 package com.nec.spark.cgescape
 
 import com.nec.spark.SparkAdditions
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, makeCsvNumsMultiColumnNonNull, makeMemoryNums, makeParquetNums, makeParquetNumsNonNull}
+import com.nec.testing.SampleSource.{
+  makeCsvNumsMultiColumnNonNull,
+  makeMemoryNums,
+  makeParquetNums,
+  makeParquetNumsNonNull,
+  SampleColA,
+  SampleColB
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -27,6 +34,7 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
   private implicit val encDouble2: Encoder[(Double, Double)] = Encoders.tuple(encDouble, encDouble)
 
   "We can do a row-based batched identity codegen (accumulate results, and then process an output)" - {
+
     /** To achieve this, we need to first replicate how HashAggregateExec works, as that particular plan is one that loads everything into memory first, before emitting results */
     withVariousInputs[(Double, Double)](
       _.config(CODEGEN_FALLBACK.key, value = false)
@@ -87,7 +95,6 @@ final class CodegenEscapeSpec extends AnyFreeSpec with BeforeAndAfter with Spark
         "Parquet" -> makeParquetNumsNonNull _
       )
     } s"In ${title}" in withSparkSession2(configuration) { sparkSession =>
-
       fr(sparkSession)
       sparkSession.sql(sql).debugSqlHere { ds =>
         f(ds.as[T].collect().toList)

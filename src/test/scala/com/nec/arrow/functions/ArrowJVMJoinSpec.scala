@@ -18,7 +18,6 @@ final class ArrowJVMJoinSpec extends AnyFreeSpec {
       withDirectFloat8Vector(secondColumn) { secondColumnCec =>
         withDirectIntVector(firstKey) { firstKeyVec =>
           withDirectIntVector(secondKey) { secondKeyVec =>
-
             assert(
               Join.joinJVM(firstColumnVec, secondColumnCec, firstKeyVec, secondKeyVec) ==
                 Seq((10.0, 500.0), (30.0, 400.0), (50.0, 100.0))

@@ -77,8 +77,10 @@ case class SimpleSortPlan(
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
                 if (v_idx < v.getValueCount()) {
-                  val isNull = BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
-                  if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
+                  val isNull =
+                    BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
+                  if (isNull) writer.setNullAt(c_idx)
+                  else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
                 }
               }
               writer.getRow

@@ -22,7 +22,7 @@ trait Configurable extends HConfigurable {
 }
 
 object WholeTextFileVectorEngineReader {
-  final case class  VectorEngineRecord(pointer: Long, length: Int) {
+  final case class VectorEngineRecord(pointer: Long, length: Int) {
     def getRawData: Array[Byte] = Array.empty
   }
 }

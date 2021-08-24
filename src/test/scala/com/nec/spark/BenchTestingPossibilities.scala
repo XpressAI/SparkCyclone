@@ -61,7 +61,9 @@ object BenchTestingPossibilities {
       override def isNative: Boolean = false
       override def expectedString: Option[String] = None
     }
-    val All: List[CsvStrategy] = List(NormalCsv) //TODO: Enable the NativeCSVVe when Null handling is implemented for csv parsing
+    val All: List[CsvStrategy] = List(
+      NormalCsv
+    ) //TODO: Enable the NativeCSVVe when Null handling is implemented for csv parsing
   }
 
   import com.eed3si9n.expecty.Expecty.assert
@@ -148,7 +150,7 @@ object BenchTestingPossibilities {
             .withExtensions(sse =>
               if (csvStrategy.exists(_.isNative))
                 sse.injectPlannerStrategy(sparkSession =>
-                    NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
+                  NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
                 )
             )
             .config(sparkConf)
@@ -207,7 +209,7 @@ object BenchTestingPossibilities {
           else List(None)
       } yield SimpleSql(
         sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}), COUNT(*) FROM nums",
-        expectedResult = (90.0,4.0,13),
+        expectedResult = (90.0, 4.0, 13),
         source = source,
         testingTarget = testingTarget,
         offHeapMode = colMode,

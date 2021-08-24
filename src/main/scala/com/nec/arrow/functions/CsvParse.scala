@@ -29,7 +29,9 @@ object CsvParse {
       "parse_csv",
       List(
         input.fold(
-          { case (bb, i) => NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(bb, i)) },
+          { case (bb, i) =>
+            NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(bb, i))
+          },
           str => NativeArgument.VectorInputNativeArgument(StringInputWrapper(str))
         ),
         NativeArgument.output(a),
@@ -46,7 +48,9 @@ object CsvParse {
       "parse_csv_2",
       List(
         input.fold(
-          { case (bb, i) => NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(bb, i)) },
+          { case (bb, i) =>
+            NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(bb, i))
+          },
           str => NativeArgument.VectorInputNativeArgument(StringInputWrapper(str))
         ),
         NativeArgument.output(a),
@@ -66,7 +70,9 @@ object CsvParse {
       "parse_csv_double1_str2_int3_long4",
       List(
         input.fold(
-          { case (bb, i) => NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(bb, i)) },
+          { case (bb, i) =>
+            NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(bb, i))
+          },
           str => NativeArgument.VectorInputNativeArgument(StringInputWrapper(str))
         ),
         NativeArgument.output(a),
