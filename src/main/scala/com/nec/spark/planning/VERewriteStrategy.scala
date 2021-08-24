@@ -129,7 +129,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
         case agg @ logical.Aggregate(
               groupingExpressions,
               resultExpressions,
-              logical.Project(projectList, logical.Filter(condition, child))
+              prj @ logical.Project(projectList, frs @ logical.Filter(condition, child))
             ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
@@ -139,10 +139,13 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               List(
                 CExpressionEvaluation
                   .cGen(
-                    fName,
-                    agg.references.map(_.name).toSet,
-                    child.output,
-                    resultExpressions.map { re =>
+                    fName = fName,
+                    inputReferences =
+                      (agg.references ++ frs.references ++ child.references ++ prj.references)
+                        .map(_.name)
+                        .toSet,
+                    childOutputs = child.output,
+                    pairs = resultExpressions.map { re =>
                       (
                         re.asInstanceOf[Alias],
                         re
@@ -151,7 +154,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                           .asInstanceOf[AggregateExpression]
                       )
                     },
-                    Some(condition)
+                    condition = Some(condition)
                   )
                   .lines,
                 List("}")
