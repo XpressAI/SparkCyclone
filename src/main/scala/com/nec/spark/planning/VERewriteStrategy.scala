@@ -87,24 +87,25 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               case _                                           => false
             } =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          try List(
-            CEvaluationPlan(
-              fName,
-              resultExpressions,
-              CExpressionEvaluation
-                .cGenProject(
-                  fName = fName,
-                  inputReferences = proj.references.map(_.name).toSet,
-                  childOutputs = child.output,
-                  resultExpressions = resultExpressions,
-                  maybeFilter = None
-                ),
-              planLater(child),
-              proj.references.map(_.name).toSet,
-              nativeEvaluator
+          try {
+            List(
+              CEvaluationPlan(
+                fName,
+                resultExpressions,
+                CExpressionEvaluation
+                  .cGenProject(
+                    fName = fName,
+                    inputReferences = proj.references.map(_.name).toSet,
+                    childOutputs = child.output,
+                    resultExpressions = resultExpressions,
+                    maybeFilter = None
+                  ),
+                planLater(child),
+                proj.references.map(_.name).toSet,
+                nativeEvaluator
+              )
             )
-          )
-          catch {
+          } catch {
             case e: Throwable =>
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
