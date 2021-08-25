@@ -71,7 +71,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
             ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
-            NewCEvaluationPlan(
+            CEvaluationPlan(
               fName,
               child.output,
               NewCExpressionEvaluation.evaluate(fName, child.output, tgt, beginIndex, endIndex),
@@ -93,10 +93,11 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               resultExpressions,
               CExpressionEvaluation
                 .cGenProject(
-                  fName,
-                  proj.references.map(_.name).toSet,
-                  child.output,
-                  resultExpressions
+                  fName = fName,
+                  inputReferences = proj.references.map(_.name).toSet,
+                  childOutputs = child.output,
+                  resultExpressions = resultExpressions,
+                  maybeFilter = None
                 ),
               planLater(child),
               proj.references.map(_.name).toSet,
@@ -108,6 +109,29 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
 
+        case proj @ logical.Project(resultExpressions, logical.Filter(condition, child)) =>
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          try List(
+            CEvaluationPlan(
+              fName,
+              resultExpressions,
+              CExpressionEvaluation
+                .cGenProject(
+                  fName = fName,
+                  inputReferences = proj.references.map(_.name).toSet,
+                  childOutputs = child.output,
+                  resultExpressions = resultExpressions,
+                  maybeFilter = Some(condition)
+                ),
+              planLater(child),
+              proj.references.map(_.name).toSet,
+              nativeEvaluator
+            )
+          )
+          catch {
+            case e: Throwable =>
+              throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
+          }
         case sort @ logical.Sort(
               Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)),
               true,

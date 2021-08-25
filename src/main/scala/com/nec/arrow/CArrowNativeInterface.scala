@@ -3,7 +3,9 @@ package com.nec.arrow
 import com.nec.arrow.ArrowInterfaces.c_bounded_data
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.ArrowInterfaces._
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.BigIntVectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.ByteBufferInputWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.DateDayVectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.Float8VectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.IntVectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.StringInputWrapper
@@ -49,6 +51,10 @@ object CArrowNativeInterface extends LazyLogging {
         c_nullable_double_vector(vcv)
       case NativeArgument.VectorInputNativeArgument(IntVectorInputWrapper(vcv)) =>
         c_nullable_int_vector(vcv)
+      case NativeArgument.VectorInputNativeArgument(DateDayVectorInputWrapper(vcv)) =>
+        c_nullable_date_vector(vcv)
+      case NativeArgument.VectorInputNativeArgument(BigIntVectorInputWrapper(vcv)) =>
+        sys.error("Not implemented")
       case NativeArgument.VectorInputNativeArgument(VarCharVectorInputWrapper(vcv)) =>
         c_non_null_varchar_vector(vcv)
       case NativeArgument.VectorOutputNativeArgument(Float8VectorOutputWrapper(doubleVector)) =>
@@ -67,8 +73,6 @@ object CArrowNativeInterface extends LazyLogging {
         val struct = new non_null_varchar_vector()
         vectorExtractions.append(() => non_null_varchar_vector_to_VarCharVector(struct, vec))
         struct
-      case other =>
-        throw new MatchError(s"Unmatched for input: ${other}")
     }.toArray
 
     def ia: String = invokeArgs.mkString("[", ",", "]")

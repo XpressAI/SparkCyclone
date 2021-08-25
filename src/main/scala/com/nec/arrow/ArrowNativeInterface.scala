@@ -120,6 +120,8 @@ object ArrowNativeInterface {
         final case class Float8VectorInputWrapper(float8Vector: Float8Vector)
           extends InputVectorWrapper
         final case class IntVectorInputWrapper(intVector: IntVector) extends InputVectorWrapper
+        final case class DateDayVectorInputWrapper(dateDayVector: DateDayVector)
+          extends InputVectorWrapper
         final case class BigIntVectorInputWrapper(bigIntVector: BigIntVector)
           extends InputVectorWrapper
       }
@@ -160,7 +162,9 @@ object ArrowNativeInterface {
 
     def wrapInput(valueVector: ValueVector): InputVectorWrapper =
       valueVector match {
-        case intVector: IntVector       => InputVectorWrapper.IntVectorInputWrapper(intVector)
+        case intVector: IntVector => InputVectorWrapper.IntVectorInputWrapper(intVector)
+        case dateDayVector: DateDayVector =>
+          InputVectorWrapper.DateDayVectorInputWrapper(dateDayVector)
         case float8Vector: Float8Vector => InputVectorWrapper.Float8VectorInputWrapper(float8Vector)
         case varCharVector: VarCharVector =>
           InputVectorWrapper.VarCharVectorInputWrapper(varCharVector)

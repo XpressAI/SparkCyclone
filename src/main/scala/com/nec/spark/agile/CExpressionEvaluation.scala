@@ -23,10 +23,12 @@ import org.apache.spark.sql.catalyst.expressions.Abs
 import org.apache.spark.sql.catalyst.expressions.And
 import org.apache.spark.sql.catalyst.expressions.IsNotNull
 import org.apache.spark.sql.catalyst.expressions.LessThan
+import org.apache.spark.sql.catalyst.expressions.LessThanOrEqual
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DateType
 
 object CExpressionEvaluation {
   def cType(d: DataType): String = {
@@ -120,13 +122,14 @@ object CExpressionEvaluation {
     fName: String,
     inputReferences: Set[String],
     childOutputs: Seq[Attribute],
-    resultExpressions: Seq[NamedExpression]
+    resultExpressions: Seq[NamedExpression],
+    maybeFilter: Option[Expression]
   )(implicit nameCleaner: NameCleaner): CodeLines = {
     val inputs = {
       val attrs = childOutputs
         .filter(attr => inputReferences.contains(attr.name))
 
-      if (attrs.size == 0) childOutputs else attrs
+      if (childOutputs.size > attrs.size) childOutputs else attrs
     }
 
     val inputBits = inputs.zipWithIndex
@@ -140,6 +143,8 @@ object CExpressionEvaluation {
             s"nullable_bigint_vector* input_${idx}"
           case StringType =>
             s"nullable_varchar_vector* input_${idx}"
+          case DateType =>
+            s"nullable_int_vector* input_${idx}"
           case x =>
             sys.error(s"Invalid input dataType $x")
         }
@@ -170,6 +175,7 @@ object CExpressionEvaluation {
         s"""extern "C" long ${fName}(${arguments.mkString(", ")})""",
         "{"
       ),
+      maybeFilter.toList.flatMap(cond => filterInputs(cond, inputs)),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"long output_${idx}_count = input_0->count;",
@@ -394,13 +400,15 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
-      case Literal(v, DoubleType | IntegerType) =>
+      case Literal(v, DoubleType | IntegerType | DateType) =>
         s"$v"
       case And(left, right) =>
         s"${evaluateSub(inputs, left)} && ${evaluateSub(inputs, right)}"
       case IsNotNull(_) =>
         s"1"
       case LessThan(left, right) =>
+        s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
+      case LessThanOrEqual(left, right) =>
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
     }
   }
