@@ -20,6 +20,9 @@ import org.apache.spark.sql.catalyst.expressions.Multiply
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.expressions.Divide
 import org.apache.spark.sql.catalyst.expressions.Abs
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.IsNotNull
+import org.apache.spark.sql.catalyst.expressions.LessThan
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
@@ -393,6 +396,12 @@ object CExpressionEvaluation {
         s"abs(${evaluateSub(inputs, v)})"
       case Literal(v, DoubleType | IntegerType) =>
         s"$v"
+      case And(left, right) =>
+        s"${evaluateSub(inputs, left)} && ${evaluateSub(inputs, right)}"
+      case IsNotNull(_) =>
+        s"1"
+      case LessThan(left, right) =>
+        s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
     }
   }
 
@@ -597,32 +606,52 @@ object CExpressionEvaluation {
   implicit class RichListStr(list: List[String]) {
     def codeLines: CodeLines = CodeLines(list)
   }
+
   trait NameCleaner {
     def cleanName(input: String): String
   }
-
   object NameCleaner {
     val simple: NameCleaner = _.replaceAll("[^A-Z_a-z0-9]", "")
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
+  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = {
+    input.indices.map { i => s"std::vector<double> filtered_input_$i = {};" } ++
+      List(
+        s"for ( long i = 0; i < input_0->count; i++ ) {",
+        s"if ( ${evaluateSub(input, cond)} ) {"
+      ) ++
+      input.indices.map { i => s"  filtered_input_$i.push_back(input_$i->data[i]);" } ++
+      List("}", "}") ++ input.indices.toList.flatMap { i =>
+        List(
+          s"memcpy(input_$i->data, filtered_input_$i.data(), filtered_input_$i.size() * 8);",
+          s"input_$i->count = filtered_input_$i.size();",
+          // this causes a crash - what am I doing wrong here?
+//          s"realloc(input_$i->data, input_$i->count * 8);",
+          s"filtered_input_$i.clear();"
+        )
+      }
+  }.toList
+
   def cGen(
     fName: String,
     inputReferences: Set[String],
     childOutputs: Seq[Attribute],
-    pairs: (Alias, AggregateExpression)*
+    pairs: Seq[(Alias, AggregateExpression)],
+    condition: Option[Expression] = None
   )(implicit nameCleaner: NameCleaner): CodeLines = {
     val input = {
       val attrs = childOutputs
         .filter(attr => inputReferences.contains(attr.name))
 
-      if (attrs.size == 0) childOutputs else attrs
+      if (childOutputs.size > attrs.size) childOutputs else attrs
     }
+
     val cleanNames = pairs.map(_._1.name).map(nameCleaner.cleanName).toList
     val ads = cleanNames.zip(pairs).zipWithIndex.map {
       case ((cleanName, (alias, aggregateExpression)), idx) =>
         process(input, cleanName, aggregateExpression, idx)
-          .getOrElse(sys.error(s"Unknown: ${aggregateExpression}"))
+          .getOrElse(sys.error(s"Unknown: $aggregateExpression"))
     }
 
     val inputBits = input.zipWithIndex
@@ -635,6 +664,7 @@ object CExpressionEvaluation {
       List(s"""extern "C" long ${fName}(${inputBits}, ${ads
         .flatMap(_.outputArguments)
         .mkString(", ")}) {"""),
+      condition.toList.flatMap(cond => filterInputs(cond, input)),
       ads.flatMap(_.init),
       List("#pragma _NEC ivdep"),
       List("for (int i = 0; i < input_0->count; i++) {"),

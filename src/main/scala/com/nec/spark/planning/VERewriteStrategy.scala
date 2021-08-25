@@ -126,6 +126,44 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
           )
         }
 
+        case agg @ logical.Aggregate(
+              groupingExpressions,
+              resultExpressions,
+              prj @ logical.Project(projectList, frs @ logical.Filter(condition, child))
+            ) =>
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          List(
+            CEvaluationPlan(
+              fName,
+              resultExpressions,
+              List(
+                CExpressionEvaluation
+                  .cGen(
+                    fName = fName,
+                    inputReferences =
+                      (agg.references ++ frs.references ++ child.references ++ prj.references)
+                        .map(_.name)
+                        .toSet,
+                    childOutputs = child.output,
+                    pairs = resultExpressions.map { re =>
+                      (
+                        re.asInstanceOf[Alias],
+                        re
+                          .asInstanceOf[Alias]
+                          .child
+                          .asInstanceOf[AggregateExpression]
+                      )
+                    },
+                    condition = Some(condition)
+                  )
+                  .lines,
+                List("}")
+              ).flatten.codeLines,
+              planLater(child),
+              agg.references.map(_.name).toSet,
+              nativeEvaluator
+            )
+          )
         case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
             if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
@@ -165,7 +203,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                           .child
                           .asInstanceOf[AggregateExpression]
                       )
-                    }: _*
+                    }
                   )
                   .lines,
                 List("}")
@@ -200,7 +238,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
                           .child
                           .asInstanceOf[AggregateExpression]
                       )
-                    }: _*
+                    }
                   )
                   .lines,
                 List("}")

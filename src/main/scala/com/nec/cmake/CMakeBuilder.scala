@@ -56,7 +56,10 @@ endif()
     try buildAndLink(tgtCl)
     catch {
       case e: Throwable =>
-        throw new RuntimeException(s"Could not build due to $e. CMakeLists: ${CMakeListsTXT}", e)
+        throw new RuntimeException(
+          s"Could not build due to $e. CMakeLists: ${CMakeListsTXT}; source was '\n${cSource}\n'",
+          e
+        )
     }
   }
 

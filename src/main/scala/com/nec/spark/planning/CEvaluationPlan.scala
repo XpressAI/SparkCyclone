@@ -91,13 +91,7 @@ final case class CEvaluationPlan(
   with ColumnarToRowTransition
   with LazyLogging {
 
-  protected def inputVectorsIds: Seq[Int] = {
-    val attrs = child.output.zipWithIndex
-      .filter(attr => inputReferenceNames.contains(attr._1.name))
-      .map(_._2)
-
-    if (attrs.isEmpty) child.output.indices else attrs
-  }
+  protected def inputVectorsIds: Seq[Int] = child.output.indices
 
   override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
     AttributeReference(name = s"value_$idx", dataType = DoubleType, nullable = false)()

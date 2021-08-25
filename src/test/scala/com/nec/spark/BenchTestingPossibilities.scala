@@ -217,7 +217,9 @@ object BenchTestingPossibilities {
       ),
       JoinPlanSpec.OurTesting,
       GroupBySumPlanSpec.OurTesting,
-      List(SubstringTesting(isVe = true), SubstringTesting(isVe = false))
+      List(SubstringTesting(isVe = true), SubstringTesting(isVe = false)),
+      List(WhereTesting(isVe = true)),
+      List(WhereTesting(isVe = false))
     ).flatten
 
   trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>

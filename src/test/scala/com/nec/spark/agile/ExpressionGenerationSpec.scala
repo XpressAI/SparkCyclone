@@ -44,7 +44,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Set("value#14"), Seq(ref), Alias(null, "summy")() -> expr) == {
+    assert(cGen(testFName, Set("value#14"), Seq(ref), List(Alias(null, "summy")() -> expr)) == {
       List(
         s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* output_0_sum) {""",
         "output_0_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -83,7 +83,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       filter = None
     )
 
-    assert(cGen(testFName, Set("abcd"), Seq(ref), Alias(null, "avy#123 + 51")() -> expr) == {
+    assert(cGen(testFName, Set("abcd"), Seq(ref), List(Alias(null, "avy#123 + 51")() -> expr)) == {
       List(
         s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* output_0_average_sum, nullable_bigint_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -129,7 +129,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       isDistinct = false,
       filter = None
     )
-    val a = cGen(testFName, Set("abcd"), Seq(ref), Alias(null, "avy#123 + 2")() -> expr)
+    val a = cGen(testFName, Set("abcd"), Seq(ref), List(Alias(null, "avy#123 + 2")() -> expr))
     val b = List(
       s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* output_0_average_sum, nullable_bigint_vector* output_0_average_count) {""",
       "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -158,7 +158,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       "output_0_average_sum->validityBuffer = output_0_sum_validity_buffer;",
       "return 0;"
     )
-    assert(cGen(testFName, Set("abcd"), Seq(ref), Alias(null, "avy#123 + 2")() -> expr) == {
+    assert(cGen(testFName, Set("abcd"), Seq(ref), List(Alias(null, "avy#123 + 2")() -> expr)) == {
       List(
         s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* output_0_average_sum, nullable_bigint_vector* output_0_average_count) {""",
         "output_0_average_sum->data = (double *)malloc(1 * sizeof(double));",
@@ -216,7 +216,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         testFName,
         Set("abcd", "abcd_2"),
         Seq(ref1, ref2),
-        Alias(null, "avy#123 + avy#124")() -> expr
+        List(Alias(null, "avy#123 + avy#124")() -> expr)
       ) == {
         List(
           s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* input_1, nullable_double_vector* output_0_average_sum, nullable_bigint_vector* output_0_average_count) {""",
@@ -319,8 +319,7 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         testFName,
         Set("abcd"),
         Seq(ref),
-        Alias(null, "summy")() -> expr,
-        Alias(null, "avy#123 - 1.0")() -> expr2
+        List(Alias(null, "summy")() -> expr, Alias(null, "avy#123 - 1.0")() -> expr2)
       ) ==
         List(
           s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* output_0_sum, nullable_double_vector* output_1_average_sum, nullable_bigint_vector* output_1_average_count) {""",
