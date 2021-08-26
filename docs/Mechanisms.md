@@ -1,10 +1,11 @@
+# Mechanism
 
 ## Entry Point Mechanism
 The aurora4spark-sql-plugin implements the main device extension method available in the Spark API.  It implements a SparkPlugin that offers a driver and executor plugin as follows:
 
 ![image](https://user-images.githubusercontent.com/68586800/130805169-71796510-6a1a-449c-b0cd-9bab31e520f4.png)
 
-## Internal Mechanism
+## Internal Mechanism 
 
 The Aurora4SparkDriver and Aurora4SparkExecutorPlugin classes are the entry points to the application.  The Executor plugin will run on all the Spark Executors and the Driver runs only on the Spark Driver.  The driver is responsible for telling spark which extensions to use.  The LocalVeoExtension class is then used to inject a new planning optimizer strategy that replaces query plans with our own plan implementations that run on the VE.
 
@@ -25,3 +26,5 @@ The source for the simple C functions can be found inside the resources director
 However most of the C code for queries are generated on the fly using information from the current query.
 
 ![image](https://user-images.githubusercontent.com/68586800/130806094-a1364bd8-99b9-4e1d-b172-a1ebf987fe0c.png)
+
+## CEvaluation Plan as WholeStageCodeGen
