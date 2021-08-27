@@ -7,9 +7,11 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
 import com.nec.cmake.functions.ParseCSVSpec.RichIntVector
 import com.nec.cmake.functions.ParseCSVSpec.RichVarCharVector
+import com.nec.spark.ColumnarBatchToArrow.InfoCollector
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.execution.arrow.ColumnarArrowWriter
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
@@ -115,6 +117,33 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
       } finally vectorSchemaRoot.close()
     } finally {
       allocator.close()
+    }
+  }
+
+  "OffHeap can be transferred" in {
+    val allocator =
+      ArrowUtilsExposed.rootAllocator.newChildAllocator("test columnar batch", 0L, Long.MaxValue)
+    try {
+      val source = new OffHeapColumnVector(2, DoubleType)
+      source.putDouble(0, 1.3)
+      source.putDouble(1, 1.4)
+      val sampleBatch = new ColumnarBatch(Array(source), 2)
+      var transferred = false
+      implicit val infoCollector: InfoCollector = () => transferred = true
+      val (vectorSchemaRoot, columns) =
+        ColumnarBatchToArrow.fromBatch(ColumnarBatchToArrowTest.schema, allocator)(sampleBatch)
+      try {
+        expect(
+          transferred,
+          columns.size == 1,
+          columns.head
+            .asInstanceOf[Float8VectorInputWrapper]
+            .float8Vector
+            .toListSafe == List[Option[Double]](Some(1.3), Some(1.4))
+        )
+      } finally vectorSchemaRoot.close()
+    } finally {
+//      allocator.close()
     }
   }
 
