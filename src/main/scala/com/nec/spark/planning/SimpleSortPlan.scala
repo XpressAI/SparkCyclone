@@ -1,20 +1,19 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import org.apache.arrow.vector.{BitVectorHelper, Float8Vector, VectorSchemaRoot}
-
-import org.apache.arrow.vector.{Float8Vector, VectorSchemaRoot}
+import org.apache.arrow.vector.BitVectorHelper
+import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 case class SimpleSortPlan(
@@ -54,12 +53,11 @@ case class SimpleSortPlan(
 
             val outputVectors = resultExpressions.zipWithIndex
               .map { case (ne, idx) =>
-                val outputVector = new Float8Vector(s"out_${idx}", allocator)
+                val outputVector = new Float8Vector(s"out_$idx", allocator)
                 outputVector
               }
 
             try {
-              import SupportedVectorWrapper._
               evaluator.callFunction(
                 name = fName,
                 inputArguments = inputVectors.toList.map(iv =>
@@ -76,11 +74,11 @@ case class SimpleSortPlan(
               val writer = new UnsafeRowWriter(outputVectors.size)
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                if (v_idx < v.getValueCount()) {
+                if (v_idx < v.getValueCount) {
                   val isNull =
-                    BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
+                    BitVectorHelper.get(v.getValidityBuffer, v_idx) == 0
                   if (isNull) writer.setNullAt(c_idx)
-                  else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
+                  else writer.write(c_idx, v.get(v_idx))
                 }
               }
               writer.getRow
