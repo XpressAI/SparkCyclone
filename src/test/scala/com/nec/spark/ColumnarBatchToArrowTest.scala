@@ -117,32 +117,6 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
       allocator.close()
     }
   }
-  "If Arrow is inputted, then Arrow also comes out" in {
-    val allocator =
-      ArrowUtilsExposed.rootAllocator.newChildAllocator("test columnar batch", 0L, Long.MaxValue)
-    try {
-      val fv = new Float8Vector("input", allocator)
-      fv.setValueCount(2)
-      val source = new ArrowColumnVector(fv)
-      fv.set(0, 1.3)
-      fv.set(1, 1.4)
-      val sampleBatch = new ColumnarBatch(Array(source), 2)
-      val (vectorSchemaRoot, columns) =
-        ColumnarBatchToArrow.fromBatch(ColumnarBatchToArrowTest.schema, allocator)(sampleBatch)
-      try {
-        expect(
-          fv.getValueCount == 0,
-          columns.size == 1,
-          columns.head
-            .asInstanceOf[Float8VectorInputWrapper]
-            .float8Vector
-            .toListSafe == List[Option[Double]](Some(1.3), Some(1.4))
-        )
-      } finally vectorSchemaRoot.close()
-    } finally {
-      allocator.close()
-    }
-  }
 
   "Columns can be combined" in {
     val allocator =
