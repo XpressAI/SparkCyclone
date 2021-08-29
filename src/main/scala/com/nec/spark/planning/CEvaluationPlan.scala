@@ -37,6 +37,16 @@ object CEvaluationPlan {
         new PrivateReader(field.get(obj))
       }
 
+      def get[C](name: String): C = {
+        val clz = obj.getClass
+        val field = FieldUtils.getAllFields(clz).find(_.getName == name) match {
+          case Some(f) => f
+          case None    => throw new NoSuchFieldException(s"Class ${clz} does not seem to have ${name}")
+        }
+        field.setAccessible(true)
+        field.get(obj).asInstanceOf[C]
+      }
+
       def updateDynamic(name: String)(value: Any): Unit = {
         val clz = obj.getClass
         val field = FieldUtils.getAllFields(clz).find(_.getName == name) match {
