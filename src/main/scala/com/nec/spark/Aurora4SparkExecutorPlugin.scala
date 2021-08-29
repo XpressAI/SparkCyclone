@@ -81,7 +81,6 @@ object Aurora4SparkExecutorPlugin {
 class Aurora4SparkExecutorPlugin extends Logging {
 
   def init(extraConf: util.Map[String, String]): Unit = {
-    println(s"WEEEE \{1/0}")
     val selectedVeNodeId = DefaultVeNodeId
 
     logInfo(s"Using VE node = ${selectedVeNodeId}")

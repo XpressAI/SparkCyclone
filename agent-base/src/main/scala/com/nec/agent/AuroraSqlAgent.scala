@@ -11,6 +11,5 @@ object AuroraSqlAgent {
     DriverAttachmentBuilder
       .using(AttachDriverLifecycle.ServiceBasedDriverLifecycle)
       .installOn(inst)
-
   }
 }

@@ -6,11 +6,9 @@ import java.util
 import org.apache.spark.SparkContext
 
 object VectorEngineDriverLauncherControl {
-  lazy val staticPlugin: Aurora4SparkDriverPlugin = new Aurora4SparkDriverPlugin()
 }
 
-class VectorEngineExecutorLauncherControl extends SparkNecDriverControl {
+class VectorEngineDriverLauncherControl extends SparkNecDriverControl {
 
-  override def init(): Unit = VectorEngineDriverLauncherControl.staticPlugin.init(SparkContext.getOrCreate())
-  override def stop(): Unit = VectorEngineDriverLauncherControl.staticPlugin.shutdown()
+  override def init(obj: Object): Unit = Aurora4SparkDriverPlugin.injectVeoExtension(obj)
 }

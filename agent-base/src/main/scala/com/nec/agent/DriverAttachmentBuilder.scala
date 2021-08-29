@@ -8,14 +8,15 @@ import net.bytebuddy.matcher.ElementMatchers.named
 import net.bytebuddy.matcher.ElementMatchers.none
 
 object DriverAttachmentBuilder {
-  
-  val DriverPackage = "org.apache.spark.deploy.yarn"
-  val DriverClass = "ApplicationMaster"
+  import net.bytebuddy.pool.TypePool
+
+  val ExtensionPackage = "org.apache.spark.sql"
+  val ExtensionClass = "SparkSessionExtensions"
 
   def using(attachDriverLifecycle: AttachDriverLifecycle): AgentBuilder = {
-    import net.bytebuddy.pool.TypePool
     val typePool = TypePool.Default.ofSystemLoader
-    val tpe = typePool.describe(DriverPackage + "." + DriverClass).resolve()
+
+    val tpe = typePool.describe(ExtensionPackage + "." + ExtensionClass).resolve()
     new AgentBuilder.Default()
       .disableClassFormatChanges()
       .ignore(none[TypeDescription]())
@@ -26,11 +27,7 @@ object DriverAttachmentBuilder {
       .`type`(is[TypeDescription](tpe))
       .transform(
         new AgentBuilder.Transformer.ForAdvice()
-          .advice(named[MethodDescription]("finish"), attachDriverLifecycle.stopClassName)
-      )
-      .transform(
-        new AgentBuilder.Transformer.ForAdvice()
-          .advice(named[MethodDescription]("run"), attachDriverLifecycle.startClassName)
+          .advice(named[MethodDescription]("buildPlannerStrategies"), attachDriverLifecycle.startClassName)
       )
   }
 }
