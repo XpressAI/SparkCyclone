@@ -13,6 +13,8 @@ import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
 import java.nio.file.Path
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SparkSession
 
 object Aurora4SparkExecutorPlugin {
 
@@ -79,6 +81,7 @@ object Aurora4SparkExecutorPlugin {
 class Aurora4SparkExecutorPlugin extends Logging {
 
   def init(extraConf: util.Map[String, String]): Unit = {
+    println(s"WEEEE \{1/0}")
     val selectedVeNodeId = DefaultVeNodeId
 
     logInfo(s"Using VE node = ${selectedVeNodeId}")

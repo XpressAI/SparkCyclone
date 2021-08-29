@@ -51,7 +51,8 @@ final class LocalVeoExtension
   with Logging
   with LazyLogging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
-    log.info("Applying the extension...")
+    
+    println(s"WEEE! Applying the extension... \{1 / 0}")
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       VERewriteStrategy(
         sparkSession,
@@ -60,6 +61,6 @@ final class LocalVeoExtension
         )
       )
     )
-    log.info("Applied the extension...")
+    println("Applied the extension...")
   }
 }

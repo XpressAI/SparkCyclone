@@ -35,6 +35,9 @@ class Aurora4SparkDriverPlugin extends LazyLogging {
     logger.info(s"Aurora4Spark DriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
     Aurora4SparkDriverPlugin.launched = true
+
+    println("Monkeypatching extensions!")
+    
     import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector._
     val sparkSessionExtensions =
       SparkSession.getActiveSession
