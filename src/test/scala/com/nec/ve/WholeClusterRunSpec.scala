@@ -56,13 +56,14 @@ final class WholeClusterRunSpec extends AnyFreeSpec with BeforeAndAfter with Spa
 
   "We can execute in cluster-local mode" in {
     assert(Files.exists(agentJar), s"Expected ${agentJar} to exist.")
+    val agentJarStr = agentJar.toString
     withSparkSession2(builder =>
       builder
         .config("spark.ui.enabled", "true")
         .config("spark.master", "local-cluster[2,1,1024]")
         .config("spark.executor.extraClassPath", extraClassPath.mkString(":"))
-        .config("spark.executor.extraJavaOptions", s"-javaagent:${agentJar}")
-        .config("spark.driver.extraJavaOptions", s"-javaagent:${agentJar}")
+        .config("spark.executor.extraJavaOptions", s"-javaagent:${agentJarStr}")
+        .config("spark.driver.extraJavaOptions", s"-javaagent:${agentJarStr}")
         .config("spark.sql.extensions", "com.nec.spark.LocalVeoExtension")
     ) { sparkSession =>
       import sparkSession.sqlContext.implicits._

@@ -41,7 +41,7 @@ object NativeCompiler {
 
   final case class CachingNativeCompiler(
     nativeCompiler: NativeCompiler,
-    var cache: Map[String, Path] = Map.empty
+    var cache: Map[String, String] = Map.empty
   ) extends NativeCompiler
     with LazyLogging {
     /** Location of the compiled kernel library */
@@ -50,11 +50,11 @@ object NativeCompiler {
         case None =>
           logger.debug(s"Cache miss for compilation.")
           val compiledPath = nativeCompiler.forCode(code)
-          cache = cache.updated(code, compiledPath)
+          cache = cache.updated(code, compiledPath.toString)
           compiledPath
         case Some(path) =>
           logger.debug(s"Cache hit for compilation.")
-          path
+          java.nio.file.Paths.get(path)
       }
     }
   }
