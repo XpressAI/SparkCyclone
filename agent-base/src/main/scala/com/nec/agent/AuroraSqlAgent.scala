@@ -7,5 +7,10 @@ object AuroraSqlAgent {
     ExecutorAttachmentBuilder
       .using(AttachExecutorLifecycle.ServiceBasedExecutorLifecycle)
       .installOn(inst)
+
+    DriverAttachmentBuilder
+      .using(AttachDriverLifecycle.ServiceBasedDriverLifecycle)
+      .installOn(inst)
+
   }
 }
