@@ -64,14 +64,6 @@ final class WholeClusterRunSpec extends AnyFreeSpec with BeforeAndAfter with Spa
         .config("spark.executor.extraJavaOptions", s"-javaagent:${agentJar}")
         .config("spark.driver.extraJavaOptions", s"-javaagent:${agentJar}")
         .config("spark.sql.extensions", "com.nec.spark.LocalVeoExtension")
-        .withExtensions(sse =>
-          sse.injectPlannerStrategy(sparkSession =>
-            new VERewriteStrategy(
-              sparkSession,
-              InMemoryLibraryEvaluator(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
-            )
-          )
-        )
     ) { sparkSession =>
       import sparkSession.sqlContext.implicits._
       val nums = List[Double](1)
