@@ -3,20 +3,20 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 
 import java.net.URLClassLoader
-import com.nec.native.NativeCompiler
-import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
-import com.nec.spark.planning.VERewriteStrategy
-import com.nec.spark.{Aurora4SparkExecutorPlugin, SparkAdditions}
+import com.nec.spark.SparkAdditions
 import org.apache.log4j.Level
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 
+import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
 final class WholeClusterRunSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
+
   override protected def logLevel: Level = Level.ERROR
+
   val expectedItems =
     List(
       "/classes/",
@@ -29,18 +29,28 @@ final class WholeClusterRunSpec extends AnyFreeSpec with BeforeAndAfter with Spa
       "commons-io",
       "reflections"
     )
-  lazy val extraClassPath =
+
+  lazy val currentClasspath =
     ClassLoader
       .getSystemClassLoader()
       .asInstanceOf[URLClassLoader]
       .getURLs()
-      .filter(item => expectedItems.exists(expected => item.toString.contains(expected)))
-      .map(item => item.toString.replaceAllLiterally("file:/", "/"))
 
-  // update with every new version of the agent
-  private val agentJar: Path = Paths
-    .get(scala.util.Properties.userHome)
-    .resolve(".ivy2/local/com.nec.spark/agent_2.11/0.1.7/jars/agent_2.11.jar")
+  lazy val extraClassPath =
+    currentClasspath
+      .filter(item => expectedItems.exists(expected => item.toString.contains(expected)))
+      .map(fixPath)
+
+  private def fixPath(item: URL): String = {
+    item.toString.replaceAllLiterally("file:/C:/", "C:/").replaceAllLiterally("file:/", "/")
+  }
+
+  private lazy val agentJar: Path = Paths.get(
+    currentClasspath
+      .find(_.toString.contains("agent_2.11.jar"))
+      .map(fixPath)
+      .getOrElse(sys.error("Could not find the agent JAR"))
+  )
 
   "Our extra classpath" - {
     expectedItems.foreach { name =>
@@ -50,12 +60,15 @@ final class WholeClusterRunSpec extends AnyFreeSpec with BeforeAndAfter with Spa
     }
 
     "All items begin with /, ie absolute paths" in {
-      expect(extraClassPath.forall(_.startsWith("/")))
+      expect(extraClassPath.forall(f => f.startsWith("/") || f.startsWith("C:/")))
     }
   }
 
+  "Agent JAR exists" in {
+    assert(Files.exists(agentJar))
+  }
+
   "We can execute in cluster-local mode" in {
-    assert(Files.exists(agentJar), s"Expected ${agentJar} to exist.")
     val agentJarStr = agentJar.toString
     withSparkSession2(builder =>
       builder
@@ -64,7 +77,6 @@ final class WholeClusterRunSpec extends AnyFreeSpec with BeforeAndAfter with Spa
         .config("spark.executor.extraClassPath", extraClassPath.mkString(":"))
         .config("spark.executor.extraJavaOptions", s"-javaagent:${agentJarStr}")
         .config("spark.driver.extraJavaOptions", s"-javaagent:${agentJarStr}")
-        .config("spark.sql.extensions", "com.nec.spark.LocalVeoExtension")
     ) { sparkSession =>
       import sparkSession.sqlContext.implicits._
       val nums = List[Double](1)
