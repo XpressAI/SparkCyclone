@@ -18,7 +18,7 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(CMake)
   .dependsOn(`agent-executor-control`)
 
-val agentV = "0.1.7"
+val agentV = "0.1.8"
 
 lazy val agent = project
   .settings(

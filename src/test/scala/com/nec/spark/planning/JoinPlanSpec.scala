@@ -6,7 +6,6 @@ import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.VeArrowNativeInterfaceNumeric
 import com.nec.arrow.functions.Join
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.JoinPlanSpec.OurSimpleJoin.JoinMethod
 import com.nec.testing.Testing
@@ -157,10 +156,6 @@ object JoinPlanSpec {
         .builder()
         .config(conf)
         .config(CODEGEN_FALLBACK.key, value = false)
-        .config(
-          key = "spark.plugins",
-          value = if (testingTarget.isVE) classOf[AuroraSqlPlugin].getCanonicalName else ""
-        )
         .config("spark.sql.codegen.comments", value = true)
         .withExtensions(sse =>
           sse.injectPlannerStrategy(sparkSession =>

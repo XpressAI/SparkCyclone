@@ -7,7 +7,6 @@ import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
 import com.nec.spark.Aurora4SparkExecutorPlugin
-import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.SampleColA
@@ -27,7 +26,6 @@ object DynamicVeSqlExpressionEvaluationSpec {
   def configuration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
-      .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
           new VERewriteStrategy(
