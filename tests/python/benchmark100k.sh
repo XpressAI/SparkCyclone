@@ -7,21 +7,23 @@ export VE_OMP_NUM_THREADS=1
 export PYSPARK_PYTHON=python3
 
 /opt/spark-2.3.2/bin/spark-submit --master yarn \
---deploy-mode client \
+--deploy-mode cluster \
 --name VE_Benchmark_column_100K \
 --py-files dep.zip \
 --num-executors=8 --executor-cores=1 --executor-memory=8G \
+--conf spark.sql.inMemoryColumnarStorage.batchSize=174592 \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
 --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
 --conf spark.driver.extraJavaOptions="-javaagent:/opt/aurora4spark/agent.jar" \
 --conf spark.executor.extraJavaOptions="-javaagent:/opt/aurora4spark/agent.jar" \
 --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
---conf spark.com.nec.native-csv=VE \
+--conf spark.com.nec.native-csv=false \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
+--conf spark.driver.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
 --conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
 --conf spark.com.nec.spark.kernel.directory=/opt/spark-2.3.2/work/egonzalez \
-run_benchmark.py  --outputfile "yarn_test_ve_100K" --clearcache --ntest 5 \
+run_benchmark.py  --outputfile "yarn_test_ve_100K" --ntest 5 \
 column "data/XY_doubles_R100000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
 
@@ -54,12 +56,12 @@ column "data/XY_doubles_R100000_P100_csv" \
 
 # JVM
 /opt/spark-2.3.2/bin/spark-submit --master yarn \
---deploy-mode client \
+--deploy-mode cluster \
 --name CPU_Benchmark_column_100K \
 --py-files dep.zip \
 --num-executors=2 --executor-cores=12 --executor-memory=8G \
 --conf spark.sql.columnVector.offheap.enabled=true \
-run_benchmark.py  --outputfile "yarn_test_cpu_100K" --clearcache --ntest 5 \
+run_benchmark.py  --outputfile "yarn_test_cpu_100K" --ntest 5 \
 column "data/XY_doubles_R100000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
 

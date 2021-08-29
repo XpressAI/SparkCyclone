@@ -13,6 +13,8 @@ import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
 import java.nio.file.Path
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SparkSession
 
 object Aurora4SparkExecutorPlugin {
 

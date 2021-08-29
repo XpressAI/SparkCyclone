@@ -8,9 +8,14 @@ object Aurora4SparkDriverPlugin {
 
   private val wasAddedTo = scala.collection.mutable.Set.empty[SparkSessionExtensions]
 
-  def injectVeoExtension(sparkSessionExtensions: SparkSessionExtensions): Unit =
-    if (!wasAddedTo.contains(sparkSessionExtensions))
-      new LocalVeoExtension().apply(sparkSessionExtensions)
+  def injectVeoExtension(obj: Object): Unit = {
+    val sparkSessionExtensions = obj.asInstanceOf[SparkSessionExtensions]
+
+    if (!wasAddedTo.contains(sparkSessionExtensions)) {
+        new LocalVeoExtension().apply(sparkSessionExtensions)
+        wasAddedTo += sparkSessionExtensions
+    }
+  }
 
   injectVeoExtension {
     SparkSession.getActiveSession
