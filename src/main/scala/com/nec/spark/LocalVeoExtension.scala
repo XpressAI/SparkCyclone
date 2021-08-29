@@ -6,6 +6,7 @@ import com.nec.native.NativeCompiler.CachingNativeCompiler
 import com.nec.native.NativeEvaluator.InMemoryLibraryEvaluator
 import com.nec.spark.agile._
 import com.nec.spark.planning.VERewriteStrategy
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.catalyst.expressions.Add
@@ -45,15 +46,20 @@ object LocalVeoExtension {
 
 }
 
-final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
+final class LocalVeoExtension
+  extends (SparkSessionExtensions => Unit)
+  with Logging
+  with LazyLogging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
+    log.info("Applying the extension...")
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
-      new VERewriteStrategy(
+      VERewriteStrategy(
         sparkSession,
-        new InMemoryLibraryEvaluator(
+        InMemoryLibraryEvaluator(
           CachingNativeCompiler(NativeCompiler.fromConfig(sparkSession.sparkContext.getConf))
         )
       )
     )
+    log.info("Applied the extension...")
   }
 }

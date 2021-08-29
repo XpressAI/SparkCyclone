@@ -154,7 +154,7 @@ object BenchTestingPossibilities {
                 sse.injectPlannerStrategy(sparkSession =>
                   if (csvStrategy.contains(CsvStrategy.NativeCsvVE))
                     NativeCsvStrategy(
-                      new InMemoryLibraryEvaluator(
+                      InMemoryLibraryEvaluator(
                         NativeCompiler.fromConfig(sparkSession.sparkContext.getConf)
                       )
                     )
@@ -166,7 +166,7 @@ object BenchTestingPossibilities {
               sse.injectPlannerStrategy(sparkSession =>
                 VERewriteStrategy(
                   sparkSession,
-                  new InMemoryLibraryEvaluator(
+                  InMemoryLibraryEvaluator(
                     NativeCompiler.fromConfig(sparkSession.sparkContext.getConf)
                   )
                 )
