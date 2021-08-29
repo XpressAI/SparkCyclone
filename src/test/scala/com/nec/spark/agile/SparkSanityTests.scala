@@ -18,14 +18,6 @@ final class SparkSanityTests
   with SparkAdditions
   with Matchers {
 
-  "It is not launched by default" in withSpark(identity) { _ =>
-    assert(!Aurora4SparkDriverPlugin.launched, "Expect the driver to have not been launched")
-    assert(
-      !Aurora4SparkExecutorPlugin.launched && Aurora4SparkExecutorPlugin.params.isEmpty,
-      "Expect the executor plugin to have not been launched"
-    )
-  }
-
   "We can run a Spark-SQL job for a sanity test" in withSparkSession(identity) { sparkSession =>
     import sparkSession.implicits._
     val result = sparkSession.sql("SELECT 1 + 2").as[Int].collect().toList

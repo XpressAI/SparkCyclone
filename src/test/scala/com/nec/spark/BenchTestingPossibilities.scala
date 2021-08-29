@@ -133,7 +133,6 @@ object BenchTestingPossibilities {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
             .config(key = "spark.ui.enabled", value = false)
 
           offHeapMode.foreach { v =>
