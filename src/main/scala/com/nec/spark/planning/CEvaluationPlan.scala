@@ -163,24 +163,18 @@ final case class CEvaluationPlan(
                 if (v_idx < v.getValueCount) {
                   v match {
                     case vector: Float8Vector =>
-                      val isNull = BitVectorHelper.get(
-                        v.asInstanceOf[Float8Vector].getValidityBuffer,
-                        v_idx
-                      ) == 0
+                      val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                       if (isNull) writer.setNullAt(c_idx)
-                      else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
+                      else writer.write(c_idx, vector.get(v_idx))
                     case vector: IntVector =>
                       val isNull =
-                        BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
+                        BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                       if (isNull) writer.setNullAt(c_idx)
-                      else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
+                      else writer.write(c_idx, vector.get(v_idx))
                     case vector: BigIntVector =>
-                      val isNull = BitVectorHelper.get(
-                        v.asInstanceOf[BigIntVector].getValidityBuffer,
-                        v_idx
-                      ) == 0
+                      val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                       if (isNull) writer.setNullAt(c_idx)
-                      else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
+                      else writer.write(c_idx, vector.get(v_idx))
                   }
                 }
               }
@@ -398,9 +392,7 @@ final case class CEvaluationPlan(
 
         evaluator.callFunction(
           name = fName,
-          inputArguments = inputVectors.map(iv =>
-            Some(SupportedVectorWrapper.wrapInput(iv))
-          ) ++ outputVectors.map(_ => None),
+          inputArguments = inputVectors.map(iv => Some(iv)) ++ outputVectors.map(_ => None),
           outputArguments = inputVectors.map(_ => None) ++
             outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
         )
@@ -424,19 +416,19 @@ final case class CEvaluationPlan(
               v match {
                 case vector: Float8Vector =>
                   val isNull =
-                    BitVectorHelper.get(v.asInstanceOf[Float8Vector].getValidityBuffer, v_idx) == 0
+                    BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                   if (isNull) writer.setNullAt(c_idx)
-                  else writer.write(c_idx, v.asInstanceOf[Float8Vector].get(v_idx))
+                  else writer.write(c_idx, vector.get(v_idx))
                 case vector: IntVector =>
                   val isNull =
-                    BitVectorHelper.get(v.asInstanceOf[IntVector].getValidityBuffer, v_idx) == 0
+                    BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                   if (isNull) writer.setNullAt(c_idx)
-                  else writer.write(c_idx, v.asInstanceOf[IntVector].get(v_idx))
+                  else writer.write(c_idx, vector.get(v_idx))
                 case vector: BigIntVector =>
                   val isNull =
-                    BitVectorHelper.get(v.asInstanceOf[BigIntVector].getValidityBuffer, v_idx) == 0
+                    BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                   if (isNull) writer.setNullAt(c_idx)
-                  else writer.write(c_idx, v.asInstanceOf[BigIntVector].get(v_idx))
+                  else writer.write(c_idx, vector.get(v_idx))
                 case _ =>
               }
             }

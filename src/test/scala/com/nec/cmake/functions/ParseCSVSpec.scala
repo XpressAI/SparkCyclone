@@ -25,6 +25,10 @@ import org.scalatestplus.scalacheck.Checkers
 object ParseCSVSpec {
   implicit class RichFloat8(float8Vector: Float8Vector) {
     def toList: List[Double] = (0 until float8Vector.getValueCount).map(float8Vector.get).toList
+    def toListSafe: List[Option[Double]] =
+      (0 until float8Vector.getValueCount)
+        .map(idx => if (float8Vector.isNull(idx)) None else Option(float8Vector.get(idx)))
+        .toList
   }
   implicit class RichVarCharVector(varCharVector: VarCharVector) {
     def toList: List[String] = (0 until varCharVector.getValueCount)
