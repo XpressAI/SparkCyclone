@@ -5,7 +5,12 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.Float8VectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.IntVectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.VarCharVectorInputWrapper
-import com.nec.cmake.functions.ParseCSVSpec.{RichDateVector, RichFloat8, RichIntVector, RichVarCharVector}
+import com.nec.cmake.functions.ParseCSVSpec.{
+  RichDateVector,
+  RichFloat8,
+  RichIntVector,
+  RichVarCharVector
+}
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.execution.arrow.ColumnarArrowWriter
@@ -25,8 +30,7 @@ import java.time.LocalDate
 
 object ColumnarBatchToArrowTest {
   lazy val schema: Schema = {
-    org.apache.arrow.vector.types.pojo.Schema.fromJSON(
-      """{
+    org.apache.arrow.vector.types.pojo.Schema.fromJSON("""{
         "fields" : [ {
         "name" : "ColA",
         "nullable" : true,

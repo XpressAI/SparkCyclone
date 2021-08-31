@@ -36,7 +36,10 @@ object ParseCSVSpec {
   }
 
   implicit class RichDateVector(dateDayVector: DateDayVector) {
-    def toList: List[LocalDate] = (0 until dateDayVector.getValueCount).map(dateDayVector.get).map(i => LocalDate.ofEpochDay(i)).toList
+    def toList: List[LocalDate] = (0 until dateDayVector.getValueCount)
+      .map(dateDayVector.get)
+      .map(i => LocalDate.ofEpochDay(i))
+      .toList
   }
 
   implicit class RichVarCharVector(varCharVector: VarCharVector) {
@@ -216,8 +219,8 @@ final class ParseCSVSpec extends AnyFreeSpec with Checkers {
           try {
             CsvParse.runOn(iFace)(input = Right(str), a = a, b = b, c = c)
             notTooFar(a.toList, list.map(_._1)) &&
-              notTooFar(b.toList, list.map(_._2)) &&
-              notTooFar(c.toList, list.map(_._3))
+            notTooFar(b.toList, list.map(_._2)) &&
+            notTooFar(c.toList, list.map(_._3))
           } finally {
             a.close()
             b.close()

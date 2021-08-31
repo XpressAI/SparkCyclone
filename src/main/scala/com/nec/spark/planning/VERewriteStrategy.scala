@@ -27,17 +27,17 @@ object VERewriteStrategy {
   var _enabled: Boolean = true
 
   def meldAggregateAndProject(
-                               inputColumnsA: List[NamedExpression],
-                               inputColumnsB: List[NamedExpression]
-                             ): List[NamedExpression] = {
+    inputColumnsA: List[NamedExpression],
+    inputColumnsB: List[NamedExpression]
+  ): List[NamedExpression] = {
     val outputAliases = inputColumnsB.collect { case a: Alias =>
       a
     }
     inputColumnsA.map { expr =>
       expr
         .transformUp {
-          case ar@AttributeReference(name, _, _, _)
-            if outputAliases.exists(_.exprId == ar.exprId) =>
+          case ar @ AttributeReference(name, _, _, _)
+              if outputAliases.exists(_.exprId == ar.exprId) =>
             outputAliases.find(_.exprId == ar.exprId).map(_.child).get
 
           /*          case other if {
@@ -53,26 +53,29 @@ object VERewriteStrategy {
 }
 
 final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: NativeEvaluator)
-  extends Strategy with LazyLogging {
+  extends Strategy
+  with LazyLogging {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def fName: String = s"eval_${Math.abs(plan.hashCode())}"
 
     if (VERewriteStrategy._enabled) {
-      log.debug(s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}")
+      log.debug(
+        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
+      )
       plan match {
-        case proj@logical.Project(
-        Seq(
-        Alias(
-        Substring(
-        inputExpr,
-        Literal(beginIndex: Int, IntegerType),
-        Literal(endIndex: Int, IntegerType)
-        ),
-        tgt
-        )
-        ),
-        child
-        ) =>
+        case proj @ logical.Project(
+              Seq(
+                Alias(
+                  Substring(
+                    inputExpr,
+                    Literal(beginIndex: Int, IntegerType),
+                    Literal(endIndex: Int, IntegerType)
+                  ),
+                  tgt
+                )
+              ),
+              child
+            ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
@@ -84,12 +87,12 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               nativeEvaluator
             )
           )
-        case proj@logical.Project(resultExpressions, child) if !resultExpressions.forall {
-          /** If it's just a rename, don't send to VE * */
-          case a: Alias if a.child.isInstanceOf[Attribute] => true
-          case a: AttributeReference => true
-          case _ => false
-        } =>
+        case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
+              /** If it's just a rename, don't send to VE * */
+              case a: Alias if a.child.isInstanceOf[Attribute] => true
+              case a: AttributeReference                       => true
+              case _                                           => false
+            } =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           try {
             List(
@@ -114,7 +117,7 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
 
-        case proj@logical.Project(resultExpressions, logical.Filter(condition, child)) =>
+        case proj @ logical.Project(resultExpressions, logical.Filter(condition, child)) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           try List(
             CEvaluationPlan(
@@ -137,11 +140,11 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
             case e: Throwable =>
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
-        case sort@logical.Sort(
-        Seq(SortOrder(a@AttributeReference(_, _, _, _), _, _, _)),
-        true,
-        child
-        ) => {
+        case sort @ logical.Sort(
+              Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)),
+              true,
+              child
+            ) => {
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             SimpleSortPlan(
@@ -155,11 +158,11 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
           )
         }
 
-        case agg@logical.Aggregate(
-        groupingExpressions,
-        resultExpressions,
-        prj@logical.Project(projectList, frs@logical.Filter(condition, child))
-        ) =>
+        case agg @ logical.Aggregate(
+              groupingExpressions,
+              resultExpressions,
+              prj @ logical.Project(projectList, frs @ logical.Filter(condition, child))
+            ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(
@@ -194,16 +197,16 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
             )
           )
         case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
-          if GroupBySum.isLogicalGroupBySum(plan) =>
+            if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
-        case agg@logical.Aggregate(
-        groupingExpressions,
-        outerResultExpressions,
-        logical.Project(exprs, child)
-        )
-          if outerResultExpressions.forall(e =>
-            e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-          ) =>
+        case agg @ logical.Aggregate(
+              groupingExpressions,
+              outerResultExpressions,
+              logical.Project(exprs, child)
+            )
+            if outerResultExpressions.forall(e =>
+              e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
+            ) =>
           val resultExpressions =
             try meldAggregateAndProject(outerResultExpressions.toList, exprs.toList)
             catch {
@@ -244,10 +247,10 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
           )
 
         /** There can be plans where we have Cast(Alias(AggEx) as String) - this is not yet supported */
-        case agg@logical.Aggregate(groupingExpressions, resultExpressions, child)
-          if resultExpressions.forall(e =>
-            e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-          ) =>
+        case agg @ logical.Aggregate(groupingExpressions, resultExpressions, child)
+            if resultExpressions.forall(e =>
+              e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
+            ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
             CEvaluationPlan(

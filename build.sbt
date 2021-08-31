@@ -6,6 +6,7 @@ import java.nio.file.Paths
 
 val CMake = config("cmake") extend Test
 val VectorEngine = config("ve") extend Test
+
 /**
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
@@ -188,13 +189,13 @@ addCommandAlias(
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
 
 assembly / assemblyMergeStrategy := {
-  case v if v.contains("module-info.class") => MergeStrategy.discard
-  case v if v.contains("UnusedStub") => MergeStrategy.first
-  case v if v.contains("aopalliance") => MergeStrategy.first
-  case v if v.contains("inject") => MergeStrategy.first
+  case v if v.contains("module-info.class")   => MergeStrategy.discard
+  case v if v.contains("UnusedStub")          => MergeStrategy.first
+  case v if v.contains("aopalliance")         => MergeStrategy.first
+  case v if v.contains("inject")              => MergeStrategy.first
   case v if v.contains("reflect-config.json") => MergeStrategy.discard
-  case v if v.contains("jni-config.json") => MergeStrategy.discard
-  case v if v.contains("git.properties") => MergeStrategy.discard
+  case v if v.contains("jni-config.json")     => MergeStrategy.discard
+  case v if v.contains("git.properties")      => MergeStrategy.discard
   case x =>
     val oldStrategy = (assembly / assemblyMergeStrategy).value
     oldStrategy(x)
@@ -295,7 +296,11 @@ ThisBuild / debugRemotePort := None
 Test / javaOptions ++= {
   debugRemotePort.value match {
     case None => Seq.empty
-    case Some(port) => Seq("-Xdebug", s"-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${port},suspend=y,onuncaught=n")
+    case Some(port) =>
+      Seq(
+        "-Xdebug",
+        s"-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${port},suspend=y,onuncaught=n"
+      )
   }
 }
 

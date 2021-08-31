@@ -47,8 +47,10 @@ final case class DateTesting(isVe: Boolean) extends Testing {
         .getOrCreate()
   }
 
-  override def prepareInput(sparkSession: SparkSession,
-                            dataSize: Testing.DataSize): Dataset[Result] = {
+  override def prepareInput(
+    sparkSession: SparkSession,
+    dataSize: Testing.DataSize
+  ): Dataset[Result] = {
     import sparkSession.implicits._
 
     val schema = StructType(
