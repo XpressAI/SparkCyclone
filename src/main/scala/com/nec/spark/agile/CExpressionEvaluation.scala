@@ -1,6 +1,28 @@
 package com.nec.spark.agile
-import org.apache.spark.sql.catalyst.expressions.{Abs, Add, Alias, And, Attribute, AttributeReference, Divide, ExprId, Expression, IsNotNull, LessThan, Literal, Multiply, NamedExpression, Subtract}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
+import org.apache.spark.sql.catalyst.expressions.{
+  Abs,
+  Add,
+  Alias,
+  And,
+  Attribute,
+  AttributeReference,
+  Divide,
+  ExprId,
+  Expression,
+  IsNotNull,
+  KnownFloatingPointNormalized,
+  LessThan,
+  Literal,
+  Multiply,
+  NamedExpression,
+  Subtract
+}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  Average,
+  Count,
+  Sum
+}
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
@@ -379,9 +401,11 @@ object CExpressionEvaluation {
 
   def evaluateExpression(input: Seq[Attribute], expression: Expression): String = {
     expression match {
+      case NormalizeNaNAndZero(child) => evaluateExpression(input, child)
+      case KnownFloatingPointNormalized(child) => evaluateExpression(input, child)
       case alias @ Alias(expr, name) => evaluateSub(input, alias.child)
-      case NamedExpression(name, DoubleType | IntegerType) =>
-        input.indexWhere(_.name == name) match {
+      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
+        input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
           case idx => s"input_${idx}->data[i]"
@@ -533,8 +557,8 @@ object CExpressionEvaluation {
 
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
-      case AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.name == name) match {
+      case attr @ AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
           case idx =>

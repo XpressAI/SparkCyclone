@@ -59,7 +59,6 @@ object GroupBySum {
                 AggregateExpression(SparkSum(expr), mode, isDistinct, filter, resultId),
                 name
               ) =>
-
             agg
         }.size == 1
 

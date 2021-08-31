@@ -384,7 +384,7 @@ This file is divided into 3 sections:
         <parameters><parameter name="maxLength">50</parameter></parameters>
     </check>
 
-    <!-- Not exactly feasible to enforce this rightNode now. -->
+    <!-- Not exactly feasible to enforce this right now. -->
     <!-- It is also infrequent that somebody introduces a new class with a lot of methods. -->
     <check level="error" class="org.scalastyle.scalariform.NumberOfMethodsInTypeChecker" enabled="false">
         <parameters><parameter name="maxMethods"><![CDATA[30]]></parameter></parameters>

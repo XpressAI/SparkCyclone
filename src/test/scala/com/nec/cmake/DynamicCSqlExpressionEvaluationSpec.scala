@@ -4,10 +4,14 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
+import com.nec.testing.SampleSource.{
+  SampleColA,
+  SampleColB,
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin
+}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 
 import org.apache.spark.sql.Dataset
@@ -193,7 +197,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_join).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_join).ensureJoinPlanEvaluated().debugSqlHere { ds =>
      ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs List(
         (Some(2.0),Some(41.0)), (None,Some(44.0)), (None,Some(44.0)), (Some(3.0),Some(44.0)),
         (Some(6.0),Some(61.0)), (Some(5.0),None), (None,None), (None,None), (None,None),
@@ -207,7 +211,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_join_key_select).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_join_key_select).ensureJoinPlanEvaluated().debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
         List((Some(1.0),Some(1.0),Some(2.0),Some(41.0)), (Some(2.0),Some(2.0),None,Some(44.0)),
           (Some(2.0),Some(2.0),None,Some(44.0)), (Some(2.0),Some(2.0),Some(3.0),Some(44.0)),
@@ -225,7 +229,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_join_self).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_join_self).ensureJoinPlanEvaluated().debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
         List((Some(2.0),Some(3.0)), (Some(2.0),Some(3.0)), (Some(2.0),Some(3.0)), (Some(52.0),
           Some(6.0)), (Some(4.0),None), (Some(4.0),None), (Some(2.0),None), (Some(2.0),None),
@@ -390,19 +394,25 @@ final class DynamicCSqlExpressionEvaluationSpec
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-//      expect(thePlan.toString().contains("CEvaluation"))
+      expect(thePlan.toString().contains("CEvaluation"))
       dataSet
     }
 
     def ensureGroupBySumPlanEvaluated(): Dataset[T] = {
-//      val thePlan = dataSet.queryExecution.executedPlan
-//      expect(thePlan.toString().contains("SimpleGroupBySumPlan"))
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("SimpleGroupBySumPlan"))
       dataSet
     }
 
     def ensureSortPlanEvaluated(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
       expect(thePlan.toString().contains("SimpleSortPlan"))
+      dataSet
+    }
+
+    def ensureJoinPlanEvaluated(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("GeneratedJoinPlan"))
       dataSet
     }
 

@@ -3,14 +3,17 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.aurora.Aurora
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
-import com.nec.native.NativeCompiler.CNativeCompiler
-import com.nec.native.NativeEvaluator.{CNativeEvaluator, ExecutorPluginManagedEvaluator, VectorEngineNativeEvaluator}
-import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
+import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
+import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
+import com.nec.testing.SampleSource.{
+  SampleColA,
+  SampleColB,
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin
+}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
-import org.apache.log4j.{Level, Logger}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
@@ -67,7 +70,9 @@ final class DynamicVeSqlExpressionEvaluationSpec
   }
 
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
-  "Support pairwise addition" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+  "Support pairwise addition" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.configuration
+  ) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
@@ -200,12 +205,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
 
-  val sql_join = s"SELECT nums.${SampleColB}, nums2.${SampleColB} FROM nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA}"
+  val sql_join = s"SELECT nums.${SampleColB}, nums2.${SampleColB} FROM " +
+    s"nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA}"
   "Support INNER EQUAL JOIN" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_join).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_join).ensureJoinPlanEvaluated().debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs List(
         (Some(2.0),Some(41.0)), (None,Some(44.0)), (None,Some(44.0)), (Some(3.0),Some(44.0)),
         (Some(6.0),Some(61.0)), (Some(5.0),None), (None,None), (None,None), (None,None),
@@ -214,15 +220,17 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
 
-  val sql_join_key_select = s"SELECT nums.${SampleColA},nums2.${SampleColA}, nums.${SampleColB}, nums2.${SampleColB} FROM nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA}"
+  val sql_join_key_select = s"SELECT nums.${SampleColA},nums2.${SampleColA}, nums.${SampleColB}, nums2.${SampleColB}" +
+    s" FROM nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA}"
   "Support INNER EQUAL JOIN with selection of join key" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_join_key_select).ensureCEvaluating().debugSqlHere { ds =>
-      ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
-        List((Some(1.0),Some(1.0),Some(2.0),Some(41.0)), (Some(2.0),Some(2.0),None,Some(44.0)),
-          (Some(2.0),Some(2.0),None,Some(44.0)), (Some(2.0),Some(2.0),Some(3.0),Some(44.0)),
+    sparkSession.sql(sql_join_key_select).ensureJoinPlanEvaluated().debugSqlHere { ds =>
+      ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList should
+        contain theSameElementsAs List((Some(1.0),Some(1.0),Some(2.0),Some(41.0)),
+          (Some(2.0),Some(2.0),None,Some(44.0)), (Some(2.0),Some(2.0),None,Some(44.0)),
+          (Some(2.0),Some(2.0),Some(3.0),Some(44.0)),
           (Some(52.0),Some(52.0),Some(6.0),Some(61.0)), (Some(4.0),Some(4.0),Some(5.0),None),
           (Some(4.0),Some(4.0),None,None), (Some(2.0),Some(2.0),None,None),
           (Some(2.0),Some(2.0),None,None), (Some(2.0),Some(2.0),Some(3.0),None),
@@ -232,12 +240,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
 
-  val sql_join_self = s"SELECT nums.${SampleColA}, nums.${SampleColB} FROM nums JOIN nums as nums1 ON nums.${SampleColA} = nums1.${SampleColA}"
+  val sql_join_self = s"SELECT nums.${SampleColA}, nums.${SampleColB} " +
+    s"FROM nums JOIN nums as nums1 ON nums.${SampleColA} = nums1.${SampleColA}"
   "Support INNER EQUAL SELF JOIN " in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
 
-    sparkSession.sql(sql_join_self).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_join_self).ensureJoinPlanEvaluated().debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
         List((Some(2.0),Some(3.0)), (Some(2.0),Some(3.0)), (Some(2.0),Some(3.0)), (Some(52.0),
           Some(6.0)), (Some(4.0),None), (Some(4.0),None), (Some(2.0),None), (Some(2.0),None),
@@ -432,6 +441,11 @@ final class DynamicVeSqlExpressionEvaluationSpec
       dataSet
     }
 
+    def ensureJoinPlanEvaluated(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(thePlan.toString().contains("GeneratedJoinPlan"))
+      dataSet
+    }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       withClue(dataSet.queryExecution.executedPlan.toString()) {

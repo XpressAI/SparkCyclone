@@ -2,15 +2,23 @@ package com.nec.spark.planning
 import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation
-import com.nec.spark.agile.CExpressionEvaluation.{NameCleaner, RichListStr, cGenJoin}
+import com.nec.spark.agile.CExpressionEvaluation.{NameCleaner, RichListStr}
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, Literal, NamedExpression, SortOrder, Substring}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  EqualTo, Literal,
+  NamedExpression,
+  SortOrder,
+  Substring
+}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.plans.{Inner, JoinType, logical}
+import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
