@@ -1,31 +1,14 @@
 package com.nec.spark.agile
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  Average,
-  Count,
-  Sum
-}
+import org.apache.spark.sql.catalyst.expressions.{Abs, Add, Alias, And, Attribute, AttributeReference, Divide, ExprId, Expression, IsNotNull, LessThan, Literal, Multiply, NamedExpression, Subtract}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.catalyst.expressions.Subtract
-import org.apache.spark.sql.catalyst.expressions.Add
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.Multiply
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.catalyst.expressions.Divide
-import org.apache.spark.sql.catalyst.expressions.Abs
-import org.apache.spark.sql.catalyst.expressions.And
-import org.apache.spark.sql.catalyst.expressions.IsNotNull
-import org.apache.spark.sql.catalyst.expressions.LessThan
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
+import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types.DataType
 
 object CExpressionEvaluation {
@@ -207,6 +190,117 @@ object CExpressionEvaluation {
     ).flatten.codeLines
   }
 
+  def cGenJoin(fName: String, inputs: Seq[Attribute],
+               resultExpressions: Seq[Attribute], leftExprIds: Set[ExprId], rightExprIds: Set[ExprId],
+               leftKeyExpr: Expression, rightKeyExpr: Expression)
+              (implicit nameCleaner: NameCleaner): CodeLines = {
+    val inputBits = inputs.zipWithIndex
+      .map { case (i, idx) =>
+        i.dataType match {
+          case DoubleType =>
+            s"nullable_double_vector* input_${idx}"
+          case IntegerType =>
+            s"nullable_int_vector* input_${idx}"
+          case LongType =>
+            s"nullable_bigint_vector* input_${idx}"
+          //          case StringType =>
+          //            s"nullable_varchar_vector* input_${idx}" //TODO: Add proper Varchar output and possibly varchar Join column
+          case x =>
+            sys.error(s"Invalid input dataType $x")
+        }
+      }
+
+    val outputBits = resultExpressions.zipWithIndex.map { case (i, idx) =>
+      i.dataType match {
+        case DoubleType =>
+          s"nullable_double_vector* output_${idx}"
+        case IntegerType =>
+          s"nullable_int_vector* output_${idx}"
+        case LongType =>
+          s"nullable_bigint_vector* output_${idx}"
+        //            case StringType =>
+        //              s"nullable_varchar_vector* output_${idx}" //TODO: Add proper Varchar output and possibly varchar Join column
+        case x =>
+          sys.error(s"Invalid output dataType $x")
+      }
+    }
+
+    val arguments = inputBits ++ outputBits
+    List[List[String]](
+      List(
+        "#include \"frovedis/dataframe/join.hpp\"",
+        "#include <cmath>",
+        "#include <bitset>",
+        "#include \"frovedis/dataframe/join.cc\"",
+        s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"
+      ),
+      List(
+        "#pragma _NEC ivdep",
+        s"std::vector <${cType(leftKeyExpr.dataType)}> left_vec;",
+        "std::vector<size_t> left_idx;",
+        s"std::vector <${cType(rightKeyExpr.dataType)}> right_vec;",
+        "std::vector<size_t> right_idx;",
+        "for(int i = 0; i < input_0->count; i++) { ",
+        s"left_vec.push_back(${evaluateExpression(inputs, leftKeyExpr)});",
+        "left_idx.push_back(i);",
+        s"right_vec.push_back(${evaluateExpression(inputs, rightKeyExpr)});",
+        "right_idx.push_back(i);",
+        "}"
+      ),
+      List(
+        "std::vector<size_t> right_out;",
+        "std::vector<size_t> left_out;",
+        "frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);"
+      ),
+      List(
+        "long validityBuffSize = ceil(left_out.size() / 8.0);"
+      ),
+      resultExpressions.zipWithIndex.flatMap{
+        case (re, idx) => {
+          List(
+            s"output_${idx}->data=(${cTypeOfSub(inputs, re)} *) malloc(left_out.size() * sizeof(${cTypeOfSub(inputs, re)}));",
+            s"output_${idx}->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));",
+            s"std::bitset<8> validity_bitset_${idx};",
+            s"int j_${idx} = 0;"
+          )
+        }
+      }.toList,
+      List(
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < left_out.size(); i++) {",
+      ),
+      resultExpressions.zipWithIndex.flatMap{
+        case (re, idx) => {
+          List(
+            s"if(${genNullCheckJoin(inputs, re, leftExprIds, rightExprIds)}) {",
+            s"validity_bitset_${idx}.set(i%8, true);",
+            s"output_${idx}->data[i] = ${evaluateExpressionJoin(inputs, re, leftExprIds, rightExprIds)};",
+            "} else {",
+            s"validity_bitset_${idx}.set(i%8, false);",
+            "}",
+            "if(i % 8 == 7 || i == left_out.size() - 1) { ",
+            s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
+            s"j_${idx} += 1;",
+            s"validity_bitset_${idx}.reset(); }",
+          )
+        }
+
+      }.toList,
+      List(
+        "}"
+      ),
+      resultExpressions.zipWithIndex.flatMap{
+        case(re, idx) => List(
+          s"output_${idx}->count = left_out.size();",
+        )
+      }.toList,
+      List(
+        "return 0;",
+        "}"
+      )
+    )
+  }.flatten.codeLines
+
   def cGenSort(fName: String, inputs: Seq[Attribute], sortingColumn: AttributeReference)(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
@@ -317,6 +411,34 @@ object CExpressionEvaluation {
     }
   }
 
+  def evaluateExpressionJoin(input: Seq[Attribute],
+                             expression: Expression,
+                             leftExprIds: Set[ExprId],
+                             rightExprIds: Set[ExprId]): String = {
+    expression match {
+      case alias @ Alias(expr, name) => evaluateSubJoin(input, alias.child, leftExprIds, rightExprIds)
+      case attr @ AttributeReference(name, typeName, _, _) =>
+        (input.indexWhere(_.exprId == attr.exprId), typeName) match {
+          case (-1, typeName) =>
+            sys.error(s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}")
+          case (idx, (DoubleType | IntegerType | LongType)) if(leftExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[left_out[i]]"
+          case (idx, (DoubleType | IntegerType | LongType)) if(rightExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[right_out[i]]"
+
+          case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
+        }
+      case expr @ NamedExpression(name, DoubleType | IntegerType | LongType) =>
+        input.indexWhere(_.exprId == expr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
+          case idx if (leftExprIds.contains(expr.exprId)) => s"input_${idx}->data[left_out[i]]"
+          case idx if (rightExprIds.contains(expr.exprId)) => s"input_${idx}->data[right_out[i]]"
+
+        }
+    }
+  }
+
   def genNullCheck(inputs: Seq[Attribute], expression: Expression): String = {
 
     expression match {
@@ -375,6 +497,40 @@ object CExpressionEvaluation {
     }
   }
 
+  def genNullCheckJoin(inputs: Seq[Attribute], expression: Expression, leftExprIds: Set[ExprId],
+                       rightExprIds: Set[ExprId]): String = {
+
+    expression match {
+      case attr @ AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.exprId == attr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx if(leftExprIds.contains(attr.exprId)) =>
+            s"((input_${idx}->validityBuffer[left_out[i]/8] >> left_out[i] % 8) & 0x1) == 1"
+          case idx if(rightExprIds.contains(attr.exprId)) =>
+            s"((input_${idx}->validityBuffer[right_out[i]/8] >> right_out[i] % 8) & 0x1) == 1"
+        }
+      case alias @ Alias(expr, name) => genNullCheckJoin(inputs, alias.child, leftExprIds,
+        rightExprIds)
+      case Subtract(left, right, _) =>
+        s"${genNullCheckJoin(inputs, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Multiply(left, right, _) =>
+        s"${genNullCheckJoin(inputs, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Add(left, right, _) =>
+        s"${genNullCheckJoin(inputs, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Divide(left, right, _) =>
+        s"${genNullCheckJoin(inputs, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Abs(v) =>
+        s"${genNullCheckJoin(inputs, v, leftExprIds, rightExprIds)}"
+      case Literal(v, DoubleType | IntegerType) =>
+        "true"
+    }
+  }
+
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
       case AttributeReference(name, _, _, _) =>
@@ -424,6 +580,33 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
+      case Literal(v, DoubleType | IntegerType) =>
+        s"$v"
+    }
+  }
+
+  def evaluateSubJoin(inputs: Seq[Attribute], expression: Expression,
+                      leftExprIds: Set[ExprId], rightExprIds:Set[ExprId]): String = {
+    expression match {
+      case attr @ AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.exprId == attr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx if(leftExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[left_out[i]]"
+          case idx if(rightExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[right_out[i]]"
+        }
+      case Subtract(left, right, _) =>
+        s"${evaluateSubJoin(inputs, left, leftExprIds, rightExprIds)} - ${evaluateSubJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Multiply(left, right, _) =>
+        s"${evaluateSubJoin(inputs, left, leftExprIds, rightExprIds)} * ${evaluateSubJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Add(left, right, _) =>
+        s"${evaluateSubJoin(inputs, left, leftExprIds, rightExprIds)} + ${evaluateSubJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Divide(left, right, _) =>
+        s"${evaluateSubJoin(inputs, left, leftExprIds, rightExprIds)} / ${evaluateSubJoin(inputs, right, leftExprIds, rightExprIds)}"
+      case Abs(v) =>
+        s"abs(${evaluateSubJoin(inputs, v, leftExprIds, rightExprIds)})"
       case Literal(v, DoubleType | IntegerType) =>
         s"$v"
     }

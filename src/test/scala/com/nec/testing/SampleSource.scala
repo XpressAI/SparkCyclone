@@ -86,6 +86,29 @@ object SampleSource {
       .createOrReplaceTempView(SharedName)
   }
 
+  def makeCsvNumsMultiColumnJoin(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    val schema = StructType(
+      Array(StructField(SampleColA, DoubleType), StructField(SampleColB, DoubleType))
+    )
+
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .option("header", "true")
+      .load(SampleMultiColumnCSV.toString)
+      .createOrReplaceTempView(SharedName)
+
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .option("header", "true")
+      .load(SecondSampleMultiColumnCsv.toString)
+      .createOrReplaceTempView(SharedName + "2")
+
+
+  }
+
   def makeCsvNumsMultiColumnNonNull(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
     val schema = StructType(
