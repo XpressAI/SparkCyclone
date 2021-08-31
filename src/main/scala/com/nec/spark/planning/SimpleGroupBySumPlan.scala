@@ -38,7 +38,7 @@ final case class SimpleGroupBySumPlan(
 
     child
       .execute()
-      .coalesce(1, shuffle = true)
+      .coalesce(1)
       .mapPartitions(iterator => {
         val timeZoneId = conf.sessionLocalTimeZone
         val allocator = ArrowUtilsExposed.rootAllocator

@@ -3,15 +3,15 @@ package com.nec.testing
 import com.nec.spark.SampleTestData.{
   SampleMultiColumnCSV,
   SampleTwoColumnParquet,
-  SampleTwoColumnParquetNonNull
+  SampleTwoColumnParquetNonNull,
+  SecondSampleMultiColumnCsv
 }
-
 import org.apache.spark.sql.SparkSession
 import com.nec.testing.Testing.DataSize.BenchmarkSize
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.nec.testing.Testing.DataSize
 
-import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 import java.nio.file.Paths
 
 sealed trait SampleSource extends Serializable {
@@ -84,6 +84,28 @@ object SampleSource {
       .option("header", "true")
       .load(SampleMultiColumnCSV.toString)
       .createOrReplaceTempView(SharedName)
+  }
+
+  def makeCsvNumsMultiColumnJoin(sparkSession: SparkSession): Unit = {
+    import sparkSession.implicits._
+    val schema = StructType(
+      Array(StructField(SampleColA, DoubleType), StructField(SampleColB, DoubleType))
+    )
+
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .option("header", "true")
+      .load(SampleMultiColumnCSV.toString)
+      .createOrReplaceTempView(SharedName)
+
+    sparkSession.read
+      .format("csv")
+      .schema(schema)
+      .option("header", "true")
+      .load(SecondSampleMultiColumnCsv.toString)
+      .createOrReplaceTempView(SharedName + "2")
+
   }
 
   def makeCsvNumsMultiColumnNonNull(sparkSession: SparkSession): Unit = {

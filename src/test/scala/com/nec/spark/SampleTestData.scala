@@ -11,7 +11,8 @@ object SampleTestData {
     )
     .toAbsolutePath
 
-  lazy val SampleMultiColumnCSV: Path = PkgDir.resolve("sampleMultiColumn-distributed.csv")
+  lazy val SampleMultiColumnCSV: Path = PkgDir.resolve("sampleMultiColumn-distributedCsv")
+  lazy val SecondSampleMultiColumnCsv: Path = PkgDir.resolve("sampleMultiColumn-distributedCsv2")
 
   /** When forked, this is no longer an external file, but a resource * */
   lazy val PkgDir = {
