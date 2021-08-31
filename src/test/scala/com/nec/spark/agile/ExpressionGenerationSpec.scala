@@ -379,6 +379,22 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       metadata = Metadata.empty
     )()
 
+  private val ref_value16 =
+    AttributeReference(
+      name = "value#16",
+      dataType = DoubleType,
+      nullable = false,
+      metadata = Metadata.empty
+    )()
+  private val ref_value17 =
+    AttributeReference(
+      name = "value#17",
+      dataType = DoubleType,
+      nullable = false,
+      metadata = Metadata.empty
+    )()
+
+
   "Addition projection: value#14 + value#15" in {
     assert(
       cGenProject(
@@ -470,6 +486,75 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         "output_1->count = output_1_count;",
         "output_1->data = output_1_data;",
         "output_1->validityBuffer = validity_buffer_1;",
+        "return 0;",
+        "}"
+      ).codeLines
+    )
+  }
+
+  "Joining" in {
+    assert(
+      cGenJoin(
+        testFName,
+        Seq(ref_value14, ref_value15, ref_value16, ref_value17),
+        Seq(ref_value14, ref_value15),
+        Seq(ref_value14, ref_value16).map(_.exprId).toSet,
+        Seq(ref_value15, ref_value17).map(_.exprId).toSet,
+        ref_value16, ref_value17) == List(
+        "#include \"frovedis/dataframe/join.hpp\"",
+        "#include <cmath>",
+        "#include <bitset>",
+        "#include \"frovedis/dataframe/join.cc\"",
+        s"""extern "C" long ${testFName}(nullable_double_vector* input_0, nullable_double_vector* input_1, nullable_double_vector* input_2, nullable_double_vector* input_3, nullable_double_vector* output_0, nullable_double_vector* output_1)""",
+        "{",
+        "std::vector <double> left_vec;",
+        "std::vector<size_t> left_idx;",
+        "std::vector <double> right_vec;",
+        "std::vector<size_t> right_idx;",
+        "#pragma _NEC ivdep",
+        "for(int i = 0; i < input_0->count; i++) { ",
+        "left_vec.push_back(input_2->data[i]);",
+        "left_idx.push_back(i);",
+        "right_vec.push_back(input_3->data[i]);",
+        "right_idx.push_back(i);",
+        "}",
+        "std::vector<size_t> right_out;",
+        "std::vector<size_t> left_out;",
+        "frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
+        "long validityBuffSize = ceil(left_out.size() / 8.0);",
+        "output_0->data=(double *) malloc(left_out.size() * sizeof(double));",
+        "output_0->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));",
+        "std::bitset<8> validity_bitset_0;",
+        "int j_0 = 0;",
+        "output_1->data=(double *) malloc(left_out.size() * sizeof(double));",
+        "output_1->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));",
+        "std::bitset<8> validity_bitset_1;",
+        "int j_1 = 0;",
+        "#pragma _NEC ivdep",
+        "for (int i = 0; i < left_out.size(); i++) {",
+        "if(((input_0->validityBuffer[left_out[i]/8] >> left_out[i] % 8) & 0x1) == 1) {",
+        "validity_bitset_0.set(i%8, true);",
+        "output_0->data[i] = input_0->data[left_out[i]];",
+        "} else {",
+        "validity_bitset_0.set(i%8, false);",
+        "}",
+        "if(i % 8 == 7 || i == left_out.size() - 1) { ",
+        "output_0->validityBuffer[j_0] = (static_cast<unsigned char>(validity_bitset_0.to_ulong()));",
+        "j_0 += 1;",
+        "validity_bitset_0.reset(); }",
+        "if(((input_1->validityBuffer[right_out[i]/8] >> right_out[i] % 8) & 0x1) == 1) {",
+        "validity_bitset_1.set(i%8, true);",
+        "output_1->data[i] = input_1->data[right_out[i]];",
+        "} else {",
+        "validity_bitset_1.set(i%8, false);",
+        "}",
+        "if(i % 8 == 7 || i == left_out.size() - 1) { ",
+        "output_1->validityBuffer[j_1] = (static_cast<unsigned char>(validity_bitset_1.to_ulong()));",
+        "j_1 += 1;",
+        "validity_bitset_1.reset(); }",
+        "}",
+        "output_0->count = left_out.size();",
+        "output_1->count = left_out.size();",
         "return 0;",
         "}"
       ).codeLines

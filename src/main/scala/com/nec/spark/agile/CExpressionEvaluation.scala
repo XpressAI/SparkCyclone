@@ -235,11 +235,11 @@ object CExpressionEvaluation {
         s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"
       ),
       List(
-        "#pragma _NEC ivdep",
         s"std::vector <${cType(leftKeyExpr.dataType)}> left_vec;",
         "std::vector<size_t> left_idx;",
         s"std::vector <${cType(rightKeyExpr.dataType)}> right_vec;",
         "std::vector<size_t> right_idx;",
+        "#pragma _NEC ivdep",
         "for(int i = 0; i < input_0->count; i++) { ",
         s"left_vec.push_back(${evaluateExpression(inputs, leftKeyExpr)});",
         "left_idx.push_back(i);",

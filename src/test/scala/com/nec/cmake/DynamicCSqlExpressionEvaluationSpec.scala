@@ -202,6 +202,41 @@ final class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  val sql_join_key_select = s"SELECT nums.${SampleColA},nums2.${SampleColA}, nums.${SampleColB}, nums2.${SampleColB} FROM nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA}"
+  "Support INNER EQUAL JOIN with selection of join key" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumnJoin(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_join_key_select).ensureCEvaluating().debugSqlHere { ds =>
+      ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
+        List((Some(1.0),Some(1.0),Some(2.0),Some(41.0)), (Some(2.0),Some(2.0),None,Some(44.0)),
+          (Some(2.0),Some(2.0),None,Some(44.0)), (Some(2.0),Some(2.0),Some(3.0),Some(44.0)),
+          (Some(52.0),Some(52.0),Some(6.0),Some(61.0)), (Some(4.0),Some(4.0),Some(5.0),None),
+          (Some(4.0),Some(4.0),None,None), (Some(2.0),Some(2.0),None,None),
+          (Some(2.0),Some(2.0),None,None), (Some(2.0),Some(2.0),Some(3.0),None),
+          (Some(3.0),Some(3.0),Some(4.0),None), (Some(20.0),Some(20.0),None,Some(32.0))
+        )
+
+    }
+  }
+
+  val sql_join_self = s"SELECT nums.${SampleColA}, nums.${SampleColB} FROM nums JOIN nums as nums1 ON nums.${SampleColA} = nums1.${SampleColA}"
+  "Support INNER EQUAL SELF JOIN " in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumnJoin(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_join_self).ensureCEvaluating().debugSqlHere { ds =>
+      ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
+        List((Some(2.0),Some(3.0)), (Some(2.0),Some(3.0)), (Some(2.0),Some(3.0)), (Some(52.0),
+          Some(6.0)), (Some(4.0),None), (Some(4.0),None), (Some(2.0),None), (Some(2.0),None),
+          (Some(2.0),None), (Some(1.0),Some(2.0)), (Some(4.0),Some(5.0)),
+          (Some(4.0),Some(5.0)), (Some(2.0),None), (Some(2.0),None), (Some(2.0),None),
+          (Some(3.0), Some(4.0)), (Some(20.0),None)
+        )
+
+    }
+  }
+
 
   "Support multi-column inputs and outputs with a .limit()" in withSparkSession2(configuration) {
     val sql_pairwise =
