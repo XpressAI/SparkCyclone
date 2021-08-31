@@ -212,10 +212,15 @@ object CExpressionEvaluation {
     ).flatten.codeLines
   }
 
-  def cGenJoin(fName: String, inputs: Seq[Attribute],
-               resultExpressions: Seq[Attribute], leftExprIds: Set[ExprId], rightExprIds: Set[ExprId],
-               leftKeyExpr: Expression, rightKeyExpr: Expression)
-              (implicit nameCleaner: NameCleaner): CodeLines = {
+  def cGenJoin(
+    fName: String,
+    inputs: Seq[Attribute],
+    resultExpressions: Seq[Attribute],
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId],
+    leftKeyExpr: Expression,
+    rightKeyExpr: Expression
+  )(implicit nameCleaner: NameCleaner): CodeLines = {
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
         i.dataType match {
@@ -254,7 +259,8 @@ object CExpressionEvaluation {
         "#include <cmath>",
         "#include <bitset>",
         "#include \"frovedis/dataframe/join.cc\"",
-        s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"
+        s"""extern "C" long ${fName}(${arguments.mkString(", ")})""",
+        "{"
       ),
       List(
         s"std::vector <${cType(leftKeyExpr.dataType)}> left_vec;",
@@ -274,10 +280,8 @@ object CExpressionEvaluation {
         "std::vector<size_t> left_out;",
         "frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);"
       ),
-      List(
-        "long validityBuffSize = ceil(left_out.size() / 8.0);"
-      ),
-      resultExpressions.zipWithIndex.flatMap{
+      List("long validityBuffSize = ceil(left_out.size() / 8.0);"),
+      resultExpressions.zipWithIndex.flatMap {
         case (re, idx) => {
           List(
             s"output_${idx}->data=(${cTypeOfSub(inputs, re)} *) malloc(left_out.size() * sizeof(${cTypeOfSub(inputs, re)}));",
@@ -287,11 +291,8 @@ object CExpressionEvaluation {
           )
         }
       }.toList,
-      List(
-        "#pragma _NEC ivdep",
-        "for (int i = 0; i < left_out.size(); i++) {",
-      ),
-      resultExpressions.zipWithIndex.flatMap{
+      List("#pragma _NEC ivdep", "for (int i = 0; i < left_out.size(); i++) {"),
+      resultExpressions.zipWithIndex.flatMap {
         case (re, idx) => {
           List(
             s"if(${genNullCheckJoin(inputs, re, leftExprIds, rightExprIds)}) {",
@@ -303,23 +304,16 @@ object CExpressionEvaluation {
             "if(i % 8 == 7 || i == left_out.size() - 1) { ",
             s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
             s"j_${idx} += 1;",
-            s"validity_bitset_${idx}.reset(); }",
+            s"validity_bitset_${idx}.reset(); }"
           )
         }
 
       }.toList,
-      List(
-        "}"
-      ),
-      resultExpressions.zipWithIndex.flatMap{
-        case(re, idx) => List(
-          s"output_${idx}->count = left_out.size();",
-        )
+      List("}"),
+      resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
+        List(s"output_${idx}->count = left_out.size();")
       }.toList,
-      List(
-        "return 0;",
-        "}"
-      )
+      List("return 0;", "}")
     )
   }.flatten.codeLines
 
@@ -401,9 +395,9 @@ object CExpressionEvaluation {
 
   def evaluateExpression(input: Seq[Attribute], expression: Expression): String = {
     expression match {
-      case NormalizeNaNAndZero(child) => evaluateExpression(input, child)
+      case NormalizeNaNAndZero(child)          => evaluateExpression(input, child)
       case KnownFloatingPointNormalized(child) => evaluateExpression(input, child)
-      case alias @ Alias(expr, name) => evaluateSub(input, alias.child)
+      case alias @ Alias(expr, name)           => evaluateSub(input, alias.child)
       case expr @ NamedExpression(name, DoubleType | IntegerType) =>
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
@@ -435,19 +429,26 @@ object CExpressionEvaluation {
     }
   }
 
-  def evaluateExpressionJoin(input: Seq[Attribute],
-                             expression: Expression,
-                             leftExprIds: Set[ExprId],
-                             rightExprIds: Set[ExprId]): String = {
+  def evaluateExpressionJoin(
+    input: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
     expression match {
-      case alias @ Alias(expr, name) => evaluateSubJoin(input, alias.child, leftExprIds, rightExprIds)
+      case alias @ Alias(expr, name) =>
+        evaluateSubJoin(input, alias.child, leftExprIds, rightExprIds)
       case attr @ AttributeReference(name, typeName, _, _) =>
         (input.indexWhere(_.exprId == attr.exprId), typeName) match {
           case (-1, typeName) =>
-            sys.error(s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}")
-          case (idx, (DoubleType | IntegerType | LongType)) if(leftExprIds.contains(attr.exprId)) =>
+            sys.error(
+              s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
+            )
+          case (idx, (DoubleType | IntegerType | LongType))
+              if (leftExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[left_out[i]]"
-          case (idx, (DoubleType | IntegerType | LongType)) if(rightExprIds.contains(attr.exprId)) =>
+          case (idx, (DoubleType | IntegerType | LongType))
+              if (rightExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[right_out[i]]"
 
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
@@ -456,7 +457,7 @@ object CExpressionEvaluation {
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx if (leftExprIds.contains(expr.exprId)) => s"input_${idx}->data[left_out[i]]"
+          case idx if (leftExprIds.contains(expr.exprId))  => s"input_${idx}->data[left_out[i]]"
           case idx if (rightExprIds.contains(expr.exprId)) => s"input_${idx}->data[right_out[i]]"
 
         }
@@ -521,21 +522,25 @@ object CExpressionEvaluation {
     }
   }
 
-  def genNullCheckJoin(inputs: Seq[Attribute], expression: Expression, leftExprIds: Set[ExprId],
-                       rightExprIds: Set[ExprId]): String = {
+  def genNullCheckJoin(
+    inputs: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
 
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx if(leftExprIds.contains(attr.exprId)) =>
+          case idx if (leftExprIds.contains(attr.exprId)) =>
             s"((input_${idx}->validityBuffer[left_out[i]/8] >> left_out[i] % 8) & 0x1) == 1"
-          case idx if(rightExprIds.contains(attr.exprId)) =>
+          case idx if (rightExprIds.contains(attr.exprId)) =>
             s"((input_${idx}->validityBuffer[right_out[i]/8] >> right_out[i] % 8) & 0x1) == 1"
         }
-      case alias @ Alias(expr, name) => genNullCheckJoin(inputs, alias.child, leftExprIds,
-        rightExprIds)
+      case alias @ Alias(expr, name) =>
+        genNullCheckJoin(inputs, alias.child, leftExprIds, rightExprIds)
       case Subtract(left, right, _) =>
         s"${genNullCheckJoin(inputs, left, leftExprIds, rightExprIds)} " +
           s"&& ${genNullCheckJoin(inputs, right, leftExprIds, rightExprIds)}"
@@ -609,16 +614,20 @@ object CExpressionEvaluation {
     }
   }
 
-  def evaluateSubJoin(inputs: Seq[Attribute], expression: Expression,
-                      leftExprIds: Set[ExprId], rightExprIds:Set[ExprId]): String = {
+  def evaluateSubJoin(
+    inputs: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx if(leftExprIds.contains(attr.exprId)) =>
+          case idx if (leftExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[left_out[i]]"
-          case idx if(rightExprIds.contains(attr.exprId)) =>
+          case idx if (rightExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[right_out[i]]"
         }
       case Subtract(left, right, _) =>

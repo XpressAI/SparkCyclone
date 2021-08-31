@@ -12,13 +12,14 @@ import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   Attribute,
   AttributeReference,
-  EqualTo, Literal,
+  EqualTo,
+  Literal,
   NamedExpression,
   SortOrder,
   Substring
 }
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.plans.{Inner, logical}
+import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
@@ -82,23 +83,36 @@ final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: 
               nativeEvaluator
             )
           )
-        case join @ logical.Join(left, right, Inner, Some(EqualTo(leftKeyExpr, rightKeyExpr)), hint) => {
+        case join @ logical.Join(
+              left,
+              right,
+              Inner,
+              Some(EqualTo(leftKeyExpr, rightKeyExpr)),
+              hint
+            ) => {
           val leftExprIds = left.inputSet.map(_.exprId).toSet
           val rightExprIds = right.inputSet.map(_.exprId).toSet
 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
 
           List(
-           GeneratedJoinPlan(
-             planLater(left),
-             planLater(right),
-             CExpressionEvaluation.cGenJoin(fName, join.inputSet.toSeq,
-               join.output, leftExprIds, rightExprIds, leftKeyExpr, rightKeyExpr),
-             nativeEvaluator,
-             join.inputSet.toSeq,
-             join.output,
-             fName
-           )
+            GeneratedJoinPlan(
+              planLater(left),
+              planLater(right),
+              CExpressionEvaluation.cGenJoin(
+                fName,
+                join.inputSet.toSeq,
+                join.output,
+                leftExprIds,
+                rightExprIds,
+                leftKeyExpr,
+                rightKeyExpr
+              ),
+              nativeEvaluator,
+              join.inputSet.toSeq,
+              join.output,
+              fName
+            )
           )
 
         }

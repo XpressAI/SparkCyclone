@@ -394,7 +394,6 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
       metadata = Metadata.empty
     )()
 
-
   "Addition projection: value#14 + value#15" in {
     assert(
       cGenProject(
@@ -500,7 +499,9 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
         Seq(ref_value14, ref_value15),
         Seq(ref_value14, ref_value16).map(_.exprId).toSet,
         Seq(ref_value15, ref_value17).map(_.exprId).toSet,
-        ref_value16, ref_value17) == List(
+        ref_value16,
+        ref_value17
+      ) == List(
         "#include \"frovedis/dataframe/join.hpp\"",
         "#include <cmath>",
         "#include <bitset>",

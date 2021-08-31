@@ -106,7 +106,6 @@ object SampleSource {
       .load(SecondSampleMultiColumnCsv.toString)
       .createOrReplaceTempView(SharedName + "2")
 
-
   }
 
   def makeCsvNumsMultiColumnNonNull(sparkSession: SparkSession): Unit = {

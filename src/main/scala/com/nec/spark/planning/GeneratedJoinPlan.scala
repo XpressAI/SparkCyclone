@@ -4,28 +4,44 @@ import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, Float8Vector, IntVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  Float8Vector,
+  IntVector,
+  VectorSchemaRoot
+}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  NamedExpression
+}
 import org.apache.spark.sql.catalyst.plans.logical.BinaryNode
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.{BinaryExecNode, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{
+  BinaryExecNode,
+  ColumnarToRowTransition,
+  SparkPlan,
+  UnaryExecNode
+}
 import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 case class GeneratedJoinPlan(
-                              leftNode: SparkPlan,
-                              rightNode: SparkPlan,
-                              codeLines: CodeLines,
-                              nativeEvaluator: NativeEvaluator,
-                              inputs: Seq[Attribute],
-                              resultExpressions: Seq[NamedExpression],
-                              fName: String
-                       ) extends BinaryExecNode
+  leftNode: SparkPlan,
+  rightNode: SparkPlan,
+  codeLines: CodeLines,
+  nativeEvaluator: NativeEvaluator,
+  inputs: Seq[Attribute],
+  resultExpressions: Seq[NamedExpression],
+  fName: String
+) extends BinaryExecNode
   with LazyLogging {
   trait JoinSideInput
   case object Left extends JoinSideInput
@@ -38,11 +54,11 @@ case class GeneratedJoinPlan(
   override def output: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
   private lazy val inputIndices = {
-    val leftInputIds = left.output.zipWithIndex.map{
-      case (expr, idx) => (expr.exprId, idx, Left)
+    val leftInputIds = left.output.zipWithIndex.map { case (expr, idx) =>
+      (expr.exprId, idx, Left)
     }
-    val rightInputIds = right.output.zipWithIndex.map{
-      case (expr, idx) => (expr.exprId, idx, Right)
+    val rightInputIds = right.output.zipWithIndex.map { case (expr, idx) =>
+      (expr.exprId, idx, Right)
     }
     val inputIds = leftInputIds ++ rightInputIds
     // We can technically replace that with flatMap, but let's keep that for now just to failfast if smth works different than expected.
@@ -50,7 +66,7 @@ case class GeneratedJoinPlan(
       .map(attr => inputIds.find(el => el._1 == attr.exprId))
       .map {
         case Some(data) => data
-        case None => throw new RuntimeException("Input was not present in Left nor Right table!")
+        case None       => throw new RuntimeException("Input was not present in Left nor Right table!")
       }
   }
 
@@ -80,9 +96,9 @@ case class GeneratedJoinPlan(
           rightIter.foreach(row => rightArrowWriter.write(row))
           rightArrowWriter.finish()
 
-          val inputVectors = inputIndices.map{
+          val inputVectors = inputIndices.map {
             case (_, idx, Left) => leftRoot.getVector(idx)
-            case (_, idx, _) => rightRoot.getVector(idx)
+            case (_, idx, _)    => rightRoot.getVector(idx)
           }
           val outputVectors = resultExpressions
             .flatMap {
@@ -105,18 +121,18 @@ case class GeneratedJoinPlan(
               }
             }
 
-            try {
-              evaluator.callFunction(
-                name = fName,
-                inputArguments = inputVectors.toList.map(iv =>
-                  Some(SupportedVectorWrapper.wrapInput(iv))
-                ) ++ outputVectors.map(_ => None),
-                outputArguments = inputVectors.toList.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-              )
-            } finally {
-              inputVectors.foreach(_.close())
-            }
+          try {
+            evaluator.callFunction(
+              name = fName,
+              inputArguments = inputVectors.toList.map(iv =>
+                Some(SupportedVectorWrapper.wrapInput(iv))
+              ) ++ outputVectors.map(_ => None),
+              outputArguments = inputVectors.toList.map(_ => None) ++
+                outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+            )
+          } finally {
+            inputVectors.foreach(_.close())
+          }
           (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
             val writer = new UnsafeRowWriter(outputVectors.size)
             writer.reset()
@@ -125,13 +141,13 @@ case class GeneratedJoinPlan(
                 v match {
                   case vector: Float8Vector =>
                     val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, vector.get(v_idx))
+                    if (isNull) writer.setNullAt(c_idx) else writer.write(c_idx, vector.get(v_idx))
                   case vector: IntVector =>
                     val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, vector.get(v_idx))
+                    if (isNull) writer.setNullAt(c_idx) else writer.write(c_idx, vector.get(v_idx))
                   case vector: BigIntVector =>
                     val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if(isNull) writer.setNullAt(c_idx) else writer.write(c_idx, vector.get(v_idx))
+                    if (isNull) writer.setNullAt(c_idx) else writer.write(c_idx, vector.get(v_idx))
                 }
               }
             }
@@ -141,4 +157,3 @@ case class GeneratedJoinPlan(
       }
   }
 }
-
