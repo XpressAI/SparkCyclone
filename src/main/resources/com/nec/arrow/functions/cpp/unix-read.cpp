@@ -21,7 +21,7 @@ return 0;
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "transfer-definitions.h"
+#include "transfer-definitions.hpp"
 #define sock_name "xsx"
 #define client_sock_name "client_sock"
 #include <string.h>

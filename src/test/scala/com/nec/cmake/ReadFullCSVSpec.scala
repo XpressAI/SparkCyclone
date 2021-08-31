@@ -200,6 +200,9 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
       .toList
       .sorted
 
-    expect(sumDs.executionPlan.toString().contains("Project"), totalSum == List[Double](3, 6, 9, 14, 121))
+    expect(
+      sumDs.executionPlan.toString().contains("Project"),
+      totalSum == List[Double](3, 6, 9, 14, 121)
+    )
   }
 }
