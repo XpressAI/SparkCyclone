@@ -27,6 +27,7 @@ object SimpleGroupBySumPlan {
     case object VEBased extends GroupByMethod
   }
 }
+
 final case class SimpleGroupBySumPlan(
   child: SparkPlan,
   nativeEvaluator: NativeEvaluator,
@@ -45,11 +46,19 @@ final case class SimpleGroupBySumPlan(
         val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
         val root = VectorSchemaRoot.create(arrowSchema, allocator)
         val arrowWriter = ArrowWriter.create(root)
-        iterator.foreach(row => arrowWriter.write(row))
-        arrowWriter.finish()
+        try iterator.foreach(row => arrowWriter.write(row))
+        finally arrowWriter.finish()
 
-        val groupingVec = root.getVector(0).asInstanceOf[Float8Vector]
-        val valuesVec = root.getVector(1).asInstanceOf[Float8Vector]
+        val groupingVec = root.getVector(0) match {
+          case vec: Float8Vector => vec
+          case other =>
+            sys.error(s"For simple groupBy, only Float8Vector input is supported, got ${other}.")
+        }
+        val valuesVec = root.getVector(1) match {
+          case vec: Float8Vector => vec
+          case other =>
+            sys.error(s"For simple groupBy, only Float8Vector input is supported, got ${other}.")
+        }
         val outGroupsVector = new Float8Vector("groups", ArrowUtilsExposed.rootAllocator)
         val outValuesVector = new Float8Vector("values", ArrowUtilsExposed.rootAllocator)
 

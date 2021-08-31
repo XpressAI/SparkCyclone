@@ -7,6 +7,7 @@ import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.complex.StructVector
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
 import org.apache.spark.sql.catalyst.util.ArrayData
@@ -46,6 +47,9 @@ object ColumnarArrowWriter {
       ".get is not supported for a general type"
     )
   }
+
+  def arrowSchemaFor(schema: StructType, timeZoneId: String): Schema =
+    ArrowUtils.toArrowSchema(schema, timeZoneId)
 
   def create(schema: StructType, timeZoneId: String): ColumnarArrowWriter = {
     val arrowSchema = ArrowUtils.toArrowSchema(schema, timeZoneId)
