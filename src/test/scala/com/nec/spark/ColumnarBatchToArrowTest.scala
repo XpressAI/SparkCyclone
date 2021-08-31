@@ -1,16 +1,16 @@
 package com.nec.spark
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.DateDayVectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.Float8VectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.IntVectorInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.VarCharVectorInputWrapper
-import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
-import com.nec.cmake.functions.ParseCSVSpec.RichIntVector
-import com.nec.cmake.functions.ParseCSVSpec.RichVarCharVector
+import com.nec.cmake.functions.ParseCSVSpec.{RichDateVector, RichFloat8, RichIntVector, RichVarCharVector}
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.execution.arrow.ColumnarArrowWriter
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
+import org.apache.spark.sql.types.DateType
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.StringType
@@ -21,9 +21,12 @@ import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.scalatest.freespec.AnyFreeSpec
 
+import java.time.LocalDate
+
 object ColumnarBatchToArrowTest {
   lazy val schema: Schema = {
-    org.apache.arrow.vector.types.pojo.Schema.fromJSON("""{
+    org.apache.arrow.vector.types.pojo.Schema.fromJSON(
+      """{
         "fields" : [ {
         "name" : "ColA",
         "nullable" : true,
@@ -38,6 +41,7 @@ object ColumnarBatchToArrowTest {
 }
 
 final class ColumnarBatchToArrowTest extends AnyFreeSpec {
+
   "Strings can be transferred" in {
     val allocator =
       ArrowUtilsExposed.rootAllocator.newChildAllocator("test columnar batch", 0L, Long.MaxValue)

@@ -17,6 +17,7 @@ import org.apache.spark.sql.types.StructType
 final case class DateTesting(isVe: Boolean) extends Testing {
   override type Result = Int
   private val MasterName = "local[8]"
+
   override def prepareSession(): SparkSession = {
     val sparkConf = new SparkConf(loadDefaults = true)
       .set("nec.testing.target", testingTarget.label)
@@ -46,10 +47,8 @@ final case class DateTesting(isVe: Boolean) extends Testing {
         .getOrCreate()
   }
 
-  override def prepareInput(
-    sparkSession: SparkSession,
-    dataSize: Testing.DataSize
-  ): Dataset[Result] = {
+  override def prepareInput(sparkSession: SparkSession,
+                            dataSize: Testing.DataSize): Dataset[Result] = {
     import sparkSession.implicits._
 
     val schema = StructType(
@@ -76,16 +75,16 @@ final case class DateTesting(isVe: Boolean) extends Testing {
       planString.contains("PushedFilters: []"),
       s"Expected the plan to contain no pushed filters, but it did"
     )
-
     assert(!planString.contains("Filter ("), "Expected Filter not to be there any more")
 
     ds
   }
+
   override def verifyResult(dataset: List[Result]): Unit = {
-    val expected =
-      List[Result](10, 12)
+    val expected = List[Int](9, 10, 11, 12, 13, 15)
     assert(dataset == expected)
   }
+
   override def testingTarget: Testing.TestingTarget =
     if (isVe) TestingTarget.VectorEngine else TestingTarget.CMake
 }
