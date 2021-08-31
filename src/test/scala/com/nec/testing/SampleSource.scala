@@ -1,10 +1,6 @@
 package com.nec.testing
 
-import com.nec.spark.SampleTestData.{
-  SampleMultiColumnCSV,
-  SampleTwoColumnParquet,
-  SampleTwoColumnParquetNonNull
-}
+import com.nec.spark.SampleTestData.{SampleMultiColumnCSV, SampleTwoColumnParquet, SampleTwoColumnParquetNonNull, SecondSampleMultiColumnCsv}
 
 import org.apache.spark.sql.SparkSession
 import com.nec.testing.Testing.DataSize.BenchmarkSize
