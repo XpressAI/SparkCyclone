@@ -17,19 +17,31 @@ import org.apache.arrow.vector.BigIntVector
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.IntVector
 import org.apache.arrow.vector.VarCharVector
+import org.apache.arrow.vector.DateDayVector
 import org.scalacheck.Gen
 import org.scalacheck.Prop
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatestplus.scalacheck.Checkers
 
+import java.time.LocalDate
+
 object ParseCSVSpec {
   implicit class RichFloat8(float8Vector: Float8Vector) {
     def toList: List[Double] = (0 until float8Vector.getValueCount).map(float8Vector.get).toList
+
     def toListSafe: List[Option[Double]] =
       (0 until float8Vector.getValueCount)
         .map(idx => if (float8Vector.isNull(idx)) None else Option(float8Vector.get(idx)))
         .toList
   }
+
+  implicit class RichDateVector(dateDayVector: DateDayVector) {
+    def toList: List[LocalDate] = (0 until dateDayVector.getValueCount)
+      .map(dateDayVector.get)
+      .map(i => LocalDate.ofEpochDay(i))
+      .toList
+  }
+
   implicit class RichVarCharVector(varCharVector: VarCharVector) {
     def toList: List[String] = (0 until varCharVector.getValueCount)
       .map(varCharVector.get)
@@ -161,6 +173,7 @@ object ParseCSVSpec {
   def renderLine(line: (Double, Double, Double)): String = {
     List(line._1, line._2, line._3).map(num => "%.12f".format(num)).mkString(",")
   }
+
   def doublesToCsv(list: List[(Double, Double, Double)]): String = {
     list
       .map(renderLine)

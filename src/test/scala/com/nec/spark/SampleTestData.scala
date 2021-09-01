@@ -49,4 +49,7 @@ object SampleTestData {
   lazy val SampleCSV: Path =
     PkgDir.resolve("sample.csv")
 
+  lazy val SampleDateCSV: Path =
+    PkgDir.resolve("sample-date.csv")
+
 }

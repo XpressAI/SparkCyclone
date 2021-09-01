@@ -4,6 +4,9 @@ import java.lang.management.ManagementFactory
 import java.nio.file.Files
 import java.nio.file.Paths
 
+val CMake = config("cmake") extend Test
+val VectorEngine = config("ve") extend Test
+
 /**
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
@@ -126,7 +129,6 @@ inConfig(Test)(Defaults.testTasks)
 
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false
-lazy val VectorEngine = config("ve") extend Test
 inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
@@ -143,7 +145,6 @@ VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 
 /** CMake specific configuration */
-lazy val CMake = config("cmake") extend Test
 inConfig(CMake)(Defaults.testTasks)
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
 CMake / fork := true
@@ -282,5 +283,25 @@ bench := (`fun-bench` / Jmh / run).evaluated
 
 addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
 addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")
+
+val debugRemotePort = SettingKey[Option[Int]]("debugRemotePort")
+
+ThisBuild / debugRemotePort := None
+
+// set debugRemotePort := Some(5005)
+// this will work in all the scopes because CMake and VectorEngine inherit from Test
+// but specifying directly on CMake and VectorEngine will not work.
+// if you want this setting to be persisted across SBT runs, update your ~/.sbt/1.0/local.sbt to include this specific setting
+// in IntelliJ, this is the "Listen to remote JVM" option; also select 'Auto Restart'
+Test / javaOptions ++= {
+  debugRemotePort.value match {
+    case None => Seq.empty
+    case Some(port) =>
+      Seq(
+        "-Xdebug",
+        s"-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${port},suspend=y,onuncaught=n"
+      )
+  }
+}
 
 ThisBuild / scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation")

@@ -13,8 +13,8 @@ import com.nec.arrow.ArrowTransferStructures.{
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.Float8VectorOutputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.IntVectorInputWrapper
-import scala.collection.mutable
 
+import scala.collection.mutable
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.Float8VectorInputWrapper
 import com.nec.arrow.ArrowInterfaces.{
   non_null_bigint_vector_to_bigIntVector,
@@ -36,13 +36,16 @@ import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.StringInputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.IntVectorOutputWrapper
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.BigIntVectorInputWrapper
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.DateDayVectorInputWrapper
 import com.nec.arrow.VeArrowNativeInterface.copyBufferToVe
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.BigIntVector
+import org.apache.arrow.vector.DateDayVector
 import org.apache.arrow.vector.Float8Vector
 import org.apache.arrow.vector.IntVector
 import org.apache.arrow.vector.VarCharVector
 import sun.nio.ch.DirectBuffer
+
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -98,6 +101,17 @@ object VeArrowTransfers extends LazyLogging {
     index: Int
   )(implicit cleanup: Cleanup): Unit = {
     wrapper match {
+      case DateDayVectorInputWrapper(dateDayVector) =>
+        val int_vector_raw = make_veo_date_vector(proc, dateDayVector)
+        requireOk(
+          Aurora.veo_args_set_stack(
+            our_args,
+            0,
+            index,
+            nullableIntVectorToByteBuffer(int_vector_raw),
+            20L
+          )
+        )
       case ByteBufferInputWrapper(byteBuffer, size) =>
         val wr = make_veo_string_of_byteBuffer(proc, byteBuffer, size)
         requireOk(Aurora.veo_args_set_stack(our_args, 0, index, stringToByteBuffer(wr), 12L))
@@ -212,6 +226,21 @@ object VeArrowTransfers extends LazyLogging {
     vcvr.count = intVector.getValueCount
     vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())(cleanup)
     vcvr.validityBuffer = copyBufferToVe(proc, intVector.getValidityBuffer.nioBuffer())(cleanup)
+
+    vcvr
+  }
+
+  private def make_veo_date_vector(proc: Aurora.veo_proc_handle, dateDayVector: DateDayVector)(
+    implicit cleanup: Cleanup
+  ): nullable_int_vector = {
+    val keyName = "int2_" + dateDayVector.getName + "_" + dateDayVector.getDataBuffer.capacity()
+
+    logger.debug(s"Copying Buffer to VE for $keyName")
+
+    val vcvr = new nullable_int_vector()
+    vcvr.count = dateDayVector.getValueCount
+    vcvr.data = copyBufferToVe(proc, dateDayVector.getDataBuffer.nioBuffer())(cleanup)
+    vcvr.validityBuffer = copyBufferToVe(proc, dateDayVector.getValidityBuffer.nioBuffer())(cleanup)
 
     vcvr
   }

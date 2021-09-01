@@ -96,6 +96,15 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_date_vector(dateDayVector: DateDayVector): nullable_int_vector = {
+    val vc = new nullable_int_vector()
+    vc.data = dateDayVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer =
+      dateDayVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = dateDayVector.getValueCount
+    vc
+  }
+
   private def getUnsafe: Unsafe = {
     val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
     theUnsafe.setAccessible(true)

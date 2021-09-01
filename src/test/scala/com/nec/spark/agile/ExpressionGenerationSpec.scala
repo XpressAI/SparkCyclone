@@ -397,10 +397,11 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   "Addition projection: value#14 + value#15" in {
     assert(
       cGenProject(
-        testFName,
-        Set("value#14", "value#15"),
-        Seq(ref_value14, ref_value15),
-        Seq(Alias(Add(ref_value14, ref_value15), "oot")())
+        fName = testFName,
+        inputReferences = Set("value#14", "value#15"),
+        childOutputs = Seq(ref_value14, ref_value15),
+        resultExpressions = Seq(Alias(Add(ref_value14, ref_value15), "oot")()),
+        maybeFilter = None
       ) == List(
         "#include <cmath>",
         "#include <bitset>",
@@ -565,10 +566,11 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   "Subtraction projection: value#14 - value#15" in {
     assert(
       cGenProject(
-        testFName,
-        Set("value#14", "value#15"),
-        Seq(ref_value14, ref_value15),
-        Seq(Alias(Subtract(ref_value14, ref_value15), "oot")())
+        fName = testFName,
+        inputReferences = Set("value#14", "value#15"),
+        childOutputs = Seq(ref_value14, ref_value15),
+        resultExpressions = Seq(Alias(Subtract(ref_value14, ref_value15), "oot")()),
+        maybeFilter = None
       ) == List(
         "#include <cmath>",
         "#include <bitset>",
@@ -605,13 +607,14 @@ final class ExpressionGenerationSpec extends AnyFreeSpec with BeforeAndAfter wit
   "Multiple column projection: value#14 + value#15, value#14 - value#15" in {
     assert(
       cGenProject(
-        testFName,
-        Set("value#14", "value#15"),
-        Seq(ref_value14, ref_value15),
-        Seq(
+        fName = testFName,
+        inputReferences = Set("value#14", "value#15"),
+        childOutputs = Seq(ref_value14, ref_value15),
+        resultExpressions = Seq(
           Alias(Add(ref_value14, ref_value15), "oot")(),
           Alias(Subtract(ref_value14, ref_value15), "oot")()
-        )
+        ),
+        maybeFilter = None
       ) == List(
         "#include <cmath>",
         "#include <bitset>",

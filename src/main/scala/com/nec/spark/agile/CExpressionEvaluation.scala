@@ -1,4 +1,23 @@
 package com.nec.spark.agile
+
+import org.apache.spark.sql.catalyst.expressions.{
+  Abs,
+  Add,
+  Alias,
+  And,
+  Attribute,
+  AttributeReference,
+  DateSub,
+  Divide,
+  Expression,
+  IsNotNull,
+  LessThan,
+  LessThanOrEqual,
+  Literal,
+  Multiply,
+  NamedExpression,
+  Subtract
+}
 import org.apache.spark.sql.catalyst.expressions.{
   Abs,
   Add,
@@ -32,13 +51,14 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.DateType
 
 object CExpressionEvaluation {
   def cType(d: DataType): String = {
     d match {
       case DoubleType =>
         s"double"
-      case IntegerType =>
+      case IntegerType | DateType =>
         s"int"
       case LongType =>
         s"long"
@@ -47,6 +67,11 @@ object CExpressionEvaluation {
       case x =>
         sys.error(s"unsupported dataType $x")
     }
+  }
+
+  def cSize(d: DataType): Int = {
+    Map[DataType, Int](DoubleType -> 8, IntegerType -> 4, DateType -> 4, LongType -> 8)
+      .getOrElse(d, sys.error(s"unsupported dataType $d"))
   }
 
   def indexForInput(inputs: Seq[Attribute], expression: Expression): Int = {
@@ -125,13 +150,14 @@ object CExpressionEvaluation {
     fName: String,
     inputReferences: Set[String],
     childOutputs: Seq[Attribute],
-    resultExpressions: Seq[NamedExpression]
+    resultExpressions: Seq[NamedExpression],
+    maybeFilter: Option[Expression]
   )(implicit nameCleaner: NameCleaner): CodeLines = {
     val inputs = {
       val attrs = childOutputs
         .filter(attr => inputReferences.contains(attr.name))
 
-      if (attrs.size == 0) childOutputs else attrs
+      if (childOutputs.size > attrs.size) childOutputs else attrs
     }
 
     val inputBits = inputs.zipWithIndex
@@ -145,6 +171,8 @@ object CExpressionEvaluation {
             s"nullable_bigint_vector* input_${idx}"
           case StringType =>
             s"nullable_varchar_vector* input_${idx}"
+          case DateType =>
+            s"nullable_int_vector* input_${idx}"
           case x =>
             sys.error(s"Invalid input dataType $x")
         }
@@ -154,7 +182,7 @@ object CExpressionEvaluation {
       i.dataType match {
         case DoubleType =>
           s"nullable_double_vector* output_${idx}"
-        case IntegerType =>
+        case IntegerType | DateType =>
           s"nullable_int_vector* output_${idx}"
         case LongType =>
           s"nullable_bigint_vector* output_${idx}"
@@ -175,6 +203,7 @@ object CExpressionEvaluation {
         s"""extern "C" long ${fName}(${arguments.mkString(", ")})""",
         "{"
       ),
+      maybeFilter.toList.flatMap(cond => filterInputs(cond, inputs)),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"long output_${idx}_count = input_0->count;",
@@ -475,6 +504,8 @@ object CExpressionEvaluation {
             s"((input_${idx}->validityBuffer[i/8] >> i % 8) & 0x1) == 1"
         }
       case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
+      case DateSub(startDate, days) =>
+        s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
       case Subtract(left, right, _) =>
         s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
       case Multiply(left, right, _) =>
@@ -571,6 +602,8 @@ object CExpressionEvaluation {
         }
       case Subtract(left, right, _) =>
         s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
+      case DateSub(startDate, days) =>
+        s"${evaluateSub(inputs, startDate)} - ${evaluateSub(inputs, days)}"
       case Multiply(left, right, _) =>
         s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
       case Add(left, right, _) =>
@@ -579,13 +612,15 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
-      case Literal(v, DoubleType | IntegerType) =>
+      case Literal(v, DoubleType | IntegerType | DateType) =>
         s"$v"
       case And(left, right) =>
         s"${evaluateSub(inputs, left)} && ${evaluateSub(inputs, right)}"
       case IsNotNull(_) =>
         s"1"
       case LessThan(left, right) =>
+        s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
+      case LessThanOrEqual(left, right) =>
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
     }
   }
@@ -826,24 +861,27 @@ object CExpressionEvaluation {
   trait NameCleaner {
     def cleanName(input: String): String
   }
+
   object NameCleaner {
     val simple: NameCleaner = _.replaceAll("[^A-Z_a-z0-9]", "")
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
   def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = {
-    input.indices.map { i => s"std::vector<double> filtered_input_$i = {};" } ++
+    input.zipWithIndex.map { case (a, i) =>
+      s"std::vector<${cType(a.dataType)}> filtered_input_$i = {};"
+    } ++
       List(
         s"for ( long i = 0; i < input_0->count; i++ ) {",
         s"if ( ${evaluateSub(input, cond)} ) {"
       ) ++
       input.indices.map { i => s"  filtered_input_$i.push_back(input_$i->data[i]);" } ++
-      List("}", "}") ++ input.indices.toList.flatMap { i =>
+      List("}", "}") ++ input.zipWithIndex.toList.flatMap { case (a, i) =>
         List(
-          s"memcpy(input_$i->data, filtered_input_$i.data(), filtered_input_$i.size() * 8);",
+          s"memcpy(input_$i->data, filtered_input_$i.data(), filtered_input_$i.size() * ${cSize(a.dataType)});",
           s"input_$i->count = filtered_input_$i.size();",
           // this causes a crash - what am I doing wrong here?
-//          s"realloc(input_$i->data, input_$i->count * 8);",
+          //          s"realloc(input_$i->data, input_$i->count * 8);",
           s"filtered_input_$i.clear();"
         )
       }
