@@ -29,12 +29,12 @@ object SampleTestData {
     root
       .resolve(
         this
-          .getClass()
+          .getClass
           .getPackage
           .getName
           .replaceAllLiterally(".", "/")
       )
-      .toAbsolutePath()
+      .toAbsolutePath
   }
 
   lazy val SampleTwoColumnParquet: Path =
@@ -51,5 +51,8 @@ object SampleTestData {
 
   lazy val SampleDateCSV: Path =
     PkgDir.resolve("sample-date.csv")
+
+  lazy val SampleDateCSV2: Path =
+    PkgDir.resolve("sample-date-shipments.csv")
 
 }
