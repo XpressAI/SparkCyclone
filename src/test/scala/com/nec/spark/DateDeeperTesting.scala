@@ -78,7 +78,7 @@ final case class DateDeeperTesting(isVe: Boolean) extends Testing {
   }
 
   override def verifyResult(dataset: List[Result]): Unit = {
-    val expected = List[Int](2, 4)
+    val expected = List[Int](1, 4)
     assert(dataset == expected)
   }
 
