@@ -217,6 +217,105 @@ final class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  val sql_multi_join =
+    s"SELECT nums.${SampleColA},nums2.${SampleColA}, nums.${SampleColB}, nums2.${SampleColB}," +
+      s"nums3.${SampleColA}, nums4.${SampleColA}, nums3.${SampleColB}, nums4.${SampleColB}" +
+      s" FROM nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA} JOIN nums AS nums3 " +
+      s"ON nums.${SampleColA} = nums3.${SampleColA} JOIN nums2 AS nums4 ON nums.${SampleColA} = nums4.${SampleColA}"
+  "Support multiple inner join operations" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumnJoin(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_multi_join).ensureJoinPlanEvaluated().debugSqlHere { ds =>
+      ds.as[
+        (
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double]
+        )
+      ].collect()
+        .toList should contain theSameElementsAs
+        List(
+          (
+            Some(1.0),
+            Some(1.0),
+            Some(2.0),
+            Some(41.0),
+            Some(1.0),
+            Some(1.0),
+            Some(2.0),
+            Some(41.0)
+          ),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), Some(3.0), None),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), Some(3.0), Some(44.0)),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), Some(3.0), None),
+          (Some(2.0), Some(2.0), None, Some(44.0), Some(2.0), Some(2.0), Some(3.0), Some(44.0)),
+          (Some(2.0), Some(2.0), Some(3.0), Some(44.0), Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), Some(3.0), Some(44.0), Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), Some(3.0), Some(44.0), Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), Some(3.0), Some(44.0), Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), Some(3.0), Some(44.0), Some(2.0), Some(2.0), Some(3.0), None),
+          (
+            Some(2.0),
+            Some(2.0),
+            Some(3.0),
+            Some(44.0),
+            Some(2.0),
+            Some(2.0),
+            Some(3.0),
+            Some(44.0)
+          ),
+          (
+            Some(52.0),
+            Some(52.0),
+            Some(6.0),
+            Some(61.0),
+            Some(52.0),
+            Some(52.0),
+            Some(6.0),
+            Some(61.0)
+          ),
+          (Some(4.0), Some(4.0), Some(5.0), None, Some(4.0), Some(4.0), Some(5.0), None),
+          (Some(4.0), Some(4.0), Some(5.0), None, Some(4.0), Some(4.0), None, None),
+          (Some(4.0), Some(4.0), None, None, Some(4.0), Some(4.0), Some(5.0), None),
+          (Some(4.0), Some(4.0), None, None, Some(4.0), Some(4.0), None, None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), Some(3.0), None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), Some(3.0), Some(44.0)),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), Some(3.0), None),
+          (Some(2.0), Some(2.0), None, None, Some(2.0), Some(2.0), Some(3.0), Some(44.0)),
+          (Some(2.0), Some(2.0), Some(3.0), None, Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), Some(3.0), None, Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), Some(3.0), None, Some(2.0), Some(2.0), None, None),
+          (Some(2.0), Some(2.0), Some(3.0), None, Some(2.0), Some(2.0), None, Some(44.0)),
+          (Some(2.0), Some(2.0), Some(3.0), None, Some(2.0), Some(2.0), Some(3.0), None),
+          (Some(2.0), Some(2.0), Some(3.0), None, Some(2.0), Some(2.0), Some(3.0), Some(44.0)),
+          (Some(3.0), Some(3.0), Some(4.0), None, Some(3.0), Some(3.0), Some(4.0), None),
+          (Some(20.0), Some(20.0), None, Some(32.0), Some(20.0), Some(20.0), None, Some(32.0))
+        )
+    }
+  }
+
   val sql_join_key_select =
     s"SELECT nums.${SampleColA},nums2.${SampleColA}, nums.${SampleColB}, nums2.${SampleColB} FROM nums JOIN nums2 ON nums.${SampleColA} = nums2.${SampleColA}"
   "Support INNER EQUAL JOIN with selection of join key" in withSparkSession2(configuration) {
