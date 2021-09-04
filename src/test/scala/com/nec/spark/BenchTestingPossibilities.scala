@@ -221,7 +221,9 @@ object BenchTestingPossibilities {
       List(WhereTesting(isVe = true)),
       List(WhereTesting(isVe = false)),
       List(DateTesting(isVe = false)),
-      List(DateTesting(isVe = true))
+      List(DateTesting(isVe = true)),
+      List(DateDeeperTesting(isVe = true)),
+      List(DateDeeperTesting(isVe = false))
     ).flatten
 
   trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>

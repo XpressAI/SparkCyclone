@@ -1,5 +1,8 @@
 package com.nec.spark.agile
 
+import org.apache.spark.sql.catalyst.expressions.{Abs, Add, Alias, And, Attribute, AttributeReference, DateAdd, DateSub, Divide, ExprId, Expression, IsNotNull, KnownFloatingPointNormalized, GreaterThan, LessThan, LessThanOrEqual, Literal, Multiply, NamedExpression, Subtract}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
+
 import org.apache.spark.sql.catalyst.expressions.{
   Abs,
   Add,
@@ -16,25 +19,9 @@ import org.apache.spark.sql.catalyst.expressions.{
   Literal,
   Multiply,
   NamedExpression,
-  Subtract
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Abs,
-  Add,
-  Alias,
-  And,
-  Attribute,
-  AttributeReference,
-  Divide,
+  Subtract,
   ExprId,
-  Expression,
-  IsNotNull,
-  KnownFloatingPointNormalized,
-  LessThan,
-  Literal,
-  Multiply,
-  NamedExpression,
-  Subtract
+  KnownFloatingPointNormalized
 }
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
@@ -506,6 +493,8 @@ object CExpressionEvaluation {
       case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
       case DateSub(startDate, days) =>
         s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
+      case DateAdd(startDate, days) =>
+        s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
       case Subtract(left, right, _) =>
         s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
       case Multiply(left, right, _) =>
@@ -604,6 +593,8 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
       case DateSub(startDate, days) =>
         s"${evaluateSub(inputs, startDate)} - ${evaluateSub(inputs, days)}"
+      case DateAdd(startDate, days) =>
+        s"${evaluateSub(inputs, startDate)} + ${evaluateSub(inputs, days)}"
       case Multiply(left, right, _) =>
         s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
       case Add(left, right, _) =>
@@ -620,6 +611,8 @@ object CExpressionEvaluation {
         s"1"
       case LessThan(left, right) =>
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
+      case GreaterThan(left, right) =>
+        s"${evaluateSub(inputs, left)} > ${evaluateSub(inputs, right)}"
       case LessThanOrEqual(left, right) =>
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
     }
@@ -655,6 +648,7 @@ object CExpressionEvaluation {
     leftExprIds: Set[ExprId],
     rightExprIds: Set[ExprId]
   ): String = {
+
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
