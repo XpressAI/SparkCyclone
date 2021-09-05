@@ -2,7 +2,7 @@ package com.nec.spark.agile
 
 import com.nec.arrow.ArrowNativeInterface
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.ExprEvaluation2.{CExpression, CVector, NamedTypedCExpression, VeProjection, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, NamedTypedCExpression, VeProjection, VeType}
 import com.nec.spark.agile.LogicalPlanMatchingSpec.{NoopEvaluator, toVeTransformation}
 import com.nec.spark.planning.VERewriteStrategy
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}

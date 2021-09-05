@@ -8,11 +8,12 @@ import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.RealExpressionEvaluationSpec.projectDoubleTf
 import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
-import com.nec.spark.agile.ExprEvaluation2._
+import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
-/** This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits. */
+/** This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
+ * */
 object RealExpressionEvaluationSpec {
 
   private def projectDoubleTf: VeProjection[CVector, NamedTypedCExpression] = {

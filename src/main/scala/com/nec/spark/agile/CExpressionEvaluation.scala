@@ -23,12 +23,12 @@ object CExpressionEvaluation {
     }
   }
 
-  def veType(d: DataType): ExprEvaluation2.VeType = {
+  def veType(d: DataType): CFunctionGeneration.VeType = {
     d match {
       case DoubleType =>
-        ExprEvaluation2.VeType.VeNullableDouble
+        CFunctionGeneration.VeType.VeNullableDouble
       case IntegerType | DateType =>
-        ExprEvaluation2.VeType.VeNullableInt
+        CFunctionGeneration.VeType.VeNullableInt
       case x =>
         sys.error(s"unsupported dataType $x")
     }
@@ -856,13 +856,13 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = ExprEvaluation2.generateFilter(
-    ExprEvaluation2.VeFilter(
+  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = CFunctionGeneration.generateFilter(
+    CFunctionGeneration.VeFilter(
       input.zipWithIndex.map {
         case (attribute, i) =>
-          ExprEvaluation2.CVector(s"input_$i", veType(attribute.dataType))
+          CFunctionGeneration.CVector(s"input_$i", veType(attribute.dataType))
       }.toList,
-      ExprEvaluation2.CExpression(evaluateSub(input, cond), None))
+      CFunctionGeneration.CExpression(evaluateSub(input, cond), None))
   ).lines
 
   def cGen(

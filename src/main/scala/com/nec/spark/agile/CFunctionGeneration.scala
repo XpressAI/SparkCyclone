@@ -3,7 +3,7 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 
 /** Spark-free function evaluation */
-object ExprEvaluation2 {
+object CFunctionGeneration {
 
   final case class CVector(name: String, veType: VeType)
 
