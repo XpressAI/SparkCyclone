@@ -77,6 +77,16 @@ typedef struct
     int length;
 } non_null_c_bounded_string;
 
+void set_validity(unsigned char *validityBuffer, int idx, int validity) {
+    int byte = idx / 8;
+    int bitIndex = idx % 8;
+    if ( validity ) {
+        validityBuffer[byte] |= (1UL << bitIndex);
+    } else {
+        validityBuffer[byte] &= ~(1UL << bitIndex);
+    }
+};
+
 #define VE_TD_DEFS 1
 #endif
 

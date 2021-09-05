@@ -872,7 +872,7 @@ object CExpressionEvaluation {
         case (attribute, i) =>
           ExprEvaluation2.CVector(s"input_$i", veType(attribute.dataType))
       }.toList,
-      ExprEvaluation2.Filter(ExprEvaluation2.CExpression(evaluateSub(input, cond)))
+      ExprEvaluation2.Filter(ExprEvaluation2.CExpression(evaluateSub(input, cond), None))
     ).lines
   }
 

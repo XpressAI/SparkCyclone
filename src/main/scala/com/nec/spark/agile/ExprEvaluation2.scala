@@ -65,7 +65,7 @@ object ExprEvaluation2 {
 
   final case class CVector(name: String, veType: VeType)
 
-  final case class CExpression(cCode: String)
+  final case class CExpression(cCode: String, isNotNullCode: Option[String])
 
   def renderCode(functionName: String, veDataTransformation: VeDataTransformation[List[CVector], Filter[CExpression]]): CodeLines = {
     CodeLines.from("#include <cmath>",
@@ -119,19 +119,32 @@ object ExprEvaluation2 {
         case CVector(outputName, outputVeType) =>
           CodeLines.from(
             s"${outputName}->count = input_0->count;",
-            s"${outputName}->data = (${outputVeType.cType}*) malloc(${outputName}->count * sizeof(${outputVeType.cSize}));"
+            s"${outputName}->data = (${outputVeType.cType}*) malloc(${outputName}->count * sizeof(${outputVeType.cSize}));",
+            s"${outputName}->validityBuffer = (unsigned char *) malloc(ceil(${outputName}->count / 8.0));",
           )
       }
       , "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.output.zip(veDataTransformation.process).map {
         case (CVector(outputName, outputVeType), cExpr) =>
-          s"""${outputName}->data[i] = ${cExpr.cCode};"""
+          cExpr.isNotNullCode match {
+            case None =>
+              CodeLines.from(
+                s"""${outputName}->data[i] = ${cExpr.cCode};""",
+                s"set_validity($outputName->validityBuffer, i, 1);"
+              )
+            case Some(notNullCheck) =>
+              CodeLines.from(
+                s"if ( $notNullCheck ) {",
+                s"""${outputName}->data[i] = ${cExpr.cCode};""",
+                s"set_validity($outputName->validityBuffer, i, 1);",
+                "} else {",
+                s"set_validity($outputName->validityBuffer, i, 0);",
+                "}"
+              )
+          }
+
       },
       "}",
-      veDataTransformation.output.map {
-        case CVector(outputName, inputVeType) =>
-          s"""${outputName}->validityBuffer = ${veDataTransformation.input.head.name}->validityBuffer;"""
-      },
       "return 0;", "}"
     )
   }
@@ -150,7 +163,7 @@ object ExprEvaluation2 {
     renderCode(functionName = "filter_f", veDataTransformation = VeDataTransformation(
       input = List(CVector("input_0", VeType.veDouble)),
       output = List(CVector("output_0", VeType.veDouble)),
-      process = Filter(CExpression("input_0->data[i] > 15"))
+      process = Filter(CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None))
     ))
 
     /*cGenProject(
@@ -178,8 +191,28 @@ object ExprEvaluation2 {
           CVector("output_1", VeType.VeNullableDouble)
         ),
         process = List(
-          CExpression("2 * input_0->data[i]"),
-          CExpression("2 + input_0->data[i]")
+          CExpression("2 * input_0->data[i]", isNotNullCode = None),
+          CExpression("2 + input_0->data[i]", isNotNullCode = None)
+        )
+      )
+    )
+
+  }
+
+  def projectNulls: CodeLines = {
+    implicit val nameCleaner = NameCleaner.simple
+
+    renderProjection(
+      "project_f",
+      VeDataTransformation(
+        input = List(CVector("input_0", VeType.veDouble)),
+        output = List(
+          CVector("output_0", VeType.VeNullableDouble),
+          CVector("output_1", VeType.VeNullableDouble)
+        ),
+        process = List(
+          CExpression("2 * input_0->data[i]", isNotNullCode = None),
+          CExpression("2 + input_0->data[i]", isNotNullCode = Some("0"))
         )
       )
     )

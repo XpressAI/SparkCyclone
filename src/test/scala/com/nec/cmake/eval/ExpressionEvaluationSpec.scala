@@ -48,6 +48,42 @@ final class ExpressionEvaluationSpec extends AnyFreeSpec {
       }
     }
   }
+  "We can transform a null-column" in {
+
+    val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
+    val generatedSource = ExprEvaluation2.projectNulls
+
+    println(generatedSource.cCode)
+    System.out.flush()
+    val cLib = CMakeBuilder.buildC(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    withDirectFloat8Vector(input) { vector =>
+      WithTestAllocator { alloc =>
+        val outVector = new Float8Vector("value", alloc)
+        val outVector2 = new Float8Vector("value2", alloc)
+        try {
+          val nativeInterface = new CArrowNativeInterface(cLib.toString)
+          nativeInterface.callFunctionWrapped(
+            "project_f",
+            List(NativeArgument.input(vector), NativeArgument.output(outVector), NativeArgument.output(outVector2))
+          )
+
+          val outFirst = outVector.toListSafe
+          val outSecond = outVector2.toListSafe
+          val expectedFirst: List[Option[Double]] = List[Double](180, 2, 4, 38, 28).map(Some.apply)
+          val expectedSecond: List[Option[Double]] = List[Double](92, 3, 4, 21, 16).map(_ => None)
+
+          expect(
+            outFirst == expectedFirst,
+            outSecond == expectedSecond,
+          )
+        } finally outVector.close()
+      }
+    }
+  }
 
   "We can filter a column" in {
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
