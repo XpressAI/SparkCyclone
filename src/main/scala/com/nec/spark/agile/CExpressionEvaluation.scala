@@ -866,15 +866,14 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = {
-    ExprEvaluation2.generateFilter(
+  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = ExprEvaluation2.generateFilter(
+    ExprEvaluation2.Filter(
       input.zipWithIndex.map {
         case (attribute, i) =>
           ExprEvaluation2.CVector(s"input_$i", veType(attribute.dataType))
       }.toList,
-      ExprEvaluation2.Filter(ExprEvaluation2.CExpression(evaluateSub(input, cond), None))
-    ).lines
-  }
+      ExprEvaluation2.CExpression(evaluateSub(input, cond), None))
+  ).lines
 
   def cGen(
             fName: String,

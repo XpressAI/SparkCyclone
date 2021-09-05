@@ -7,15 +7,88 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
-import com.nec.spark.agile.ExprEvaluation2
+import com.nec.spark.agile.CExpressionEvaluation.{CodeLines, NameCleaner}
+import com.nec.spark.agile.ExprEvaluation2.{CExpression, CVector, Filter, VeDataTransformation, VeType, renderFilter, renderProjection}
 import org.apache.arrow.vector.Float8Vector
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.types.{DoubleType, Metadata}
 import org.scalatest.freespec.AnyFreeSpec
+
+object ExpressionEvaluationSpec {
+
+  private val ref_value14 =
+    AttributeReference(
+      name = "value#14",
+      dataType = DoubleType,
+      nullable = false,
+      metadata = Metadata.empty
+    )()
+
+  def filterDouble: CodeLines = {
+    implicit val nameCleaner = NameCleaner.simple
+
+    renderFilter(functionName = "filter_f", filter = Filter(
+      data = List(CVector("input_0", VeType.veDouble)),
+      condition = CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
+    ))
+
+    /*cGenProject(
+      fName = "filter_f",
+      inputReferences = Set("value#14", "value#15"),
+      childOutputs = Seq(ref_value14),
+      resultExpressions = Seq(ref_value14),
+      maybeFilter = Some(
+        LessThan(ref_value14, Literal(15))
+      ),
+    )*/
+  }
+
+  def projectDouble: CodeLines = {
+    implicit val nameCleaner = NameCleaner.simple
+
+    renderProjection(
+      "project_f",
+      VeDataTransformation(
+        input = List(CVector("input_0", VeType.veDouble)),
+        output = List(
+          CVector("output_0", VeType.VeNullableDouble),
+          CVector("output_1", VeType.VeNullableDouble)
+        ),
+        process = List(
+          CExpression("2 * input_0->data[i]", isNotNullCode = None),
+          CExpression("2 + input_0->data[i]", isNotNullCode = None)
+        )
+      )
+    )
+
+  }
+
+  def projectNulls: CodeLines = {
+    implicit val nameCleaner = NameCleaner.simple
+
+    renderProjection(
+      "project_f",
+      VeDataTransformation(
+        input = List(CVector("input_0", VeType.veDouble)),
+        output = List(
+          CVector("output_0", VeType.VeNullableDouble),
+          CVector("output_1", VeType.VeNullableDouble)
+        ),
+        process = List(
+          CExpression("2 * input_0->data[i]", isNotNullCode = None),
+          CExpression("2 + input_0->data[i]", isNotNullCode = Some("0"))
+        )
+      )
+    )
+
+  }
+}
 
 final class ExpressionEvaluationSpec extends AnyFreeSpec {
   "We can transform a column" in {
 
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
-    val generatedSource = ExprEvaluation2.projectDouble
+    val generatedSource = ExpressionEvaluationSpec.projectDouble
 
     println(generatedSource.cCode)
     System.out.flush()
@@ -51,7 +124,7 @@ final class ExpressionEvaluationSpec extends AnyFreeSpec {
   "We can transform a null-column" in {
 
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
-    val generatedSource = ExprEvaluation2.projectNulls
+    val generatedSource = ExpressionEvaluationSpec.projectNulls
 
     println(generatedSource.cCode)
     System.out.flush()
@@ -87,7 +160,7 @@ final class ExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can filter a column" in {
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
-    val generatedSource = ExprEvaluation2.filterDouble
+    val generatedSource = ExpressionEvaluationSpec.filterDouble
 
     info(generatedSource.cCode)
     val cLib = CMakeBuilder.buildC(
