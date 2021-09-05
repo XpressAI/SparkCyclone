@@ -12,7 +12,7 @@ object LocalVeoExtension {
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
-      new VERewriteStrategy(sparkSession, ExecutorPluginManagedEvaluator)
+      new VERewriteStrategy(ExecutorPluginManagedEvaluator)
     )
   }
 }

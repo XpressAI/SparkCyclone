@@ -29,7 +29,7 @@ object DynamicCSqlExpressionEvaluationSpec {
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
-          new VERewriteStrategy(sparkSession, CNativeEvaluator)
+          new VERewriteStrategy(CNativeEvaluator)
         )
       )
   }

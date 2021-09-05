@@ -2,7 +2,16 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 
+/** Spark-free function evaluation */
 object ExprEvaluation2 {
+
+  final case class CVector(name: String, veType: VeType)
+
+  final case class CExpression(cCode: String, isNotNullCode: Option[String])
+
+  final case class TypedCExpression(veType: VeType, cExpression: CExpression)
+
+  final case class NamedTypedCExpression(name: String, veType: VeType, cExpression: CExpression)
 
   sealed trait VeType {
     def cType: String
@@ -32,12 +41,18 @@ object ExprEvaluation2 {
     def veDouble: VeType = VeNullableDouble
   }
 
-  final case class VeDataTransformation[Data, Process](input: Data, output: Data, process: Process) {
-  }
+  /** The reason to use fully generic types is so that we can map them around in future, without having an implementation
+   * that interferes with those changes. By 'manipulate' we mean optimize/find shortcuts/etc.
+   *
+   * By doing this, we flatten the code hierarchy and can now do validation of C behaviors without requiring Spark to be pulled in.
+   *
+   * This even enables us the possibility to use Frovedis behind the scenes.
+   * */
+  final case class VeProjection[Input, Output](inputs: List[Input], outputs: List[Output])
 
-  final case class Filter[Data, Condition](data: List[Data], condition: Condition)
+  final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)
 
-  def generateFilter(filter: Filter[CVector, CExpression]): CodeLines = {
+  def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
     CodeLines.from(
       filter.data.map { case CVector(name, veType) =>
         s"std::vector<${veType.cType}> filtered_$name = {};"
@@ -61,11 +76,7 @@ object ExprEvaluation2 {
     )
   }
 
-  final case class CVector(name: String, veType: VeType)
-
-  final case class CExpression(cCode: String, isNotNullCode: Option[String])
-
-  def renderFilter(functionName: String, filter: Filter[CVector, CExpression]): CodeLines = {
+  def renderFilter(functionName: String, filter: VeFilter[CVector, CExpression]): CodeLines = {
     val filterOutput = filter.data.map {
       case CVector(name, veType) =>
         CVector(name.replaceAllLiterally("input", "output"), veType)
@@ -105,30 +116,30 @@ object ExprEvaluation2 {
     )
   }
 
-  def renderProjection(functionName: String, veDataTransformation: VeDataTransformation[List[CVector], List[CExpression]]): CodeLines = {
+  def renderProjection(functionName: String, veDataTransformation: VeProjection[CVector, NamedTypedCExpression]): CodeLines = {
     CodeLines.from("#include <cmath>",
       "#include <bitset>",
       "#include <iostream>",
       s"""extern "C" long $functionName(""", {
-        veDataTransformation.input.map { case CVector(name, veType) =>
+        veDataTransformation.inputs.map { case CVector(name, veType) =>
           s"${veType.cVectorType} *$name"
         } ++
-          veDataTransformation.output.map { case CVector(name, veType) =>
-            s"${veType.cVectorType} *$name"
+          veDataTransformation.outputs.zipWithIndex.map { case (NamedTypedCExpression(outputName, veType, _), idx) =>
+            s"${veType.cVectorType} *output_${idx}"
           }
       }.mkString(",\n"),
       ") {",
-      veDataTransformation.output.map {
-        case CVector(outputName, outputVeType) =>
+      veDataTransformation.outputs.zipWithIndex.map {
+        case (NamedTypedCExpression(outputName, veType, _), idx) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->data = (${outputVeType.cType}*) malloc($outputName->count * sizeof(${outputVeType.cSize}));",
+            s"$outputName->data = (${veType.cType}*) malloc($outputName->count * sizeof(${veType.cSize}));",
             s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
           )
       }
       , "for ( long i = 0; i < input_0->count; i++ ) {",
-      veDataTransformation.output.zip(veDataTransformation.process).map {
-        case (CVector(outputName, outputVeType), cExpr) =>
+      veDataTransformation.outputs.zipWithIndex.map {
+        case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
           cExpr.isNotNullCode match {
             case None =>
               CodeLines.from(

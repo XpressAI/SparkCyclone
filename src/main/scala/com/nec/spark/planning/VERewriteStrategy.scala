@@ -54,7 +54,7 @@ object VERewriteStrategy {
   }
 }
 
-final case class VERewriteStrategy(sparkSession: SparkSession, nativeEvaluator: NativeEvaluator)
+final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
   extends Strategy
   with LazyLogging {
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {

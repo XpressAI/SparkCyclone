@@ -1,19 +1,9 @@
 package com.nec.spark.agile
 
-import org.apache.spark.sql.catalyst.expressions.{Abs, Add, Alias, And, Attribute, AttributeReference, DateAdd, DateSub, Divide, ExprId, Expression, GreaterThan, IsNotNull, KnownFloatingPointNormalized, LessThan, LessThanOrEqual, Literal, Multiply, NamedExpression, Subtract}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Abs, Add, Alias, And, Attribute, AttributeReference, DateSub, Divide, ExprId, Expression, IsNotNull, KnownFloatingPointNormalized, LessThan, LessThanOrEqual, Literal, Multiply, NamedExpression, Subtract}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Sum}
-import org.apache.spark.sql.types.DoubleType
-import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.types.LongType
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
-import org.apache.spark.sql.catalyst.expressions.aggregate.Min
-import org.apache.spark.sql.catalyst.expressions.aggregate.Max
+import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.types.DateType
+import org.apache.spark.sql.types._
 
 import scala.language.implicitConversions
 
@@ -867,7 +857,7 @@ object CExpressionEvaluation {
   }
 
   def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = ExprEvaluation2.generateFilter(
-    ExprEvaluation2.Filter(
+    ExprEvaluation2.VeFilter(
       input.zipWithIndex.map {
         case (attribute, i) =>
           ExprEvaluation2.CVector(s"input_$i", veType(attribute.dataType))

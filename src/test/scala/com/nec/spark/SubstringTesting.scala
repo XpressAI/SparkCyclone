@@ -34,7 +34,7 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
       builder
         .withExtensions(sse =>
           sse.injectPlannerStrategy(sparkSession =>
-            VERewriteStrategy(sparkSession, CNativeEvaluator)
+            VERewriteStrategy(CNativeEvaluator)
           )
         )
         .config(sparkConf)

@@ -30,7 +30,7 @@ object DynamicVeSqlExpressionEvaluationSpec {
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
-          new VERewriteStrategy(sparkSession, ExecutorPluginManagedEvaluator)
+          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
         )
       )
   }
