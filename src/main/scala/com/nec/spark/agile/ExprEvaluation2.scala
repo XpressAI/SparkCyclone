@@ -23,13 +23,45 @@ object ExprEvaluation2 {
       override def cSize: Int = 8
     }
 
+    case object VeNullableInt extends VeType {
+      def cType: String = "int"
+
+      def cVectorType: String = "nullable_int_vector"
+
+      override def cSize: Int = 4
+    }
+
     def veDouble: VeType = VeNullableDouble
   }
 
   final case class VeDataTransformation[Data, Process](input: Data, output: Data, process: Process) {
   }
 
-  final case class Filter[T](data: T)
+  final case class Filter[T](condition: T)
+
+  def generateFilter(data: List[CVector], filter: Filter[CExpression]): CodeLines = {
+    CodeLines.from(
+      data.map { case CVector(name, veType) =>
+        s"std::vector<${veType.cType}> filtered_$name = {};"
+      },
+      "for ( long i = 0; i < input_0->count; i++ ) {",
+      s"if ( ${filter.condition.cCode} ) {"
+      , data.map {
+        case CVector(name, _) =>
+          s"  filtered_$name.push_back($name->data[i]);"
+      }, "}", "}",
+      data.map { case CVector(name, veType) =>
+        CodeLines.empty
+          .append(
+            s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * ${veType.cSize});",
+            s"$name->count = filtered_$name.size();",
+            // this causes a crash - what are we doing wrong here?
+            //          s"realloc(input_$i->data, input_$i->count * 8);",
+            s"filtered_$name.clear();"
+          )
+      }
+    )
+  }
 
   final case class CVector(name: String, veType: VeType)
 
@@ -48,27 +80,7 @@ object ExprEvaluation2 {
           }
       }.mkString(",\n"),
       ") {",
-
-
-      veDataTransformation.input.map { case CVector(name, veType) =>
-        s"std::vector<${veType.cType}> filtered_$name = {};"
-      },
-      "for ( long i = 0; i < input_0->count; i++ ) {",
-      s"if ( ${veDataTransformation.process.data.cCode} ) {"
-      , veDataTransformation.input.map {
-        case CVector(name, _) =>
-          s"  filtered_$name.push_back($name->data[i]);"
-      }, "}", "}",
-      veDataTransformation.input.map { case CVector(name, veType) =>
-        CodeLines.empty
-          .append(
-            s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * ${veType.cSize});",
-            s"$name->count = filtered_$name.size();",
-            // this causes a crash - what are we doing wrong here?
-            //          s"realloc(input_$i->data, input_$i->count * 8);",
-            s"filtered_$name.clear();"
-          )
-      },
+      generateFilter(veDataTransformation.input, veDataTransformation.process),
       veDataTransformation.output.map {
         case CVector(outputName, outputVeType) =>
           CodeLines.from(
@@ -85,6 +97,40 @@ object ExprEvaluation2 {
       veDataTransformation.input.zip(veDataTransformation.output).map {
         case (CVector(inputName, inputVeType), CVector(outputName, outputVeType)) =>
           s"""${outputName}->validityBuffer = ${inputName}->validityBuffer;"""
+      },
+      "return 0;", "}"
+    )
+  }
+
+  def renderProjection(functionName: String, veDataTransformation: VeDataTransformation[List[CVector], List[CExpression]]): CodeLines = {
+    CodeLines.from("#include <cmath>",
+      "#include <bitset>",
+      "#include <iostream>",
+      s"""extern "C" long $functionName(""", {
+        veDataTransformation.input.map { case CVector(name, veType) =>
+          s"${veType.cVectorType} *$name"
+        } ++
+          veDataTransformation.output.map { case CVector(name, veType) =>
+            s"${veType.cVectorType} *$name"
+          }
+      }.mkString(",\n"),
+      ") {",
+      veDataTransformation.output.map {
+        case CVector(outputName, outputVeType) =>
+          CodeLines.from(
+            s"${outputName}->count = input_0->count;",
+            s"${outputName}->data = (${outputVeType.cType}*) malloc(${outputName}->count * sizeof(${outputVeType.cSize}));"
+          )
+      }
+      , "for ( long i = 0; i < input_0->count; i++ ) {",
+      veDataTransformation.output.zip(veDataTransformation.process).map {
+        case (CVector(outputName, outputVeType), cExpr) =>
+          s"""${outputName}->data[i] = ${cExpr.cCode};"""
+      },
+      "}",
+      veDataTransformation.output.map {
+        case CVector(outputName, inputVeType) =>
+          s"""${outputName}->validityBuffer = ${veDataTransformation.input.head.name}->validityBuffer;"""
       },
       "return 0;", "}"
     )
@@ -118,16 +164,25 @@ object ExprEvaluation2 {
     )*/
   }
 
-  def filterDouble2: CodeLines = {
+  final case class ProjectionOutput[Expression](expression: Expression)
+
+  def projectDouble: CodeLines = {
     implicit val nameCleaner = NameCleaner.simple
-    cGenProject(
-      fName = "filter_f",
-      inputReferences = Set("value#14", "value#15"),
-      childOutputs = Seq(ref_value14),
-      resultExpressions = Seq(ref_value14),
-      maybeFilter = Some(
-        LessThan(ref_value14, Literal(15))
-      ),
+
+    renderProjection(
+      "project_f",
+      VeDataTransformation(
+        input = List(CVector("input_0", VeType.veDouble)),
+        output = List(
+          CVector("output_0", VeType.VeNullableDouble),
+          CVector("output_1", VeType.VeNullableDouble)
+        ),
+        process = List(
+          CExpression("2 * input_0->data[i]"),
+          CExpression("2 + input_0->data[i]")
+        )
+      )
     )
+
   }
 }

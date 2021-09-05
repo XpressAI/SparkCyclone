@@ -33,6 +33,17 @@ object CExpressionEvaluation {
     }
   }
 
+  def veType(d: DataType): ExprEvaluation2.VeType = {
+    d match {
+      case DoubleType =>
+        ExprEvaluation2.VeType.VeNullableDouble
+      case IntegerType | DateType =>
+        ExprEvaluation2.VeType.VeNullableInt
+      case x =>
+        sys.error(s"unsupported dataType $x")
+    }
+  }
+
   def cSize(d: DataType): Int = {
     Map[DataType, Int](DoubleType -> 8, IntegerType -> 4, DateType -> 4, LongType -> 8)
       .getOrElse(d, sys.error(s"unsupported dataType $d"))
@@ -832,8 +843,11 @@ object CExpressionEvaluation {
 
   object CodeLines {
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)
+
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))
+
     implicit def listStringToCodeLines(str: List[String]): CodeLines = CodeLines(str)
+
     implicit def listCodeLines(str: List[CodeLines]): CodeLines = CodeLines(str.flatMap(_.lines))
 
     def empty: CodeLines = CodeLines(Nil)
@@ -853,24 +867,14 @@ object CExpressionEvaluation {
   }
 
   def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = {
-    input.zipWithIndex.map { case (a, i) =>
-      s"std::vector<${cType(a.dataType)}> filtered_input_$i = {};"
-    } ++
-      List(
-        s"for ( long i = 0; i < input_0->count; i++ ) {",
-        s"if ( ${evaluateSub(input, cond)} ) {"
-      ) ++
-      input.indices.map { i => s"  filtered_input_$i.push_back(input_$i->data[i]);" } ++
-      List("}", "}") ++ input.zipWithIndex.toList.flatMap { case (a, i) =>
-      List(
-        s"memcpy(input_$i->data, filtered_input_$i.data(), filtered_input_$i.size() * ${cSize(a.dataType)});",
-        s"input_$i->count = filtered_input_$i.size();",
-        // this causes a crash - what am I doing wrong here?
-        //          s"realloc(input_$i->data, input_$i->count * 8);",
-        s"filtered_input_$i.clear();"
-      )
-    }
-  }.toList
+    ExprEvaluation2.generateFilter(
+      input.zipWithIndex.map {
+        case (attribute, i) =>
+          ExprEvaluation2.CVector(s"input_$i", veType(attribute.dataType))
+      }.toList,
+      ExprEvaluation2.Filter(ExprEvaluation2.CExpression(evaluateSub(input, cond)))
+    ).lines
+  }
 
   def cGen(
             fName: String,
