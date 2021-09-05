@@ -34,9 +34,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
     val generatedSource =
       renderProjection(
-        "project_f",
         projectDoubleTf
-      )
+      ).toCodeLines("project_f")
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -73,7 +72,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
     val generatedSource =
       renderProjection(
-        "project_f",
         VeProjection(
           inputs = List(CVector("input_0", VeType.veDouble)),
           outputs = List(
@@ -81,7 +79,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
             NamedTypedCExpression("output_1", VeType.VeNullableDouble, CExpression("2 + input_0->data[i]", isNotNullCode = Some("0")))
           )
         )
-      )
+      ).toCodeLines("project_f")
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -116,10 +114,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   "We can filter a column" in {
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
     val generatedSource =
-      renderFilter(functionName = "filter_f", filter = VeFilter(
+      renderFilter(filter = VeFilter(
         data = List(CVector("input_0", VeType.veDouble)),
         condition = CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
-      ))
+      )).toCodeLines("filter_f")
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)

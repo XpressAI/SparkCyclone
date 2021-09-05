@@ -9,8 +9,6 @@ object CFunctionGeneration {
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
 
-  final case class TypedCExpression(veType: VeType, cExpression: CExpression)
-
   final case class NamedTypedCExpression(name: String, veType: VeType, cExpression: CExpression)
 
   sealed trait VeType {
@@ -76,90 +74,96 @@ object CFunctionGeneration {
     )
   }
 
-  def renderFilter(functionName: String, filter: VeFilter[CVector, CExpression]): CodeLines = {
+  final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
+    def arguments: List[CVector] = inputs ++ outputs
+
+    def toCodeLines(functionName: String): CodeLines = {
+      CodeLines.from("#include <cmath>",
+        "#include <bitset>",
+        "#include <iostream>",
+        s"""extern "C" long $functionName(""",
+        arguments.map { case CVector(name, veType) =>
+          s"${veType.cVectorType} *$name"
+        }
+          .mkString(",\n"),
+        ") {",
+        body,
+        "return 0;",
+        "};"
+      )
+    }
+  }
+
+  def renderFilter(filter: VeFilter[CVector, CExpression]): CFunction = {
     val filterOutput = filter.data.map {
       case CVector(name, veType) =>
         CVector(name.replaceAllLiterally("input", "output"), veType)
     }
 
-    CodeLines.from("#include <cmath>",
-      "#include <bitset>",
-      "#include <iostream>",
-      s"""extern "C" long $functionName(""", {
-        filter.data.map { case CVector(name, veType) =>
-          s"${veType.cVectorType} *$name"
-        } ++
-          filterOutput.map { case CVector(name, veType) =>
-            s"${veType.cVectorType} *$name"
-          }
-      }.mkString(",\n"),
-      ") {",
-      generateFilter(filter),
-      filterOutput.map {
-        case CVector(outputName, outputVeType) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->data = (${outputVeType.cType}*) malloc($outputName->count * sizeof(${outputVeType.cSize}));"
-          )
-      }
-      , "for ( long i = 0; i < input_0->count; i++ ) {",
-      filter.data.zip(filterOutput).map {
-        case (CVector(inputName, inputVeType), CVector(outputName, outputVeType)) =>
-          s"""$outputName->data[i] = $inputName->data[i];"""
-      },
-      "}",
-      filter.data.zip(filterOutput).map {
-        case (CVector(inputName, inputVeType), CVector(outputName, outputVeType)) =>
-          s"""$outputName->validityBuffer = $inputName->validityBuffer;"""
-      },
-      "return 0;", "}"
+    CFunction(
+      inputs = filter.data,
+      outputs = filterOutput,
+      body = CodeLines.from(
+        generateFilter(filter),
+        filterOutput.map {
+          case CVector(outputName, outputVeType) =>
+            CodeLines.from(
+              s"$outputName->count = input_0->count;",
+              s"$outputName->data = (${outputVeType.cType}*) malloc($outputName->count * sizeof(${outputVeType.cSize}));"
+            )
+        }
+        , "for ( long i = 0; i < input_0->count; i++ ) {",
+        filter.data.zip(filterOutput).map {
+          case (CVector(inputName, inputVeType), CVector(outputName, outputVeType)) =>
+            s"""$outputName->data[i] = $inputName->data[i];"""
+        },
+        "}",
+        filter.data.zip(filterOutput).map {
+          case (CVector(inputName, inputVeType), CVector(outputName, outputVeType)) =>
+            s"""$outputName->validityBuffer = $inputName->validityBuffer;"""
+        },
+      )
     )
   }
 
-  def renderProjection(functionName: String, veDataTransformation: VeProjection[CVector, NamedTypedCExpression]): CodeLines = {
-    CodeLines.from("#include <cmath>",
-      "#include <bitset>",
-      "#include <iostream>",
-      s"""extern "C" long $functionName(""", {
-        veDataTransformation.inputs.map { case CVector(name, veType) =>
-          s"${veType.cVectorType} *$name"
-        } ++
-          veDataTransformation.outputs.zipWithIndex.map { case (NamedTypedCExpression(outputName, veType, _), idx) =>
-            s"${veType.cVectorType} *output_${idx}"
-          }
-      }.mkString(",\n"),
-      ") {",
-      veDataTransformation.outputs.zipWithIndex.map {
-        case (NamedTypedCExpression(outputName, veType, _), idx) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->data = (${veType.cType}*) malloc($outputName->count * sizeof(${veType.cSize}));",
-            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
-          )
-      }
-      , "for ( long i = 0; i < input_0->count; i++ ) {",
-      veDataTransformation.outputs.zipWithIndex.map {
-        case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
-          cExpr.isNotNullCode match {
-            case None =>
-              CodeLines.from(
-                s"""$outputName->data[i] = ${cExpr.cCode};""",
-                s"set_validity($outputName->validityBuffer, i, 1);"
-              )
-            case Some(notNullCheck) =>
-              CodeLines.from(
-                s"if ( $notNullCheck ) {",
-                s"""$outputName->data[i] = ${cExpr.cCode};""",
-                s"set_validity($outputName->validityBuffer, i, 1);",
-                "} else {",
-                s"set_validity($outputName->validityBuffer, i, 0);",
-                "}"
-              )
-          }
-
+  def renderProjection(veDataTransformation: VeProjection[CVector, NamedTypedCExpression]): CFunction = {
+    CFunction(
+      inputs = veDataTransformation.inputs,
+      outputs = veDataTransformation.outputs.zipWithIndex.map { case (NamedTypedCExpression(outputName, veType, _), idx) =>
+        CVector(outputName, veType)
       },
-      "}",
-      "return 0;", "}"
+      body = CodeLines.from(
+        veDataTransformation.outputs.zipWithIndex.map {
+          case (NamedTypedCExpression(outputName, veType, _), idx) =>
+            CodeLines.from(
+              s"$outputName->count = input_0->count;",
+              s"$outputName->data = (${veType.cType}*) malloc($outputName->count * sizeof(${veType.cSize}));",
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
+            )
+        }
+        , "for ( long i = 0; i < input_0->count; i++ ) {",
+        veDataTransformation.outputs.zipWithIndex.map {
+          case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
+            cExpr.isNotNullCode match {
+              case None =>
+                CodeLines.from(
+                  s"""$outputName->data[i] = ${cExpr.cCode};""",
+                  s"set_validity($outputName->validityBuffer, i, 1);"
+                )
+              case Some(notNullCheck) =>
+                CodeLines.from(
+                  s"if ( $notNullCheck ) {",
+                  s"""$outputName->data[i] = ${cExpr.cCode};""",
+                  s"set_validity($outputName->validityBuffer, i, 1);",
+                  "} else {",
+                  s"set_validity($outputName->validityBuffer, i, 0);",
+                  "}"
+                )
+            }
+
+        },
+        "}"
+      )
     )
   }
 
