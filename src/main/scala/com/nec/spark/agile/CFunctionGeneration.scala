@@ -36,7 +36,7 @@ object CFunctionGeneration {
       override def cSize: Int = 4
     }
 
-    def veDouble: VeType = VeNullableDouble
+    def veNullableDouble: VeType = VeNullableDouble
   }
 
   /**
