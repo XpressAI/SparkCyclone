@@ -14,7 +14,8 @@ import org.apache.arrow.vector.Float8Vector
  * Boilerplate to deal with making the tests nice and tight.
  *
  * This can be made generic with shapeless, however for our use case we should just
- * push all the dirty hacks to here, away from the test cases.
+ * push all the dirty boilerplate to here, away from the test cases, so that the team
+ * can focus on doing testing rather than writing boilerplate.
  *
  * There still is further to room to make them cleaner.
  */
@@ -51,10 +52,20 @@ object StaticTypingTestAdditions {
     def allocateVectors()(implicit
       rootAllocator: RootAllocator
     ): (List[VectorOutputNativeArgument], () => List[Result])
-    def outputs(output: Output): List[NamedTypedCExpression]
     type Result
   }
+
   object OutputArguments {
+    implicit val forDouble: OutputArguments[Double] =
+      new OutputArguments[Double] {
+        override type Result = Double
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          (List(NativeArgument.output(outVector_0)), () => outVector_0.toList)
+        }
+      }
     implicit val forPairDouble
       : OutputArguments[(TypedCExpression[Double], TypedCExpression[Double])] =
       new OutputArguments[(TypedCExpression[Double], TypedCExpression[Double])] {
@@ -69,13 +80,6 @@ object StaticTypingTestAdditions {
             () => outVector_0.toList.zip(outVector_1.toList)
           )
         }
-        override def outputs(
-          output: (TypedCExpression[Double], TypedCExpression[Double])
-        ): List[NamedTypedCExpression] =
-          List(
-            NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
-            NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression)
-          )
       }
     implicit val forPairDoubleOneOption
       : OutputArguments[(TypedCExpression[Double], TypedCExpression[Option[Double]])] =
@@ -92,15 +96,31 @@ object StaticTypingTestAdditions {
             () => outVector_0.toList.zip(outVector_1.toListSafe)
           )
         }
-        override def outputs(
-          output: (TypedCExpression[Double], TypedCExpression[Option[Double]])
-        ): List[NamedTypedCExpression] =
-          List(
-            NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
-            NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression)
-          )
       }
   }
 
+  trait ProjectExpression[Output] {
+    def outputs(output: Output): List[NamedTypedCExpression]
+  }
+
+  object ProjectExpression {
+    implicit val forDouble: ProjectExpression[TypedCExpression[Double]] =
+      (output: TypedCExpression[Double]) =>
+        List(NamedTypedCExpression("output_0", VeType.veNullableDouble, output.cExpression))
+    implicit val forPairDouble
+      : ProjectExpression[(TypedCExpression[Double], TypedCExpression[Double])] =
+      (output: (TypedCExpression[Double], TypedCExpression[Double])) =>
+        List(
+          NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
+          NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression)
+        )
+    implicit val forPairDoubleOneOption
+      : ProjectExpression[(TypedCExpression[Double], TypedCExpression[Option[Double]])] =
+      (output: (TypedCExpression[Double], TypedCExpression[Option[Double]])) =>
+        List(
+          NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
+          NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression)
+        )
+  }
   final case class TypedCExpression[ScalaType](cExpression: CExpression)
 }
