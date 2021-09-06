@@ -201,6 +201,13 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       }
     }
   }
-  "We can aggregate" in {}
-  "We can join" in {}
+
+  "We can aggregate" in {
+
+  }
+
+  "We can join" in {
+
+  }
+
 }
