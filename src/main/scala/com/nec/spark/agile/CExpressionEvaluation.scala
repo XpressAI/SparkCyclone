@@ -111,12 +111,13 @@ object CExpressionEvaluation {
     cType(dataTypeOfSub(inputs, expression))
   }
 
-  def cGenProject(fName: String,
-                  inputReferences: Set[String],
-                  childOutputs: Seq[Attribute],
-                  resultExpressions: Seq[NamedExpression],
-                  maybeFilter: Option[Expression]
-                 )(implicit nameCleaner: NameCleaner): CodeLines = {
+  def cGenProject(
+    fName: String,
+    inputReferences: Set[String],
+    childOutputs: Seq[Attribute],
+    resultExpressions: Seq[NamedExpression],
+    maybeFilter: Option[Expression]
+  )(implicit nameCleaner: NameCleaner): CodeLines = {
     val inputs = {
       val attrs = childOutputs
         .filter(attr => inputReferences.contains(attr.name))
@@ -206,14 +207,14 @@ object CExpressionEvaluation {
   }
 
   def cGenJoin(
-                fName: String,
-                inputs: Seq[Attribute],
-                resultExpressions: Seq[Attribute],
-                leftExprIds: Set[ExprId],
-                rightExprIds: Set[ExprId],
-                leftKeyExpr: Expression,
-                rightKeyExpr: Expression
-              )(implicit nameCleaner: NameCleaner): CodeLines = {
+    fName: String,
+    inputs: Seq[Attribute],
+    resultExpressions: Seq[Attribute],
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId],
+    leftKeyExpr: Expression,
+    rightKeyExpr: Expression
+  )(implicit nameCleaner: NameCleaner): CodeLines = {
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
         i.dataType match {
@@ -311,7 +312,7 @@ object CExpressionEvaluation {
   }.flatten.codeLines
 
   def cGenSort(fName: String, inputs: Seq[Attribute], sortingColumn: AttributeReference)(implicit
-                                                                                         nameCleaner: NameCleaner
+    nameCleaner: NameCleaner
   ): CodeLines = {
 
     val inputBits = inputs.zipWithIndex
@@ -356,10 +357,8 @@ object CExpressionEvaluation {
         List(
           s"if(${genNullCheckSorted(inputs, re, sortingIndex)}) {",
           s"validity_bitset_${idx}.set(i%8, true);",
-          s"output_${idx}_data[i] = ${
-            if (idx != sortingIndex) evaluateExpressionSorted(inputs, re)
-            else evaluateExpression(inputs, re)
-          };",
+          s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re)
+          else evaluateExpression(inputs, re)};",
           "} else {",
           s"validity_bitset_${idx}.set(i%8, false);}",
           "if(i % 8 == 7 || i == output_0_count - 1) { ",
@@ -382,18 +381,18 @@ object CExpressionEvaluation {
   }
 
   final case class AggregateDescription(
-                                         init: List[String],
-                                         iter: List[String],
-                                         result: List[String],
-                                         outputArguments: List[String]
-                                       )
+    init: List[String],
+    iter: List[String],
+    result: List[String],
+    outputArguments: List[String]
+  )
 
   def evaluateExpression(input: Seq[Attribute], expression: Expression): String = {
     expression match {
-      case NormalizeNaNAndZero(child) => evaluateExpression(input, child)
+      case NormalizeNaNAndZero(child)          => evaluateExpression(input, child)
       case KnownFloatingPointNormalized(child) => evaluateExpression(input, child)
-      case alias@Alias(expr, name) => evaluateSub(input, alias.child)
-      case expr@NamedExpression(name, DoubleType | IntegerType) =>
+      case alias @ Alias(expr, name)           => evaluateSub(input, alias.child)
+      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
@@ -404,7 +403,7 @@ object CExpressionEvaluation {
 
   def evaluateExpressionSorted(input: Seq[Attribute], expression: Expression): String = {
     expression match {
-      case alias@Alias(expr, name) => evaluateSubSorted(input, alias.child)
+      case alias @ Alias(expr, name) => evaluateSubSorted(input, alias.child)
       case AttributeReference(name, typeName, _, _) =>
         (input.indexWhere(_.name == name), typeName) match {
           case (-1, typeName) =>
@@ -425,34 +424,34 @@ object CExpressionEvaluation {
   }
 
   def evaluateExpressionJoin(
-                              input: Seq[Attribute],
-                              expression: Expression,
-                              leftExprIds: Set[ExprId],
-                              rightExprIds: Set[ExprId]
-                            ): String = {
+    input: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
     expression match {
-      case alias@Alias(expr, name) =>
+      case alias @ Alias(expr, name) =>
         evaluateSubJoin(input, alias.child, leftExprIds, rightExprIds)
-      case attr@AttributeReference(name, typeName, _, _) =>
+      case attr @ AttributeReference(name, typeName, _, _) =>
         (input.indexWhere(_.exprId == attr.exprId), typeName) match {
           case (-1, typeName) =>
             sys.error(
               s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
             )
           case (idx, (DoubleType | IntegerType | LongType))
-            if (leftExprIds.contains(attr.exprId)) =>
+              if (leftExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[left_out[i]]"
           case (idx, (DoubleType | IntegerType | LongType))
-            if (rightExprIds.contains(attr.exprId)) =>
+              if (rightExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[right_out[i]]"
 
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
         }
-      case expr@NamedExpression(name, DoubleType | IntegerType | LongType) =>
+      case expr @ NamedExpression(name, DoubleType | IntegerType | LongType) =>
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx if (leftExprIds.contains(expr.exprId)) => s"input_${idx}->data[left_out[i]]"
+          case idx if (leftExprIds.contains(expr.exprId))  => s"input_${idx}->data[left_out[i]]"
           case idx if (rightExprIds.contains(expr.exprId)) => s"input_${idx}->data[right_out[i]]"
 
         }
@@ -469,7 +468,7 @@ object CExpressionEvaluation {
           case idx =>
             s"((input_${idx}->validityBuffer[i/8] >> i % 8) & 0x1) == 1"
         }
-      case alias@Alias(expr, name) => genNullCheck(inputs, alias.child)
+      case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
       case DateSub(startDate, days) =>
         s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
       case DateAdd(startDate, days) =>
@@ -490,10 +489,10 @@ object CExpressionEvaluation {
   }
 
   def genNullCheckSorted(
-                          inputs: Seq[Attribute],
-                          expression: Expression,
-                          sortingColumnIndex: Int
-                        ): String = {
+    inputs: Seq[Attribute],
+    expression: Expression,
+    sortingColumnIndex: Int
+  ): String = {
 
     expression match {
       case AttributeReference(name, _, _, _) =>
@@ -505,7 +504,7 @@ object CExpressionEvaluation {
           case idx =>
             s"(input_${idx}->validityBuffer[std::get<1>(sort_column_validity_buffer[i])/8] >> (std::get<1>(sort_column_validity_buffer[i]) % 8) & 0x1) == 1"
         }
-      case alias@Alias(expr, name) => genNullCheckSorted(inputs, alias.child, sortingColumnIndex)
+      case alias @ Alias(expr, name) => genNullCheckSorted(inputs, alias.child, sortingColumnIndex)
       case Subtract(left, right, _) =>
         s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
       case Multiply(left, right, _) =>
@@ -522,14 +521,14 @@ object CExpressionEvaluation {
   }
 
   def genNullCheckJoin(
-                        inputs: Seq[Attribute],
-                        expression: Expression,
-                        leftExprIds: Set[ExprId],
-                        rightExprIds: Set[ExprId]
-                      ): String = {
+    inputs: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
 
     expression match {
-      case attr@AttributeReference(name, _, _, _) =>
+      case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
@@ -538,7 +537,7 @@ object CExpressionEvaluation {
           case idx if (rightExprIds.contains(attr.exprId)) =>
             s"((input_${idx}->validityBuffer[right_out[i]/8] >> right_out[i] % 8) & 0x1) == 1"
         }
-      case alias@Alias(expr, name) =>
+      case alias @ Alias(expr, name) =>
         genNullCheckJoin(inputs, alias.child, leftExprIds, rightExprIds)
       case Subtract(left, right, _) =>
         s"${genNullCheckJoin(inputs, left, leftExprIds, rightExprIds)} " +
@@ -561,7 +560,7 @@ object CExpressionEvaluation {
 
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
-      case attr@AttributeReference(name, _, _, _) =>
+      case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
@@ -622,14 +621,14 @@ object CExpressionEvaluation {
   }
 
   def evaluateSubJoin(
-                       inputs: Seq[Attribute],
-                       expression: Expression,
-                       leftExprIds: Set[ExprId],
-                       rightExprIds: Set[ExprId]
-                     ): String = {
+    inputs: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
 
     expression match {
-      case attr@AttributeReference(name, _, _, _) =>
+      case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
@@ -654,11 +653,11 @@ object CExpressionEvaluation {
   }
 
   def process(
-               inputs: Seq[Attribute],
-               cleanName: String,
-               aggregateExpression: AggregateExpression,
-               idx: Int
-             ): Option[AggregateDescription] = {
+    inputs: Seq[Attribute],
+    cleanName: String,
+    aggregateExpression: AggregateExpression,
+    idx: Int
+  ): Option[AggregateDescription] = {
     PartialFunction.condOpt(aggregateExpression.aggregateFunction) {
       case Sum(sub) =>
         AggregateDescription(
@@ -681,9 +680,9 @@ object CExpressionEvaluation {
             s"output_${idx}_sum->validityBuffer = output_${idx}_validity_buffer;"
           ),
           outputArguments = dataTypeOfSub(inputs, sub) match {
-            case DoubleType => List(s"nullable_double_vector* output_${idx}_sum")
+            case DoubleType  => List(s"nullable_double_vector* output_${idx}_sum")
             case IntegerType => List(s"nullable_int_vector* output_${idx}_sum")
-            case LongType => List(s"nullable_bigint_vector* output_${idx}_sum")
+            case LongType    => List(s"nullable_bigint_vector* output_${idx}_sum")
           }
         )
       case Average(sub) =>
@@ -754,9 +753,9 @@ object CExpressionEvaluation {
           ),
           result = List(s"${outputMin}->data[0] = ${cleanName}_min;"),
           outputArguments = inputs(idx).dataType match {
-            case DoubleType => List(s"nullable_double_vector* ${outputMin}")
+            case DoubleType  => List(s"nullable_double_vector* ${outputMin}")
             case IntegerType => List(s"nullable_int_vector* ${outputMin}")
-            case LongType => List(s"nullable_bigint_vector* ${outputMin}")
+            case LongType    => List(s"nullable_bigint_vector* ${outputMin}")
           }
         )
 
@@ -778,9 +777,9 @@ object CExpressionEvaluation {
           ),
           result = List(s"${outputMax}->data[0] = ${cleanName}_max;"),
           outputArguments = inputs(idx).dataType match {
-            case DoubleType => List(s"nullable_double_vector* ${outputMax}")
+            case DoubleType  => List(s"nullable_double_vector* ${outputMax}")
             case IntegerType => List(s"nullable_int_vector* ${outputMax}")
-            case LongType => List(s"nullable_bigint_vector* ${outputMax}")
+            case LongType    => List(s"nullable_bigint_vector* ${outputMax}")
           }
         )
 
@@ -824,6 +823,8 @@ object CExpressionEvaluation {
   }
 
   final case class CodeLines(lines: List[String]) {
+    def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
+
     override def toString: String = (List(s"CodeLines(") ++ lines ++ List(")")).mkString("\n")
 
     def cCode: String = lines.mkString("\n", "\n", "\n")
@@ -856,22 +857,24 @@ object CExpressionEvaluation {
     val verbose: NameCleaner = v => CleanName.fromString(v).value
   }
 
-  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = CFunctionGeneration.generateFilter(
-    CFunctionGeneration.VeFilter(
-      input.zipWithIndex.map {
-        case (attribute, i) =>
+  def filterInputs(cond: Expression, input: Seq[Attribute]): List[String] = CFunctionGeneration
+    .generateFilter(
+      CFunctionGeneration.VeFilter(
+        input.zipWithIndex.map { case (attribute, i) =>
           CFunctionGeneration.CVector(s"input_$i", veType(attribute.dataType))
-      }.toList,
-      CFunctionGeneration.CExpression(evaluateSub(input, cond), None))
-  ).lines
+        }.toList,
+        CFunctionGeneration.CExpression(evaluateSub(input, cond), None)
+      )
+    )
+    .lines
 
   def cGen(
-            fName: String,
-            inputReferences: Set[String],
-            childOutputs: Seq[Attribute],
-            pairs: Seq[(Alias, AggregateExpression)],
-            condition: Option[Expression] = None
-          )(implicit nameCleaner: NameCleaner): CodeLines = {
+    fName: String,
+    inputReferences: Set[String],
+    childOutputs: Seq[Attribute],
+    pairs: Seq[(Alias, AggregateExpression)],
+    condition: Option[Expression] = None
+  )(implicit nameCleaner: NameCleaner): CodeLines = {
     val input = {
       val attrs = childOutputs
         .filter(attr => inputReferences.contains(attr.name))
@@ -893,12 +896,9 @@ object CExpressionEvaluation {
       .mkString(", ")
 
     List[List[String]](
-      List(
-        s"""extern "C" long ${fName}(${inputBits}, ${
-          ads
-            .flatMap(_.outputArguments)
-            .mkString(", ")
-        }) {"""),
+      List(s"""extern "C" long ${fName}(${inputBits}, ${ads
+        .flatMap(_.outputArguments)
+        .mkString(", ")}) {"""),
       condition.toList.flatMap(cond => filterInputs(cond, input)),
       ads.flatMap(_.init),
       List("#pragma _NEC ivdep"),
