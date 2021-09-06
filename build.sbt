@@ -118,14 +118,16 @@ libraryDependencies ++= {
 
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
-  .map(path => new File((path)))
-  .map(file => Seq(file))
-  .getOrElse(Seq())
+  .map(path => new File(path))
+  .toList
   .classpath
 
 /** Because of Spark */
 Test / parallelExecution := false
 inConfig(Test)(Defaults.testTasks)
+
+/** To do things more cleanly */
+CMake / parallelExecution := false
 
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false

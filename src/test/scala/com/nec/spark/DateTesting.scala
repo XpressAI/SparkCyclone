@@ -40,7 +40,7 @@ final case class DateTesting(isVe: Boolean) extends Testing {
       builder
         .withExtensions(sse =>
           sse.injectPlannerStrategy(sparkSession =>
-            VERewriteStrategy(sparkSession, CNativeEvaluator)
+            VERewriteStrategy(CNativeEvaluator)
           )
         )
         .config(sparkConf)

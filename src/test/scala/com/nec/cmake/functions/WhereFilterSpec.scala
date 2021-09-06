@@ -30,7 +30,6 @@ object WhereFilterSpec {
 }
 
 final class WhereFilterSpec extends AnyFreeSpec {
-  import com.nec.spark.agile.CppResource
   "Through Arrow, it works" in {
     val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
     val veBuildPath = Paths.get("target", "c", s"${Instant.now().toEpochMilli}").toAbsolutePath

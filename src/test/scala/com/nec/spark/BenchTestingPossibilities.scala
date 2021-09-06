@@ -175,7 +175,7 @@ object BenchTestingPossibilities {
             )
             .withExtensions(sse =>
               sse.injectPlannerStrategy(sparkSession =>
-                VERewriteStrategy(sparkSession, CNativeEvaluator)
+                VERewriteStrategy(CNativeEvaluator)
               )
             )
             .config(key = "spark.com.nec.spark.batch-batches", value = "3")
