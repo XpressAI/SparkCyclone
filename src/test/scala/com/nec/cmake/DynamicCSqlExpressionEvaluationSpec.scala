@@ -27,11 +27,7 @@ object DynamicCSqlExpressionEvaluationSpec {
   def configuration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
-      .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession =>
-          new VERewriteStrategy(CNativeEvaluator)
-        )
-      )
+
   }
 
 }
@@ -173,6 +169,26 @@ final class DynamicCSqlExpressionEvaluationSpec
           (None, Some(5.0), None),
           (Some(52.0), Some(6.0), Some(58.0))
         )
+      )
+    }
+  }
+
+  case class TestData(a: Double, b: Double, c: Double, d: Double)
+
+  val tezt =
+    s"SELECT a, SUM(d) FROM nums GROUP BY a, b"
+  "Support dsada-column inputs and inputs" in withSparkSession2(configuration) { sparkSession =>
+    val lzt = List(
+      TestData(1.0, 8.0, 1.0, 41.0),
+      TestData(2.0, 7.0, 3.0, 44.0),
+      TestData(3.0, 6.0, 212.0, 42.0),
+      TestData(3.0, 7.0, 55.0, 43.0),
+    )
+    import sparkSession.implicits._
+    sparkSession.createDataFrame(lzt).createOrReplaceTempView("nums")
+    sparkSession.sql(tezt).debugSqlHere { ds =>
+      assert(
+        ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0), Some(82.0)))
       )
     }
   }
