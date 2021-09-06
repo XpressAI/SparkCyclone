@@ -91,7 +91,7 @@ object CFunctionGeneration {
       filter.data.map { case CVector(name, veType) =>
         CodeLines.empty
           .append(
-            s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * ${veType.cSize});",
+            s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * sizeof(${veType.cScalarType}));",
             s"$name->count = filtered_$name.size();",
             // this causes a crash - what are we doing wrong here?
             //          s"realloc(input_$i->data, input_$i->count * 8);",
@@ -163,7 +163,7 @@ object CFunctionGeneration {
             CodeLines
               .from(
                 s"""$outputName->data[i] = $inputName->data[i];""",
-                s"""set_validity($outputName->validityBuffer, i, 1)"""
+                s"""set_validity($outputName->validityBuffer, i, 1);"""
               )
               .indented
         },
