@@ -46,6 +46,27 @@ object StaticTypingTestAdditions {
 
       override def inputs: List[CVector] = List(CVector("input_0", VeType.veNullableDouble))
     }
+    implicit val forPairDouble: InputArguments[(Double, Double)] =
+      new InputArguments[(Double, Double)] {
+        override def allocateVectors(
+          data: (Double, Double)*
+        )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
+          inputs.zipWithIndex.map { case (CVector(name, tpe), idx_col) =>
+            val vcv = new Float8Vector(name, rootAllocator)
+            vcv.allocateNew()
+            vcv.setValueCount(data.size)
+            data.zipWithIndex.foreach { case ((first, second), idx) =>
+              vcv.setSafe(idx, if (idx_col == 0) first else second)
+            }
+            NativeArgument.input(vcv)
+          }
+        }
+
+        override def inputs: List[CVector] = List(
+          CVector("input_0", VeType.veNullableDouble),
+          CVector("input_1", VeType.veNullableDouble)
+        )
+      }
   }
 
   trait OutputArguments[Output] {
@@ -66,9 +87,23 @@ object StaticTypingTestAdditions {
           (List(NativeArgument.output(outVector_0)), () => outVector_0.toList)
         }
       }
-    implicit val forPairDouble
+    implicit val forPairDoubleTyped
       : OutputArguments[(TypedCExpression[Double], TypedCExpression[Double])] =
       new OutputArguments[(TypedCExpression[Double], TypedCExpression[Double])] {
+        override type Result = (Double, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+          (
+            List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
+            () => outVector_0.toList.zip(outVector_1.toList)
+          )
+        }
+      }
+    implicit val forPairDouble: OutputArguments[(Double, Double)] =
+      new OutputArguments[(Double, Double)] {
         override type Result = (Double, Double)
         override def allocateVectors()(implicit
           rootAllocator: RootAllocator
