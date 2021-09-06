@@ -36,7 +36,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can filter a column" in {
     expect(
-      evalFilter(List[Double](90.0, 1.0, 2, 19, 14))(
+      evalFilter[Double](90.0, 1.0, 2, 19, 14)(
         CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
       ) == List[Double](90, 19)
     )
@@ -44,9 +44,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can sort" in {
     expect(
-      evalSort(
-        List[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))
-      ) ==
+      evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0)) ==
         List[(Double, Double)]((19.0 -> 1.0), 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
     )
   }
@@ -97,7 +95,7 @@ object RealExpressionEvaluationSpec {
     }
   }
 
-  def evalFilter[Data](input: List[Data])(condition: CExpression)(implicit
+  def evalFilter[Data](input: Data*)(condition: CExpression)(implicit
     inputArguments: InputArguments[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
@@ -130,7 +128,7 @@ object RealExpressionEvaluationSpec {
     }
   }
 
-  def evalSort[Data](input: List[Data])(implicit
+  def evalSort[Data](input: Data*)(implicit
     inputArguments: InputArguments[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
