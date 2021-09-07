@@ -76,7 +76,11 @@ object SampleSource {
   def makeCsvNumsMultiColumn(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
     val schema = StructType(
-      Array(StructField(SampleColA, DoubleType), StructField(SampleColB, DoubleType), StructField(SampleColC, DoubleType))
+      Array(
+        StructField(SampleColA, DoubleType),
+        StructField(SampleColB, DoubleType),
+        StructField(SampleColC, DoubleType)
+      )
     )
 
     sparkSession.read

@@ -44,20 +44,23 @@ object GroupBySum {
     valuesVector: Float8Vector
   ): List[(Option[Double], Option[Double], Option[Double])] = {
     val groupingVals = (0 until groupingVector.getValueCount)
-      .map{
-        case idx if BitVectorHelper.get(groupingVector.getValidityBuffer, idx) == 1 => Some(groupingVector.get(idx))
+      .map {
+        case idx if BitVectorHelper.get(groupingVector.getValidityBuffer, idx) == 1 =>
+          Some(groupingVector.get(idx))
         case _ => None
       }
 
     val secondGroupingVals = (0 until secondGroupingVector.getValueCount)
-      .map{
-        case idx if BitVectorHelper.get(secondGroupingVector.getValidityBuffer, idx) == 1 => Some(secondGroupingVector.get(idx))
+      .map {
+        case idx if BitVectorHelper.get(secondGroupingVector.getValidityBuffer, idx) == 1 =>
+          Some(secondGroupingVector.get(idx))
         case _ => None
       }
 
     val valuesVals = (0 until valuesVector.getValueCount)
-      .map{
-        case idx if BitVectorHelper.get(valuesVector.getValidityBuffer, idx) == 1 => Some(valuesVector.get(idx))
+      .map {
+        case idx if BitVectorHelper.get(valuesVector.getValidityBuffer, idx) == 1 =>
+          Some(valuesVector.get(idx))
         case _ => None
       }
 
@@ -71,17 +74,17 @@ object GroupBySum {
   }
 
   private def reduceOptions(optIterable: Iterable[Option[Double]]): Option[Double] = {
-    if(optIterable.forall(_.isEmpty)){
+    if (optIterable.forall(_.isEmpty)) {
       None
     } else {
-      Some(optIterable.map(_.getOrElse(0D)).sum)
+      Some(optIterable.map(_.getOrElse(0d)).sum)
     }
   }
 
   def groupBySumJVM(
-                     groupingVector: Float8Vector,
-                     valuesVector: Float8Vector
-                   ): Map[Double, Double] = {
+    groupingVector: Float8Vector,
+    valuesVector: Float8Vector
+  ): Map[Double, Double] = {
     val groupingVals = (0 until groupingVector.getValueCount).map(idx => groupingVector.get(idx))
     val valuesVals = (0 until valuesVector.getValueCount).map(idx => valuesVector.get(idx))
 
@@ -115,14 +118,14 @@ object GroupBySum {
       case agg @ Aggregate(groupingExpressions, aggregateExpressions, child) =>
         val isSum = aggregateExpressions.collect {
           case agg @ Alias(
-          AggregateExpression(SparkSum(expr), mode, isDistinct, filter, resultId),
-          name
-          ) =>
+                AggregateExpression(SparkSum(expr), mode, isDistinct, filter, resultId),
+                name
+              ) =>
             agg
         }.size == 1
 
         groupingExpressions.size == 2 && aggregateExpressions.size == 3 &&
-          aggregateExpressions.contains(groupingExpressions.head) && isSum
+        aggregateExpressions.contains(groupingExpressions.head) && isSum
 
       case _ => false
     }

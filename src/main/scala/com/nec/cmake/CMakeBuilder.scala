@@ -26,15 +26,13 @@ cmake_minimum_required(VERSION 3.6)
 project(HelloWorld LANGUAGES CXX C)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set (CMAKE_CXX_STANDARD 17)
-${
-        CppResources.All.all
-          .map(_.containingDir(SourcesDir))
-          .toList
-          .map(i =>
-            s"include_directories(${i.toUri.toString.drop(SourcesDir.getParent.toUri.toString.length)})"
-          )
-          .mkString("\n")
-      }
+${CppResources.All.all
+        .map(_.containingDir(SourcesDir))
+        .toList
+        .map(i =>
+          s"include_directories(${i.toUri.toString.drop(SourcesDir.getParent.toUri.toString.length)})"
+        )
+        .mkString("\n")}
 
 add_library(aurora4spark SHARED aurora4spark.cpp)
 if(WIN32)
@@ -86,7 +84,7 @@ object CMakeBuilder {
       os match {
         case _ if os.contains("win") => WindowsBuilder
         case _ if os.contains("lin") => LinuxBuilder
-        case _ => MacOSBuilder
+        case _                       => MacOSBuilder
       }
     }
 
@@ -97,7 +95,8 @@ object CMakeBuilder {
       }
 
       override def buildLibrary(targetPath: Path): Path = {
-        val cmd2 = List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
+        val cmd2 =
+          List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
         runHopeOk(cmd2)
         targetPath.getParent.resolve("Debug").resolve("aurora4spark.dll")
       }
@@ -115,7 +114,6 @@ object CMakeBuilder {
         targetPath.getParent.resolve("libaurora4spark.so")
       }
     }
-
 
     object MacOSBuilder extends Builder {
       override def prepare(targetPath: Path): Unit = {
@@ -147,11 +145,8 @@ object CMakeBuilder {
         }
       )
       val proc = process.run(io)
-      assert(proc.exitValue() == 0, s"Failed; data was: $res; process was ${
-        process
-      }; $resErr")
+      assert(proc.exitValue() == 0, s"Failed; data was: $res; process was ${process}; $resErr")
     }
   }
-
 
 }

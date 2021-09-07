@@ -172,14 +172,11 @@ object CFunctionGeneration {
     )
   }
 
-  def renderProjection(
-    veDataTransformation: VeProjection[CVector, NamedTypedCExpression]
-  ): CFunction = {
+  def renderProjection(veDataTransformation: VeProjection[CVector, NamedTypedCExpression]): CFunction = {
     CFunction(
       inputs = veDataTransformation.inputs,
-      outputs = veDataTransformation.outputs.zipWithIndex.map {
-        case (NamedTypedCExpression(outputName, veType, _), idx) =>
-          CVector(outputName, veType)
+      outputs = veDataTransformation.outputs.zipWithIndex.map { case (NamedTypedCExpression(outputName, veType, _), idx) =>
+        CVector(outputName, veType)
       },
       body = CodeLines.from(
         veDataTransformation.outputs.zipWithIndex.map {

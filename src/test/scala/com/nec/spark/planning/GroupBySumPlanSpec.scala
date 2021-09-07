@@ -165,9 +165,7 @@ final class GroupBySumPlanSpec
 
   "GroupBySum plan should be rewritten by VERewriteStrategy" in withSparkSession2(
     _.withExtensions(sse =>
-      sse.injectPlannerStrategy(sparkSession =>
-        new VERewriteStrategy(CNativeEvaluator)
-      )
+      sse.injectPlannerStrategy(sparkSession => new VERewriteStrategy(CNativeEvaluator))
     )
   ) { sparkSession =>
     import sparkSession.implicits._
@@ -188,9 +186,7 @@ final class GroupBySumPlanSpec
 
   "GroupBySum plan should correctly sum groups" in withSparkSession2(
     _.withExtensions(sse =>
-      sse.injectPlannerStrategy(sparkSession =>
-        new VERewriteStrategy(CNativeEvaluator)
-      )
+      sse.injectPlannerStrategy(sparkSession => new VERewriteStrategy(CNativeEvaluator))
     )
   ) { sparkSession =>
     import sparkSession.implicits._

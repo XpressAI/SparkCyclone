@@ -54,7 +54,8 @@ final case class SimpleGroupBySumTwoColumnsPlan(
             sys.error(s"For simple groupBy, only Float8Vector input is supported, got ${other}.")
         }
         val outGroupsVector = new Float8Vector("groups", ArrowUtilsExposed.rootAllocator)
-        val secondOutGroupsVector = new Float8Vector("secondGroups", ArrowUtilsExposed.rootAllocator)
+        val secondOutGroupsVector =
+          new Float8Vector("secondGroups", ArrowUtilsExposed.rootAllocator)
 
         val outValuesVector = new Float8Vector("values", ArrowUtilsExposed.rootAllocator)
 
@@ -83,36 +84,42 @@ final case class SimpleGroupBySumTwoColumnsPlan(
                   Some(Float8VectorWrapper(secondOutGroupsVector))
                 )
               )
-              val firstGroupColumn =  (0 until outGroupsVector.getValueCount)
-                .map{
-                  case idx if(BitVectorHelper.get(outGroupsVector.getValidityBuffer, idx)) == 1 => Some(outGroupsVector.get(idx))
+              val firstGroupColumn = (0 until outGroupsVector.getValueCount)
+                .map {
+                  case idx if (BitVectorHelper.get(outGroupsVector.getValidityBuffer, idx)) == 1 =>
+                    Some(outGroupsVector.get(idx))
                   case _ => None
                 }
 
-              val secondGroupColumn =  (0 until secondOutGroupsVector.getValueCount)
-                .map{
-                  case idx if(BitVectorHelper.get(secondOutGroupsVector.getValidityBuffer, idx)) == 1 => Some(secondOutGroupsVector.get(idx))
+              val secondGroupColumn = (0 until secondOutGroupsVector.getValueCount)
+                .map {
+                  case idx
+                      if (BitVectorHelper.get(secondOutGroupsVector.getValidityBuffer, idx)) == 1 =>
+                    Some(secondOutGroupsVector.get(idx))
                   case _ => None
                 }
 
-              val valuesColumn =  (0 until valuesVec.getValueCount)
-                .map{
-                  case idx if(BitVectorHelper.get(outValuesVector.getValidityBuffer, idx)) == 1 => Some(outValuesVector.get(idx))
+              val valuesColumn = (0 until valuesVec.getValueCount)
+                .map {
+                  case idx if (BitVectorHelper.get(outValuesVector.getValidityBuffer, idx)) == 1 =>
+                    Some(outValuesVector.get(idx))
                   case _ => None
                 }
 
-              firstGroupColumn.zip(secondGroupColumn)
-              .zip(valuesColumn)
-              .map(kv => (kv._1._1, kv._1._2, kv._2))
+              firstGroupColumn
+                .zip(secondGroupColumn)
+                .zip(valuesColumn)
+                .map(kv => (kv._1._1, kv._1._2, kv._2))
           }
 
           resultsMap.zipWithIndex.map {
-            case ((groupingId, secondGroupingId,sum), idx) => {
+            case ((groupingId, secondGroupingId, sum), idx) => {
               val writer = new UnsafeRowWriter(3)
               writer.reset()
-              if(groupingId.isDefined) writer.write(0, groupingId.get) else writer.setNullAt(0)
-              if(secondGroupingId.isDefined) writer.write(1, secondGroupingId.get) else writer.setNullAt(1)
-              if(sum.isDefined) writer.write(2, sum.get) else writer.setNullAt(2)
+              if (groupingId.isDefined) writer.write(0, groupingId.get) else writer.setNullAt(0)
+              if (secondGroupingId.isDefined) writer.write(1, secondGroupingId.get)
+              else writer.setNullAt(1)
+              if (sum.isDefined) writer.write(2, sum.get) else writer.setNullAt(2)
               writer.getRow
             }
           }.toIterator
