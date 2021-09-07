@@ -62,8 +62,8 @@ final class LogicalPlanMatchingSpec extends AnyFreeSpec {
 
     assert(toVeTransformation(qr) == VeProjection(
       inputs = List(
-        CVector("input_0", VeType.veDouble),
-        CVector("input_1", VeType.veDouble)),
+        CVector("input_0", VeType.veNullableDouble),
+        CVector("input_1", VeType.veNullableDouble)),
       outputs = List(
         NamedTypedCExpression("output_0", VeType.VeNullableDouble, CExpression("input_0->data[i] * input_1->data[i]", isNotNullCode = None)),
         NamedTypedCExpression("output_1", VeType.VeNullableDouble, CExpression("input_0->data[i] + 1.0", isNotNullCode = None))

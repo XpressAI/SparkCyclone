@@ -1,147 +1,168 @@
 package com.nec.cmake.eval
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowNativeInterface.NativeArgument
-import com.nec.arrow.ArrowVectorBuilders.withDirectFloat8Vector
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.projectDoubleTf
-import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalFilter, evalProject, evalSort}
+import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration._
-import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
-/** This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
- * */
-object RealExpressionEvaluationSpec {
-
-  private def projectDoubleTf: VeProjection[CVector, NamedTypedCExpression] = {
-    VeProjection(
-      inputs = List(CVector("input_0", VeType.veDouble)),
-      outputs = List(
-        NamedTypedCExpression("output_0", VeType.VeNullableDouble, CExpression("2 * input_0->data[i]", isNotNullCode = None)),
-        NamedTypedCExpression("output_1", VeType.VeNullableDouble, CExpression("2 + input_0->data[i]", isNotNullCode = None))
-      )
-    )
-  }
-
-}
-
+/**
+ * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
+ */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can transform a column" in {
-    val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
-    val generatedSource =
-      renderProjection(
-        projectDoubleTf
-      ).toCodeLines("project_f")
-
-    val cLib = CMakeBuilder.buildC(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n")
+    expect(
+      evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
+        TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
+        TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
+      ) == List[(Double, Double)]((180, 92), (2, 3), (4, 4), (38, 21), (28, 16))
     )
-
-    withDirectFloat8Vector(input) { vector =>
-      WithTestAllocator { alloc =>
-        val outVector = new Float8Vector("value", alloc)
-        val outVector2 = new Float8Vector("value2", alloc)
-        try {
-          val nativeInterface = new CArrowNativeInterface(cLib.toString)
-          nativeInterface.callFunctionWrapped(
-            "project_f",
-            List(NativeArgument.input(vector), NativeArgument.output(outVector), NativeArgument.output(outVector2))
-          )
-
-          val outFirst = outVector.toListSafe
-          val outSecond = outVector2.toListSafe
-          val expectedFirst: List[Option[Double]] = List[Double](180, 2, 4, 38, 28).map(Some.apply)
-          val expectedSecond: List[Option[Double]] = List[Double](92, 3, 4, 21, 16).map(Some.apply)
-
-          expect(
-            outFirst == expectedFirst,
-            outSecond == expectedSecond,
-          )
-        } finally outVector.close()
-      }
-    }
   }
 
   "We can transform a null-column" in {
-
-    val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
-    val generatedSource =
-      renderProjection(
-        VeProjection(
-          inputs = List(CVector("input_0", VeType.veDouble)),
-          outputs = List(
-            NamedTypedCExpression("output_0", VeType.VeNullableDouble, CExpression("2 * input_0->data[i]", isNotNullCode = None)),
-            NamedTypedCExpression("output_1", VeType.VeNullableDouble, CExpression("2 + input_0->data[i]", isNotNullCode = Some("0")))
-          )
-        )
-      ).toCodeLines("project_f")
-
-    val cLib = CMakeBuilder.buildC(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n")
+    expect(
+      evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
+        TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
+        TypedCExpression[Option[Double]](CExpression("2 + input_0->data[i]", Some("0")))
+      ) == List[(Double, Option[Double])]((180, None), (2, None), (4, None), (38, None), (28, None))
     )
-
-    withDirectFloat8Vector(input) { vector =>
-      WithTestAllocator { alloc =>
-        val outVector = new Float8Vector("value", alloc)
-        val outVector2 = new Float8Vector("value2", alloc)
-        try {
-          val nativeInterface = new CArrowNativeInterface(cLib.toString)
-          nativeInterface.callFunctionWrapped(
-            "project_f",
-            List(NativeArgument.input(vector), NativeArgument.output(outVector), NativeArgument.output(outVector2))
-          )
-
-          val outFirst = outVector.toListSafe
-          val outSecond = outVector2.toListSafe
-          val expectedFirst: List[Option[Double]] = List[Double](180, 2, 4, 38, 28).map(Some.apply)
-          val expectedSecond: List[Option[Double]] = List[Double](92, 3, 4, 21, 16).map(_ => None)
-
-          expect(
-            outFirst == expectedFirst,
-            outSecond == expectedSecond,
-          )
-        } finally outVector.close()
-      }
-    }
   }
 
   "We can filter a column" in {
-    val input: Seq[Double] = Seq(90.0, 1.0, 2, 19, 14)
+    expect(
+      evalFilter[Double](90.0, 1.0, 2, 19, 14)(
+        CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
+      ) == List[Double](90, 19)
+    )
+  }
+
+  "We can sort" in {
+    expect(
+      evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0)) ==
+        List[(Double, Double)]((19.0 -> 1.0), 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
+    )
+  }
+
+  "We can aggregate" in {}
+
+  "We can join" in {}
+
+}
+
+object RealExpressionEvaluationSpec {
+
+  def evalProject[Input, Output](input: List[Input])(expressions: Output)(implicit
+    inputArguments: InputArguments[Input],
+    projectExpression: ProjectExpression[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
+    val functionName = "project_f"
+
     val generatedSource =
-      renderFilter(filter = VeFilter(
-        data = List(CVector("input_0", VeType.veDouble)),
-        condition = CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
-      )).toCodeLines("filter_f")
+      renderProjection(
+        VeProjection(
+          inputs = inputArguments.inputs,
+          outputs = projectExpression.outputs(expressions)
+        )
+      ).toCodeLines(functionName)
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
-    withDirectFloat8Vector(input) { vector =>
-      WithTestAllocator { alloc =>
-        val outVector = new Float8Vector("value", alloc)
-        try {
-          val nativeInterface = new CArrowNativeInterface(cLib.toString)
-          nativeInterface.callFunctionWrapped(
-            "filter_f",
-            List(NativeArgument.input(vector), NativeArgument.output(outVector))
-          )
-          val outData = (0 until outVector.getValueCount).map(idx => outVector.get(idx)).toList
-          assert(outData == List[Double](90, 19))
-        } finally outVector.close()
-      }
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
     }
   }
-  "We can aggregate" in {
 
-  }
-  "We can join" in {
+  def evalFilter[Data](input: Data*)(condition: CExpression)(implicit
+    inputArguments: InputArguments[Data],
+    outputArguments: OutputArguments[Data]
+  ): List[outputArguments.Result] = {
+    val functionName = "filter_f"
 
+    val generatedSource =
+      renderFilter(VeFilter(data = inputArguments.inputs, condition = condition))
+        .toCodeLines(functionName)
+
+    val cLib = CMakeBuilder.buildC(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
   }
+
+  def evalSort[Data](input: Data*)(implicit
+    inputArguments: InputArguments[Data],
+    outputArguments: OutputArguments[Data]
+  ): List[outputArguments.Result] = {
+    val functionName = "sort_f"
+
+    val generatedSource =
+      renderSort(sort =
+        VeSort(
+          data = inputArguments.inputs,
+          sorts = List(CExpression(cCode = "input_1->data[i]", isNotNullCode = None))
+        )
+      ).toCodeLines(functionName)
+
+    val cLib = CMakeBuilder.buildC(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
+
 }

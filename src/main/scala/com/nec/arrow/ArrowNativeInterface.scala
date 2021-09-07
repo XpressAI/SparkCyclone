@@ -113,32 +113,56 @@ object ArrowNativeInterface {
       sealed trait InputVectorWrapper
       object InputVectorWrapper {
         final case class StringInputWrapper(string: String) extends InputVectorWrapper
+        sealed trait InputArrowVectorWrapper extends InputVectorWrapper {
+          def valueVector: ValueVector
+        }
         final case class VarCharVectorInputWrapper(varCharVector: VarCharVector)
-          extends InputVectorWrapper
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = varCharVector
+        }
         final case class ByteBufferInputWrapper(byteBuffer: ByteBuffer, size: Int)
           extends InputVectorWrapper
         final case class Float8VectorInputWrapper(float8Vector: Float8Vector)
-          extends InputVectorWrapper
-        final case class IntVectorInputWrapper(intVector: IntVector) extends InputVectorWrapper
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = float8Vector
+        }
+        final case class IntVectorInputWrapper(intVector: IntVector)
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = intVector
+        }
         final case class DateDayVectorInputWrapper(dateDayVector: DateDayVector)
-          extends InputVectorWrapper
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = dateDayVector
+        }
         final case class BigIntVectorInputWrapper(bigIntVector: BigIntVector)
-          extends InputVectorWrapper
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = bigIntVector
+        }
       }
     }
     final case class VectorOutputNativeArgument(
       wrapped: VectorOutputNativeArgument.OutputVectorWrapper
     ) extends VectorNativeArgument
     object VectorOutputNativeArgument {
-      sealed trait OutputVectorWrapper
+      sealed trait OutputVectorWrapper {
+        def valueVector: ValueVector
+      }
       object OutputVectorWrapper {
         final case class Float8VectorOutputWrapper(float8Vector: Float8Vector)
-          extends OutputVectorWrapper
-        final case class IntVectorOutputWrapper(intVector: IntVector) extends OutputVectorWrapper
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = float8Vector
+        }
+        final case class IntVectorOutputWrapper(intVector: IntVector) extends OutputVectorWrapper {
+          override def valueVector: ValueVector = intVector
+        }
         final case class BigIntVectorOutputWrapper(bigIntVector: BigIntVector)
-          extends OutputVectorWrapper
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = bigIntVector
+        }
         final case class VarCharVectorOutputWrapper(varCharVector: VarCharVector)
-          extends OutputVectorWrapper
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = varCharVector
+        }
       }
     }
 
