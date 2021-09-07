@@ -172,15 +172,14 @@ final class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  case class TestData(a: Double, b: Double, c: Double, d: Double)
-
-  val tezt =
+  val multisort_sql =
     s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
-  "Support dsada-column inputs and inputs" in withSparkSession2(configuration) { sparkSession =>
+  "Support group by sum with multiple grouping columns" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
 
     import sparkSession.implicits._
-    sparkSession.sql(tezt).debugSqlHere { ds =>
+    //Results order here is different due to the fact that we sort the columns and seems that spark does not.
+    sparkSession.sql(multisort_sql).debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList should  contain theSameElementsAs List(
         (None,None,Some(8.0)),
         (Some(4.0),Some(5.0),None),

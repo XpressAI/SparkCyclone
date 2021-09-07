@@ -7,12 +7,7 @@ import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
@@ -177,6 +172,30 @@ final class DynamicVeSqlExpressionEvaluationSpec
       sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[Long].collect().toList == List(13))
       }
+  }
+
+  val multisort_sql =
+    s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
+  "Support group by sum with multiple grouping columns" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+
+    import sparkSession.implicits._
+    //Results order here is different due to the fact that we sort the columns and seems that spark does not.
+    sparkSession.sql(multisort_sql).debugSqlHere { ds =>
+      ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList should  contain theSameElementsAs List(
+        (None,None,Some(8.0)),
+        (Some(4.0),Some(5.0),None),
+        (Some(52.0),Some(6.0),None),
+        (Some(4.0),None,Some(2.0)),
+        (Some(2.0),Some(3.0),Some(4.0)),
+        (None,Some(3.0),Some(1.0)),
+        (Some(2.0),None,Some(2.0)),
+        (Some(3.0),Some(4.0),Some(5.0)),
+        (Some(1.0),Some(2.0),Some(8.0)),
+        (Some(20.0),None,None),
+        (None,Some(5.0),Some(2.0))
+      )
+    }
   }
 
   val sql_cnt_multiple_ops = s"SELECT COUNT(*), SUM(${SampleColB} - ${SampleColA}) FROM nums"
