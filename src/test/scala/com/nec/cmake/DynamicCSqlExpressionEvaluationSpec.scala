@@ -6,12 +6,7 @@ import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 
 import org.apache.spark.sql.Dataset
@@ -27,7 +22,11 @@ object DynamicCSqlExpressionEvaluationSpec {
   def configuration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
-
+      .withExtensions(sse =>
+        sse.injectPlannerStrategy(sparkSession =>
+          new VERewriteStrategy(CNativeEvaluator)
+        )
+      )
   }
 
 }
@@ -176,19 +175,24 @@ final class DynamicCSqlExpressionEvaluationSpec
   case class TestData(a: Double, b: Double, c: Double, d: Double)
 
   val tezt =
-    s"SELECT a, SUM(d) FROM nums GROUP BY a, b"
+    s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
   "Support dsada-column inputs and inputs" in withSparkSession2(configuration) { sparkSession =>
-    val lzt = List(
-      TestData(1.0, 8.0, 1.0, 41.0),
-      TestData(2.0, 7.0, 3.0, 44.0),
-      TestData(3.0, 6.0, 212.0, 42.0),
-      TestData(3.0, 7.0, 55.0, 43.0),
-    )
+    makeCsvNumsMultiColumn(sparkSession)
+
     import sparkSession.implicits._
-    sparkSession.createDataFrame(lzt).createOrReplaceTempView("nums")
     sparkSession.sql(tezt).debugSqlHere { ds =>
-      assert(
-        ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0), Some(82.0)))
+      ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList should  contain theSameElementsAs List(
+        (None,None,Some(8.0)),
+        (Some(4.0),Some(5.0),None),
+        (Some(52.0),Some(6.0),None),
+        (Some(4.0),None,Some(2.0)),
+        (Some(2.0),Some(3.0),Some(4.0)),
+        (None,Some(3.0),Some(1.0)),
+        (Some(2.0),None,Some(2.0)),
+        (Some(3.0),Some(4.0),Some(5.0)),
+        (Some(1.0),Some(2.0),Some(8.0)),
+        (Some(20.0),None,None),
+        (None,Some(5.0),Some(2.0))
       )
     }
   }
