@@ -4,7 +4,6 @@
 #include <iostream>
 #include <cmath>
 #include <tuple>
-#include <algorithm>
 
 extern "C" long group_by(nullable_double_vector* grouping_col,
                          nullable_double_vector* values_col,
