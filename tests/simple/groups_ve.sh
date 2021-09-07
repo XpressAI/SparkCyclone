@@ -6,13 +6,11 @@ $SPARK_HOME/bin/spark-submit \
     --deploy-mode cluster \
     --name groups.py_VE \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    --conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    --jars /home/egonzalez/nec_spark/aurora4spark-remote/target/scala-2.12/aurora4spark-sql-plugin-assembly-0.1.0-SNAPSHOT.jar \
+    --conf spark.executor.extraClassPath=/home/egonzalez/nec_spark/aurora4spark-remote/target/scala-2.12/aurora4spark-sql-plugin-assembly-0.1.0-SNAPSHOT.jar \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.com.nec.native-csv=false \
-    --conf spark.driver.resource.ve.amount=1 \
-    --conf spark.driver.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/egonzalez \
