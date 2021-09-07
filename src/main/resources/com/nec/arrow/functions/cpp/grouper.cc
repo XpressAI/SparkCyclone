@@ -157,7 +157,6 @@ extern "C" long group_by_sum2(nullable_double_vector* grouping_col,
 
      std::vector<size_t> idx(count);
      #pragma _NEC ivdep
-     //     idx = [0, 1, 2, 3]
      for(size_t i = 0; i < count; i++) {
        idx[i] = i;
        int validity_group = ((grouping_col->validityBuffer[i/8] >> i % 8) & 0x1);
@@ -166,32 +165,8 @@ extern "C" long group_by_sum2(nullable_double_vector* grouping_col,
        double second_grouping_val = grouping_col2->data[i];
        grouping_vec_all_cols.push_back(std::tuple<int, double, int, double>(validity_group, first_grouping_val, validity_group2, second_grouping_val));
      }
-     //expected output {(1,8, 10), (2,7,20), (3,6, 30), (3,7, 40)}
-    //col1 {1, 2, 3, 3}
-    //col2 {8, 7, 6 ,7}
-    //(1, 1, 1, 8)
-    //(1,2,1,7)
-    //(1,3,1,7)
-    //(1,3,1,6)
-
-
-    //vals {10, 20 ,30, 40}
-    // idx = [2, 1, 3, 0]
-     //     idx = [0, 1, 2, 3]
-     frovedis::insertion_sort(grouping_vec_all_cols.data(), idx.data(), grouping_vec_all_cols.size());
-//     std::vector<std::tuple<int, double>> grouping_vec1();
-//     std::vector<std::tuple<int, double>> grouping_vec2();
-//     for(size_t i = 0; i < count; i++) {
-//       grouping_vec1.push_back(std::tuple<int, double>(std::get<0>(grouping_vec_all_cols[i]), std::get<1>(grouping_vec_all_cols[i]));
-//       grouping_vec2.push_back(std::tuple<int, double>(std::get<2>(grouping_vec_all_cols[i]), std::get<3>(grouping_vec_all_cols[i]));
-//     }
-    //col1 {1, 2, 3, 3}
-    //col2 {6, 7, 7 8}
-    // idx = [2, 1, 3, 0]
-    // {0,0,2,3,4,4,4,5} -> {0,2,3,4,7,8}
+    frovedis::insertion_sort(grouping_vec_all_cols.data(), idx.data(), grouping_vec_all_cols.size());
     std::vector<size_t> groups_indicies = frovedis::set_separate(grouping_vec_all_cols);
-//    {0, 1,2}
-//     {0, 2, 3}
     size_t groups_count = groups_indicies.size();
 
     int sizes = groups_count-1;
