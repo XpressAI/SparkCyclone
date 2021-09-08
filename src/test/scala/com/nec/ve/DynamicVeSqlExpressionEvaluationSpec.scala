@@ -245,14 +245,14 @@ final class DynamicVeSqlExpressionEvaluationSpec
       ds.as[
         (
           Option[Double],
-            Option[Double],
-            Option[Double],
-            Option[Double],
-            Option[Double],
-            Option[Double],
-            Option[Double],
-            Option[Double]
-          )
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double],
+          Option[Double]
+        )
       ].collect()
         .toList should contain theSameElementsAs
         List(

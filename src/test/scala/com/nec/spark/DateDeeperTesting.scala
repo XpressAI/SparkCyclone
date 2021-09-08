@@ -35,20 +35,24 @@ final case class DateDeeperTesting(isVe: Boolean) extends Testing {
     else
       builder
         .withExtensions(sse =>
-          sse.injectPlannerStrategy(sparkSession =>
-            VERewriteStrategy(CNativeEvaluator)
-          )
+          sse.injectPlannerStrategy(sparkSession => VERewriteStrategy(CNativeEvaluator))
         )
         .config(sparkConf)
         .getOrCreate()
   }
 
-  override def prepareInput(sparkSession: SparkSession,
-                            dataSize: Testing.DataSize): Dataset[Result] = {
+  override def prepareInput(
+    sparkSession: SparkSession,
+    dataSize: Testing.DataSize
+  ): Dataset[Result] = {
     import sparkSession.implicits._
 
     val schema = StructType(
-      Array(StructField("l_id", IntegerType), StructField("l_shipdate", DateType), StructField("l_receivedate", DateType))
+      Array(
+        StructField("l_id", IntegerType),
+        StructField("l_shipdate", DateType),
+        StructField("l_receivedate", DateType)
+      )
     )
 
     sparkSession.sqlContext.read

@@ -28,9 +28,7 @@ object DynamicCSqlExpressionEvaluationSpec {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession =>
-          new VERewriteStrategy(CNativeEvaluator)
-        )
+        sse.injectPlannerStrategy(sparkSession => new VERewriteStrategy(CNativeEvaluator))
       )
   }
 
@@ -350,8 +348,9 @@ final class DynamicCSqlExpressionEvaluationSpec
   "Support INNER EQUAL SELF JOIN " in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
-
-    sparkSession.sql(sql_join_self).ensureJoinPlanEvaluated().debugSqlHere { ds =>
+    val d = sparkSession.sql(sql_join_self)
+    println(d.queryExecution.executedPlan)
+    d.ensureJoinPlanEvaluated().debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
         List(
           (Some(2.0), Some(3.0)),

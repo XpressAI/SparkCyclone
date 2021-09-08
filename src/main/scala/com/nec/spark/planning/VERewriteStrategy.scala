@@ -7,13 +7,16 @@ import com.nec.spark.agile.CExpressionEvaluation.{NameCleaner, RichListStr}
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   Attribute,
   AttributeReference,
   EqualTo,
+  IsNotNull,
   Literal,
   NamedExpression,
   SortOrder,
@@ -153,7 +156,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
 
-        case proj @ logical.Project(resultExpressions, logical.Filter(condition, child)) =>
+        case proj @ logical.Project(resultExpressions, logical.Filter(condition, child))
+            if (!condition.isInstanceOf[IsNotNull]) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           try List(
             CEvaluationPlan(
