@@ -88,6 +88,7 @@ object Aurora4SparkExecutorPlugin {
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+
     val resources = ctx.resources()
     Aurora4SparkExecutorPlugin.synchronized {
       Aurora4SparkExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)

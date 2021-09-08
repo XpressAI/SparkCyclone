@@ -28,10 +28,7 @@ object SampleTestData {
 
     root
       .resolve(
-        this
-          .getClass
-          .getPackage
-          .getName
+        this.getClass.getPackage.getName
           .replaceAllLiterally(".", "/")
       )
       .toAbsolutePath

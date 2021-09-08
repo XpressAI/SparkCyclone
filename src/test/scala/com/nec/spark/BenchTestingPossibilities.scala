@@ -174,9 +174,7 @@ object BenchTestingPossibilities {
                 sse.injectPlannerStrategy(sparkSession => NativeCsvStrategy(CNativeEvaluator))
             )
             .withExtensions(sse =>
-              sse.injectPlannerStrategy(sparkSession =>
-                VERewriteStrategy(CNativeEvaluator)
-              )
+              sse.injectPlannerStrategy(sparkSession => VERewriteStrategy(CNativeEvaluator))
             )
             .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)

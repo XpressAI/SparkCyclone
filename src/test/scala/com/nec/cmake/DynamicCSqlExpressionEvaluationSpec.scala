@@ -10,7 +10,8 @@ import com.nec.testing.SampleSource.{
   makeCsvNumsMultiColumn,
   makeCsvNumsMultiColumnJoin,
   SampleColA,
-  SampleColB
+  SampleColB,
+  SampleColC
 }
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 
@@ -28,9 +29,7 @@ object DynamicCSqlExpressionEvaluationSpec {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession =>
-          new VERewriteStrategy(CNativeEvaluator)
-        )
+        sse.injectPlannerStrategy(sparkSession => new VERewriteStrategy(CNativeEvaluator))
       )
   }
 
@@ -175,6 +174,33 @@ final class DynamicCSqlExpressionEvaluationSpec
         )
       )
     }
+  }
+
+  val multisort_sql =
+    s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
+  "Support group by sum with multiple grouping columns" in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+
+      import sparkSession.implicits._
+      //Results order here is different due to the fact that we sort the columns and seems that spark does not.
+      sparkSession.sql(multisort_sql).debugSqlHere { ds =>
+        ds.as[(Option[Double], Option[Double], Option[Double])]
+          .collect()
+          .toList should contain theSameElementsAs List(
+          (None, None, Some(8.0)),
+          (Some(4.0), Some(5.0), None),
+          (Some(52.0), Some(6.0), None),
+          (Some(4.0), None, Some(2.0)),
+          (Some(2.0), Some(3.0), Some(4.0)),
+          (None, Some(3.0), Some(1.0)),
+          (Some(2.0), None, Some(2.0)),
+          (Some(3.0), Some(4.0), Some(5.0)),
+          (Some(1.0), Some(2.0), Some(8.0)),
+          (Some(20.0), None, None),
+          (None, Some(5.0), Some(2.0))
+        )
+      }
   }
 
   val sql_mcio =

@@ -235,6 +235,11 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
         case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
             if GroupBySum.isLogicalGroupBySum(plan) =>
           List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
+        case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
+            if GroupBySum.isLogicalGroupBySumWithTwoColumns(plan) =>
+          List(
+            SimpleGroupBySumTwoColumnsPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased)
+          )
         case agg @ logical.Aggregate(
               groupingExpressions,
               outerResultExpressions,

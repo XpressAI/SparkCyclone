@@ -40,9 +40,7 @@ final case class WhereTesting(isVe: Boolean) extends Testing {
     else
       builder
         .withExtensions(sse =>
-          sse.injectPlannerStrategy(sparkSession =>
-            VERewriteStrategy(CNativeEvaluator)
-          )
+          sse.injectPlannerStrategy(sparkSession => VERewriteStrategy(CNativeEvaluator))
         )
         .config(sparkConf)
         .getOrCreate()

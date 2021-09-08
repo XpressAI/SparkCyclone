@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <tuple>
 
 extern "C" long group_by(nullable_double_vector* grouping_col,
                          nullable_double_vector* values_col,
@@ -139,6 +140,86 @@ extern "C" long group_by_sum(nullable_double_vector* grouping_col,
 
     values->data = values_data;
     values->count = groups_count - 1;
+
+    return 0;
+}
+
+extern "C" long group_by_sum2(nullable_double_vector* grouping_col,
+                              nullable_double_vector* grouping_col2,
+                              nullable_double_vector* values_col,
+                              nullable_double_vector* values,
+                              nullable_double_vector* groups,
+                              nullable_double_vector* groups2)
+{
+     std::vector<std::tuple<int, double, int, double>> grouping_vec_all_cols;
+     size_t count = grouping_col->count;
+
+     std::vector<size_t> idx(count);
+     #pragma _NEC ivdep
+     for(size_t i = 0; i < count; i++) {
+       idx[i] = i;
+       int validity_group = ((grouping_col->validityBuffer[i/8] >> i % 8) & 0x1);
+       int validity_group2 = ((grouping_col2->validityBuffer[i/8] >> i % 8) & 0x1);
+       double first_grouping_val = grouping_col->data[i];
+       double second_grouping_val = grouping_col2->data[i];
+       grouping_vec_all_cols.push_back(std::tuple<int, double, int, double>(validity_group, first_grouping_val, validity_group2, second_grouping_val));
+     }
+    frovedis::insertion_sort(grouping_vec_all_cols.data(), idx.data(), grouping_vec_all_cols.size());
+    std::vector<size_t> groups_indicies = frovedis::set_separate(grouping_vec_all_cols);
+    size_t groups_count = groups_indicies.size();
+
+    int sizes = groups_count-1;
+    int groupValidityBufferByteSize = ceil((sizes)/8.0);
+    double *values_data = (double *) malloc(sizes * sizeof(double));
+    double *groups_data = (double *) malloc(sizes * sizeof(double));
+    double *groups_data2 = (double *) malloc(sizes * sizeof(double));
+    unsigned char *groups_validity_buffer1 = (unsigned char *) malloc(groupValidityBufferByteSize * sizeof(unsigned char));
+    unsigned char *groups_validity_buffer2 = (unsigned char *) malloc(groupValidityBufferByteSize * sizeof(unsigned char));
+
+    #pragma _NEC ivdep
+    for (size_t i = 0; i < sizes; i++) {
+        int group_1 = std::get<1>(grouping_vec_all_cols[groups_indicies[i]]);
+        int group_2 = std::get<3>(grouping_vec_all_cols[groups_indicies[i]]);
+        int group_1_validity = std::get<0>(grouping_vec_all_cols[groups_indicies[i]]);
+        int group_2_validity = std::get<2>(grouping_vec_all_cols[groups_indicies[i]]);
+        groups_data[i] = group_1;
+        groups_data2[i] = group_2;
+        set_validity(groups_validity_buffer1, i, group_1_validity);
+        set_validity(groups_validity_buffer2, i, group_2_validity);
+    }
+
+    double *values_col_data = values_col->data;
+
+    int validityBufferByteSize = ceil((groups_count - 1)/8.0);
+    values->validityBuffer = (unsigned char *)malloc(validityBufferByteSize * sizeof(unsigned char));
+
+    for (size_t i = 0; i < sizes; i++) {
+        size_t start = groups_indicies[i];
+        size_t end = groups_indicies[i + 1];
+        double sum = 0;
+
+        int validityInt = 0;
+        #pragma _NEC ivdep
+        for (size_t j = start; j < end; j++) {
+            if((((values_col->validityBuffer[idx[j]/8])>> idx[j] % 8) & 0x1) == 1){
+                sum += values_col_data[idx[j]];
+                validityInt = 1;
+            }
+
+        }
+        values_data[i] = sum;
+        set_validity(values->validityBuffer, i, validityInt);
+
+    }
+
+    groups->data = groups_data;
+    groups->count =  sizes;
+    groups->validityBuffer = groups_validity_buffer1;
+    groups2->data = groups_data2;
+    groups2->count =  sizes;
+    groups2->validityBuffer = groups_validity_buffer2;
+    values->count = sizes;
+    values->data = values_data;
 
     return 0;
 }
