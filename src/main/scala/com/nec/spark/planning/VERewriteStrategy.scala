@@ -83,7 +83,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
-            CEvaluationPlan(
+            NewCEvaluationPlan(
               fName,
               child.output,
               NewCExpressionEvaluation.evaluate(fName, child.output, tgt, beginIndex, endIndex),
