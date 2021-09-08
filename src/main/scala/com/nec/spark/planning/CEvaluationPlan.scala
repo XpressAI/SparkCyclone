@@ -93,9 +93,7 @@ final case class CEvaluationPlan(
 
   protected def inputVectorsIds: Seq[Int] = child.output.indices
 
-  override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
-    AttributeReference(name = s"value_$idx", dataType = DoubleType, nullable = false)()
-  }
+  override def output: Seq[Attribute] = resultExpressions.map(_.toAttribute)
 
   override def outputPartitioning: Partitioning = SinglePartition
 
