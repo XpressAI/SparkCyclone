@@ -14,6 +14,7 @@ import org.apache.spark.internal.Logging
 
 import java.nio.file.Files
 import java.nio.file.Path
+import scala.util.Try
 
 object Aurora4SparkExecutorPlugin {
 
@@ -88,28 +89,25 @@ object Aurora4SparkExecutorPlugin {
 class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-
     val resources = ctx.resources()
     Aurora4SparkExecutorPlugin.synchronized {
       Aurora4SparkExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
     }
+
     logInfo(s"Executor has the following resources available => ${resources}")
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
-      logInfo(
-        s"Do not have a VE resource available. Will use '${DefaultVeNodeId}' as the main resource."
-      )
-      DefaultVeNodeId
+      val nodeId = Try(System.getenv("VE_NODE_NUMBER").toInt).getOrElse(DefaultVeNodeId)
+      logInfo(s"Do not have a VE resource available. Will use '${nodeId}' as the main resource.")
+      nodeId
     } else {
       val veResources = resources.get("ve")
-      if (veResources.addresses.size > 1) {
-        logError(
-          s"${veResources.addresses.size} VEs were assigned; only 1 can be supported at a time per executor."
-        )
-        sys.error(
-          s"We have ${veResources.addresses.size} VEs assigned; only 1 can be supported per executor."
-        )
+      val resourceCount = veResources.addresses.length
+      val executorNumber = Try(ctx.executorID().toInt - 1).getOrElse(0) // Executor IDs start at 1.
+      val veMultiple = executorNumber / 8
+      if (veMultiple > resourceCount) {
+        logWarning("Not enough VE resources allocated for number of executors specified.")
       }
-      veResources.addresses.head.toInt
+      veResources.addresses(veMultiple % resourceCount).toInt
     }
 
     logInfo(s"Using VE node = ${selectedVeNodeId}")
