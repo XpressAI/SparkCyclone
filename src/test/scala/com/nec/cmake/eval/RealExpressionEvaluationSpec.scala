@@ -6,7 +6,12 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalFilter, evalProject, evalSort}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
+  evalFilter,
+  evalGroupBySum,
+  evalProject,
+  evalSort
+}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration._
 import org.scalatest.freespec.AnyFreeSpec
@@ -49,13 +54,72 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can aggregate" in {}
+  "We can aggregate / group by" in {
+    expect(
+      evalGroupBySum(
+        List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+      )(
+        (
+          TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
+          TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        )
+      )(
+        (
+          TypedCExpression[Double](CExpression("group_0_data[i]", None)),
+          TypedCExpression[Double](CExpression("group_1_data[i]", None)),
+          TypedCExpression[Double](CExpression("aggregate_0->data[i]", None))
+        )
+      ) ==
+        List[(Double, Double, Double)]((1.0, 2.0, 7.0), (1.5, 1.2, 3.1))
+    )
+  }
 
   "We can join" in {}
 
 }
 
 object RealExpressionEvaluationSpec {
+
+  def evalGroupBySum[Input, Groups, Output](
+    input: List[Input]
+  )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit
+    inputArguments: InputArguments[Input],
+    projectExpression: ProjectExpression[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
+    val functionName = "project_f"
+
+    val generatedSource =
+      renderGroupBy(
+        VeGroupBy(
+          inputs = inputArguments.inputs,
+          groups = List(groups._1, groups._2),
+          outputs = projectExpression.outputs(expressions)
+        )
+      ).toCodeLines(functionName)
+
+    val cLib = CMakeBuilder.buildC(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
 
   def evalProject[Input, Output](input: List[Input])(expressions: Output)(implicit
     inputArguments: InputArguments[Input],
