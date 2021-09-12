@@ -14,7 +14,10 @@ import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
 }
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration._
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.freespec.AnyFreeSpec
+
+import scala.runtime.LazyLong
 
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
@@ -55,21 +58,22 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   }
 
   "We can aggregate / group by" in {
-    expect(
-      evalGroupBySum(
-        List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-      )(
-        (
-          TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-          TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
-        )
-      )(
-        (
-          TypedCExpression[Double](CExpression("group_0_data[i]", None)),
-          TypedCExpression[Double](CExpression("group_1_data[i]", None)),
-          TypedCExpression[Double](CExpression("aggregate_0->data[i]", None))
-        )
-      ) ==
+    val result = evalGroupBySum(
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(
+      (
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+      )
+    )(
+      (
+        TypedCExpression[Double](CExpression("input_0->data[sorted_idx[group_start_in_idx]]", None)),
+        TypedCExpression[Double](CExpression("input_1->data[sorted_idx[group_start_in_idx]]", None)),
+        TypedCExpression[Double](CExpression("aggregate", None))
+      )
+    )
+    assert(
+      result ==
         List[(Double, Double, Double)]((1.0, 2.0, 7.0), (1.5, 1.2, 3.1))
     )
   }
@@ -78,7 +82,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
 }
 
-object RealExpressionEvaluationSpec {
+object RealExpressionEvaluationSpec extends LazyLogging {
 
   def evalGroupBySum[Input, Groups, Output](
     input: List[Input]
@@ -98,7 +102,9 @@ object RealExpressionEvaluationSpec {
         )
       ).toCodeLines(functionName)
 
-    val cLib = CMakeBuilder.buildC(
+    logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+    val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )

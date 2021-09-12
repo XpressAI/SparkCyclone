@@ -78,7 +78,8 @@ object CFunctionGeneration {
           .mkString(",\n"),
         ") {",
         body.indented,
-        "return 0;",
+        "  ",
+        "  return 0;",
         "};"
       )
     }
@@ -237,94 +238,68 @@ object CFunctionGeneration {
           CVector(outputName, veType)
       },
       body = CodeLines.from(
+        "/** sorting section - before we can group we need to sort **/",
         s"std::vector<${tuple}> full_grouping_vec;",
-        s"std::vector<size_t> idx(input_0->count);",
-        "for ( long i = 0; i < input_0->count; i++ ) {",
-        s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups.map(_.cExpression.cCode).mkString(", ")}));",
-        s"}",
         s"std::vector<size_t> sorted_idx(input_0->count);",
-        "frovedis::insertion_sort(full_grouping_vec.data(), idx.data(), full_grouping_vec.size());",
+        "for ( long i = 0; i < input_0->count; i++ ) {",
+        CodeLines
+          .from(
+            "sorted_idx[i] = i;",
+            s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups.map(_.cExpression.cCode).mkString(", ")}));"
+          )
+          .indented,
+        s"}",
+        "frovedis::insertion_sort(full_grouping_vec.data(), sorted_idx.data(), full_grouping_vec.size());",
+        "/** compute each group's range **/",
         "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
         s"int groups_count = groups_indices.size() - 1;",
-        veDataTransformation.groups.zipWithIndex.map {
-          case (TypedCExpression2(veType, CExpression(cCode, isNotNullCode)), idx) =>
-            CodeLines.from(
-              s"${veType.cScalarType}* group_${idx}_data = (double *)malloc(groups_count * sizeof(double));"
-            )
-        },
+        "/** perform computations for every output **/",
         veDataTransformation.outputs.zipWithIndex.map {
-          case (NamedTypedCExpression(outputName, veType, _), idx) =>
+          case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
             CodeLines.from(
-              s"$outputName->count = input_0->count;",
+              "",
+              s"// Group #$idx for ${outputName}:",
+              s"$outputName->count = groups_count;",
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+              "// for each group",
+              "for (size_t g = 0; g < groups_count; g++) {",
+              CodeLines
+                .from(
+                  "// compute an aggregate",
+                  s"double aggregate = 0;",
+                  "size_t group_start_in_idx = groups_indices[g];",
+                  "size_t group_end_in_idx = groups_indices[g + 1];",
+                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                  CodeLines
+                    .from(
+                      "int i = sorted_idx[j];",
+                      s"aggregate += input_2->data[i];"
+                    )
+                    .indented,
+                  "}",
+                  "// store the result",
+                  cExpr.isNotNullCode match {
+                    case None =>
+                      CodeLines.from(
+                        s"""$outputName->data[g] = ${cExpr.cCode};""",
+                        s"set_validity($outputName->validityBuffer, g, 1);"
+                      )
+                    case Some(notNullCheck) =>
+                      CodeLines.from(
+                        s"if ( $notNullCheck ) {",
+                        s"""$outputName->data[g] = ${cExpr.cCode};""",
+                        s"set_validity($outputName->validityBuffer, g, 1);",
+                        "} else {",
+                        s"set_validity($outputName->validityBuffer, g, 0);",
+                        "}"
+                      )
+                  }
+                )
+                .indented,
+              "}"
             )
-        },
-        "double *aggregate_0 = (double*) malloc(groups_count * sizeof(double));",
-        "for ( long g = 0; g < groups_count->count; g++ ) {",
-        CodeLines
-          .from(
-            s"for ( size_t j = groups_indices[g]; j < groups_indices[g + 1]; j++ ) {",
-            s"  int i = idx[j];",
-            s"  aggregate_0[j] = 0;",
-            "  for (int i = group_indices[g]; i < group_indices[g + 1]; j++ ) { ",
-            "    aggregate_0[j] += input_0[i];"
-            veDataTransformation.outputs.zipWithIndex
-              .map { case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
-                cExpr.isNotNullCode match {
-                  case None =>
-                    CodeLines.from(
-                      s"""$outputName->data[i] = ${cExpr.cCode};""",
-                      s"set_validity($outputName->validityBuffer, i, 1);"
-                    )
-                  case Some(notNullCheck) =>
-                    CodeLines.from(
-                      s"if ( $notNullCheck ) {",
-                      s"""$outputName->data[i] = ${cExpr.cCode};""",
-                      s"set_validity($outputName->validityBuffer, i, 1);",
-                      "} else {",
-                      s"set_validity($outputName->validityBuffer, i, 0);",
-                      "}"
-                    )
-                }
-
-              }
-              .map(_.indented),
-            "}"
-          )
-          .indented,
-        "}",
-        "for ( long g = 0; g < groups_count->count; g++ ) {",
-        CodeLines
-          .from(
-            s"for ( size_t j = groups_indices[g]; j < groups_indices[g + 1]; j++ ) {",
-            s"  int i = idx[j];",
-            s"  double aggregate_0 = 0;",
-            veDataTransformation.outputs.zipWithIndex
-              .map { case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
-                cExpr.isNotNullCode match {
-                  case None =>
-                    CodeLines.from(
-                      s"""$outputName->data[i] = ${cExpr.cCode};""",
-                      s"set_validity($outputName->validityBuffer, i, 1);"
-                    )
-                  case Some(notNullCheck) =>
-                    CodeLines.from(
-                      s"if ( $notNullCheck ) {",
-                      s"""$outputName->data[i] = ${cExpr.cCode};""",
-                      s"set_validity($outputName->validityBuffer, i, 1);",
-                      "} else {",
-                      s"set_validity($outputName->validityBuffer, i, 0);",
-                      "}"
-                    )
-                }
-
-              }
-              .map(_.indented),
-            "}"
-          )
-          .indented,
-        "}"
+        }
       )
     )
   }
