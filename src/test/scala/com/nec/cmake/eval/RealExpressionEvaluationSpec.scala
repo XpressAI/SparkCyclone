@@ -12,13 +12,13 @@ import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
   evalProject,
   evalSort
 }
-import com.nec.cmake.eval.SparkToVeAggregatorSpec.fromDeclarativeAggregate
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
@@ -108,14 +108,16 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         ),
         TypedGroupByExpression[Double](
           GroupByAggregation(
-            fromDeclarativeAggregate(Sum(AttributeReference("input_0->data[i]", DoubleType)()))
+            DeclarativeAggregationConverter(
+              Sum(AttributeReference("input_0->data[i]", DoubleType)())
+            )
           )
         )
       )
     )
     assert(
       result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 7.0), (1.5, 2.2, 3.1))
+        List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.5))
     )
   }
 
