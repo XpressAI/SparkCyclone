@@ -6,7 +6,15 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
   VectorOutputNativeArgument
 }
 import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, NamedTypedCExpression, VeType}
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.{
+  CExpression,
+  CVector,
+  NamedGroupByExpression,
+  NamedTypedCExpression,
+  TypedGroupByExpression,
+  VeType
+}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 
@@ -181,6 +189,41 @@ object StaticTypingTestAdditions {
           )
         }
       }
+    implicit val forTripletDoubleGB: OutputArguments[
+      (
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Double]
+      )
+    ] =
+      new OutputArguments[
+        (
+          TypedGroupByExpression[Double],
+          TypedGroupByExpression[Double],
+          TypedGroupByExpression[Double]
+        )
+      ] {
+        override type Result = (Double, Double, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+          val outVector_2 = new Float8Vector("output_2", rootAllocator)
+
+          (
+            List(
+              NativeArgument.output(outVector_0),
+              NativeArgument.output(outVector_1),
+              NativeArgument.output(outVector_2)
+            ),
+            () =>
+              outVector_0.toList.zip(outVector_1.toList).zip(outVector_2.toList).map {
+                case ((a, b), c) => (a, b, c)
+              }
+          )
+        }
+      }
   }
 
   trait ProjectExpression[Output] {
@@ -216,4 +259,24 @@ object StaticTypingTestAdditions {
         )
   }
   final case class TypedCExpression[ScalaType](cExpression: CExpression)
+
+  trait GroupExpressor[Output] {
+    def express(output: Output): List[NamedGroupByExpression]
+  }
+
+  object GroupExpressor {
+    implicit val forTripletDouble: GroupExpressor[
+      (
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Double]
+      )
+    ] = output =>
+      List(
+        NamedGroupByExpression("output_0", VeType.veNullableDouble, output._1.groupByExpression),
+        NamedGroupByExpression("output_1", VeType.veNullableDouble, output._2.groupByExpression),
+        NamedGroupByExpression("output_2", VeType.veNullableDouble, output._3.groupByExpression)
+      )
+  }
+
 }

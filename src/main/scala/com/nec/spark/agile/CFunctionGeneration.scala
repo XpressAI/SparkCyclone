@@ -55,6 +55,51 @@ object CFunctionGeneration {
     outputs: List[Output]
   )
 
+  final case class TypedGroupByExpression[ScalaType](groupByExpression: GroupByExpression)
+
+  sealed trait GroupByExpression {
+    def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T
+  }
+  object GroupByExpression {
+    final case class GroupByProjection(cExpression: CExpression) extends GroupByExpression {
+      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenProj(
+        cExpression
+      )
+    }
+    final case class GroupByAggregation(aggregation: Aggregation) extends GroupByExpression {
+      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenAgg(
+        aggregation
+      )
+    }
+  }
+
+  final case class NamedGroupByExpression(
+    name: String,
+    veType: VeType,
+    groupByExpression: GroupByExpression
+  )
+
+  trait Aggregation extends Serializable {
+    def initial(prefix: String): CodeLines
+    def compute(prefix: String): CodeLines
+    def fetch(prefix: String): CExpression
+    def free(prefix: String): CodeLines
+  }
+  object Aggregation {
+    def sum(cExpression: CExpression): Aggregation = new Aggregation {
+      override def initial(prefix: String): CodeLines =
+        CodeLines.from(s"double ${prefix}_aggregate_sum = 0;")
+
+      override def compute(prefix: String): CodeLines =
+        CodeLines.from(s"${prefix}_aggregate_sum += ${cExpression.cCode};")
+
+      override def fetch(prefix: String): CExpression =
+        CExpression(s"${prefix}_aggregate_sum", None)
+
+      override def free(prefix: String): CodeLines = CodeLines.empty
+    }
+  }
+
   final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
@@ -227,14 +272,14 @@ object CFunctionGeneration {
   }
 
   def renderGroupBy(
-    veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedTypedCExpression]
+    veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedGroupByExpression]
   ): CFunction = {
     val tuple =
       s"std::tuple<${veDataTransformation.groups.map(_.veType.cScalarType).mkString(", ")}>";
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
-        case (NamedTypedCExpression(outputName, veType, _), idx) =>
+        case (NamedGroupByExpression(outputName, veType, _), idx) =>
           CVector(outputName, veType)
       },
       body = CodeLines.from(
@@ -255,7 +300,7 @@ object CFunctionGeneration {
         s"int groups_count = groups_indices.size() - 1;",
         "/** perform computations for every output **/",
         veDataTransformation.outputs.zipWithIndex.map {
-          case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
+          case (NamedGroupByExpression(outputName, veType, groupByExpr), idx) =>
             CodeLines.from(
               "",
               s"// Group #$idx for ${outputName}:",
@@ -268,32 +313,44 @@ object CFunctionGeneration {
               CodeLines
                 .from(
                   "// compute an aggregate",
+                  groupByExpr.fold(
+                    whenProj = _ => CodeLines.empty,
+                    whenAgg = agg => agg.initial(outputName)
+                  ),
                   s"double aggregate = 0;",
                   "size_t group_start_in_idx = groups_indices[g];",
                   "size_t group_end_in_idx = groups_indices[g + 1];",
                   "int i = 0;",
                   s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
                   CodeLines
-                    .from("i = sorted_idx[j];", s"aggregate += input_2->data[i];")
+                    .from(
+                      "i = sorted_idx[j];",
+                      groupByExpr
+                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.compute(outputName))
+                    )
                     .indented,
                   "}",
                   "// store the result",
-                  cExpr.isNotNullCode match {
-                    case None =>
-                      CodeLines.from(
-                        s"""$outputName->data[g] = ${cExpr.cCode};""",
-                        s"set_validity($outputName->validityBuffer, g, 1);"
-                      )
-                    case Some(notNullCheck) =>
-                      CodeLines.from(
-                        s"if ( $notNullCheck ) {",
-                        s"""$outputName->data[g] = ${cExpr.cCode};""",
-                        s"set_validity($outputName->validityBuffer, g, 1);",
-                        "} else {",
-                        s"set_validity($outputName->validityBuffer, g, 0);",
-                        "}"
-                      )
-                  }
+                  groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)) match {
+                    case ex =>
+                      ex.isNotNullCode match {
+                        case None =>
+                          CodeLines.from(
+                            s"""$outputName->data[g] = ${ex.cCode};""",
+                            s"set_validity($outputName->validityBuffer, g, 1);"
+                          )
+                        case Some(notNullCheck) =>
+                          CodeLines.from(
+                            s"if ( $notNullCheck ) {",
+                            s"""$outputName->data[g] = ${ex.cCode};""",
+                            s"set_validity($outputName->validityBuffer, g, 1);",
+                            "} else {",
+                            s"set_validity($outputName->validityBuffer, g, 0);",
+                            "}"
+                          )
+                      }
+                  },
+                  groupByExpr.fold(_ => CodeLines.empty, _.free(outputName))
                 )
                 .indented,
               "}"

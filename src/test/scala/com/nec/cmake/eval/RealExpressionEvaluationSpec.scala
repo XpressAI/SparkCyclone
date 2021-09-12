@@ -13,6 +13,10 @@ import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
   evalSort
 }
 import com.nec.cmake.eval.StaticTypingTestAdditions._
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.freespec.AnyFreeSpec
@@ -67,14 +71,16 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )(
       (
-        TypedCExpression[Double](CExpression("input_0->data[i]", None)),
-        TypedCExpression[Double](CExpression("input_1->data[i]", None)),
-        TypedCExpression[Double](CExpression("aggregate", None))
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_1->data[i] + 1", None))),
+        TypedGroupByExpression[Double](
+          GroupByAggregation(Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None)))
+        )
       )
     )
     assert(
       result ==
-        List[(Double, Double, Double)]((1.0, 2.0, 7.0), (1.5, 1.2, 3.1))
+        List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6))
     )
   }
 
@@ -88,7 +94,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     input: List[Input]
   )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit
     inputArguments: InputArguments[Input],
-    projectExpression: ProjectExpression[Output],
+    groupExpressor: GroupExpressor[Output],
     outputArguments: OutputArguments[Output]
   ): List[outputArguments.Result] = {
     val functionName = "project_f"
@@ -98,7 +104,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = List(groups._1, groups._2),
-          outputs = projectExpression.outputs(expressions)
+          outputs = groupExpressor.express(expressions)
         )
       ).toCodeLines(functionName)
 
