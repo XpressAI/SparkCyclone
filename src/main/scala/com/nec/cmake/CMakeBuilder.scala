@@ -10,6 +10,8 @@ import scala.sys.process._
 import com.nec.arrow.TransferDefinitions
 import com.nec.cmake.CMakeBuilder.Builder
 import com.nec.spark.agile.CppResource.CppResources
+import com.typesafe.scalalogging.LazyLogging
+import javassist.compiler.CompileError
 
 /**
  * Utilities to build C libraries using CMake
@@ -54,7 +56,7 @@ endif()
   }
 }
 
-object CMakeBuilder {
+object CMakeBuilder extends LazyLogging {
 
   def buildC(cSource: String): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
@@ -65,6 +67,15 @@ object CMakeBuilder {
     Files.createDirectories(targetDir)
 
     CMakeBuilder(targetDir).buildC(cSource)
+  }
+
+  def buildCLogging(cSource: String): Path = {
+    try buildC(cSource)
+    catch {
+      case e: Exception =>
+        logger.info(s"Could not compile code due to error: ${e}", e)
+        throw new CompileError("Could not compile code. Reported in the log.")
+    }
   }
 
   sealed trait Builder {
