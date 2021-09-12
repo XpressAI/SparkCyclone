@@ -81,22 +81,61 @@ object CFunctionGeneration {
 
   trait Aggregation extends Serializable {
     def initial(prefix: String): CodeLines
+    def iterate(prefix: String): CodeLines
     def compute(prefix: String): CodeLines
     def fetch(prefix: String): CExpression
     def free(prefix: String): CodeLines
   }
+
   object Aggregation {
     def sum(cExpression: CExpression): Aggregation = new Aggregation {
       override def initial(prefix: String): CodeLines =
-        CodeLines.from(s"double ${prefix}_aggregate_sum = 0;")
+        CodeLines.from(s"double ${prefix}_corr_aggregate_sum = 0;")
 
-      override def compute(prefix: String): CodeLines =
+      override def iterate(prefix: String): CodeLines =
         CodeLines.from(s"${prefix}_aggregate_sum += ${cExpression.cCode};")
 
       override def fetch(prefix: String): CExpression =
         CExpression(s"${prefix}_aggregate_sum", None)
 
       override def free(prefix: String): CodeLines = CodeLines.empty
+
+      override def compute(prefix: String): CodeLines = CodeLines.empty
+    }
+
+    def corr(x: CExpression, y: CExpression): Aggregation = new Aggregation {
+      override def initial(prefix: String): CodeLines =
+        CodeLines.from(
+          s"double ${prefix}_corr_count = 0;",
+          s"double ${prefix}_corr_x_sum = 0;",
+          s"double ${prefix}_corr_y_sum = 0;",
+          s"double ${prefix}_corr_xy_sum = 0;",
+          s"double ${prefix}_corr_x_square_sum = 0;",
+          s"double ${prefix}_corr_y_square_sum = 0;"
+        )
+
+      override def iterate(prefix: String): CodeLines =
+        CodeLines.from(
+          s"${prefix}_corr_count += 1;",
+          s"${prefix}_corr_x_sum += ${x.cCode};",
+          s"${prefix}_corr_y_sum += ${y.cCode};",
+          s"${prefix}_corr_xy_sum += ${x.cCode} * ${y.cCode};",
+          s"${prefix}_corr_x_square_sum += ${x.cCode} * ${x.cCode};",
+          s"${prefix}_corr_y_square_sum +=  ${y.cCode} * ${y.cCode};"
+        )
+
+      override def fetch(prefix: String): CExpression =
+        CExpression(
+          s"(${prefix}_corr_count * ${prefix}_corr_xy_sum - ${prefix}_corr_x_sum * ${prefix}_corr_y_sum) / " +
+            s"sqrt(" +
+            s"(${prefix}_corr_count * ${prefix}_corr_x_square_sum - ${prefix}_corr_x_sum * ${prefix}_corr_x_sum) * " +
+            s"(${prefix}_corr_count * ${prefix}_corr_y_square_sum - ${prefix}_corr_y_sum * ${prefix}_corr_y_sum));",
+          None
+        )
+
+      override def free(prefix: String): CodeLines = CodeLines.empty
+
+      override def compute(prefix: String): CodeLines = CodeLines.empty
     }
   }
 
@@ -326,10 +365,11 @@ object CFunctionGeneration {
                     .from(
                       "i = sorted_idx[j];",
                       groupByExpr
-                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.compute(outputName))
+                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName))
                     )
                     .indented,
                   "}",
+                  groupByExpr.fold(_ => CodeLines.empty, whenAgg = _.compute(outputName)),
                   "// store the result",
                   groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)) match {
                     case ex =>

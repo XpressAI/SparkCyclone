@@ -72,15 +72,47 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       (
         TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_1->data[i] + 1", None))),
         TypedGroupByExpression[Double](
-          GroupByAggregation(Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None)))
+          GroupByProjection(CExpression("input_1->data[i] + 1", None))
+        ),
+        TypedGroupByExpression[Double](
+          GroupByAggregation(
+            Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+          )
         )
       )
     )
     assert(
       result ==
         List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6))
+    )
+  }
+
+  "We can aggregate / group by (correlation)" in {
+    val result = evalGroupBySum(
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(
+      (
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+      )
+    )(
+      (
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
+        TypedGroupByExpression[Double](
+          GroupByProjection(CExpression("input_1->data[i] + 1", None))
+        ),
+        TypedGroupByExpression[Double](
+          GroupByAggregation(
+            Aggregation
+              .corr(CExpression("input_2->data[i]", None), CExpression("input_2->data[i]", None))
+          )
+        )
+      )
+    )
+    assert(
+      result ==
+        List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, Double.NaN))
     )
   }
 
