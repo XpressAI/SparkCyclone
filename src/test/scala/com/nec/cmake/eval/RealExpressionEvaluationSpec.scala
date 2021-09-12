@@ -12,6 +12,7 @@ import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
   evalProject,
   evalSort
 }
+import com.nec.cmake.eval.SparkToVeAggregatorSpec.fromDeclarativeAggregate
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
@@ -19,6 +20,9 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 }
 import com.nec.spark.agile.CFunctionGeneration._
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
 import scala.runtime.LazyLong
@@ -85,6 +89,33 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     assert(
       result ==
         List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6))
+    )
+  }
+
+  "We can sum using DeclarativeAggregate" in {
+    val result = evalGroupBySum(
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(
+      (
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+      )
+    )(
+      (
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
+        TypedGroupByExpression[Double](
+          GroupByProjection(CExpression("input_1->data[i] + 1", None))
+        ),
+        TypedGroupByExpression[Double](
+          GroupByAggregation(
+            fromDeclarativeAggregate(Sum(AttributeReference("input_0->data[i]", DoubleType)()))
+          )
+        )
+      )
+    )
+    assert(
+      result ==
+        List[(Double, Double, Double)]((1.0, 3.0, 7.0), (1.5, 2.2, 3.1))
     )
   }
 

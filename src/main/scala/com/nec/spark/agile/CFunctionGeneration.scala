@@ -90,7 +90,7 @@ object CFunctionGeneration {
   object Aggregation {
     def sum(cExpression: CExpression): Aggregation = new Aggregation {
       override def initial(prefix: String): CodeLines =
-        CodeLines.from(s"double ${prefix}_corr_aggregate_sum = 0;")
+        CodeLines.from(s"double ${prefix}_aggregate_sum = 0;")
 
       override def iterate(prefix: String): CodeLines =
         CodeLines.from(s"${prefix}_aggregate_sum += ${cExpression.cCode};")
