@@ -90,7 +90,12 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can aggregate / group by (correlation)" in {
     val result = evalGroupBySum(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+      List[(Double, Double, Double)](
+        (1.0, 2.0, 3.0),
+        (1.5, 1.2, 3.1),
+        (1.0, 2.0, 4.0),
+        (1.5, 1.2, 4.1)
+      )
     )(
       (
         TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
@@ -112,7 +117,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
     assert(
       result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, Double.NaN))
+        List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
     )
   }
 
