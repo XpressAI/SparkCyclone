@@ -67,8 +67,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )(
       (
-        TypedCExpression[Double](CExpression("input_0->data[sorted_idx[group_start_in_idx]]", None)),
-        TypedCExpression[Double](CExpression("input_1->data[sorted_idx[group_start_in_idx]]", None)),
+        TypedCExpression[Double](CExpression("input_0->data[i]", None)),
+        TypedCExpression[Double](CExpression("input_1->data[i]", None)),
         TypedCExpression[Double](CExpression("aggregate", None))
       )
     )

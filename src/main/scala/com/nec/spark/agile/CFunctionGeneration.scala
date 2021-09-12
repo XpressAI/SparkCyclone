@@ -262,6 +262,7 @@ object CFunctionGeneration {
               s"$outputName->count = groups_count;",
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
               s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+              "",
               "// for each group",
               "for (size_t g = 0; g < groups_count; g++) {",
               CodeLines
@@ -270,12 +271,10 @@ object CFunctionGeneration {
                   s"double aggregate = 0;",
                   "size_t group_start_in_idx = groups_indices[g];",
                   "size_t group_end_in_idx = groups_indices[g + 1];",
+                  "int i = 0;",
                   s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
                   CodeLines
-                    .from(
-                      "int i = sorted_idx[j];",
-                      s"aggregate += input_2->data[i];"
-                    )
+                    .from("i = sorted_idx[j];", s"aggregate += input_2->data[i];")
                     .indented,
                   "}",
                   "// store the result",
