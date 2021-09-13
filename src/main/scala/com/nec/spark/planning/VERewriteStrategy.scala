@@ -10,7 +10,16 @@ import com.typesafe.scalalogging.LazyLogging
 
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
+import org.apache.spark.sql.catalyst.expressions.{Alias,
+  Attribute,
+  AttributeReference,
+  EqualTo,
+  IsNotNull,
+  Literal,
+  NamedExpression,
+  SortOrder,
+  Substring
+}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.execution.SparkPlan
@@ -71,7 +80,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
-            CEvaluationPlan(
+            NewCEvaluationPlan(
               fName,
               child.output,
               NewCExpressionEvaluation.evaluate(fName, child.output, tgt, beginIndex, endIndex),

@@ -7,10 +7,11 @@ import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
   SampleColA,
-  SampleColB
+  SampleColB,
+  SampleColC,
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin
 }
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 
