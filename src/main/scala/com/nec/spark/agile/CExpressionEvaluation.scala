@@ -4,8 +4,11 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
-
 import scala.language.implicitConversions
+
+import com.nec.spark.agile.CExpressionEvaluation.{evaluateExpression, evaluateSub}
+
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 
 object CExpressionEvaluation {
   def cType(d: DataType): String = {
@@ -311,6 +314,170 @@ object CExpressionEvaluation {
     )
   }.flatten.codeLines
 
+  def cGenJoinOuter(
+                fName: String,
+                inputs: Seq[Attribute],
+                joinType: JoinType,
+                resultExpressions: Seq[Attribute],
+                leftExprIds: Set[ExprId],
+                rightExprIds: Set[ExprId],
+                leftKeyExpr: Expression,
+                rightKeyExpr: Expression
+              )(implicit nameCleaner: NameCleaner): CodeLines = {
+    val inputBits = inputs.zipWithIndex
+      .map { case (i, idx) =>
+        i.dataType match {
+          case DoubleType =>
+            s"nullable_double_vector* input_${idx}"
+          case IntegerType =>
+            s"nullable_int_vector* input_${idx}"
+          case LongType =>
+            s"nullable_bigint_vector* input_${idx}"
+          //          case StringType =>
+          //            s"nullable_varchar_vector* input_${idx}" //TODO: Add proper Varchar output and possibly varchar Join column
+          case x =>
+            sys.error(s"Invalid input dataType $x")
+        }
+      }
+
+    val outputBits = resultExpressions.zipWithIndex.map { case (i, idx) =>
+      i.dataType match {
+        case DoubleType =>
+          s"nullable_double_vector* output_${idx}"
+        case IntegerType =>
+          s"nullable_int_vector* output_${idx}"
+        case LongType =>
+          s"nullable_bigint_vector* output_${idx}"
+        //            case StringType =>
+        //              s"nullable_varchar_vector* output_${idx}" //TODO: Add proper Varchar output and possibly varchar Join column
+        case x =>
+          sys.error(s"Invalid output dataType $x")
+      }
+    }
+
+    val arguments = inputBits ++ outputBits
+    List[List[String]](
+      List(
+        "#include \"frovedis/dataframe/join.hpp\"",
+        "#include \"tuple_hash.hpp\"",
+        "#include <cmath>",
+        "#include <bitset>",
+        "#include <tuple>",
+        "#include \"frovedis/dataframe/join.cc\"",
+        s"""extern "C" long ${fName}(${arguments.mkString(", ")})""",
+        "{"
+      ),
+      List(
+        s"std::vector <std::tuple<${cType(leftKeyExpr.dataType)}, int>> left_vec;",
+        "std::vector<size_t> left_idx;",
+        s"std::vector <std::tuple<${cType(rightKeyExpr.dataType)}, int>> right_vec;",
+        "std::vector<size_t> right_idx;",
+        "#pragma _NEC ivdep",
+        s"for(int i = 0; i < ${getColumnCount(leftKeyExpr, inputs)}; i++) { ",
+        s"if(${genNullCheck(inputs, leftKeyExpr)}) {",
+        s"left_vec.push_back(std::tuple<${cType(leftKeyExpr.dataType)}, int>(${evaluateExpression(inputs, leftKeyExpr)}, 1));",
+        "} else {",
+        s"left_vec.push_back(std::tuple<${cType(leftKeyExpr.dataType)}, int>(${evaluateExpression(inputs, leftKeyExpr)}, 0));",
+        "}",
+        "left_idx.push_back(i);",
+        "}",
+        "#pragma _NEC ivdep",
+        s"for(int i = 0; i < ${getColumnCount(rightKeyExpr, inputs)}; i++) { ",
+        s"if(${genNullCheck(inputs, rightKeyExpr)}) {",
+        s"right_vec.push_back(std::tuple<${cType(rightKeyExpr.dataType)}, int>(${evaluateExpression(inputs, rightKeyExpr)}, 1));",
+        "} else {",
+        s"right_vec.push_back(std::tuple<${cType(rightKeyExpr.dataType)}, int>(${evaluateExpression(inputs, rightKeyExpr)}, 0));",
+        "}",
+        "right_idx.push_back(i);",
+        "}"
+      ),
+      List(
+        "std::vector<size_t> right_out;",
+        "std::vector<size_t> left_out;"
+      ),
+      joinType match {
+        case LeftOuter =>
+          List(
+            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${cType(leftKeyExpr.dataType)}, int>>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
+          )
+        case RightOuter =>
+          List(
+            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${cType(leftKeyExpr.dataType)}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);",
+          )
+        case _ => sys.error("Only LEFT and RIGHT OUTER joins are currently supported!")
+      },
+      List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 8.0);"),
+      resultExpressions.zipWithIndex.flatMap {
+        case (re, idx) => {
+          List(
+            s"output_${idx}->data=(${cTypeOfSub(inputs, re)} *) malloc((left_out.size() + outer_idx.size()) * sizeof(${cTypeOfSub(inputs, re)}));",
+            s"output_${idx}->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));",
+            s"std::bitset<8> validity_bitset_${idx};",
+            s"int j_${idx} = 0;"
+          )
+        }
+      }.toList,
+      List("#pragma _NEC ivdep", "for (int i = 0; i < left_out.size(); i++) {"),
+      resultExpressions.zipWithIndex.flatMap {
+        case (re, idx) => {
+          List(
+            s"if(${genNullCheckJoin(inputs, re, leftExprIds, rightExprIds)}) {",
+            s"validity_bitset_${idx}.set(i%8, true);",
+            s"output_${idx}->data[i] = ${evaluateExpressionJoin(inputs, re, leftExprIds, rightExprIds)};",
+            "} else {",
+            s"validity_bitset_${idx}.set(i%8, false);",
+            "}",
+            "if(i % 8 == 7) { ",
+            s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
+            s"j_${idx} += 1;",
+            s"validity_bitset_${idx}.reset(); }"
+          )
+        }
+
+      }.toList,
+      List("}"),
+      List("#pragma _NEC ivdep", "for (int i = left_out.size(); i < (left_out.size() + outer_idx.size()); i++) {",
+      "int idx = i - left_out.size();"
+      ),
+      resultExpressions.zipWithIndex.flatMap {
+        case (re, idx) => {
+          List(
+            s"if(${genNullCheckJoinOuter(inputs, joinType, re, leftExprIds, rightExprIds)}) {",
+            s"validity_bitset_${idx}.set(i%8, true);",
+            s"output_${idx}->data[i] = ${evaluateExpressionJoinOuter(inputs, re, leftExprIds, rightExprIds)};",
+            "} else {",
+            s"validity_bitset_${idx}.set(i%8, false);",
+            "}",
+            "if(i % 8 == 7 || i == (left_out.size() + outer_idx.size() - 1)) { ",
+            s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
+            s"j_${idx} += 1;",
+            s"validity_bitset_${idx}.reset(); }"
+          )
+        }
+
+      }.toList,
+      List("}"),
+      resultExpressions.zipWithIndex.flatMap { case (re, idx) =>
+        List(s"output_${idx}->count = left_out.size() + outer_idx.size();")
+      }.toList,
+      List("return 0;", "}")
+    )
+  }.flatten.codeLines
+
+  def getColumnCount(expr: Expression, input: Seq[Attribute]): String = {
+    expr match {
+      case NormalizeNaNAndZero(child)          => getColumnCount(child, input)
+      case KnownFloatingPointNormalized(child) => getColumnCount(child, input)
+      case alias @ Alias(expr, name)           => getColumnCount(alias.child, input)
+      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
+        input.indexWhere(_.exprId == expr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for '${expr}' from set of: ${input}")
+          case idx => s"input_${idx}->count"
+        }
+    }
+  }
+
   def cGenSort(fName: String, inputs: Seq[Attribute], sortingColumn: AttributeReference)(implicit
     nameCleaner: NameCleaner
   ): CodeLines = {
@@ -458,16 +625,54 @@ object CExpressionEvaluation {
     }
   }
 
+  def evaluateExpressionJoinOuter(
+                              input: Seq[Attribute],
+                              expression: Expression,
+                              leftExprIds: Set[ExprId],
+                              rightExprIds: Set[ExprId]
+                            ): String = {
+    expression match {
+      case alias @ Alias(expr, name) =>
+        evaluateSubJoinOuter(input, alias.child, leftExprIds, rightExprIds)
+      case attr @ AttributeReference(name, typeName, _, _) =>
+        (input.indexWhere(_.exprId == attr.exprId), typeName) match {
+          case (-1, typeName) =>
+            sys.error(
+              s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
+            )
+          case (idx, (DoubleType | IntegerType | LongType))
+            if (leftExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[outer_idx[idx]]"
+          case (idx, (DoubleType | IntegerType | LongType))
+            if (rightExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[outer_idx[idx]]"
+
+          case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
+        }
+      case expr @ NamedExpression(name, DoubleType | IntegerType | LongType) =>
+        input.indexWhere(_.exprId == expr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
+          case idx if (leftExprIds.contains(expr.exprId))  => s"input_${idx}->data[left_out[idx]]"
+          case idx if (rightExprIds.contains(expr.exprId)) => s"input_${idx}->data[right_out[idx]]"
+
+        }
+    }
+  }
+
   def genNullCheck(inputs: Seq[Attribute], expression: Expression): String = {
 
     expression match {
-      case AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.name == name) match {
+      case attr @ AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.exprId == attr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
           case idx =>
             s"((input_${idx}->validityBuffer[i/8] >> i % 8) & 0x1) == 1"
         }
+      case NormalizeNaNAndZero(child) => genNullCheck(inputs, child)
+
+      case KnownFloatingPointNormalized(child) => genNullCheck(inputs, child)
       case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
       case DateSub(startDate, days) =>
         s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
@@ -553,6 +758,50 @@ object CExpressionEvaluation {
           s"&& ${genNullCheckJoin(inputs, right, leftExprIds, rightExprIds)}"
       case Abs(v) =>
         s"${genNullCheckJoin(inputs, v, leftExprIds, rightExprIds)}"
+      case Literal(v, DoubleType | IntegerType) =>
+        "true"
+    }
+  }
+
+  def genNullCheckJoinOuter(
+                        inputs: Seq[Attribute],
+                        joinType: JoinType,
+                        expression: Expression,
+                        leftExprIds: Set[ExprId],
+                        rightExprIds: Set[ExprId]
+                      ): String = {
+    val outerJoinIds = joinType match {
+      case RightOuter => rightExprIds
+      case LeftOuter => leftExprIds
+      case _ => sys.error("Only LEFT JOIN and RIGHT JOIN are currently supported.")
+    }
+
+    expression match {
+      case attr @ AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.exprId == attr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx if (outerJoinIds.contains(attr.exprId)) =>
+            s"((input_${idx}->validityBuffer[outer_idx[idx]/8] >> outer_idx[idx] % 8) & 0x1) == 1"
+          case _ =>
+            s"false"  //We are using only left since this is outer join
+        }
+      case alias @ Alias(expr, name) =>
+        genNullCheckJoinOuter(inputs, joinType, alias.child, leftExprIds, rightExprIds)
+      case Subtract(left, right, _) =>
+        s"${genNullCheckJoinOuter(inputs, joinType, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoinOuter(inputs, joinType, right, leftExprIds, rightExprIds)}"
+      case Multiply(left, right, _) =>
+        s"${genNullCheckJoinOuter(inputs, joinType, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoinOuter(inputs, joinType, right, leftExprIds, rightExprIds)}"
+      case Add(left, right, _) =>
+        s"${genNullCheckJoinOuter(inputs, joinType, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoinOuter(inputs, joinType, right, leftExprIds, rightExprIds)}"
+      case Divide(left, right, _) =>
+        s"${genNullCheckJoinOuter(inputs, joinType, left, leftExprIds, rightExprIds)} " +
+          s"&& ${genNullCheckJoinOuter(inputs, joinType, right, leftExprIds, rightExprIds)}"
+      case Abs(v) =>
+        s"${genNullCheckJoinOuter(inputs, joinType, v, leftExprIds, rightExprIds)}"
       case Literal(v, DoubleType | IntegerType) =>
         "true"
     }
@@ -647,6 +896,38 @@ object CExpressionEvaluation {
         s"${evaluateSubJoin(inputs, left, leftExprIds, rightExprIds)} / ${evaluateSubJoin(inputs, right, leftExprIds, rightExprIds)}"
       case Abs(v) =>
         s"abs(${evaluateSubJoin(inputs, v, leftExprIds, rightExprIds)})"
+      case Literal(v, DoubleType | IntegerType) =>
+        s"$v"
+    }
+  }
+
+  def evaluateSubJoinOuter(
+                       inputs: Seq[Attribute],
+                       expression: Expression,
+                       leftExprIds: Set[ExprId],
+                       rightExprIds: Set[ExprId]
+                     ): String = {
+
+    expression match {
+      case attr @ AttributeReference(name, _, _, _) =>
+        inputs.indexWhere(_.exprId == attr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
+          case idx if (leftExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[outer_idx[idx]]"
+          case idx if (rightExprIds.contains(attr.exprId)) =>
+            s"input_${idx}->data[outer_idx[idx]]"
+        }
+      case Subtract(left, right, _) =>
+        s"${evaluateSubJoinOuter(inputs, left, leftExprIds, rightExprIds)} - ${evaluateSubJoinOuter(inputs, right, leftExprIds, rightExprIds)}"
+      case Multiply(left, right, _) =>
+        s"${evaluateSubJoinOuter(inputs, left, leftExprIds, rightExprIds)} * ${evaluateSubJoinOuter(inputs, right, leftExprIds, rightExprIds)}"
+      case Add(left, right, _) =>
+        s"${evaluateSubJoinOuter(inputs, left, leftExprIds, rightExprIds)} + ${evaluateSubJoinOuter(inputs, right, leftExprIds, rightExprIds)}"
+      case Divide(left, right, _) =>
+        s"${evaluateSubJoinOuter(inputs, left, leftExprIds, rightExprIds)} / ${evaluateSubJoinOuter(inputs, right, leftExprIds, rightExprIds)}"
+      case Abs(v) =>
+        s"abs(${evaluateSubJoinOuter(inputs, v, leftExprIds, rightExprIds)})"
       case Literal(v, DoubleType | IntegerType) =>
         s"$v"
     }

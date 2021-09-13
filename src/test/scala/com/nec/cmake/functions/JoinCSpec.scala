@@ -51,7 +51,7 @@ final class JoinCSpec extends AnyFreeSpec {
                 .toList
                 .splitAt(outVector.getValueCount / 2)
               val joinResult = res._1.zip(res._2)
-              (joinResult, joinJVM(firstColumnVec, secondColumnVec, firstKeysVec, secondKeysVec))
+             assert(joinResult==joinJVM(firstColumnVec, secondColumnVec, firstKeysVec, secondKeysVec))
             }
           }
         }

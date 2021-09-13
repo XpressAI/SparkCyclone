@@ -11,19 +11,9 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  EqualTo,
-  IsNotNull,
-  Literal,
-  NamedExpression,
-  SortOrder,
-  Substring
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.plans.{logical, Inner}
+import org.apache.spark.sql.catalyst.plans.{Inner, LeftOuter, RightOuter, logical}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
@@ -83,7 +73,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             ) =>
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
-            NewCEvaluationPlan(
+            CEvaluationPlan(
               fName,
               child.output,
               NewCExpressionEvaluation.evaluate(fName, child.output, tgt, beginIndex, endIndex),
@@ -99,8 +89,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               Some(EqualTo(leftKeyExpr, rightKeyExpr)),
               hint
             ) => {
-          val leftExprIds = left.inputSet.map(_.exprId).toSet
-          val rightExprIds = right.inputSet.map(_.exprId).toSet
+          val leftExprIds = left.output.map(_.exprId).toSet
+          val rightExprIds = right.output.map(_.exprId).toSet
 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
 
@@ -115,8 +105,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 leftExprIds,
                 rightExprIds,
                 leftKeyExpr,
-                rightKeyExpr
-              ),
+                rightKeyExpr),
               nativeEvaluator,
               join.inputSet.toSeq,
               join.output,
@@ -126,6 +115,48 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
 
         }
 
+        case join @ logical.Join(
+        left,
+        right,
+        outerJoin,
+        Some(EqualTo(leftKeyExpr, rightKeyExpr)),
+        hint
+        ) => {
+          val leftExprIds = left.output.map(_.exprId).toSet
+          val rightExprIds = right.output.map(_.exprId).toSet
+
+          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
+          val c = CExpressionEvaluation.cGenJoinOuter(
+            fName,
+            join.inputSet.toSeq,
+            outerJoin,
+            join.output,
+            leftExprIds,
+            rightExprIds,
+            leftKeyExpr,
+            rightKeyExpr)
+          println(c)
+          List(
+            GeneratedJoinPlan(
+              planLater(left),
+              planLater(right),
+              CExpressionEvaluation.cGenJoinOuter(
+                fName,
+                join.inputSet.toSeq,
+                outerJoin,
+                join.output,
+                leftExprIds,
+                rightExprIds,
+                leftKeyExpr,
+                rightKeyExpr),
+              nativeEvaluator,
+              join.inputSet.toSeq,
+              join.output,
+              fName
+            )
+          )
+
+        }
         case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
               /** If it's just a rename, don't send to VE * */
               case a: Alias if a.child.isInstanceOf[Attribute] => true
