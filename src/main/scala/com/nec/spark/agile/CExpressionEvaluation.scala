@@ -6,8 +6,6 @@ import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import scala.language.implicitConversions
 
-import com.nec.spark.agile.CExpressionEvaluation.{evaluateExpression, evaluateSub}
-
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 
 object CExpressionEvaluation {

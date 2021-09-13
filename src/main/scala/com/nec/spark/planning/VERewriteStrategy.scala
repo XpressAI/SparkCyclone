@@ -8,23 +8,11 @@ import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 import com.typesafe.scalalogging.LazyLogging
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  EqualTo,
-  IsNotNull,
-  Literal,
-  NamedExpression,
-  SortOrder,
-  Substring
-}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.plans.{logical, Inner, LeftOuter, RightOuter}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
 
