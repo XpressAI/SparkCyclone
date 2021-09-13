@@ -315,15 +315,15 @@ object CExpressionEvaluation {
   }.flatten.codeLines
 
   def cGenJoinOuter(
-                fName: String,
-                inputs: Seq[Attribute],
-                joinType: JoinType,
-                resultExpressions: Seq[Attribute],
-                leftExprIds: Set[ExprId],
-                rightExprIds: Set[ExprId],
-                leftKeyExpr: Expression,
-                rightKeyExpr: Expression
-              )(implicit nameCleaner: NameCleaner): CodeLines = {
+    fName: String,
+    inputs: Seq[Attribute],
+    joinType: JoinType,
+    resultExpressions: Seq[Attribute],
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId],
+    leftKeyExpr: Expression,
+    rightKeyExpr: Expression
+  )(implicit nameCleaner: NameCleaner): CodeLines = {
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
         i.dataType match {
@@ -391,18 +391,15 @@ object CExpressionEvaluation {
         "right_idx.push_back(i);",
         "}"
       ),
-      List(
-        "std::vector<size_t> right_out;",
-        "std::vector<size_t> left_out;"
-      ),
+      List("std::vector<size_t> right_out;", "std::vector<size_t> left_out;"),
       joinType match {
         case LeftOuter =>
           List(
-            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${cType(leftKeyExpr.dataType)}, int>>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
+            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${cType(leftKeyExpr.dataType)}, int>>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);"
           )
         case RightOuter =>
           List(
-            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${cType(leftKeyExpr.dataType)}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);",
+            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${cType(leftKeyExpr.dataType)}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);"
           )
         case _ => sys.error("Only LEFT and RIGHT OUTER joins are currently supported!")
       },
@@ -436,8 +433,10 @@ object CExpressionEvaluation {
 
       }.toList,
       List("}"),
-      List("#pragma _NEC ivdep", "for (int i = left_out.size(); i < (left_out.size() + outer_idx.size()); i++) {",
-      "int idx = i - left_out.size();"
+      List(
+        "#pragma _NEC ivdep",
+        "for (int i = left_out.size(); i < (left_out.size() + outer_idx.size()); i++) {",
+        "int idx = i - left_out.size();"
       ),
       resultExpressions.zipWithIndex.flatMap {
         case (re, idx) => {
@@ -626,11 +625,11 @@ object CExpressionEvaluation {
   }
 
   def evaluateExpressionJoinOuter(
-                              input: Seq[Attribute],
-                              expression: Expression,
-                              leftExprIds: Set[ExprId],
-                              rightExprIds: Set[ExprId]
-                            ): String = {
+    input: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
     expression match {
       case alias @ Alias(expr, name) =>
         evaluateSubJoinOuter(input, alias.child, leftExprIds, rightExprIds)
@@ -641,10 +640,10 @@ object CExpressionEvaluation {
               s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
             )
           case (idx, (DoubleType | IntegerType | LongType))
-            if (leftExprIds.contains(attr.exprId)) =>
+              if (leftExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[outer_idx[idx]]"
           case (idx, (DoubleType | IntegerType | LongType))
-            if (rightExprIds.contains(attr.exprId)) =>
+              if (rightExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[outer_idx[idx]]"
 
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
@@ -673,7 +672,7 @@ object CExpressionEvaluation {
       case NormalizeNaNAndZero(child) => genNullCheck(inputs, child)
 
       case KnownFloatingPointNormalized(child) => genNullCheck(inputs, child)
-      case alias @ Alias(expr, name) => genNullCheck(inputs, alias.child)
+      case alias @ Alias(expr, name)           => genNullCheck(inputs, alias.child)
       case DateSub(startDate, days) =>
         s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
       case DateAdd(startDate, days) =>
@@ -764,16 +763,16 @@ object CExpressionEvaluation {
   }
 
   def genNullCheckJoinOuter(
-                        inputs: Seq[Attribute],
-                        joinType: JoinType,
-                        expression: Expression,
-                        leftExprIds: Set[ExprId],
-                        rightExprIds: Set[ExprId]
-                      ): String = {
+    inputs: Seq[Attribute],
+    joinType: JoinType,
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
     val outerJoinIds = joinType match {
       case RightOuter => rightExprIds
-      case LeftOuter => leftExprIds
-      case _ => sys.error("Only LEFT JOIN and RIGHT JOIN are currently supported.")
+      case LeftOuter  => leftExprIds
+      case _          => sys.error("Only LEFT JOIN and RIGHT JOIN are currently supported.")
     }
 
     expression match {
@@ -784,7 +783,7 @@ object CExpressionEvaluation {
           case idx if (outerJoinIds.contains(attr.exprId)) =>
             s"((input_${idx}->validityBuffer[outer_idx[idx]/8] >> outer_idx[idx] % 8) & 0x1) == 1"
           case _ =>
-            s"false"  //We are using only left since this is outer join
+            s"false" //We are using only left since this is outer join
         }
       case alias @ Alias(expr, name) =>
         genNullCheckJoinOuter(inputs, joinType, alias.child, leftExprIds, rightExprIds)
@@ -902,11 +901,11 @@ object CExpressionEvaluation {
   }
 
   def evaluateSubJoinOuter(
-                       inputs: Seq[Attribute],
-                       expression: Expression,
-                       leftExprIds: Set[ExprId],
-                       rightExprIds: Set[ExprId]
-                     ): String = {
+    inputs: Seq[Attribute],
+    expression: Expression,
+    leftExprIds: Set[ExprId],
+    rightExprIds: Set[ExprId]
+  ): String = {
 
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>

@@ -269,7 +269,21 @@ final class DynamicVeSqlExpressionEvaluationSpec
     sparkSession.sql(sql_join_outer_left).debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double])]
         .collect()
-        .toList should contain theSameElementsAs List((Some(2.0),None), (Some(52.0),None), (Some(4.0),None), (None,None), (Some(2.0),None), (Some(1.0),None), (Some(4.0),None), (None,None), (None,None), (Some(2.0),None), (Some(3.0),None), (None,None), (Some(20.0),None))
+        .toList should contain theSameElementsAs List(
+        (Some(2.0), None),
+        (Some(52.0), None),
+        (Some(4.0), None),
+        (None, None),
+        (Some(2.0), None),
+        (Some(1.0), None),
+        (Some(4.0), None),
+        (None, None),
+        (None, None),
+        (Some(2.0), None),
+        (Some(3.0), None),
+        (None, None),
+        (Some(20.0), None)
+      )
     }
   }
 
@@ -280,11 +294,27 @@ final class DynamicVeSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     sparkSession.sql(sql_join_outer_right).debugSqlHere { ds =>
-      val out =  ds.as[(Option[Double], Option[Double])]
+      val out = ds
+        .as[(Option[Double], Option[Double])]
         .collect()
         .toList
 
-      out should contain theSameElementsAs List((None,Some(1.0)), (None,None), (Some(4.0),None), (None,None), (None,Some(2.0)), (None,Some(42.0)), (None,Some(12.0)), (None,Some(52.0)), (None,Some(4.0)), (None,None), (None,Some(2.0)), (None,Some(3.0)), (None,None), (None,Some(20.0)))
+      out should contain theSameElementsAs List(
+        (None, Some(1.0)),
+        (None, None),
+        (Some(4.0), None),
+        (None, None),
+        (None, Some(2.0)),
+        (None, Some(42.0)),
+        (None, Some(12.0)),
+        (None, Some(52.0)),
+        (None, Some(4.0)),
+        (None, None),
+        (None, Some(2.0)),
+        (None, Some(3.0)),
+        (None, None),
+        (None, Some(20.0))
+      )
     }
   }
 

@@ -11,9 +11,19 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  EqualTo,
+  IsNotNull,
+  Literal,
+  NamedExpression,
+  SortOrder,
+  Substring
+}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.plans.{Inner, LeftOuter, RightOuter, logical}
+import org.apache.spark.sql.catalyst.plans.{logical, Inner, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
@@ -105,7 +115,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 leftExprIds,
                 rightExprIds,
                 leftKeyExpr,
-                rightKeyExpr),
+                rightKeyExpr
+              ),
               nativeEvaluator,
               join.inputSet.toSeq,
               join.output,
@@ -116,12 +127,12 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
         }
 
         case join @ logical.Join(
-        left,
-        right,
-        outerJoin,
-        Some(EqualTo(leftKeyExpr, rightKeyExpr)),
-        hint
-        ) => {
+              left,
+              right,
+              outerJoin,
+              Some(EqualTo(leftKeyExpr, rightKeyExpr)),
+              hint
+            ) => {
           val leftExprIds = left.output.map(_.exprId).toSet
           val rightExprIds = right.output.map(_.exprId).toSet
 
@@ -134,7 +145,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             leftExprIds,
             rightExprIds,
             leftKeyExpr,
-            rightKeyExpr)
+            rightKeyExpr
+          )
           println(c)
           List(
             GeneratedJoinPlan(
@@ -148,7 +160,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 leftExprIds,
                 rightExprIds,
                 leftKeyExpr,
-                rightKeyExpr),
+                rightKeyExpr
+              ),
               nativeEvaluator,
               join.inputSet.toSeq,
               join.output,
