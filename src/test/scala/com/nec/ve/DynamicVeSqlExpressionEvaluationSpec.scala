@@ -260,6 +260,64 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
 
+  val sql_join_outer_left =
+    s"SELECT nums.${SampleColA}, nums2.${SampleColA} FROM nums LEFT JOIN nums2 on nums.${SampleColB} = nums2.${SampleColB}"
+  "Support LEFT OUTER JOIN" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumnJoin(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_join_outer_left).debugSqlHere { ds =>
+      ds.as[(Option[Double], Option[Double])]
+        .collect()
+        .toList should contain theSameElementsAs List(
+        (Some(2.0), None),
+        (Some(52.0), None),
+        (Some(4.0), None),
+        (None, None),
+        (Some(2.0), None),
+        (Some(1.0), None),
+        (Some(4.0), None),
+        (None, None),
+        (None, None),
+        (Some(2.0), None),
+        (Some(3.0), None),
+        (None, None),
+        (Some(20.0), None)
+      )
+    }
+  }
+
+  val sql_join_outer_right =
+    s"SELECT nums.${SampleColA}, nums2.${SampleColA} FROM nums RIGHT JOIN nums2 on nums.${SampleColB} = nums2.${SampleColB}"
+  "Support RIGHT OUTER JOIN" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumnJoin(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_join_outer_right).debugSqlHere { ds =>
+      val out = ds
+        .as[(Option[Double], Option[Double])]
+        .collect()
+        .toList
+
+      out should contain theSameElementsAs List(
+        (None, Some(1.0)),
+        (None, None),
+        (Some(4.0), None),
+        (None, None),
+        (None, Some(2.0)),
+        (None, Some(42.0)),
+        (None, Some(12.0)),
+        (None, Some(52.0)),
+        (None, Some(4.0)),
+        (None, None),
+        (None, Some(2.0)),
+        (None, Some(3.0)),
+        (None, None),
+        (None, Some(20.0))
+      )
+    }
+  }
+
   val sql_multi_join =
     s"SELECT nums.${SampleColA},nums2.${SampleColA}, nums.${SampleColB}, nums2.${SampleColB}," +
       s"nums3.${SampleColA}, nums4.${SampleColA}, nums3.${SampleColB}, nums4.${SampleColB}" +

@@ -8,10 +8,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
-object SparkToVeAggregatorSpec {
-
-
-}
+object SparkToVeAggregatorSpec {}
 final class SparkToVeAggregatorSpec extends AnyFreeSpec {
   val as = Aggregation.sum(CExpression("abc", None))
   "sum works" - {
