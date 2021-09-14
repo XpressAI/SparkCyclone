@@ -66,6 +66,13 @@ object CFunctionGeneration {
     outputs: List[Output]
   )
 
+  final case class VeInnerJoin[Input, LeftKey, Output](
+                                                    inputs: List[Input],
+                                                    leftInputs: List[Input],
+                                                    rightInputs: List[Input],
+                                                    outputs: List[Output]
+                                                  )
+
   final case class TypedGroupByExpression[ScalaType](groupByExpression: GroupByExpression)
 
   sealed trait GroupByExpression {
@@ -162,6 +169,7 @@ object CFunctionGeneration {
   final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
+
 
   final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
     def arguments: List[CVector] = inputs ++ outputs
