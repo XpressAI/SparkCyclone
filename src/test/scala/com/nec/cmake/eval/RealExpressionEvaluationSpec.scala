@@ -6,25 +6,20 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
-  evalAggregate,
-  evalFilter,
-  evalGroupBySum,
-  evalProject,
-  evalSort
-}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalFilter, evalGroupBySum, evalProject, evalSort}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
-  GroupByAggregation,
-  GroupByProjection
-}
-import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
+import com.nec.spark.agile.CFunctionGeneration.{CVector, _}
 import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
+import scala.runtime.LazyLong
+
+import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
@@ -253,6 +248,34 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.5))
     )
   }
+  "We can Inner Join" in {
+    val inputs = List(
+      CVector("input_1", VeType.VeNullableDouble),
+      CVector("input_2", VeType.VeNullableDouble),
+      CVector("input_3", VeType.VeNullableDouble),
+      CVector("input_4", VeType.VeNullableDouble)
+    )
+
+    val leftKey = TypedCExpression2(
+      VeType.VeNullableDouble, CExpression("input_1->data[i]", None)
+    )
+
+    val rightKey = TypedCExpression2(
+      VeType.VeNullableDouble, CExpression("input_3->data[i]", None)
+    )
+
+    val outputs = List(
+      NamedJoinExpression("output_1", VeType.VeNullableDouble, JoinProjection(CExpression("input_3->data[i]", None))),
+      NamedJoinExpression("output_2", VeType.VeNullableDouble, JoinProjection(CExpression("input_0->data[i]", None))),
+      NamedJoinExpression("output_3", VeType.VeNullableDouble, JoinProjection(CExpression("input_1->data[i]", None))),
+      NamedJoinExpression("output_4", VeType.VeNullableDouble, JoinProjection(CExpression("input_2->data[i]", None))),
+    )
+    val veInnerJoin = VeInnerJoin(
+        inputs, leftKey, rightKey, outputs
+    )
+    val out = renderInnerJoin(veInnerJoin)
+    println(out)
+  }
 
   "We can aggregate / group by (correlation)" in {
     val result = evalGroupBySum(
@@ -286,8 +309,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
     )
   }
-
-  "We can join" in {}
 
 }
 

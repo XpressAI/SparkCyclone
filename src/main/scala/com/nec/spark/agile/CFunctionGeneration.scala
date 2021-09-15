@@ -68,28 +68,27 @@ object CFunctionGeneration {
 
   final case class VeInnerJoin[Input, LeftKey, RightKey, Output](
                                                     inputs: List[Input],
-                                                    leftInputs: List[Input],
-                                                    rightInputs: List[Input],
                                                     leftKey: LeftKey,
                                                     rightKey: RightKey,
                                                     outputs: List[Output]
                                                   )
 
   sealed trait JoinExpression {
-    def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T
+    def fold[T](whenProj: CExpression => T): T
   }
 
   object JoinExpression {
     final case class JoinProjection(cExpression: CExpression) extends JoinExpression {
-      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenProj(
+      override def fold[T](whenProj: CExpression => T): T = whenProj(
         cExpression
       )
     }
-    final case class JoinAggregation(aggregation: Aggregation) extends JoinExpression {
-      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenAgg(
-        aggregation
-      )
-    }
+    //TODO: We can use that to meld join and aggregate
+//    final case class JoinAggregation(aggregation: Aggregation) extends JoinExpression {
+//      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenAgg(
+//        aggregation
+//      )
+//    }
   }
   final case class NamedJoinExpression(
                                            name: String,
@@ -393,19 +392,22 @@ object CFunctionGeneration {
         veInnerJoin.outputs.map {
           case NamedJoinExpression(outputName, veType, joinExpression) =>
             joinExpression.fold(
-              whenProj = _ => CodeLines.empty,
-              whenAgg = (agg) => agg.initial(outputName)
-            )
+              whenProj = _ => CodeLines.empty)
         },
 
-        "for(int i = 0; i < input_0->count; i++) { ",
+        "for(int i = 0; i < left_out.size(); i++) { ",
 
         veInnerJoin.outputs.map {
           case NamedJoinExpression(outputName, veType, joinExpression) =>
-            joinExpression.fold(_ => CodeLines.empty, agg => agg.compute(outputName))
+            joinExpression.fold(ce => ce) match {
+              case ex => CodeLines.from(
+                s"${outputName}->data[i] = ${ex.cCode}",
+                s"set_validity($outputName->validityBuffer, i, 1);"
+              )
+            }
         },
         "}",
-        veInnerJoin.outputs.map {
+        veInnerJoin.outputs.map{
           case NamedJoinExpression(outputName, veType, joinExpression) =>
             joinExpression.fold(ce => ce, agg => agg.fetch(outputName)) match {
               case ex =>
