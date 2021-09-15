@@ -5,7 +5,6 @@ import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
 import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod.{JvmArrowBased, VEBased}
-import jdk.nashorn.internal.runtime.BitVector
 import org.apache.arrow.vector.{BitVectorHelper, Float8Vector, VectorSchemaRoot}
 
 import org.apache.spark.rdd.RDD

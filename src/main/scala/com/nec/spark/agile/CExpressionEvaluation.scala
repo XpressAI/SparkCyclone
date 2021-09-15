@@ -556,6 +556,12 @@ object CExpressionEvaluation {
       case NormalizeNaNAndZero(child)          => evaluateExpression(input, child)
       case KnownFloatingPointNormalized(child) => evaluateExpression(input, child)
       case alias @ Alias(expr, name)           => evaluateSub(input, alias.child)
+      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
+        input.indexWhere(_.exprId == expr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
+          case idx => s"input_${idx}->data[i]"
+        }
       case AttributeReference(name, typeName, _, _) =>
         (input.indexWhere(_.name == name), typeName) match {
           case (-1, typeName) =>
@@ -565,12 +571,6 @@ object CExpressionEvaluation {
           case (idx, (DoubleType | IntegerType | LongType)) =>
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
-        }
-      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
-        input.indexWhere(_.exprId == expr.exprId) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx => s"input_${idx}->data[i]"
         }
     }
   }
