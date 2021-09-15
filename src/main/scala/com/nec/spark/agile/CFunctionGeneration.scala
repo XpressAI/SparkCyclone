@@ -1,6 +1,6 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CExpressionEvaluation.{CodeLines, cType, cTypeOfSub, evaluateExpression}
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
@@ -66,12 +66,36 @@ object CFunctionGeneration {
     outputs: List[Output]
   )
 
-  final case class VeInnerJoin[Input, LeftKey, Output](
+  final case class VeInnerJoin[Input, LeftKey, RightKey, Output](
                                                     inputs: List[Input],
                                                     leftInputs: List[Input],
                                                     rightInputs: List[Input],
+                                                    leftKey: LeftKey,
+                                                    rightKey: RightKey,
                                                     outputs: List[Output]
                                                   )
+
+  sealed trait JoinExpression {
+    def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T
+  }
+
+  object JoinExpression {
+    final case class JoinProjection(cExpression: CExpression) extends JoinExpression {
+      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenProj(
+        cExpression
+      )
+    }
+    final case class JoinAggregation(aggregation: Aggregation) extends JoinExpression {
+      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenAgg(
+        aggregation
+      )
+    }
+  }
+  final case class NamedJoinExpression(
+                                           name: String,
+                                           veType: VeType,
+                                           joinExpression: JoinExpression
+                                         )
 
   final case class TypedGroupByExpression[ScalaType](groupByExpression: GroupByExpression)
 
@@ -337,6 +361,59 @@ object CFunctionGeneration {
   )
 
   val GroupBeforeSort = "before we can group we need to sort"
+
+  def renderInnerJoin(
+                     veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
+                     ): CFunction = {
+
+    CFunction(
+      inputs = veInnerJoin.inputs,
+      outputs = veInnerJoin.outputs.zipWithIndex.map {
+        case (NamedJoinExpression(outputName, veType, _), idx) =>
+          CVector(outputName, veType)
+      },
+      body = CodeLines.from(
+        s"std::vector <${veInnerJoin.leftKey.veType.cScalarType}> left_vec;",
+        "std::vector<size_t> left_idx;",
+        s"std::vector <${veInnerJoin.rightKey.veType.cScalarType}> right_vec;",
+        "std::vector<size_t> right_idx;",
+        "#pragma _NEC ivdep",
+        "for(int i = 0; i < input_0->count; i++) { ",
+        CodeLines.from(
+          s"left_vec.push_back(${veInnerJoin.leftKey.cExpression.cCode});",
+          "left_idx.push_back(i);",
+          s"right_vec.push_back(${veInnerJoin.rightKey.cExpression.cCode});",
+          "right_idx.push_back(i);",
+        ).indented,
+        "}",
+        "std::vector<size_t> right_out;",
+        "std::vector<size_t> left_out;",
+        s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
+        "long validityBuffSize = ceil(left_out.size() / 8.0);",
+        veInnerJoin.outputs.map {
+          case NamedJoinExpression(outputName, veType, joinExpression) =>
+            joinExpression.fold(
+              whenProj = _ => CodeLines.empty,
+              whenAgg = (agg) => agg.initial(outputName)
+            )
+        },
+
+        "for(int i = 0; i < input_0->count; i++) { ",
+
+        veInnerJoin.outputs.map {
+          case NamedJoinExpression(outputName, veType, joinExpression) =>
+            joinExpression.fold(_ => CodeLines.empty, agg => agg.compute(outputName))
+        },
+        "}",
+        veInnerJoin.outputs.map {
+          case NamedJoinExpression(outputName, veType, joinExpression) =>
+            joinExpression.fold(ce => ce, agg => agg.fetch(outputName)) match {
+              case ex =>
+                s"${outputName}->data"
+            }
+        },
+    ))
+  }
 
   def renderGroupBy(
     veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedGroupByExpression]
