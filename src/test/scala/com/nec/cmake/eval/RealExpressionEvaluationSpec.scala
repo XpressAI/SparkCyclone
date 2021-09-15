@@ -6,7 +6,7 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalFilter, evalGroupBySum, evalProject, evalSort}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalFilter, evalGroupBySum, evalInnerJoin, evalProject, evalSort}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
 import com.nec.spark.agile.CFunctionGeneration.{CVector, _}
@@ -74,6 +74,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         List[Double](6.6)
     )
   }
+
   "We can aggregate / group by" in {
     val result = evalGroupBySum(
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
@@ -248,33 +249,32 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.5))
     )
   }
+
   "We can Inner Join" in {
     val inputs = List(
-      CVector("input_1", VeType.VeNullableDouble),
-      CVector("input_2", VeType.VeNullableDouble),
-      CVector("input_3", VeType.VeNullableDouble),
-      CVector("input_4", VeType.VeNullableDouble)
+      (1.0, 2.0, 5.0, 1.0),
+      (3.0, 2.0, 3.0, 7.0),
+      (11.0, 7.0, 12.0, 11.0),
+      (8.0, 2.0, 3.0, 9.0),
     )
-
     val leftKey = TypedCExpression2(
-      VeType.VeNullableDouble, CExpression("input_1->data[i]", None)
+      VeType.VeNullableDouble, CExpression("input_0->data[i]", None)
     )
 
     val rightKey = TypedCExpression2(
       VeType.VeNullableDouble, CExpression("input_3->data[i]", None)
     )
 
-    val outputs = List(
-      NamedJoinExpression("output_1", VeType.VeNullableDouble, JoinProjection(CExpression("input_3->data[i]", None))),
-      NamedJoinExpression("output_2", VeType.VeNullableDouble, JoinProjection(CExpression("input_0->data[i]", None))),
-      NamedJoinExpression("output_3", VeType.VeNullableDouble, JoinProjection(CExpression("input_1->data[i]", None))),
-      NamedJoinExpression("output_4", VeType.VeNullableDouble, JoinProjection(CExpression("input_2->data[i]", None))),
+    val outputs = (
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None)))
     )
-    val veInnerJoin = VeInnerJoin(
-        inputs, leftKey, rightKey, outputs
-    )
-    val out = renderInnerJoin(veInnerJoin)
-    println(out)
+
+    val out = evalInnerJoin(inputs, leftKey, rightKey, outputs)
+
+   assert(
+     out == List((2.0, 5.0), (7.0, 12.0))
+   )
   }
 
   "We can aggregate / group by (correlation)" in {
@@ -292,9 +292,9 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )(
       (
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[left_out[i]]", None))),
         TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", None))
+          GroupByProjection(CExpression("input_1->data[right_out[i]] + 1", None))
         ),
         TypedGroupByExpression[Double](
           GroupByAggregation(
@@ -354,6 +354,49 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       } finally outArgs.foreach(_.wrapped.valueVector.close())
     }
   }
+
+  def evalInnerJoin[Input, LeftKey, RightKey, Output](input: List[Input], leftKey: TypedCExpression2,
+                                                      rightKey: TypedCExpression2, output: Output)(implicit
+                                                                                                   inputArguments: InputArguments[Input],
+                                                                                                   joinExpressor: JoinExpressor[Output],
+                                                                                                   outputArguments: OutputArguments[Output]
+                                                     ): List[outputArguments.Result] = {
+    val functionName = "project_f"
+    val generatedSource =
+      renderInnerJoin(
+        VeInnerJoin(
+          inputs = inputArguments.inputs,
+          leftKey = leftKey,
+          rightKey = rightKey,
+          outputs = joinExpressor.express(output)
+        )
+      ).toCodeLines(functionName)
+
+    logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+    val cLib = CMakeBuilder.buildCLogging(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
+
   def evalGroupBySum[Input, Groups, Output](
     input: List[Input]
   )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit
