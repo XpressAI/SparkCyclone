@@ -104,6 +104,8 @@ object CExpressionEvaluation {
         DoubleType
       case Literal(v, IntegerType) =>
         IntegerType
+      case Cast(_, dataType, _) =>
+        dataType
     }
   }
 
@@ -302,6 +304,20 @@ object CExpressionEvaluation {
           case (idx, (DoubleType | IntegerType | LongType)) =>
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
+        }
+      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
+        input.indexWhere(_.exprId == expr.exprId) match {
+          case -1 =>
+            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
+          case idx => s"input_${idx}->data[i]"
+        }
+      case Cast(child, dataType, _) =>
+        val expr = evaluateExpression(input, child)
+        dataType match {
+          case IntegerType => s"((int)$expr)"
+          case LongType => s"((long)$expr)"
+          case FloatType => s"((float)$expr)"
+          case DoubleType => s"((double)$expr)"
         }
     }
   }
