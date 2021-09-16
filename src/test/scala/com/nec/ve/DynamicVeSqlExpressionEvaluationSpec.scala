@@ -647,6 +647,34 @@ final class DynamicVeSqlExpressionEvaluationSpec
         )
       }
     }
+
+    val castSql = s"SELECT cast(${SampleColA} as bigint), cast(${SampleColA} as int), cast(${SampleColA} as double) FROM nums"
+    s"Casting to various types works" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(castSql).debugSqlHere { ds =>
+        assert(
+          ds.as[(Option[Long], Option[Int], Option[Double])]
+            .collect()
+            .toList == List(
+              (Some(2), Some(2),Some(2.0)),
+              (Some(52), Some(52),Some(52.0)),
+              (Some(4),Some(4),Some(4.0)),
+              (Some(0), Some(0), None),
+              (Some(2), Some(2), Some(2.0)),
+              (Some(1), Some(1), Some(1.0)),
+              (Some(4), Some(0), Some(4.0)),
+              (Some(0), Some(0), None),
+              (Some(0), Some(0), None),
+              (Some(2), Some(0), Some(2.0)),
+              (Some(3), Some(0), Some(3.0)),
+              (Some(0), Some(0), None),
+              (Some(20), Some(0), Some(20.0))
+          )
+        )
+      }
+    }
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {

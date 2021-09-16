@@ -697,6 +697,8 @@ object CExpressionEvaluation {
         s"${genNullCheck(inputs, v)}"
       case Literal(v, DoubleType | IntegerType) =>
         "true"
+      case Cast(child, dataType, _) =>
+        "true"
     }
   }
 
@@ -849,6 +851,13 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} > ${evaluateSub(inputs, right)}"
       case LessThanOrEqual(left, right) =>
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
+      case Cast(child, dataType, _) =>
+        dataType match {
+          case LongType => s"((long)${evaluateSub(inputs, child)})"
+          case IntegerType => s"((int)${evaluateSub(inputs, child)})";
+          case FloatType => s"((float)${evaluateSub(inputs, child)})";
+          case DoubleType => s"((double)${evaluateSub(inputs, child)})";
+        }
     }
   }
 
