@@ -123,7 +123,7 @@
 | [DataFrame.intersectAll](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.intersectAll.html#pyspark.sql.DataFrame.intersectAll)(other) | ⬜️            |
 | [DataFrame.isLocal](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.isLocal.html#pyspark.sql.DataFrame.isLocal)() | ⬜️            |
 | [DataFrame.isStreaming](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.isStreaming.html#pyspark.sql.DataFrame.isStreaming) | ⬜️            |
-| [DataFrame.join](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.join.html#pyspark.sql.DataFrame.join)(other\[, on, how\]) | ⬜️            |
+| [DataFrame.join](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.join.html#pyspark.sql.DataFrame.join)(other\[, on, how\]) | ✅            |
 | [DataFrame.limit](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.limit.html#pyspark.sql.DataFrame.limit)(num) | ⬜️            |
 | [DataFrame.localCheckpoint](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.localCheckpoint.html#pyspark.sql.DataFrame.localCheckpoint)(\[eager\]) | ⬜️            |
 | [DataFrame.mapInPandas](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.DataFrame.mapInPandas.html#pyspark.sql.DataFrame.mapInPandas)(func, schema) | ⬜️            |
@@ -218,26 +218,26 @@
 
 ## Data Types
 
-| Functions                                                                                                                                                                             | Supported ✅?                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| [ArrayType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ArrayType.html#pyspark.sql.types.ArrayType)(elementType\[, containsNull\])                | ⬜️ |
-| [BinaryType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.BinaryType.html#pyspark.sql.types.BinaryType)                                            | ⬜️ |
-| [BooleanType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.BooleanType.html#pyspark.sql.types.BooleanType)                                         | ⬜️ |
-| [ByteType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ByteType.html#pyspark.sql.types.ByteType)                                                  | ⬜️ |
-| [DataType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DataType.html#pyspark.sql.types.DataType)                                                  | ⬜️ |
-| [DateType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DateType.html#pyspark.sql.types.DateType)                                                  | ⬜️ |
-| [DecimalType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DecimalType.html#pyspark.sql.types.DecimalType)(\[precision, scale\])                   | ⬜️ |
-| [DoubleType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DoubleType.html#pyspark.sql.types.DoubleType)                                            | ✅ |
-| [FloatType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.FloatType.html#pyspark.sql.types.FloatType)                                               | ✅ |
-| [IntegerType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.IntegerType.html#pyspark.sql.types.IntegerType)                                         | ✅ |
-| [LongType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.LongType.html#pyspark.sql.types.LongType)                                                  | ✅ |
-| [MapType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.MapType.html#pyspark.sql.types.MapType)(keyType, valueType\[, valueContainsNull\])          | ⬜️ |
-| [NullType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.NullType.html#pyspark.sql.types.NullType)                                                  | ⬜️ |
-| [ShortType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ShortType.html#pyspark.sql.types.ShortType)                                               | ⬜️ |
-| [StringType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StringType.html#pyspark.sql.types.StringType)                                            | ⬜️ |
-| [StructField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StructField.html#pyspark.sql.types.StructField)(name, dataType\[, nullable, metadata\]) | ⬜️ |
-| [StructType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StructType.html#pyspark.sql.types.StructType)(\[fields\])                                | ⬜️ |
-| [TimestampType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.TimestampType.html#pyspark.sql.types.TimestampType)                                   | ⬜️ |
+| Functions                                                    | Supported ✅? |
+| ------------------------------------------------------------ | ------------ |
+| [ArrayType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ArrayType.html#pyspark.sql.types.ArrayType)(elementType\[, containsNull\]) | ⬜️            |
+| [BinaryType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.BinaryType.html#pyspark.sql.types.BinaryType) | ⬜️            |
+| [BooleanType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.BooleanType.html#pyspark.sql.types.BooleanType) | ⬜️            |
+| [ByteType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ByteType.html#pyspark.sql.types.ByteType) | ⬜️            |
+| [DataType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DataType.html#pyspark.sql.types.DataType) | ⬜️            |
+| [DateType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DateType.html#pyspark.sql.types.DateType) | ✅            |
+| [DecimalType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DecimalType.html#pyspark.sql.types.DecimalType)(\[precision, scale\]) | ⬜️            |
+| [DoubleType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.DoubleType.html#pyspark.sql.types.DoubleType) | ✅            |
+| [FloatType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.FloatType.html#pyspark.sql.types.FloatType) | ✅            |
+| [IntegerType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.IntegerType.html#pyspark.sql.types.IntegerType) | ✅            |
+| [LongType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.LongType.html#pyspark.sql.types.LongType) | ✅            |
+| [MapType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.MapType.html#pyspark.sql.types.MapType)(keyType, valueType\[, valueContainsNull\]) | ⬜️            |
+| [NullType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.NullType.html#pyspark.sql.types.NullType) | ⬜️            |
+| [ShortType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ShortType.html#pyspark.sql.types.ShortType) | ⬜️            |
+| [StringType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StringType.html#pyspark.sql.types.StringType) | ⬜️            |
+| [StructField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StructField.html#pyspark.sql.types.StructField)(name, dataType\[, nullable, metadata\]) | ⬜️            |
+| [StructType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StructType.html#pyspark.sql.types.StructType)(\[fields\]) | ⬜️            |
+| [TimestampType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.TimestampType.html#pyspark.sql.types.TimestampType) | ⬜️            |
 
 ## Row
 
