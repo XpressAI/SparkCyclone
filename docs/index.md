@@ -1,1 +1,8 @@
-Layout insprired by https://www.hpc.nec/documents/nlcpy/en/notices.html
+![aurora4spark](https://user-images.githubusercontent.com/68586800/133747830-d79fa5ff-06e0-4127-9de0-90cf5af719aa.png)
+
+
+# Overview
+
+The Aurora4Spark plugin showcases the performance of the Aurora Vector Engine (VE) for Big Data Analytics use cases. The plugin we have created enables developers to accelerate Spark jobs with VE hardware. We believe that the architecture of the VE makes it better suited for these Big Data workloads as it has high-performance support for the typical data types used in Spark jobs and has much larger memory capacity and higher memory bandwidth than all but the recently released A100 GPU.
+
+This documentation outlines the design of a Spark plugin to enable the acceleration of Spark SQL and show benchmark results of the Aurora4Spark system. Several of our optimized functions showcases promising results for the VE. We briefly introduce the concepts related to the implementation of Spark and Kubernetes, instructions to install and finalizes with the benchmark results of the VE compared to CPU-only Spark and GPU-accelerated execution with the Nvidia Rapids4Spark plugin.
