@@ -291,15 +291,11 @@ object CExpressionEvaluation {
         case (re, idx) => {
           List(
             s"if(${genNullCheckJoin(inputs, re, leftExprIds, rightExprIds)}) {",
-            s"validity_bitset_${idx}.set(i%8, true);",
             s"output_${idx}->data[i] = ${evaluateExpressionJoin(inputs, re, leftExprIds, rightExprIds)};",
+            s"set_validity(input_${idx}->validityBuffer, i, 1);",
             "} else {",
-            s"validity_bitset_${idx}.set(i%8, false);",
-            "}",
-            "if(i % 8 == 7 || i == left_out.size() - 1) { ",
-            s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
-            s"j_${idx} += 1;",
-            s"validity_bitset_${idx}.reset(); }"
+            s"set_validity(input_${idx}->validityBuffer, i, 0);",
+            "}"
           )
         }
 
@@ -745,9 +741,9 @@ object CExpressionEvaluation {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
           case idx if (leftExprIds.contains(attr.exprId)) =>
-            s"((input_${idx}->validityBuffer[left_out[i]/8] >> left_out[i] % 8) & 0x1) == 1"
+            s"(check_valid(input_${idx}->validityBuffer, left_out[i]))"
           case idx if (rightExprIds.contains(attr.exprId)) =>
-            s"((input_${idx}->validityBuffer[right_out[i]/8] >> right_out[i] % 8) & 0x1) == 1"
+            s"(check_valid(input_${idx}->validityBuffer, right_out[i]))"
         }
       case alias @ Alias(expr, name) =>
         genNullCheckJoin(inputs, alias.child, leftExprIds, rightExprIds)
