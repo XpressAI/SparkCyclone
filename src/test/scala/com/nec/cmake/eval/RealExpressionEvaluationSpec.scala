@@ -6,7 +6,7 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalFilter, evalGroupBySum, evalInnerJoin, evalProject, evalSort}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalAggregate, evalFilter, evalGroupBySum, evalInnerJoin, evalProject, evalSort}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
 import com.nec.spark.agile.CFunctionGeneration.{CVector, _}

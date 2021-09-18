@@ -16,13 +16,16 @@ import org.apache.spark.sql.catalyst.expressions.{
   Literal,
   Sqrt
 }
+
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryArithmetic, Cast, Coalesce, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal}
+import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types.{DataType, DoubleType, IntegerType, LongType}
 
 object SparkVeMapper {
 
   def referenceReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
     case ar: AttributeReference =>
-      inputs.indexWhere(_.name == ar.name) match {
+      inputs.indexWhere(_.exprId == ar.exprId) match {
         case -1 =>
           sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
         case idx =>
@@ -30,8 +33,24 @@ object SparkVeMapper {
       }
   }
 
+  def referenceReplacer(inputs: Seq[Attribute], leftIds: Set[ExprId],
+                        rightIds: Set[ExprId]): PartialFunction[Expression, Expression] = {
+    case ar: AttributeReference =>
+      inputs.indexWhere(_.exprId == ar.exprId) match {
+        case -1 =>
+          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
+        case idx if(leftIds.contains(ar.exprId)) =>
+          ar.withName(s"input_${idx}->data[left_out[i]]")
+        case idx if(rightIds.contains(ar.exprId)) =>
+          ar.withName(s"input_${idx}->data[right_out[i]]")
+      }
+  }
+
   def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
     expression.transform(referenceReplacer(inputs))
+
+  def replaceReferences(inputs: Seq[Attribute], expression: Expression, leftIds: Set[ExprId], rightIds: Set[ExprId]): Expression =
+    expression.transform(referenceReplacer(inputs, leftIds, rightIds))
 
   val binaryOperatorOverride = Map("=" -> "==")
 
@@ -46,6 +65,8 @@ object SparkVeMapper {
               eval(b.right).isNotNullCode.toList)
           ).filter(_.nonEmpty).map(_.mkString("(", " && ", ")"))
         )
+      case KnownFloatingPointNormalized(child) => eval(child)
+      case NormalizeNaNAndZero(child) => eval(child)
       case Sqrt(c) =>
         CExpression(cCode = s"sqrt(${eval(c).cCode})", isNotNullCode = eval(c).isNotNullCode)
       case Coalesce(children) if children.size == 1 =>
@@ -74,9 +95,10 @@ object SparkVeMapper {
           CExpression(
             cCode = ar.name,
             isNotNullCode =
-              if (ar.name.contains("data["))
-                Some(s"check_valid(${ar.name.replaceAllLiterally("data[i]", "validityBuffer")}, i)")
-              else None
+              if (ar.name.contains("data[")) {
+                val indexingExpr = ar.name.substring(0, ar.name.length-1).split("""data(\[)""")
+                Some(s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size-1)})")
+              } else None
           )
       case IsNull(child) =>
         CExpression(

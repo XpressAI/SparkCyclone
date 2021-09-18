@@ -638,6 +638,7 @@ final class DynamicCSqlExpressionEvaluationSpec
 
     def ensureJoinPlanEvaluated(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
+      println(thePlan)
       expect(thePlan.toString().contains("GeneratedJoinPlan"))
       dataSet
     }

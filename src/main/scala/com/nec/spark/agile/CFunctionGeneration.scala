@@ -76,6 +76,7 @@ object CFunctionGeneration {
   sealed trait JoinExpression {
     def fold[T](whenProj: CExpression => T): T
   }
+  final case class TypedJoinExpression[ScalaType](joinExpression: JoinExpression)
 
   object JoinExpression {
     final case class JoinProjection(cExpression: CExpression) extends JoinExpression {
@@ -204,6 +205,8 @@ object CFunctionGeneration {
         "#include <iostream>",
         "#include <tuple>",
         """#include "frovedis/core/radix_sort.hpp"""",
+        """#include "frovedis/dataframe/join.hpp"""",
+        """#include "frovedis/dataframe/join.cc"""",
         """#include "frovedis/core/set_operations.hpp"""",
         s"""extern "C" long $functionName(""",
         arguments
@@ -392,25 +395,37 @@ object CFunctionGeneration {
         veInnerJoin.outputs.map {
           case NamedJoinExpression(outputName, veType, joinExpression) =>
             joinExpression.fold(
-              whenProj = _ => CodeLines.empty)
+              whenProj = _ => CodeLines.from(
+                s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cSize}));",
+                s"${outputName}->validityBuffer = (unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));"
+              ))
         },
 
         "for(int i = 0; i < left_out.size(); i++) { ",
-
         veInnerJoin.outputs.map {
           case NamedJoinExpression(outputName, veType, joinExpression) =>
             joinExpression.fold(ce => ce) match {
-              case ex => CodeLines.from(
-                s"${outputName}->data[i] = ${ex.cCode}",
-                s"set_validity($outputName->validityBuffer, i, 1);"
-              )
+              case ex => ex.isNotNullCode match {
+                case None => CodeLines.from(
+                  s"${outputName}->data[i] = ${ex.cCode};",
+                  s"set_validity($outputName->validityBuffer, i, 1);"
+                ).indented
+                case Some(nullCheck) => CodeLines.from(
+                  s"if( ${nullCheck} ) {",
+                  s"${outputName}->data[i] = ${ex.cCode};",
+                  s"set_validity($outputName->validityBuffer, i, 1);",
+                  "} else {",
+                  s"set_validity($outputName->validityBuffer, i, 0);",
+                  "}"
+                ).indented
+              }
             }
         },
         "}",
         veInnerJoin.outputs.map{
           case NamedJoinExpression(outputName, veType, joinExpression) =>
             CodeLines.from(
-              s"${outputName}->count = left_out.size()"
+              s"${outputName}->count = left_out.size();"
             )
         }
 
