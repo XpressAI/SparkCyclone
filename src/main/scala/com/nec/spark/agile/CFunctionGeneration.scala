@@ -8,6 +8,7 @@ object CFunctionGeneration {
   final case class CVector(name: String, veType: VeType)
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
+  object CExpression
   final case class TypedCExpression2(veType: VeType, cExpression: CExpression)
   final case class NamedTypedCExpression(name: String, veType: VeType, cExpression: CExpression)
 
@@ -36,7 +37,17 @@ object CFunctionGeneration {
       override def cSize: Int = 4
     }
 
+    case object VeNullableLong extends VeType {
+      def cScalarType: String = "long long"
+
+      def cVectorType: String = "nullable_bigint_vector"
+
+      override def cSize: Int = 8
+    }
+
     def veNullableDouble: VeType = VeNullableDouble
+    def veNullableInt: VeType = VeNullableInt
+    def veNullableLong: VeType = VeNullableLong
   }
 
   /**
@@ -93,7 +104,16 @@ object CFunctionGeneration {
         CodeLines.from(s"double ${prefix}_aggregate_sum = 0;")
 
       override def iterate(prefix: String): CodeLines =
-        CodeLines.from(s"${prefix}_aggregate_sum += ${cExpression.cCode};")
+        cExpression.isNotNullCode match {
+          case None =>
+            CodeLines.from(s"${prefix}_aggregate_sum += ${cExpression.cCode};")
+          case Some(notNullCheck) =>
+            CodeLines.from(
+              s"if ( ${notNullCheck} ) {",
+              CodeLines.from(s"${prefix}_aggregate_sum += ${cExpression.cCode};").indented,
+              "}"
+            )
+        }
 
       override def fetch(prefix: String): CExpression =
         CExpression(s"${prefix}_aggregate_sum", None)
@@ -267,54 +287,58 @@ object CFunctionGeneration {
 
   def renderProjection(
     veDataTransformation: VeProjection[CVector, NamedTypedCExpression]
-  ): CFunction = {
-    CFunction(
-      inputs = veDataTransformation.inputs,
-      outputs = veDataTransformation.outputs.zipWithIndex.map {
+  ): CFunction = CFunction(
+    inputs = veDataTransformation.inputs,
+    outputs = veDataTransformation.outputs.zipWithIndex.map {
+      case (NamedTypedCExpression(outputName, veType, _), idx) =>
+        CVector(outputName, veType)
+    },
+    body = CodeLines.from(
+      veDataTransformation.outputs.zipWithIndex.map {
         case (NamedTypedCExpression(outputName, veType, _), idx) =>
-          CVector(outputName, veType)
+          CodeLines.from(
+            s"$outputName->count = input_0->count;",
+            s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
+            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
+          )
       },
-      body = CodeLines.from(
-        veDataTransformation.outputs.zipWithIndex.map {
-          case (NamedTypedCExpression(outputName, veType, _), idx) =>
-            CodeLines.from(
-              s"$outputName->count = input_0->count;",
-              s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
-            )
-        },
-        "for ( long i = 0; i < input_0->count; i++ ) {",
-        veDataTransformation.outputs.zipWithIndex
-          .map { case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
-            cExpr.isNotNullCode match {
-              case None =>
-                CodeLines.from(
-                  s"""$outputName->data[i] = ${cExpr.cCode};""",
-                  s"set_validity($outputName->validityBuffer, i, 1);"
-                )
-              case Some(notNullCheck) =>
-                CodeLines.from(
-                  s"if ( $notNullCheck ) {",
-                  s"""$outputName->data[i] = ${cExpr.cCode};""",
-                  s"set_validity($outputName->validityBuffer, i, 1);",
-                  "} else {",
-                  s"set_validity($outputName->validityBuffer, i, 0);",
-                  "}"
-                )
-            }
-
+      "for ( long i = 0; i < input_0->count; i++ ) {",
+      veDataTransformation.outputs.zipWithIndex
+        .map { case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
+          cExpr.isNotNullCode match {
+            case None =>
+              CodeLines.from(
+                s"""$outputName->data[i] = ${cExpr.cCode};""",
+                s"set_validity($outputName->validityBuffer, i, 1);"
+              )
+            case Some(notNullCheck) =>
+              CodeLines.from(
+                s"if ( $notNullCheck ) {",
+                s"""  $outputName->data[i] = ${cExpr.cCode};""",
+                s"  set_validity($outputName->validityBuffer, i, 1);",
+                "} else {",
+                s"  set_validity($outputName->validityBuffer, i, 0);",
+                "}"
+              )
           }
-          .map(_.indented),
-        "}"
-      )
+
+        }
+        .map(_.indented),
+      "}"
     )
-  }
+  )
+
+  val GroupBeforeSort = "before we can group we need to sort"
 
   def renderGroupBy(
     veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedGroupByExpression]
   ): CFunction = {
     val tuple =
-      s"std::tuple<${veDataTransformation.groups.map(_.veType.cScalarType).mkString(", ")}>";
+      s"std::tuple<${veDataTransformation.groups
+        .flatMap { v =>
+          List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
+        }
+        .mkString(", ")}>";
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
@@ -322,14 +346,16 @@ object CFunctionGeneration {
           CVector(outputName, veType)
       },
       body = CodeLines.from(
-        "/** sorting section - before we can group we need to sort **/",
+        s"/** sorting section - ${GroupBeforeSort} **/",
         s"std::vector<${tuple}> full_grouping_vec;",
         s"std::vector<size_t> sorted_idx(input_0->count);",
         "for ( long i = 0; i < input_0->count; i++ ) {",
         CodeLines
           .from(
             "sorted_idx[i] = i;",
-            s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups.map(_.cExpression.cCode).mkString(", ")}));"
+            s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups
+              .flatMap { g => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList }
+              .mkString(", ")}));"
           )
           .indented,
         s"}",
@@ -342,7 +368,7 @@ object CFunctionGeneration {
           case (NamedGroupByExpression(outputName, veType, groupByExpr), idx) =>
             CodeLines.from(
               "",
-              s"// Group #$idx for ${outputName}:",
+              s"// Output #$idx for ${outputName}:",
               s"$outputName->count = groups_count;",
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
               s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
@@ -356,7 +382,6 @@ object CFunctionGeneration {
                     whenProj = _ => CodeLines.empty,
                     whenAgg = agg => agg.initial(outputName)
                   ),
-                  s"double aggregate = 0;",
                   "size_t group_start_in_idx = groups_indices[g];",
                   "size_t group_end_in_idx = groups_indices[g + 1];",
                   "int i = 0;",
@@ -382,10 +407,10 @@ object CFunctionGeneration {
                         case Some(notNullCheck) =>
                           CodeLines.from(
                             s"if ( $notNullCheck ) {",
-                            s"""$outputName->data[g] = ${ex.cCode};""",
-                            s"set_validity($outputName->validityBuffer, g, 1);",
+                            s"""  $outputName->data[g] = ${ex.cCode};""",
+                            s"  set_validity($outputName->validityBuffer, g, 1);",
                             "} else {",
-                            s"set_validity($outputName->validityBuffer, g, 0);",
+                            s"  set_validity($outputName->validityBuffer, g, 0);",
                             "}"
                           )
                       }

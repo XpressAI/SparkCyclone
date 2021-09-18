@@ -196,13 +196,13 @@ object ArrowNativeInterface {
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {
+        case bigIntVector: BigIntVector =>
+          OutputVectorWrapper.BigIntVectorOutputWrapper(bigIntVector)
         case intVector: IntVector => OutputVectorWrapper.IntVectorOutputWrapper(intVector)
         case float8Vector: Float8Vector =>
           OutputVectorWrapper.Float8VectorOutputWrapper(float8Vector)
         case varCharVector: VarCharVector =>
           OutputVectorWrapper.VarCharVectorOutputWrapper(varCharVector)
-        case bigIntVector: BigIntVector =>
-          OutputVectorWrapper.BigIntVectorOutputWrapper(bigIntVector)
       }
     }
   }
