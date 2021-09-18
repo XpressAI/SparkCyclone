@@ -28,26 +28,4 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
       assert(as.free("x") == CodeLines.empty)
     }
   }
-
-  "Declarative-aggregate based" - {
-    val res = DeclarativeAggregationConverter(
-      Sum(AttributeReference("input_0->data[i]", DoubleType, nullable = false)())
-    )
-
-    "initial is computed" in {
-      assert(res.initial("x") == CodeLines.from("double x_0_sum = 0;"))
-    }
-    "compute is computed" in {
-      assert(res.compute("x") == CodeLines.empty)
-    }
-    "iterate is computed" in {
-      assert(res.iterate("x") == CodeLines.from("x_0_sum = x_0_sum + input_0->data[i];"))
-    }
-    "fetch is computed" in {
-      assert(res.fetch("x") == CExpression("x_0_sum", None))
-    }
-    "free is computed" in {
-      assert(res.free("x") == CodeLines.empty)
-    }
-  }
 }

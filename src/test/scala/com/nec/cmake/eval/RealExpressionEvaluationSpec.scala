@@ -7,6 +7,7 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
+  evalAggregate,
   evalFilter,
   evalGroupBySum,
   evalProject,
@@ -24,8 +25,6 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
-
-import scala.runtime.LazyLong
 
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
@@ -65,6 +64,21 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can aggregate / group by on an empty grouping" in {
+    val result = evalAggregate(
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(
+      TypedGroupByExpression[Double](
+        GroupByAggregation(
+          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+        )
+      )
+    )
+    assert(
+      result ==
+        List[Double](6.6)
+    )
+  }
   "We can aggregate / group by" in {
     val result = evalGroupBySum(
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
@@ -89,6 +103,125 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     assert(
       result ==
         List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6))
+    )
+  }
+
+  "We can aggregate / group by with NULL input check values" in {
+    val result = evalGroupBySum(
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(
+      (
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+      )
+    )(
+      (
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
+        TypedGroupByExpression[Double](
+          GroupByProjection(CExpression("input_1->data[i] + 1", None))
+        ),
+        TypedGroupByExpression[Double](
+          GroupByAggregation(
+            Aggregation.sum(
+              CExpression("input_2->data[i] - input_0->data[i]", Some("input_2->data[i] != 4.0"))
+            )
+          )
+        )
+      )
+    )
+    assert(
+      result ==
+        List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.6))
+    )
+  }
+
+  "We can aggregate / group by with NULLs for grouped computations" in {
+    val result = evalGroupBySum(
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(
+      (
+        TypedCExpression2(
+          VeType.veNullableDouble,
+          CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
+        ),
+        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+      )
+    )(
+      (
+        TypedGroupByExpression[Option[Double]](
+          GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0")))
+        ),
+        TypedGroupByExpression[Double](
+          GroupByProjection(CExpression("input_1->data[i] + 1", None))
+        ),
+        TypedGroupByExpression[Double](
+          GroupByAggregation(
+            Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+          )
+        )
+      )
+    )
+    assert(
+      result ==
+        List[(Option[Double], Double, Double)](
+          (None, 3.0, 3.0),
+          (Some(1.0), 3.0, 2.0),
+          (Some(1.5), 2.2, 1.6)
+        )
+    )
+  }
+
+  "We can aggregate / group by with NULLs for inputs as well" in {
+    val result = evalGroupBySum(
+      List[(Option[Double], Double, Double)](
+        (Some(1.0), 2.0, 3.0),
+        (Some(1.5), 1.2, 3.1),
+        (None, 2.0, 4.0)
+      )
+    )(
+      (
+        TypedCExpression2(
+          VeType.veNullableDouble,
+          CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
+        ),
+        TypedCExpression2(
+          VeType.veNullableDouble,
+          CExpression("input_1->data[i]", Some("check_valid(input_1->validityBuffer, i)"))
+        )
+      )
+    )(
+      (
+        TypedGroupByExpression[Option[Double]](
+          GroupByProjection(
+            CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
+          )
+        ),
+        TypedGroupByExpression[Double](
+          GroupByProjection(
+            CExpression("input_1->data[i] + 1", Some("check_valid(input_1->validityBuffer, i)"))
+          )
+        ),
+        TypedGroupByExpression[Option[Double]](
+          GroupByAggregation(
+            Aggregation.sum(
+              CExpression(
+                "input_2->data[i] - input_0->data[i]",
+                Some(
+                  "check_valid(input_0->validityBuffer, i) && check_valid(input_2->validityBuffer, i)"
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+    assert(
+      result ==
+        List[(Option[Double], Double, Option[Double])](
+          (None, 3.0, Some(0.0)),
+          (Some(1.0), 3.0, Some(2.0)),
+          (Some(1.5), 2.2, Some(1.6))
+        )
     )
   }
 
@@ -160,6 +293,46 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
 object RealExpressionEvaluationSpec extends LazyLogging {
 
+  def evalAggregate[Input, Output](input: List[Input])(expressions: Output)(implicit
+    inputArguments: InputArguments[Input],
+    groupExpressor: GroupExpressor[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
+    val functionName = "agg"
+
+    val generatedSource =
+      renderGroupBy(
+        VeGroupBy(
+          inputs = inputArguments.inputs,
+          groups = Nil,
+          outputs = groupExpressor.express(expressions)
+        )
+      ).toCodeLines(functionName)
+
+    logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+    val cLib = CMakeBuilder.buildCLogging(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
   def evalGroupBySum[Input, Groups, Output](
     input: List[Input]
   )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit

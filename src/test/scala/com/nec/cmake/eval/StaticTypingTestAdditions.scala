@@ -97,6 +97,34 @@ object StaticTypingTestAdditions {
           CVector("input_2", VeType.veNullableDouble)
         )
       }
+    implicit val forTrupleDouble1Opt: InputArguments[(Option[Double], Double, Double)] =
+      new InputArguments[(Option[Double], Double, Double)] {
+        override def allocateVectors(
+          data: (Option[Double], Double, Double)*
+        )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
+          inputs.zipWithIndex.map { case (CVector(name, tpe), idx_col) =>
+            val vcv = new Float8Vector(name, rootAllocator)
+            vcv.allocateNew()
+            vcv.setValueCount(data.size)
+            data.zipWithIndex.foreach { case ((first, second, third), idx) =>
+              if (idx_col == 0 && first.isEmpty)
+                vcv.setNull(idx)
+              else
+                vcv.setSafe(
+                  idx,
+                  if (idx_col == 0) first.get else if (idx_col == 1) second else third
+                )
+            }
+            NativeArgument.input(vcv)
+          }
+        }
+
+        override def inputs: List[CVector] = List(
+          CVector("input_0", VeType.veNullableDouble),
+          CVector("input_1", VeType.veNullableDouble),
+          CVector("input_2", VeType.veNullableDouble)
+        )
+      }
   }
 
   trait OutputArguments[Output] {
@@ -224,6 +252,87 @@ object StaticTypingTestAdditions {
           )
         }
       }
+    implicit val forTripletDoubleGBOption: OutputArguments[
+      (
+        TypedGroupByExpression[Option[Double]],
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Double]
+      )
+    ] =
+      new OutputArguments[
+        (
+          TypedGroupByExpression[Option[Double]],
+          TypedGroupByExpression[Double],
+          TypedGroupByExpression[Double]
+        )
+      ] {
+        override type Result = (Option[Double], Double, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+          val outVector_2 = new Float8Vector("output_2", rootAllocator)
+
+          (
+            List(
+              NativeArgument.output(outVector_0),
+              NativeArgument.output(outVector_1),
+              NativeArgument.output(outVector_2)
+            ),
+            () =>
+              outVector_0.toListSafe.zip(outVector_1.toList).zip(outVector_2.toList).map {
+                case ((a, b), c) => (a, b, c)
+              }
+          )
+        }
+      }
+    implicit val forTripletDoubleGBOption2: OutputArguments[
+      (
+        TypedGroupByExpression[Option[Double]],
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Option[Double]]
+      )
+    ] =
+      new OutputArguments[
+        (
+          TypedGroupByExpression[Option[Double]],
+          TypedGroupByExpression[Double],
+          TypedGroupByExpression[Option[Double]]
+        )
+      ] {
+        override type Result = (Option[Double], Double, Option[Double])
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+          val outVector_2 = new Float8Vector("output_2", rootAllocator)
+
+          (
+            List(
+              NativeArgument.output(outVector_0),
+              NativeArgument.output(outVector_1),
+              NativeArgument.output(outVector_2)
+            ),
+            () =>
+              outVector_0.toListSafe.zip(outVector_1.toList).zip(outVector_2.toListSafe).map {
+                case ((a, b), c) => (a, b, c)
+              }
+          )
+        }
+      }
+    implicit val forSingletTypedGroup: OutputArguments[TypedGroupByExpression[Double]] =
+      new OutputArguments[TypedGroupByExpression[Double]] {
+        override type Result = Double
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+
+          (List(NativeArgument.output(outVector_0)), () => outVector_0.toList)
+        }
+      }
   }
 
   trait ProjectExpression[Output] {
@@ -265,11 +374,38 @@ object StaticTypingTestAdditions {
   }
 
   object GroupExpressor {
+    implicit val forSinglet: GroupExpressor[TypedGroupByExpression[Double]] = output =>
+      List(NamedGroupByExpression("output_0", VeType.veNullableDouble, output.groupByExpression))
+
     implicit val forTripletDouble: GroupExpressor[
       (
         TypedGroupByExpression[Double],
         TypedGroupByExpression[Double],
         TypedGroupByExpression[Double]
+      )
+    ] = output =>
+      List(
+        NamedGroupByExpression("output_0", VeType.veNullableDouble, output._1.groupByExpression),
+        NamedGroupByExpression("output_1", VeType.veNullableDouble, output._2.groupByExpression),
+        NamedGroupByExpression("output_2", VeType.veNullableDouble, output._3.groupByExpression)
+      )
+    implicit val forTripletDoubleWOption: GroupExpressor[
+      (
+        TypedGroupByExpression[Option[Double]],
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Double]
+      )
+    ] = output =>
+      List(
+        NamedGroupByExpression("output_0", VeType.veNullableDouble, output._1.groupByExpression),
+        NamedGroupByExpression("output_1", VeType.veNullableDouble, output._2.groupByExpression),
+        NamedGroupByExpression("output_2", VeType.veNullableDouble, output._3.groupByExpression)
+      )
+    implicit val forTripletDoubleWOption2: GroupExpressor[
+      (
+        TypedGroupByExpression[Option[Double]],
+        TypedGroupByExpression[Double],
+        TypedGroupByExpression[Option[Double]]
       )
     ] = output =>
       List(

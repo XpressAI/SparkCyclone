@@ -139,14 +139,11 @@ object ArrowInterfaces {
     bigintVector: BigIntVector
   ): Unit = {
     bigintVector.setValueCount(input.count)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
-
     getUnsafe.copyMemory(
       input.validityBuffer,
       bigintVector.getValidityBufferAddress,
       Math.ceil(input.count / 8.0).toInt
     )
-
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
   }
 

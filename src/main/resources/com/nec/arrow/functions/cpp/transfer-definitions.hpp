@@ -50,7 +50,7 @@ typedef struct
 
 typedef struct
 {
-    long *data;
+    long long *data;
     unsigned char *validityBuffer;
     long count;
 
@@ -85,6 +85,12 @@ void set_validity(unsigned char *validityBuffer, int idx, int validity) {
     } else {
         validityBuffer[byte] &= ~(1UL << bitIndex);
     }
+};
+
+int check_valid(unsigned char *validityBuffer, int idx) {
+    int byte = idx / 8;
+    int bitIndex = idx % 8;
+    return (validityBuffer[byte] >> bitIndex) & 1;
 };
 
 #define VE_TD_DEFS 1

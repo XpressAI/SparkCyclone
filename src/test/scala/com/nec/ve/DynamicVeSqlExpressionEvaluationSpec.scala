@@ -543,7 +543,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql3).ensureGroupBySumPlanEvaluated().debugSqlHere { ds =>
+      sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
         assert(
           ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
             List(
@@ -662,9 +662,9 @@ final class DynamicVeSqlExpressionEvaluationSpec
       dataSet
     }
 
-    def ensureGroupBySumPlanEvaluated(): Dataset[T] = {
+    def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("SimpleGroupBySumPlan"))
+      expect(thePlan.toString().contains("NewCEvaluationPlan"))
       dataSet
     }
 

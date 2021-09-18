@@ -1,16 +1,18 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.functions.GroupBySum
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CExpressionEvaluation
 import com.nec.spark.agile.CExpressionEvaluation.{NameCleaner, RichListStr}
-import com.nec.spark.planning.SimpleGroupBySumPlan.GroupByMethod
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
 import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.{Alias,
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  DeclarativeAggregate
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
   Attribute,
   AttributeReference,
   EqualTo,
@@ -21,7 +23,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias,
   Substring
 }
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.{Inner, logical}
+import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
 
@@ -57,6 +59,10 @@ object VERewriteStrategy {
 final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
   extends Strategy
   with LazyLogging {
+
+  import com.github.ghik.silencer.silent
+
+  @silent
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def fName: String = s"eval_${Math.abs(plan.hashCode())}"
 
@@ -64,6 +70,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
       log.debug(
         s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
       )
+
       plan match {
         case proj @ logical.Project(
               Seq(
@@ -239,128 +246,52 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           )
         }
 
-        case agg @ logical.Aggregate(
-              groupingExpressions,
-              resultExpressions,
-              prj @ logical.Project(projectList, frs @ logical.Filter(condition, child))
-            ) =>
-          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          List(
-            CEvaluationPlan(
-              fName,
-              resultExpressions,
-              List(
-                CExpressionEvaluation
-                  .cGen(
-                    fName = fName,
-                    inputReferences =
-                      (agg.references ++ frs.references ++ child.references ++ prj.references)
-                        .map(_.name)
-                        .toSet,
-                    childOutputs = child.output,
-                    pairs = resultExpressions.map { re =>
-                      (
-                        re.asInstanceOf[Alias],
-                        re
-                          .asInstanceOf[Alias]
-                          .child
-                          .asInstanceOf[AggregateExpression]
-                      )
-                    },
-                    condition = Some(condition)
+        case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
+            if child.output.nonEmpty =>
+          val functionName = "dynnen"
+          val codeLines = renderGroupBy(
+            VeGroupBy(
+              inputs = child.output.toList.zipWithIndex.map { case (attr, idx) =>
+                CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
+              },
+              groups = groupingExpressions.toList.map { expr =>
+                TypedCExpression2(
+                  SparkVeMapper.sparkTypeToVeType(expr.dataType),
+                  SparkVeMapper.eval(
+                    SparkVeMapper.replaceReferences(inputs = child.output.toList, expression = expr)
                   )
-                  .lines,
-                List("}")
-              ).flatten.codeLines,
-              planLater(child),
-              agg.references.map(_.name).toSet,
-              nativeEvaluator
-            )
-          )
-        case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
-            if GroupBySum.isLogicalGroupBySum(plan) =>
-          List(SimpleGroupBySumPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased))
-        case logical.Aggregate(groupingExpressions, outerResultExpressions, child)
-            if GroupBySum.isLogicalGroupBySumWithTwoColumns(plan) =>
-          List(
-            SimpleGroupBySumTwoColumnsPlan(planLater(child), nativeEvaluator, GroupByMethod.VEBased)
-          )
-        case agg @ logical.Aggregate(
-              groupingExpressions,
-              outerResultExpressions,
-              logical.Project(exprs, child)
-            )
-            if outerResultExpressions.forall(e =>
-              e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-            ) =>
-          val resultExpressions =
-            try meldAggregateAndProject(outerResultExpressions.toList, exprs.toList)
-            catch {
-              case e: Throwable =>
-                throw new IllegalArgumentException(
-                  s"Could not process project+aggregate of $exprs ==> $outerResultExpressions: $e",
-                  e
                 )
-            }
-          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          List(
-            CEvaluationPlan(
-              fName,
-              resultExpressions,
-              List(
-                CExpressionEvaluation
-                  .cGen(
-                    fName,
-                    agg.references.map(_.name).toSet,
-                    child.output,
-                    resultExpressions.map { re =>
-                      (
-                        re.asInstanceOf[Alias],
-                        re
-                          .asInstanceOf[Alias]
-                          .child
-                          .asInstanceOf[AggregateExpression]
-                      )
+              },
+              outputs = aggregateExpressions.toList.zipWithIndex.map {
+                case (namedExpression, idx) =>
+                  NamedGroupByExpression(
+                    name = s"output_${idx}",
+                    veType = SparkVeMapper.sparkTypeToVeType(namedExpression.dataType),
+                    groupByExpression = namedExpression match {
+                      case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
+                        GroupByExpression.GroupByAggregation(
+                          DeclarativeAggregationConverter(
+                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                              .asInstanceOf[DeclarativeAggregate]
+                          )
+                        )
+                      case other =>
+                        GroupByExpression.GroupByProjection(
+                          SparkVeMapper.eval(
+                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                          )
+                        )
                     }
                   )
-                  .lines,
-                List("}")
-              ).flatten.codeLines,
-              planLater(child),
-              agg.references.map(_.name).toSet,
-              nativeEvaluator
+              }
             )
-          )
+          ).toCodeLines(functionName)
 
-        /** There can be plans where we have Cast(Alias(AggEx) as String) - this is not yet supported */
-        case agg @ logical.Aggregate(groupingExpressions, resultExpressions, child)
-            if resultExpressions.forall(e =>
-              e.isInstanceOf[Alias] && e.asInstanceOf[Alias].child.isInstanceOf[AggregateExpression]
-            ) =>
-          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
           List(
-            CEvaluationPlan(
-              fName,
-              resultExpressions,
-              List(
-                CExpressionEvaluation
-                  .cGen(
-                    fName,
-                    agg.references.map(_.name).toSet,
-                    child.output,
-                    resultExpressions.map { re =>
-                      (
-                        re.asInstanceOf[Alias],
-                        re
-                          .asInstanceOf[Alias]
-                          .child
-                          .asInstanceOf[AggregateExpression]
-                      )
-                    }
-                  )
-                  .lines,
-                List("}")
-              ).flatten.codeLines,
+            NewCEvaluationPlan(
+              functionName,
+              aggregateExpressions,
+              codeLines,
               planLater(child),
               agg.references.map(_.name).toSet,
               nativeEvaluator

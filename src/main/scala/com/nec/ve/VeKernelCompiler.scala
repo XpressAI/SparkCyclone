@@ -1,7 +1,6 @@
 package com.nec.ve
 
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.functions.GroupBySum
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
@@ -84,7 +83,7 @@ object VeKernelCompiler {
   def compile_c(buildDir: Path = Paths.get("_ve_build"), config: VeCompilerConfig): Path = {
     VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(
-        List(TransferDefinitionsSourceCode, JoinSourceCode, GroupBySum.GroupBySumSourceCode)
+        List(TransferDefinitionsSourceCode, JoinSourceCode)
           .mkString("\n\n\n")
       )
   }
