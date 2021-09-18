@@ -409,11 +409,11 @@ object CFunctionGeneration {
         "}",
         veInnerJoin.outputs.map{
           case NamedJoinExpression(outputName, veType, joinExpression) =>
-            joinExpression.fold(ce => ce, agg => agg.fetch(outputName)) match {
-              case ex =>
-                s"${outputName}->data"
-            }
-        },
+            CodeLines.from(
+              s"${outputName}->count = left_out.size()"
+            )
+        }
+
     ))
   }
 
