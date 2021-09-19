@@ -403,8 +403,6 @@ object CExpressionEvaluation {
           List(
             s"output_${idx}->data=(${cTypeOfSub(inputs, re)} *) malloc((left_out.size() + outer_idx.size()) * sizeof(${cTypeOfSub(inputs, re)}));",
             s"output_${idx}->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));",
-            s"std::bitset<8> validity_bitset_${idx};",
-            s"int j_${idx} = 0;"
           )
         }
       }.toList,
@@ -413,15 +411,11 @@ object CExpressionEvaluation {
         case (re, idx) => {
           List(
             s"if(${genNullCheckJoin(inputs, re, leftExprIds, rightExprIds)}) {",
-            s"validity_bitset_${idx}.set(i%8, true);",
+            s"set_validity(output_${idx}->validityBuffer, i, 1);",
             s"output_${idx}->data[i] = ${evaluateExpressionJoin(inputs, re, leftExprIds, rightExprIds)};",
             "} else {",
-            s"validity_bitset_${idx}.set(i%8, false);",
-            "}",
-            "if(i % 8 == 7) { ",
-            s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
-            s"j_${idx} += 1;",
-            s"validity_bitset_${idx}.reset(); }"
+            s"set_validity(output_${idx}->validityBuffer, i, 0);",
+            "}"
           )
         }
 
@@ -436,15 +430,11 @@ object CExpressionEvaluation {
         case (re, idx) => {
           List(
             s"if(${genNullCheckJoinOuter(inputs, joinType, re, leftExprIds, rightExprIds)}) {",
-            s"validity_bitset_${idx}.set(i%8, true);",
+            s"set_validity(output_${idx}->validityBuffer, i, 1);",
             s"output_${idx}->data[i] = ${evaluateExpressionJoinOuter(inputs, re, leftExprIds, rightExprIds)};",
             "} else {",
-            s"validity_bitset_${idx}.set(i%8, false);",
-            "}",
-            "if(i % 8 == 7 || i == (left_out.size() + outer_idx.size() - 1)) { ",
-            s"output_${idx}->validityBuffer[j_${idx}] = (static_cast<unsigned char>(validity_bitset_${idx}.to_ulong()));",
-            s"j_${idx} += 1;",
-            s"validity_bitset_${idx}.reset(); }"
+            s"set_validity(output_${idx}->validityBuffer, i, 0);",
+            "}"
           )
         }
 
@@ -785,7 +775,7 @@ object CExpressionEvaluation {
           case -1 =>
             sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
           case idx if (outerJoinIds.contains(attr.exprId)) =>
-            s"((input_${idx}->validityBuffer[outer_idx[idx]/8] >> outer_idx[idx] % 8) & 0x1) == 1"
+            s"check_valid(input_${idx}->validityBuffer, outer_idx[idx]) "
           case _ =>
             s"false" //We are using only left since this is outer join
         }

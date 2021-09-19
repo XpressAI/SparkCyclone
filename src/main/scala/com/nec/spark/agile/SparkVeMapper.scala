@@ -1,24 +1,12 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, VeType}
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  AttributeReference,
-  BinaryOperator,
-  Cast,
-  Coalesce,
-  Expression,
-  Greatest,
-  If,
-  IsNotNull,
-  IsNull,
-  Least,
-  Literal,
-  Sqrt
-}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, JoinType, LeftOuterJoin, RightOuterJoin, VeType}
 
+import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryOperator, Cast, Coalesce, Expression, Greatest, If, IsNotNull, IsNull, Least, Literal, Sqrt}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryArithmetic, Cast, Coalesce, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
+import org.apache.spark.sql.catalyst.plans.{LeftOuter, RightOuter}
 import org.apache.spark.sql.types.{DataType, DoubleType, IntegerType, LongType}
 
 object SparkVeMapper {
@@ -46,11 +34,32 @@ object SparkVeMapper {
       }
   }
 
+  def referenceReplacerOuter(inputs: Seq[Attribute], leftIds: Set[ExprId],
+                        rightIds: Set[ExprId], joinType: JoinType): PartialFunction[Expression, Expression] = {
+    case ar: AttributeReference => {
+      val outerJoinIds = joinType match {
+        case RightOuterJoin => rightIds
+        case LeftOuterJoin  => leftIds
+      }
+
+      inputs.indexWhere(_.exprId == ar.exprId) match {
+        case -1 =>
+          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
+        case idx if (outerJoinIds.contains(ar.exprId)) =>
+          ar.withName(s"input_${idx}->data[outer_idx[idx]]")
+        case _ => NoOp
+      }
+    }
+  }
+
   def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
     expression.transform(referenceReplacer(inputs))
 
   def replaceReferences(inputs: Seq[Attribute], expression: Expression, leftIds: Set[ExprId], rightIds: Set[ExprId]): Expression =
     expression.transform(referenceReplacer(inputs, leftIds, rightIds))
+
+  def replaceReferencesOuter(inputs: Seq[Attribute], expression: Expression, leftIds: Set[ExprId], rightIds: Set[ExprId], joinType: JoinType): Expression =
+    expression.transform(referenceReplacerOuter(inputs, leftIds, rightIds, joinType))
 
   val binaryOperatorOverride = Map("=" -> "==")
 
@@ -144,6 +153,11 @@ object SparkVeMapper {
         FlatToNestedFunction.runWhenNotNull(
           items = children.map(exp => eval(exp)).toList,
           function = "std::min"
+        )
+      case NoOp =>
+        CExpression(
+          "0",
+          Some("false")
         )
       case _ =>
         sys.error(expression.getClass.getCanonicalName + ": " + expression.toString())

@@ -8,6 +8,8 @@ object CFunctionGeneration {
   final case class CVector(name: String, veType: VeType)
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
+  final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
+
   object CExpression
   final case class TypedCExpression2(veType: VeType, cExpression: CExpression)
   final case class NamedTypedCExpression(name: String, veType: VeType, cExpression: CExpression)
@@ -65,6 +67,9 @@ object CFunctionGeneration {
     groups: List[Group],
     outputs: List[Output]
   )
+  sealed trait JoinType
+  case object LeftOuterJoin extends JoinType
+  case object RightOuterJoin extends JoinType
 
   final case class VeInnerJoin[Input, LeftKey, RightKey, Output](
                                                     inputs: List[Input],
@@ -73,6 +78,15 @@ object CFunctionGeneration {
                                                     outputs: List[Output]
                                                   )
 
+  final case class OuterJoinOutput[Output](innerJoinOutputs: Output, outerJoinOutputs: Output)
+
+  final case class VeOuterJoin[Input, LeftKey, RightKey, Output](
+                                                                  inputs: List[Input],
+                                                                  leftKey: LeftKey,
+                                                                  rightKey: RightKey,
+                                                                  outputs: List[OuterJoinOutput[Output]],
+                                                                  joinType: JoinType
+                                                                )
   sealed trait JoinExpression {
     def fold[T](whenProj: CExpression => T): T
   }
@@ -204,6 +218,7 @@ object CFunctionGeneration {
         "#include <bitset>",
         "#include <iostream>",
         "#include <tuple>",
+        "#include \"tuple_hash.hpp\"",
         """#include "frovedis/core/radix_sort.hpp"""",
         """#include "frovedis/dataframe/join.hpp"""",
         """#include "frovedis/dataframe/join.cc"""",
@@ -430,6 +445,136 @@ object CFunctionGeneration {
         }
 
     ))
+  }
+
+  def renderOuterJoin(
+                       veOuterJoin: VeOuterJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
+                     ): CFunction = {
+
+    CFunction(
+      inputs = veOuterJoin.inputs,
+      outputs = veOuterJoin.outputs.zipWithIndex.map {
+        case (OuterJoinOutput(NamedJoinExpression(outputName, veType, _), _), idx) =>
+          CVector(outputName, veType)
+      },
+      body = CodeLines.from(
+        s"std::vector <std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>> left_vec;",
+        "std::vector<size_t> left_idx;",
+        s"std::vector <std::tuple<${veOuterJoin.rightKey.veType.cScalarType}, int>> right_vec;",
+        "std::vector<size_t> right_idx;",
+        "#pragma _NEC ivdep",
+        CodeLines.from(
+          veOuterJoin.leftKey.cExpression.isNotNullCode match {
+            case Some(notNullCode) => CodeLines.from(
+              s"""for(int i =0; i < ${veOuterJoin.leftKey.cExpression.cCode.replace("data[i]","count")}; i++) {""",
+              "left_idx.push_back(i);",
+              s"if( ${notNullCode}) {",
+              s"left_vec.push_back(std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>(${veOuterJoin.leftKey.cExpression.cCode}, 1));",
+              "} else {",
+              s"left_vec.push_back(std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>(${veOuterJoin.leftKey.cExpression.cCode}, 0));",
+              "}",
+              "}"
+            )
+            case None => CodeLines.from(
+              s"""for(int i =0; i < ${veOuterJoin.leftKey.cExpression.cCode.replace("data[i]","count")}; i++) {""",
+              s"left_vec.push_back(std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>(${veOuterJoin.leftKey.cExpression.cCode}, 1));",
+              "}"
+            )
+          },
+          veOuterJoin.rightKey.cExpression.isNotNullCode match {
+            case Some(notNullCode) => CodeLines.from(
+              s"""for(int i =0; i < ${veOuterJoin.rightKey.cExpression.cCode.replace("data[i]","count")}; i++) {""",
+              "right_idx.push_back(i);",
+
+              s"if( ${notNullCode}) {",
+              s"right_vec.push_back(std::tuple<${veOuterJoin.rightKey.veType.cScalarType}, int>(${veOuterJoin.rightKey.cExpression.cCode}, 1));",
+              "} else {",
+              s"right_vec.push_back(std::tuple<${veOuterJoin.rightKey.veType.cScalarType}, int>(${veOuterJoin.rightKey.cExpression.cCode}, 0));",
+              "}",
+              "}"
+            )
+            case None => CodeLines.from(
+              s"""for(int i =0; i < ${veOuterJoin.rightKey.cExpression.cCode.replace("data[i]","count")}; i++) {""",
+              s"right_vec.push_back(std::tuple<${veOuterJoin.rightKey.veType.cScalarType}, int>(${veOuterJoin.rightKey.cExpression.cCode}, 1));",
+              "}"
+            )
+          },
+        ).indented,
+        "std::vector<size_t> right_out;",
+        "std::vector<size_t> left_out;",
+        veOuterJoin.joinType match {
+          case LeftOuterJoin => CodeLines.from(
+            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
+          )
+          case RightOuterJoin => CodeLines.from(
+            s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);",
+          )
+        },
+        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 8.0);"),
+        veOuterJoin.outputs.map {
+          case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
+            joinExpression.fold(
+              whenProj = _ => CodeLines.from(
+                s"${outputName}->data = (${veType.cScalarType}*) malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType}));",
+                s"${outputName}->validityBuffer = (unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));"
+              ))
+        },
+
+        "for(int i = 0; i < left_out.size(); i++) { ",
+        veOuterJoin.outputs.map {
+          case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
+            joinExpression.fold(ce => ce) match {
+              case ex => ex.isNotNullCode match {
+                case None => CodeLines.from(
+                  s"${outputName}->data[i] = ${ex.cCode};",
+                  s"set_validity($outputName->validityBuffer, i, 1);"
+                ).indented
+                case Some(nullCheck) => CodeLines.from(
+                  s"if( ${nullCheck} ) {",
+                  s"${outputName}->data[i] = ${ex.cCode};",
+                  s"set_validity($outputName->validityBuffer, i, 1);",
+                  "} else {",
+                  s"set_validity($outputName->validityBuffer, i, 0);",
+                  "}"
+                ).indented
+              }
+            }
+        },
+        "}",
+        CodeLines.from(
+          "#pragma _NEC ivdep",
+          "for (int i = left_out.size(); i < (left_out.size() + outer_idx.size()); i++) {",
+          "int idx = i - left_out.size();"
+        ),
+        veOuterJoin.outputs.map{
+          case OuterJoinOutput(_, NamedJoinExpression(outputName, veType, joinExpression)) => {
+            joinExpression.fold(ce => ce) match {
+              case ex => ex.isNotNullCode match {
+                case None => CodeLines.from(
+                  s"${outputName}->data[i] = ${ex.cCode};",
+                  s"set_validity($outputName->validityBuffer, i, 1);"
+                ).indented
+                case Some(nullCheck) => CodeLines.from(
+                  s"if( ${nullCheck} ) {",
+                  s"${outputName}->data[i] = ${ex.cCode};",
+                  s"set_validity($outputName->validityBuffer, i, 1);",
+                  "} else {",
+                  s"set_validity($outputName->validityBuffer, i, 0);",
+                  "}"
+                ).indented
+              }
+            }
+          }
+
+        },
+        CodeLines.from("}"),
+        veOuterJoin.outputs.map{
+          case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
+            CodeLines.from(
+              s"${outputName}->count = left_out.size() + outer_idx.size();"
+            )
+        },
+      ))
   }
 
   def renderGroupBy(
