@@ -177,22 +177,10 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
 
-          println(CExpressionEvaluation.cGenJoinOuter(
-            fName,
-            join.inputSet.toSeq,
-            outerJoin,
-            join.output,
-            leftExprIds,
-            rightExprIds,
-            leftKeyExpr,
-            rightKeyExpr
-          ).toString)
-          println(renderOuterJoin(VeOuterJoin(inputs, leftKey, rightKey, outputs, outerJoinType)).toCodeLines(fName))
           List(
             GeneratedJoinPlan(
               planLater(left),
               planLater(right),
-//
               renderOuterJoin(VeOuterJoin(inputs, leftKey, rightKey, outputs, outerJoinType)).toCodeLines(fName),
               nativeEvaluator,
               join.inputSet.toSeq,
