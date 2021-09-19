@@ -292,9 +292,9 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )(
       (
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[left_out[i]]", None))),
+        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
         TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[right_out[i]] + 1", None))
+          GroupByProjection(CExpression("input_1->data[i] + 1", None))
         ),
         TypedGroupByExpression[Double](
           GroupByAggregation(
