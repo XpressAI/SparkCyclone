@@ -118,16 +118,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             GeneratedJoinPlan(
               planLater(left),
               planLater(right),
-              CExpressionEvaluation.cGenJoin(
-                fName,
-                join.inputSet.toSeq,
-                join.output,
-                leftExprIds,
-                rightExprIds,
-                leftKeyExpr,
-                rightKeyExpr
-              ),
-//              renderInnerJoin(VeInnerJoin(inputs, leftKey, rightKey, outputs)).toCodeLines(fName),
+              renderInnerJoin(VeInnerJoin(inputs, leftKey, rightKey, outputs)).toCodeLines(fName),
               nativeEvaluator,
               join.inputSet.toSeq,
               join.output,

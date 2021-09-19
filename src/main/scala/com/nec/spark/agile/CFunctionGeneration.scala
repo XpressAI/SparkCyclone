@@ -396,7 +396,7 @@ object CFunctionGeneration {
           case NamedJoinExpression(outputName, veType, joinExpression) =>
             joinExpression.fold(
               whenProj = _ => CodeLines.from(
-                s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cSize}));",
+                s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cScalarType}));",
                 s"${outputName}->validityBuffer = (unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));"
               ))
         },
