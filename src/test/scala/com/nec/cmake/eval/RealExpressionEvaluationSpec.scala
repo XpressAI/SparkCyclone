@@ -6,9 +6,19 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalAggregate, evalFilter, evalGroupBySum, evalInnerJoin, evalProject, evalSort}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
+  evalAggregate,
+  evalFilter,
+  evalGroupBySum,
+  evalInnerJoin,
+  evalProject,
+  evalSort
+}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration.{CVector, _}
 import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
@@ -255,15 +265,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (1.0, 2.0, 5.0, 1.0),
       (3.0, 2.0, 3.0, 7.0),
       (11.0, 7.0, 12.0, 11.0),
-      (8.0, 2.0, 3.0, 9.0),
+      (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(
-      VeType.VeNullableDouble, CExpression("input_0->data[i]", None)
-    )
+    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(
-      VeType.VeNullableDouble, CExpression("input_3->data[i]", None)
-    )
+    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val outputs = (
       TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
@@ -272,9 +278,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     val out = evalInnerJoin(inputs, leftKey, rightKey, outputs)
 
-   assert(
-     out == List((2.0, 5.0), (7.0, 12.0))
-   )
+    assert(out == List((2.0, 5.0), (7.0, 12.0)))
   }
 
   "We can aggregate / group by (correlation)" in {
@@ -355,12 +359,16 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
   }
 
-  def evalInnerJoin[Input, LeftKey, RightKey, Output](input: List[Input], leftKey: TypedCExpression2,
-                                                      rightKey: TypedCExpression2, output: Output)(implicit
-                                                                                                   inputArguments: InputArguments[Input],
-                                                                                                   joinExpressor: JoinExpressor[Output],
-                                                                                                   outputArguments: OutputArguments[Output]
-                                                     ): List[outputArguments.Result] = {
+  def evalInnerJoin[Input, LeftKey, RightKey, Output](
+    input: List[Input],
+    leftKey: TypedCExpression2,
+    rightKey: TypedCExpression2,
+    output: Output
+  )(implicit
+    inputArguments: InputArguments[Input],
+    joinExpressor: JoinExpressor[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
     val functionName = "project_f"
     val generatedSource =
       renderInnerJoin(

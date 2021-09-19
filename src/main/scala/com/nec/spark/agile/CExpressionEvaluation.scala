@@ -402,7 +402,7 @@ object CExpressionEvaluation {
         case (re, idx) => {
           List(
             s"output_${idx}->data=(${cTypeOfSub(inputs, re)} *) malloc((left_out.size() + outer_idx.size()) * sizeof(${cTypeOfSub(inputs, re)}));",
-            s"output_${idx}->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));",
+            s"output_${idx}->validityBuffer=(unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));"
           )
         }
       }.toList,
@@ -1183,8 +1183,5 @@ object CExpressionEvaluation {
       List("return 0;")
     ).flatten.codeLines
   }
-
-
-
 
 }
