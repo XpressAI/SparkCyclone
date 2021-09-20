@@ -296,7 +296,7 @@ extern "C" long parse_csv_double1_str2_int3_long4(
     output_c->data[1] = 2;
     output_c->count = 2;
 
-    output_d->data = (long *)malloc(2 * sizeof(long));
+    output_d->data = (long long *)malloc(2 * sizeof(long long));
     output_d->data[0] = 10000000000000L;
     output_d->data[1] = 10000000000001L;
     output_d->count = 2;
