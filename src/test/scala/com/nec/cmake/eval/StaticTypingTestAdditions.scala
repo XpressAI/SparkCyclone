@@ -253,10 +253,10 @@ object StaticTypingTestAdditions {
           )
         }
       }
-    implicit val forQuartedDoubleJoin
+    implicit val forQuartedOptionDoubleJoin
       : OutputArguments[(TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double])] =
       new OutputArguments[(TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double])] {
-        override type Result = (Double, Double, Double, Double)
+        override type Result = (Option[Double], Option[Double], Option[Double], Option[Double])
         override def allocateVectors()(implicit
           rootAllocator: RootAllocator
         ): (List[VectorOutputNativeArgument], () => List[Result]) = {
@@ -268,7 +268,7 @@ object StaticTypingTestAdditions {
             List(
               NativeArgument.output(outVector_0), NativeArgument.output(outVector_1), NativeArgument.output(outVector_2), NativeArgument.output(outVector_3)
             ),
-            () => outVector_0.toList.zip(outVector_1.toList).zip(outVector_2.toList).zip(outVector_3.toList)
+            () => outVector_0.toListNullable.zip(outVector_1.toListNullable).zip(outVector_2.toListNullable).zip(outVector_3.toListNullable)
               .map{
                 case (((a, b), c), d ) => (a, b, c, d)
               }

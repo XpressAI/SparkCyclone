@@ -6,19 +6,9 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
-  evalAggregate,
-  evalFilter,
-  evalGroupBySum,
-  evalInnerJoin,
-  evalProject,
-  evalSort
-}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalAggregate, evalFilter, evalGroupBySum, evalInnerJoin, evalOuterJoin, evalProject, evalSort}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
-  GroupByAggregation,
-  GroupByProjection
-}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
 import com.nec.spark.agile.CFunctionGeneration.{CVector, _}
 import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
@@ -283,6 +273,76 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     assert(out == List((2.0,5.0,1.0,1.0), (7.0,12.0,11.0,11.0)))
   }
 
+  "We can Left Join" in {
+    val inputs = List(
+      (1.0, 2.0, 5.0, 1.0),
+      (3.0, 2.0, 3.0, 7.0),
+      (11.0, 7.0, 12.0, 11.0),
+      (8.0, 2.0, 3.0, 9.0)
+    )
+    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+
+    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+
+    val innerOutputs = (
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+    )
+
+    val outerOutputs = (
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[outer_idx[idx]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[outer_idx[idx]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false"))))
+    )
+
+    val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, LeftOuterJoin)
+
+    assert(out == List(
+      (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
+      (Some(7.0), Some(12.0), Some(11.0),Some(11.0)),
+      (Some(2.0), None, Some(3.0),None),
+      (Some(2.0), None, Some(8.0),None),
+      ))
+  }
+
+  "We can Right Join" in {
+    val inputs = List(
+      (1.0, 2.0, 5.0, 1.0),
+      (3.0, 2.0, 3.0, 7.0),
+      (11.0, 7.0, 12.0, 11.0),
+      (8.0, 2.0, 3.0, 9.0)
+    )
+    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+
+    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+
+    val innerOutputs = (
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+    )
+
+    val outerOutputs = (
+      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[outer_idx[idx]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[outer_idx[idx]]", None)))
+    )
+
+    val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, RightOuterJoin)
+
+    assert(out == List(
+      (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
+      (Some(7.0), Some(12.0), Some(11.0),Some(11.0)),
+      (None, Some(3.0), None, Some(7.0)),
+      (None, Some(3.0), None, Some(9.0)),
+    ))
+  }
+
   "We can aggregate / group by (correlation)" in {
     val result = evalGroupBySum(
       List[(Double, Double, Double)](
@@ -382,6 +442,59 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         )
       ).toCodeLines(functionName)
 
+    logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+    val cLib = CMakeBuilder.buildCLogging(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
+
+  def evalOuterJoin[Input, LeftKey, RightKey, Output](
+                                                       input: List[Input],
+                                                       leftKey: TypedCExpression2,
+                                                       rightKey: TypedCExpression2,
+                                                       innerOutput: Output,
+                                                       outerOutput: Output,
+                                                       joinType: JoinType
+                                                     )(implicit
+                                                       inputArguments: InputArguments[Input],
+                                                       joinExpressor: JoinExpressor[Output],
+                                                       outputArguments: OutputArguments[ Output]
+                                                     ): List[outputArguments.Result] = {
+    val functionName = "project_f"
+    val outputs = joinExpressor.express(innerOutput).zip(joinExpressor.express(outerOutput))
+      .map {
+        case (inner, outer) => OuterJoinOutput(inner, outer)
+      }
+    val generatedSource =
+      renderOuterJoin(
+        VeOuterJoin(
+          inputs = inputArguments.inputs,
+          leftKey = leftKey,
+          rightKey = rightKey,
+          outputs = outputs,
+          joinType
+        )
+      ).toCodeLines(functionName)
+    println(generatedSource)
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(

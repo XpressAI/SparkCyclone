@@ -480,6 +480,7 @@ object CFunctionGeneration {
                 CodeLines.from(
                   s"""for(int i =0; i < ${veOuterJoin.leftKey.cExpression.cCode
                     .replace("data[i]", "count")}; i++) {""",
+                  "left_idx.push_back(i);",
                   s"left_vec.push_back(std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>(${veOuterJoin.leftKey.cExpression.cCode}, 1));",
                   "}"
                 )
@@ -501,6 +502,7 @@ object CFunctionGeneration {
                 CodeLines.from(
                   s"""for(int i =0; i < ${veOuterJoin.rightKey.cExpression.cCode
                     .replace("data[i]", "count")}; i++) {""",
+                  "right_idx.push_back(i);",
                   s"right_vec.push_back(std::tuple<${veOuterJoin.rightKey.veType.cScalarType}, int>(${veOuterJoin.rightKey.cExpression.cCode}, 1));",
                   "}"
                 )
@@ -519,7 +521,8 @@ object CFunctionGeneration {
               s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);"
             )
         },
-        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 8.0);"),
+        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 8.0);",
+        ),
         veOuterJoin.outputs.map {
           case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
             joinExpression.fold(whenProj =
