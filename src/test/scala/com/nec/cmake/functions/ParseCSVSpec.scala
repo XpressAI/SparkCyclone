@@ -14,7 +14,14 @@ import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
 import com.nec.cmake.functions.ParseCSVSpec.doublesToCsv
 import com.nec.cmake.functions.ParseCSVSpec.inTolerance
 import com.nec.cmake.functions.ParseCSVSpec.verifyOn
-import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, DateDayVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  DateDayVector,
+  Float8Vector,
+  IntVector,
+  VarCharVector
+}
 import org.scalacheck.Gen
 import org.scalacheck.Prop
 import org.scalatest.freespec.AnyFreeSpec
@@ -25,10 +32,11 @@ object ParseCSVSpec {
   implicit class RichFloat8(float8Vector: Float8Vector) {
     def toList: List[Double] = (0 until float8Vector.getValueCount).map(float8Vector.get).toList
 
-    def toListNullable: List[Option[Double]] = (0 until float8Vector.getValueCount).map{
-      case idx if(BitVectorHelper.get(float8Vector.getValidityBuffer, idx) == 1) => Some(float8Vector.get(idx))
+    def toListNullable: List[Option[Double]] = (0 until float8Vector.getValueCount).map {
+      case idx if (BitVectorHelper.get(float8Vector.getValidityBuffer, idx) == 1) =>
+        Some(float8Vector.get(idx))
       case _ => None
-     }.toList
+    }.toList
 
     def toListSafe: List[Option[Double]] =
       (0 until float8Vector.getValueCount)

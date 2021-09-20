@@ -6,9 +6,20 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalAggregate, evalFilter, evalGroupBySum, evalInnerJoin, evalOuterJoin, evalProject, evalSort}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
+  evalAggregate,
+  evalFilter,
+  evalGroupBySum,
+  evalInnerJoin,
+  evalOuterJoin,
+  evalProject,
+  evalSort
+}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration.{CVector, _}
 import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
@@ -270,7 +281,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     val out = evalInnerJoin(inputs, leftKey, rightKey, outputs)
 
-    assert(out == List((2.0,5.0,1.0,1.0), (7.0,12.0,11.0,11.0)))
+    assert(out == List((2.0, 5.0, 1.0, 1.0), (7.0, 12.0, 11.0, 11.0)))
   }
 
   "We can Left Join" in {
@@ -292,20 +303,26 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
 
     val outerOutputs = (
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[outer_idx[idx]]", None))),
+      TypedJoinExpression[Double](
+        JoinProjection(CExpression("input_1->data[outer_idx[idx]]", None))
+      ),
       TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[outer_idx[idx]]", None))),
+      TypedJoinExpression[Double](
+        JoinProjection(CExpression("input_0->data[outer_idx[idx]]", None))
+      ),
       TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false"))))
     )
 
     val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, LeftOuterJoin)
 
-    assert(out == List(
-      (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
-      (Some(7.0), Some(12.0), Some(11.0),Some(11.0)),
-      (Some(2.0), None, Some(3.0),None),
-      (Some(2.0), None, Some(8.0),None),
-      ))
+    assert(
+      out == List(
+        (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
+        (Some(7.0), Some(12.0), Some(11.0), Some(11.0)),
+        (Some(2.0), None, Some(3.0), None),
+        (Some(2.0), None, Some(8.0), None)
+      )
+    )
   }
 
   "We can Right Join" in {
@@ -328,19 +345,25 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     val outerOutputs = (
       TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[outer_idx[idx]]", None))),
+      TypedJoinExpression[Double](
+        JoinProjection(CExpression("input_2->data[outer_idx[idx]]", None))
+      ),
       TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[outer_idx[idx]]", None)))
+      TypedJoinExpression[Double](
+        JoinProjection(CExpression("input_3->data[outer_idx[idx]]", None))
+      )
     )
 
     val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, RightOuterJoin)
 
-    assert(out == List(
-      (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
-      (Some(7.0), Some(12.0), Some(11.0),Some(11.0)),
-      (None, Some(3.0), None, Some(7.0)),
-      (None, Some(3.0), None, Some(9.0)),
-    ))
+    assert(
+      out == List(
+        (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
+        (Some(7.0), Some(12.0), Some(11.0), Some(11.0)),
+        (None, Some(3.0), None, Some(7.0)),
+        (None, Some(3.0), None, Some(9.0))
+      )
+    )
   }
 
   "We can aggregate / group by (correlation)" in {
@@ -468,21 +491,23 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   }
 
   def evalOuterJoin[Input, LeftKey, RightKey, Output](
-                                                       input: List[Input],
-                                                       leftKey: TypedCExpression2,
-                                                       rightKey: TypedCExpression2,
-                                                       innerOutput: Output,
-                                                       outerOutput: Output,
-                                                       joinType: JoinType
-                                                     )(implicit
-                                                       inputArguments: InputArguments[Input],
-                                                       joinExpressor: JoinExpressor[Output],
-                                                       outputArguments: OutputArguments[ Output]
-                                                     ): List[outputArguments.Result] = {
+    input: List[Input],
+    leftKey: TypedCExpression2,
+    rightKey: TypedCExpression2,
+    innerOutput: Output,
+    outerOutput: Output,
+    joinType: JoinType
+  )(implicit
+    inputArguments: InputArguments[Input],
+    joinExpressor: JoinExpressor[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
     val functionName = "project_f"
-    val outputs = joinExpressor.express(innerOutput).zip(joinExpressor.express(outerOutput))
-      .map {
-        case (inner, outer) => OuterJoinOutput(inner, outer)
+    val outputs = joinExpressor
+      .express(innerOutput)
+      .zip(joinExpressor.express(outerOutput))
+      .map { case (inner, outer) =>
+        OuterJoinOutput(inner, outer)
       }
     val generatedSource =
       renderOuterJoin(

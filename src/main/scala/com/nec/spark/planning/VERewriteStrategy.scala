@@ -1,32 +1,18 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CExpressionEvaluation.{cGenJoin, NameCleaner, RichListStr}
+import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
-import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 import com.typesafe.scalalogging.LazyLogging
 
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  EqualTo,
-  IsNotNull,
-  Literal,
-  NamedExpression,
-  SortOrder,
-  Substring
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
 import org.apache.spark.sql.catalyst.plans
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.{logical, Inner}
+import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
 

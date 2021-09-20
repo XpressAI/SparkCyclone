@@ -239,7 +239,6 @@ object StaticTypingTestAdditions {
           val outVector_2 = new Float8Vector("output_2", rootAllocator)
           val outVector_3 = new Float8Vector("output_3", rootAllocator)
 
-
           (
             List(
               NativeArgument.output(outVector_0),
@@ -253,9 +252,22 @@ object StaticTypingTestAdditions {
           )
         }
       }
-    implicit val forQuartedOptionDoubleJoin
-      : OutputArguments[(TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double])] =
-      new OutputArguments[(TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double])] {
+    implicit val forQuartedOptionDoubleJoin: OutputArguments[
+      (
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double]
+      )
+    ] =
+      new OutputArguments[
+        (
+          TypedJoinExpression[Double],
+          TypedJoinExpression[Double],
+          TypedJoinExpression[Double],
+          TypedJoinExpression[Double]
+        )
+      ] {
         override type Result = (Option[Double], Option[Double], Option[Double], Option[Double])
         override def allocateVectors()(implicit
           rootAllocator: RootAllocator
@@ -266,12 +278,19 @@ object StaticTypingTestAdditions {
           val outVector_3 = new Float8Vector("output_3", rootAllocator)
           (
             List(
-              NativeArgument.output(outVector_0), NativeArgument.output(outVector_1), NativeArgument.output(outVector_2), NativeArgument.output(outVector_3)
+              NativeArgument.output(outVector_0),
+              NativeArgument.output(outVector_1),
+              NativeArgument.output(outVector_2),
+              NativeArgument.output(outVector_3)
             ),
-            () => outVector_0.toListNullable.zip(outVector_1.toListNullable).zip(outVector_2.toListNullable).zip(outVector_3.toListNullable)
-              .map{
-                case (((a, b), c), d ) => (a, b, c, d)
-              }
+            () =>
+              outVector_0.toListNullable
+                .zip(outVector_1.toListNullable)
+                .zip(outVector_2.toListNullable)
+                .zip(outVector_3.toListNullable)
+                .map { case (((a, b), c), d) =>
+                  (a, b, c, d)
+                }
           )
         }
       }
@@ -433,8 +452,14 @@ object StaticTypingTestAdditions {
   }
 
   object JoinExpressor {
-    implicit val forQuartetDouble
-      : JoinExpressor[(TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double], TypedJoinExpression[Double])] = output =>
+    implicit val forQuartetDouble: JoinExpressor[
+      (
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double]
+      )
+    ] = output =>
       List(
         NamedJoinExpression("output_1", VeType.veNullableDouble, output._1.joinExpression),
         NamedJoinExpression("output_2", VeType.veNullableDouble, output._2.joinExpression),
