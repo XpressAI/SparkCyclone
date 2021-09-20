@@ -296,21 +296,21 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val innerOutputs = (
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
     )
 
     val outerOutputs = (
-      TypedJoinExpression[Double](
+      TypedJoinExpression[Option[Double]](
         JoinProjection(CExpression("input_1->data[outer_idx[idx]]", None))
       ),
-      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Double](
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false")))),
+      TypedJoinExpression[Option[Double]](
         JoinProjection(CExpression("input_0->data[outer_idx[idx]]", None))
       ),
-      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false"))))
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false"))))
     )
 
     val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, LeftOuterJoin)
@@ -337,19 +337,19 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val innerOutputs = (
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
     )
 
     val outerOutputs = (
-      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Double](
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false")))),
+      TypedJoinExpression[Option[Double]](
         JoinProjection(CExpression("input_2->data[outer_idx[idx]]", None))
       ),
-      TypedJoinExpression[Double](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Double](
+      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false")))),
+      TypedJoinExpression[Option[Double]](
         JoinProjection(CExpression("input_3->data[outer_idx[idx]]", None))
       )
     )
