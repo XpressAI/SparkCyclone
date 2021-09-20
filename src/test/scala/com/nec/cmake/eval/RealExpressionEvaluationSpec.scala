@@ -273,12 +273,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     val outputs = (
       TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None)))
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
     )
 
     val out = evalInnerJoin(inputs, leftKey, rightKey, outputs)
 
-    assert(out == List((2.0, 5.0), (7.0, 12.0)))
+    assert(out == List((2.0,5.0,1.0,1.0), (7.0,12.0,11.0,11.0)))
   }
 
   "We can aggregate / group by (correlation)" in {
