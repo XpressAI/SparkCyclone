@@ -102,7 +102,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             NewCEvaluationPlan(
               fName,
               proj.output,
-              NewCExpressionEvaluation.evaluate(fName, child.output, beginIndex, endIndex),
+              StringCExpressionEvaluation.evaluate(fName, child.output, beginIndex, endIndex),
               planLater(child),
               proj.references.map(_.name).toSet,
               nativeEvaluator
