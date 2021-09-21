@@ -1,6 +1,7 @@
 package com.nec.cmake.functions
 
 import scala.util.Random
+
 import com.eed3si9n.expecty.Expecty.expect
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.arrow.ArrowNativeInterface
@@ -13,21 +14,29 @@ import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
 import com.nec.cmake.functions.ParseCSVSpec.doublesToCsv
 import com.nec.cmake.functions.ParseCSVSpec.inTolerance
 import com.nec.cmake.functions.ParseCSVSpec.verifyOn
-import org.apache.arrow.vector.BigIntVector
-import org.apache.arrow.vector.Float8Vector
-import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.VarCharVector
-import org.apache.arrow.vector.DateDayVector
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  DateDayVector,
+  Float8Vector,
+  IntVector,
+  VarCharVector
+}
 import org.scalacheck.Gen
 import org.scalacheck.Prop
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatestplus.scalacheck.Checkers
-
 import java.time.LocalDate
 
 object ParseCSVSpec {
   implicit class RichFloat8(float8Vector: Float8Vector) {
     def toList: List[Double] = (0 until float8Vector.getValueCount).map(float8Vector.get).toList
+
+    def toListNullable: List[Option[Double]] = (0 until float8Vector.getValueCount).map {
+      case idx if (BitVectorHelper.get(float8Vector.getValidityBuffer, idx) == 1) =>
+        Some(float8Vector.get(idx))
+      case _ => None
+    }.toList
 
     def toListSafe: List[Option[Double]] =
       (0 until float8Vector.getValueCount)

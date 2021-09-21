@@ -1,29 +1,18 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CExpressionEvaluation.{NameCleaner, RichListStr}
+import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
+import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
-import com.nec.spark.planning.VERewriteStrategy.meldAggregateAndProject
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  EqualTo,
-  IsNotNull,
-  Literal,
-  NamedExpression,
-  SortOrder,
-  Substring
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
+import org.apache.spark.sql.catalyst.plans
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.{logical, Inner}
+import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
 
@@ -105,6 +94,31 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             ) => {
           val leftExprIds = left.output.map(_.exprId).toSet
           val rightExprIds = right.output.map(_.exprId).toSet
+          val inputs = join.inputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
+            CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
+          }
+          val leftKey = TypedCExpression2(
+            SparkVeMapper.sparkTypeToVeType(leftKeyExpr.dataType),
+            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, leftKeyExpr))
+          )
+          val rightKey = TypedCExpression2(
+            SparkVeMapper.sparkTypeToVeType(rightKeyExpr.dataType),
+            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, rightKeyExpr))
+          )
+          val outputs = join.output.zipWithIndex
+            .map((attr) =>
+              NamedJoinExpression(
+                s"output_${attr._2}",
+                SparkVeMapper.sparkTypeToVeType(attr._1.dataType),
+                JoinProjection(
+                  SparkVeMapper.eval(
+                    SparkVeMapper
+                      .replaceReferences(join.inputSet.toSeq, attr._1, leftExprIds, rightExprIds)
+                  )
+                )
+              )
+            )
+            .toList
 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
 
@@ -112,15 +126,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             GeneratedJoinPlan(
               planLater(left),
               planLater(right),
-              CExpressionEvaluation.cGenJoin(
-                fName,
-                join.inputSet.toSeq,
-                join.output,
-                leftExprIds,
-                rightExprIds,
-                leftKeyExpr,
-                rightKeyExpr
-              ),
+              renderInnerJoin(VeInnerJoin(inputs.toList, leftKey, rightKey, outputs))
+                .toCodeLines(fName),
               nativeEvaluator,
               join.inputSet.toSeq,
               join.output,
@@ -139,33 +146,69 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             ) => {
           val leftExprIds = left.output.map(_.exprId).toSet
           val rightExprIds = right.output.map(_.exprId).toSet
+          val inputs = join.inputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
+            CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
+          }.toList
+          val leftKey = TypedCExpression2(
+            SparkVeMapper.sparkTypeToVeType(leftKeyExpr.dataType),
+            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, leftKeyExpr))
+          )
+          val rightKey = TypedCExpression2(
+            SparkVeMapper.sparkTypeToVeType(rightKeyExpr.dataType),
+            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, rightKeyExpr))
+          )
+          val outputsInner = join.output.zipWithIndex
+            .map((attr) =>
+              NamedJoinExpression(
+                s"output_${attr._2}",
+                SparkVeMapper.sparkTypeToVeType(attr._1.dataType),
+                JoinProjection(
+                  SparkVeMapper.eval(
+                    SparkVeMapper
+                      .replaceReferences(join.inputSet.toSeq, attr._1, leftExprIds, rightExprIds)
+                  )
+                )
+              )
+            )
+            .toList
+          val outerJoinType = outerJoin match {
+            case plans.LeftOuter  => LeftOuterJoin
+            case plans.RightOuter => RightOuterJoin
+          }
+
+          val outputsOuter = join.output.zipWithIndex
+            .map((attr) =>
+              NamedJoinExpression(
+                s"output_${attr._2}",
+                SparkVeMapper.sparkTypeToVeType(attr._1.dataType),
+                JoinProjection(
+                  SparkVeMapper.eval(
+                    SparkVeMapper.replaceReferencesOuter(
+                      join.inputSet.toSeq,
+                      attr._1,
+                      leftExprIds,
+                      rightExprIds,
+                      outerJoinType
+                    )
+                  )
+                )
+              )
+            )
+            .toList
+          val outputs = outputsInner
+            .zip(outputsOuter)
+            .map { case (inner, outer) =>
+              OuterJoinOutput(inner, outer)
+            }
 
           implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          val c = CExpressionEvaluation.cGenJoinOuter(
-            fName,
-            join.inputSet.toSeq,
-            outerJoin,
-            join.output,
-            leftExprIds,
-            rightExprIds,
-            leftKeyExpr,
-            rightKeyExpr
-          )
-          println(c)
+
           List(
             GeneratedJoinPlan(
               planLater(left),
               planLater(right),
-              CExpressionEvaluation.cGenJoinOuter(
-                fName,
-                join.inputSet.toSeq,
-                outerJoin,
-                join.output,
-                leftExprIds,
-                rightExprIds,
-                leftKeyExpr,
-                rightKeyExpr
-              ),
+              renderOuterJoin(VeOuterJoin(inputs, leftKey, rightKey, outputs, outerJoinType))
+                .toCodeLines(fName),
               nativeEvaluator,
               join.inputSet.toSeq,
               join.output,
