@@ -13,6 +13,9 @@ object SampleTestData {
 
   lazy val SampleMultiColumnCSV: Path = PkgDir.resolve("sampleMultiColumn-distributedCsv")
   lazy val SecondSampleMultiColumnCsv: Path = PkgDir.resolve("sampleMultiColumn-distributedCsv2")
+  lazy val ConvertedParquet: Path = PkgDir.resolve("convertedSample.parquet")
+  lazy val ConvertedJoinTable: Path = PkgDir.resolve("convertedJoinTable.snappy.parquet")
+
 
   /** When forked, this is no longer an external file, but a resource * */
   lazy val PkgDir = {
