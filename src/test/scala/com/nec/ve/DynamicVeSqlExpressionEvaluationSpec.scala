@@ -675,6 +675,46 @@ final class DynamicVeSqlExpressionEvaluationSpec
         )
       }
     }
+
+    val innerCastSql = s"SELECT SUM(cast($SampleColA AS double)) FROM nums GROUP BY $SampleColB"
+    s"Casting inside a sum to various types works" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(innerCastSql).debugSqlHere { ds =>
+        assert(
+          ds.as[(Option[Long], Option[Int], Option[Double])]
+            .collect()
+            .toList == List(
+            (Some(2), Some(2),Some(2.0)),
+            (Some(52), Some(52),Some(52.0)),
+            (Some(4),Some(4),Some(4.0)),
+            (Some(0), Some(0), None),
+            (Some(2), Some(2), Some(2.0)),
+            (Some(1), Some(1), Some(1.0)),
+            (Some(4), Some(0), Some(4.0)),
+            (Some(0), Some(0), None),
+            (Some(0), Some(0), None),
+            (Some(2), Some(0), Some(2.0)),
+            (Some(3), Some(0), Some(3.0)),
+            (Some(0), Some(0), None),
+            (Some(20), Some(0), Some(20.0))
+          )
+        )
+      }
+    }
+
+    val joinQuery = s"SELECT * FROM t1 JOIN t2 on sample_id_c09c808524c21082de7576e875cab4fc = simple_id"
+    s"Join query does cause compiler error" in withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.configuration) { sparkSession =>
+      import sparkSession.implicits._
+
+      SampleSource.makeConvertedParquetData(sparkSession)
+      sparkSession
+        .sql("select * from t1 join t2 on sample_id_c09c808524c21082de7576e875cab4fc==simple_id")
+        .debugSqlHere { ds =>
+          assert(ds.count() == 1)
+        }
+    }
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
