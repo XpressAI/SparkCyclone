@@ -20,12 +20,12 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
-import com.nec.spark.agile.CFunctionGeneration.{CVector, _}
+import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
 
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 import scala.runtime.LazyLong
@@ -387,8 +387,9 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         ),
         TypedGroupByExpression[Double](
           GroupByAggregation(
-            Aggregation
-              .corr(CExpression("input_2->data[i]", None), CExpression("input_2->data[i]", None))
+            DeclarativeAggregationConverter(
+              Corr(AttributeReference("input_2->data[i]", DoubleType)(), AttributeReference("input_2->data[i]", DoubleType)())
+            )
           )
         )
       )
