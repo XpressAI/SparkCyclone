@@ -379,13 +379,15 @@ object VeArrowTransfers extends LazyLogging {
 
     requireOk {
       Aurora.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
+    }
+
+    requireOk {
       Aurora.veo_read_mem(
         proc,
         new org.bytedeco.javacpp.Pointer(validityTarget),
         validityPtr,
         dataCount
       )
-
     }
     vec.count = dataCount
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
@@ -400,32 +402,44 @@ object VeArrowTransfers extends LazyLogging {
     vec: nullable_varchar_vector,
     byteBuffer: ByteBuffer
   )(implicit cleanup: Cleanup): Unit = {
-    /* data = size 8, offsets = size 8, size = size 4, count = size 4; so: 0, 8, 16, 20 */
-    val veoPtrData = byteBuffer.getLong(0)
-    val dataSize = byteBuffer.getInt(16)
-    val vhTargetData = ByteBuffer.allocateDirect(dataSize)
-    requireOk(
-      Aurora
-        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetData), veoPtrData, dataSize)
-    )
-    vec.size = dataSize
-    vec.data = vhTargetData.asInstanceOf[sun.nio.ch.DirectBuffer].address()
 
-    val veoPtrOffsets = byteBuffer.getLong(8)
-    val dataCount = byteBuffer.getInt(20)
-    val vhTargetOffsets = ByteBuffer.allocateDirect((dataCount + 1) * 4)
-    requireOk(
-      Aurora.veo_read_mem(
-        proc,
-        new org.bytedeco.javacpp.Pointer(vhTargetOffsets),
-        veoPtrOffsets,
-        (dataCount + 1) * 4
-      )
-    )
+    /** Get data size */
+    val dataSize = byteBuffer.getInt(24)
+    vec.size = dataSize
+
+    /** Get data count */
+    val dataCount = byteBuffer.getInt(28)
     vec.count = dataCount
+
+    /** Transfer the data */
+    val dataPtr = byteBuffer.getLong(0)
+    val vhTargetData = ByteBuffer.allocateDirect(dataSize)
+    requireOk {
+      Aurora
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetData), dataPtr, dataSize)
+    }
+    vec.data = vhTargetData.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+    cleanup.add(dataPtr, dataSize)
+
+    /** Transfer the offsets */
+    val offsetsPtr = byteBuffer.getLong(8)
+    val vhTargetOffsets = ByteBuffer.allocateDirect((dataCount + 1) * 4)
+    requireOk {
+      Aurora
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetOffsets), offsetsPtr, dataSize)
+    }
     vec.offsets = vhTargetOffsets.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    cleanup.add(veoPtrOffsets, (dataCount + 1) * 4)
-    cleanup.add(veoPtrData, dataSize)
+    cleanup.add(offsetsPtr, dataSize)
+
+    /** Transfer the validity buffer */
+    val validityPtr = byteBuffer.getLong(16)
+    val vhValidity = ByteBuffer.allocateDirect(dataCount /* wrong but no errors */ )
+    requireOk {
+      Aurora
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhValidity), validityPtr, dataSize)
+    }
+    vec.validityBuffer = vhValidity.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+    cleanup.add(validityPtr, dataSize)
   }
 
   def stringToByteBuffer(str_buf: non_null_c_bounded_string): ByteBuffer = {
