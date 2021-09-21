@@ -3,7 +3,13 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  Float8Vector,
+  IntVector,
+  VarCharVector,
+  VectorSchemaRoot
+}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -21,7 +27,7 @@ import org.apache.spark.sql.execution.{
   UnaryExecNode
 }
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.{DoubleType, LongType, StringType}
+import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import scala.language.dynamics
@@ -30,7 +36,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 final case class NewCEvaluationPlan(
   fName: String,
-  resultExpressions: Seq[NamedExpression],
+  outputExpressions: Seq[NamedExpression],
   lines: CodeLines,
   child: SparkPlan,
   inputReferenceNames: Set[String],
@@ -39,7 +45,7 @@ final case class NewCEvaluationPlan(
   with UnaryExecNode
   with LazyLogging {
 
-  override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
+  override def output: Seq[Attribute] = outputExpressions.zipWithIndex.map { case (ne, idx) =>
     AttributeReference(name = s"value_${idx}", dataType = ne.dataType, nullable = false)()
   }
 
@@ -78,7 +84,7 @@ final case class NewCEvaluationPlan(
               }
             }
 
-            val outputVectors = resultExpressions
+            val outputVectors = outputExpressions
               .flatMap {
                 case Alias(child, _) =>
                   child match {
@@ -93,11 +99,15 @@ final case class NewCEvaluationPlan(
               .zipWithIndex
               .map { case (ne, idx) =>
                 ne.dataType match {
-                  case StringType => new VarCharVector(s"out_${idx}", allocator)
-                  case LongType   => new BigIntVector(s"out_${idx}", allocator)
-                  case DoubleType => new Float8Vector(s"out_${idx}", allocator)
+                  case StringType  => new VarCharVector(s"out_${idx}", allocator)
+                  case LongType    => new BigIntVector(s"out_${idx}", allocator)
+                  case IntegerType => new IntVector(s"out_${idx}", allocator)
+                  case DoubleType  => new Float8Vector(s"out_${idx}", allocator)
                 }
               }
+
+            val outputArgs = inputVectors.toList.map(_ => None) ++
+              outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
 
             try {
               evaluator.callFunction(
@@ -105,14 +115,14 @@ final case class NewCEvaluationPlan(
                 inputArguments = inputVectors.toList.map(iv =>
                   Some(SupportedVectorWrapper.wrapInput(iv))
                 ) ++ outputVectors.map(_ => None),
-                outputArguments = inputVectors.toList.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+                outputArguments = outputArgs
               )
             } finally {
               inputVectors.foreach(_.close())
             }
-
-            (0 until outputVectors.head.getValueCount).iterator.map { v_idx =>
+            val cnt = outputVectors.head.getValueCount
+            logger.info(s"Got ${cnt} results back; ${outputVectors}")
+            (0 until cnt).iterator.map { v_idx =>
               val writer = new UnsafeRowWriter(outputVectors.size)
               writer.reset()
               outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
@@ -122,6 +132,9 @@ final case class NewCEvaluationPlan(
                       val bytes = vector.get(v_idx)
                       writer.write(c_idx, UTF8String.fromBytes(bytes))
                     case vector: Float8Vector =>
+                      if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, vector.get(v_idx))
+                    case vector: IntVector =>
                       if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))
                     case vector: BigIntVector =>

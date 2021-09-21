@@ -6,13 +6,27 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Literal, NamedExpression, SortOrder, Substring}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  DeclarativeAggregate
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  EqualTo,
+  IsNotNull,
+  Length,
+  Literal,
+  NamedExpression,
+  SortOrder,
+  Substring,
+  Subtract
+}
 import org.apache.spark.sql.catalyst.plans
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.{Inner, logical}
+import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
 
@@ -69,7 +83,16 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     Literal(beginIndex: Int, IntegerType),
                     Literal(endIndex: Int, IntegerType)
                   ),
-                  tgt
+                  _
+                ),
+                Alias(Length(inputExpr2), _),
+                Alias(
+                  Substring(
+                    inputExpr3,
+                    Literal(beginIndex3: Int, IntegerType),
+                    Subtract(Length(inputExpr4), Literal(2, IntegerType), false)
+                  ),
+                  _
                 )
               ),
               child
@@ -78,8 +101,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           List(
             NewCEvaluationPlan(
               fName,
-              child.output,
-              NewCExpressionEvaluation.evaluate(fName, child.output, tgt, beginIndex, endIndex),
+              proj.output,
+              NewCExpressionEvaluation.evaluate(fName, child.output, beginIndex, endIndex),
               planLater(child),
               proj.references.map(_.name).toSet,
               nativeEvaluator

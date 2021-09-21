@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
 
 final case class SubstringTesting(isVe: Boolean) extends Testing {
-  override type Result = String
+  override type Result = (String, Long, String)
   private val MasterName = "local[8]"
   override def prepareSession(): SparkSession = {
     val sparkConf = new SparkConf(loadDefaults = true)
@@ -41,7 +41,7 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
   override def prepareInput(
     sparkSession: SparkSession,
     dataSize: Testing.DataSize
-  ): Dataset[String] = {
+  ): Dataset[Result] = {
     import sparkSession.implicits._
 
     sparkSession.read
@@ -49,18 +49,25 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
       .as[String]
       .createOrReplaceTempView("sample_tbl")
 
-    val ds = sparkSession.sql("SELECT SUBSTR(value, 1, 3) FROM sample_tbl").as[String]
+    val ds = sparkSession
+      .sql(
+        "SELECT SUBSTR(value, 1, 3), LENGTH(value), SUBSTR(value, 1, LENGTH(value) - 2) FROM sample_tbl"
+      )
+      .as[Result]
 
     val planString = ds.queryExecution.executedPlan.toString()
-    List("NewCEvaluation", "substr").foreach { expStr =>
+    List("NewCEvaluation").foreach { expStr =>
       assert(planString.contains(expStr), s"Expected the plan to contain '$expStr', but it didn't")
     }
 
     ds
   }
-  override def verifyResult(dataset: List[String]): Unit = {
+  override def verifyResult(dataset: List[Result]): Unit = {
     val inputLines = List("This is", "some test", "of some stuff", "that always is")
-    val expected = inputLines.map(_.substring(1, 3))
+    val expected =
+      inputLines.map(str =>
+        (str.substring(1, 3), str.length.toLong, str.substring(1, str.length - 2))
+      )
     assert(dataset == expected)
   }
   override def testingTarget: Testing.TestingTarget =
