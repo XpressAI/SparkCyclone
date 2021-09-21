@@ -177,6 +177,7 @@ public interface ArrowTransferStructures extends Library {
         public long validityBuffer;
         public Integer size;
         public Integer count;
+        /* 24 + 8 = 32 bytes in size */
 
         public nullable_varchar_vector() {
             super();

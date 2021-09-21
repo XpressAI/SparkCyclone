@@ -128,7 +128,7 @@ object VeArrowTransfers extends LazyLogging {
             0,
             index,
             nullableVarCharVectorVectorToByteBuffer(varchar_vector_raw),
-            24L
+            32L
           )
         )
 
@@ -426,20 +426,20 @@ object VeArrowTransfers extends LazyLogging {
     val vhTargetOffsets = ByteBuffer.allocateDirect((dataCount + 1) * 4)
     requireOk {
       Aurora
-        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetOffsets), offsetsPtr, dataSize)
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetOffsets), offsetsPtr, (dataCount + 1) * 4)
     }
     vec.offsets = vhTargetOffsets.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    cleanup.add(offsetsPtr, dataSize)
+    cleanup.add(offsetsPtr, (dataCount + 1) * 4)
 
     /** Transfer the validity buffer */
     val validityPtr = byteBuffer.getLong(16)
-    val vhValidity = ByteBuffer.allocateDirect(dataCount /* wrong but no errors */ )
+    val vhValidity = ByteBuffer.allocateDirect(Math.ceil(vec.count / 8.0).toInt)
     requireOk {
       Aurora
-        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhValidity), validityPtr, dataSize)
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhValidity), validityPtr, Math.ceil(vec.count / 8.0).toInt)
     }
     vec.validityBuffer = vhValidity.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    cleanup.add(validityPtr, dataSize)
+    cleanup.add(validityPtr, Math.ceil(vec.count / 8.0).toInt)
   }
 
   def stringToByteBuffer(str_buf: non_null_c_bounded_string): ByteBuffer = {
