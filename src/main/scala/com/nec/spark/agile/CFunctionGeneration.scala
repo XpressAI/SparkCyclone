@@ -122,41 +122,6 @@ object CFunctionGeneration {
 
       override def compute(prefix: String): CodeLines = CodeLines.empty
     }
-
-    def corr(x: CExpression, y: CExpression): Aggregation = new Aggregation {
-      override def initial(prefix: String): CodeLines =
-        CodeLines.from(
-          s"double ${prefix}_corr_count = 0;",
-          s"double ${prefix}_corr_x_sum = 0;",
-          s"double ${prefix}_corr_y_sum = 0;",
-          s"double ${prefix}_corr_xy_sum = 0;",
-          s"double ${prefix}_corr_x_square_sum = 0;",
-          s"double ${prefix}_corr_y_square_sum = 0;"
-        )
-
-      override def iterate(prefix: String): CodeLines =
-        CodeLines.from(
-          s"${prefix}_corr_count += 1;",
-          s"${prefix}_corr_x_sum += ${x.cCode};",
-          s"${prefix}_corr_y_sum += ${y.cCode};",
-          s"${prefix}_corr_xy_sum += ${x.cCode} * ${y.cCode};",
-          s"${prefix}_corr_x_square_sum += ${x.cCode} * ${x.cCode};",
-          s"${prefix}_corr_y_square_sum +=  ${y.cCode} * ${y.cCode};"
-        )
-
-      override def fetch(prefix: String): CExpression =
-        CExpression(
-          s"(${prefix}_corr_count * ${prefix}_corr_xy_sum - ${prefix}_corr_x_sum * ${prefix}_corr_y_sum) / " +
-            s"sqrt(" +
-            s"(${prefix}_corr_count * ${prefix}_corr_x_square_sum - ${prefix}_corr_x_sum * ${prefix}_corr_x_sum) * " +
-            s"(${prefix}_corr_count * ${prefix}_corr_y_square_sum - ${prefix}_corr_y_sum * ${prefix}_corr_y_sum));",
-          None
-        )
-
-      override def free(prefix: String): CodeLines = CodeLines.empty
-
-      override def compute(prefix: String): CodeLines = CodeLines.empty
-    }
   }
 
   final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)

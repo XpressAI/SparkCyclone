@@ -6,23 +6,14 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
-  evalAggregate,
-  evalFilter,
-  evalGroupBySum,
-  evalProject,
-  evalSort
-}
+import com.nec.cmake.eval.RealExpressionEvaluationSpec.{evalAggregate, evalFilter, evalGroupBySum, evalProject, evalSort}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
-  GroupByAggregation,
-  GroupByProjection
-}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.DeclarativeAggregationConverter
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -275,8 +266,9 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         ),
         TypedGroupByExpression[Double](
           GroupByAggregation(
-            Aggregation
-              .corr(CExpression("input_2->data[i]", None), CExpression("input_2->data[i]", None))
+            DeclarativeAggregationConverter(
+              Corr(AttributeReference("input_2->data[i]", DoubleType)(), AttributeReference("input_2->data[i]", DoubleType)())
+            )
           )
         )
       )
