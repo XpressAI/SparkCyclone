@@ -544,13 +544,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
         assert(
           ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
             List(
-              (Some(0.0), Some(8.0)),
-              (Some(1.0), Some(2.0)),
-              (Some(2.0), Some(3.0)),
-              (Some(3.0), Some(4.0)),
-              (Some(4.0), Some(5.0)),
-              (Some(20.0), Some(0.0)),
-              (Some(52.0), Some(6.0))
+              (None,Some(8.0)),
+              (Some(1.0),Some(2.0)),
+              (Some(2.0),Some(3.0)),
+              (Some(3.0),Some(4.0)),
+              (Some(4.0),Some(5.0)),
+              (Some(20.0),None),
+              (Some(52.0),Some(6.0))
             )
         )
       }
