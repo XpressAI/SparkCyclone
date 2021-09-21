@@ -167,7 +167,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql_cnt).ensureCPUEvaluating().debugSqlHere { ds =>
         assert(ds.as[Long].collect().toList == List(13))
       }
   }
@@ -625,6 +625,12 @@ final class DynamicCSqlExpressionEvaluationSpec
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
       expect(thePlan.toString().contains("CEvaluation"))
+      dataSet
+    }
+
+    def ensureCPUEvaluating(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(!thePlan.toString().contains("CEvaluation"))
       dataSet
     }
 

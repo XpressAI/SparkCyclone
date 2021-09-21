@@ -312,60 +312,6 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           )
         }
 
-        //Just a tricky trick to make simple COUNT(*) work, since it doesn't have standard input and output set.
-        case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, Project(_, child))
-        if aggregateExpressions.collect {
-          case al @ Alias(AggregateExpression(Count(_), _, _, _, _), _) => al
-        }.size == aggregateExpressions.size =>
-          val functionName = "dynnen"
-          val codeLines = renderGroupBy(
-            VeGroupBy(
-              inputs = child.outputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
-                CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
-              }.toList,
-              groups = groupingExpressions.toList.map { expr =>
-                TypedCExpression2(
-                  SparkVeMapper.sparkTypeToVeType(expr.dataType),
-                  SparkVeMapper.eval(
-                    SparkVeMapper.replaceReferences(inputs = child.output.toList, expression = expr)
-                  )
-                )
-              },
-              outputs = aggregateExpressions.toList.zipWithIndex.map {
-                case (namedExpression, idx) =>
-                  NamedGroupByExpression(
-                    name = s"output_${idx}",
-                    veType = SparkVeMapper.sparkTypeToVeType(namedExpression.dataType),
-                    groupByExpression = namedExpression match {
-                      case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-                        GroupByExpression.GroupByAggregation(
-                          DeclarativeAggregationConverter(
-                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate]
-                          )
-                        )
-                      case other =>
-                        GroupByExpression.GroupByProjection(
-                          SparkVeMapper.eval(
-                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                          )
-                        )
-                    }
-                  )
-              }
-            )
-          ).toCodeLines(functionName)
-
-          List(
-            NewCEvaluationPlan(
-              functionName,
-              aggregateExpressions,
-              codeLines,
-              planLater(child),
-              agg.references.map(_.name).toSet,
-              nativeEvaluator
-            )
-          )
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
             if child.output.nonEmpty =>
           val functionName = "dynnen"
@@ -417,6 +363,13 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               nativeEvaluator
             )
           )
+
+        case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, Project(_, child))
+          if aggregateExpressions.collect {
+            case al @ Alias(AggregateExpression(Count(_), _, _, _, _), _) => al
+          }.size == aggregateExpressions.size =>
+          Nil
+
         case _ => Nil
       }
     } else Nil
