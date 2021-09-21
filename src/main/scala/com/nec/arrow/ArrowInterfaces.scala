@@ -1,15 +1,9 @@
 package com.nec.arrow
-import org.apache.arrow.vector.ipc.message.ArrowFieldNode
-import org.apache.arrow.vector.BitVectorHelper
-import com.nec.arrow.ArrowTransferStructures.non_null_int_vector
-import org.apache.arrow.memory.ArrowBuf
-import org.apache.arrow.vector._
-import com.nec.arrow.ArrowTransferStructures.varchar_vector
-import org.apache.arrow.memory.BufferAllocator
-import sun.nio.ch.DirectBuffer
-import org.apache.arrow.vector.IntVector
+
 import com.nec.arrow.ArrowTransferStructures._
+import org.apache.arrow.vector._
 import sun.misc.Unsafe
+import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
@@ -18,6 +12,7 @@ object ArrowInterfaces {
   def non_null_int_vector_to_IntVector(input: non_null_int_vector, output: IntVector): Unit = {
     non_null_int_vector_to_intVector(input, output)
   }
+
   def non_null_bigint_vector_to_bigIntVector(
     input: non_null_bigint_vector,
     output: BigIntVector
@@ -41,20 +36,15 @@ object ArrowInterfaces {
     vc
   }
 
-  def c_non_null_varchar_vector(varCharVector: VarCharVector): non_null_varchar_vector = {
-    val vc = new non_null_varchar_vector()
+  def c_nullable_varchar_vector(varCharVector: VarCharVector): nullable_varchar_vector = {
+    val vc = new nullable_varchar_vector()
     vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.offsets = varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer =
+      varCharVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = varCharVector.getValueCount
     vc.size = varCharVector.sizeOfValueBuffer()
     vc
-  }
-
-  def non_null_varchar_vector_to_VarCharVector(
-    input: non_null_varchar_vector,
-    output: VarCharVector
-  ): Unit = {
-    nun_null_varchar_vector_to_VarCharVector(input, output, output.getAllocator)
   }
 
   def c_bounded_string(string: String): non_null_c_bounded_string = {
@@ -109,14 +99,6 @@ object ArrowInterfaces {
     val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
     theUnsafe.setAccessible(true)
     theUnsafe.get(null).asInstanceOf[Unsafe]
-  }
-
-  def c_varchar_vector(varCharVector: VarCharVector): varchar_vector = {
-    val vc = new varchar_vector()
-    vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.offsets = varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.count = varCharVector.getValueCount
-    vc
   }
 
   def non_null_int_vector_to_intVector(input: non_null_int_vector, intVector: IntVector): Unit = {
@@ -194,32 +176,22 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
   }
 
-  /**
-   * TODO fix allocations here; fortunately we don't use this in our initial version - this is specifically
-   * to return strings from C code.
-   */
-  def nun_null_varchar_vector_to_VarCharVector(
-    input: non_null_varchar_vector,
-    varCharVector: VarCharVector,
-    rootAllocator: BufferAllocator
+  def nullable_varchar_vector_to_VarCharVector(
+    input: nullable_varchar_vector,
+    varCharVector: VarCharVector
   ): Unit = {
+    varCharVector.allocateNew(input.size(), input.count)
     varCharVector.setValueCount(input.count)
-    val res = rootAllocator.newReservation()
-    res.add(input.count)
-    val validityBuffer = res.allocateBuffer()
-    validityBuffer.reallocIfNeeded(input.count.toLong)
-    (0 until input.count).foreach(i => BitVectorHelper.setBit(validityBuffer, i))
-    import scala.collection.JavaConverters._
-
-    val offBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, (input.count + 1) * 4, input.offsets)
-
-    val dataBuffer =
-      new ArrowBuf(validityBuffer.getReferenceManager, null, input.size.toLong, input.data)
-
-    varCharVector.loadFieldBuffers(
-      new ArrowFieldNode(input.count.toLong, 0),
-      List(validityBuffer, offBuffer, dataBuffer).asJava
+    getUnsafe.copyMemory(
+      input.validityBuffer,
+      varCharVector.getValidityBufferAddress,
+      Math.ceil(input.count / 8.0).toInt
+    )
+    getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.size())
+    getUnsafe.copyMemory(
+      input.offsets,
+      varCharVector.getOffsetBufferAddress,
+      4 * (input.count + 1)
     )
   }
 

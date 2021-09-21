@@ -1,53 +1,31 @@
 package com.nec.arrow
 
-import com.nec.arrow.ArrowTransferStructures.{
-  non_null_bigint_vector,
-  non_null_c_bounded_string,
-  non_null_double_vector,
-  non_null_int2_vector,
-  non_null_varchar_vector,
-  nullable_bigint_vector,
-  nullable_double_vector,
-  nullable_int_vector
-}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.Float8VectorOutputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.IntVectorInputWrapper
-
-import scala.collection.mutable
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.Float8VectorInputWrapper
 import com.nec.arrow.ArrowInterfaces.{
-  non_null_bigint_vector_to_bigIntVector,
-  non_null_double_vector_to_float8Vector,
-  non_null_int2_vector_to_IntVector,
-  non_null_varchar_vector_to_VarCharVector,
   nullable_bigint_vector_to_BigIntVector,
   nullable_double_vector_to_float8Vector,
-  nullable_int_vector_to_IntVector
+  nullable_int_vector_to_IntVector,
+  nullable_varchar_vector_to_VarCharVector
 }
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
+  VectorInputNativeArgument,
+  VectorOutputNativeArgument
+}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{
+  BigIntVectorOutputWrapper,
+  Float8VectorOutputWrapper,
+  IntVectorOutputWrapper,
+  VarCharVectorOutputWrapper
+}
+import com.nec.arrow.ArrowTransferStructures._
+import com.nec.arrow.VeArrowNativeInterface.{copyBufferToVe, requireOk, Cleanup}
 import com.nec.aurora.Aurora
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.BigIntVectorOutputWrapper
-import com.nec.arrow.VeArrowNativeInterface.Cleanup
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.VarCharVectorInputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.VarCharVectorOutputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.ByteBufferInputWrapper
-import com.nec.arrow.VeArrowNativeInterface.requireOk
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.StringInputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.IntVectorOutputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.BigIntVectorInputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.DateDayVectorInputWrapper
-import com.nec.arrow.VeArrowNativeInterface.copyBufferToVe
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.BigIntVector
-import org.apache.arrow.vector.DateDayVector
-import org.apache.arrow.vector.Float8Vector
-import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.VarCharVector
+import org.apache.arrow.vector._
 import sun.nio.ch.DirectBuffer
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import java.nio.{ByteBuffer, ByteOrder}
+import scala.collection.mutable
 
 object VeArrowTransfers extends LazyLogging {
 
@@ -84,12 +62,12 @@ object VeArrowTransfers extends LazyLogging {
           nullable_bigint_vector_to_BigIntVector(structVector, bigIntWrapper)
         })
       case VarCharVectorOutputWrapper(varCharVector) =>
-        val structVector = new non_null_varchar_vector()
-        val byteBuffer = nonNullVarCharVectorVectorToByteBuffer(structVector)
+        val structVector = new nullable_varchar_vector()
+        val byteBuffer = nullableVarCharVectorVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
         transferBack.append(() => {
-          veo_read_non_null_varchar_vector(proc, structVector, byteBuffer)
-          non_null_varchar_vector_to_VarCharVector(structVector, varCharVector)
+          veo_read_nullable_varchar_vector(proc, structVector, byteBuffer)
+          nullable_varchar_vector_to_VarCharVector(structVector, varCharVector)
         })
     }
   }
@@ -149,7 +127,7 @@ object VeArrowTransfers extends LazyLogging {
             our_args,
             0,
             index,
-            nonNullVarCharVectorVectorToByteBuffer(varchar_vector_raw),
+            nullableVarCharVectorVectorToByteBuffer(varchar_vector_raw),
             24L
           )
         )
@@ -247,13 +225,13 @@ object VeArrowTransfers extends LazyLogging {
 
   private def make_veo_varchar_vector(proc: Aurora.veo_proc_handle, varcharVector: VarCharVector)(
     implicit cleanup: Cleanup
-  ): non_null_varchar_vector = {
+  ): nullable_varchar_vector = {
     val keyName =
       "varchar_" + varcharVector.getName + "_" + varcharVector.getDataBuffer.capacity()
 
     logger.debug(s"Copying Buffer to VE for $keyName")
 
-    val vcvr = new non_null_varchar_vector()
+    val vcvr = new nullable_varchar_vector()
     vcvr.count = varcharVector.getValueCount
     vcvr.size = varcharVector.getOffsetBuffer.getInt(4 * vcvr.count)
     vcvr.data = copyBufferToVe(proc, varcharVector.getDataBuffer.nioBuffer())(cleanup)
@@ -417,9 +395,9 @@ object VeArrowTransfers extends LazyLogging {
     cleanup.add(validityPtr, dataSize)
   }
 
-  private def veo_read_non_null_varchar_vector(
+  private def veo_read_nullable_varchar_vector(
     proc: Aurora.veo_proc_handle,
-    vec: non_null_varchar_vector,
+    vec: nullable_varchar_vector,
     byteBuffer: ByteBuffer
   )(implicit cleanup: Cleanup): Unit = {
     /* data = size 8, offsets = size 8, size = size 4, count = size 4; so: 0, 8, 16, 20 */
@@ -502,15 +480,16 @@ object VeArrowTransfers extends LazyLogging {
     v_bb
   }
 
-  def nonNullVarCharVectorVectorToByteBuffer(
-    varchar_vector: non_null_varchar_vector
+  def nullableVarCharVectorVectorToByteBuffer(
+    varchar_vector: nullable_varchar_vector
   ): ByteBuffer = {
-    val v_bb = varchar_vector.getPointer.getByteBuffer(0, 24)
+    val v_bb = varchar_vector.getPointer.getByteBuffer(0, 32)
     v_bb.putLong(0, varchar_vector.data)
     v_bb.putLong(8, varchar_vector.offsets)
+    v_bb.putLong(16, varchar_vector.validityBuffer)
     v_bb.order(ByteOrder.LITTLE_ENDIAN)
-    v_bb.putInt(16, varchar_vector.size)
-    v_bb.putInt(20, varchar_vector.count)
+    v_bb.putInt(24, varchar_vector.size)
+    v_bb.putInt(28, varchar_vector.count)
     v_bb
   }
 }

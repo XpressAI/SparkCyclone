@@ -1,6 +1,7 @@
 package com.nec.spark.planning
+
 import com.nec.spark.agile.CExpressionEvaluation
-import com.nec.spark.agile.CExpressionEvaluation.{CodeLines, RichListStr}
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
 object NewCExpressionEvaluation {
@@ -17,7 +18,7 @@ object NewCExpressionEvaluation {
       """#include <iostream>""",
       """#include <string>""",
       """#include "cpp/frovedis/text/words.hpp"""",
-      s"""extern "C" long ${fName}(non_null_varchar_vector* input_strings, non_null_varchar_vector* output_strings, nullable_int_vector* lengths, non_null_varchar_vector* output_strings_2) {""",
+      s"""extern "C" long ${fName}(nullable_varchar_vector* input_strings, nullable_varchar_vector* output_strings, nullable_int_vector* lengths, nullable_varchar_vector* output_strings_2) {""",
       CodeLines
         .from(
           "int length = input_strings->offsets[input_strings->count];",
@@ -58,11 +59,15 @@ object NewCExpressionEvaluation {
           """memcpy(output_strings->offsets, output_offsets.data(), 4 * (output_strings->count + 1));""",
           """memcpy(output_strings_2->offsets, output_offsets_2.data(), 4 * (output_strings_2->count + 1));""",
           s"lengths->data = (int*) malloc(input_strings->count * 4);",
-          s"lengths->validityBuffer = (unsigned char *) malloc(input_strings->count * 4);",
+          s"lengths->validityBuffer = (unsigned char *) malloc(input_strings->count);",
+          s"output_strings->validityBuffer = (unsigned char *) malloc(input_strings->count);",
+          s"output_strings_2->validityBuffer = (unsigned char *) malloc(input_strings->count);",
           s"lengths->count = input_strings->count;",
           s"for( int i = 0; i < input_strings->count; i++ ) {",
           "  lengths->data[i] = input_strings->offsets[i + 1] - input_strings->offsets[i];",
           "  set_validity(lengths->validityBuffer, i, 1);",
+          "  set_validity(output_strings->validityBuffer, i, 1);",
+          "  set_validity(output_strings_2->validityBuffer, i, 1);",
           "}",
           """return 0;"""
         )

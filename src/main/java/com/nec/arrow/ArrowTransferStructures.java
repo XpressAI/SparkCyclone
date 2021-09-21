@@ -5,55 +5,6 @@ import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
 public interface ArrowTransferStructures extends Library {
-    @Structure.FieldOrder({"data", "offsets", "count"})
-    class varchar_vector extends Structure {
-        public long data;
-        public long offsets;
-        public Integer count;
-
-        public varchar_vector() {
-            super();
-        }
-
-        public varchar_vector(Pointer p) {
-            super(p);
-            read();
-        }
-
-        public static class ByReference extends varchar_vector implements Structure.ByReference {
-            public ByReference() {
-            }
-
-            public ByReference(Pointer p) {
-                super(p);
-            }
-        }
-    }
-
-    @Structure.FieldOrder({"data", "offsets", "count"})
-    class varchar_vector_raw extends Structure {
-        public long data;
-        public long offsets;
-        public int count;
-
-        public varchar_vector_raw() {
-            super();
-        }
-
-        public varchar_vector_raw(Pointer p) {
-            super(p);
-            read();
-        }
-
-        public static class ByReference extends varchar_vector_raw implements Structure.ByReference {
-            public ByReference() {
-            }
-
-            public ByReference(Pointer p) {
-                super(p);
-            }
-        }
-    }
 
     @Structure.FieldOrder({"data", "count"})
     class non_null_int_vector extends Structure {
@@ -219,23 +170,24 @@ public interface ArrowTransferStructures extends Library {
         }
     }
 
-    @Structure.FieldOrder({"data", "offsets", "size", "count"})
-    class non_null_varchar_vector extends Structure {
+    @Structure.FieldOrder({"data", "offsets", "validityBuffer", "size", "count"})
+    class nullable_varchar_vector extends Structure {
         public long data;
         public long offsets;
+        public long validityBuffer;
         public Integer size;
         public Integer count;
 
-        public non_null_varchar_vector() {
+        public nullable_varchar_vector() {
             super();
         }
 
-        public non_null_varchar_vector(Pointer p) {
+        public nullable_varchar_vector(Pointer p) {
             super(p);
             read();
         }
 
-        public static class ByReference extends non_null_varchar_vector implements Structure.ByReference {
+        public static class ByReference extends nullable_varchar_vector implements Structure.ByReference {
             public ByReference() {
             }
 

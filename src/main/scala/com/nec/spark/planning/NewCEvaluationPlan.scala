@@ -129,8 +129,11 @@ final case class NewCEvaluationPlan(
                 if (v_idx < v.getValueCount) {
                   v match {
                     case vector: VarCharVector =>
-                      val bytes = vector.get(v_idx)
-                      writer.write(c_idx, UTF8String.fromBytes(bytes))
+                      if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+                      else {
+                        val bytes = vector.get(v_idx)
+                        writer.write(c_idx, UTF8String.fromBytes(bytes))
+                      }
                     case vector: Float8Vector =>
                       if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))

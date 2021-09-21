@@ -74,6 +74,15 @@ typedef struct
 typedef struct
 {
     char *data;
+    int *offsets;
+    unsigned char *validityBuffer;
+    int size;
+    int count;
+} nullable_varchar_vector;
+
+typedef struct
+{
+    char *data;
     int length;
 } non_null_c_bounded_string;
 
