@@ -173,7 +173,7 @@ object CExpressionEvaluation {
       maybeFilter.toList.flatMap(cond => filterInputs(cond, inputs)),
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
-          s"long output_${idx}_count = input_0->count;",
+          s"int64_t output_${idx}_count = input_0->count;",
           s"${cType(res.dataType)} *output_${idx}_data = (${cType(res.dataType)}*) malloc(output_${idx}_count * sizeof(${cType(res.dataType)}));",
           s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));",
         )
@@ -226,7 +226,7 @@ object CExpressionEvaluation {
       ),
       inputs.zipWithIndex.flatMap { case (res, idx) =>
         List(
-          s"long output_${idx}_count = input_0->count;",
+          s"int64_t output_${idx}_count = input_0->count;",
           s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));",
           s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));",
         )
@@ -299,8 +299,8 @@ object CExpressionEvaluation {
       case Cast(child, dataType, _) =>
         val expr = evaluateExpression(input, child)
         dataType match {
-          case IntegerType => s"((int)$expr)"
-          case LongType => s"((long)$expr)"
+          case IntegerType => s"((int_32t)$expr)"
+          case LongType => s"((int64_t)$expr)"
           case FloatType => s"((float)$expr)"
           case DoubleType => s"((double)$expr)"
         }
@@ -433,8 +433,8 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
       case Cast(child, dataType, _) =>
         dataType match {
-          case LongType => s"((long)${evaluateSub(inputs, child)})"
-          case IntegerType => s"((int)${evaluateSub(inputs, child)})";
+          case LongType => s"((int64_t)${evaluateSub(inputs, child)})"
+          case IntegerType => s"((int32_t)${evaluateSub(inputs, child)})";
           case FloatType => s"((float)${evaluateSub(inputs, child)})";
           case DoubleType => s"((double)${evaluateSub(inputs, child)})";
         }
@@ -505,14 +505,14 @@ object CExpressionEvaluation {
           init = List(
             s"${outputSum}->data = (double *)malloc(1 * sizeof(double));",
             s"${outputSum}->count = 1;",
-            s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
+            s"${outputCount}->data = (int64_t *)malloc(1 * sizeof(int64_t));",
             s"${outputCount}->count = 1;",
             s"${outputSum}->validityBuffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
             s"${outputCount}->validityBuffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
             s"${outputSum}->validityBuffer = 0;",
             s"${outputCount}->validityBuffer = 0;",
             s"double ${cleanName}_accumulated = 0;",
-            s"long ${cleanName}_counted = 0;"
+            s"int64_t ${cleanName}_counted = 0;"
           ),
           iter = List(
             s"if(${genNullCheck(inputs, sub)})",
@@ -535,9 +535,9 @@ object CExpressionEvaluation {
 
         AggregateDescription(
           init = List(
-            s"${outputCount}->data = (long *)malloc(1 * sizeof(long));",
+            s"${outputCount}->data = (int64_t *)malloc(1 * sizeof(long));",
             s"${outputCount}->count = 1;",
-            s"long ${cleanName}_counted = 0;",
+            s"int64_t ${cleanName}_counted = 0;",
             s"${outputCount}->validityBuffer = (unsigned char *) malloc(1 * sizeof(unsigned char));",
             s"${outputCount}->validityBuffer[0] = 1;"
           ),
