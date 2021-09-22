@@ -13,7 +13,7 @@ object CExpressionEvaluation {
     d match {
       case DoubleType =>
         s"double"
-      case IntegerType | DateType =>
+      case IntegerType | DateType | ShortType =>
         s"int"
       case LongType =>
         s"long"
@@ -28,7 +28,7 @@ object CExpressionEvaluation {
     d match {
       case DoubleType =>
         CFunctionGeneration.VeType.VeNullableDouble
-      case IntegerType | DateType =>
+      case IntegerType | DateType | ShortType =>
         CFunctionGeneration.VeType.VeNullableInt
       case x =>
         sys.error(s"unsupported dataType $x")
@@ -141,6 +141,8 @@ object CExpressionEvaluation {
             s"nullable_varchar_vector* input_${idx}"
           case DateType =>
             s"nullable_int_vector* input_${idx}"
+          case ShortType =>
+            s"nullable_int_vector* input_${idx}"
           case x =>
             sys.error(s"Invalid input dataType $x")
         }
@@ -221,9 +223,13 @@ object CExpressionEvaluation {
     val inputBits = inputs.zipWithIndex
       .map { case (i, idx) =>
         i.dataType match {
+          case FloatType =>
+            s"nullable_float_vector* input_${idx}"
           case DoubleType =>
             s"nullable_double_vector* input_${idx}"
           case IntegerType =>
+            s"nullable_int_vector* input_${idx}"
+          case ShortType =>
             s"nullable_int_vector* input_${idx}"
           case LongType =>
             s"nullable_bigint_vector* input_${idx}"
@@ -238,6 +244,10 @@ object CExpressionEvaluation {
       i.dataType match {
         case DoubleType =>
           s"nullable_double_vector* output_${idx}"
+        case FloatType =>
+          s"nullable_float_vector* output_${idx}"
+        case ShortType =>
+          s"nullable_int_vector* output_${idx}"
         case IntegerType =>
           s"nullable_int_vector* output_${idx}"
         case LongType =>
@@ -622,14 +632,15 @@ object CExpressionEvaluation {
             sys.error(
               s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
             )
-          case (idx, (DoubleType | IntegerType | LongType))
+          case (idx, (DoubleType | IntegerType | LongType | ShortType))
               if (leftExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[left_out[i]]"
-          case (idx, (DoubleType | IntegerType | LongType))
+          case (idx, (DoubleType | IntegerType | LongType | ShortType))
               if (rightExprIds.contains(attr.exprId)) =>
             s"input_${idx}->data[right_out[i]]"
 
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
+
         }
       case expr @ NamedExpression(name, DoubleType | IntegerType | LongType) =>
         input.indexWhere(_.exprId == expr.exprId) match {
