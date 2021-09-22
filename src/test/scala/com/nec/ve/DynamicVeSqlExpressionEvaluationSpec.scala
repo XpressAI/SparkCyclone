@@ -655,19 +655,19 @@ final class DynamicVeSqlExpressionEvaluationSpec
           ds.as[(Option[Long], Option[Int], Option[Double])]
             .collect()
             .toList == List(
-            (Some(2),Some(2),Some(2.0)),
-            (Some(52),Some(52),Some(52.0)),
-            (Some(4),Some(4),Some(4.0)),
-            (None,None,None),
-            (Some(2),Some(2),Some(2.0)),
-            (Some(1),Some(1),Some(1.0)),
-            (Some(4),Some(4),Some(4.0)),
-            (None,None,None),
-            (None,None,None),
-            (Some(2),Some(2),Some(2.0)),
-            (Some(3),Some(3),Some(3.0)),
-            (None,None,None),
-            (Some(20),Some(20),Some(20.0))
+            (Some(2), Some(2), Some(2.0)),
+            (Some(52), Some(52), Some(52.0)),
+            (Some(4), Some(4), Some(4.0)),
+            (None, None, None),
+            (Some(2), Some(2), Some(2.0)),
+            (Some(1), Some(1), Some(1.0)),
+            (Some(4), Some(4), Some(4.0)),
+            (None, None, None),
+            (None, None, None),
+            (Some(2), Some(2), Some(2.0)),
+            (Some(3), Some(3), Some(3.0)),
+            (None, None, None),
+            (Some(20), Some(20), Some(20.0))
           )
         )
       }
@@ -682,7 +682,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
         ds.as[(Option[Double], Option[Double])]
           .collect()
           .toList should contain theSameElementsAs List(
-          (None,Some(28.0)), (Some(2.0),Some(1.0)), (Some(3.0),Some(2.0)), (Some(4.0),Some(3.0)), (Some(5.0),Some(4.0)), (Some(6.0),Some(52.0))
+          (None, Some(28.0)), (Some(2.0), Some(1.0)), (Some(3.0), Some(2.0)), (Some(4.0), Some(3.0)), (Some(5.0), Some(4.0)), (Some(6.0), Some(52.0))
         )
 
       }
@@ -699,6 +699,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
           assert(ds.count() == 12)
         }
     }
+  }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
