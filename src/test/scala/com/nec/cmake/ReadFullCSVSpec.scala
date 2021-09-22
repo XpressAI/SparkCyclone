@@ -25,7 +25,7 @@ object ReadFullCSVSpec {
 }
 
 final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
-  "We can write and read back a .csv.gz collection via Hadoop" in withSparkSession2(identity) {
+  "We can write and read back a .csv.gz collection via Hadoop" ignore  withSparkSession2(identity) {
     sparkSession =>
       info(
         "This shows that we can read these files from hdfs, and then should be able to read them as a whole and push to the VE."
@@ -56,7 +56,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
       expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
   }
 
-  "We can write and read back a .csv collection via Hadoop (2-column)" in withSparkSession2(
+  "We can write and read back a .csv collection via Hadoop (2-column)" ignore  withSparkSession2(
     identity
   ) { sparkSession =>
     info(
@@ -92,7 +92,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
   }
 
   if (!scala.util.Properties.isWin) {
-    "We can write and read back a .csv collection via Hadoop (2-column) via UNIX pipes" in withSparkSession2(
+    "We can write and read back a .csv collection via Hadoop (2-column) via UNIX pipes" ignore  withSparkSession2(
       _.config("spark.com.nec.native-csv-ipc", value = true)
     ) { sparkSession =>
       info(
@@ -132,7 +132,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
     }
   }
 
-  "Execute a read of files via SQL, to see what plans it gives us when going through Native" in withSparkSession2(
+  "Execute a read of files via SQL, to see what plans it gives us when going through Native" ignore  withSparkSession2(
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.com.nec.native-csv-ipc", value = true)
       .withExtensions(sse =>
@@ -171,7 +171,7 @@ final class ReadFullCSVSpec extends AnyFreeSpec with BeforeAndAfter with SparkAd
     expect(sumDs.executionPlan.toString().contains("NativeCsv"), totalSum.head == 12)
   }
 
-  "We don't replace project if that's aggregate projection" in withSparkSession2(
+  "We don't replace project if that's aggregate projection" in  withSparkSession2(
     _.config(CODEGEN_FALLBACK.key, value = false)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => new NativeCsvStrategy(CNativeEvaluator))
