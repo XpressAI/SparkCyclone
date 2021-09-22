@@ -11,8 +11,7 @@ import com.nec.spark.planning.VERewriteStrategy
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.SampleColA
-import com.nec.testing.SampleSource.SampleColB
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SharedName}
 import com.nec.testing.Testing
 import com.nec.testing.Testing.DataSize
 import com.nec.testing.Testing.TestingTarget
@@ -22,7 +21,7 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
 
-object BenchTestingPossibilities {
+object BenchTestingPossibilities extends LazyLogging {
 
   sealed trait VeColumnMode {
     final override def toString: String = label
@@ -86,15 +85,22 @@ object BenchTestingPossibilities {
       testingTarget.expectedString.toList ++ csvStrategy.toList.flatMap(
         _.expectedString.toList
       ) ++ {
-        if (testingTarget.isNative) List("CEvaluation") else Nil
+        if (testingTarget.isNative) List("NewCEvaluation") else Nil
       }
 
     override def prepareInput(sparkSession: SparkSession, dataSize: DataSize): Dataset[Result] = {
       source.generate(sparkSession, dataSize)
       import sparkSession.sqlContext.implicits._
+      logger.debug(
+        s"Generated input data = ${sparkSession.sql(s"SELECT * FROM ${SharedName}").collect().toList.mkString(" | ")}"
+      )
+      logger.info(s"Will run query: ${sql}")
       val dataSet = sparkSession.sql(sql).as[Result]
 
       val planString = dataSet.queryExecution.executedPlan.toString()
+      logger.debug(s"Generated logical plan: ${dataSet.queryExecution.logical}")
+      logger.debug(s"Generated spark plan: ${dataSet.queryExecution.sparkPlan}")
+      logger.debug(s"Generated executed plan: ${planString}")
       expectedStrings.foreach { expStr =>
         assert(
           planString.contains(expStr),

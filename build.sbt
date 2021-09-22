@@ -85,7 +85,11 @@ ThisBuild / sparkVersion := {
   if (scalaV.startsWith("2.12")) "3.1.1" else "2.3.2"
 }
 
+val silencerVersion = "1.6.0"
+
 libraryDependencies ++= Seq(
+  compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
+  "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",

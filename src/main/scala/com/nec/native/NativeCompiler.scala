@@ -91,7 +91,7 @@ object NativeCompiler {
 
   object CNativeCompiler extends NativeCompiler {
     override def forCode(code: String): Path = {
-      CMakeBuilder.buildC(
+      CMakeBuilder.buildCLogging(
         List(TransferDefinitions.TransferDefinitionsSourceCode, code)
           .mkString("\n\n")
       )

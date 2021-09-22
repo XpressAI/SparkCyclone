@@ -3,7 +3,7 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{BigIntVector, Float8Vector, VarCharVector, VectorSchemaRoot}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -14,17 +14,18 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.execution.ColumnarToRowTransition
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.spark.sql.execution.{
+  ColumnarToRowExec,
+  ColumnarToRowTransition,
+  SparkPlan,
+  UnaryExecNode
+}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.{DoubleType, LongType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import scala.language.dynamics
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import org.apache.arrow.vector.VarCharVector
-import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
 
 final case class NewCEvaluationPlan(
@@ -36,19 +37,21 @@ final case class NewCEvaluationPlan(
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
-  with ColumnarToRowTransition
   with LazyLogging {
 
   override def output: Seq[Attribute] = resultExpressions.zipWithIndex.map { case (ne, idx) =>
-    AttributeReference(name = s"value_${idx}", dataType = DoubleType, nullable = false)()
+    AttributeReference(name = s"value_${idx}", dataType = ne.dataType, nullable = false)()
   }
 
   override def outputPartitioning: Partitioning = SinglePartition
 
   private def executeRowWise(): RDD[InternalRow] = {
     val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
+    logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
     child
       .execute()
+      // for aggregations, so far, we need this
+      .coalesce(numPartitions = 1, shuffle = false)
       .mapPartitions { rows =>
         Iterator
           .continually {
@@ -61,13 +64,17 @@ final case class NewCEvaluationPlan(
             val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
             val root = VectorSchemaRoot.create(arrowSchema, allocator)
             val arrowWriter = ArrowWriter.create(root)
-            rows.foreach(row => arrowWriter.write(row))
+            rows.foreach { row =>
+              arrowWriter.write(row)
+            }
             arrowWriter.finish()
 
-            val inputVectors = child.output.map { attr =>
-              root.getVector(0) match {
+            val inputVectors = child.output.zipWithIndex.map { case (attr, idx) =>
+              root.getVector(idx) match {
                 case varCharVector: VarCharVector =>
                   varCharVector
+                case float8Vector: Float8Vector =>
+                  float8Vector
               }
             }
 
@@ -75,8 +82,9 @@ final case class NewCEvaluationPlan(
               .flatMap {
                 case Alias(child, _) =>
                   child match {
-                    case ae: AggregateExpression =>
-                      ae.aggregateFunction.aggBufferAttributes
+                    // disabled for group-by integration
+//                    case ae: AggregateExpression =>
+//                      ae.aggregateFunction.aggBufferAttributes
                     case other => List(other)
                   }
                 case a @ AttributeReference(_, _, _, _) =>
@@ -86,6 +94,8 @@ final case class NewCEvaluationPlan(
               .map { case (ne, idx) =>
                 ne.dataType match {
                   case StringType => new VarCharVector(s"out_${idx}", allocator)
+                  case LongType   => new BigIntVector(s"out_${idx}", allocator)
+                  case DoubleType => new Float8Vector(s"out_${idx}", allocator)
                 }
               }
 
@@ -111,6 +121,12 @@ final case class NewCEvaluationPlan(
                     case vector: VarCharVector =>
                       val bytes = vector.get(v_idx)
                       writer.write(c_idx, UTF8String.fromBytes(bytes))
+                    case vector: Float8Vector =>
+                      if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, vector.get(v_idx))
+                    case vector: BigIntVector =>
+                      if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, vector.get(v_idx))
                   }
                 }
               }

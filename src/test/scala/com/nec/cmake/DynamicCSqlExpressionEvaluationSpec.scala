@@ -7,14 +7,14 @@ import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin,
   SampleColA,
   SampleColB,
-  SampleColC,
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin
+  SampleColC
 }
 import com.nec.testing.Testing.DataSize.SanityCheckSize
-
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
@@ -39,7 +39,8 @@ final class DynamicCSqlExpressionEvaluationSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with SparkAdditions
-  with Matchers {
+  with Matchers
+  with LazyLogging {
 
   "Different single-column expressions can be evaluated" - {
     List(
@@ -104,15 +105,6 @@ final class DynamicCSqlExpressionEvaluationSpec
       sparkSession.sql(sql_mci_2).ensureCEvaluating().debugSqlHere { ds =>
         assert(ds.as[Double].collect().toList == List(-42.0))
       }
-  }
-
-  val sql_cnt = s"SELECT COUNT(*) FROM nums"
-  "Support count" in withSparkSession2(configuration) { sparkSession =>
-    makeCsvNumsMultiColumn(sparkSession)
-    import sparkSession.implicits._
-    sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
-      assert(ds.as[Long].collect().toList == List(13))
-    }
   }
 
   val sql_cnt_multiple_ops = s"SELECT COUNT(*), SUM(${SampleColB} - ${SampleColA}) FROM nums"
@@ -223,9 +215,13 @@ final class DynamicCSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     sparkSession.sql(sql_join).ensureJoinPlanEvaluated().debugSqlHere { ds =>
-      ds.as[(Option[Double], Option[Double])]
+      val result = ds
+        .as[(Option[Double], Option[Double])]
         .collect()
-        .toList should contain theSameElementsAs List(
+        .toList
+        .sorted
+
+      val expected = List(
         (Some(2.0), Some(41.0)),
         (None, Some(44.0)),
         (None, Some(44.0)),
@@ -238,7 +234,9 @@ final class DynamicCSqlExpressionEvaluationSpec
         (Some(3.0), None),
         (Some(4.0), None),
         (None, Some(32.0))
-      )
+      ).sorted
+
+      assert(result == expected)
 
     }
   }
@@ -435,7 +433,7 @@ final class DynamicCSqlExpressionEvaluationSpec
     makeCsvNumsMultiColumnJoin(sparkSession)
     import sparkSession.implicits._
     val d = sparkSession.sql(sql_join_self)
-    println(d.queryExecution.executedPlan)
+    logger.info(d.queryExecution.executedPlan.toString())
     d.ensureJoinPlanEvaluated().debugSqlHere { ds =>
       ds.as[(Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
         List(
@@ -468,24 +466,24 @@ final class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
-        assert(
-          ds.as[(Option[Double], Option[Double])].collect().toList == List(
-            (Some(5.0), Some(-1.0)),
-            (Some(58.0), Some(46.0)),
-            (None, None),
-            (None, None),
-            (None, None),
-            (Some(3.0), Some(-1.0)),
-            (Some(9.0), Some(-1.0)),
-            (None, None),
-            (None, None),
-            (None, None),
-            (Some(7.0), Some(-1.0)),
-            (None, None),
-            (None, None)
-          )
-        )
+      sparkSession.sql(sql_pairwise).debugSqlHere { ds =>
+        val sortedOutput = ds.as[(Option[Double], Option[Double])].collect().toList.sorted
+        val expected = List(
+          (Some(5.0), Some(-1.0)),
+          (Some(58.0), Some(46.0)),
+          (None, None),
+          (None, None),
+          (None, None),
+          (Some(3.0), Some(-1.0)),
+          (Some(9.0), Some(-1.0)),
+          (None, None),
+          (None, None),
+          (None, None),
+          (Some(7.0), Some(-1.0)),
+          (None, None),
+          (None, None)
+        ).sorted
+        assert(sortedOutput == expected)
       }
   }
 
@@ -519,16 +517,16 @@ final class DynamicCSqlExpressionEvaluationSpec
         SampleSource.CSV.generate(sparkSession, SanityCheckSize)
         import sparkSession.implicits._
 
-        sparkSession.sql(sql3).ensureGroupBySumPlanEvaluated().debugSqlHere { ds =>
+        sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
           assert(
             ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
               List(
-                (Some(0.0), Some(8.0)),
+                (None, Some(8.0)),
                 (Some(1.0), Some(2.0)),
                 (Some(2.0), Some(3.0)),
                 (Some(3.0), Some(4.0)),
                 (Some(4.0), Some(5.0)),
-                (Some(20.0), Some(0.0)),
+                (Some(20.0), None),
                 (Some(52.0), Some(6.0))
               )
           )
@@ -553,7 +551,9 @@ final class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
+        val result = ds.as[(Double)].collect().toList
+        assert(result.size == 1)
+        result.head shouldEqual (0.7418736765817244 +- 0.05)
       }
     }
 
@@ -624,9 +624,9 @@ final class DynamicCSqlExpressionEvaluationSpec
       dataSet
     }
 
-    def ensureGroupBySumPlanEvaluated(): Dataset[T] = {
+    def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("SimpleGroupBySumPlan"))
+      expect(thePlan.toString().contains("NewCEvaluationPlan"))
       dataSet
     }
 
@@ -643,8 +643,12 @@ final class DynamicCSqlExpressionEvaluationSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
-      withClue(dataSet.queryExecution.executedPlan.toString()) {
+      try {
         f(dataSet)
+      } catch {
+        case e: Throwable =>
+          logger.info(s"${dataSet.queryExecution.executedPlan}; ${e}", e)
+          throw e
       }
     }
   }
