@@ -32,7 +32,7 @@ object CFunctionGeneration {
     }
 
     case object VeNullableInt extends VeType {
-      def cScalarType: String = "int"
+      def cScalarType: String = "int32_t"
 
       def cVectorType: String = "nullable_int_vector"
 
@@ -40,7 +40,7 @@ object CFunctionGeneration {
     }
 
     case object VeNullableLong extends VeType {
-      def cScalarType: String = "long long"
+      def cScalarType: String = "int64_t"
 
       def cVectorType: String = "nullable_bigint_vector"
 

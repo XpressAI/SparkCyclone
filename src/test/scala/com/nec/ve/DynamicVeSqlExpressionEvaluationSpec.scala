@@ -4,24 +4,17 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.aurora.Aurora
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC
-}
+import com.nec.testing.SampleSource._
 import com.nec.testing.Testing.DataSize.SanityCheckSize
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-import org.scalatest.freespec.AnyFreeSpec
-import org.scalatest.matchers.should.Matchers
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
 object DynamicVeSqlExpressionEvaluationSpec {
 
@@ -37,6 +30,7 @@ object DynamicVeSqlExpressionEvaluationSpec {
   }
 
 }
+
 final class DynamicVeSqlExpressionEvaluationSpec
   extends AnyFreeSpec
   with BeforeAndAfter
@@ -45,10 +39,12 @@ final class DynamicVeSqlExpressionEvaluationSpec
   override protected def afterAll(): Unit = {
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
   }
+
   override protected def beforeAll(): Unit = {
     Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
     super.beforeAll()
   }
+
   "Different single-column expressions can be evaluated" - {
     List(
       s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0d,
@@ -175,7 +171,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_cnt).ensureCEvaluating().debugSqlHere { ds =>
+
+      sparkSession.sql(sql_cnt).debugSqlHere { ds =>
         assert(ds.as[Long].collect().toList == List(13))
       }
   }
@@ -543,7 +540,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql3).debugSqlHere { ds =>
         assert(
           ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
             List(
@@ -681,6 +678,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
     }
   }
+
   protected def withSparkSession2[T](
     configure: SparkSession.Builder => SparkSession.Builder
   )(f: SparkSession => T): T = {
