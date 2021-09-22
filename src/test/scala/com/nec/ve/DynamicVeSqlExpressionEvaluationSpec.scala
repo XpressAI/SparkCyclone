@@ -707,7 +707,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
       SampleSource.makeConvertedParquetData(sparkSession)
       sparkSession
-        .sql("select * from t1 join t2 on sample_id_c09c808524c21082de7576e875cab4fc==simple_id")
+        .sql("select simple_id from t1 join t2 on sample_id_c09c808524c21082de7576e875cab4fc==simple_id")
         .debugSqlHere { ds =>
           assert(ds.count() == 1)
         }
