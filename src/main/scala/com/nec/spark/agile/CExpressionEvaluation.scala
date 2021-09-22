@@ -15,7 +15,7 @@ object CExpressionEvaluation {
       case IntegerType | DateType =>
         s"int"
       case LongType =>
-        s"long long"
+        s"long"
       case StringType =>
         s"char"
       case x =>
