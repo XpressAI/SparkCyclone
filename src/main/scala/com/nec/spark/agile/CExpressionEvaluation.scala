@@ -13,9 +13,9 @@ object CExpressionEvaluation {
       case DoubleType =>
         s"double"
       case IntegerType | DateType =>
-        s"int"
+        s"int32_t"
       case LongType =>
-        s"long"
+        s"int64_t"
       case StringType =>
         s"char"
       case x =>
