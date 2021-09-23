@@ -7,26 +7,11 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  EqualTo,
-  IsNotNull,
-  Length,
-  Literal,
-  NamedExpression,
-  SortOrder,
-  Substring,
-  Subtract
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Length, Literal, NamedExpression, SortOrder, Substring, Subtract}
 import org.apache.spark.sql.catalyst.plans
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.{logical, Inner}
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.{Inner, logical}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.IntegerType
 
