@@ -68,7 +68,7 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
       .filter(item => expectedItems.exists(expected => item.toString.contains(expected)))
       .map(item => item.toString.replaceAllLiterally("file:/", "/"))
 
-  "We can execute in cluster-local mode" in withSparkSession2(
+  "We can execute in cluster-local mode" ignore withSparkSession2(
     _.config("spark.executor.resource.ve.amount", "1")
       .config("spark.task.resource.ve.amount", "1")
       .config("spark.worker.resource.ve.amount", "1")

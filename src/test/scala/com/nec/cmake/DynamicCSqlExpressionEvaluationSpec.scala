@@ -6,22 +6,16 @@ import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
+import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -166,6 +160,16 @@ final class DynamicCSqlExpressionEvaluationSpec
         )
       )
     }
+  }
+
+  val sql_cnt = s"SELECT COUNT(*) FROM nums"
+  "Support count" in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_cnt).ensureCPUEvaluating().debugSqlHere { ds =>
+        assert(ds.as[Long].collect().toList == List(13))
+      }
   }
 
   val multisort_sql =
@@ -621,6 +625,12 @@ final class DynamicCSqlExpressionEvaluationSpec
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
       expect(thePlan.toString().contains("CEvaluation"))
+      dataSet
+    }
+
+    def ensureCPUEvaluating(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(!thePlan.toString().contains("CEvaluation"))
       dataSet
     }
 

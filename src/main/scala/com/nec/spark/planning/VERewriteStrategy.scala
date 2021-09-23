@@ -317,7 +317,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           val functionName = "dynnen"
           val codeLines = renderGroupBy(
             VeGroupBy(
-              inputs = child.output.toList.zipWithIndex.map { case (attr, idx) =>
+              inputs = agg.inputSet.toList.zipWithIndex.map { case (attr, idx) =>
                 CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
               },
               groups = groupingExpressions.toList.map { expr =>
@@ -363,6 +363,13 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               nativeEvaluator
             )
           )
+
+        case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, Project(_, child))
+          if aggregateExpressions.collect {
+            case al @ Alias(AggregateExpression(Count(_), _, _, _, _), _) => al
+          }.size == aggregateExpressions.size =>
+          Nil
+
         case _ => Nil
       }
     } else Nil
