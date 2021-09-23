@@ -1,12 +1,13 @@
 package com.nec.testing
 
-import com.nec.spark.SampleTestData.{ConvertedJoinTable, ConvertedParquet, SampleMultiColumnCSV, SampleTwoColumnParquet, SampleTwoColumnParquetNonNull, SecondSampleMultiColumnCsv}
+import com.nec.spark.SampleTestData.{SampleMultiColumnCSV, SampleTwoColumnParquet, SampleTwoColumnParquetNonNull, SecondSampleMultiColumnCsv}
+
 import org.apache.spark.sql.SparkSession
 import com.nec.testing.Testing.DataSize.BenchmarkSize
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.nec.testing.Testing.DataSize
-import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
 
+import org.apache.spark.sql.types.{DoubleType, ShortType, StructField, StructType}
 import java.nio.file.Paths
 
 sealed trait SampleSource extends Serializable {
@@ -67,6 +68,7 @@ object SampleSource {
   val SampleColA = "ColA"
   val SampleColB = "ColB"
   val SampleColC = "ColC"
+  val SampleColD = "ColD"
 
   def makeCsvNumsMultiColumn(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
@@ -74,7 +76,9 @@ object SampleSource {
       Array(
         StructField(SampleColA, DoubleType),
         StructField(SampleColB, DoubleType),
-        StructField(SampleColC, DoubleType)
+        StructField(SampleColC, DoubleType),
+        StructField(SampleColD, ShortType)
+
       )
     )
 

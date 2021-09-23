@@ -44,6 +44,30 @@ class DynamicCSqlExpressionEvaluationSpec
   def configuration: SparkSession.Builder => SparkSession.Builder =
     DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
 
+  "Different single-column expressions can be evaluated" - {
+    List(
+      s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0d,
+      s"SELECT SUM(${SampleColD}) FROM nums" -> 165.0,
+      s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 81.0d,
+      /** The below are ignored for now */
+      s"SELECT AVG(${SampleColA}) FROM nums" -> 10d,
+      s"SELECT AVG(2 * ${SampleColA}) FROM nums" -> 20d,
+      s"SELECT AVG( 2 * ${SampleColD}) FROM nums" -> 30.0d,
+
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums" -> 0.0d,
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)" -> 0.0d
+    ).zipWithIndex.take(6).foreach { case ((sql, expectation), idx) =>
+      s"(n${idx}) ${sql}" in withSparkSession2(configuration) { sparkSession =>
+        SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+        import sparkSession.implicits._
+
+        sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
+          assert(ds.as[Double].collect().toList == List(expectation))
+        }
+      }
+    }
+  }
+
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
   "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
@@ -440,11 +464,12 @@ class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double, Double, Double)].collect().toList == Nil)
+        ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
+          List((None,None,None), (Some(2.0),Some(0.0),Some(0.5)), (Some(8.0),Some(6.0),Some(2.0)), (Some(6.0),Some(2.0),Some(1.5)), (Some(4.0),Some(3.0),Some(1.0)), (Some(40.0),Some(19.0),Some(10.0)), (Some(104.0),Some(51.0),Some(26.0)))
       }
     }
 
-    val sql3 = s"SELECT ${SampleColA}, SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
+    val sql3 = s"SELECT ${SampleColA}, SUM(${SampleColB}), SUM(${SampleColD}) FROM nums GROUP BY ${SampleColA}"
 
     s"Simple Group by is possible with ${sql3}" in withSparkSession2(configuration) {
       sparkSession =>
@@ -453,16 +478,8 @@ class DynamicCSqlExpressionEvaluationSpec
 
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
           assert(
-            ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
-              List(
-                (None, Some(8.0)),
-                (Some(1.0), Some(2.0)),
-                (Some(2.0), Some(3.0)),
-                (Some(3.0), Some(4.0)),
-                (Some(4.0), Some(5.0)),
-                (Some(20.0), None),
-                (Some(52.0), Some(6.0))
-              )
+            ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList.sorted ==
+              List((None,Some(8.0),Some(60.0)), (Some(1.0),Some(2.0),None), (Some(2.0),Some(3.0),Some(32.0)), (Some(3.0),Some(4.0),Some(1.0)), (Some(4.0),Some(5.0),Some(46.0)), (Some(20.0),None,Some(3.0)), (Some(52.0),Some(6.0),Some(23.0)))
           )
         }
     }

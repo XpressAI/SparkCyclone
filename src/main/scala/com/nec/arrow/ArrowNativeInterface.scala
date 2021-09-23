@@ -201,6 +201,7 @@ object ArrowNativeInterface {
         case varCharVector: VarCharVector =>
           InputVectorWrapper.VarCharVectorInputWrapper(varCharVector)
         case bigIntVector: BigIntVector => InputVectorWrapper.BigIntVectorInputWrapper(bigIntVector)
+        case smallIntVector: SmallIntVector => InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {
@@ -211,6 +212,8 @@ object ArrowNativeInterface {
           OutputVectorWrapper.Float8VectorOutputWrapper(float8Vector)
         case varCharVector: VarCharVector =>
           OutputVectorWrapper.VarCharVectorOutputWrapper(varCharVector)
+        case smallIntVector: SmallIntVector =>
+          OutputVectorWrapper.SmallIntVectorOutputWrapper(smallIntVector)
       }
     }
   }

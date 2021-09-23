@@ -90,7 +90,11 @@ object ArrowInterfaces {
     val vc = new nullable_int_vector()
     val directBuffer = ByteBuffer.allocateDirect(smallIntVector.getValueCount * 8)
     (0 until smallIntVector.getValueCount)
-      .foreach(idx => directBuffer.putInt(smallIntVector.get(idx).toInt))
+
+      .foreach{
+        case idx if(!smallIntVector.isNull(idx)) => directBuffer.putInt(smallIntVector.get(idx).toInt)
+        case _ => directBuffer.putInt(0)
+      }
     vc.data = directBuffer.asInstanceOf[DirectBuffer].address()
     vc.validityBuffer = smallIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = smallIntVector.getValueCount

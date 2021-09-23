@@ -12,7 +12,7 @@ object CExpressionEvaluation {
     d match {
       case DoubleType =>
         s"double"
-      case IntegerType | DateType =>
+      case IntegerType | DateType | ShortType =>
         s"int32_t"
       case LongType =>
         s"int64_t"
@@ -27,7 +27,7 @@ object CExpressionEvaluation {
     d match {
       case DoubleType =>
         CFunctionGeneration.VeScalarType.VeNullableDouble
-      case IntegerType | DateType =>
+      case IntegerType | DateType | ShortType =>
         CFunctionGeneration.VeScalarType.VeNullableInt
       case x =>
         sys.error(s"unsupported dataType $x")
@@ -35,7 +35,7 @@ object CExpressionEvaluation {
   }
 
   def cSize(d: DataType): Int = {
-    Map[DataType, Int](DoubleType -> 8, IntegerType -> 4, DateType -> 4, LongType -> 8)
+    Map[DataType, Int](DoubleType -> 8, IntegerType -> 4, DateType -> 4, LongType -> 8, ShortType -> 2)
       .getOrElse(d, sys.error(s"unsupported dataType $d"))
   }
 
@@ -106,6 +106,8 @@ object CExpressionEvaluation {
         IntegerType
       case Cast(_, dataType, _) =>
         dataType
+      case Literal(v, ShortType) =>
+        ShortType
     }
   }
 
@@ -132,7 +134,7 @@ object CExpressionEvaluation {
         i.dataType match {
           case DoubleType =>
             s"nullable_double_vector* input_${idx}"
-          case IntegerType =>
+          case IntegerType | ShortType =>
             s"nullable_int_vector* input_${idx}"
           case LongType =>
             s"nullable_bigint_vector* input_${idx}"
@@ -149,7 +151,7 @@ object CExpressionEvaluation {
       i.dataType match {
         case DoubleType =>
           s"nullable_double_vector* output_${idx}"
-        case IntegerType | DateType =>
+        case IntegerType | DateType | ShortType =>
           s"nullable_int_vector* output_${idx}"
         case LongType =>
           s"nullable_bigint_vector* output_${idx}"
@@ -213,7 +215,7 @@ object CExpressionEvaluation {
       case NormalizeNaNAndZero(child)          => evaluateExpression(input, child)
       case KnownFloatingPointNormalized(child) => evaluateExpression(input, child)
       case alias @ Alias(expr, name)           => evaluateSub(input, alias.child)
-      case expr @ NamedExpression(name, DoubleType | IntegerType) =>
+      case expr @ NamedExpression(name, DoubleType | IntegerType | ShortType | LongType) =>
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
@@ -225,7 +227,7 @@ object CExpressionEvaluation {
             sys.error(
               s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
             )
-          case (idx, (DoubleType | IntegerType | LongType)) =>
+          case (idx, (DoubleType | IntegerType | LongType | ShortType)) =>
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
         }
@@ -273,7 +275,7 @@ object CExpressionEvaluation {
         s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
       case Abs(v) =>
         s"${genNullCheck(inputs, v)}"
-      case Literal(v, DoubleType | IntegerType) =>
+      case Literal(v, DoubleType | IntegerType | LongType | ShortType) =>
         "true"
       case Cast(child, dataType, _) =>
         genNullCheck(inputs, child)
@@ -303,7 +305,7 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
       case Abs(v) =>
         s"abs(${evaluateSub(inputs, v)})"
-      case Literal(v, DoubleType | IntegerType | DateType) =>
+      case Literal(v, DoubleType | IntegerType | DateType | LongType | ShortType) =>
         s"$v"
       case And(left, right) =>
         s"${evaluateSub(inputs, left)} && ${evaluateSub(inputs, right)}"
@@ -356,6 +358,7 @@ object CExpressionEvaluation {
             case DoubleType  => List(s"nullable_double_vector* output_${idx}_sum")
             case IntegerType => List(s"nullable_int_vector* output_${idx}_sum")
             case LongType    => List(s"nullable_bigint_vector* output_${idx}_sum")
+            case ShortType   => List(s"nullable_int_vector* output_${idx}_sum")
           }
         )
       case Average(sub) =>
@@ -425,7 +428,7 @@ object CExpressionEvaluation {
           result = List(s"${outputMin}->data[0] = ${cleanName}_min;"),
           outputArguments = inputs(idx).dataType match {
             case DoubleType  => List(s"nullable_double_vector* ${outputMin}")
-            case IntegerType => List(s"nullable_int_vector* ${outputMin}")
+            case IntegerType | ShortType => List(s"nullable_int_vector* ${outputMin}")
             case LongType    => List(s"nullable_bigint_vector* ${outputMin}")
           }
         )
@@ -449,7 +452,7 @@ object CExpressionEvaluation {
           result = List(s"${outputMax}->data[0] = ${cleanName}_max;"),
           outputArguments = inputs(idx).dataType match {
             case DoubleType  => List(s"nullable_double_vector* ${outputMax}")
-            case IntegerType => List(s"nullable_int_vector* ${outputMax}")
+            case IntegerType | ShortType => List(s"nullable_int_vector* ${outputMax}")
             case LongType    => List(s"nullable_bigint_vector* ${outputMax}")
           }
         )
