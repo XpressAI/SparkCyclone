@@ -86,6 +86,17 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_int_vector(smallIntVector: SmallIntVector): nullable_int_vector = {
+    val vc = new nullable_int_vector()
+    val directBuffer = ByteBuffer.allocateDirect(smallIntVector.getValueCount * 8)
+    (0 until smallIntVector.getValueCount)
+      .foreach(idx => directBuffer.putInt(smallIntVector.get(idx).toInt))
+    vc.data = directBuffer.asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = smallIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = smallIntVector.getValueCount
+    vc
+  }
+
   def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -136,7 +147,6 @@ object ArrowInterfaces {
       Math.ceil(input.count / 8.0).toInt
     )
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
-
   }
 
   def non_null_double_vector_to_float8Vector(
@@ -184,6 +194,25 @@ object ArrowInterfaces {
       Math.ceil(input.count / 8.0).toInt
     )
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
+  }
+
+  def nullable_int_vector_to_SmallIntVector(input: nullable_int_vector, smallIntVector: SmallIntVector): Unit = {
+    if (input.count == 0xffffffff) {
+      sys.error(s"Returned count was infinite; input ${input}")
+    }
+
+    smallIntVector.setValueCount(input.count)
+    getUnsafe.copyMemory(
+      input.validityBuffer,
+      smallIntVector.getValidityBufferAddress,
+      Math.ceil(input.count / 8.0).toInt
+    )
+
+    (0 until input.count).map(idx => getUnsafe.getInt(input.data + idx * 8))
+      .zipWithIndex
+      .foreach{
+        case (value, idx) => smallIntVector.set(idx, value.toShort)
+      }
   }
 
   def nullable_varchar_vector_to_VarCharVector(

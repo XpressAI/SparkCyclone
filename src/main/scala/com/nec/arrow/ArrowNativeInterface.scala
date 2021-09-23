@@ -138,6 +138,10 @@ object ArrowNativeInterface {
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = bigIntVector
         }
+        final case class SmallIntVectorInputWrapper(smallIntVector: SmallIntVector)
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = smallIntVector
+        }
       }
     }
     final case class VectorOutputNativeArgument(
@@ -162,6 +166,10 @@ object ArrowNativeInterface {
         final case class VarCharVectorOutputWrapper(varCharVector: VarCharVector)
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = varCharVector
+        }
+        final case class SmallIntVectorOutputWrapper(smallIntVector: SmallIntVector)
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = smallIntVector
         }
       }
     }
