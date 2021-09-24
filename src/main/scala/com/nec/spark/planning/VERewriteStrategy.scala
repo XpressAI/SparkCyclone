@@ -52,7 +52,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
 
   @silent
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-    def fName: String = s"eval_${Math.abs(plan.hashCode())}"
+    def fName: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
     if (VERewriteStrategy._enabled) {
       log.debug(
