@@ -568,7 +568,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
      */
 
-    val sql5 = s"SELECT CORR(${SampleColA}, ${SampleColB}) as c FROM nums"
+    //val sql5 = s"SELECT CORR(${SampleColA}, ${SampleColB}) as c FROM nums"
+    val sql5 = "SELECT CORR(c1, c2) FROM VALUES (3, 2), (3, 3), (6, 4) AS tab(c1, c2);"
     s"Corr function is possible with ${sql5}" in withSparkSession2(
       DynamicVeSqlExpressionEvaluationSpec.configuration
     ) { sparkSession =>
@@ -576,7 +577,32 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
+        //assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
+        assert(ds.as[(Double)].collect().toList == List(0.8660254037844387)) // From Spark source example.
+      }
+    }
+
+    val sqlNulls = "SELECT COUNT(c1) FROM VALUES (3, 2), (null, 3), (6, 4) AS tab(c1, c2) WHERE isnotnull(c1);"
+    s"Corr isNotNull function is possible with ${sqlNulls}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sqlNulls).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Long)].collect().toList == List(2))
+      }
+    }
+
+    val sqlBIV = "SELECT AVG(CAST(c1 as bigint)) FROM VALUES (3l, 2l), (4l, 3l) AS tab(c1, c2);"
+    s"Casting to BigInt and BigIntVectors work with ${sqlBIV}" in withSparkSession2(
+      DynamicVeSqlExpressionEvaluationSpec.configuration
+    ) { sparkSession =>
+      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+      import sparkSession.implicits._
+
+      sparkSession.sql(sqlBIV).ensureCEvaluating().debugSqlHere { ds =>
+        assert(ds.as[(Double)].collect().toList == List(3.5))
       }
     }
 
@@ -693,7 +719,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
       SampleSource.makeConvertedParquetData(sparkSession)
       sparkSession
-        .sql("select simple_id from t1 join t2 on sample_id_c09c808524c21082de7576e875cab4fc==simple_id")
+        .sql("select * from t1 join t2 on sample_id_c09c808524c21082de7576e875cab4fc==simple_id")
         .ensureJoinPlanEvaluated()
         .debugSqlHere { ds =>
           assert(ds.count() == 12)
