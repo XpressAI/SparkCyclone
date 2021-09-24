@@ -725,6 +725,38 @@ final class DynamicVeSqlExpressionEvaluationSpec
           assert(ds.count() == 12)
         }
     }
+
+    s"Can join and group by target" in withSparkSession2(configuration) { sparkSession =>
+      import sparkSession.implicits._
+
+      SampleSource.makeConvertedParquetData(sparkSession)
+      sparkSession.sql(
+        """
+          SELECT SUM(sid)
+          FROM t1 JOIN t2 ON sample_id_c09c808524c21082de7576e875cab4fc == simple_id
+          GROUP BY converted_target_e71ae4aad3bf636e022c34cd
+        """.stripMargin)
+        .ensureJoinPlanEvaluated()
+        .debugSqlHere { ds =>
+          assert(ds.count() == 12)
+        }
+    }
+
+    s"Can join and group by yes/no" in withSparkSession2(configuration) { sparkSession =>
+      import sparkSession.implicits._
+
+      SampleSource.makeConvertedParquetData(sparkSession)
+      sparkSession.sql(
+        """
+          SELECT SUM(converted_target_e71ae4aad3bf636e022c34cd)
+          FROM t1 JOIN t2 ON sample_id_c09c808524c21082de7576e875cab4fc == simple_id
+          GROUP BY y
+        """.stripMargin)
+        .ensureJoinPlanEvaluated()
+        .debugSqlHere { ds =>
+          assert(ds.count() == 12)
+        }
+    }
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
