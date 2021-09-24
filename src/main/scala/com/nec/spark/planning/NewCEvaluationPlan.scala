@@ -81,6 +81,10 @@ final case class NewCEvaluationPlan(
                   varCharVector
                 case float8Vector: Float8Vector =>
                   float8Vector
+                case intVector: IntVector =>
+                  intVector
+                case bigIntVector: BigIntVector =>
+                  bigIntVector
               }
             }
 
