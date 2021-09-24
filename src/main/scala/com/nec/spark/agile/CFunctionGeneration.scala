@@ -47,9 +47,18 @@ object CFunctionGeneration {
       override def cSize: Int = 8
     }
 
+    case object VeNullableString extends VeType {
+      def cScalarType: String = "char *"
+
+      def cVectorType: String = "nullable_varchar_vector"
+
+      override def cSize: Int = 1
+    }
+
     def veNullableDouble: VeType = VeNullableDouble
     def veNullableInt: VeType = VeNullableInt
     def veNullableLong: VeType = VeNullableLong
+    def veNullableString: VeType = VeNullableString
   }
 
   /**
