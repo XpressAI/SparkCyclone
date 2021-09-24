@@ -93,6 +93,31 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  val sql_pairwise_short = s"SELECT ${SampleColD} + ${SampleColD} FROM nums"
+  "Support pairwise addition with shorts" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_pairwise_short).ensureCEvaluating().debugSqlHere { ds =>
+      assert(
+        ds.as[Option[Short]].collect().toList.sorted == List[Option[Double]](
+          None,
+          None,
+          None,
+          None,
+          None,
+          None,
+          None,
+          None,
+          Some(3),
+          Some(5),
+          Some(7),
+          Some(9),
+          Some(58)
+        ).sorted
+      )
+    }
+  }
+
   val sql_mci = s"SELECT SUM(${SampleColA} + ${SampleColB}) FROM nums"
   "Support multi-column inputs" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
@@ -164,6 +189,19 @@ class DynamicCSqlExpressionEvaluationSpec
           (None, Some(5.0), Some(2.0))
         )
       }
+  }
+
+  val sql_mcio =
+    s"SELECT SUM(${SampleColB} - ${SampleColA}), SUM(${SampleColA} + ${SampleColB}) FROM nums"
+  "Support multi-column inputs and inputs" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_mcio).ensureCEvaluating().debugSqlHere { ds =>
+      assert(
+        ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0), Some(82.0)))
+      )
+    }
   }
 
   val sql_join =
