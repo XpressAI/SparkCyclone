@@ -86,6 +86,14 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
+    val vc = new nullable_bigint_vector()
+    vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = bigIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = bigIntVector.getValueCount
+    vc
+  }
+
   def c_nullable_date_vector(dateDayVector: DateDayVector): nullable_int_vector = {
     val vc = new nullable_int_vector()
     vc.data = dateDayVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -127,6 +135,7 @@ object ArrowInterfaces {
       Math.ceil(input.count / 8.0).toInt
     )
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
+
   }
 
   def non_null_double_vector_to_float8Vector(

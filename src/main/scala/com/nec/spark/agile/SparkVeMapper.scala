@@ -207,6 +207,23 @@ object SparkVeMapper {
           items = children.map(exp => eval(exp)).toList,
           function = "std::min"
         )
+      case Cast(child, dataType, _) =>
+        dataType match {
+          case IntegerType => {
+            val childExpression = eval(child)
+            childExpression.copy("((int)" + childExpression.cCode +")")
+          }
+
+          case DoubleType => {
+            val childExpression = eval(child)
+            childExpression.copy("((int)" + childExpression.cCode +")")
+          }
+
+          case LongType => {
+            val childExpression = eval(child)
+            childExpression.copy("((long long)" + childExpression.cCode +")")
+          }
+        }
       case NoOp =>
         CExpression("0", Some("false"))
       case _ =>

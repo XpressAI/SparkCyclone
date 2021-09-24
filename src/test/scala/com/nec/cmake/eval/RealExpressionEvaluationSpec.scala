@@ -520,7 +520,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           joinType
         )
       ).toCodeLines(functionName)
-    println(generatedSource)
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(

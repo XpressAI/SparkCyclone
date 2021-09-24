@@ -54,7 +54,7 @@ object CArrowNativeInterface extends LazyLogging {
       case NativeArgument.VectorInputNativeArgument(DateDayVectorInputWrapper(vcv)) =>
         c_nullable_date_vector(vcv)
       case NativeArgument.VectorInputNativeArgument(BigIntVectorInputWrapper(vcv)) =>
-        sys.error("Not implemented")
+        c_nullable_bigint_vector(vcv)
       case NativeArgument.VectorInputNativeArgument(VarCharVectorInputWrapper(vcv)) =>
         c_nullable_varchar_vector(vcv)
       case NativeArgument.VectorOutputNativeArgument(Float8VectorOutputWrapper(doubleVector)) =>

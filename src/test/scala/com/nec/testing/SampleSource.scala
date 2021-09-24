@@ -1,17 +1,12 @@
 package com.nec.testing
 
-import com.nec.spark.SampleTestData.{
-  SampleMultiColumnCSV,
-  SampleTwoColumnParquet,
-  SampleTwoColumnParquetNonNull,
-  SecondSampleMultiColumnCsv
-}
+import com.nec.spark.SampleTestData.{ConvertedJoinTable, ConvertedParquet, SampleMultiColumnCSV, SampleTwoColumnParquet, SampleTwoColumnParquetNonNull, SecondSampleMultiColumnCsv}
 import org.apache.spark.sql.SparkSession
 import com.nec.testing.Testing.DataSize.BenchmarkSize
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.nec.testing.Testing.DataSize
-
 import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
+
 import java.nio.file.Paths
 
 sealed trait SampleSource extends Serializable {
@@ -189,5 +184,10 @@ object SampleSource {
       .withColumnRenamed("a", SampleColA)
       .withColumnRenamed("b", SampleColB)
       .createOrReplaceTempView(SharedName)
+  }
+
+  def makeConvertedParquetData(sparkSession: SparkSession): Unit = {
+    sparkSession.read.parquet(ConvertedParquet.toString).createOrReplaceTempView("t1")
+    sparkSession.read.parquet(ConvertedJoinTable.toString).createOrReplaceTempView("t2")
   }
 }

@@ -36,6 +36,10 @@ public interface ArrowTransferStructures extends Library {
         public long validityBuffer;
         public Integer count;
 
+        public int size() {
+            return count * 4;
+        }
+
         public nullable_int_vector() {
             super();
         }
