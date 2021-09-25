@@ -42,7 +42,7 @@ object StringCExpressionEvaluation {
     )
   }
 
-  private def select_complex_substring = {
+  private def select_complex_substring: CodeLines = {
     CodeLines.from(
       " // third output ",
       """std::string output_result_2("");""",
