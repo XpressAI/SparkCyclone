@@ -49,7 +49,14 @@ object StringCExpressionEvaluation {
       """std::vector<int32_t> output_offsets_2;""",
       """int32_t currentOffset_2 = 0;""",
       """for ( int32_t i = 0; i < input_strings->count; i++ ) {""",
-      produce_substr_dyn("output_result_2").indented,
+      CodeLines
+        .from(
+          "int len = 0;",
+          produce_substr_dyn("output_result_2", "len"),
+          """output_offsets_2.push_back(currentOffset_2);""",
+          """currentOffset_2 += len;"""
+        )
+        .indented,
       "}",
       """output_offsets_2.push_back(currentOffset_2);""",
       """output_strings_2->count = input_strings->count;""",
@@ -65,21 +72,20 @@ object StringCExpressionEvaluation {
     )
   }
 
-  private def produce_substr_dyn(tempStringName: String): CodeLines = {
+  private def produce_substr_dyn(tempStringName: String, lenName: String): CodeLines = {
     CodeLines
       .from(
         s"int32_t beginIndex_2 = 1;",
         s"int32_t string_i_length = input_strings->offsets[i + 1] - input_strings->offsets[i];",
         s"int32_t endIndex_2 = string_i_length - 2;",
-        """output_offsets_2.push_back(currentOffset_2);""",
         s"for ( int32_t j = beginIndex_2; j < endIndex_2; j++ ) {",
         CodeLines
           .from(
-            s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);"""
+            s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
+            s"${lenName} += 1;"
           )
           .indented,
-        "}",
-        s"""currentOffset_2 += (endIndex_2 - beginIndex_2);"""
+        "}"
       )
   }
 
