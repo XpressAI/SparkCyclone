@@ -6,36 +6,26 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
-  evalAggregate,
-  evalFilter,
-  evalGroupBySum,
-  evalInnerJoin,
-  evalOuterJoin,
-  evalProject,
-  evalSort
-}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
+import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.DeclarativeAggregationConverter
+import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
-import scala.runtime.LazyLong
-import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
-import com.nec.spark.planning.StringCExpressionEvaluation
-
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
  */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec {
+  import com.nec.cmake.eval.RealExpressionEvaluationSpec._
 
   "We can transform a column" in {
     expect(
@@ -58,6 +48,19 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         ("38.000000", 21.0),
         ("28.000000", 16.0)
       )
+    )
+  }
+
+  "We can transform a String column to a Double" in {
+    expect(
+      evalProject(List[String]("90.0", "1.0", "2", "19", "14"))(
+        TypedCExpression[Double](
+          CExpression(
+            "atod((std::string(input_0->data, input_0->offsets[i], input_0->offsets[i+1] - input_0->offsets[i]).c_str())",
+            None
+          )
+        )
+      ) == List[Double](92.0, 3.0, 4.0, 21.0, 16.1)
     )
   }
 

@@ -26,7 +26,7 @@ object StaticTypingTestAdditions {
     def allocateVectors(data: Input*)(implicit
       rootAllocator: RootAllocator
     ): List[VectorInputNativeArgument]
-    def inputs: List[CScalarVector]
+    def inputs: List[CVector]
   }
   object InputArguments {
 
@@ -48,6 +48,23 @@ object StaticTypingTestAdditions {
       override def inputs: List[CScalarVector] = List(
         CScalarVector("input_0", VeScalarType.veNullableDouble)
       )
+    }
+    implicit val forString: InputArguments[String] = new InputArguments[String] {
+      override def allocateVectors(
+        data: String*
+      )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
+        inputs.zipWithIndex.map { case (cv, idx) =>
+          val vcv = new VarCharVector(cv.name, rootAllocator)
+          vcv.allocateNew()
+          vcv.setValueCount(data.size)
+          data.zipWithIndex.foreach { case (str, idx) =>
+            vcv.setSafe(idx, str.getBytes())
+          }
+          NativeArgument.input(vcv)
+        }
+      }
+
+      override def inputs: List[CVector] = List(CVarChar("input_0"))
     }
     implicit val forPairDouble: InputArguments[(Double, Double)] =
       new InputArguments[(Double, Double)] {
@@ -180,7 +197,6 @@ object StaticTypingTestAdditions {
           val outVector_0 = new VarCharVector("output_0", rootAllocator)
           val outVector_1 = new Float8Vector("output_1", rootAllocator)
 
-
           (
             List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
             () => {
@@ -202,6 +218,16 @@ object StaticTypingTestAdditions {
             List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
             () => outVector_0.toList.zip(outVector_1.toList)
           )
+        }
+      }
+    implicit val forDoubleTyped: OutputArguments[TypedCExpression[Double]] =
+      new OutputArguments[TypedCExpression[Double]] {
+        override type Result = Double
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          (List(NativeArgument.output(outVector_0)), () => outVector_0.toList)
         }
       }
     implicit val forPairDouble: OutputArguments[(Double, Double)] =

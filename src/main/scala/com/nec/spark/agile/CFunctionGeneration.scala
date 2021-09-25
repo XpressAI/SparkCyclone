@@ -75,7 +75,6 @@ object CFunctionGeneration {
     def veNullableDouble: VeScalarType = VeNullableDouble
     def veNullableInt: VeScalarType = VeNullableInt
     def veNullableLong: VeScalarType = VeNullableLong
-    def veNullableString: VeScalarType = VeNullableString
   }
 
   /**
@@ -226,7 +225,7 @@ object CFunctionGeneration {
     }
   }
 
-  def generateFilter(filter: VeFilter[CScalarVector, CExpression]): CodeLines = {
+  def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
     CodeLines.from(
       filter.data.map { case CScalarVector(name, veType) =>
         s"std::vector<${veType.cScalarType}> filtered_$name = {};"
@@ -291,7 +290,7 @@ object CFunctionGeneration {
     )
   }
 
-  def renderFilter(filter: VeFilter[CScalarVector, CExpression]): CFunction = {
+  def renderFilter(filter: VeFilter[CVector, CExpression]): CFunction = {
     val filterOutput = filter.data.map { case CScalarVector(name, veType) =>
       CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
@@ -325,7 +324,7 @@ object CFunctionGeneration {
 
   def renderProjection(
     veDataTransformation: VeProjection[
-      CScalarVector,
+      CVector,
       Either[NamedStringExpression, NamedTypedCExpression]
     ]
   ): CFunction = CFunction(
@@ -379,12 +378,7 @@ object CFunctionGeneration {
   val GroupBeforeSort = "before we can group we need to sort"
 
   def renderInnerJoin(
-    veInnerJoin: VeInnerJoin[
-      CScalarVector,
-      TypedCExpression2,
-      TypedCExpression2,
-      NamedJoinExpression
-    ]
+    veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
   ): CFunction = {
 
     CFunction(
@@ -461,12 +455,7 @@ object CFunctionGeneration {
   }
 
   def renderOuterJoin(
-    veOuterJoin: VeOuterJoin[
-      CScalarVector,
-      TypedCExpression2,
-      TypedCExpression2,
-      NamedJoinExpression
-    ]
+    veOuterJoin: VeOuterJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
   ): CFunction = {
 
     CFunction(
@@ -657,7 +646,7 @@ object CFunctionGeneration {
   }
 
   def renderGroupBy(
-    veDataTransformation: VeGroupBy[CScalarVector, TypedCExpression2, NamedGroupByExpression]
+    veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedGroupByExpression]
   ): CFunction = {
     val tuple =
       s"std::tuple<${veDataTransformation.groups
