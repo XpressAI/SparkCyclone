@@ -175,7 +175,7 @@ object CExpressionEvaluation {
         List(
           s"int64_t output_${idx}_count = input_0->count;",
           s"${cType(res.dataType)} *output_${idx}_data = (${cType(res.dataType)}*) malloc(output_${idx}_count * sizeof(${cType(res.dataType)}));",
-          s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));",
+          s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));"
         )
       }.toList,
       List("#pragma _NEC ivdep", "for (int i = 0; i < output_0_count; i++) {"),
@@ -194,7 +194,7 @@ object CExpressionEvaluation {
       resultExpressions.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"output_${idx}->count = output_${idx}_count;",
-          s"output_${idx}->data = output_${idx}_data;",
+          s"output_${idx}->data = output_${idx}_data;"
         )
       }.toList,
       List("return 0;", "}")
@@ -228,7 +228,7 @@ object CExpressionEvaluation {
         List(
           s"int64_t output_${idx}_count = input_0->count;",
           s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));",
-          s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));",
+          s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));"
         )
       }.toList,
       List(
@@ -247,7 +247,7 @@ object CExpressionEvaluation {
           s"set_validity(output_${idx}->validityBuffer, i, 1);",
           s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re)
           else evaluateExpression(inputs, re)};",
-          s"} else { set_validity(output_${idx}->validityBuffer, i, 0);}",
+          s"} else { set_validity(output_${idx}->validityBuffer, i, 0);}"
         )
       }.toList,
       List("}"),
@@ -255,7 +255,7 @@ object CExpressionEvaluation {
       inputs.zipWithIndex.flatMap { case (res, idx) =>
         List(
           s"output_${idx}->count = output_${idx}_count;",
-          s"output_${idx}->data = output_${idx}_data;",
+          s"output_${idx}->data = output_${idx}_data;"
         )
       }.toList,
       List("return 0;", "}")
@@ -300,9 +300,9 @@ object CExpressionEvaluation {
         val expr = evaluateExpression(input, child)
         dataType match {
           case IntegerType => s"((int_32t)$expr)"
-          case LongType => s"((int64_t)$expr)"
-          case FloatType => s"((float)$expr)"
-          case DoubleType => s"((double)$expr)"
+          case LongType    => s"((int64_t)$expr)"
+          case FloatType   => s"((float)$expr)"
+          case DoubleType  => s"((double)$expr)"
         }
     }
   }
@@ -433,10 +433,10 @@ object CExpressionEvaluation {
         s"${evaluateSub(inputs, left)} < ${evaluateSub(inputs, right)}"
       case Cast(child, dataType, _) =>
         dataType match {
-          case LongType => s"((int64_t)${evaluateSub(inputs, child)})"
+          case LongType    => s"((int64_t)${evaluateSub(inputs, child)})"
           case IntegerType => s"((int32_t)${evaluateSub(inputs, child)})";
-          case FloatType => s"((float)${evaluateSub(inputs, child)})";
-          case DoubleType => s"((double)${evaluateSub(inputs, child)})";
+          case FloatType   => s"((float)${evaluateSub(inputs, child)})";
+          case DoubleType  => s"((double)${evaluateSub(inputs, child)})";
         }
     }
   }
@@ -525,7 +525,7 @@ object CExpressionEvaluation {
           ),
           result = List(
             s"${outputSum}->data[0] = ${cleanName}_accumulated;",
-            s"${outputCount}->data[0] = ${cleanName}_counted;",
+            s"${outputCount}->data[0] = ${cleanName}_counted;"
           ),
           outputArguments =
             List(s"nullable_double_vector* ${outputSum}", s"nullable_bigint_vector* ${outputCount}")
@@ -634,6 +634,8 @@ object CExpressionEvaluation {
   }
 
   final case class CodeLines(lines: List[String]) {
+    def block: CodeLines = CodeLines.from("", "{", this.indented, "}", "")
+
     def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
 
     override def toString: String = (List(s"CodeLines(") ++ lines ++ List(")")).mkString("\n")
