@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.CExpressionEvaluation
+import com.nec.spark.agile.{CExpressionEvaluation, StringProducer}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
@@ -12,12 +12,6 @@ object StringCExpressionEvaluation {
     beginIndex: Int,
     endIndex: Int
   ): CExpressionEvaluation.CodeLines = {
-
-    val firstOutput: CodeLines = select_substring(beginIndex, endIndex)
-
-    val secondOutput = select_lengths
-
-    val thirdOutput = select_complex_substring
 
     CodeLines.from(
       """#include <stdio.h>""",
@@ -36,43 +30,20 @@ object StringCExpressionEvaluation {
       ).mkString(", \n"),
       ") {",
       CodeLines
-        .from(firstOutput, "", secondOutput, "", thirdOutput, "", """return 0;""")
-        .indented,
-      "}"
-    )
-  }
-
-  private def select_complex_substring: CodeLines = {
-    CodeLines.from(
-      " // third output ",
-      """std::string output_result_2("");""",
-      """std::vector<int32_t> output_offsets_2;""",
-      """int32_t currentOffset_2 = 0;""",
-      """for ( int32_t i = 0; i < input_strings->count; i++ ) {""",
-      CodeLines
         .from(
-          "int len = 0;",
-          produce_substr_dyn("output_result_2", "len"),
-          """output_offsets_2.push_back(currentOffset_2);""",
-          """currentOffset_2 += len;"""
+          StringProducer
+            .produceVarChar("output_strings", produce_string_to(beginIndex, endIndex))
+            .block,
+          select_lengths.block,
+          StringProducer.produceVarChar("output_strings_2", produce_substr_dyn).block,
+          """return 0;"""
         )
         .indented,
-      "}",
-      """output_offsets_2.push_back(currentOffset_2);""",
-      """output_strings_2->count = input_strings->count;""",
-      """output_strings_2->size = currentOffset_2;""",
-      """output_strings_2->data = (char*)malloc(output_strings_2->size);""",
-      """memcpy(output_strings_2->data, output_result_2.data(), output_strings_2->size);""",
-      """output_strings_2->offsets = (int32_t*)malloc(4 * (output_strings_2->count + 1));""",
-      """memcpy(output_strings_2->offsets, output_offsets_2.data(), 4 * (output_strings_2->count + 1));""",
-      s"output_strings_2->validityBuffer = (unsigned char *) malloc(input_strings->count);",
-      s"for( int32_t i = 0; i < input_strings->count; i++ ) {",
-      CodeLines.from("set_validity(output_strings_2->validityBuffer, i, 1);").indented,
       "}"
     )
   }
 
-  private def produce_substr_dyn(tempStringName: String, lenName: String): CodeLines = {
+  private def produce_substr_dyn: StringProducer = (tempStringName, lenName) =>
     CodeLines
       .from(
         s"int32_t beginIndex_2 = 1;",
@@ -87,7 +58,6 @@ object StringCExpressionEvaluation {
           .indented,
         "}"
       )
-  }
 
   private def select_lengths: CodeLines = {
     CodeLines.from(
@@ -106,72 +76,31 @@ object StringCExpressionEvaluation {
     )
   }
 
-  private def produce_string_to(
-    tempStringName: String,
-    itemLengthName: String,
-    beginIndex: Int,
-    endIndex: Int
-  ): CodeLines = {
-    CodeLines
-      .from(
-        s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
-        CodeLines
-          .from(
-            s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
-            s"${itemLengthName}++;"
-          )
-          .indented,
-        "}",
-        s"""for ( int32_t j = input_strings_o->offsets[i]; j < input_strings_o->offsets[i + 1]; j++ ) {""",
-        CodeLines
-          .from(
-            s"""${tempStringName}.append(input_strings_o->data + j, 1);""",
-            s"${itemLengthName}++;"
-          )
-          .indented,
-        "}",
-        "std::string len_str = std::to_string(input_strings->offsets[i+1] - input_strings->offsets[i]);",
-        s"${tempStringName}.append(len_str);",
-        s"${itemLengthName} += len_str.size();"
-      )
+  private def produce_string_to(beginIndex: Int, endIndex: Int): StringProducer =
+    (tempStringName, itemLengthName) => {
+      CodeLines
+        .from(
+          s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
+          CodeLines
+            .from(
+              s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
+              s"${itemLengthName}++;"
+            )
+            .indented,
+          "}",
+          s"""for ( int32_t j = input_strings_o->offsets[i]; j < input_strings_o->offsets[i + 1]; j++ ) {""",
+          CodeLines
+            .from(
+              s"""${tempStringName}.append(input_strings_o->data + j, 1);""",
+              s"${itemLengthName}++;"
+            )
+            .indented,
+          "}",
+          "std::string len_str = std::to_string(input_strings->offsets[i+1] - input_strings->offsets[i]);",
+          s"${tempStringName}.append(len_str);",
+          s"${itemLengthName} += len_str.size();"
+        )
 
-  }
+    }
 
-  private def select_substring(beginIndex: Int, endIndex: Int): CodeLines = {
-    val firstOutput = CodeLines
-      .from(
-        " // first output ",
-        """std::string output_result("");""",
-        """std::vector<int32_t> output_offsets;""",
-        """int32_t currentOffset = 0;""",
-        """for ( int32_t i = 0; i < input_strings->count; i++ ) {""",
-        CodeLines
-          .from(
-            "int length = 0;",
-            produce_string_to("output_result", "length", beginIndex, endIndex),
-            """output_offsets.push_back(currentOffset);""",
-            s"""currentOffset += length;"""
-          )
-          .indented,
-        """}""",
-        """output_offsets.push_back(currentOffset);""",
-        "// boilerplate to copy over string result to the output",
-        CodeLines
-          .from(
-            """output_strings->count = input_strings->count;""",
-            """output_strings->size = currentOffset;""",
-            """output_strings->data = (char*)malloc(output_strings->size);""",
-            """memcpy(output_strings->data, output_result.data(), output_strings->size);""",
-            """output_strings->offsets = (int32_t*)malloc(4 * (output_strings->count + 1));""",
-            """memcpy(output_strings->offsets, output_offsets.data(), 4 * (output_strings->count + 1));""",
-            s"output_strings->validityBuffer = (unsigned char *) malloc(input_strings->count);",
-            s"for( int32_t i = 0; i < input_strings->count; i++ ) {",
-            CodeLines.from("set_validity(output_strings->validityBuffer, i, 1);").indented,
-            "}"
-          )
-          .block,
-        "// end of boilerplate"
-      )
-    firstOutput
-  }
 }
