@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.plans
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{IntegerType, StringType}
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -329,33 +329,82 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 CScalarVector(s"input_${idx}", SparkVeMapper.sparkTypeToScalarVeType(attr.dataType))
               },
               groups = groupingExpressions.toList.map { expr =>
-                TypedCExpression2(
-                  SparkVeMapper.sparkTypeToScalarVeType(expr.dataType),
-                  SparkVeMapper.eval(
-                    SparkVeMapper.replaceReferences(inputs = child.output.toList, expression = expr)
-                  )
-                )
+                expr.dataType match {
+                  case StringType =>
+                    /**
+                     * This is not correct for any group-by that are not a simple reference.
+                     * todo fix it
+                     */
+                    Left(
+                      expr
+                        .find(_.isInstanceOf[AttributeReference])
+                        .flatMap(expr =>
+                          SparkVeMapper
+                            .replaceReferences(inputs = child.output.toList, expression = expr)
+                            .collectFirst {
+                              case ar: AttributeReference if ar.name.contains("input_") =>
+                                StringGrouping(ar.name)
+                            }
+                        )
+                        .getOrElse(
+                          sys.error(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
+                        )
+                    )
+                  case other =>
+                    Right(
+                      TypedCExpression2(
+                        SparkVeMapper.sparkTypeToScalarVeType(other),
+                        SparkVeMapper.eval(
+                          SparkVeMapper
+                            .replaceReferences(inputs = child.output.toList, expression = expr)
+                        )
+                      )
+                    )
+                }
               },
               outputs = aggregateExpressions.toList.zipWithIndex.map {
+                case (namedExpression, idx) if namedExpression.dataType == StringType =>
+                  Left(
+                    namedExpression
+                      .find(_.isInstanceOf[AttributeReference])
+                      .flatMap(expr =>
+                        SparkVeMapper
+                          .replaceReferences(inputs = child.output.toList, expression = expr)
+                          .collectFirst {
+                            case ar: AttributeReference if ar.name.contains("input_") =>
+                              NamedStringProducer(
+                                ar.name.replaceAllLiterally("input_", "output_"),
+                                StringCExpressionEvaluation.copyString(ar.name)
+                              )
+                          }
+                      )
+                      .getOrElse(
+                        sys.error(
+                          s"Cannot support group by: ${namedExpression} (type: ${namedExpression.dataType})"
+                        )
+                      )
+                  )
                 case (namedExpression, idx) =>
-                  NamedGroupByExpression(
-                    name = s"output_${idx}",
-                    veType = SparkVeMapper.sparkTypeToScalarVeType(namedExpression.dataType),
-                    groupByExpression = namedExpression match {
-                      case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-                        GroupByExpression.GroupByAggregation(
-                          DeclarativeAggregationConverter(
-                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate]
+                  Right(
+                    NamedGroupByExpression(
+                      name = s"output_${idx}",
+                      veType = SparkVeMapper.sparkTypeToScalarVeType(namedExpression.dataType),
+                      groupByExpression = namedExpression match {
+                        case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
+                          GroupByExpression.GroupByAggregation(
+                            DeclarativeAggregationConverter(
+                              d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                                .asInstanceOf[DeclarativeAggregate]
+                            )
                           )
-                        )
-                      case other =>
-                        GroupByExpression.GroupByProjection(
-                          SparkVeMapper.eval(
-                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                        case other =>
+                          GroupByExpression.GroupByProjection(
+                            SparkVeMapper.eval(
+                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            )
                           )
-                        )
-                    }
+                      }
+                    )
                   )
               }
             )

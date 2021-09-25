@@ -8,6 +8,7 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
 import com.nec.cmake.functions.ParseCSVSpec.{RichFloat8, RichVarCharVector}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer
+import com.nec.spark.planning.StringCExpressionEvaluation
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{Float8Vector, VarCharVector}
 
@@ -234,6 +235,24 @@ object StaticTypingTestAdditions {
         ): (List[VectorOutputNativeArgument], () => List[Result]) = {
           val outVector_0 = new Float8Vector("output_0", rootAllocator)
           (List(NativeArgument.output(outVector_0)), () => outVector_0.toList)
+        }
+      }
+    implicit val forPairStringDoubleTypedG
+      : OutputArguments[(StringGrouping, TypedGroupByExpression[Double])] =
+      new OutputArguments[(StringGrouping, TypedGroupByExpression[Double])] {
+        override type Result = (String, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new VarCharVector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+
+          (
+            List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
+            () => {
+              outVector_0.toList.zip(outVector_1.toList)
+            }
+          )
         }
       }
     implicit val forPairStringDoubleTyped
@@ -646,6 +665,25 @@ object StaticTypingTestAdditions {
       )
   }
 
+  trait GeneralGroupExpressor[Output] {
+    def express(output: Output): List[Either[NamedStringProducer, NamedGroupByExpression]]
+  }
+  object GeneralGroupExpressor {
+    implicit val forTripletDouble
+      : GeneralGroupExpressor[(StringGrouping, TypedGroupByExpression[Double])] = output =>
+      List(
+        Left(
+          NamedStringProducer("output_0", StringCExpressionEvaluation.copyString(output._1.name))
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_1",
+            VeScalarType.veNullableDouble,
+            output._2.groupByExpression
+          )
+        )
+      )
+  }
   trait GroupExpressor[Output] {
     def express(output: Output): List[NamedGroupByExpression]
   }

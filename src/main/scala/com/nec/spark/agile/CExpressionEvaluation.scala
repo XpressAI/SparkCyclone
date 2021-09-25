@@ -635,6 +635,8 @@ object CExpressionEvaluation {
 
   final case class CodeLines(lines: List[String]) {
     def block: CodeLines = CodeLines.from("", "{", this.indented, "}", "")
+    def blockCommented(str: String): CodeLines =
+      CodeLines.from(s"// ${str}", "{", this.indented, "}", "")
 
     def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
 

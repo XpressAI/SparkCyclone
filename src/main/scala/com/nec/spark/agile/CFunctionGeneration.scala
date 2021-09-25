@@ -317,43 +317,41 @@ object CFunctionGeneration {
       inputs = filter.data,
       outputs = filterOutput,
       body = CodeLines.from(
-        filterOutput.collect {
-          case CVarChar(nom) =>
-            val fp = StringProducer
-              .FilteringProducer(
-                nom,
-                StringCExpressionEvaluation.copyString(nom.replaceAllLiterally("output", "input"))
-              )
-
-            CodeLines.from(
-              fp.setup,
-              "long o = 0;",
-              "for ( long i = 0; i < input_0->count; i++ ) {",
-              CodeLines
-                .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "o++;", "}")
-                .indented,
-              "}",
-              fp.complete,
-              "o = 0;",
-              "for ( long i = 0; i < input_0->count; i++ ) {",
-              CodeLines
-                .from(
-                  s"if ( ${filter.condition.cCode} ) {",
-                  CodeLines.from(fp.validityForEach.indented, "o++;").indented,
-                  "}"
-                )
-                .indented,
-              "}"
+        filterOutput.collect { case CVarChar(nom) =>
+          val fp = StringProducer
+            .FilteringProducer(
+              nom,
+              StringCExpressionEvaluation.copyString(nom.replaceAllLiterally("output", "input"))
             )
+
+          CodeLines.from(
+            fp.setup,
+            "long o = 0;",
+            "for ( long i = 0; i < input_0->count; i++ ) {",
+            CodeLines
+              .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "o++;", "}")
+              .indented,
+            "}",
+            fp.complete,
+            "o = 0;",
+            "for ( long i = 0; i < input_0->count; i++ ) {",
+            CodeLines
+              .from(
+                s"if ( ${filter.condition.cCode} ) {",
+                CodeLines.from(fp.validityForEach.indented, "o++;").indented,
+                "}"
+              )
+              .indented,
+            "}"
+          )
         },
         generateFilter(filter),
-        filterOutput.collect {
-          case CScalarVector(outputName, outputVeType) =>
-            CodeLines.from(
-              s"$outputName->count = input_0->count;",
-              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
-              s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
-            )
+        filterOutput.collect { case CScalarVector(outputName, outputVeType) =>
+          CodeLines.from(
+            s"$outputName->count = input_0->count;",
+            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
+            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
+          )
         },
         "for ( long i = 0; i < input_0->count; i++ ) {",
         filter.data
@@ -698,31 +696,66 @@ object CFunctionGeneration {
     )
   }
 
+  final case class StringGrouping(name: String)
+
+  final case class NamedStringProducer(name: String, stringProducer: StringProducer)
   def renderGroupBy(
-    veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedGroupByExpression]
+    veDataTransformation: VeGroupBy[
+      CVector,
+      Either[StringGrouping, TypedCExpression2],
+      Either[NamedStringProducer, NamedGroupByExpression]
+    ]
   ): CFunction = {
     val tuple =
       s"std::tuple<${veDataTransformation.groups
-        .flatMap { v =>
-          List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
+        .flatMap {
+          case Right(v) =>
+            List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
+          case Left(s) =>
+            List("long")
         }
         .mkString(", ")}>";
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
-        case (NamedGroupByExpression(outputName, veType, _), idx) =>
+        case (Right(NamedGroupByExpression(outputName, veType, _)), idx) =>
           CScalarVector(outputName, veType)
+        case (Left(NamedStringProducer(outputName, _)), idx) =>
+          CVarChar(outputName)
       },
       body = CodeLines.from(
         s"/** sorting section - ${GroupBeforeSort} **/",
         s"std::vector<${tuple}> full_grouping_vec;",
         s"std::vector<size_t> sorted_idx(input_0->count);",
+        veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
+          val stringIdToHash = s"${name}_string_id_to_hash"
+          CodeLines.from(
+            s"std::vector<long> $stringIdToHash(input_0->count);",
+            "for ( long i = 0; i < input_0->count; i++ ) {",
+            CodeLines
+              .from(
+                // todo replace with a proper hash. I cannot do this quickly in C.
+                "// hash by string length... todo replace with something better",
+                s"long string_hash = 0;",
+                s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
+                CodeLines.from(s"string_hash = 31*string_hash + ${name}->data[q];").indented,
+                "}",
+                s"$stringIdToHash[i] = string_hash;",
+              )
+              .indented,
+            "}"
+          )
+        },
         "for ( long i = 0; i < input_0->count; i++ ) {",
         CodeLines
           .from(
             "sorted_idx[i] = i;",
             s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups
-              .flatMap { g => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList }
+              .flatMap {
+                case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
+                case Left(StringGrouping(inputName)) =>
+                  List(s"${inputName}_string_id_to_hash[i]")
+              }
               .mkString(", ")}));"
           )
           .indented,
@@ -733,7 +766,30 @@ object CFunctionGeneration {
         s"int groups_count = groups_indices.size() - 1;",
         "/** perform computations for every output **/",
         veDataTransformation.outputs.zipWithIndex.map {
-          case (NamedGroupByExpression(outputName, veType, groupByExpr), idx) =>
+          case (Left(NamedStringProducer(name, stringProducer)), idx) =>
+            val fp = StringProducer.FilteringProducer(name, stringProducer)
+            CodeLines
+              .from(
+                fp.setup,
+                "// for each group",
+                "for (size_t g = 0; g < groups_count; g++) {",
+                CodeLines
+                  .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
+                  .indented,
+                "}",
+                fp.complete,
+                "for (size_t g = 0; g < groups_count; g++) {",
+                CodeLines
+                  .from(
+                    "long i = sorted_idx[groups_indices[g]];",
+                    "long o = g;",
+                    fp.validityForEach
+                  )
+                  .indented,
+                "}"
+              )
+              .blockCommented(s"Produce the string group")
+          case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
             CodeLines.from(
               "",
               s"// Output #$idx for ${outputName}:",

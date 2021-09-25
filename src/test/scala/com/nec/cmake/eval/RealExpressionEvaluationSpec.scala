@@ -144,6 +144,31 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can aggregate / group by a String value (GroupByString)" in {
+
+    /** SELECT a, SUM(b) group by a, b*b */
+    val result =
+      evalGroupBySumStr(List[(String, Double)](("x", 1.0), ("yy", 2.0), ("ax", 3.0), ("x", -1.0)))(
+        (
+          StringGrouping("input_0"),
+          TypedCExpression2(
+            VeScalarType.veNullableDouble,
+            CExpression("input_1->data[i] * input_1->data[i]", None)
+          )
+        )
+      )(
+        (
+          StringGrouping("input_0"),
+          TypedGroupByExpression[Double](
+            GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
+          )
+        )
+      )
+
+    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0))
+    assert(result == expected)
+  }
+
   "We can aggregate / group by with NULL input check values" in {
     val result = evalGroupBySum(
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
@@ -472,7 +497,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = Nil,
-          outputs = groupExpressor.express(expressions)
+          outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
       ).toCodeLines(functionName)
 
@@ -614,7 +639,50 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       renderGroupBy(
         VeGroupBy(
           inputs = inputArguments.inputs,
-          groups = List(groups._1, groups._2),
+          groups = List(Right(groups._1), Right(groups._2)),
+          outputs = groupExpressor.express(expressions).map(v => Right(v))
+        )
+      ).toCodeLines(functionName)
+
+    logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+    val cLib = CMakeBuilder.buildCLogging(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
+
+  def evalGroupBySumStr[Input, Groups, Output](
+    input: List[Input]
+  )(groups: (StringGrouping, TypedCExpression2))(expressions: Output)(implicit
+    inputArguments: InputArgumentsFull[Input],
+    groupExpressor: GeneralGroupExpressor[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
+    val functionName = "project_f"
+
+    val generatedSource =
+      renderGroupBy(
+        VeGroupBy(
+          inputs = inputArguments.inputs,
+          groups = List(Left(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions)
         )
       ).toCodeLines(functionName)
