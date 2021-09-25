@@ -36,7 +36,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can transform a column to a String and a Double" ignore {
+  "We can transform a column to a String and a Double" in {
     expect(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
         StringCExpressionEvaluation.expr_to_string(CExpression("2 * input_0->data[i]", None)),
@@ -51,7 +51,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can transform a String column to a Double" ignore {
+  "We can transform a String column to a Double" in {
     expect(
       evalProject(List[String]("90.0", "1.0", "2", "19", "14"))(
         TypedCExpression[Double](

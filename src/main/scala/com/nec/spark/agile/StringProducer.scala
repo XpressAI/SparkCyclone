@@ -43,7 +43,7 @@ object StringProducer {
     )
 
     def validityForEach: CodeLines =
-      CodeLines.from(s"set_validity(${outputName}->validityBuffer, i, 1);")
+      CodeLines.from(s"set_validity(${outputName}->validityBuffer, o, 1);")
   }
 
   def produceVarChar(outputName: String, stringProducer: StringProducer): CodeLines = {
@@ -55,7 +55,7 @@ object StringProducer {
       "}",
       fp.complete,
       s"for( int32_t i = 0; i < input_0->count; i++ ) {",
-      fp.validityForEach,
+      CodeLines.from(s"int o = i;", fp.validityForEach).indented,
       "}"
     )
   }

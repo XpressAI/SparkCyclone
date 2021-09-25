@@ -236,13 +236,19 @@ object CFunctionGeneration {
           CodeLines.empty
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
-      s"if ( ${filter.condition.cCode} ) {",
-      filter.data.map {
-        case CScalarVector(name, _) =>
-          s"  filtered_$name.push_back($name->data[i]);"
-        case CVarChar(name) => ""
-      },
-      "}",
+      CodeLines
+        .from(
+          s"if ( ${filter.condition.cCode} ) {",
+          filter.data
+            .map {
+              case CScalarVector(name, _) =>
+                CodeLines.from(s"filtered_$name.push_back($name->data[i]);")
+              case CVarChar(name) => CodeLines.empty
+            }
+            .map(_.indented),
+          "}"
+        )
+        .indented,
       "}",
       filter.data.map {
         case CScalarVector(name, veType) =>
@@ -311,14 +317,7 @@ object CFunctionGeneration {
       inputs = filter.data,
       outputs = filterOutput,
       body = CodeLines.from(
-        generateFilter(filter),
-        filterOutput.map {
-          case CScalarVector(outputName, outputVeType) =>
-            CodeLines.from(
-              s"$outputName->count = input_0->count;",
-              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
-              s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
-            )
+        filterOutput.collect {
           case CVarChar(nom) =>
             val fp = StringProducer
               .FilteringProducer(
@@ -328,17 +327,32 @@ object CFunctionGeneration {
 
             CodeLines.from(
               fp.setup,
+              "long o = 0;",
               "for ( long i = 0; i < input_0->count; i++ ) {",
               CodeLines
-                .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "}")
+                .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "o++;", "}")
                 .indented,
               "}",
               fp.complete,
+              "o = 0;",
               "for ( long i = 0; i < input_0->count; i++ ) {",
               CodeLines
-                .from(s"if ( ${filter.condition.cCode} ) {", fp.validityForEach.indented, "}")
+                .from(
+                  s"if ( ${filter.condition.cCode} ) {",
+                  CodeLines.from(fp.validityForEach.indented, "o++;").indented,
+                  "}"
+                )
                 .indented,
               "}"
+            )
+        },
+        generateFilter(filter),
+        filterOutput.collect {
+          case CScalarVector(outputName, outputVeType) =>
+            CodeLines.from(
+              s"$outputName->count = input_0->count;",
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
+              s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
             )
         },
         "for ( long i = 0; i < input_0->count; i++ ) {",
