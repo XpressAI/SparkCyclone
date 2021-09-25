@@ -108,12 +108,14 @@ object StringCExpressionEvaluation {
           s"${iln} += len_str.size();"
         )
 
-  def copyString(inputName: String): StringProducer =
-    (tsn, iln) =>
-      CodeLines.from(
-        s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
-        s"${tsn}.append(sub_str);",
-        s"${iln} += sub_str.size();"
-      )
+  def copyString(inputName: String): StringProducer = CopyStringProducer(inputName)
+
+  final case class CopyStringProducer(inputName: String) extends StringProducer {
+    override def produceTo(tsn: String, iln: String): CodeLines = CodeLines.from(
+      s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+      s"${tsn}.append(sub_str);",
+      s"${iln} += sub_str.size();"
+    )
+  }
 
 }

@@ -29,7 +29,7 @@ final class SparkWordCountSpec extends AnyFreeSpec with BeforeAndAfter with Spar
   "We can do a Word count from a text file" in withSparkSession(identity) { sparkSession =>
     import sparkSession.implicits._
     sparkSession.read
-      .textFile(SampleTestData.SampleTXT.toString)
+      .textFile(SampleTestData.SampleStrCsv.toString)
       .selectExpr("explode(split(value, ' ')) as word")
       .createOrReplaceTempView("words")
 

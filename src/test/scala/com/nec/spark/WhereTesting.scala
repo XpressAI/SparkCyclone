@@ -4,7 +4,7 @@ import com.eed3si9n.expecty.Expecty.assert
 import com.nec.cmake.ReadFullCSVSpec.SampleRow
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SampleTestData.SampleCSV
-import com.nec.spark.SampleTestData.SampleTXT
+import com.nec.spark.SampleTestData.SampleStrCsv
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
