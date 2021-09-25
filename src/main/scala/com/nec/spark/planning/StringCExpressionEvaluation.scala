@@ -118,12 +118,12 @@ object StringCExpressionEvaluation {
             """output_offsets.push_back(currentOffset);""",
             s"""for ( int32_t j = input_strings_o->offsets[i]; j < input_strings_o->offsets[i + 1]; j++ ) {""",
             CodeLines
-              .from(
-                """output_result.append(input_strings_o->data + j, 1);""",
-                "length++;"
-              )
+              .from("""output_result.append(input_strings_o->data + j, 1);""", "length++;")
               .indented,
             "}",
+            "std::string len_str = std::to_string(input_strings->offsets[i+1] - input_strings->offsets[i]);",
+            s"output_result.append(len_str);",
+            s"length += len_str.size();",
             s"""currentOffset += length;"""
           )
           .indented,

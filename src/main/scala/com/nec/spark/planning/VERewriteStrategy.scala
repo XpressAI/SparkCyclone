@@ -87,6 +87,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         Literal(beginIndex: Int, IntegerType),
                         Literal(endIndex: Int, IntegerType)
                       ),
+                      _,
                       _
                     )
                   ),
