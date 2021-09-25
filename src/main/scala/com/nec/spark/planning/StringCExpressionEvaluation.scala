@@ -25,7 +25,15 @@ object StringCExpressionEvaluation {
       """#include <iostream>""",
       """#include <string>""",
       """#include "cpp/frovedis/text/words.hpp"""",
-      s"""extern "C" long ${fName}(nullable_varchar_vector* input_strings, nullable_varchar_vector* output_strings, nullable_int_vector* lengths, nullable_varchar_vector* output_strings_2) {""",
+      s"""extern "C" long ${fName}(""",
+      List(
+        "nullable_varchar_vector* input_strings",
+        "nullable_varchar_vector* input_strings_o",
+        "nullable_varchar_vector* output_strings",
+        "nullable_int_vector* lengths",
+        "nullable_varchar_vector* output_strings_2"
+      ).mkString(", \n"),
+      ") {",
       CodeLines
         .from(firstOutput, "", secondOutput, "", thirdOutput, "", """return 0;""")
         .indented,

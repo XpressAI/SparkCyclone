@@ -6,7 +6,7 @@ object SampleTestData {
   lazy val SampleTXT: Path = Paths
     .get(
       this.getClass
-        .getResource("sample.txt")
+        .getResource("sample-str.csv")
         .toURI
     )
     .toAbsolutePath

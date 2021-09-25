@@ -9,6 +9,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 final case class SubstringTesting(isVe: Boolean) extends Testing {
   override type Result = (String, Long, String)
@@ -38,6 +39,7 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
         .config(sparkConf)
         .getOrCreate()
   }
+
   override def prepareInput(
     sparkSession: SparkSession,
     dataSize: Testing.DataSize
@@ -45,13 +47,14 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
     import sparkSession.implicits._
 
     sparkSession.read
-      .textFile(SampleTXT.toAbsolutePath.toString)
-      .as[String]
+      .schema(StructType(Seq(StructField("value", StringType), StructField("o", StringType))))
+      .option("header", "false")
+      .csv(SampleTXT.toAbsolutePath.toString)
       .createOrReplaceTempView("sample_tbl")
 
     val ds = sparkSession
       .sql(
-        "SELECT SUBSTR(value, 1, 3), LENGTH(value), SUBSTR(value, 1, LENGTH(value) - 2) FROM sample_tbl"
+        "SELECT SUBSTR(value, 1, 3) || o, LENGTH(value), SUBSTR(value, 1, LENGTH(value) - 2) FROM sample_tbl"
       )
       .as[Result]
 
@@ -64,10 +67,11 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
   }
   override def verifyResult(dataset: List[Result]): Unit = {
     val inputLines = List("This is", "some test", "of some stuff", "that always is")
+    val o = List("a", "bb", "ccc", "dddd")
     val expected =
-      inputLines.map(str =>
+      inputLines.zip(o).map { case (str, o) =>
         (str.substring(1, 3), str.length.toLong, str.substring(1, str.length - 2))
-      )
+      }
     assert(dataset == expected)
   }
   override def testingTarget: Testing.TestingTarget =
