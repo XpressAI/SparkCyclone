@@ -186,6 +186,7 @@ object CExpressionEvaluation {
           s"if(${genNullCheck(inputs, re)})",
           "{",
           s"output_${idx}_data[i] = ${evaluateExpression(inputs, re)};",
+          s"""std::cout << " DATA: " << output_${idx}_data[i]; """,
           s"set_validity(output_${idx}->validityBuffer, i, 1);",
           "}",
           s"else { set_validity(output_${idx}->validityBuffer, i, 0);}"

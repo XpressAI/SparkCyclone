@@ -97,23 +97,11 @@ class DynamicCSqlExpressionEvaluationSpec
   "Support pairwise addition with shorts" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise_short).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise_short).debugSqlHere { ds =>
       assert(
-        ds.as[Option[Short]].collect().toList.sorted == List[Option[Double]](
-          None,
-          None,
-          None,
-          None,
-          None,
-          None,
-          None,
-          None,
-          Some(3),
-          Some(5),
-          Some(7),
-          Some(9),
-          Some(58)
-        ).sorted
+        ds.as[Option[Short]].collect().toList.sorted == List(
+          None, None, Some(2), Some(4), Some(6), Some(8), Some(16), Some(18), Some(22), Some(24), Some(46), Some(84), Some(100)
+        )
       )
     }
   }
