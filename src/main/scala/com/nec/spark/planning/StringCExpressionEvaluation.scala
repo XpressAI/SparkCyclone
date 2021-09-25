@@ -96,7 +96,38 @@ object StringCExpressionEvaluation {
     )
   }
 
-  private def select_substring(beginIndex: Int, endIndex: Int) = {
+  private def produce_to(
+    tempStringName: String,
+    itemLengthName: String,
+    beginIndex: Int,
+    endIndex: Int
+  ): CodeLines = {
+    CodeLines
+      .from(
+        s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
+        CodeLines
+          .from(
+            s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
+            s"${itemLengthName}++;"
+          )
+          .indented,
+        "}",
+        s"""for ( int32_t j = input_strings_o->offsets[i]; j < input_strings_o->offsets[i + 1]; j++ ) {""",
+        CodeLines
+          .from(
+            s"""${tempStringName}.append(input_strings_o->data + j, 1);""",
+            s"${itemLengthName}++;"
+          )
+          .indented,
+        "}",
+        "std::string len_str = std::to_string(input_strings->offsets[i+1] - input_strings->offsets[i]);",
+        s"${tempStringName}.append(len_str);",
+        s"${itemLengthName} += len_str.size();"
+      )
+
+  }
+
+  private def select_substring(beginIndex: Int, endIndex: Int): CodeLines = {
     val firstOutput = CodeLines
       .from(
         " // first output ",
@@ -107,23 +138,8 @@ object StringCExpressionEvaluation {
         CodeLines
           .from(
             "int length = 0;",
-            s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
-            CodeLines
-              .from(
-                """output_result.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
-                "length++;"
-              )
-              .indented,
-            "}",
+            produce_to("output_result", "length", beginIndex, endIndex),
             """output_offsets.push_back(currentOffset);""",
-            s"""for ( int32_t j = input_strings_o->offsets[i]; j < input_strings_o->offsets[i + 1]; j++ ) {""",
-            CodeLines
-              .from("""output_result.append(input_strings_o->data + j, 1);""", "length++;")
-              .indented,
-            "}",
-            "std::string len_str = std::to_string(input_strings->offsets[i+1] - input_strings->offsets[i]);",
-            s"output_result.append(len_str);",
-            s"length += len_str.size();",
             s"""currentOffset += length;"""
           )
           .indented,
