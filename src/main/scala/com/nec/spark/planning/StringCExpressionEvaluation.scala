@@ -78,7 +78,7 @@ object StringCExpressionEvaluation {
   }
 
   private def produce_string_to(beginIndex: Int, endIndex: Int): StringProducer =
-    (tempStringName, itemLengthName) => {
+    (tempStringName, itemLengthName) =>
       CodeLines
         .from(
           s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
@@ -99,8 +99,6 @@ object StringCExpressionEvaluation {
           s"${itemLengthName} += len_str.size();"
         )
 
-    }
-
   def expr_to_string(cExpression: CExpression): StringProducer =
     (tsn, iln) =>
       CodeLines
@@ -109,5 +107,13 @@ object StringCExpressionEvaluation {
           s"${tsn}.append(len_str);",
           s"${iln} += len_str.size();"
         )
+
+  def copyString(inputName: String): StringProducer =
+    (tsn, iln) =>
+      CodeLines.from(
+        s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+        s"${tsn}.append(sub_str);",
+        s"${iln} += sub_str.size();"
+      )
 
 }

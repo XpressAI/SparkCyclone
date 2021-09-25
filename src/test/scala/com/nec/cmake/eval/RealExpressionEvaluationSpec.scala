@@ -36,7 +36,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can transform a column to a String and a Double" in {
+  "We can transform a column to a String and a Double" ignore {
     expect(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
         StringCExpressionEvaluation.expr_to_string(CExpression("2 * input_0->data[i]", None)),
@@ -51,7 +51,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can transform a String column to a Double" in {
+  "We can transform a String column to a Double" ignore {
     expect(
       evalProject(List[String]("90.0", "1.0", "2", "19", "14"))(
         TypedCExpression[Double](
@@ -81,18 +81,17 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can filter a column with a String" ignore {
-    expect(
-      evalFilter[(String, Double)](
-        ("x", 90.0),
-        ("one", 1.0),
-        ("two", 2.0),
-        ("prime", 19.0),
-        ("other", 14.0)
-      )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None)) == List[
-        (String, Double)
-      ](("x", 90.0), ("prime", 19.0))
-    )
+  "We can filter a column with a String" in {
+    val result = evalFilter[(String, Double)](
+      ("x", 90.0),
+      ("one", 1.0),
+      ("two", 2.0),
+      ("prime", 19.0),
+      ("other", 14.0)
+    )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None))
+    val expected = List[(String, Double)](("x", 90.0), ("prime", 19.0))
+
+    expect(result == expected)
   }
 
   "We can sort" in {
@@ -693,7 +692,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       renderFilter(VeFilter(data = inputArguments.inputs, condition = condition))
         .toCodeLines(functionName)
 
-    val cLib = CMakeBuilder.buildC(
+    val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )

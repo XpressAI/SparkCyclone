@@ -1,6 +1,7 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.planning.StringCExpressionEvaluation
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
@@ -203,6 +204,7 @@ object CFunctionGeneration {
       CodeLines.from(
         "#include <cmath>",
         "#include <bitset>",
+        "#include <string>",
         "#include <iostream>",
         "#include <tuple>",
         "#include \"tuple_hash.hpp\"",
@@ -229,8 +231,9 @@ object CFunctionGeneration {
     CodeLines.from(
       filter.data.map {
         case CScalarVector(name, veType) =>
-          s"std::vector<${veType.cScalarType}> filtered_$name = {};"
-        case CVarChar(name) => ""
+          CodeLines.from(s"std::vector<${veType.cScalarType}> filtered_$name = {};")
+        case CVarChar(name) =>
+          CodeLines.empty
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       s"if ( ${filter.condition.cCode} ) {",
@@ -316,8 +319,27 @@ object CFunctionGeneration {
               s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
               s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
             )
-          case CVarChar(_) =>
-            CodeLines.empty
+          case CVarChar(nom) =>
+            val fp = StringProducer
+              .FilteringProducer(
+                nom,
+                StringCExpressionEvaluation.copyString(nom.replaceAllLiterally("output", "input"))
+              )
+
+            CodeLines.from(
+              fp.setup,
+              "for ( long i = 0; i < input_0->count; i++ ) {",
+              CodeLines
+                .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "}")
+                .indented,
+              "}",
+              fp.complete,
+              "for ( long i = 0; i < input_0->count; i++ ) {",
+              CodeLines
+                .from(s"if ( ${filter.condition.cCode} ) {", fp.validityForEach.indented, "}")
+                .indented,
+              "}"
+            )
         },
         "for ( long i = 0; i < input_0->count; i++ ) {",
         filter.data
