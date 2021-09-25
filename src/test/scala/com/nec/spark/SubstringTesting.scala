@@ -70,7 +70,7 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
     val o = List("a", "bb", "ccc", "dddd")
     val expected =
       inputLines.zip(o).map { case (str, o) =>
-        (str.substring(1, 3), str.length.toLong, str.substring(1, str.length - 2))
+        (str.substring(1, 3) + o, str.length.toLong, str.substring(1, str.length - 2))
       }
     assert(dataset == expected)
   }
