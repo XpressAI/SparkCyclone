@@ -70,8 +70,10 @@ object CMakeBuilder extends LazyLogging {
   }
 
   def buildCLogging(cSource: String): Path = {
-    try buildC(cSource)
-    catch {
+    try {
+      logger.debug(s"Code to compile: ${cSource}")
+      buildC(cSource)
+    } catch {
       case e: Exception =>
         logger.info(s"Could not compile code due to error: ${e}", e)
         throw new CompileError("Could not compile code. Reported in the log.")
