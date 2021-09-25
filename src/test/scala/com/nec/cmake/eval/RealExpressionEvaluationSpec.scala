@@ -21,16 +21,16 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.DeclarativeAggregationConverter
+import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
-import scala.runtime.LazyLong
 
+import scala.runtime.LazyLong
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
+import com.nec.spark.planning.StringCExpressionEvaluation
 
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
@@ -43,6 +43,21 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
         TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
       ) == List[(Double, Double)]((180, 92), (2, 3), (4, 4), (38, 21), (28, 16))
+    )
+  }
+
+  "We can transform a column to a String and a Double" in {
+    expect(
+      evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
+        StringCExpressionEvaluation.expr_to_string(CExpression("2 * input_0->data[i]", None)),
+        TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
+      ) == List[(String, Double)](
+        ("180.000000", 92.0),
+        ("2.000000", 3.0),
+        ("4.000000", 4.0),
+        ("38.000000", 21.0),
+        ("28.000000", 16.0)
+      )
     )
   }
 
@@ -91,8 +106,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -118,8 +133,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -148,10 +163,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       (
         TypedCExpression2(
-          VeType.veNullableDouble,
+          VeScalarType.veNullableDouble,
           CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
         ),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -188,11 +203,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       (
         TypedCExpression2(
-          VeType.veNullableDouble,
+          VeScalarType.veNullableDouble,
           CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
         ),
         TypedCExpression2(
-          VeType.veNullableDouble,
+          VeScalarType.veNullableDouble,
           CExpression("input_1->data[i]", Some("check_valid(input_1->validityBuffer, i)"))
         )
       )
@@ -237,8 +252,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -268,9 +283,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (11.0, 7.0, 12.0, 11.0),
       (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val outputs = (
       TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
@@ -291,15 +308,25 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (11.0, 7.0, 12.0, 11.0),
       (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val innerOutputs = (
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_1->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_2->data[right_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_0->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_3->data[right_out[i]]", None))
+      )
     )
 
     val outerOutputs = (
@@ -332,15 +359,25 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (11.0, 7.0, 12.0, 11.0),
       (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val innerOutputs = (
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_1->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_2->data[right_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_0->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_3->data[right_out[i]]", None))
+      )
     )
 
     val outerOutputs = (
@@ -376,8 +413,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -388,7 +425,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         TypedGroupByExpression[Double](
           GroupByAggregation(
             DeclarativeAggregationConverter(
-              Corr(AttributeReference("input_2->data[i]", DoubleType)(), AttributeReference("input_2->data[i]", DoubleType)())
+              Corr(
+                AttributeReference("input_2->data[i]", DoubleType)(),
+                AttributeReference("input_2->data[i]", DoubleType)()
+              )
             )
           )
         )
@@ -603,7 +643,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         )
       ).toCodeLines(functionName)
 
-    val cLib = CMakeBuilder.buildC(
+    val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )

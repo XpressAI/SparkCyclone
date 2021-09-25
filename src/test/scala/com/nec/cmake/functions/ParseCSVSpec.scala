@@ -52,10 +52,10 @@ object ParseCSVSpec {
   }
 
   implicit class RichVarCharVector(varCharVector: VarCharVector) {
-    def toList: List[String] = (0 until varCharVector.getValueCount)
+    def toList: List[String] = (0 until varCharVector.getValueCount).view
       .map(varCharVector.get)
-      .toList
       .map(bytes => new String(bytes, "UTF-8"))
+      .toList
   }
 
   implicit class RichBigIntVector(bigIntVector: BigIntVector) {

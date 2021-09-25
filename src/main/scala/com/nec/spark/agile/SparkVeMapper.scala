@@ -1,6 +1,6 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, JoinType, LeftOuterJoin, RightOuterJoin, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, JoinType, LeftOuterJoin, RightOuterJoin, VeScalarType}
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryArithmetic, BinaryOperator, Cast, Coalesce, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Sqrt}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
@@ -194,13 +194,13 @@ object SparkVeMapper {
     }
   }
 
-  def sparkTypeToVeType(dataType: DataType): VeType = {
+  def sparkTypeToVeType(dataType: DataType): VeScalarType = {
     dataType match {
-      case DoubleType  => VeType.veNullableDouble
-      case IntegerType => VeType.veNullableInt
-      case LongType    => VeType.veNullableLong
-      case ShortType   => VeType.veNullableInt
-      case StringType  => VeType.veNullableString
+      case DoubleType  => VeScalarType.veNullableDouble
+      case IntegerType => VeScalarType.veNullableInt
+      case LongType    => VeScalarType.veNullableLong
+      case ShortType   => VeScalarType.veNullableInt
+      case StringType  => VeScalarType.veNullableString
     }
   }
 }

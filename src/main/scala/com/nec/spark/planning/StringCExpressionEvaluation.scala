@@ -2,6 +2,7 @@ package com.nec.spark.planning
 
 import com.nec.spark.agile.{CExpressionEvaluation, StringProducer}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.CExpression
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
 //noinspection SameParameterValue
@@ -22,8 +23,8 @@ object StringCExpressionEvaluation {
       """#include "cpp/frovedis/text/words.hpp"""",
       s"""extern "C" long ${fName}(""",
       List(
-        "nullable_varchar_vector* input_strings",
-        "nullable_varchar_vector* input_strings_o",
+        "nullable_varchar_vector* input_0",
+        "nullable_varchar_vector* input_0_o",
         "nullable_varchar_vector* output_strings",
         "nullable_int_vector* lengths",
         "nullable_varchar_vector* output_strings_2"
@@ -47,12 +48,12 @@ object StringCExpressionEvaluation {
     CodeLines
       .from(
         s"int32_t beginIndex_2 = 1;",
-        s"int32_t string_i_length = input_strings->offsets[i + 1] - input_strings->offsets[i];",
+        s"int32_t string_i_length = input_0->offsets[i + 1] - input_0->offsets[i];",
         s"int32_t endIndex_2 = string_i_length - 2;",
         s"for ( int32_t j = beginIndex_2; j < endIndex_2; j++ ) {",
         CodeLines
           .from(
-            s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
+            s"""${tempStringName}.append((input_0->data + (input_0->offsets[i] + j)), 1);""",
             s"${lenName} += 1;"
           )
           .indented,
@@ -62,13 +63,13 @@ object StringCExpressionEvaluation {
   private def select_lengths: CodeLines = {
     CodeLines.from(
       "// second output",
-      s"lengths->data = (int32_t*) malloc(input_strings->count * 4);",
-      s"lengths->validityBuffer = (unsigned char *) malloc(input_strings->count);",
-      s"lengths->count = input_strings->count;",
-      s"for( int32_t i = 0; i < input_strings->count; i++ ) {",
+      s"lengths->data = (int32_t*) malloc(input_0->count * 4);",
+      s"lengths->validityBuffer = (unsigned char *) malloc(input_0->count);",
+      s"lengths->count = input_0->count;",
+      s"for( int32_t i = 0; i < input_0->count; i++ ) {",
       CodeLines
         .from(
-          "lengths->data[i] = input_strings->offsets[i + 1] - input_strings->offsets[i];",
+          "lengths->data[i] = input_0->offsets[i + 1] - input_0->offsets[i];",
           "set_validity(lengths->validityBuffer, i, 1);"
         )
         .indented,
@@ -83,24 +84,30 @@ object StringCExpressionEvaluation {
           s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
           CodeLines
             .from(
-              s"""${tempStringName}.append((input_strings->data + (input_strings->offsets[i] + j)), 1);""",
+              s"""${tempStringName}.append((input_0->data + (input_0->offsets[i] + j)), 1);""",
               s"${itemLengthName}++;"
             )
             .indented,
           "}",
-          s"""for ( int32_t j = input_strings_o->offsets[i]; j < input_strings_o->offsets[i + 1]; j++ ) {""",
+          s"""for ( int32_t j = input_0_o->offsets[i]; j < input_0_o->offsets[i + 1]; j++ ) {""",
           CodeLines
-            .from(
-              s"""${tempStringName}.append(input_strings_o->data + j, 1);""",
-              s"${itemLengthName}++;"
-            )
+            .from(s"""${tempStringName}.append(input_0_o->data + j, 1);""", s"${itemLengthName}++;")
             .indented,
           "}",
-          "std::string len_str = std::to_string(input_strings->offsets[i+1] - input_strings->offsets[i]);",
+          "std::string len_str = std::to_string(input_0->offsets[i+1] - input_0->offsets[i]);",
           s"${tempStringName}.append(len_str);",
           s"${itemLengthName} += len_str.size();"
         )
 
     }
+
+  def expr_to_string(cExpression: CExpression): StringProducer =
+    (tsn, iln) =>
+      CodeLines
+        .from(
+          s"std::string len_str = std::to_string(${cExpression.cCode});",
+          s"${tsn}.append(len_str);",
+          s"${iln} += len_str.size();"
+        )
 
 }

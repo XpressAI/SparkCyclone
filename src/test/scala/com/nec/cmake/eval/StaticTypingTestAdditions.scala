@@ -5,22 +5,11 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
   VectorInputNativeArgument,
   VectorOutputNativeArgument
 }
-import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  CExpression,
-  CVector,
-  GroupByExpression,
-  JoinExpression,
-  NamedGroupByExpression,
-  NamedJoinExpression,
-  NamedTypedCExpression,
-  TypedGroupByExpression,
-  TypedJoinExpression,
-  VeType
-}
+import com.nec.cmake.functions.ParseCSVSpec.{RichFloat8, RichVarCharVector}
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.StringProducer
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.Float8Vector
+import org.apache.arrow.vector.{Float8Vector, VarCharVector}
 
 /**
  * Boilerplate to deal with making the tests nice and tight.
@@ -37,7 +26,7 @@ object StaticTypingTestAdditions {
     def allocateVectors(data: Input*)(implicit
       rootAllocator: RootAllocator
     ): List[VectorInputNativeArgument]
-    def inputs: List[CVector]
+    def inputs: List[CScalarVector]
   }
   object InputArguments {
 
@@ -45,7 +34,7 @@ object StaticTypingTestAdditions {
       override def allocateVectors(
         data: Double*
       )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
-        inputs.zipWithIndex.map { case (CVector(name, tpe), idx) =>
+        inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx) =>
           val vcv = new Float8Vector(name, rootAllocator)
           vcv.allocateNew()
           vcv.setValueCount(data.size)
@@ -56,14 +45,16 @@ object StaticTypingTestAdditions {
         }
       }
 
-      override def inputs: List[CVector] = List(CVector("input_0", VeType.veNullableDouble))
+      override def inputs: List[CScalarVector] = List(
+        CScalarVector("input_0", VeScalarType.veNullableDouble)
+      )
     }
     implicit val forPairDouble: InputArguments[(Double, Double)] =
       new InputArguments[(Double, Double)] {
         override def allocateVectors(
           data: (Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
-          inputs.zipWithIndex.map { case (CVector(name, tpe), idx_col) =>
+          inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
             vcv.setValueCount(data.size)
@@ -74,9 +65,9 @@ object StaticTypingTestAdditions {
           }
         }
 
-        override def inputs: List[CVector] = List(
-          CVector("input_0", VeType.veNullableDouble),
-          CVector("input_1", VeType.veNullableDouble)
+        override def inputs: List[CScalarVector] = List(
+          CScalarVector("input_0", VeScalarType.veNullableDouble),
+          CScalarVector("input_1", VeScalarType.veNullableDouble)
         )
       }
     implicit val forTrupleDouble: InputArguments[(Double, Double, Double)] =
@@ -84,7 +75,7 @@ object StaticTypingTestAdditions {
         override def allocateVectors(
           data: (Double, Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
-          inputs.zipWithIndex.map { case (CVector(name, tpe), idx_col) =>
+          inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
             vcv.setValueCount(data.size)
@@ -95,10 +86,10 @@ object StaticTypingTestAdditions {
           }
         }
 
-        override def inputs: List[CVector] = List(
-          CVector("input_0", VeType.veNullableDouble),
-          CVector("input_1", VeType.veNullableDouble),
-          CVector("input_2", VeType.veNullableDouble)
+        override def inputs: List[CScalarVector] = List(
+          CScalarVector("input_0", VeScalarType.veNullableDouble),
+          CScalarVector("input_1", VeScalarType.veNullableDouble),
+          CScalarVector("input_2", VeScalarType.veNullableDouble)
         )
       }
     implicit val forTrupleDouble1Opt: InputArguments[(Option[Double], Double, Double)] =
@@ -106,7 +97,7 @@ object StaticTypingTestAdditions {
         override def allocateVectors(
           data: (Option[Double], Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
-          inputs.zipWithIndex.map { case (CVector(name, tpe), idx_col) =>
+          inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
             vcv.setValueCount(data.size)
@@ -123,10 +114,10 @@ object StaticTypingTestAdditions {
           }
         }
 
-        override def inputs: List[CVector] = List(
-          CVector("input_0", VeType.veNullableDouble),
-          CVector("input_1", VeType.veNullableDouble),
-          CVector("input_2", VeType.veNullableDouble)
+        override def inputs: List[CScalarVector] = List(
+          CScalarVector("input_0", VeScalarType.veNullableDouble),
+          CScalarVector("input_1", VeScalarType.veNullableDouble),
+          CScalarVector("input_2", VeScalarType.veNullableDouble)
         )
       }
 
@@ -135,7 +126,7 @@ object StaticTypingTestAdditions {
         override def allocateVectors(
           data: (Double, Double, Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
-          inputs.zipWithIndex.map { case (CVector(name, tpe), idx_col) =>
+          inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
             vcv.setValueCount(data.size)
@@ -152,11 +143,11 @@ object StaticTypingTestAdditions {
           }
         }
 
-        override def inputs: List[CVector] = List(
-          CVector("input_0", VeType.veNullableDouble),
-          CVector("input_1", VeType.veNullableDouble),
-          CVector("input_2", VeType.veNullableDouble),
-          CVector("input_3", VeType.veNullableDouble)
+        override def inputs: List[CScalarVector] = List(
+          CScalarVector("input_0", VeScalarType.veNullableDouble),
+          CScalarVector("input_1", VeScalarType.veNullableDouble),
+          CScalarVector("input_2", VeScalarType.veNullableDouble),
+          CScalarVector("input_3", VeScalarType.veNullableDouble)
         )
       }
   }
@@ -177,6 +168,25 @@ object StaticTypingTestAdditions {
         ): (List[VectorOutputNativeArgument], () => List[Result]) = {
           val outVector_0 = new Float8Vector("output_0", rootAllocator)
           (List(NativeArgument.output(outVector_0)), () => outVector_0.toList)
+        }
+      }
+    implicit val forPairStringDoubleTyped
+      : OutputArguments[(StringProducer, TypedCExpression[Double])] =
+      new OutputArguments[(StringProducer, TypedCExpression[Double])] {
+        override type Result = (String, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new VarCharVector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+
+
+          (
+            List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
+            () => {
+              outVector_0.toList.zip(outVector_1.toList)
+            }
+          )
         }
       }
     implicit val forPairDoubleTyped
@@ -257,7 +267,7 @@ object StaticTypingTestAdditions {
         TypedJoinExpression[Option[Double]],
         TypedJoinExpression[Option[Double]],
         TypedJoinExpression[Option[Double]],
-        TypedJoinExpression[Option[Double]],
+        TypedJoinExpression[Option[Double]]
       )
     ] =
       new OutputArguments[
@@ -265,7 +275,7 @@ object StaticTypingTestAdditions {
           TypedJoinExpression[Option[Double]],
           TypedJoinExpression[Option[Double]],
           TypedJoinExpression[Option[Double]],
-          TypedJoinExpression[Option[Double]],
+          TypedJoinExpression[Option[Double]]
         )
       ] {
         override type Result = (Option[Double], Option[Double], Option[Double], Option[Double])
@@ -300,7 +310,7 @@ object StaticTypingTestAdditions {
         TypedJoinExpression[Double],
         TypedJoinExpression[Double],
         TypedJoinExpression[Double],
-        TypedJoinExpression[Double],
+        TypedJoinExpression[Double]
       )
     ] =
       new OutputArguments[
@@ -308,12 +318,12 @@ object StaticTypingTestAdditions {
           TypedJoinExpression[Double],
           TypedJoinExpression[Double],
           TypedJoinExpression[Double],
-          TypedJoinExpression[Double],
+          TypedJoinExpression[Double]
         )
       ] {
         override type Result = (Double, Double, Double, Double)
         override def allocateVectors()(implicit
-                                       rootAllocator: RootAllocator
+          rootAllocator: RootAllocator
         ): (List[VectorOutputNativeArgument], () => List[Result]) = {
           val outVector_0 = new Float8Vector("output_0", rootAllocator)
           val outVector_1 = new Float8Vector("output_1", rootAllocator)
@@ -457,35 +467,53 @@ object StaticTypingTestAdditions {
   }
 
   trait ProjectExpression[Output] {
+    def outputs(output: Output): List[Either[NamedStringExpression, NamedTypedCExpression]]
+  }
+  object ProjectExpression {
+    implicit def fromScalar[O](implicit
+      scalarProjectExpression: ScalarProjectExpression[O]
+    ): ProjectExpression[O] =
+      o => scalarProjectExpression.outputs(o).map(ne => Right(ne))
+    implicit val forPairStringDouble
+      : ProjectExpression[(StringProducer, TypedCExpression[Double])] =
+      (output: (StringProducer, TypedCExpression[Double])) =>
+        List(
+          Left(NamedStringExpression("output_0", output._1)),
+          Right(
+            NamedTypedCExpression("output_1", VeScalarType.veNullableDouble, output._2.cExpression)
+          )
+        )
+  }
+  trait ScalarProjectExpression[Output] {
     def outputs(output: Output): List[NamedTypedCExpression]
   }
 
-  object ProjectExpression {
-    implicit val forDouble: ProjectExpression[TypedCExpression[Double]] =
+  object ScalarProjectExpression {
+    implicit val forDouble: ScalarProjectExpression[TypedCExpression[Double]] =
       (output: TypedCExpression[Double]) =>
-        List(NamedTypedCExpression("output_0", VeType.veNullableDouble, output.cExpression))
+        List(NamedTypedCExpression("output_0", VeScalarType.veNullableDouble, output.cExpression))
     implicit val forPairDouble
-      : ProjectExpression[(TypedCExpression[Double], TypedCExpression[Double])] =
+      : ScalarProjectExpression[(TypedCExpression[Double], TypedCExpression[Double])] =
       (output: (TypedCExpression[Double], TypedCExpression[Double])) =>
         List(
-          NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
-          NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression)
+          NamedTypedCExpression("output_0", VeScalarType.veNullableDouble, output._1.cExpression),
+          NamedTypedCExpression("output_1", VeScalarType.veNullableDouble, output._2.cExpression)
         )
     implicit val forPairDoubleOneOption
-      : ProjectExpression[(TypedCExpression[Double], TypedCExpression[Option[Double]])] =
+      : ScalarProjectExpression[(TypedCExpression[Double], TypedCExpression[Option[Double]])] =
       (output: (TypedCExpression[Double], TypedCExpression[Option[Double]])) =>
         List(
-          NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
-          NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression)
+          NamedTypedCExpression("output_0", VeScalarType.veNullableDouble, output._1.cExpression),
+          NamedTypedCExpression("output_1", VeScalarType.veNullableDouble, output._2.cExpression)
         )
-    implicit val forTripletDouble: ProjectExpression[
+    implicit val forTripletDouble: ScalarProjectExpression[
       (TypedCExpression[Double], TypedCExpression[Double], TypedCExpression[Double])
     ] =
       (output: (TypedCExpression[Double], TypedCExpression[Double], TypedCExpression[Double])) =>
         List(
-          NamedTypedCExpression("output_0", VeType.veNullableDouble, output._1.cExpression),
-          NamedTypedCExpression("output_1", VeType.veNullableDouble, output._2.cExpression),
-          NamedTypedCExpression("output_2", VeType.veNullableDouble, output._3.cExpression)
+          NamedTypedCExpression("output_0", VeScalarType.veNullableDouble, output._1.cExpression),
+          NamedTypedCExpression("output_1", VeScalarType.veNullableDouble, output._2.cExpression),
+          NamedTypedCExpression("output_2", VeScalarType.veNullableDouble, output._3.cExpression)
         )
   }
   final case class TypedCExpression[ScalaType](cExpression: CExpression)
@@ -504,10 +532,10 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedJoinExpression("output_1", VeType.veNullableDouble, output._1.joinExpression),
-        NamedJoinExpression("output_2", VeType.veNullableDouble, output._2.joinExpression),
-        NamedJoinExpression("output_3", VeType.veNullableDouble, output._3.joinExpression),
-        NamedJoinExpression("output_4", VeType.veNullableDouble, output._4.joinExpression)
+        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
       )
 
     implicit val forQuartetDoubleOption: JoinExpressor[
@@ -519,10 +547,10 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedJoinExpression("output_1", VeType.veNullableDouble, output._1.joinExpression),
-        NamedJoinExpression("output_2", VeType.veNullableDouble, output._2.joinExpression),
-        NamedJoinExpression("output_3", VeType.veNullableDouble, output._3.joinExpression),
-        NamedJoinExpression("output_4", VeType.veNullableDouble, output._4.joinExpression)
+        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
       )
   }
 
@@ -532,7 +560,9 @@ object StaticTypingTestAdditions {
 
   object GroupExpressor {
     implicit val forSinglet: GroupExpressor[TypedGroupByExpression[Double]] = output =>
-      List(NamedGroupByExpression("output_0", VeType.veNullableDouble, output.groupByExpression))
+      List(
+        NamedGroupByExpression("output_0", VeScalarType.veNullableDouble, output.groupByExpression)
+      )
 
     implicit val forTripletDouble: GroupExpressor[
       (
@@ -542,9 +572,21 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedGroupByExpression("output_0", VeType.veNullableDouble, output._1.groupByExpression),
-        NamedGroupByExpression("output_1", VeType.veNullableDouble, output._2.groupByExpression),
-        NamedGroupByExpression("output_2", VeType.veNullableDouble, output._3.groupByExpression)
+        NamedGroupByExpression(
+          "output_0",
+          VeScalarType.veNullableDouble,
+          output._1.groupByExpression
+        ),
+        NamedGroupByExpression(
+          "output_1",
+          VeScalarType.veNullableDouble,
+          output._2.groupByExpression
+        ),
+        NamedGroupByExpression(
+          "output_2",
+          VeScalarType.veNullableDouble,
+          output._3.groupByExpression
+        )
       )
     implicit val forTripletDoubleWOption: GroupExpressor[
       (
@@ -554,9 +596,21 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedGroupByExpression("output_0", VeType.veNullableDouble, output._1.groupByExpression),
-        NamedGroupByExpression("output_1", VeType.veNullableDouble, output._2.groupByExpression),
-        NamedGroupByExpression("output_2", VeType.veNullableDouble, output._3.groupByExpression)
+        NamedGroupByExpression(
+          "output_0",
+          VeScalarType.veNullableDouble,
+          output._1.groupByExpression
+        ),
+        NamedGroupByExpression(
+          "output_1",
+          VeScalarType.veNullableDouble,
+          output._2.groupByExpression
+        ),
+        NamedGroupByExpression(
+          "output_2",
+          VeScalarType.veNullableDouble,
+          output._3.groupByExpression
+        )
       )
     implicit val forTripletDoubleWOption2: GroupExpressor[
       (
@@ -566,9 +620,21 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedGroupByExpression("output_0", VeType.veNullableDouble, output._1.groupByExpression),
-        NamedGroupByExpression("output_1", VeType.veNullableDouble, output._2.groupByExpression),
-        NamedGroupByExpression("output_2", VeType.veNullableDouble, output._3.groupByExpression)
+        NamedGroupByExpression(
+          "output_0",
+          VeScalarType.veNullableDouble,
+          output._1.groupByExpression
+        ),
+        NamedGroupByExpression(
+          "output_1",
+          VeScalarType.veNullableDouble,
+          output._2.groupByExpression
+        ),
+        NamedGroupByExpression(
+          "output_2",
+          VeScalarType.veNullableDouble,
+          output._3.groupByExpression
+        )
       )
   }
 

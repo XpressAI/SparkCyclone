@@ -1,29 +1,46 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CExpressionEvaluation.{cType, cTypeOfSub, evaluateExpression, CodeLines}
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
 
-  final case class CVector(name: String, veType: VeType)
+  sealed trait CVector {
+    def name: String
+    def veType: VeType
+  }
+  final case class CVarChar(name: String) extends CVector {
+    override def veType: VeType = VeString
+  }
+  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
 
-  object CExpression
-  final case class TypedCExpression2(veType: VeType, cExpression: CExpression)
-  final case class NamedTypedCExpression(name: String, veType: VeType, cExpression: CExpression)
+  final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)
+  final case class NamedTypedCExpression(
+    name: String,
+    veType: VeScalarType,
+    cExpression: CExpression
+  )
+  final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
   sealed trait VeType {
-    def cScalarType: String
-
-    def cSize: Int
-
     def cVectorType: String
   }
 
-  object VeType {
-    case object VeNullableDouble extends VeType {
+  case object VeString extends VeType {
+    override def cVectorType: String = "nullable_varchar_vector"
+  }
+
+  sealed trait VeScalarType extends VeType {
+    def cScalarType: String
+
+    def cSize: Int
+  }
+
+  object VeScalarType {
+    case object VeNullableDouble extends VeScalarType {
       def cScalarType: String = "double"
 
       def cVectorType: String = "nullable_double_vector"
@@ -31,7 +48,7 @@ object CFunctionGeneration {
       override def cSize: Int = 8
     }
 
-    case object VeNullableInt extends VeType {
+    case object VeNullableInt extends VeScalarType {
       def cScalarType: String = "int32_t"
 
       def cVectorType: String = "nullable_int_vector"
@@ -39,7 +56,7 @@ object CFunctionGeneration {
       override def cSize: Int = 4
     }
 
-    case object VeNullableLong extends VeType {
+    case object VeNullableLong extends VeScalarType {
       def cScalarType: String = "int64_t"
 
       def cVectorType: String = "nullable_bigint_vector"
@@ -47,7 +64,7 @@ object CFunctionGeneration {
       override def cSize: Int = 8
     }
 
-    case object VeNullableString extends VeType {
+    case object VeNullableString extends VeScalarType {
       def cScalarType: String = "char *"
 
       def cVectorType: String = "nullable_varchar_vector"
@@ -55,10 +72,10 @@ object CFunctionGeneration {
       override def cSize: Int = 1
     }
 
-    def veNullableDouble: VeType = VeNullableDouble
-    def veNullableInt: VeType = VeNullableInt
-    def veNullableLong: VeType = VeNullableLong
-    def veNullableString: VeType = VeNullableString
+    def veNullableDouble: VeScalarType = VeNullableDouble
+    def veNullableInt: VeScalarType = VeNullableInt
+    def veNullableLong: VeScalarType = VeNullableLong
+    def veNullableString: VeScalarType = VeNullableString
   }
 
   /**
@@ -112,7 +129,11 @@ object CFunctionGeneration {
 //      )
 //    }
   }
-  final case class NamedJoinExpression(name: String, veType: VeType, joinExpression: JoinExpression)
+  final case class NamedJoinExpression(
+    name: String,
+    veType: VeScalarType,
+    joinExpression: JoinExpression
+  )
 
   final case class TypedGroupByExpression[ScalaType](groupByExpression: GroupByExpression)
 
@@ -134,7 +155,7 @@ object CFunctionGeneration {
 
   final case class NamedGroupByExpression(
     name: String,
-    veType: VeType,
+    veType: VeScalarType,
     groupByExpression: GroupByExpression
   )
 
@@ -192,8 +213,8 @@ object CFunctionGeneration {
         """#include "frovedis/core/set_operations.hpp"""",
         s"""extern "C" long $functionName(""",
         arguments
-          .map { case CVector(name, veType) =>
-            s"${veType.cVectorType} *$name"
+          .map { cVector =>
+            s"${cVector.veType.cVectorType} *${cVector.name}"
           }
           .mkString(",\n"),
         ") {",
@@ -205,19 +226,19 @@ object CFunctionGeneration {
     }
   }
 
-  def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
+  def generateFilter(filter: VeFilter[CScalarVector, CExpression]): CodeLines = {
     CodeLines.from(
-      filter.data.map { case CVector(name, veType) =>
+      filter.data.map { case CScalarVector(name, veType) =>
         s"std::vector<${veType.cScalarType}> filtered_$name = {};"
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       s"if ( ${filter.condition.cCode} ) {",
-      filter.data.map { case CVector(name, _) =>
+      filter.data.map { case CScalarVector(name, _) =>
         s"  filtered_$name.push_back($name->data[i]);"
       },
       "}",
       "}",
-      filter.data.map { case CVector(name, veType) =>
+      filter.data.map { case CScalarVector(name, veType) =>
         CodeLines.empty
           .append(
             s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * sizeof(${veType.cScalarType}));",
@@ -230,15 +251,15 @@ object CFunctionGeneration {
     )
   }
 
-  def renderSort(sort: VeSort[CVector, CExpression]): CFunction = {
-    val sortOutput = sort.data.map { case CVector(name, veType) =>
-      CVector(name.replaceAllLiterally("input", "output"), veType)
+  def renderSort(sort: VeSort[CScalarVector, CExpression]): CFunction = {
+    val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
+      CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
     CFunction(
       inputs = sort.data,
       outputs = sortOutput,
       body = CodeLines.from(
-        sortOutput.map { case CVector(outputName, outputVeType) =>
+        sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
             s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
@@ -256,22 +277,23 @@ object CFunctionGeneration {
         "// prevent deallocation of input vector -- it is deallocated by the caller",
         "new (&grouping_vec) std::vector<double>;",
         s"for(int i = 0; i < input_0->count; i++) {",
-        sort.data.zip(sortOutput).map { case (CVector(inName, veType), CVector(outputName, _)) =>
-          CodeLines
-            .from(
-              s"$outputName->data[i] = $inName->data[idx[i]];",
-              s"set_validity($outputName->validityBuffer, i, 1);"
-            )
-            .indented
+        sort.data.zip(sortOutput).map {
+          case (CScalarVector(inName, veType), CScalarVector(outputName, _)) =>
+            CodeLines
+              .from(
+                s"$outputName->data[i] = $inName->data[idx[i]];",
+                s"set_validity($outputName->validityBuffer, i, 1);"
+              )
+              .indented
         },
         "}"
       )
     )
   }
 
-  def renderFilter(filter: VeFilter[CVector, CExpression]): CFunction = {
-    val filterOutput = filter.data.map { case CVector(name, veType) =>
-      CVector(name.replaceAllLiterally("input", "output"), veType)
+  def renderFilter(filter: VeFilter[CScalarVector, CExpression]): CFunction = {
+    val filterOutput = filter.data.map { case CScalarVector(name, veType) =>
+      CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
 
     CFunction(
@@ -279,7 +301,7 @@ object CFunctionGeneration {
       outputs = filterOutput,
       body = CodeLines.from(
         generateFilter(filter),
-        filterOutput.map { case CVector(outputName, outputVeType) =>
+        filterOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
             s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
@@ -288,7 +310,7 @@ object CFunctionGeneration {
         },
         "for ( long i = 0; i < input_0->count; i++ ) {",
         filter.data.zip(filterOutput).map {
-          case (CVector(inputName, inputVeType), CVector(outputName, outputVeType)) =>
+          case (CScalarVector(inputName, inputVeType), CScalarVector(outputName, outputVeType)) =>
             CodeLines
               .from(
                 s"""$outputName->data[i] = $inputName->data[i];""",
@@ -302,42 +324,52 @@ object CFunctionGeneration {
   }
 
   def renderProjection(
-    veDataTransformation: VeProjection[CVector, NamedTypedCExpression]
+    veDataTransformation: VeProjection[
+      CScalarVector,
+      Either[NamedStringExpression, NamedTypedCExpression]
+    ]
   ): CFunction = CFunction(
     inputs = veDataTransformation.inputs,
     outputs = veDataTransformation.outputs.zipWithIndex.map {
-      case (NamedTypedCExpression(outputName, veType, _), idx) =>
-        CVector(outputName, veType)
+      case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
+        CScalarVector(outputName, veType)
+      case (Left(NamedStringExpression(name, _)), idx) =>
+        CVarChar(name)
     },
     body = CodeLines.from(
       veDataTransformation.outputs.zipWithIndex.map {
-        case (NamedTypedCExpression(outputName, veType, _), idx) =>
+        case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
             s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
             s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
           )
+        case (Left(NamedStringExpression(name, stringProducer)), idx) =>
+          StringProducer.produceVarChar(name, stringProducer).block
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex
-        .map { case (NamedTypedCExpression(outputName, veType, cExpr), idx) =>
-          cExpr.isNotNullCode match {
-            case None =>
-              CodeLines.from(
-                s"""$outputName->data[i] = ${cExpr.cCode};""",
-                s"set_validity($outputName->validityBuffer, i, 1);"
-              )
-            case Some(notNullCheck) =>
-              CodeLines.from(
-                s"if ( $notNullCheck ) {",
-                s"""  $outputName->data[i] = ${cExpr.cCode};""",
-                s"  set_validity($outputName->validityBuffer, i, 1);",
-                "} else {",
-                s"  set_validity($outputName->validityBuffer, i, 0);",
-                "}"
-              )
-          }
-
+        .map {
+          case (Right(NamedTypedCExpression(outputName, veType, cExpr)), idx) =>
+            cExpr.isNotNullCode match {
+              case None =>
+                CodeLines.from(
+                  s"""$outputName->data[i] = ${cExpr.cCode};""",
+                  s"set_validity($outputName->validityBuffer, i, 1);"
+                )
+              case Some(notNullCheck) =>
+                CodeLines.from(
+                  s"if ( $notNullCheck ) {",
+                  s"""  $outputName->data[i] = ${cExpr.cCode};""",
+                  s"  set_validity($outputName->validityBuffer, i, 1);",
+                  "} else {",
+                  s"  set_validity($outputName->validityBuffer, i, 0);",
+                  "}"
+                )
+            }
+          case (Left(_), _) =>
+            // already produced for string, because produceVarChar does everything
+            CodeLines.empty
         }
         .map(_.indented),
       "}"
@@ -347,14 +379,19 @@ object CFunctionGeneration {
   val GroupBeforeSort = "before we can group we need to sort"
 
   def renderInnerJoin(
-    veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
+    veInnerJoin: VeInnerJoin[
+      CScalarVector,
+      TypedCExpression2,
+      TypedCExpression2,
+      NamedJoinExpression
+    ]
   ): CFunction = {
 
     CFunction(
       inputs = veInnerJoin.inputs,
       outputs = veInnerJoin.outputs.zipWithIndex.map {
         case (NamedJoinExpression(outputName, veType, _), idx) =>
-          CVector(outputName, veType)
+          CScalarVector(outputName, veType)
       },
       body = CodeLines.from(
         s"std::vector <${veInnerJoin.leftKey.veType.cScalarType}> left_vec;",
@@ -424,14 +461,19 @@ object CFunctionGeneration {
   }
 
   def renderOuterJoin(
-    veOuterJoin: VeOuterJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
+    veOuterJoin: VeOuterJoin[
+      CScalarVector,
+      TypedCExpression2,
+      TypedCExpression2,
+      NamedJoinExpression
+    ]
   ): CFunction = {
 
     CFunction(
       inputs = veOuterJoin.inputs,
       outputs = veOuterJoin.outputs.zipWithIndex.map {
         case (OuterJoinOutput(NamedJoinExpression(outputName, veType, _), _), idx) =>
-          CVector(outputName, veType)
+          CScalarVector(outputName, veType)
       },
       body = CodeLines.from(
         s"std::vector <std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>> left_vec;",
@@ -615,7 +657,7 @@ object CFunctionGeneration {
   }
 
   def renderGroupBy(
-    veDataTransformation: VeGroupBy[CVector, TypedCExpression2, NamedGroupByExpression]
+    veDataTransformation: VeGroupBy[CScalarVector, TypedCExpression2, NamedGroupByExpression]
   ): CFunction = {
     val tuple =
       s"std::tuple<${veDataTransformation.groups
@@ -627,7 +669,7 @@ object CFunctionGeneration {
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
         case (NamedGroupByExpression(outputName, veType, _), idx) =>
-          CVector(outputName, veType)
+          CScalarVector(outputName, veType)
       },
       body = CodeLines.from(
         s"/** sorting section - ${GroupBeforeSort} **/",

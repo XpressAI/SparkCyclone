@@ -23,12 +23,12 @@ object CExpressionEvaluation {
     }
   }
 
-  def veType(d: DataType): CFunctionGeneration.VeType = {
+  def veType(d: DataType): CFunctionGeneration.VeScalarType = {
     d match {
       case DoubleType =>
-        CFunctionGeneration.VeType.VeNullableDouble
+        CFunctionGeneration.VeScalarType.VeNullableDouble
       case IntegerType | DateType =>
-        CFunctionGeneration.VeType.VeNullableInt
+        CFunctionGeneration.VeScalarType.VeNullableInt
       case x =>
         sys.error(s"unsupported dataType $x")
     }
@@ -674,7 +674,7 @@ object CExpressionEvaluation {
     .generateFilter(
       CFunctionGeneration.VeFilter(
         input.zipWithIndex.map { case (attribute, i) =>
-          CFunctionGeneration.CVector(s"input_$i", veType(attribute.dataType))
+          CFunctionGeneration.CScalarVector(s"input_$i", veType(attribute.dataType))
         }.toList,
         CFunctionGeneration.CExpression(evaluateSub(input, cond), None)
       )
