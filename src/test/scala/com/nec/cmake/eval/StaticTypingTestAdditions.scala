@@ -22,15 +22,81 @@ import org.apache.arrow.vector.{Float8Vector, VarCharVector}
  */
 object StaticTypingTestAdditions {
 
-  trait InputArguments[Input] {
+  trait InputArgumentsFull[Input] {
     def allocateVectors(data: Input*)(implicit
       rootAllocator: RootAllocator
     ): List[VectorInputNativeArgument]
     def inputs: List[CVector]
   }
-  object InputArguments {
 
-    implicit val forDouble: InputArguments[Double] = new InputArguments[Double] {
+  object InputArgumentsFull {
+    implicit def fromScalar[I](implicit
+      inputArgumentsScalar: InputArgumentsScalar[I]
+    ): InputArgumentsFull[I] = new InputArgumentsFull[I] {
+      override def allocateVectors(data: I*)(implicit
+        rootAllocator: RootAllocator
+      ): List[VectorInputNativeArgument] = inputArgumentsScalar.allocateVectors(data: _*)
+
+      override def inputs: List[CVector] = inputArgumentsScalar.inputs
+    }
+
+    implicit val forString: InputArgumentsFull[String] = new InputArgumentsFull[String] {
+      override def allocateVectors(
+        data: String*
+      )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
+        inputs.zipWithIndex.map { case (cv, idx) =>
+          val vcv = new VarCharVector(cv.name, rootAllocator)
+          vcv.allocateNew()
+          vcv.setValueCount(data.size)
+          data.zipWithIndex.foreach { case (str, idx) =>
+            vcv.setSafe(idx, str.getBytes())
+          }
+          NativeArgument.input(vcv)
+        }
+      }
+
+      override def inputs: List[CVector] = List(CVarChar("input_0"))
+    }
+    implicit val forStringDouble: InputArgumentsFull[(String, Double)] =
+      new InputArgumentsFull[(String, Double)] {
+        override def allocateVectors(
+          data: (String, Double)*
+        )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
+          inputs.zipWithIndex.map { case (cv, idx) =>
+            if (idx == 0) {
+              val vcv = new VarCharVector(cv.name, rootAllocator)
+              vcv.allocateNew()
+              vcv.setValueCount(data.size)
+              data.zipWithIndex.foreach { case ((str, dbl), idx) =>
+                vcv.setSafe(idx, str.getBytes())
+              }
+              NativeArgument.input(vcv)
+            } else {
+              val f8v = new Float8Vector(cv.name, rootAllocator)
+              f8v.allocateNew()
+              f8v.setValueCount(data.size)
+              data.zipWithIndex.foreach { case ((str, dbl), idx) =>
+                f8v.setSafe(idx, dbl)
+              }
+              NativeArgument.input(f8v)
+            }
+          }
+        }
+
+        override def inputs: List[CVector] =
+          List(CVarChar("input_0"), CScalarVector("input_1", VeScalarType.veNullableDouble))
+      }
+  }
+
+  trait InputArgumentsScalar[Input] {
+    def allocateVectors(data: Input*)(implicit
+      rootAllocator: RootAllocator
+    ): List[VectorInputNativeArgument]
+    def inputs: List[CScalarVector]
+  }
+  object InputArgumentsScalar {
+
+    implicit val forDouble: InputArgumentsScalar[Double] = new InputArgumentsScalar[Double] {
       override def allocateVectors(
         data: Double*
       )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
@@ -49,25 +115,8 @@ object StaticTypingTestAdditions {
         CScalarVector("input_0", VeScalarType.veNullableDouble)
       )
     }
-    implicit val forString: InputArguments[String] = new InputArguments[String] {
-      override def allocateVectors(
-        data: String*
-      )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
-        inputs.zipWithIndex.map { case (cv, idx) =>
-          val vcv = new VarCharVector(cv.name, rootAllocator)
-          vcv.allocateNew()
-          vcv.setValueCount(data.size)
-          data.zipWithIndex.foreach { case (str, idx) =>
-            vcv.setSafe(idx, str.getBytes())
-          }
-          NativeArgument.input(vcv)
-        }
-      }
-
-      override def inputs: List[CVector] = List(CVarChar("input_0"))
-    }
-    implicit val forPairDouble: InputArguments[(Double, Double)] =
-      new InputArguments[(Double, Double)] {
+    implicit val forPairDouble: InputArgumentsScalar[(Double, Double)] =
+      new InputArgumentsScalar[(Double, Double)] {
         override def allocateVectors(
           data: (Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
@@ -87,8 +136,8 @@ object StaticTypingTestAdditions {
           CScalarVector("input_1", VeScalarType.veNullableDouble)
         )
       }
-    implicit val forTrupleDouble: InputArguments[(Double, Double, Double)] =
-      new InputArguments[(Double, Double, Double)] {
+    implicit val forTrupleDouble: InputArgumentsScalar[(Double, Double, Double)] =
+      new InputArgumentsScalar[(Double, Double, Double)] {
         override def allocateVectors(
           data: (Double, Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
@@ -109,8 +158,8 @@ object StaticTypingTestAdditions {
           CScalarVector("input_2", VeScalarType.veNullableDouble)
         )
       }
-    implicit val forTrupleDouble1Opt: InputArguments[(Option[Double], Double, Double)] =
-      new InputArguments[(Option[Double], Double, Double)] {
+    implicit val forTrupleDouble1Opt: InputArgumentsScalar[(Option[Double], Double, Double)] =
+      new InputArgumentsScalar[(Option[Double], Double, Double)] {
         override def allocateVectors(
           data: (Option[Double], Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
@@ -138,8 +187,8 @@ object StaticTypingTestAdditions {
         )
       }
 
-    implicit val forQuartetDouble: InputArguments[(Double, Double, Double, Double)] =
-      new InputArguments[(Double, Double, Double, Double)] {
+    implicit val forQuartetDouble: InputArgumentsScalar[(Double, Double, Double, Double)] =
+      new InputArgumentsScalar[(Double, Double, Double, Double)] {
         override def allocateVectors(
           data: (Double, Double, Double, Double)*
         )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
@@ -190,6 +239,23 @@ object StaticTypingTestAdditions {
     implicit val forPairStringDoubleTyped
       : OutputArguments[(StringProducer, TypedCExpression[Double])] =
       new OutputArguments[(StringProducer, TypedCExpression[Double])] {
+        override type Result = (String, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new VarCharVector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+
+          (
+            List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
+            () => {
+              outVector_0.toList.zip(outVector_1.toList)
+            }
+          )
+        }
+      }
+    implicit val forPairStringDouble: OutputArguments[(String, Double)] =
+      new OutputArguments[(String, Double)] {
         override type Result = (String, Double)
         override def allocateVectors()(implicit
           rootAllocator: RootAllocator

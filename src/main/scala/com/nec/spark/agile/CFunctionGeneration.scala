@@ -227,25 +227,31 @@ object CFunctionGeneration {
 
   def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
     CodeLines.from(
-      filter.data.map { case CScalarVector(name, veType) =>
-        s"std::vector<${veType.cScalarType}> filtered_$name = {};"
+      filter.data.map {
+        case CScalarVector(name, veType) =>
+          s"std::vector<${veType.cScalarType}> filtered_$name = {};"
+        case CVarChar(name) => ""
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       s"if ( ${filter.condition.cCode} ) {",
-      filter.data.map { case CScalarVector(name, _) =>
-        s"  filtered_$name.push_back($name->data[i]);"
+      filter.data.map {
+        case CScalarVector(name, _) =>
+          s"  filtered_$name.push_back($name->data[i]);"
+        case CVarChar(name) => ""
       },
       "}",
       "}",
-      filter.data.map { case CScalarVector(name, veType) =>
-        CodeLines.empty
-          .append(
-            s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * sizeof(${veType.cScalarType}));",
-            s"$name->count = filtered_$name.size();",
-            // this causes a crash - what are we doing wrong here?
-            //          s"realloc(input_$i->data, input_$i->count * 8);",
-            s"filtered_$name.clear();"
-          )
+      filter.data.map {
+        case CScalarVector(name, veType) =>
+          CodeLines.empty
+            .append(
+              s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * sizeof(${veType.cScalarType}));",
+              s"$name->count = filtered_$name.size();",
+              // this causes a crash - what are we doing wrong here?
+              //          s"realloc(input_$i->data, input_$i->count * 8);",
+              s"filtered_$name.clear();"
+            )
+        case CVarChar(name) => CodeLines.empty
       }
     )
   }
@@ -291,8 +297,11 @@ object CFunctionGeneration {
   }
 
   def renderFilter(filter: VeFilter[CVector, CExpression]): CFunction = {
-    val filterOutput = filter.data.map { case CScalarVector(name, veType) =>
-      CScalarVector(name.replaceAllLiterally("input", "output"), veType)
+    val filterOutput = filter.data.map {
+      case CScalarVector(name, veType) =>
+        CScalarVector(name.replaceAllLiterally("input", "output"), veType)
+      case CVarChar(name) =>
+        CVarChar(name.replaceAllLiterally("input", "output"))
     }
 
     CFunction(
@@ -300,23 +309,31 @@ object CFunctionGeneration {
       outputs = filterOutput,
       body = CodeLines.from(
         generateFilter(filter),
-        filterOutput.map { case CScalarVector(outputName, outputVeType) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
-          )
+        filterOutput.map {
+          case CScalarVector(outputName, outputVeType) =>
+            CodeLines.from(
+              s"$outputName->count = input_0->count;",
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
+              s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
+            )
+          case CVarChar(_) =>
+            CodeLines.empty
         },
         "for ( long i = 0; i < input_0->count; i++ ) {",
-        filter.data.zip(filterOutput).map {
-          case (CScalarVector(inputName, inputVeType), CScalarVector(outputName, outputVeType)) =>
-            CodeLines
-              .from(
-                s"""$outputName->data[i] = $inputName->data[i];""",
-                s"""set_validity($outputName->validityBuffer, i, 1);"""
-              )
-              .indented
-        },
+        filter.data
+          .zip(filterOutput)
+          .map {
+            case (CScalarVector(inputName, inputVeType), output) =>
+              val outputName = output.name
+              CodeLines
+                .from(
+                  s"""$outputName->data[i] = $inputName->data[i];""",
+                  s"""set_validity($outputName->validityBuffer, i, 1);"""
+                )
+            case (CVarChar(_), output) =>
+              CodeLines.empty
+          }
+          .map(_.indented),
         "}"
       )
     )
