@@ -302,24 +302,6 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             case e: Throwable =>
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
-        case sort @ logical.Sort(
-              Seq(SortOrder(a @ AttributeReference(_, _, _, _), _, _, _)),
-              true,
-              child
-            ) => {
-          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          List(
-            SimpleSortPlan(
-              fName,
-              sort.inputSet.toSeq,
-              CExpressionEvaluation.cGenSort(fName, sort.output, a),
-              planLater(child),
-              sort.references.map(_.name).toSet,
-              nativeEvaluator
-            )
-          )
-        }
-
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
             if child.output.nonEmpty && aggregateExpressions.nonEmpty =>
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
