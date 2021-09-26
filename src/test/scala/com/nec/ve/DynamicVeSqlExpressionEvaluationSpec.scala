@@ -115,34 +115,9 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
   }
 
-  val sql_select_sort = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select" in withSparkSession2(configuration) { sparkSession =>
-    makeCsvNumsMultiColumn(sparkSession)
-    import sparkSession.implicits._
-    sparkSession.sql(sql_select_sort).ensureSortPlanEvaluated().debugSqlHere { ds =>
-      val a = ds.as[(Option[Double], Option[Double])].collect().toList
-      val b = List(
-        (Some(4.0), None),
-        (Some(2.0), None),
-        (None, None),
-        (Some(2.0), None),
-        (None, None),
-        (Some(20.0), None),
-        (Some(1.0), Some(2.0)),
-        (Some(2.0), Some(3.0)),
-        (None, Some(3.0)),
-        (Some(3.0), Some(4.0)),
-        (Some(4.0), Some(5.0)),
-        (None, Some(5.0)),
-        (Some(52.0), Some(6.0))
-      )
-      assert(a == b)
-    }
-  }
-
   val sql_select_sort2 =
     s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select with sum" in withSparkSession2(configuration) { sparkSession =>
+  "Support order by with select with sum" ignore withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_select_sort2).ensureCEvaluating().debugSqlHere { ds =>
@@ -544,13 +519,13 @@ final class DynamicVeSqlExpressionEvaluationSpec
         assert(
           ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
             List(
-              (None,Some(8.0)),
-              (Some(1.0),Some(2.0)),
-              (Some(2.0),Some(3.0)),
-              (Some(3.0),Some(4.0)),
-              (Some(4.0),Some(5.0)),
-              (Some(20.0),None),
-              (Some(52.0),Some(6.0))
+              (None, Some(8.0)),
+              (Some(1.0), Some(2.0)),
+              (Some(2.0), Some(3.0)),
+              (Some(3.0), Some(4.0)),
+              (Some(4.0), Some(5.0)),
+              (Some(20.0), None),
+              (Some(52.0), Some(6.0))
             )
         )
       }
@@ -578,11 +553,14 @@ final class DynamicVeSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
         //assert(ds.as[(Double)].collect().toList == List(0.7418736765817244))
-        assert(ds.as[(Double)].collect().toList == List(0.8660254037844387)) // From Spark source example.
+        assert(
+          ds.as[(Double)].collect().toList == List(0.8660254037844387)
+        ) // From Spark source example.
       }
     }
 
-    val sqlNulls = "SELECT COUNT(c1) FROM VALUES (3, 2), (null, 3), (6, 4) AS tab(c1, c2) WHERE isnotnull(c1);"
+    val sqlNulls =
+      "SELECT COUNT(c1) FROM VALUES (3, 2), (null, 3), (6, 4) AS tab(c1, c2) WHERE isnotnull(c1);"
     s"Corr isNotNull function is possible with ${sqlNulls}" in withSparkSession2(
       DynamicVeSqlExpressionEvaluationSpec.configuration
     ) { sparkSession =>
@@ -619,7 +597,7 @@ final class DynamicVeSqlExpressionEvaluationSpec
     }
 
     val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
-    s"Ordering with a group by: ${sql7}" in withSparkSession2(
+    s"Ordering with a group by: ${sql7}" ignore withSparkSession2(
       DynamicVeSqlExpressionEvaluationSpec.configuration
     ) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
@@ -671,7 +649,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
     }
 
-    val castSql = s"SELECT cast(${SampleColA} as bigint), cast(${SampleColA} as int), cast(${SampleColA} as double) FROM nums"
+    val castSql =
+      s"SELECT cast(${SampleColA} as bigint), cast(${SampleColA} as int), cast(${SampleColA} as double) FROM nums"
     s"Casting to various types works" in withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
@@ -699,19 +678,26 @@ final class DynamicVeSqlExpressionEvaluationSpec
       }
     }
 
-    val innerCastSql = s"SELECT $SampleColB, SUM(cast($SampleColA AS double)) FROM nums GROUP BY $SampleColB"
-    s"Casting inside a sum to various types works" in withSparkSession2(configuration) { sparkSession =>
-      SampleSource.CSV.generate(sparkSession, SanityCheckSize)
-      import sparkSession.implicits._
+    val innerCastSql =
+      s"SELECT $SampleColB, SUM(cast($SampleColA AS double)) FROM nums GROUP BY $SampleColB"
+    s"Casting inside a sum to various types works" in withSparkSession2(configuration) {
+      sparkSession =>
+        SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+        import sparkSession.implicits._
 
-      sparkSession.sql(innerCastSql).debugSqlHere { ds =>
-        ds.as[(Option[Double], Option[Double])]
-          .collect()
-          .toList should contain theSameElementsAs List(
-          (None, Some(28.0)), (Some(2.0), Some(1.0)), (Some(3.0), Some(2.0)), (Some(4.0), Some(3.0)), (Some(5.0), Some(4.0)), (Some(6.0), Some(52.0))
-        )
+        sparkSession.sql(innerCastSql).debugSqlHere { ds =>
+          ds.as[(Option[Double], Option[Double])]
+            .collect()
+            .toList should contain theSameElementsAs List(
+            (None, Some(28.0)),
+            (Some(2.0), Some(1.0)),
+            (Some(3.0), Some(2.0)),
+            (Some(4.0), Some(3.0)),
+            (Some(5.0), Some(4.0)),
+            (Some(6.0), Some(52.0))
+          )
 
-      }
+        }
     }
 
     s"Join query does cause compiler error" in withSparkSession2(configuration) { sparkSession =>
@@ -730,8 +716,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       SampleSource.makeConvertedParquetData(sparkSession)
-      sparkSession.sql(
-        """
+      sparkSession
+        .sql("""
           SELECT SUM(sid)
           FROM t1 JOIN t2 ON sample_id_c09c808524c21082de7576e875cab4fc == simple_id
           GROUP BY converted_target_e71ae4aad3bf636e022c34cd
@@ -746,8 +732,8 @@ final class DynamicVeSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       SampleSource.makeConvertedParquetData(sparkSession)
-      sparkSession.sql(
-        """
+      sparkSession
+        .sql("""
           SELECT SUM(converted_target_e71ae4aad3bf636e022c34cd)
           FROM t1 JOIN t2 ON sample_id_c09c808524c21082de7576e875cab4fc == simple_id
           GROUP BY y
@@ -763,12 +749,6 @@ final class DynamicVeSqlExpressionEvaluationSpec
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
       expect(thePlan.toString().contains("CEvaluation"))
-      dataSet
-    }
-
-    def ensureSortPlanEvaluated(): Dataset[T] = {
-      val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("SimpleSortPlan"))
       dataSet
     }
 

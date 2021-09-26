@@ -194,31 +194,6 @@ object BenchTestingPossibilities extends LazyLogging {
 
   val possibilities: List[Testing] =
     List(
-      for {
-        source <- List(SampleSource.CSV, SampleSource.Parquet)
-        testingTarget <- List(
-          TestingTarget.VectorEngine,
-          TestingTarget.PlainSpark,
-          TestingTarget.Rapids,
-          TestingTarget.CMake
-        )
-        csvStrat <-
-          if (testingTarget.isNative && source == SampleSource.CSV)
-            CsvStrategy.All.map(strat => Some(strat))
-          else if (source == SampleSource.CSV) List(Some(CsvStrategy.NormalCsv))
-          else List(None)
-        colMode <-
-          if (testingTarget == TestingTarget.VectorEngine && source != SampleSource.CSV)
-            VeColumnMode.All.map(v => Some(v))
-          else List(None)
-      } yield SimpleSql(
-        sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}), COUNT(*) FROM nums",
-        expectedResult = (90.0, 4.0, 13),
-        source = source,
-        testingTarget = testingTarget,
-        offHeapMode = colMode,
-        csvStrategy = csvStrat
-      ),
       JoinPlanSpec.OurTesting,
       GroupBySumPlanSpec.OurTesting,
       List(SubstringTesting(isVe = true), SubstringTesting(isVe = false)),

@@ -246,30 +246,7 @@ object CExpressionEvaluation {
     }
   }
 
-  def evaluateExpressionSorted(input: Seq[Attribute], expression: Expression): String = {
-    expression match {
-      case alias @ Alias(expr, name) => evaluateSubSorted(input, alias.child)
-      case AttributeReference(name, typeName, _, _) =>
-        (input.indexWhere(_.name == name), typeName) match {
-          case (-1, typeName) =>
-            sys.error(
-              s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
-            )
-          case (idx, (DoubleType | IntegerType | LongType)) =>
-            s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
-          case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
-        }
-      case NamedExpression(name, DoubleType | IntegerType | LongType) =>
-        input.indexWhere(_.name == name) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx => s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
-        }
-    }
-  }
-
   def genNullCheck(inputs: Seq[Attribute], expression: Expression): String = {
-
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
@@ -300,38 +277,6 @@ object CExpressionEvaluation {
         "true"
       case Cast(child, dataType, _) =>
         genNullCheck(inputs, child)
-    }
-  }
-
-  def genNullCheckSorted(
-    inputs: Seq[Attribute],
-    expression: Expression,
-    sortingColumnIndex: Int
-  ): String = {
-
-    expression match {
-      case AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.name == name) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx if idx == sortingColumnIndex =>
-            s"std::get<0>(sort_column_validity_buffer[i]) == 1"
-          case idx =>
-            s"check_valid(input_${idx}->validityBuffer,std::get<1>(sort_column_validity_buffer[i]))"
-        }
-      case alias @ Alias(expr, name) => genNullCheckSorted(inputs, alias.child, sortingColumnIndex)
-      case Subtract(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Multiply(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Add(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Divide(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Abs(v) =>
-        s"${genNullCheckSorted(inputs, v, sortingColumnIndex)}"
-      case Literal(v, DoubleType | IntegerType) =>
-        "true"
     }
   }
 
@@ -377,30 +322,6 @@ object CExpressionEvaluation {
           case FloatType   => s"((float)${evaluateSub(inputs, child)})";
           case DoubleType  => s"((double)${evaluateSub(inputs, child)})";
         }
-    }
-  }
-
-  def evaluateSubSorted(inputs: Seq[Attribute], expression: Expression): String = {
-    expression match {
-      case AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.name == name) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx =>
-            s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
-        }
-      case Subtract(left, right, _) =>
-        s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
-      case Multiply(left, right, _) =>
-        s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
-      case Add(left, right, _) =>
-        s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
-      case Divide(left, right, _) =>
-        s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
-      case Abs(v) =>
-        s"abs(${evaluateSub(inputs, v)})"
-      case Literal(v, DoubleType | IntegerType) =>
-        s"$v"
     }
   }
 

@@ -22,7 +22,6 @@ import org.apache.spark.sql.catalyst.expressions.{
   Length,
   Literal,
   NamedExpression,
-  SortOrder,
   Substring,
   Subtract
 }
@@ -303,7 +302,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-            if child.output.nonEmpty && aggregateExpressions.nonEmpty =>
+            if child.output.nonEmpty && aggregateExpressions.nonEmpty && groupingExpressions.nonEmpty =>
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
             NamedStringProducer,
             NamedGroupByExpression
