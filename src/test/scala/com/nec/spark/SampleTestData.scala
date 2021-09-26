@@ -3,10 +3,18 @@ import java.nio.file.Paths
 import java.nio.file.Path
 
 object SampleTestData {
-  lazy val SampleTXT: Path = Paths
+  lazy val SampleStrCsv: Path = Paths
     .get(
       this.getClass
-        .getResource("sample.txt")
+        .getResource("sample-str.csv")
+        .toURI
+    )
+    .toAbsolutePath
+
+  lazy val SampleStrCsv2: Path = Paths
+    .get(
+      this.getClass
+        .getResource("sample-str-2.csv")
         .toURI
     )
     .toAbsolutePath

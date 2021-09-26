@@ -1,18 +1,18 @@
 package com.nec.spark
+
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.native.NativeEvaluator.CNativeEvaluator
-import com.nec.spark.SampleTestData.SampleStrCsv
+import com.nec.spark.SampleTestData.{SampleStrCsv, SampleStrCsv2}
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.Testing
 import com.nec.testing.Testing.TestingTarget
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
 
-final case class SubstringTesting(isVe: Boolean) extends Testing {
-  override type Result = (String, Long, String)
+final case class StringGroupByTesting(isVe: Boolean) extends Testing {
+  override type Result = (String, Double)
   private val MasterName = "local[8]"
   override def prepareSession(): SparkSession = {
     val sparkConf = new SparkConf(loadDefaults = true)
@@ -47,15 +47,13 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
     import sparkSession.implicits._
 
     sparkSession.read
-      .schema(StructType(Seq(StructField("value", StringType), StructField("o", StringType))))
+      .schema(StructType(Seq(StructField("value", StringType), StructField("o", DoubleType))))
       .option("header", "false")
-      .csv(SampleStrCsv.toAbsolutePath.toString)
+      .csv(SampleStrCsv2.toAbsolutePath.toString)
       .createOrReplaceTempView("sample_tbl")
 
     val ds = sparkSession
-      .sql(
-        "SELECT SUBSTR(value, 1, 3) || o || LENGTH(value), LENGTH(value), SUBSTR(value, 1, LENGTH(value) - 2) FROM sample_tbl"
-      )
+      .sql("SELECT value, sum(o) FROM sample_tbl group by value")
       .as[Result]
 
     val planString = ds.queryExecution.executedPlan.toString()
@@ -66,16 +64,7 @@ final case class SubstringTesting(isVe: Boolean) extends Testing {
     ds
   }
   override def verifyResult(dataset: List[Result]): Unit = {
-    val inputLines = List("This is", "some test", "of some stuff", "that always is")
-    val o = List("a", "bb", "ccc", "dddd")
-    val expected =
-      inputLines.zip(o).map { case (str, o) =>
-        (
-          str.substring(1, 3) + o + str.length.toString,
-          str.length.toLong,
-          str.substring(1, str.length - 2)
-        )
-      }
+    val expected = List[Result]("abc" -> 3.0, "def" -> 1.0)
     assert(dataset == expected)
   }
   override def testingTarget: Testing.TestingTarget =

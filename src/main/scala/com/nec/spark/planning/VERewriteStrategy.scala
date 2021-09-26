@@ -7,13 +7,30 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, DeclarativeAggregate}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EqualTo, IsNotNull, Length, Literal, NamedExpression, SortOrder, Substring, Subtract}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  Count,
+  DeclarativeAggregate
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  Concat,
+  EqualTo,
+  IsNotNull,
+  Length,
+  Literal,
+  NamedExpression,
+  SortOrder,
+  Substring,
+  Subtract
+}
 import org.apache.spark.sql.catalyst.plans
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.catalyst.plans.{Inner, logical}
+import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{IntegerType, StringType}
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -63,10 +80,16 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
         case proj @ logical.Project(
               Seq(
                 Alias(
-                  Substring(
-                    inputExpr,
-                    Literal(beginIndex: Int, IntegerType),
-                    Literal(endIndex: Int, IntegerType)
+                  Concat(
+                    Seq(
+                      Substring(
+                        inputExpr,
+                        Literal(beginIndex: Int, IntegerType),
+                        Literal(endIndex: Int, IntegerType)
+                      ),
+                      _,
+                      _
+                    )
                   ),
                   _
                 ),
@@ -103,21 +126,21 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           val leftExprIds = left.output.map(_.exprId).toSet
           val rightExprIds = right.output.map(_.exprId).toSet
           val inputs = join.inputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
-            CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
+            CScalarVector(s"input_${idx}", SparkVeMapper.sparkTypeToScalarVeType(attr.dataType))
           }
           val leftKey = TypedCExpression2(
-            SparkVeMapper.sparkTypeToVeType(leftKeyExpr.dataType),
+            SparkVeMapper.sparkTypeToScalarVeType(leftKeyExpr.dataType),
             SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, leftKeyExpr))
           )
           val rightKey = TypedCExpression2(
-            SparkVeMapper.sparkTypeToVeType(rightKeyExpr.dataType),
+            SparkVeMapper.sparkTypeToScalarVeType(rightKeyExpr.dataType),
             SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, rightKeyExpr))
           )
           val outputs = join.output.zipWithIndex
             .map((attr) =>
               NamedJoinExpression(
                 s"output_${attr._2}",
-                SparkVeMapper.sparkTypeToVeType(attr._1.dataType),
+                SparkVeMapper.sparkTypeToScalarVeType(attr._1.dataType),
                 JoinProjection(
                   SparkVeMapper.eval(
                     SparkVeMapper
@@ -155,21 +178,21 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           val leftExprIds = left.output.map(_.exprId).toSet
           val rightExprIds = right.output.map(_.exprId).toSet
           val inputs = join.inputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
-            CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
+            CScalarVector(s"input_${idx}", SparkVeMapper.sparkTypeToScalarVeType(attr.dataType))
           }.toList
           val leftKey = TypedCExpression2(
-            SparkVeMapper.sparkTypeToVeType(leftKeyExpr.dataType),
+            SparkVeMapper.sparkTypeToScalarVeType(leftKeyExpr.dataType),
             SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, leftKeyExpr))
           )
           val rightKey = TypedCExpression2(
-            SparkVeMapper.sparkTypeToVeType(rightKeyExpr.dataType),
+            SparkVeMapper.sparkTypeToScalarVeType(rightKeyExpr.dataType),
             SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, rightKeyExpr))
           )
           val outputsInner = join.output.zipWithIndex
             .map((attr) =>
               NamedJoinExpression(
                 s"output_${attr._2}",
-                SparkVeMapper.sparkTypeToVeType(attr._1.dataType),
+                SparkVeMapper.sparkTypeToScalarVeType(attr._1.dataType),
                 JoinProjection(
                   SparkVeMapper.eval(
                     SparkVeMapper
@@ -188,7 +211,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             .map((attr) =>
               NamedJoinExpression(
                 s"output_${attr._2}",
-                SparkVeMapper.sparkTypeToVeType(attr._1.dataType),
+                SparkVeMapper.sparkTypeToScalarVeType(attr._1.dataType),
                 JoinProjection(
                   SparkVeMapper.eval(
                     SparkVeMapper.replaceReferencesOuter(
@@ -298,26 +321,82 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
         }
 
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-            if child.output.nonEmpty =>
-          val functionName = "dynnen"
-          val codeLines = renderGroupBy(
-            VeGroupBy(
-              inputs = agg.inputSet.toList.zipWithIndex.map { case (attr, idx) =>
-                CVector(s"input_${idx}", SparkVeMapper.sparkTypeToVeType(attr.dataType))
-              },
-              groups = groupingExpressions.toList.map { expr =>
-                TypedCExpression2(
-                  SparkVeMapper.sparkTypeToVeType(expr.dataType),
-                  SparkVeMapper.eval(
-                    SparkVeMapper.replaceReferences(inputs = child.output.toList, expression = expr)
+            if child.output.nonEmpty && aggregateExpressions.nonEmpty =>
+          val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
+            NamedStringProducer,
+            NamedGroupByExpression
+          ]] = VeGroupBy(
+            inputs = agg.inputSet.toList.zipWithIndex.map { case (attr, idx) =>
+              if (attr.dataType == StringType)
+                CVarChar(s"input_${idx}")
+              else
+                CScalarVector(s"input_${idx}", SparkVeMapper.sparkTypeToScalarVeType(attr.dataType))
+            },
+            groups = groupingExpressions.toList.map { expr =>
+              expr.dataType match {
+                case StringType =>
+                  /**
+                   * This is not correct for any group-by that are not a simple reference.
+                   * todo fix it
+                   */
+                  Left(
+                    expr
+                      .find(_.isInstanceOf[AttributeReference])
+                      .flatMap(expr =>
+                        SparkVeMapper
+                          .replaceReferences(inputs = child.output.toList, expression = expr)
+                          .collectFirst {
+                            case ar: AttributeReference if ar.name.contains("input_") =>
+                              StringGrouping(ar.name.replaceAllLiterally("->data[i]", ""))
+                          }
+                      )
+                      .getOrElse(
+                        sys.error(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
+                      )
                   )
+                case other =>
+                  Right(
+                    TypedCExpression2(
+                      SparkVeMapper.sparkTypeToScalarVeType(other),
+                      SparkVeMapper.eval(
+                        SparkVeMapper
+                          .replaceReferences(inputs = child.output.toList, expression = expr)
+                      )
+                    )
+                  )
+              }
+            },
+            outputs = aggregateExpressions.toList.zipWithIndex.map {
+              case (namedExpression, idx) if namedExpression.dataType == StringType =>
+                Left(
+                  namedExpression
+                    .find(_.isInstanceOf[AttributeReference])
+                    .flatMap(expr =>
+                      SparkVeMapper
+                        .replaceReferences(inputs = child.output.toList, expression = expr)
+                        .collectFirst {
+                          case ar: AttributeReference if ar.name.contains("input_") =>
+                            NamedStringProducer(
+                              // this is a model example of a "temporary hack"
+                              ar.name
+                                .replaceAllLiterally("input_", "output_")
+                                .replaceAllLiterally("->data[i]", ""),
+                              StringCExpressionEvaluation
+                                .copyString(ar.name.replaceAllLiterally("->data[i]", ""))
+                            )
+                        }
+                    )
+                    .getOrElse(
+                      sys.error(
+                        s"Cannot support group by: ${namedExpression} (type: ${namedExpression.dataType})"
+                      )
+                    )
                 )
-              },
-              outputs = aggregateExpressions.toList.zipWithIndex.map {
-                case (namedExpression, idx) =>
+              case (namedExpression, idx) =>
+                Right(
                   NamedGroupByExpression(
                     name = s"output_${idx}",
-                    veType = SparkVeMapper.sparkTypeToVeType(namedExpression.dataType),
+                    veType = SparkVeMapper.sparkTypeToScalarVeType(namedExpression.dataType),
                     groupByExpression = namedExpression match {
                       case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
                         GroupByExpression.GroupByAggregation(
@@ -334,13 +413,15 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         )
                     }
                   )
-              }
-            )
-          ).toCodeLines(functionName)
+                )
+            }
+          )
+          logger.debug(s"Group by = ${groupBySummary}")
+          val codeLines = renderGroupBy(groupBySummary).toCodeLines(fName)
 
           List(
             NewCEvaluationPlan(
-              functionName,
+              fName,
               aggregateExpressions,
               codeLines,
               planLater(child),
@@ -350,9 +431,9 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           )
 
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, Project(_, child))
-          if aggregateExpressions.collect {
-            case al @ Alias(AggregateExpression(Count(_), _, _, _, _), _) => al
-          }.size == aggregateExpressions.size =>
+            if aggregateExpressions.collect {
+              case al @ Alias(AggregateExpression(Count(_), _, _, _, _), _) => al
+            }.size == aggregateExpressions.size =>
           Nil
 
         case _ => Nil

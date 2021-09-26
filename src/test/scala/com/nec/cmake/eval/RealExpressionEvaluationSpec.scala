@@ -6,36 +6,26 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgume
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.eval.RealExpressionEvaluationSpec.{
-  evalAggregate,
-  evalFilter,
-  evalGroupBySum,
-  evalInnerJoin,
-  evalOuterJoin,
-  evalProject,
-  evalSort
-}
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
+import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.DeclarativeAggregationConverter
+import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
-import scala.runtime.LazyLong
-
-import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
  */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec {
+  import com.nec.cmake.eval.RealExpressionEvaluationSpec._
 
   "We can transform a column" in {
     expect(
@@ -43,6 +33,34 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
         TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
       ) == List[(Double, Double)]((180, 92), (2, 3), (4, 4), (38, 21), (28, 16))
+    )
+  }
+
+  "We can transform a column to a String and a Double" in {
+    expect(
+      evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
+        StringCExpressionEvaluation.expr_to_string(CExpression("2 * input_0->data[i]", None)),
+        TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
+      ) == List[(String, Double)](
+        ("180.000000", 92.0),
+        ("2.000000", 3.0),
+        ("4.000000", 4.0),
+        ("38.000000", 21.0),
+        ("28.000000", 16.0)
+      )
+    )
+  }
+
+  "We can transform a String column to a Double" in {
+    expect(
+      evalProject(List[String]("90.0", "1.0", "2", "19", "14"))(
+        TypedCExpression[Double](
+          CExpression(
+            "2 + atof(std::string(input_0->data, input_0->offsets[i], input_0->offsets[i+1] - input_0->offsets[i]).c_str())",
+            None
+          )
+        )
+      ) == List[Double](92.0, 3.0, 4.0, 21.0, 16.0)
     )
   }
 
@@ -61,6 +79,19 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
       ) == List[Double](90, 19)
     )
+  }
+
+  "We can filter a column with a String" in {
+    val result = evalFilter[(String, Double)](
+      ("x", 90.0),
+      ("one", 1.0),
+      ("two", 2.0),
+      ("prime", 19.0),
+      ("other", 14.0)
+    )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None))
+    val expected = List[(String, Double)](("x", 90.0), ("prime", 19.0))
+
+    expect(result == expected)
   }
 
   "We can sort" in {
@@ -91,8 +122,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -113,13 +144,38 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can aggregate / group by a String value (GroupByString)" in {
+
+    /** SELECT a, SUM(b) group by a, b*b */
+    val result =
+      evalGroupBySumStr(List[(String, Double)](("x", 1.0), ("yy", 2.0), ("ax", 3.0), ("x", -1.0)))(
+        (
+          StringGrouping("input_0"),
+          TypedCExpression2(
+            VeScalarType.veNullableDouble,
+            CExpression("input_1->data[i] * input_1->data[i]", None)
+          )
+        )
+      )(
+        (
+          StringGrouping("input_0"),
+          TypedGroupByExpression[Double](
+            GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
+          )
+        )
+      )
+
+    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0))
+    assert(result == expected)
+  }
+
   "We can aggregate / group by with NULL input check values" in {
     val result = evalGroupBySum(
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -148,10 +204,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       (
         TypedCExpression2(
-          VeType.veNullableDouble,
+          VeScalarType.veNullableDouble,
           CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
         ),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -188,11 +244,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       (
         TypedCExpression2(
-          VeType.veNullableDouble,
+          VeScalarType.veNullableDouble,
           CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
         ),
         TypedCExpression2(
-          VeType.veNullableDouble,
+          VeScalarType.veNullableDouble,
           CExpression("input_1->data[i]", Some("check_valid(input_1->validityBuffer, i)"))
         )
       )
@@ -237,8 +293,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -268,9 +324,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (11.0, 7.0, 12.0, 11.0),
       (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val outputs = (
       TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
@@ -291,15 +349,25 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (11.0, 7.0, 12.0, 11.0),
       (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val innerOutputs = (
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_1->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_2->data[right_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_0->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_3->data[right_out[i]]", None))
+      )
     )
 
     val outerOutputs = (
@@ -332,15 +400,25 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (11.0, 7.0, 12.0, 11.0),
       (8.0, 2.0, 3.0, 9.0)
     )
-    val leftKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_0->data[i]", None))
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-    val rightKey = TypedCExpression2(VeType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val innerOutputs = (
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_1->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_2->data[right_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_0->data[left_out[i]]", None))
+      ),
+      TypedJoinExpression[Option[Double]](
+        JoinProjection(CExpression("input_3->data[right_out[i]]", None))
+      )
     )
 
     val outerOutputs = (
@@ -376,8 +454,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )(
       (
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeType.veNullableDouble, CExpression("input_1->data[i]", None))
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
+        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
       )
     )(
       (
@@ -388,7 +466,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         TypedGroupByExpression[Double](
           GroupByAggregation(
             DeclarativeAggregationConverter(
-              Corr(AttributeReference("input_2->data[i]", DoubleType)(), AttributeReference("input_2->data[i]", DoubleType)())
+              Corr(
+                AttributeReference("input_2->data[i]", DoubleType)(),
+                AttributeReference("input_2->data[i]", DoubleType)()
+              )
             )
           )
         )
@@ -405,7 +486,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 object RealExpressionEvaluationSpec extends LazyLogging {
 
   def evalAggregate[Input, Output](input: List[Input])(expressions: Output)(implicit
-    inputArguments: InputArguments[Input],
+    inputArguments: InputArgumentsScalar[Input],
     groupExpressor: GroupExpressor[Output],
     outputArguments: OutputArguments[Output]
   ): List[outputArguments.Result] = {
@@ -416,7 +497,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = Nil,
-          outputs = groupExpressor.express(expressions)
+          outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
       ).toCodeLines(functionName)
 
@@ -451,7 +532,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     rightKey: TypedCExpression2,
     output: Output
   )(implicit
-    inputArguments: InputArguments[Input],
+    inputArguments: InputArgumentsScalar[Input],
     joinExpressor: JoinExpressor[Output],
     outputArguments: OutputArguments[Output]
   ): List[outputArguments.Result] = {
@@ -499,7 +580,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     outerOutput: Output,
     joinType: JoinType
   )(implicit
-    inputArguments: InputArguments[Input],
+    inputArguments: InputArgumentsScalar[Input],
     joinExpressor: JoinExpressor[Output],
     outputArguments: OutputArguments[Output]
   ): List[outputArguments.Result] = {
@@ -548,7 +629,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   def evalGroupBySum[Input, Groups, Output](
     input: List[Input]
   )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit
-    inputArguments: InputArguments[Input],
+    inputArguments: InputArgumentsScalar[Input],
     groupExpressor: GroupExpressor[Output],
     outputArguments: OutputArguments[Output]
   ): List[outputArguments.Result] = {
@@ -558,7 +639,50 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       renderGroupBy(
         VeGroupBy(
           inputs = inputArguments.inputs,
-          groups = List(groups._1, groups._2),
+          groups = List(Right(groups._1), Right(groups._2)),
+          outputs = groupExpressor.express(expressions).map(v => Right(v))
+        )
+      ).toCodeLines(functionName)
+
+    logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+    val cLib = CMakeBuilder.buildCLogging(
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
+    )
+
+    val nativeInterface = new CArrowNativeInterface(cLib.toString)
+    WithTestAllocator { implicit allocator =>
+      val (outArgs, fetcher) = outputArguments.allocateVectors()
+      try {
+        val inVecs = inputArguments.allocateVectors(input: _*)
+        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        finally {
+          inVecs
+            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
+              v.valueVector
+            }
+            .foreach(_.close())
+        }
+        fetcher()
+      } finally outArgs.foreach(_.wrapped.valueVector.close())
+    }
+  }
+
+  def evalGroupBySumStr[Input, Groups, Output](
+    input: List[Input]
+  )(groups: (StringGrouping, TypedCExpression2))(expressions: Output)(implicit
+    inputArguments: InputArgumentsFull[Input],
+    groupExpressor: GeneralGroupExpressor[Output],
+    outputArguments: OutputArguments[Output]
+  ): List[outputArguments.Result] = {
+    val functionName = "project_f"
+
+    val generatedSource =
+      renderGroupBy(
+        VeGroupBy(
+          inputs = inputArguments.inputs,
+          groups = List(Left(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions)
         )
       ).toCodeLines(functionName)
@@ -589,7 +713,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   }
 
   def evalProject[Input, Output](input: List[Input])(expressions: Output)(implicit
-    inputArguments: InputArguments[Input],
+    inputArguments: InputArgumentsFull[Input],
     projectExpression: ProjectExpression[Output],
     outputArguments: OutputArguments[Output]
   ): List[outputArguments.Result] = {
@@ -603,7 +727,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         )
       ).toCodeLines(functionName)
 
-    val cLib = CMakeBuilder.buildC(
+    val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
@@ -627,7 +751,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   }
 
   def evalFilter[Data](input: Data*)(condition: CExpression)(implicit
-    inputArguments: InputArguments[Data],
+    inputArguments: InputArgumentsFull[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
     val functionName = "filter_f"
@@ -636,7 +760,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       renderFilter(VeFilter(data = inputArguments.inputs, condition = condition))
         .toCodeLines(functionName)
 
-    val cLib = CMakeBuilder.buildC(
+    val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
@@ -660,7 +784,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   }
 
   def evalSort[Data](input: Data*)(implicit
-    inputArguments: InputArguments[Data],
+    inputArguments: InputArgumentsScalar[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
     val functionName = "sort_f"

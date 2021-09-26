@@ -4,10 +4,10 @@ import com.nec.arrow.ArrowNativeInterface
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.{
   CExpression,
-  CVector,
+  CScalarVector,
   NamedTypedCExpression,
   VeProjection,
-  VeType
+  VeScalarType
 }
 import com.nec.spark.agile.LogicalPlanMatchingSpec.{toVeTransformation, NoopEvaluator}
 import com.nec.spark.planning.VERewriteStrategy
@@ -29,7 +29,7 @@ object LogicalPlanMatchingSpec {
    * This will replace VERewriteStrategy and that will contain all the Spark-related mappings, rather than the C code generator.
    * It will have some code generation, however it is strictly scoped to expression evaluation than anything else.
    */
-  def toVeTransformation(qr: LogicalPlan): VeProjection[CVector, NamedTypedCExpression] = qr match {
+  def toVeTransformation(qr: LogicalPlan): VeProjection[CScalarVector, NamedTypedCExpression] = qr match {
     case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
           /** If it's just a rename, don't send to VE * */
           case a: Alias if a.child.isInstanceOf[Attribute] => true
@@ -38,7 +38,7 @@ object LogicalPlanMatchingSpec {
         } =>
       VeProjection(
         inputs = child.output.toList.zipWithIndex.map { case (attr, idx) =>
-          CVector(s"input_$idx", CExpressionEvaluation.veType(attr.dataType))
+          CScalarVector(s"input_$idx", CExpressionEvaluation.veType(attr.dataType))
         },
         outputs = resultExpressions.zipWithIndex.map { case (ne, idx) =>
           NamedTypedCExpression(
@@ -81,18 +81,18 @@ final class LogicalPlanMatchingSpec extends AnyFreeSpec {
     assert(
       toVeTransformation(qr) == VeProjection(
         inputs = List(
-          CVector("input_0", VeType.veNullableDouble),
-          CVector("input_1", VeType.veNullableDouble)
+          CScalarVector("input_0", VeScalarType.veNullableDouble),
+          CScalarVector("input_1", VeScalarType.veNullableDouble)
         ),
         outputs = List(
           NamedTypedCExpression(
             "output_0",
-            VeType.VeNullableDouble,
+            VeScalarType.VeNullableDouble,
             CExpression("input_0->data[i] * input_1->data[i]", isNotNullCode = None)
           ),
           NamedTypedCExpression(
             "output_1",
-            VeType.VeNullableDouble,
+            VeScalarType.VeNullableDouble,
             CExpression("input_0->data[i] + 1.0", isNotNullCode = None)
           )
         )

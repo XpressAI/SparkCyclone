@@ -45,6 +45,8 @@ final case class NewCEvaluationPlan(
   with UnaryExecNode
   with LazyLogging {
 
+  require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
+
   override def output: Seq[Attribute] = outputExpressions.zipWithIndex.map { case (ne, idx) =>
     AttributeReference(name = s"value_${idx}", dataType = ne.dataType, nullable = false)()
   }

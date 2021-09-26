@@ -18,13 +18,13 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         .map {
           case ((Literal(null, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = 0;",
-              s"${SparkVeMapper.sparkTypeToVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable_is_set = 0;"
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = 0;",
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable_is_set = 0;"
             )
           case ((Literal(other, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = ${other};",
-              s"${SparkVeMapper.sparkTypeToVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable_is_set = 1;"
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = ${other};",
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable_is_set = 1;"
             )
           case (other, idx) =>
             sys.error(s"Not supported declarative aggregate input: ${other}")

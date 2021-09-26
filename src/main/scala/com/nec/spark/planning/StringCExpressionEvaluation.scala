@@ -1,9 +1,11 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.CExpressionEvaluation
+import com.nec.spark.agile.{CExpressionEvaluation, StringProducer}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.CExpression
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
+//noinspection SameParameterValue
 object StringCExpressionEvaluation {
   def evaluate(
     fName: String,
@@ -12,87 +14,6 @@ object StringCExpressionEvaluation {
     endIndex: Int
   ): CExpressionEvaluation.CodeLines = {
 
-    val firstOutput = CodeLines
-      .from(
-        " // first output ",
-        """std::string output_result("");""",
-        """std::vector<int32_t> output_offsets;""",
-        """int32_t currentOffset = 0;""",
-        """for ( int32_t i = 0; i < input_strings->count; i++ ) {""",
-        CodeLines
-          .from(
-            s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
-            CodeLines
-              .from(
-                """output_result.append((input_strings->data + (input_strings->offsets[i] + j)), 1);"""
-              )
-              .indented,
-            "}",
-            """output_offsets.push_back(currentOffset);""",
-            s"""currentOffset += (${endIndex} - ${beginIndex});"""
-          )
-          .indented,
-        """}""",
-        """output_offsets.push_back(currentOffset);""",
-        """output_strings->count = input_strings->count;""",
-        """output_strings->size = currentOffset;""",
-        """output_strings->data = (char*)malloc(output_strings->size);""",
-        """memcpy(output_strings->data, output_result.data(), output_strings->size);""",
-        """output_strings->offsets = (int32_t*)malloc(4 * (output_strings->count + 1));""",
-        """memcpy(output_strings->offsets, output_offsets.data(), 4 * (output_strings->count + 1));""",
-        s"output_strings->validityBuffer = (unsigned char *) malloc(input_strings->count);",
-        s"for( int32_t i = 0; i < input_strings->count; i++ ) {",
-        CodeLines.from("set_validity(output_strings->validityBuffer, i, 1);").indented,
-        "}"
-      )
-
-    val secondOutput = CodeLines.from(
-      "// second output",
-      s"lengths->data = (int32_t*) malloc(input_strings->count * 4);",
-      s"lengths->validityBuffer = (unsigned char *) malloc(input_strings->count);",
-      s"lengths->count = input_strings->count;",
-      s"for( int32_t i = 0; i < input_strings->count; i++ ) {",
-      CodeLines.from(
-        "lengths->data[i] = input_strings->offsets[i + 1] - input_strings->offsets[i];",
-        "set_validity(lengths->validityBuffer, i, 1);"
-      ),
-      "}"
-    )
-
-    val thirdOutput = CodeLines.from(
-      " // third output ",
-      """std::string output_result_2("");""",
-      """std::vector<int32_t> output_offsets_2;""",
-      """int32_t currentOffset_2 = 0;""",
-      """for ( int32_t i = 0; i < input_strings->count; i++ ) {""",
-      CodeLines.from(
-        s"int32_t beginIndex_2 = 1;",
-        s"int32_t string_i_length = input_strings->offsets[i + 1] - input_strings->offsets[i];",
-        s"int32_t endIndex_2 = string_i_length - 2;",
-        """output_offsets_2.push_back(currentOffset_2);""",
-    s"""currentOffset_2 += (endIndex_2 - beginIndex_2);""",
-    s"for ( int32_t j = beginIndex_2; j < endIndex_2; j++ ) {",
-          CodeLines
-      .from(
-    """output_result_2.append((input_strings->data + (input_strings->offsets[i] + j)), 1);"""
-    )
-      .indented,
-    "}",
-    ),
-      "}",
-      """output_offsets_2.push_back(currentOffset_2);""",
-      """output_strings_2->count = input_strings->count;""",
-      """output_strings_2->size = currentOffset_2;""",
-      """output_strings_2->data = (char*)malloc(output_strings_2->size);""",
-      """memcpy(output_strings_2->data, output_result_2.data(), output_strings_2->size);""",
-      """output_strings_2->offsets = (int32_t*)malloc(4 * (output_strings_2->count + 1));""",
-      """memcpy(output_strings_2->offsets, output_offsets_2.data(), 4 * (output_strings_2->count + 1));""",
-      s"output_strings_2->validityBuffer = (unsigned char *) malloc(input_strings->count);",
-      s"for( int32_t i = 0; i < input_strings->count; i++ ) {",
-      CodeLines.from("set_validity(output_strings_2->validityBuffer, i, 1);").indented,
-      "}"
-    )
-
     CodeLines.from(
       """#include <stdio.h>""",
       """#include <stdlib.h>""",
@@ -100,11 +21,101 @@ object StringCExpressionEvaluation {
       """#include <iostream>""",
       """#include <string>""",
       """#include "cpp/frovedis/text/words.hpp"""",
-      s"""extern "C" long ${fName}(nullable_varchar_vector* input_strings, nullable_varchar_vector* output_strings, nullable_int_vector* lengths, nullable_varchar_vector* output_strings_2) {""",
+      s"""extern "C" long ${fName}(""",
+      List(
+        "nullable_varchar_vector* input_0",
+        "nullable_varchar_vector* input_0_o",
+        "nullable_varchar_vector* output_strings",
+        "nullable_int_vector* lengths",
+        "nullable_varchar_vector* output_strings_2"
+      ).mkString(", \n"),
+      ") {",
       CodeLines
-        .from(firstOutput, "", secondOutput, "", thirdOutput, "", """return 0;""")
+        .from(
+          StringProducer
+            .produceVarChar("output_strings", produce_string_to(beginIndex, endIndex))
+            .block,
+          select_lengths.block,
+          StringProducer.produceVarChar("output_strings_2", produce_substr_dyn).block,
+          """return 0;"""
+        )
         .indented,
       "}"
     )
   }
+
+  private def produce_substr_dyn: StringProducer = (tempStringName, lenName) =>
+    CodeLines
+      .from(
+        s"int32_t beginIndex_2 = 1;",
+        s"int32_t string_i_length = input_0->offsets[i + 1] - input_0->offsets[i];",
+        s"int32_t endIndex_2 = string_i_length - 2;",
+        s"for ( int32_t j = beginIndex_2; j < endIndex_2; j++ ) {",
+        CodeLines
+          .from(
+            s"""${tempStringName}.append((input_0->data + (input_0->offsets[i] + j)), 1);""",
+            s"${lenName} += 1;"
+          )
+          .indented,
+        "}"
+      )
+
+  private def select_lengths: CodeLines = {
+    CodeLines.from(
+      "// second output",
+      s"lengths->data = (int32_t*) malloc(input_0->count * 4);",
+      s"lengths->validityBuffer = (unsigned char *) malloc(input_0->count);",
+      s"lengths->count = input_0->count;",
+      s"for( int32_t i = 0; i < input_0->count; i++ ) {",
+      CodeLines
+        .from(
+          "lengths->data[i] = input_0->offsets[i + 1] - input_0->offsets[i];",
+          "set_validity(lengths->validityBuffer, i, 1);"
+        )
+        .indented,
+      "}"
+    )
+  }
+
+  private def produce_string_to(beginIndex: Int, endIndex: Int): StringProducer =
+    (tempStringName, itemLengthName) =>
+      CodeLines
+        .from(
+          s"""for ( int32_t j = ${beginIndex}; j < ${endIndex}; j++ ) {""",
+          CodeLines
+            .from(
+              s"""${tempStringName}.append((input_0->data + (input_0->offsets[i] + j)), 1);""",
+              s"${itemLengthName}++;"
+            )
+            .indented,
+          "}",
+          s"""for ( int32_t j = input_0_o->offsets[i]; j < input_0_o->offsets[i + 1]; j++ ) {""",
+          CodeLines
+            .from(s"""${tempStringName}.append(input_0_o->data + j, 1);""", s"${itemLengthName}++;")
+            .indented,
+          "}",
+          "std::string len_str = std::to_string(input_0->offsets[i+1] - input_0->offsets[i]);",
+          s"${tempStringName}.append(len_str);",
+          s"${itemLengthName} += len_str.size();"
+        )
+
+  def expr_to_string(cExpression: CExpression): StringProducer =
+    (tsn, iln) =>
+      CodeLines
+        .from(
+          s"std::string len_str = std::to_string(${cExpression.cCode});",
+          s"${tsn}.append(len_str);",
+          s"${iln} += len_str.size();"
+        )
+
+  def copyString(inputName: String): StringProducer = CopyStringProducer(inputName)
+
+  final case class CopyStringProducer(inputName: String) extends StringProducer {
+    override def produceTo(tsn: String, iln: String): CodeLines = CodeLines.from(
+      s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+      s"${tsn}.append(sub_str);",
+      s"${iln} += sub_str.size();"
+    )
+  }
+
 }

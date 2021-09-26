@@ -89,7 +89,8 @@ object ArrowInterfaces {
   def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer = bigIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer =
+      bigIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = bigIntVector.getValueCount
     vc
   }
@@ -189,19 +190,15 @@ object ArrowInterfaces {
     input: nullable_varchar_vector,
     varCharVector: VarCharVector
   ): Unit = {
-    varCharVector.allocateNew(input.size(), input.count)
+    varCharVector.allocateNew(input.size.toLong, input.count)
     varCharVector.setValueCount(input.count)
     getUnsafe.copyMemory(
       input.validityBuffer,
       varCharVector.getValidityBufferAddress,
       Math.ceil(input.count / 8.0).toInt
     )
-    getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.size())
-    getUnsafe.copyMemory(
-      input.offsets,
-      varCharVector.getOffsetBufferAddress,
-      4 * (input.count + 1)
-    )
+    getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.size.toLong)
+    getUnsafe.copyMemory(input.offsets, varCharVector.getOffsetBufferAddress, 4 * (input.count + 1))
   }
 
 }

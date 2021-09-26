@@ -1,11 +1,44 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, JoinType, LeftOuterJoin, RightOuterJoin, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CExpression,
+  JoinType,
+  LeftOuterJoin,
+  RightOuterJoin,
+  VeScalarType,
+  VeString,
+  VeType
+}
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryArithmetic, BinaryOperator, Cast, Coalesce, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Sqrt}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  BinaryArithmetic,
+  BinaryOperator,
+  Cast,
+  Coalesce,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Sqrt
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, RightOuter}
-import org.apache.spark.sql.types.{DataType, DoubleType, IntegerType, LongType, ShortType, StringType}
+import org.apache.spark.sql.types.{
+  DataType,
+  DoubleType,
+  IntegerType,
+  LongType,
+  ShortType,
+  StringType
+}
 
 object SparkVeMapper {
 
@@ -157,7 +190,7 @@ object SparkVeMapper {
         CExpression(cCode = s"$v", isNotNullCode = None)
       case Cast(child, newDt, None) =>
         CExpression(
-          cCode = s"(${sparkTypeToVeType(newDt).cScalarType}) ${eval(child).cCode}",
+          cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) ${eval(child).cCode}",
           isNotNullCode = eval(child).isNotNullCode
         )
       case Greatest(children) =>
@@ -174,17 +207,17 @@ object SparkVeMapper {
         dataType match {
           case IntegerType => {
             val childExpression = eval(child)
-            childExpression.copy("((int)" + childExpression.cCode +")")
+            childExpression.copy("((int)" + childExpression.cCode + ")")
           }
 
           case DoubleType => {
             val childExpression = eval(child)
-            childExpression.copy("((int)" + childExpression.cCode +")")
+            childExpression.copy("((int)" + childExpression.cCode + ")")
           }
 
           case LongType => {
             val childExpression = eval(child)
-            childExpression.copy("((long long)" + childExpression.cCode +")")
+            childExpression.copy("((long long)" + childExpression.cCode + ")")
           }
         }
       case NoOp =>
@@ -194,13 +227,12 @@ object SparkVeMapper {
     }
   }
 
-  def sparkTypeToVeType(dataType: DataType): VeType = {
+  def sparkTypeToScalarVeType(dataType: DataType): VeScalarType = {
     dataType match {
-      case DoubleType  => VeType.veNullableDouble
-      case IntegerType => VeType.veNullableInt
-      case LongType    => VeType.veNullableLong
-      case ShortType   => VeType.veNullableInt
-      case StringType  => VeType.veNullableString
+      case DoubleType  => VeScalarType.veNullableDouble
+      case IntegerType => VeScalarType.veNullableInt
+      case LongType    => VeScalarType.veNullableLong
+      case ShortType   => VeScalarType.veNullableInt
     }
   }
 }
