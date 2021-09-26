@@ -367,30 +367,15 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               }
             },
             outputs = aggregateExpressions.toList.zipWithIndex.map {
-              case (namedExpression, idx) if namedExpression.dataType == StringType =>
+              case (Alias(namedExpression, _), idx) if namedExpression.dataType == StringType =>
                 Left(
-                  namedExpression
-                    .find(_.isInstanceOf[AttributeReference])
-                    .flatMap(expr =>
-                      SparkVeMapper
-                        .replaceReferences(inputs = child.output.toList, expression = expr)
-                        .collectFirst {
-                          case ar: AttributeReference if ar.name.contains("input_") =>
-                            NamedStringProducer(
-                              // this is a model example of a "temporary hack"
-                              ar.name
-                                .replaceAllLiterally("input_", "output_")
-                                .replaceAllLiterally("->data[i]", ""),
-                              StringCExpressionEvaluation
-                                .copyString(ar.name.replaceAllLiterally("->data[i]", ""))
-                            )
-                        }
+                  NamedStringProducer(
+                    name = s"output_${idx}",
+                    stringProducer = SparkVeMapper.evalString(
+                      namedExpression
+                        .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                     )
-                    .getOrElse(
-                      sys.error(
-                        s"Cannot support group by: ${namedExpression} (type: ${namedExpression.dataType})"
-                      )
-                    )
+                  )
                 )
               case (namedExpression, idx) =>
                 Right(

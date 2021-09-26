@@ -81,6 +81,24 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can filter a column by a String (FilterByString)" in {
+    val result = evalFilter[(String, Double)](
+      ("x", 90.0),
+      ("one", 1.0),
+      ("two", 2.0),
+      ("prime", 19.0),
+      ("other", 14.0)
+    )(
+      CExpression(
+        cCode =
+          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i+1] - input_0->offsets[i]) == std::string("one")""",
+        isNotNullCode = None
+      )
+    )
+    val expected = List[(String, Double)](("one", 1.0))
+
+    expect(result == expected)
+  }
   "We can filter a column with a String" in {
     val result = evalFilter[(String, Double)](
       ("x", 90.0),

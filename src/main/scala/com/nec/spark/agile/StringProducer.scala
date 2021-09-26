@@ -1,12 +1,34 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.CExpression
 
 trait StringProducer extends Serializable {
   def produceTo(tempStringName: String, lenName: String): CodeLines
 }
 
 object StringProducer {
+
+  def copyString(inputName: String): StringProducer = CopyStringProducer(inputName)
+
+  final case class CopyStringProducer(inputName: String) extends StringProducer {
+    override def produceTo(tsn: String, iln: String): CodeLines = CodeLines.from(
+      s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+      s"${tsn}.append(sub_str);",
+      s"${iln} += sub_str.size();"
+    )
+  }
+
+  final case class StringChooser(condition: CExpression, ifTrue: String, otherwise: String)
+    extends StringProducer {
+    override def produceTo(tempStringName: String, lenName: String): CodeLines =
+      CodeLines.from(
+        // note: does not escape strings
+        s"""std::string sub_str = ${condition.cCode} ? std::string("${ifTrue}") : std::string("${otherwise}");""",
+        s"${tempStringName}.append(sub_str);",
+        s"${lenName} += sub_str.size();"
+      )
+  }
 
   final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
     val tmpString = s"${outputName}_tmp";

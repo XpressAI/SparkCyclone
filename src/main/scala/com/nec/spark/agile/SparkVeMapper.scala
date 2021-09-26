@@ -16,8 +16,10 @@ import org.apache.spark.sql.catalyst.expressions.{
   AttributeReference,
   BinaryArithmetic,
   BinaryOperator,
+  CaseWhen,
   Cast,
   Coalesce,
+  EqualTo,
   ExprId,
   Expression,
   Greatest,
@@ -39,6 +41,7 @@ import org.apache.spark.sql.types.{
   ShortType,
   StringType
 }
+import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
 
@@ -48,7 +51,23 @@ object SparkVeMapper {
         case -1 =>
           sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
         case idx =>
-          ar.withName(s"input_${idx}->data[i]")
+          if (ar.dataType == StringType)
+            ar.withName(s"input_${idx}")
+          else
+            ar.withName(s"input_${idx}->data[i]")
+      }
+  }
+
+  def referenceOutputReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
+    case ar: AttributeReference =>
+      inputs.indexWhere(_.exprId == ar.exprId) match {
+        case -1 =>
+          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
+        case idx =>
+          if (ar.dataType == StringType)
+            ar.withName(s"output_${idx}")
+          else
+            ar.withName(s"output_${idx}->data[i]")
       }
   }
 
@@ -92,6 +111,9 @@ object SparkVeMapper {
   def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
     expression.transform(referenceReplacer(inputs))
 
+  def replaceOutputReferences(inputs: Seq[Attribute], expression: Expression): Expression =
+    expression.transform(referenceOutputReplacer(inputs))
+
   def replaceReferences(
     inputs: Seq[Attribute],
     expression: Expression,
@@ -111,8 +133,27 @@ object SparkVeMapper {
 
   val binaryOperatorOverride = Map("=" -> "==")
 
+  def evalString(expression: Expression): StringProducer = expression match {
+    case CaseWhen(
+          Seq((predicate, Literal(t: UTF8String, StringType))),
+          Some(Literal(f: UTF8String, StringType))
+        ) =>
+      StringProducer.StringChooser(eval(predicate), t.toString, f.toString)
+    case other =>
+      sys.error(s"Cannot support ${expression} for String evaluation (${expression.getClass})")
+  }
+
   def eval(expression: Expression): CExpression = {
     expression match {
+      case EqualTo(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        CExpression(
+          cCode = List(
+            s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])",
+            s"""std::string("${right.toString()}")"""
+          ).mkString(" == "),
+          isNotNullCode = None
+        )
       case b: BinaryOperator =>
         CExpression(
           cCode = s"((${eval(b.left).cCode}) ${binaryOperatorOverride

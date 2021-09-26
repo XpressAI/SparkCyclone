@@ -52,8 +52,9 @@ final case class StringGroupByTesting(isVe: Boolean) extends Testing {
       .csv(SampleStrCsv2.toAbsolutePath.toString)
       .createOrReplaceTempView("sample_tbl")
 
+    // note the filtering is probably done in the JVM here
     val ds = sparkSession
-      .sql("SELECT value, sum(o) FROM sample_tbl group by value")
+      .sql("SELECT (CASE WHEN value = 'abc' THEN 'Y' ELSE 'N' END), sum(o) FROM sample_tbl WHERE value IN ('abc', 'def') group by value")
       .as[Result]
 
     val planString = ds.queryExecution.executedPlan.toString()
@@ -64,7 +65,7 @@ final case class StringGroupByTesting(isVe: Boolean) extends Testing {
     ds
   }
   override def verifyResult(dataset: List[Result]): Unit = {
-    val expected = List[Result]("abc" -> 3.0, "def" -> 1.0)
+    val expected = List[Result]("Y" -> 3.0, "N" -> 1.0)
     assert(dataset == expected)
   }
   override def testingTarget: Testing.TestingTarget =

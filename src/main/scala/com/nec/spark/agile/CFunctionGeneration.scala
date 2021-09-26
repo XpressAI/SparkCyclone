@@ -321,7 +321,7 @@ object CFunctionGeneration {
           val fp = StringProducer
             .FilteringProducer(
               nom,
-              StringCExpressionEvaluation.copyString(nom.replaceAllLiterally("output", "input"))
+              StringProducer.copyString(nom.replaceAllLiterally("output", "input"))
             )
 
           CodeLines.from(
@@ -740,7 +740,7 @@ object CFunctionGeneration {
                 s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
                 CodeLines.from(s"string_hash = 31*string_hash + ${name}->data[q];").indented,
                 "}",
-                s"$stringIdToHash[i] = string_hash;",
+                s"$stringIdToHash[i] = string_hash;"
               )
               .indented,
             "}"
