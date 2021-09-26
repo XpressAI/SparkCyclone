@@ -14,13 +14,11 @@ import com.typesafe.scalalogging.LazyLogging
 import com.nec.spark.SparkAdditions
 import org.scalatest.freespec.AnyFreeSpec
 import org.apache.arrow.vector.Float8Vector
-import org.scalatest.ConfigMap
-import org.scalatest.BeforeAndAfter
-import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, ConfigMap}
 
 final class JoinVeSpec
   extends AnyFreeSpec
-  with BeforeAndAfter
+  with BeforeAndAfterAll
   with SparkAdditions
   with LazyLogging {
 
@@ -39,8 +37,8 @@ final class JoinVeSpec
     Aurora.veo_proc_create(0).ensureOk()
   }
 
-  override protected def afterAll(configMap: ConfigMap): Unit = {
-    super.afterAll(configMap)
+  override protected def afterAll(): Unit = {
+    super.afterAll()
     if (initialized) {
       Aurora.veo_proc_destroy(proc)
     }

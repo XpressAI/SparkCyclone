@@ -1,7 +1,6 @@
 package com.nec.cmake
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec.configuration
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
@@ -15,17 +14,16 @@ import com.nec.testing.SampleSource.{
 }
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
 
 object DynamicCSqlExpressionEvaluationSpec {
 
-  def configuration: SparkSession.Builder => SparkSession.Builder = {
+  val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
@@ -35,12 +33,16 @@ object DynamicCSqlExpressionEvaluationSpec {
 
 }
 
-final class DynamicCSqlExpressionEvaluationSpec
+class DynamicCSqlExpressionEvaluationSpec
   extends AnyFreeSpec
   with BeforeAndAfter
+  with BeforeAndAfterAll
   with SparkAdditions
   with Matchers
   with LazyLogging {
+
+  def configuration: SparkSession.Builder => SparkSession.Builder =
+    DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
 
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
   "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
@@ -527,7 +529,7 @@ final class DynamicCSqlExpressionEvaluationSpec
 
     val sql8 =
       s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
-    s"Ordering with a group by: ${sql8}" in withSparkSession2(configuration) { sparkSession =>
+    s"Ordering with a group by: ${sql8}" ignore withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
