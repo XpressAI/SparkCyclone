@@ -8,7 +8,6 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
 import com.nec.cmake.functions.ParseCSVSpec.{RichFloat8, RichVarCharVector}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer
-import com.nec.spark.planning.StringCExpressionEvaluation
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{Float8Vector, VarCharVector}
 
@@ -697,7 +696,7 @@ object StaticTypingTestAdditions {
       : GeneralGroupExpressor[(StringGrouping, TypedGroupByExpression[Double])] = output =>
       List(
         Left(
-          NamedStringProducer("output_0", StringCExpressionEvaluation.copyString(output._1.name))
+          NamedStringProducer("output_0", StringProducer.copyString(output._1.name))
         ),
         Right(
           NamedGroupByExpression(
