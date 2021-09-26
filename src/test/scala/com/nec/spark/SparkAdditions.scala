@@ -1,6 +1,6 @@
 package com.nec.spark
 
-import com.nec.spark.planning.SparkSqlPlanExtension
+import com.nec.spark.planning.{SparkSqlPlanExtension, VERewriteStrategy}
 import org.apache.log4j.Level
 import org.apache.log4j.Logger
 import org.scalatest.BeforeAndAfter
@@ -46,6 +46,7 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   protected def withSparkSession2[T](
     configure: SparkSession.Builder => SparkSession.Builder
   )(f: SparkSession => T): T = {
+    VERewriteStrategy.failFast = true
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")

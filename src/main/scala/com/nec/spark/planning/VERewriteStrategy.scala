@@ -31,33 +31,11 @@ import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{IntegerType, StringType}
 
+import scala.collection.immutable
+
 object VERewriteStrategy {
   var _enabled: Boolean = true
-
-  def meldAggregateAndProject(
-    inputColumnsA: List[NamedExpression],
-    inputColumnsB: List[NamedExpression]
-  ): List[NamedExpression] = {
-    val outputAliases = inputColumnsB.collect { case a: Alias =>
-      a
-    }
-    inputColumnsA.map { expr =>
-      expr
-        .transformUp {
-          case ar @ AttributeReference(name, _, _, _)
-              if outputAliases.exists(_.exprId == ar.exprId) =>
-            outputAliases.find(_.exprId == ar.exprId).map(_.child).get
-
-          /*          case other if {
-                          println(
-                            s"Unmatched: ${other}[${other.getClass}]; ${inputColumnsB}; ${inputColumnsB.map(_.getClass)}"
-                          ); false
-                        } =>
-                      ???*/
-        }
-        .asInstanceOf[NamedExpression]
-    }
-  }
+  var failFast: Boolean = false
 }
 
 final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
@@ -70,12 +48,15 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def fName: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
+    val failFast = VERewriteStrategy.failFast
+
     if (VERewriteStrategy._enabled) {
       log.debug(
         s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
       )
 
-      plan match {
+      def res: immutable.Seq[SparkPlan] = plan match {
+        /** This one is for testing */
         case proj @ logical.Project(
               Seq(
                 Alias(
@@ -302,7 +283,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
           }
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-            if child.output.nonEmpty && aggregateExpressions.nonEmpty && groupingExpressions.nonEmpty =>
+            if child.output.nonEmpty && aggregateExpressions.nonEmpty =>
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
             NamedStringProducer,
             NamedGroupByExpression
@@ -386,6 +367,12 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                               .asInstanceOf[DeclarativeAggregate]
                           )
                         )
+                      case Alias(other, _) =>
+                        GroupByExpression.GroupByProjection(
+                          SparkVeMapper.eval(
+                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                          )
+                        )
                       case other =>
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper.eval(
@@ -418,6 +405,16 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           Nil
 
         case _ => Nil
+      }
+
+      if (failFast) res
+      else {
+        try res
+        catch {
+          case e: Throwable =>
+            logger.error(s"Could not map plan ${plan} because of: ${e}", e)
+            Nil
+        }
       }
     } else Nil
   }

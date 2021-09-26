@@ -228,6 +228,8 @@ object BenchTestingPossibilities extends LazyLogging {
 
 final class BenchTestingPossibilities extends AnyFreeSpec with BenchTestAdditions {
 
+  VERewriteStrategy.failFast = true
+
   /** TODO We could also generate Spark plan details from here for easy cross-referencing, as well as codegen */
   BenchTestingPossibilities.possibilities.filter(_.testingTarget.isPlainSpark).foreach(runTestCase)
 
