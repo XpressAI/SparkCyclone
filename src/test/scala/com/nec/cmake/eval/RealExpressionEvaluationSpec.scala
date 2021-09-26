@@ -96,9 +96,21 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can sort" in {
     expect(
-      evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0)) ==
+      evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
+        CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
+      ) ==
         List[(Double, Double)]((19.0 -> 1.0), 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
     )
+  }
+
+  "We can sort (3 cols)" ignore {
+    val results =
+      evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
+        CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+      )
+    val expected =
+      List[(Double, Double, Double)]((2.0, 2.0, 0.0), (90.0, 5.0, 1.0), (1.0, 4.0, 3.0))
+    expect(results == expected)
   }
 
   "We can aggregate / group by on an empty grouping" in {
@@ -783,19 +795,15 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
   }
 
-  def evalSort[Data](input: Data*)(implicit
+  def evalSort[Data](input: Data*)(sorts: CExpression*)(implicit
     inputArguments: InputArgumentsScalar[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
     val functionName = "sort_f"
 
     val generatedSource =
-      renderSort(sort =
-        VeSort(
-          data = inputArguments.inputs,
-          sorts = List(CExpression(cCode = "input_1->data[i]", isNotNullCode = None))
-        )
-      ).toCodeLines(functionName)
+      renderSort(sort = VeSort(data = inputArguments.inputs, sorts = sorts.toList))
+        .toCodeLines(functionName)
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)

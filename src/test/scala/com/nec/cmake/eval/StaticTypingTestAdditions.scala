@@ -329,6 +329,30 @@ object StaticTypingTestAdditions {
           )
         }
       }
+    implicit val forTripletDouble: OutputArguments[(Double, Double, Double)] =
+      new OutputArguments[(Double, Double, Double)] {
+        override type Result = (Double, Double, Double)
+        override def allocateVectors()(implicit
+          rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          val outVector_1 = new Float8Vector("output_1", rootAllocator)
+          val outVector_2 = new Float8Vector("output_2", rootAllocator)
+
+          (
+            List(
+              NativeArgument.output(outVector_0),
+              NativeArgument.output(outVector_1),
+              NativeArgument.output(outVector_2)
+            ),
+            () =>
+              outVector_0.toList.zip(outVector_1.toList).zip(outVector_2.toList).map {
+                case ((a, b), c) => (a, b, c)
+              }
+          )
+        }
+      }
+
     implicit val forPairDoubleOneOption
       : OutputArguments[(TypedCExpression[Double], TypedCExpression[Option[Double]])] =
       new OutputArguments[(TypedCExpression[Double], TypedCExpression[Option[Double]])] {
@@ -345,7 +369,7 @@ object StaticTypingTestAdditions {
           )
         }
       }
-    implicit val forTripletDouble: OutputArguments[
+    implicit val forTripletDoubleT: OutputArguments[
       (TypedCExpression[Double], TypedCExpression[Double], TypedCExpression[Double])
     ] =
       new OutputArguments[
