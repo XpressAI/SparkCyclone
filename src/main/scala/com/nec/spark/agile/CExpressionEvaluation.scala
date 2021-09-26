@@ -201,67 +201,6 @@ object CExpressionEvaluation {
     ).flatten.codeLines
   }
 
-  def cGenSort(fName: String, inputs: Seq[Attribute], sortingColumn: AttributeReference)(implicit
-    nameCleaner: NameCleaner
-  ): CodeLines = {
-
-    val inputBits = inputs.zipWithIndex
-      .map { case (i, idx) =>
-        s"nullable_double_vector* input_${idx}"
-      }
-
-    val outputBits = inputs.zipWithIndex.map { case (i, idx) =>
-      s"nullable_double_vector* output_${idx}"
-    }
-
-    val sortingIndex = inputs.indexWhere(att => att.name == sortingColumn.name)
-
-    val arguments = inputBits ++ outputBits
-
-    List[List[String]](
-      List("#include \"frovedis/core/radix_sort.hpp\"", "#include <tuple>", "#include <bitset>"),
-      List(s"""extern "C" long ${fName}(${arguments.mkString(", ")})""", "{"),
-      List(
-        s"std::tuple<int, int>* sort_column_validity_buffer = (std::tuple<int, int> *) malloc(input_${sortingIndex}->count * sizeof(std::tuple<int, double>));"
-      ),
-      inputs.zipWithIndex.flatMap { case (res, idx) =>
-        List(
-          s"int64_t output_${idx}_count = input_0->count;",
-          s"double *output_${idx}_data = (double*) malloc(output_${idx}_count * sizeof(double));",
-          s"output_${idx}->validityBuffer = (unsigned char*) malloc(ceil(output_${idx}_count/8.0) * sizeof(unsigned char));"
-        )
-      }.toList,
-      List(
-        s"for(int i = 0; i < input_${sortingIndex}->count; i++)",
-        "{",
-        s"sort_column_validity_buffer[i] = std::tuple<int, double>{((input_${sortingIndex}->validityBuffer[i/8] >> i % 8) & 0x1), i};",
-        "}"
-      ),
-      List(
-        s"frovedis::radix_sort(input_${sortingIndex}->data, sort_column_validity_buffer, input_${sortingIndex}->count);"
-      ),
-      List("#pragma _NEC ivdep", "for (int i = 0; i < output_0_count; i++) {"),
-      inputs.zipWithIndex.flatMap { case (re, idx) =>
-        List(
-          s"if(${genNullCheckSorted(inputs, re, sortingIndex)}) {",
-          s"set_validity(output_${idx}->validityBuffer, i, 1);",
-          s"output_${idx}_data[i] = ${if (idx != sortingIndex) evaluateExpressionSorted(inputs, re)
-          else evaluateExpression(inputs, re)};",
-          s"} else { set_validity(output_${idx}->validityBuffer, i, 0);}"
-        )
-      }.toList,
-      List("}"),
-      // Set inputs
-      inputs.zipWithIndex.flatMap { case (res, idx) =>
-        List(
-          s"output_${idx}->count = output_${idx}_count;",
-          s"output_${idx}->data = output_${idx}_data;"
-        )
-      }.toList,
-      List("return 0;", "}")
-    ).flatten.codeLines
-  }
-
   final case class AggregateDescription(
     init: List[String],
     iter: List[String],
@@ -307,30 +246,7 @@ object CExpressionEvaluation {
     }
   }
 
-  def evaluateExpressionSorted(input: Seq[Attribute], expression: Expression): String = {
-    expression match {
-      case alias @ Alias(expr, name) => evaluateSubSorted(input, alias.child)
-      case AttributeReference(name, typeName, _, _) =>
-        (input.indexWhere(_.name == name), typeName) match {
-          case (-1, typeName) =>
-            sys.error(
-              s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
-            )
-          case (idx, (DoubleType | IntegerType | LongType)) =>
-            s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
-          case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
-        }
-      case NamedExpression(name, DoubleType | IntegerType | LongType) =>
-        input.indexWhere(_.name == name) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx => s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
-        }
-    }
-  }
-
   def genNullCheck(inputs: Seq[Attribute], expression: Expression): String = {
-
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>
         inputs.indexWhere(_.exprId == attr.exprId) match {
@@ -361,38 +277,6 @@ object CExpressionEvaluation {
         "true"
       case Cast(child, dataType, _) =>
         genNullCheck(inputs, child)
-    }
-  }
-
-  def genNullCheckSorted(
-    inputs: Seq[Attribute],
-    expression: Expression,
-    sortingColumnIndex: Int
-  ): String = {
-
-    expression match {
-      case AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.name == name) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx if idx == sortingColumnIndex =>
-            s"std::get<0>(sort_column_validity_buffer[i]) == 1"
-          case idx =>
-            s"check_valid(input_${idx}->validityBuffer,std::get<1>(sort_column_validity_buffer[i]))"
-        }
-      case alias @ Alias(expr, name) => genNullCheckSorted(inputs, alias.child, sortingColumnIndex)
-      case Subtract(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Multiply(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Add(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Divide(left, right, _) =>
-        s"${genNullCheckSorted(inputs, left, sortingColumnIndex)} && ${genNullCheckSorted(inputs, right, sortingColumnIndex)}"
-      case Abs(v) =>
-        s"${genNullCheckSorted(inputs, v, sortingColumnIndex)}"
-      case Literal(v, DoubleType | IntegerType) =>
-        "true"
     }
   }
 
@@ -438,30 +322,6 @@ object CExpressionEvaluation {
           case FloatType   => s"((float)${evaluateSub(inputs, child)})";
           case DoubleType  => s"((double)${evaluateSub(inputs, child)})";
         }
-    }
-  }
-
-  def evaluateSubSorted(inputs: Seq[Attribute], expression: Expression): String = {
-    expression match {
-      case AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.name == name) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx =>
-            s"input_${idx}->data[std::get<1>(sort_column_validity_buffer[i])]"
-        }
-      case Subtract(left, right, _) =>
-        s"${evaluateSub(inputs, left)} - ${evaluateSub(inputs, right)}"
-      case Multiply(left, right, _) =>
-        s"${evaluateSub(inputs, left)} * ${evaluateSub(inputs, right)}"
-      case Add(left, right, _) =>
-        s"${evaluateSub(inputs, left)} + ${evaluateSub(inputs, right)}"
-      case Divide(left, right, _) =>
-        s"${evaluateSub(inputs, left)} / ${evaluateSub(inputs, right)}"
-      case Abs(v) =>
-        s"abs(${evaluateSub(inputs, v)})"
-      case Literal(v, DoubleType | IntegerType) =>
-        s"$v"
     }
   }
 

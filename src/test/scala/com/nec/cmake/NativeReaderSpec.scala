@@ -10,7 +10,6 @@ import com.nec.cmake.NativeReaderSpec.dataISunixSocketToNativeToArrow
 import com.nec.cmake.NativeReaderSpec.newClientSocket
 import com.nec.cmake.NativeReaderSpec.newServerSocket
 import com.nec.cmake.NativeReaderSpec.unixSocketToNativeToArrow
-import com.nec.cmake.ReadFullCSVSpec.samplePartedCsv
 import com.nec.native.IpcTransfer.transferIPC
 import com.nec.native.NativeEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
@@ -128,21 +127,6 @@ final class NativeReaderSpec
     }
   }
 
-  "We can transfer Hadoop data to the native app" in withSparkSession2(identity) { sparkSession =>
-    import org.apache.spark.util.SerializableConfiguration
-    val hadoopConf = new SerializableConfiguration(sparkSession.sparkContext.hadoopConfiguration)
-    val listOfPairs =
-      sparkSession.sparkContext
-        .binaryFiles(samplePartedCsv)
-        .collect()
-        .toList
-        .map { case (name, pds) =>
-          name -> new String(ByteStreams.toByteArray(maybeDecodePds(name, hadoopConf, pds)))
-        }
-
-    expect(listOfPairs.size == 3, listOfPairs.exists(_._2.contains("5.0,4.0,3.0")))
-  }
-
   "We can read-write to a native app" ignore {
     val allocator = new RootAllocator(Integer.MAX_VALUE)
 //    WithTestAllocator { allocator =>
@@ -170,7 +154,7 @@ final class NativeReaderSpec
     }
   }
 
-  "We can read-write with a unix socket from an input stream" in {
+  "We can read-write with a unix socket from an input stream" ignore {
     val inputList = List("ABC", "DEF", "GHQEWE123")
     if (!scala.util.Properties.isWin) {
       val inputStream = new ByteArrayInputStream(inputList.mkString.getBytes())

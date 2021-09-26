@@ -222,8 +222,11 @@ object SparkVeMapper {
         }
       case NoOp =>
         CExpression("0", Some("false"))
-      case _ =>
-        sys.error(expression.getClass.getCanonicalName + ": " + expression.toString())
+      case other =>
+        sys.error(
+          s"not supported ${other}: " + expression.getClass.getCanonicalName + ": " + expression
+            .toString()
+        )
     }
   }
 

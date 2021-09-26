@@ -1,25 +1,15 @@
 package com.nec.spark
 
-import com.nec.spark.planning.SparkSqlPlanExtension
-import org.apache.log4j.Level
-import org.apache.log4j.Logger
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAllConfigMap
-import org.scalatest.ConfigMap
-import org.scalatest.Informing
-import org.scalatest.TestSuite
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.Dataset
+import com.nec.spark.planning.VERewriteStrategy
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.PlanExtractor.DatasetPlanExtractor
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.{SparkConf, SparkContext}
 
-object SparkAdditions {}
-trait SparkAdditions extends BeforeAndAfterAllConfigMap {
-  this: TestSuite with Informing with BeforeAndAfter =>
+trait SparkAdditions {
 
   protected def logLevel: Level = Level.ERROR
+
+  Logger.getRootLogger.setLevel(logLevel)
 
   protected def withSpark[T](configure: SparkConf => SparkConf)(f: SparkContext => T): T = {
     val conf = new SparkConf()
@@ -46,6 +36,7 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
   protected def withSparkSession2[T](
     configure: SparkSession.Builder => SparkSession.Builder
   )(f: SparkSession => T): T = {
+    VERewriteStrategy.failFast = true
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
@@ -55,34 +46,4 @@ trait SparkAdditions extends BeforeAndAfterAllConfigMap {
     finally sparkSession.stop()
   }
 
-  private var debugSparkPlans: Boolean = false
-
-  override protected def beforeAll(configMap: ConfigMap): Unit = {
-    val rootLogger = Logger.getRootLogger
-    rootLogger.setLevel(logLevel)
-
-    super.beforeAll(configMap)
-
-    this.debugSparkPlans =
-      Set("1", "true").contains(configMap.getOrElse("debug.spark.plans", "0").toString.toLowerCase)
-  }
-
-  protected implicit class Richy[T](dataSet: Dataset[T]) {
-    def debugConditionally(prefix: String = ""): Dataset[T] = {
-      if (debugSparkPlans) {
-        info(prefix + dataSet.extractQueryExecution.toString())
-      }
-      dataSet
-    }
-    def debugAlways(prefix: String = ""): Dataset[T] = {
-      info(prefix + dataSet.extractQueryExecution.toString())
-      dataSet
-    }
-
-    def executionPlan: SparkPlan = dataSet.extractQueryExecution.executedPlan
-  }
-
-  after {
-    SparkSqlPlanExtension.rulesToApply.clear()
-  }
 }

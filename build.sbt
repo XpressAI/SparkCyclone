@@ -163,9 +163,6 @@ Test / testOptions := Seq(Tests.Filter(otherFilter))
 
 /** Acceptance Testing configuration */
 AcceptanceTest / parallelExecution := false
-AcceptanceTest / testOptions ++= {
-  if ((AcceptanceTest / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
-}
 lazy val AcceptanceTest = config("acc") extend Test
 inConfig(AcceptanceTest)(Defaults.testTasks)
 def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
@@ -205,16 +202,6 @@ assembly / assemblyMergeStrategy := {
   case x =>
     val oldStrategy = (assembly / assemblyMergeStrategy).value
     oldStrategy(x)
-}
-
-lazy val debugTestPlans = settingKey[Boolean]("Whether to output Spark plans during testing")
-
-debugTestPlans := false
-
-val debugTestPlansArgument = Tests.Argument(TestFrameworks.ScalaTest, "-Ddebug.spark.plans=true")
-
-Test / testOptions ++= {
-  if ((Test / debugTestPlans).value) Seq(debugTestPlansArgument) else Seq.empty
 }
 
 lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")
