@@ -3,13 +3,8 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{
-  BigIntVector,
-  Float8Vector,
-  IntVector,
-  VarCharVector,
-  VectorSchemaRoot
-}
+import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, SmallIntVector, VarCharVector, VectorSchemaRoot}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -20,18 +15,14 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.execution.{
-  ColumnarToRowExec,
-  ColumnarToRowTransition,
-  SparkPlan,
-  UnaryExecNode
-}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-
 import scala.language.dynamics
+
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
+
 import org.apache.spark.unsafe.types.UTF8String
 
 final case class NewCEvaluationPlan(
@@ -87,6 +78,8 @@ final case class NewCEvaluationPlan(
                   intVector
                 case bigIntVector: BigIntVector =>
                   bigIntVector
+                case smallIntVector: SmallIntVector =>
+                  smallIntVector
               }
             }
 

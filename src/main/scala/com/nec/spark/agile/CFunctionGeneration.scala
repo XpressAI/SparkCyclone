@@ -444,21 +444,28 @@ object CFunctionGeneration {
         s"std::vector <${veInnerJoin.rightKey.veType.cScalarType}> right_vec;",
         "std::vector<size_t> right_idx;",
         "#pragma _NEC ivdep",
-        "for(int i = 0; i < input_0->count; i++) { ",
+        s"for(int i = 0; i < ${veInnerJoin.leftKey.cExpression.cCode
+          .replace("data[i]", "count")}; i++) { ",
         CodeLines
           .from(
             s"left_vec.push_back(${veInnerJoin.leftKey.cExpression.cCode});",
-            "left_idx.push_back(i);",
+            "left_idx.push_back(i);"
+          ).indented,
+        "}",
+        s"for(int i = 0; i < ${veInnerJoin.rightKey.cExpression.cCode
+          .replace("data[i]", "count")}; i++) { ",
+        CodeLines.from(
             s"right_vec.push_back(${veInnerJoin.rightKey.cExpression.cCode});",
             "right_idx.push_back(i);"
-          )
-          .indented,
+        ).indented,
         "}",
         "std::vector<size_t> right_out;",
         "std::vector<size_t> left_out;",
         s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
         "long validityBuffSize = ceil(left_out.size() / 8.0);",
-        veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
+        """std::cout <<"RIGHT:" << right_out.size();  """,
+        """std::cout <<"LEFT:" << left_out.size();  """,
+          veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
           joinExpression.fold(whenProj =
             _ =>
               CodeLines.from(
