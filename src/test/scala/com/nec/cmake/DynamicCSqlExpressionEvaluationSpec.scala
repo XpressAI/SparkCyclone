@@ -48,7 +48,6 @@ class DynamicCSqlExpressionEvaluationSpec
       s"SELECT AVG(${SampleColA}) FROM nums" -> 10d,
       s"SELECT AVG(2 * ${SampleColA}) FROM nums" -> 20d,
       s"SELECT AVG( 2 * ${SampleColD}) FROM nums" -> 30.0d,
-
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums" -> 0.0d,
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)" -> 0.0d
     ).zipWithIndex.take(4).foreach { case ((sql, expectation), idx) =>
@@ -661,19 +660,19 @@ class DynamicCSqlExpressionEvaluationSpec
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-//      expect(thePlan.toString().contains("CEvaluation"))
+      expect(thePlan.toString().contains("CEvaluation"))
       dataSet
     }
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-//      expect(thePlan.toString().contains("NewCEvaluationPlan"))
+      expect(thePlan.toString().contains("NewCEvaluationPlan"))
       dataSet
     }
 
     def ensureJoinPlanEvaluated(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-//      expect(thePlan.toString().contains("GeneratedJoinPlan"))
+      expect(thePlan.toString().contains("GeneratedJoinPlan"))
       dataSet
     }
 
