@@ -708,7 +708,7 @@ final class TPCHSqlSpec
   "Query 14" in withTpchViews(configuration) { sparkSession =>
     val date = "1995-09-01"
 
-    val sql = """
+    val sql = s"""
       select
         100.00 * sum(
           case
