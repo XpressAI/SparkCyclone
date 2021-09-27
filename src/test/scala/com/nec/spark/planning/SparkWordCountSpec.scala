@@ -30,7 +30,7 @@ final class SparkWordCountSpec extends AnyFreeSpec with BeforeAndAfter with Spar
     import sparkSession.implicits._
     sparkSession.read
       .textFile(SampleTestData.SampleStrCsv.toString)
-      .selectExpr("explode(split(value, ' ')) as word")
+      .selectExpr("explode(split(value, '[, ]')) as word")
       .createOrReplaceTempView("words")
 
     val wordCountQuery =
@@ -39,7 +39,7 @@ final class SparkWordCountSpec extends AnyFreeSpec with BeforeAndAfter with Spar
           "SELECT word, count(word) AS count FROM words GROUP by word HAVING count > 1 ORDER by count DESC LIMIT 10"
         )
         .as[(String, BigInt)]
-
+    println(wordCountQuery.queryExecution.executedPlan)
     assert(wordCountQuery.collect().toList.toMap == Map("some" -> 2, "is" -> 2))
   }
 
