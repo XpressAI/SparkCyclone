@@ -463,8 +463,6 @@ object CFunctionGeneration {
         "std::vector<size_t> left_out;",
         s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
         "long validityBuffSize = ceil(left_out.size() / 8.0);",
-        """std::cout <<"RIGHT:" << right_out.size();  """,
-        """std::cout <<"LEFT:" << left_out.size();  """,
           veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
           joinExpression.fold(whenProj =
             _ =>
