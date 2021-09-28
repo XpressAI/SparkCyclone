@@ -731,7 +731,7 @@ final class TPCHSqlSpec
     val streamId = "1"
     val date = "1996-01-01"
 
-    val sql = s"""
+    val sql1 = s"""
       create view revenue$streamId (supplier_no, total_revenue) as
       select
         l_suppkey,
@@ -742,8 +742,8 @@ final class TPCHSqlSpec
         l_shipdate >= date '$date'
         and l_shipdate < date '$date' + interval '3' month
       group by
-        l_suppkey;
-
+        l_suppkey"""
+    val sql2 = """
       select
         s_suppkey,
         s_name,
@@ -762,14 +762,19 @@ final class TPCHSqlSpec
             revenue$streamId
         )
       order by
-        s_suppkey;
+        s_suppkey"""
 
+    val sql3 = """
       drop view revenue$streamId;
     """
-    sparkSession.sql(sql).debugSqlHere { ds =>
+
+    sparkSession.sql(sql1).show()
+    sparkSession.sql(sql2).debugSqlHere { ds =>
       assert(ds.count() > 0) // 8449 Supplier#000008449 Wp34zim9qYFbVctdW 20-469-856-8873 1772627.21
     }
+    sparkSession.sql(sql3).show()
   }
+
   "Query 16" in withTpchViews(configuration) { sparkSession =>
     val brand = "Brand#45"
     val pType = "MEDIUM POLISHED"
@@ -796,15 +801,16 @@ final class TPCHSqlSpec
             supplier
           where
             s_comment like '%Customer%Complaints%'
-          group by
-            p_brand,
-            p_type,
-            p_size
-          order by
-            supplier_cnt desc,
-            p_brand,
-            p_type,
-            p_size)
+          )
+      group by
+        p_brand,
+        p_type,
+        p_size
+      order by
+        supplier_cnt desc,
+        p_brand,
+        p_type,
+        p_size
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // Brand#41 MEDIUM BRUSHED TIN 3 28
