@@ -58,7 +58,7 @@ object LogicalPlanMatchingSpec {
 
 final class LogicalPlanMatchingSpec extends AnyFreeSpec {
 
-  "parse select-project" in {
+  "parse select-project" ignore {
     import org.apache.spark.sql.catalyst.dsl.expressions._
     import org.apache.spark.sql.catalyst.dsl.plans._
     val result =

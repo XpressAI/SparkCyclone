@@ -55,40 +55,6 @@ object CExpressionEvaluation {
     }
   }
 
-  def genNullCheck(inputs: Seq[Attribute], expression: Expression): String = {
-    expression match {
-      case attr @ AttributeReference(name, _, _, _) =>
-        inputs.indexWhere(_.exprId == attr.exprId) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for ${expression} from set of: ${inputs}")
-          case idx =>
-            s"(check_valid(input_${idx}->validityBuffer, i))"
-        }
-      case NormalizeNaNAndZero(child) => genNullCheck(inputs, child)
-
-      case KnownFloatingPointNormalized(child) => genNullCheck(inputs, child)
-      case alias @ Alias(expr, name)           => genNullCheck(inputs, alias.child)
-      case DateSub(startDate, days) =>
-        s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
-      case DateAdd(startDate, days) =>
-        s"${genNullCheck(inputs, startDate)} && ${genNullCheck(inputs, days)}"
-      case Subtract(left, right, _) =>
-        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
-      case Multiply(left, right, _) =>
-        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
-      case Add(left, right, _) =>
-        s"${genNullCheck(inputs, left)} &&  ${genNullCheck(inputs, right)}"
-      case Divide(left, right, _) =>
-        s"${genNullCheck(inputs, left)} && ${genNullCheck(inputs, right)}"
-      case Abs(v) =>
-        s"${genNullCheck(inputs, v)}"
-      case Literal(v, DoubleType | FloatType | LongType | IntegerType | ShortType) =>
-        "true"
-      case Cast(child, dataType, _) =>
-        genNullCheck(inputs, child)
-    }
-  }
-
   def evaluateSub(inputs: Seq[Attribute], expression: Expression): String = {
     expression match {
       case attr @ AttributeReference(name, _, _, _) =>
