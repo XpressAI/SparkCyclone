@@ -314,7 +314,11 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                           DeclarativeAggregationConverter(
                             other.children
                               .find(_.isInstanceOf[DeclarativeAggregate])
-                              .getOrElse(sys.error(s"Expected a declarative aggregate under ${other}"))
+                              .getOrElse(
+                                sys.error(
+                                  s"Expected a declarative aggregate under ${other} (${other.getClass.getCanonicalName})"
+                                )
+                              )
                               .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                               .asInstanceOf[DeclarativeAggregate]
                           )
