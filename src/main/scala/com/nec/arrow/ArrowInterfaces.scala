@@ -4,8 +4,11 @@ import com.nec.arrow.ArrowTransferStructures._
 import org.apache.arrow.vector._
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
-
 import java.nio.ByteBuffer
+
+import org.apache.arrow.memory.RootAllocator
+
+import org.apache.spark.sql.util.ArrowUtilsExposed
 
 object ArrowInterfaces {
 
@@ -86,6 +89,23 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_int_vector(smallIntVector: SmallIntVector): nullable_int_vector = {
+    val vc = new nullable_int_vector()
+    val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
+    intVector.setValueCount(smallIntVector.getValueCount)
+
+    (0 until smallIntVector.getValueCount)
+
+      .foreach{
+        case idx if(!smallIntVector.isNull(idx)) => intVector.set(idx, smallIntVector.get(idx).toInt)
+        case idx => intVector.setNull(idx)
+      }
+    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = smallIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = smallIntVector.getValueCount
+    vc
+  }
+
   def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -136,7 +156,6 @@ object ArrowInterfaces {
       Math.ceil(input.count / 8.0).toInt
     )
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
-
   }
 
   def non_null_double_vector_to_float8Vector(
@@ -184,6 +203,18 @@ object ArrowInterfaces {
       Math.ceil(input.count / 8.0).toInt
     )
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
+  }
+
+  def nullable_int_vector_to_SmallIntVector(input: nullable_int_vector, smallIntVector: SmallIntVector): Unit = {
+    val intVector = new IntVector("temp", ArrowUtilsExposed.rootAllocator)
+    nullable_int_vector_to_IntVector(input, intVector)
+    smallIntVector.setValueCount(intVector.getValueCount)
+    (0 until intVector.getValueCount).foreach {
+      case idx if(intVector.isNull(idx)) => smallIntVector.setNull(idx)
+      case idx => smallIntVector.set(idx, intVector.get(idx).toShort)
+    }
+    intVector.clear()
+    intVector.close()
   }
 
   def nullable_varchar_vector_to_VarCharVector(

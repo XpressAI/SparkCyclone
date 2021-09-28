@@ -138,6 +138,10 @@ object ArrowNativeInterface {
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = bigIntVector
         }
+        final case class SmallIntVectorInputWrapper(smallIntVector: SmallIntVector)
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = smallIntVector
+        }
       }
     }
     final case class VectorOutputNativeArgument(
@@ -162,6 +166,10 @@ object ArrowNativeInterface {
         final case class VarCharVectorOutputWrapper(varCharVector: VarCharVector)
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = varCharVector
+        }
+        final case class SmallIntVectorOutputWrapper(smallIntVector: SmallIntVector)
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = smallIntVector
         }
       }
     }
@@ -193,6 +201,7 @@ object ArrowNativeInterface {
         case varCharVector: VarCharVector =>
           InputVectorWrapper.VarCharVectorInputWrapper(varCharVector)
         case bigIntVector: BigIntVector => InputVectorWrapper.BigIntVectorInputWrapper(bigIntVector)
+        case smallIntVector: SmallIntVector => InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {
@@ -203,6 +212,8 @@ object ArrowNativeInterface {
           OutputVectorWrapper.Float8VectorOutputWrapper(float8Vector)
         case varCharVector: VarCharVector =>
           OutputVectorWrapper.VarCharVectorOutputWrapper(varCharVector)
+        case smallIntVector: SmallIntVector =>
+          OutputVectorWrapper.SmallIntVectorOutputWrapper(smallIntVector)
       }
     }
   }

@@ -6,14 +6,9 @@ import com.nec.spark.ColumnarBatchToArrow
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.CEvaluationPlan.batchColumnarBatches
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{
-  BigIntVector,
-  BitVectorHelper,
-  Float8Vector,
-  IntVector,
-  VectorSchemaRoot
-}
+import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, Float8Vector, IntVector, SmallIntVector, VectorSchemaRoot}
 import org.apache.commons.lang3.reflect.FieldUtils
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -32,25 +27,18 @@ import org.apache.spark.sql.execution.ColumnarToRowTransition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.DoubleType
+import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, ShortType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import scala.collection.immutable
 import scala.language.dynamics
 
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
-
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import org.apache.arrow.vector.IntVector
-import org.apache.spark.sql.types.LongType
 import org.apache.parquet.format.IntType
-
-import org.apache.arrow.vector.BigIntVector
-import org.apache.spark.sql.types.IntegerType
 object CEvaluationPlan {
 
   object HasFloat8Vector {
@@ -137,6 +125,7 @@ final case class CEvaluationPlan(
                   case DoubleType  => new Float8Vector(s"out_$idx", allocator)
                   case LongType    => new BigIntVector(s"out_$idx", allocator)
                   case IntegerType => new IntVector(s"out_$idx", allocator)
+                  case ShortType => new SmallIntVector(s"out_$idx", allocator)
                   case _           => new Float8Vector(s"out_$idx", allocator)
                 }
               }
@@ -170,6 +159,10 @@ final case class CEvaluationPlan(
                       if (isNull) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))
                     case vector: BigIntVector =>
+                      val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                      if (isNull) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, vector.get(v_idx))
+                    case vector: SmallIntVector =>
                       val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                       if (isNull) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))

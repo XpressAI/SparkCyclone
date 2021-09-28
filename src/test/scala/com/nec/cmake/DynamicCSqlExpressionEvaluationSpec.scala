@@ -5,19 +5,14 @@ import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
 
@@ -44,6 +39,29 @@ class DynamicCSqlExpressionEvaluationSpec
   def configuration: SparkSession.Builder => SparkSession.Builder =
     DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
 
+  "Different single-column expressions can be evaluated" - {
+    List(
+      s"SELECT SUM(${SampleColA}) FROM nums" -> 90.0d,
+      s"SELECT SUM(${SampleColD}) FROM nums" -> 165.0,
+      s"SELECT SUM(${SampleColA} - 1) FROM nums" -> 81.0d,
+      /** The below are ignored for now */
+      s"SELECT AVG(${SampleColA}) FROM nums" -> 10d,
+      s"SELECT AVG(2 * ${SampleColA}) FROM nums" -> 20d,
+      s"SELECT AVG( 2 * ${SampleColD}) FROM nums" -> 30.0d,
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA}) FROM nums" -> 0.0d,
+      s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA} / 2)" -> 0.0d
+    ).zipWithIndex.take(6).foreach { case ((sql, expectation), idx) =>
+      s"(n${idx}) ${sql}" in withSparkSession2(configuration) { sparkSession =>
+        SampleSource.CSV.generate(sparkSession, SanityCheckSize)
+        import sparkSession.implicits._
+
+        sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
+          assert(ds.as[Double].collect().toList == List(expectation))
+        }
+      }
+    }
+  }
+
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
   "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
@@ -65,6 +83,19 @@ class DynamicCSqlExpressionEvaluationSpec
           Some(9),
           Some(58)
         ).sorted
+      )
+    }
+  }
+
+  val sql_pairwise_short = s"SELECT ${SampleColD} + ${SampleColD} FROM nums"
+  "Support pairwise addition with shorts" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_pairwise_short).debugSqlHere { ds =>
+      assert(
+        ds.as[Option[Short]].collect().toList.sorted == List(
+          None, None, Some(2), Some(4), Some(6), Some(8), Some(16), Some(18), Some(22), Some(24), Some(46), Some(84), Some(100)
+        )
       )
     }
   }
@@ -140,6 +171,19 @@ class DynamicCSqlExpressionEvaluationSpec
           (None, Some(5.0), Some(2.0))
         )
       }
+  }
+
+  val sql_mcio =
+    s"SELECT SUM(${SampleColB} - ${SampleColA}), SUM(${SampleColA} + ${SampleColB}) FROM nums"
+  "Support multi-column inputs and inputs" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+
+    sparkSession.sql(sql_mcio).ensureCEvaluating().debugSqlHere { ds =>
+      assert(
+        ds.as[(Option[Double], Option[Double])].collect().toList == List((Some(-42.0), Some(82.0)))
+      )
+    }
   }
 
   val sql_join =
@@ -440,11 +484,12 @@ class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Double, Double, Double)].collect().toList == Nil)
+        ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
+          List((None,None,None), (Some(2.0),Some(0.0),Some(0.5)), (Some(8.0),Some(6.0),Some(2.0)), (Some(6.0),Some(2.0),Some(1.5)), (Some(4.0),Some(3.0),Some(1.0)), (Some(40.0),Some(19.0),Some(10.0)), (Some(104.0),Some(51.0),Some(26.0)))
       }
     }
 
-    val sql3 = s"SELECT ${SampleColA}, SUM(${SampleColB}) as y FROM nums GROUP BY ${SampleColA}"
+    val sql3 = s"SELECT ${SampleColA}, SUM(${SampleColB}), SUM(${SampleColD}) FROM nums GROUP BY ${SampleColA}"
 
     s"Simple Group by is possible with ${sql3}" in withSparkSession2(configuration) {
       sparkSession =>
@@ -453,16 +498,8 @@ class DynamicCSqlExpressionEvaluationSpec
 
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
           assert(
-            ds.as[(Option[Double], Option[Double])].collect().toList.sorted ==
-              List(
-                (None, Some(8.0)),
-                (Some(1.0), Some(2.0)),
-                (Some(2.0), Some(3.0)),
-                (Some(3.0), Some(4.0)),
-                (Some(4.0), Some(5.0)),
-                (Some(20.0), None),
-                (Some(52.0), Some(6.0))
-              )
+            ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted ==
+              List((None,Some(8.0),Some(60)), (Some(1.0),Some(2.0),None), (Some(2.0),Some(3.0),Some(32)), (Some(3.0),Some(4.0),Some(1)), (Some(4.0),Some(5.0),Some(46)), (Some(20.0),None,Some(3)), (Some(52.0),Some(6.0),Some(23)))
           )
         }
     }
@@ -486,6 +523,7 @@ class DynamicCSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
         val result = ds.as[(Double)].collect().toList
+        println(ds.queryExecution.executedPlan)
         assert(result.size == 1)
         result.head shouldEqual (0.7418736765817244 +- 0.05)
       }
@@ -614,7 +652,8 @@ class DynamicCSqlExpressionEvaluationSpec
       )
       .ensureJoinPlanEvaluated()
       .debugSqlHere { ds =>
-        assert(ds.count() == 12)
+        println(ds.queryExecution.executedPlan)
+        assert(ds.count() == 4)
       }
   }
 
