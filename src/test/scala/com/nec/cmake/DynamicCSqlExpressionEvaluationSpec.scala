@@ -523,7 +523,6 @@ class DynamicCSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
         val result = ds.as[(Double)].collect().toList
-        println(ds.queryExecution.executedPlan)
         assert(result.size == 1)
         result.head shouldEqual (0.7418736765817244 +- 0.05)
       }
@@ -652,7 +651,6 @@ class DynamicCSqlExpressionEvaluationSpec
       )
       .ensureJoinPlanEvaluated()
       .debugSqlHere { ds =>
-        println(ds.queryExecution.executedPlan)
         assert(ds.count() == 4)
       }
   }
