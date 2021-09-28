@@ -28,7 +28,7 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
   private var initialized = false
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
-    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+    identity //DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
 
   override protected def afterAll(): Unit = {
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
@@ -37,19 +37,19 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
   override protected def beforeAll(): Unit = {
     import sys.process._
 
-    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
+//    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
 
     val dbGenFile = new File("src/test/resources/dbgen/dbgen")
     if (!dbGenFile.exists()) {
 
-      s"cd ${dbGenFile.getParent} && make && ./dbgen".!
+//      s"cd ${dbGenFile.getParent} && make && ./dbgen".!
     }
 
     val tableFile = new File("src/test/resoruces/dbgen/lineitem.tbl")
     if (!tableFile.exists()) {
       import sys.process._
 
-      s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
+//      s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
     }
 
     super.beforeAll()

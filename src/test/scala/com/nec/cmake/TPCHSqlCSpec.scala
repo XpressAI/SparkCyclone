@@ -115,6 +115,8 @@ object TPCHSqlSpec {
 
 }
 
+
+@Ignore
 class TPCHSqlCSpec
   extends AnyFreeSpec
   with BeforeAndAfter
