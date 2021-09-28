@@ -132,7 +132,7 @@ final class TPCHSqlSpec
     import sparkSession.implicits._
 
     val sc = sparkSession.sparkContext
-    val inputDir = "src/test/resources/dbgen/dbgen"
+    val inputDir = "src/test/resources/dbgen"
 
     val dfMap = Map(
       "customer" -> sc.textFile(inputDir + "/customer.tbl*").map(_.split('|')).map(p =>
