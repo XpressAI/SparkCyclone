@@ -3,8 +3,20 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.StringCExpressionEvaluation
 
+import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
+
 /** Spark-free function evaluation */
 object CFunctionGeneration {
+  def veType(d: DataType): VeScalarType = {
+    d match {
+      case DoubleType =>
+        VeScalarType.VeNullableDouble
+      case IntegerType | DateType =>
+        VeScalarType.VeNullableInt
+      case x =>
+        sys.error(s"unsupported dataType $x")
+    }
+  }
 
   sealed trait CVector {
     def name: String
