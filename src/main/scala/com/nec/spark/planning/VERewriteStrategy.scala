@@ -309,7 +309,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                               .asInstanceOf[DeclarativeAggregate]
                           )
                         )
-                      case other if other.children.forall(_.isInstanceOf[DeclarativeAggregate]) =>
+                      case other if other.children.exists(_.isInstanceOf[DeclarativeAggregate]) =>
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter(
                             other.children
