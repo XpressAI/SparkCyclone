@@ -117,11 +117,11 @@ object TPCHSqlSpec {
 
 final class TPCHSqlSpec
   extends AnyFreeSpec
-  with BeforeAndAfter
-  with BeforeAndAfterAll
-  with SparkAdditions
-  with Matchers
-  with LazyLogging {
+    with BeforeAndAfter
+    with BeforeAndAfterAll
+    with SparkAdditions
+    with Matchers
+    with LazyLogging {
 
   private var initialized = false
 
@@ -684,6 +684,7 @@ final class TPCHSqlSpec
         count(*) as custdist
       from (
         select
+          c_custkey,
           count(o_orderkey)
         from
           customer
@@ -732,7 +733,7 @@ final class TPCHSqlSpec
     val date = "1996-01-01"
 
     val sql1 = s"""
-      create view revenue$streamId (supplier_no, total_revenue) as
+      create temp view revenue$streamId (supplier_no, total_revenue) as
       select
         l_suppkey,
         sum(l_extendedprice * (1 - l_discount))
@@ -743,7 +744,7 @@ final class TPCHSqlSpec
         and l_shipdate < date '$date' + interval '3' month
       group by
         l_suppkey"""
-    val sql2 = """
+    val sql2 = s"""
       select
         s_suppkey,
         s_name,
