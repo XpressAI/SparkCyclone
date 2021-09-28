@@ -19,12 +19,12 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
           case ((Literal(null, tpe), idx), att) =>
             CodeLines.from(
               s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = 0;",
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable_is_set = 0;"
+              s"int ${prefix}_${att.name}_nullable_is_set = 0;"
             )
           case ((Literal(other, tpe), idx), att) =>
             CodeLines.from(
               s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = ${other};",
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable_is_set = 1;"
+              s"int ${prefix}_${att.name}_nullable_is_set = 1;"
             )
           case (other, idx) =>
             sys.error(s"Not supported declarative aggregate input: ${other}")
@@ -45,27 +45,46 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
       .zipWithIndex
       .zip(declarativeAggregate.aggBufferAttributes)
 
-    CodeLines.from(abbs.map { case ((e, idx), aggb) =>
-      val codeEval = SparkVeMapper.eval(e)
-      codeEval.isNotNullCode match {
-        case None =>
-          CodeLines.from(
-            s"${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-            s"${prefix}_${aggb.name}_nullable_is_set = 1;"
-          )
-        case Some(notNullCode) =>
-          CodeLines.from(
-            s"if (${notNullCode}) {",
-            CodeLines
-              .from(
-                s"${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-                s"${prefix}_${aggb.name}_nullable_is_set = 1;"
-              )
-              .indented,
-            "}"
-          )
-      }
-    }.toList)
+    CodeLines.from(
+      abbs.map { case ((e, idx), aggb) =>
+        val codeEval = SparkVeMapper.eval(e)
+        codeEval.isNotNullCode match {
+          case None =>
+            CodeLines.from(
+              s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
+              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = ${prefix}_${aggb.name}_nullable_is_set;"
+            )
+          case Some(notNullCode) =>
+            CodeLines.from(
+              s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
+              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = ${prefix}_${aggb.name}_nullable_is_set;",
+              s"if (${notNullCode}) {",
+              CodeLines
+                .from(
+                  s"tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
+                  s"tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+                )
+                .indented,
+              "}"
+            )
+        }
+      }.toList,
+      abbs.map { case ((e, idx), aggb) =>
+        val codeEval = SparkVeMapper.eval(e)
+        codeEval.isNotNullCode match {
+          case None =>
+            CodeLines.from(
+              s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
+              s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+            )
+          case Some(notNullCode) =>
+            CodeLines.from(
+              s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
+              s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+            )
+        }
+      }.toList
+    )
   }
 
   override def compute(prefix: String): CodeLines =
