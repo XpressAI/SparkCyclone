@@ -115,7 +115,6 @@ object TPCHSqlSpec {
 
 }
 
-@Ignore
 class TPCHSqlCSpec
   extends AnyFreeSpec
   with BeforeAndAfter
@@ -660,6 +659,7 @@ class TPCHSqlCSpec
         count(*) as custdist
       from (
         select
+          c_custkey,
           count(o_orderkey)
         from
           customer
@@ -708,7 +708,7 @@ class TPCHSqlCSpec
     val date = "1996-01-01"
 
     val sql1 = s"""
-      create view revenue$streamId (supplier_no, total_revenue) as
+      create temp view revenue$streamId (supplier_no, total_revenue) as
       select
         l_suppkey,
         sum(l_extendedprice * (1 - l_discount))
@@ -719,7 +719,7 @@ class TPCHSqlCSpec
         and l_shipdate < date '$date' + interval '3' month
       group by
         l_suppkey"""
-    val sql2 = """
+    val sql2 = s"""
       select
         s_suppkey,
         s_name,
@@ -1049,4 +1049,5 @@ class TPCHSqlCSpec
       assert(ds.count() > 0) // 13 888 6737713.99
     }
   }
+
 }
