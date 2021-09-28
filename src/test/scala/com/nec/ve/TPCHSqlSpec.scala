@@ -301,7 +301,7 @@ final class TPCHSqlSpec
           s_acctbal desc,
           n_name,
           s_name,
-          p_partkey;
+          p_partkey
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0)
@@ -333,7 +333,7 @@ final class TPCHSqlSpec
         o_shippriority
       order by
         revenue desc,
-        o_orderdate;
+        o_orderdate
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0)
@@ -396,7 +396,7 @@ final class TPCHSqlSpec
       group by
         n_name
       order by
-        revenue desc;
+        revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0)
@@ -417,7 +417,7 @@ final class TPCHSqlSpec
         and l_shipdate < date '$date' + interval '1' year
         and l_discount between $discount - 0.01
         and $discount + 0.01
-        and l_quantity < $quantity;
+        and l_quantity < $quantity
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // 123141078.23
@@ -464,7 +464,7 @@ final class TPCHSqlSpec
       order by
         supp_nation,
         cust_nation,
-        l_year;
+        l_year
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // FRANCE GERMANY 1995 54639732.73
@@ -514,7 +514,7 @@ final class TPCHSqlSpec
      group by
       o_year
     order by
-      o_year;
+      o_year
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // 1995 0.03
@@ -554,7 +554,7 @@ final class TPCHSqlSpec
         o_year
       order by
         nation,
-        o_year desc;
+        o_year desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0)  // ALGERIA 1998 31342867.24
@@ -593,7 +593,7 @@ final class TPCHSqlSpec
         c_address,
         c_comment
       order by
-        revenue desc;
+        revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0)
@@ -629,7 +629,7 @@ final class TPCHSqlSpec
             and n_name = '$nation'
         )
       order by
-        value desc;
+        value desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // 129760 17538456.86
@@ -668,7 +668,7 @@ final class TPCHSqlSpec
         and l_receiptdate >= date '$date'
         and l_receiptdate < date '$date' + interval '1' year
       group by l_shipmode
-      order by l_shipmode;
+      order by l_shipmode
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // MAIL 6202 9324
@@ -689,14 +689,14 @@ final class TPCHSqlSpec
           customer
         left outer join
           orders on c_custkey = o_custkey
-          and o_comment not like ‘%$word1%$word2%’
+          and o_comment not like '%$word1%$word2%'
         group by c_custkey
       ) as c_orders (c_custkey, c_count)
       group by
         c_count
       order by
         custdist desc,
-        c_count desc;
+        c_count desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) //  9         6641
@@ -720,7 +720,7 @@ final class TPCHSqlSpec
       where
         l_partkey = p_partkey
         and l_shipdate >= date '$date'
-        and l_shipdate < date '$date' + interval '1' month;
+        and l_shipdate < date '$date' + interval '1' month
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
@@ -804,7 +804,7 @@ final class TPCHSqlSpec
             supplier_cnt desc,
             p_brand,
             p_type,
-            p_size;
+            p_size)
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // Brand#41 MEDIUM BRUSHED TIN 3 28
@@ -816,7 +816,7 @@ final class TPCHSqlSpec
 
     val sql = s"""
       select
-        sum(l_extendedprice) / 7.0 as avg_yearly
+        (sum(l_extendedprice) / 7.0) as avg_yearly
       from
         lineitem,
         part
@@ -831,7 +831,7 @@ final class TPCHSqlSpec
             lineitem
           where
             l_partkey = p_partkey
-        );
+        )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) //  348406.05
@@ -873,7 +873,7 @@ final class TPCHSqlSpec
         o_totalprice
       order by
         o_totalprice desc,
-        o_orderdate;
+        o_orderdate
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
@@ -925,7 +925,7 @@ final class TPCHSqlSpec
         and p_size between 1 and 15
         and l_shipmode in ('AIR', 'AIR REG')
         and l_shipinstruct = 'DELIVER IN PERSON'
-      );
+      )
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
@@ -973,7 +973,7 @@ final class TPCHSqlSpec
         and s_nationkey = n_nationkey
         and n_name = '$nation'
       order by
-        s_name;
+        s_name
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // Supplier#000000020 iybAE,RmTymrZVYaFZva2SH,j
@@ -1019,7 +1019,7 @@ final class TPCHSqlSpec
         s_name
       order by
         numwait desc,
-        s_name;
+        s_name
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // Supplier#000002829            20
@@ -1061,7 +1061,7 @@ final class TPCHSqlSpec
       group by
         cntrycode
       order by
-        cntrycode;
+        cntrycode
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.count() > 0) // 13 888 6737713.99
