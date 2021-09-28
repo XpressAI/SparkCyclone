@@ -4,7 +4,7 @@ import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.{CExpressionEvaluation, DeclarativeAggregationConverter, SparkVeMapper}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -228,60 +228,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           )
 
         }
-        case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
-              /** If it's just a rename, don't send to VE * */
-              case a: Alias if a.child.isInstanceOf[Attribute] => true
-              case a: AttributeReference                       => true
-              case _                                           => false
-            } =>
-          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          try {
-            List(
-              CEvaluationPlan(
-                fName,
-                resultExpressions,
-                CExpressionEvaluation
-                  .cGenProject(
-                    fName = fName,
-                    inputReferences = proj.references.map(_.name).toSet,
-                    childOutputs = child.output,
-                    resultExpressions = resultExpressions,
-                    maybeFilter = None
-                  ),
-                planLater(child),
-                proj.references.map(_.name).toSet,
-                nativeEvaluator
-              )
-            )
-          } catch {
-            case e: Throwable =>
-              throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
-          }
 
-        case proj @ logical.Project(resultExpressions, logical.Filter(condition, child))
-            if (!condition.isInstanceOf[IsNotNull]) =>
-          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-          try List(
-            CEvaluationPlan(
-              fName,
-              resultExpressions,
-              CExpressionEvaluation
-                .cGenProject(
-                  fName = fName,
-                  inputReferences = proj.references.map(_.name).toSet,
-                  childOutputs = child.output,
-                  resultExpressions = resultExpressions,
-                  maybeFilter = Some(condition)
-                ),
-              planLater(child),
-              proj.references.map(_.name).toSet,
-              nativeEvaluator
-            )
-          )
-          catch {
-            case e: Throwable =>
-              throw new RuntimeException(s"Could not match: ${proj} due to $e", e)
-          }
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
             if child.output.nonEmpty && aggregateExpressions.nonEmpty =>
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[

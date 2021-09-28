@@ -2,15 +2,10 @@ package com.nec.spark.agile
 
 import com.nec.arrow.ArrowNativeInterface
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CFunctionGeneration.{
-  CExpression,
-  CScalarVector,
-  NamedTypedCExpression,
-  VeProjection,
-  VeScalarType
-}
-import com.nec.spark.agile.LogicalPlanMatchingSpec.{toVeTransformation, NoopEvaluator}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, CScalarVector, NamedTypedCExpression, VeProjection, VeScalarType}
+import com.nec.spark.agile.LogicalPlanMatchingSpec.{NoopEvaluator, toVeTransformation}
 import com.nec.spark.planning.VERewriteStrategy
+
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
 import org.apache.spark.sql.catalyst.catalog.{InMemoryCatalog, SessionCatalog}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference}
@@ -38,12 +33,12 @@ object LogicalPlanMatchingSpec {
         } =>
       VeProjection(
         inputs = child.output.toList.zipWithIndex.map { case (attr, idx) =>
-          CScalarVector(s"input_$idx", CExpressionEvaluation.veType(attr.dataType))
+          CScalarVector(s"input_$idx", CFunctionGeneration.veType(attr.dataType))
         },
         outputs = resultExpressions.zipWithIndex.map { case (ne, idx) =>
           NamedTypedCExpression(
             s"output_$idx",
-            CExpressionEvaluation.veType(ne.dataType),
+            CFunctionGeneration.veType(ne.dataType),
             CExpression(
               CExpressionEvaluation.evaluateExpression(proj.references.toList, ne),
               isNotNullCode = None
