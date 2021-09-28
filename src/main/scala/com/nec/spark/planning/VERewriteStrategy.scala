@@ -309,10 +309,13 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                               .asInstanceOf[DeclarativeAggregate]
                           )
                         )
-                      case AggregateExpression(d: DeclarativeAggregate, _, _, _, _) =>
+                      case other if other.children.forall(_.isInstanceOf[DeclarativeAggregate]) =>
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter(
-                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            other.children
+                              .find(_.isInstanceOf[DeclarativeAggregate])
+                              .getOrElse(sys.error(s"Expected a declarative aggregate under ${other}"))
+                              .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                               .asInstanceOf[DeclarativeAggregate]
                           )
                         )
