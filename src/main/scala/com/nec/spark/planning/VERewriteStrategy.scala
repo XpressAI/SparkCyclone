@@ -299,6 +299,13 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                               .asInstanceOf[DeclarativeAggregate]
                           )
                         )
+                      case AggregateExpression(d: DeclarativeAggregate, _, _, _, _) =>
+                        GroupByExpression.GroupByAggregation(
+                          DeclarativeAggregationConverter(
+                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                              .asInstanceOf[DeclarativeAggregate]
+                          )
+                        )
                       case Alias(other, _) =>
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper.eval(
