@@ -286,6 +286,16 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     )
                   )
                 )
+              case (stringExp, idx) if stringExp.dataType == StringType =>
+                Left(
+                  NamedStringProducer(
+                    name = s"output_${idx}",
+                    stringProducer = SparkVeMapper.evalString(
+                      stringExp
+                        .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                    )
+                  )
+                )
               case (namedExpression, idx) =>
                 Right(
                   NamedGroupByExpression(
