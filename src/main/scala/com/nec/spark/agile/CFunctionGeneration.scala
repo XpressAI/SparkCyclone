@@ -49,6 +49,14 @@ object CFunctionGeneration {
       override def cSize: Int = 8
     }
 
+    case object VeNullableFloat extends VeScalarType {
+      def cScalarType: String = "float"
+
+      def cVectorType: String = "nullable_float_vector"
+
+      override def cSize: Int = 4
+    }
+
     case object VeNullableInt extends VeScalarType {
       def cScalarType: String = "int32_t"
 
