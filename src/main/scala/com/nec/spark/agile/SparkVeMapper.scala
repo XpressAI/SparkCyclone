@@ -1,11 +1,47 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, JoinType, LeftOuterJoin, RightOuterJoin, VeScalarType, VeString, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CExpression,
+  JoinType,
+  LeftOuterJoin,
+  RightOuterJoin,
+  VeScalarType,
+  VeString,
+  VeType
+}
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryArithmetic, BinaryOperator, CaseWhen, Cast, Coalesce, EqualTo, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Sqrt}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  BinaryArithmetic,
+  BinaryOperator,
+  CaseWhen,
+  Cast,
+  Coalesce,
+  EqualTo,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Sqrt
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, RightOuter}
-import org.apache.spark.sql.types.{BooleanType, DataType, DoubleType, IntegerType, LongType, ShortType, StringType}
+import org.apache.spark.sql.types.{
+  BooleanType,
+  DataType,
+  DoubleType,
+  IntegerType,
+  LongType,
+  ShortType,
+  StringType
+}
 import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
@@ -104,8 +140,12 @@ object SparkVeMapper {
           Some(Literal(f: UTF8String, StringType))
         ) =>
       StringProducer.StringChooser(eval(predicate), t.toString, f.toString)
+    case AttributeReference(name, StringType, _, _) =>
+      StringProducer.copyString(name)
     case other =>
-      sys.error(s"Cannot support ${expression} for String evaluation (${expression.getClass})")
+      sys.error(
+        s"Expression of type [${expression.getClass}] not yet supported for String evaluation (${expression})"
+      )
   }
 
   def eval(expression: Expression): CExpression = {
