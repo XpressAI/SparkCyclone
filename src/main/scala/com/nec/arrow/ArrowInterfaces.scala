@@ -89,6 +89,21 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_bit_vector(bitVector: BitVector): nullable_int_vector = {
+    val vc = new nullable_int_vector()
+    val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
+    intVector.setValueCount(bitVector.getValueCount)
+
+    (0 until bitVector.getValueCount).foreach{
+      case idx if(!bitVector.isNull(idx)) => intVector.set(idx, bitVector.get(idx))
+      case idx => intVector.setNull(idx)
+    }
+    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = bitVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = bitVector.getValueCount
+    vc
+  }
+
   def c_nullable_int_vector(smallIntVector: SmallIntVector): nullable_int_vector = {
     val vc = new nullable_int_vector()
     val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)

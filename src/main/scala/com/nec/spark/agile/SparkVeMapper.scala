@@ -1,46 +1,11 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CFunctionGeneration.{
-  CExpression,
-  JoinType,
-  LeftOuterJoin,
-  RightOuterJoin,
-  VeScalarType,
-  VeString,
-  VeType
-}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, JoinType, LeftOuterJoin, RightOuterJoin, VeScalarType, VeString, VeType}
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  BinaryArithmetic,
-  BinaryOperator,
-  CaseWhen,
-  Cast,
-  Coalesce,
-  EqualTo,
-  ExprId,
-  Expression,
-  Greatest,
-  If,
-  IsNotNull,
-  IsNull,
-  KnownFloatingPointNormalized,
-  Least,
-  Literal,
-  Sqrt
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryArithmetic, BinaryOperator, CaseWhen, Cast, Coalesce, EqualTo, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Sqrt}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, RightOuter}
-import org.apache.spark.sql.types.{
-  DataType,
-  DoubleType,
-  IntegerType,
-  LongType,
-  ShortType,
-  StringType
-}
+import org.apache.spark.sql.types.{BooleanType, DataType, DoubleType, IntegerType, LongType, ShortType, StringType}
 import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
@@ -277,6 +242,7 @@ object SparkVeMapper {
       case IntegerType => VeScalarType.veNullableInt
       case LongType    => VeScalarType.veNullableLong
       case ShortType   => VeScalarType.veNullableInt
+      case BooleanType => VeScalarType.veNullableInt
     }
   }
 }

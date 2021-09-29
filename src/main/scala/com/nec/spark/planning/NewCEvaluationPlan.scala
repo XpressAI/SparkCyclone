@@ -3,7 +3,7 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, SmallIntVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{BigIntVector, BitVector, Float8Vector, IntVector, SmallIntVector, VarCharVector, VectorSchemaRoot}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -76,6 +76,8 @@ final case class NewCEvaluationPlan(
                   bigIntVector
                 case smallIntVector: SmallIntVector =>
                   smallIntVector
+                case bitVector: BitVector =>
+                  bitVector
               }
             }
 
@@ -140,6 +142,9 @@ final case class NewCEvaluationPlan(
                       if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))
                     case vector: SmallIntVector =>
+                      if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, vector.get(v_idx))
+                    case vector: BitVector =>
                       if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))
                   }
