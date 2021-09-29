@@ -118,6 +118,16 @@ class DynamicCSqlExpressionEvaluationSpec
       )
     }
   }
+  val sum_multiplication = s"SELECT 2 * SUM(${SampleColA}) FROM nums"
+  "Support multiplication of sum" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sum_multiplication).ensureCEvaluating().debugSqlHere { ds =>
+      assert(
+        ds.as[Double].collect().head == 180D
+      )
+    }
+  }
 
   val sql_mci = s"SELECT SUM(${SampleColA} + ${SampleColB}) FROM nums"
   "Support multi-column inputs" in withSparkSession2(configuration) { sparkSession =>
