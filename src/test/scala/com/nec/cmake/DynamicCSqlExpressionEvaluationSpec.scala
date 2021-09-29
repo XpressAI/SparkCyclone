@@ -667,6 +667,18 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"Strings can appear in the select clause" in  withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql = "select s, sum(x + y) from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[(String, Double)].collect().toList == List(
+        ("yes", 40),
+        ("no", 42),
+      ))
+    }
+  }
+
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
