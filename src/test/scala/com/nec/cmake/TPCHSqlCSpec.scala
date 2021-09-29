@@ -742,7 +742,7 @@ class TPCHSqlCSpec
       order by
         s_suppkey"""
 
-    val sql3 = """
+    val sql3 = s"""
       drop view revenue$streamId;
     """
 
