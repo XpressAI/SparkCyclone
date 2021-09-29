@@ -655,6 +655,13 @@ class DynamicCSqlExpressionEvaluationSpec
       }
   }
 
+  s"Boolean query does not crash" in  withSparkSession2(configuration) { sparkSession =>
+    val sql = "select sum(x), sum(y) from values (true, 10, 20), (false, 30, 12), (true, 0, 10) as tab(b, x, y) group by b"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.count() == 3)
+    }
+  }
+
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
