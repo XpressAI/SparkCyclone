@@ -1,35 +1,20 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CExpressionEvaluation.NameCleaner
-import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
-  Count,
   DeclarativeAggregate
 }
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  Concat,
-  EqualTo,
-  IsNotNull,
-  Length,
-  Literal,
-  NamedExpression,
-  Substring,
-  Subtract
-}
-import org.apache.spark.sql.catalyst.plans
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.catalyst.plans.{logical, Inner}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
+import org.apache.spark.sql.catalyst.plans.logical
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.{IntegerType, StringType}
+import org.apache.spark.sql.types.StringType
 
 import scala.collection.immutable
 
@@ -269,7 +254,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                       SparkVeMapper.sparkTypeToScalarVeType(other),
                       SparkVeMapper.eval(
                         SparkVeMapper
-                          .replaceReferences(inputs = child.output.toList, expression = expr)
+                          .replaceReferences(inputs = child.output.toList, expression = expr),
+                        EvalFallback.noOp
                       )
                     )
                   )
@@ -282,7 +268,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     name = s"output_${idx}",
                     stringProducer = SparkVeMapper.evalString(
                       namedExpression
-                        .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                        .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
+                      EvalFallback.noOp
                     )
                   )
                 )
@@ -292,7 +279,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     name = s"output_${idx}",
                     stringProducer = SparkVeMapper.evalString(
                       stringExp
-                        .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                        .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
+                      EvalFallback.noOp
                     )
                   )
                 )
@@ -306,7 +294,8 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter(
                             d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate]
+                              .asInstanceOf[DeclarativeAggregate],
+                            EvalFallback.noOp
                           )
                         )
                       case other if other.children.exists(_.isInstanceOf[DeclarativeAggregate]) =>
@@ -320,19 +309,22 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                                 )
                               )
                               .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate]
+                              .asInstanceOf[DeclarativeAggregate],
+                            EvalFallback.noOp
                           )
                         )
                       case Alias(other, _) =>
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper.eval(
-                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList)),
+                            EvalFallback.noOp
                           )
                         )
                       case other =>
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper.eval(
-                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList)),
+                            EvalFallback.noOp
                           )
                         )
                     }

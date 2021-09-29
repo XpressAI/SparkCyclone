@@ -2,6 +2,7 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression}
+import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, Literal}
 
@@ -9,8 +10,10 @@ import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression
  * Many of Spark's aggregations can be reduced to repetition of simple operations.
  * Here we perform exactly that.
  */
-final case class DeclarativeAggregationConverter(declarativeAggregate: DeclarativeAggregate)
-  extends Aggregation {
+final case class DeclarativeAggregationConverter(
+  declarativeAggregate: DeclarativeAggregate,
+  evalFallback: EvalFallback
+) extends Aggregation {
   override def initial(prefix: String): CodeLines = {
     CodeLines.from(
       declarativeAggregate.initialValues.zipWithIndex
@@ -47,7 +50,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
 
     CodeLines.from(
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e)
+        val codeEval = SparkVeMapper.eval(e, evalFallback)
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -70,7 +73,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         }
       }.toList,
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e)
+        val codeEval = SparkVeMapper.eval(e, evalFallback)
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -91,7 +94,10 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
     CodeLines.empty
 
   override def fetch(prefix: String): CExpression = {
-    SparkVeMapper.eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)))
+    SparkVeMapper.eval(
+      declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)),
+      evalFallback
+    )
   }
 
   override def free(prefix: String): CodeLines = CodeLines.empty

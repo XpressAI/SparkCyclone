@@ -1,20 +1,10 @@
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CFunctionGeneration.{
-  CExpression,
-  JoinType,
-  LeftOuterJoin,
-  RightOuterJoin,
-  VeScalarType,
-  VeString,
-  VeType
-}
+import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
   Attribute,
   AttributeReference,
-  BinaryArithmetic,
   BinaryOperator,
   CaseWhen,
   Cast,
@@ -32,16 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   Sqrt
 }
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.catalyst.plans.{LeftOuter, RightOuter}
-import org.apache.spark.sql.types.{
-  BooleanType,
-  DataType,
-  DoubleType,
-  IntegerType,
-  LongType,
-  ShortType,
-  StringType
-}
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
@@ -134,21 +115,37 @@ object SparkVeMapper {
 
   val binaryOperatorOverride = Map("=" -> "==")
 
-  def evalString(expression: Expression): StringProducer = expression match {
-    case CaseWhen(
-          Seq((predicate, Literal(t: UTF8String, StringType))),
-          Some(Literal(f: UTF8String, StringType))
-        ) =>
-      StringProducer.StringChooser(eval(predicate), t.toString, f.toString)
-    case AttributeReference(name, StringType, _, _) =>
-      StringProducer.copyString(name)
-    case other =>
-      sys.error(
-        s"Expression of type [${expression.getClass}] not yet supported for String evaluation (${expression})"
-      )
+  def evalString(expression: Expression, fallback: EvalFallback): StringProducer =
+    expression match {
+      case CaseWhen(
+            Seq((predicate, Literal(t: UTF8String, StringType))),
+            Some(Literal(f: UTF8String, StringType))
+          ) =>
+        StringProducer.StringChooser(eval(predicate, fallback), t.toString, f.toString)
+      case AttributeReference(name, StringType, _, _) =>
+        StringProducer.copyString(name)
+      case other =>
+        sys.error(
+          s"Expression of type [${expression.getClass}] not yet supported for String evaluation (${expression})"
+        )
+    }
+
+  /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
+  trait EvalFallback {
+    def fallback: PartialFunction[Expression, CExpression]
+
+    final def unapply(input: Expression): Option[CExpression] = fallback.lift(input)
   }
 
-  def eval(expression: Expression): CExpression = {
+  object EvalFallback {
+    def noOp: EvalFallback = NoOpFallback
+
+    object NoOpFallback extends EvalFallback {
+      override def fallback: PartialFunction[Expression, CExpression] = PartialFunction.empty
+    }
+  }
+
+  def eval(expression: Expression, fallback: EvalFallback): CExpression = {
     expression match {
       case EqualTo(left: AttributeReference, right: Literal)
           if left.dataType == StringType && right.dataType == StringType =>
@@ -161,26 +158,29 @@ object SparkVeMapper {
         )
       case b: BinaryOperator =>
         CExpression(
-          cCode = s"((${eval(b.left).cCode}) ${binaryOperatorOverride
-            .getOrElse(b.symbol, b.symbol)} (${eval(b.right).cCode}))",
+          cCode = s"((${eval(b.left, fallback).cCode}) ${binaryOperatorOverride
+            .getOrElse(b.symbol, b.symbol)} (${eval(b.right, fallback).cCode}))",
           isNotNullCode = Option(
-            (eval(b.left).isNotNullCode.toList ++
-              eval(b.right).isNotNullCode.toList)
+            (eval(b.left, fallback).isNotNullCode.toList ++
+              eval(b.right, fallback).isNotNullCode.toList)
           ).filter(_.nonEmpty).map(_.mkString("(", " && ", ")"))
         )
-      case KnownFloatingPointNormalized(child) => eval(child)
-      case NormalizeNaNAndZero(child)          => eval(child)
+      case KnownFloatingPointNormalized(child) => eval(child, fallback)
+      case NormalizeNaNAndZero(child)          => eval(child, fallback)
       case Sqrt(c) =>
-        CExpression(cCode = s"sqrt(${eval(c).cCode})", isNotNullCode = eval(c).isNotNullCode)
+        CExpression(
+          cCode = s"sqrt(${eval(c, fallback).cCode})",
+          isNotNullCode = eval(c, fallback).isNotNullCode
+        )
       case Coalesce(children) if children.size == 1 =>
-        eval(children.head)
+        eval(children.head, fallback)
       case Coalesce(children) =>
-        val first = eval(children.head)
+        val first = eval(children.head, fallback)
 
         first.isNotNullCode match {
           case None => first
           case Some(notNullCheck) =>
-            val sub = eval(Coalesce(children.drop(1)))
+            val sub = eval(Coalesce(children.drop(1)), fallback)
             CExpression(
               cCode = s"(${notNullCheck}) ? ${first.cCode} : ${sub.cCode}",
               isNotNullCode = sub.isNotNullCode match {
@@ -206,7 +206,7 @@ object SparkVeMapper {
           )
       case IsNull(child) =>
         CExpression(
-          cCode = eval(child).isNotNullCode match {
+          cCode = eval(child, fallback).isNotNullCode match {
             case None => "0"
             case Some(notNullCode) =>
               s"!(${notNullCode})"
@@ -216,7 +216,7 @@ object SparkVeMapper {
         )
       case IsNotNull(child) =>
         CExpression(
-          cCode = eval(child).isNotNullCode match {
+          cCode = eval(child, fallback).isNotNullCode match {
             case None => "1"
             case Some(notNullCode) =>
               notNullCode
@@ -227,7 +227,7 @@ object SparkVeMapper {
       case If(predicate, trueValue, falseValue) =>
         CExpression(
           cCode =
-            s"(${eval(predicate).cCode}) ? (${eval(trueValue).cCode}) : (${eval(falseValue).cCode})",
+            s"(${eval(predicate, fallback).cCode}) ? (${eval(trueValue, fallback).cCode}) : (${eval(falseValue, fallback).cCode})",
           isNotNullCode = None
         )
       case Literal(null, d) =>
@@ -236,38 +236,40 @@ object SparkVeMapper {
         CExpression(cCode = s"$v", isNotNullCode = None)
       case Cast(child, newDt, None) =>
         CExpression(
-          cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) ${eval(child).cCode}",
-          isNotNullCode = eval(child).isNotNullCode
+          cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) ${eval(child, fallback).cCode}",
+          isNotNullCode = eval(child, fallback).isNotNullCode
         )
       case Greatest(children) =>
         FlatToNestedFunction.runWhenNotNull(
-          items = children.map(exp => eval(exp)).toList,
+          items = children.map(exp => eval(exp, fallback)).toList,
           function = "std::max"
         )
       case Least(children) =>
         FlatToNestedFunction.runWhenNotNull(
-          items = children.map(exp => eval(exp)).toList,
+          items = children.map(exp => eval(exp, fallback)).toList,
           function = "std::min"
         )
       case Cast(child, dataType, _) =>
         dataType match {
           case IntegerType => {
-            val childExpression = eval(child)
+            val childExpression = eval(child, fallback)
             childExpression.copy("((int)" + childExpression.cCode + ")")
           }
 
           case DoubleType => {
-            val childExpression = eval(child)
+            val childExpression = eval(child, fallback)
             childExpression.copy("((int)" + childExpression.cCode + ")")
           }
 
           case LongType => {
-            val childExpression = eval(child)
+            val childExpression = eval(child, fallback)
             childExpression.copy("((long long)" + childExpression.cCode + ")")
           }
         }
       case NoOp =>
         CExpression("0", Some("false"))
+      case fallback(result) =>
+        result
       case other =>
         sys.error(
           s"not supported ${other}: " + expression.getClass.getCanonicalName + ": " + expression
