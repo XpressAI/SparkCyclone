@@ -131,10 +131,15 @@ object SparkVeMapper {
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
-  trait EvalFallback {
+  trait EvalFallback { ef =>
     def fallback: PartialFunction[Expression, CExpression]
 
     final def unapply(input: Expression): Option[CExpression] = fallback.lift(input)
+
+    final def orElse(elseCase: EvalFallback): EvalFallback = new EvalFallback {
+      override def fallback: PartialFunction[Expression, CExpression] =
+        ef.fallback.orElse(elseCase.fallback)
+    }
   }
 
   object EvalFallback {
@@ -142,6 +147,10 @@ object SparkVeMapper {
 
     object NoOpFallback extends EvalFallback {
       override def fallback: PartialFunction[Expression, CExpression] = PartialFunction.empty
+    }
+
+    def from(pf: PartialFunction[Expression, CExpression]): EvalFallback = new EvalFallback {
+      override def fallback: PartialFunction[Expression, CExpression] = pf
     }
   }
 
@@ -191,19 +200,18 @@ object SparkVeMapper {
               }
             )
         }
-      case ar: AttributeReference =>
-        if (ar.name.endsWith("_nullable"))
-          CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set"))
-        else
-          CExpression(
-            cCode = ar.name,
-            isNotNullCode = if (ar.name.contains("data[")) {
-              val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
-              Some(
-                s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
-              )
-            } else None
-          )
+      case ar: AttributeReference if ar.name.endsWith("_nullable") =>
+        CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set"))
+      case ar: AttributeReference if ar.name.contains("data[") =>
+        CExpression(
+          cCode = ar.name,
+          isNotNullCode = {
+            val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
+            Some(
+              s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
+            )
+          }
+        )
       case IsNull(child) =>
         CExpression(
           cCode = eval(child, fallback).isNotNullCode match {
@@ -274,11 +282,8 @@ object SparkVeMapper {
             val cond = eval(caseExp, fallback)
             val value = eval(valueExp, fallback)
 
-            CExpression(
-              cCode = s"(${value.cCode})",
-              isNotNullCode = Some(s"${cond.cCode}")
-            )
-          case Seq((caseExp, valueExp), xs@_*) =>
+            CExpression(cCode = s"(${value.cCode})", isNotNullCode = Some(s"${cond.cCode}"))
+          case Seq((caseExp, valueExp), xs @ _*) =>
             eval(CaseWhen(Seq((caseExp, valueExp)), Some(CaseWhen(xs))), fallback)
         }
       case CaseWhen(branches, Some(elseValue)) =>
@@ -289,9 +294,10 @@ object SparkVeMapper {
 
             CExpression(
               cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})",
-              isNotNullCode = Some(s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})")
+              isNotNullCode =
+                Some(s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})")
             )
-          case Seq((caseExp, valueExp), xs@_*) =>
+          case Seq((caseExp, valueExp), xs @ _*) =>
             eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)), fallback)
         }
       case fallback(result) =>

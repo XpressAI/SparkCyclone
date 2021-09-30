@@ -1,9 +1,13 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression}
+import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression, DelegatingAggregation}
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
-import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  DeclarativeAggregate
+}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, Literal}
 
 /**
@@ -103,4 +107,38 @@ final case class DeclarativeAggregationConverter(
   override def free(prefix: String): CodeLines = CodeLines.empty
 }
 
-object DeclarativeAggregationConverter {}
+object DeclarativeAggregationConverter {
+
+  private final case class TransformingAggregation(
+    declarativeAggregationConverter: DeclarativeAggregationConverter,
+    transformResult: CExpression => CExpression
+  ) extends DelegatingAggregation(declarativeAggregationConverter) {
+    override def fetch(prefix: String): CExpression = {
+      transformResult(super.fetch(prefix))
+    }
+  }
+
+  object AggregateHole extends UnresolvedAttribute(Seq.empty)
+
+  def transformingFetch(expression: Expression, fallback: EvalFallback): Option[Aggregation] = {
+    expression.collectFirst {
+      case ae @ AggregateExpression(d: DeclarativeAggregate, mode, isDistinct, filter, resultId) =>
+        val conv = DeclarativeAggregationConverter(d, fallback)
+        TransformingAggregation(
+          conv,
+          originalResult =>
+            SparkVeMapper.eval(
+              expression.transformDown { case `ae` =>
+                AggregateHole
+              },
+              EvalFallback
+                .from { case AggregateHole =>
+                  originalResult
+                }
+                .orElse(fallback)
+            )
+        )
+    }
+  }
+
+}

@@ -11,7 +11,11 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
   DeclarativeAggregate
 }
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate, HyperLogLogPlusPlus}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  DeclarativeAggregate,
+  HyperLogLogPlusPlus
+}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -220,7 +224,14 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
             if child.output.nonEmpty &&
               aggregateExpressions.nonEmpty &&
-              !Try(aggregateExpressions.head.asInstanceOf[Alias].child.asInstanceOf[AggregateExpression].aggregateFunction.isInstanceOf[HyperLogLogPlusPlus]).getOrElse(false) =>
+              !Try(
+                aggregateExpressions.head
+                  .asInstanceOf[Alias]
+                  .child
+                  .asInstanceOf[AggregateExpression]
+                  .aggregateFunction
+                  .isInstanceOf[HyperLogLogPlusPlus]
+              ).getOrElse(false) =>
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
             NamedStringProducer,
             NamedGroupByExpression
@@ -303,20 +314,37 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                             EvalFallback.noOp
                           )
                         )
-                      case other if other.children.exists(_.isInstanceOf[DeclarativeAggregate]) =>
+                      case Alias(other, _) if other.collectFirst { case _: DeclarativeAggregate =>
+                            ()
+                          }.nonEmpty =>
                         GroupByExpression.GroupByAggregation(
-                          DeclarativeAggregationConverter(
-                            other.children
-                              .find(_.isInstanceOf[DeclarativeAggregate])
-                              .getOrElse(
-                                sys.error(
-                                  s"Expected a declarative aggregate under ${other} (${other.getClass.getCanonicalName})"
-                                )
+                          DeclarativeAggregationConverter
+                            .transformingFetch(
+                              other
+                                .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
+                              EvalFallback.noOp
+                            )
+                            .getOrElse(
+                              sys.error(
+                                s"Cannot figure out how to replace: ${other} (${other.getClass})"
                               )
-                              .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate],
-                            EvalFallback.noOp
-                          )
+                            )
+                        )
+                      case other if other.collectFirst { case _: DeclarativeAggregate =>
+                            ()
+                          }.nonEmpty =>
+                        GroupByExpression.GroupByAggregation(
+                          DeclarativeAggregationConverter
+                            .transformingFetch(
+                              other
+                                .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
+                              EvalFallback.noOp
+                            )
+                            .getOrElse(
+                              sys.error(
+                                s"Cannot figure out how to replace: ${other} (${other.getClass})"
+                              )
+                            )
                         )
                       case Alias(other, _) =>
                         GroupByExpression.GroupByProjection(
