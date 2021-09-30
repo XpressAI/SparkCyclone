@@ -128,6 +128,18 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  "Support AVG x SUM" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession
+      .sql(s"SELECT SUM(${SampleColA}) * AVG(${SampleColB}) as ddz FROM nums")
+      .ensureCEvaluating()
+      .debugSqlHere { ds =>
+        val result = ds.as[Double].collect().toList
+        assert(result == List[Double](360.0))
+      }
+  }
+
   val sql_mci = s"SELECT SUM(${SampleColA} + ${SampleColB}) FROM nums"
   "Support multi-column inputs" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)

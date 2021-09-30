@@ -187,6 +187,18 @@ object CFunctionGeneration {
     def free(prefix: String): CodeLines
   }
 
+  final case class SuffixedAggregation(suffix: String, original: Aggregation) extends Aggregation {
+    override def initial(prefix: String): CodeLines = original.initial(s"$prefix$suffix")
+
+    override def iterate(prefix: String): CodeLines = original.iterate(s"$prefix$suffix")
+
+    override def compute(prefix: String): CodeLines = original.compute(s"$prefix$suffix")
+
+    override def fetch(prefix: String): CExpression = original.fetch(s"$prefix$suffix")
+
+    override def free(prefix: String): CodeLines = original.free(s"$prefix$suffix")
+  }
+
   abstract class DelegatingAggregation(val original: Aggregation) extends  Aggregation {
     override def initial(prefix: String): CodeLines = original.initial(prefix)
 
