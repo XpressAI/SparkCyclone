@@ -274,10 +274,6 @@ object SparkVeMapper {
               isNotNullCode = Some(s"${cond.cCode}")
             )
           case Seq((caseExp, valueExp), xs@_*) =>
-            val cond = eval(caseExp, fallback)
-            val value = eval(valueExp, fallback)
-
-            // case when x then y when w then z end == case when x then y else case when w then z end
             eval(CaseWhen(Seq((caseExp, valueExp)), Some(CaseWhen(xs))), fallback)
         }
       case CaseWhen(branches, Some(elseValue)) =>
