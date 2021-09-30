@@ -27,6 +27,7 @@ import org.scalatest.freespec.AnyFreeSpec
  */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   import com.nec.cmake.eval.RealExpressionEvaluationSpec._
+  private implicit val fallback = EvalFallback.noOp
 
   "We can transform a column" in {
     expect(
@@ -336,8 +337,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         TypedGroupByExpression[Double](
           GroupByAggregation(
             DeclarativeAggregationConverter(
-              Sum(AttributeReference("input_0->data[i]", DoubleType)()),
-              EvalFallback.noOp
+              Sum(AttributeReference("input_0->data[i]", DoubleType)())
             )
           )
         )
@@ -501,8 +501,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
               Corr(
                 AttributeReference("input_2->data[i]", DoubleType)(),
                 AttributeReference("input_2->data[i]", DoubleType)()
-              ),
-              EvalFallback.noOp
+              )
             )
           )
         )

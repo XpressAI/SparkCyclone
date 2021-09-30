@@ -115,19 +115,19 @@ object SparkVeMapper {
 
   val binaryOperatorOverride = Map("=" -> "==")
 
-  def evalString(expression: Expression, fallback: EvalFallback): StringProducer =
+  def evalString(
+    expression: Expression
+  )(implicit fallback: EvalFallback): Either[Expression, StringProducer] =
     expression match {
       case CaseWhen(
             Seq((predicate, Literal(t: UTF8String, StringType))),
             Some(Literal(f: UTF8String, StringType))
           ) =>
-        StringProducer.StringChooser(eval(predicate, fallback), t.toString, f.toString)
+        eval(predicate).map { ce =>
+          StringProducer.StringChooser(ce, t.toString, f.toString)
+        }
       case AttributeReference(name, StringType, _, _) =>
-        StringProducer.copyString(name)
-      case other =>
-        sys.error(
-          s"Expression of type [${expression.getClass}] not yet supported for String evaluation (${expression})"
-        )
+        Right(StringProducer.copyString(name))
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
@@ -145,7 +145,7 @@ object SparkVeMapper {
   object EvalFallback {
     def noOp: EvalFallback = NoOpFallback
 
-    object NoOpFallback extends EvalFallback {
+    private object NoOpFallback extends EvalFallback {
       override def fallback: PartialFunction[Expression, CExpression] = PartialFunction.empty
     }
 
@@ -154,159 +154,192 @@ object SparkVeMapper {
     }
   }
 
-  def eval(expression: Expression, fallback: EvalFallback): CExpression = {
+  /** Either we return a successful expression, or point to the errored expression */
+  type EvaluationAttempt = Either[Expression, CExpression]
+
+  object EvaluationAttempt {
+    implicit class RichEvaluationAttempt(evaluationAttempt: EvaluationAttempt) {
+      def getOrReport(): CExpression = {
+        evaluationAttempt.fold(
+          expr => sys.error(s"Could not handle the expression ${expr}, type ${expr.getClass}"),
+          identity
+        )
+      }
+    }
+    implicit class RichEvaluationAttemptStr(evaluationAttempt: Either[Expression, StringProducer]) {
+      def getOrReport(): StringProducer = {
+        evaluationAttempt.fold(
+          expr => sys.error(s"Could not handle the expression ${expr}, type ${expr.getClass}"),
+          identity
+        )
+      }
+    }
+  }
+
+  def eval(expression: Expression)(implicit fallback: EvalFallback): EvaluationAttempt = {
     expression match {
       case EqualTo(left: AttributeReference, right: Literal)
           if left.dataType == StringType && right.dataType == StringType =>
-        CExpression(
-          cCode = List(
-            s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])",
-            s"""std::string("${right.toString()}")"""
-          ).mkString(" == "),
-          isNotNullCode = None
-        )
+        Right {
+          CExpression(
+            cCode = List(
+              s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])",
+              s"""std::string("${right.toString()}")"""
+            ).mkString(" == "),
+            isNotNullCode = None
+          )
+        }
       case b: BinaryOperator =>
-        CExpression(
-          cCode = s"((${eval(b.left, fallback).cCode}) ${binaryOperatorOverride
-            .getOrElse(b.symbol, b.symbol)} (${eval(b.right, fallback).cCode}))",
+        for {
+          leftEx <- eval(b.left)
+          rightEx <- eval(b.right)
+        } yield CExpression(
+          cCode = s"((${leftEx.cCode}) ${binaryOperatorOverride
+            .getOrElse(b.symbol, b.symbol)} (${rightEx.cCode}))",
           isNotNullCode = Option(
-            (eval(b.left, fallback).isNotNullCode.toList ++
-              eval(b.right, fallback).isNotNullCode.toList)
+            (leftEx.isNotNullCode.toList ++
+              rightEx.isNotNullCode.toList)
           ).filter(_.nonEmpty).map(_.mkString("(", " && ", ")"))
         )
-      case KnownFloatingPointNormalized(child) => eval(child, fallback)
-      case NormalizeNaNAndZero(child)          => eval(child, fallback)
+      case KnownFloatingPointNormalized(child) => eval(child)
+      case NormalizeNaNAndZero(child)          => eval(child)
       case Sqrt(c) =>
-        CExpression(
-          cCode = s"sqrt(${eval(c, fallback).cCode})",
-          isNotNullCode = eval(c, fallback).isNotNullCode
-        )
+        eval(c).map { ex =>
+          CExpression(cCode = s"sqrt(${ex.cCode})", isNotNullCode = ex.isNotNullCode)
+        }
       case Coalesce(children) if children.size == 1 =>
-        eval(children.head, fallback)
+        eval(children.head)
       case Coalesce(children) =>
-        val first = eval(children.head, fallback)
-
-        first.isNotNullCode match {
-          case None => first
-          case Some(notNullCheck) =>
-            val sub = eval(Coalesce(children.drop(1)), fallback)
-            CExpression(
-              cCode = s"(${notNullCheck}) ? ${first.cCode} : ${sub.cCode}",
-              isNotNullCode = sub.isNotNullCode match {
-                case None =>
-                  None
-                case Some(subNotNullCheck) =>
-                  Some(s"((${notNullCheck}) || (${subNotNullCheck}))")
+        eval(children.head).flatMap { first =>
+          first.isNotNullCode match {
+            case None => Right(first)
+            case Some(notNullCheck) =>
+              eval(Coalesce(children.drop(1))).map { sub =>
+                CExpression(
+                  cCode = s"(${notNullCheck}) ? ${first.cCode} : ${sub.cCode}",
+                  isNotNullCode = sub.isNotNullCode match {
+                    case None =>
+                      None
+                    case Some(subNotNullCheck) =>
+                      Some(s"((${notNullCheck}) || (${subNotNullCheck}))")
+                  }
+                )
               }
-            )
+          }
         }
       case ar: AttributeReference if ar.name.endsWith("_nullable") =>
-        CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set"))
+        Right(CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set")))
       case ar: AttributeReference if ar.name.contains("data[") =>
-        CExpression(
-          cCode = ar.name,
-          isNotNullCode = {
-            val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
-            Some(
-              s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
-            )
-          }
-        )
+        Right {
+          CExpression(
+            cCode = ar.name,
+            isNotNullCode = {
+              val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
+              Some(
+                s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
+              )
+            }
+          )
+        }
       case IsNull(child) =>
-        CExpression(
-          cCode = eval(child, fallback).isNotNullCode match {
-            case None => "0"
-            case Some(notNullCode) =>
-              s"!(${notNullCode})"
-          },
-          // result is never null here
-          isNotNullCode = None
-        )
+        eval(child).map { ex =>
+          CExpression(
+            cCode = ex.isNotNullCode match {
+              case None => "0"
+              case Some(notNullCode) =>
+                s"!(${notNullCode})"
+            },
+            // result is never null here
+            isNotNullCode = None
+          )
+        }
       case IsNotNull(child) =>
-        CExpression(
-          cCode = eval(child, fallback).isNotNullCode match {
-            case None => "1"
-            case Some(notNullCode) =>
-              notNullCode
-          },
-          // result is never null here
-          isNotNullCode = None
-        )
+        eval(child).map { ex =>
+          CExpression(
+            cCode = ex.isNotNullCode match {
+              case None => "1"
+              case Some(notNullCode) =>
+                notNullCode
+            },
+            // result is never null here
+            isNotNullCode = None
+          )
+        }
       case If(predicate, trueValue, falseValue) =>
-        CExpression(
-          cCode =
-            s"(${eval(predicate, fallback).cCode}) ? (${eval(trueValue, fallback).cCode}) : (${eval(falseValue, fallback).cCode})",
+        for {
+          p <- eval(predicate)
+          t <- eval(trueValue)
+          f <- eval(falseValue)
+        } yield CExpression(
+          cCode = s"(${p.cCode}) ? (${t.cCode}) : (${f.cCode})",
           isNotNullCode = None
         )
       case Literal(null, d) =>
-        CExpression(cCode = s"0", isNotNullCode = Some("0"))
+        Right {
+          CExpression(cCode = s"0", isNotNullCode = Some("0"))
+        }
       case Literal(v, d) =>
-        CExpression(cCode = s"$v", isNotNullCode = None)
+        Right {
+          CExpression(cCode = s"$v", isNotNullCode = None)
+        }
       case Cast(child, newDt, None) =>
-        CExpression(
-          cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) ${eval(child, fallback).cCode}",
-          isNotNullCode = eval(child, fallback).isNotNullCode
-        )
+        eval(child).map { ex =>
+          CExpression(
+            cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) ${ex.cCode}",
+            isNotNullCode = ex.isNotNullCode
+          )
+        }
       case Greatest(children) =>
-        FlatToNestedFunction.runWhenNotNull(
-          items = children.map(exp => eval(exp, fallback)).toList,
-          function = "std::max"
-        )
+        val fails = children.map(exp => eval(exp)).flatMap(_.left.toOption)
+        fails.headOption.toLeft {
+          val oks = children.map(exp => eval(exp)).flatMap(_.right.toOption)
+          FlatToNestedFunction.runWhenNotNull(items = oks.toList, function = "std::max")
+        }
       case Least(children) =>
-        FlatToNestedFunction.runWhenNotNull(
-          items = children.map(exp => eval(exp, fallback)).toList,
-          function = "std::min"
-        )
+        val fails = children.map(exp => eval(exp)).flatMap(_.left.toOption)
+        fails.headOption.toLeft {
+          val oks = children.map(exp => eval(exp)).flatMap(_.right.toOption)
+          FlatToNestedFunction.runWhenNotNull(items = oks.toList, function = "std::min")
+        }
       case Cast(child, dataType, _) =>
         dataType match {
-          case IntegerType => {
-            val childExpression = eval(child, fallback)
-            childExpression.copy("((int)" + childExpression.cCode + ")")
-          }
+          case IntegerType =>
+            eval(child).map { childExpression =>
+              childExpression.copy("((int)" + childExpression.cCode + ")")
+            }
 
-          case DoubleType => {
-            val childExpression = eval(child, fallback)
-            childExpression.copy("((int)" + childExpression.cCode + ")")
-          }
+          case DoubleType =>
+            eval(child).map { childExpression =>
+              childExpression.copy("((int)" + childExpression.cCode + ")")
+            }
 
-          case LongType => {
-            val childExpression = eval(child, fallback)
-            childExpression.copy("((long long)" + childExpression.cCode + ")")
-          }
+          case LongType =>
+            eval(child).map { childExpression =>
+              childExpression.copy("((long long)" + childExpression.cCode + ")")
+            }
         }
       case NoOp =>
-        CExpression("0", Some("false"))
-      case CaseWhen(branches, None) =>
-        branches match {
-          case Seq((caseExp, valueExp)) =>
-            val cond = eval(caseExp, fallback)
-            val value = eval(valueExp, fallback)
-
-            CExpression(cCode = s"(${value.cCode})", isNotNullCode = Some(s"${cond.cCode}"))
-          case Seq((caseExp, valueExp), xs @ _*) =>
-            eval(CaseWhen(Seq((caseExp, valueExp)), Some(CaseWhen(xs))), fallback)
-        }
-      case CaseWhen(branches, Some(elseValue)) =>
-        branches match {
-          case Seq((caseExp, valueExp)) =>
-            val cond = eval(caseExp, fallback)
-            val value = eval(valueExp, fallback)
-
-            CExpression(
-              cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})",
-              isNotNullCode =
-                Some(s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})")
-            )
-          case Seq((caseExp, valueExp), xs @ _*) =>
-            eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)), fallback)
-        }
-      case fallback(result) =>
-        result
-      case other =>
-        sys.error(
-          s"not supported ${other}: " + expression.getClass.getCanonicalName + ": " + expression
-            .toString()
+        Right(CExpression("0", Some("false")))
+      case CaseWhen(Seq((caseExp, valueExp)), None) =>
+        for {
+          cond <- eval(caseExp)
+          value <- eval(valueExp)
+        } yield CExpression(cCode = s"(${value.cCode})", isNotNullCode = Some(s"${cond.cCode}"))
+      case CaseWhen(Seq((caseExp, valueExp), xs @ _*), None) =>
+        eval(CaseWhen(Seq((caseExp, valueExp)), Some(CaseWhen(xs))))
+      case CaseWhen(Seq((caseExp, valueExp)), Some(elseValue)) =>
+        for {
+          cond <- eval(caseExp)
+          value <- eval(valueExp)
+          ev <- eval(elseValue)
+        } yield CExpression(
+          cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${ev.cCode})",
+          isNotNullCode = Some(s"(${cond.cCode}) ? (${value.cCode}) : (${ev.cCode})")
         )
+      case CaseWhen(Seq((caseExp, valueExp), xs @ _*), Some(elseValue)) =>
+        eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)))
+      case fallback(result) =>
+        Right(result)
     }
   }
 

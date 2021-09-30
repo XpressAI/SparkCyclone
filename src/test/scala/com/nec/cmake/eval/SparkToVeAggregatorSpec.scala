@@ -29,6 +29,7 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
       assert(as.free("x") == CodeLines.empty)
     }
   }
+  private implicit val fb = EvalFallback.noOp
 
   "We can do a simple replacement with an Aggregation" in {
     val inputQuery = Multiply(
@@ -38,7 +39,7 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
 
     assert(
       DeclarativeAggregationConverter
-        .transformingFetch(inputQuery, EvalFallback.noOp)
+        .transformingFetch(inputQuery)
         .getOrElse(fail("Not found"))
         .fetch("test")
         .cCode == "((2) * (test_sum_nullable))"
