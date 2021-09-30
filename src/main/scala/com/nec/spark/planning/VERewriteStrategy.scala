@@ -5,15 +5,16 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StringType
+
 import scala.collection.immutable
+import scala.util.Try
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -212,7 +213,9 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
 //        }
 
         case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-            if child.output.nonEmpty && aggregateExpressions.nonEmpty =>
+            if child.output.nonEmpty &&
+              aggregateExpressions.nonEmpty &&
+              !Try(aggregateExpressions.head.asInstanceOf[Alias].child.asInstanceOf[AggregateExpression].aggregateFunction.isInstanceOf[HyperLogLogPlusPlus]).getOrElse(false) =>
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
             NamedStringProducer,
             NamedGroupByExpression

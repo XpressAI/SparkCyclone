@@ -764,6 +764,17 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"approximate count distinct does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql = "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Long].collect().toList == List(
+        2
+      ))
+    }
+  }
+
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
