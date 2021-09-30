@@ -118,14 +118,13 @@ class DynamicCSqlExpressionEvaluationSpec
       )
     }
   }
-  val sum_multiplication = s"SELECT (AVG(${SampleColA} + ${SampleColB}) * 2) as ddz FROM nums"
+  val sum_multiplication = s"SELECT (SUM(${SampleColA} + ${SampleColB}) * 2) as ddz FROM nums"
   "Support multiplication of sum" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sum_multiplication).ensureCEvaluating().debugSqlHere { ds =>
-      assert(
-        ds.as[Double].collect().head == 180D
-      )
+      val result = ds.as[Double].collect().toList
+      assert(result == List(164.0))
     }
   }
 
@@ -709,7 +708,9 @@ class DynamicCSqlExpressionEvaluationSpec
     val sql =
       "select b, sum(x), sum(y) from values (true, 10, 20), (false, 30, 12), (true, 0, 10) as tab(b, x, y) group by b"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Boolean, Double, Double)].collect().toList == List((false, 30, 12), (true, 10, 30)))
+      assert(
+        ds.as[(Boolean, Double, Double)].collect().toList == List((false, 30, 12), (true, 10, 30))
+      )
     }
   }
 
@@ -731,12 +732,14 @@ class DynamicCSqlExpressionEvaluationSpec
     val sql =
       "select a, b, x, y from values (10, 20), (30, 12) as tab1(a, b) full outer join values (100, 200), (300, 400) as tab2(x, y)"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Double, Double, Double, Double)].collect().toList == List(
-        (10, 20, 100, 200),
-        (10, 20, 300, 400),
-        (30, 12, 100, 200),
-        (30, 12, 300, 400)
-      ))
+      assert(
+        ds.as[(Double, Double, Double, Double)].collect().toList == List(
+          (10, 20, 100, 200),
+          (10, 20, 300, 400),
+          (30, 12, 100, 200),
+          (30, 12, 300, 400)
+        )
+      )
     }
   }
 
@@ -746,9 +749,7 @@ class DynamicCSqlExpressionEvaluationSpec
     val sql =
       "select sum(case when isnull(a) then 0 when isnotnull(a) then a else a end), sum(b) from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[((Option[Double]), Double)].collect().toList == List(
-        (Some(42), 82)
-      ))
+      assert(ds.as[((Option[Double]), Double)].collect().toList == List((Some(42), 82)))
     }
   }
 
@@ -758,20 +759,17 @@ class DynamicCSqlExpressionEvaluationSpec
     val sql =
       "select count(case when isnull(a) then -1 end) as foo, count(case when isnull(b) then -1 else 1 end) as bar  from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Long)].collect().toList == List(
-        (1, 3)
-      ))
+      assert(ds.as[(Long, Long)].collect().toList == List((1, 3)))
     }
   }
 
   s"approximate count distinct does not crash" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
-    val sql = "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
+    val sql =
+      "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Long].collect().toList == List(
-        2
-      ))
+      assert(ds.as[Long].collect().toList == List(2))
     }
   }
 
