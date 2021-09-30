@@ -175,6 +175,10 @@ object ArrowNativeInterface {
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = smallIntVector
         }
+        final case class BitVectorOutputWrapper(bitVector: BitVector)
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = bitVector
+        }
       }
     }
 
@@ -219,6 +223,8 @@ object ArrowNativeInterface {
           OutputVectorWrapper.VarCharVectorOutputWrapper(varCharVector)
         case smallIntVector: SmallIntVector =>
           OutputVectorWrapper.SmallIntVectorOutputWrapper(smallIntVector)
+        case bitVector: BitVector =>
+          OutputVectorWrapper.BitVectorOutputWrapper(bitVector)
       }
     }
   }

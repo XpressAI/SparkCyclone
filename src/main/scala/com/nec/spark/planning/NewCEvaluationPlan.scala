@@ -16,7 +16,7 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, ShortType, StringType}
+import org.apache.spark.sql.types.{BooleanType, DoubleType, IntegerType, LongType, ShortType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import scala.language.dynamics
@@ -101,6 +101,7 @@ final case class NewCEvaluationPlan(
                   case IntegerType => new IntVector(s"out_${idx}", allocator)
                   case ShortType   => new SmallIntVector(s"out_${idx}", allocator)
                   case DoubleType  => new Float8Vector(s"out_${idx}", allocator)
+                  case BooleanType => new BitVector(s"out_${idx}", allocator)
                 }
               }
 

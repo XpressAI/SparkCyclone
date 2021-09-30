@@ -707,9 +707,9 @@ class DynamicCSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     val sql =
-      "select sum(x), sum(y) from values (true, 10, 20), (false, 30, 12), (true, 0, 10) as tab(b, x, y) group by b"
+      "select b, sum(x), sum(y) from values (true, 10, 20), (false, 30, 12), (true, 0, 10) as tab(b, x, y) group by b"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Double, Double)].collect().toList == List((30, 12), (10, 30)))
+      assert(ds.as[(Boolean, Double, Double)].collect().toList == List((false, 30, 12), (true, 10, 30)))
     }
   }
 
@@ -722,6 +722,21 @@ class DynamicCSqlExpressionEvaluationSpec
       val result = ds.as[(String, Double)].collect().toList.sorted
       val expected = List(("yes", 40), ("no", 42)).sorted
       assert(result == expected)
+    }
+  }
+
+  s"OUTER JOINs do not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select a, b, x, y from values (10, 20), (30, 12) as tab1(a, b) full outer join values (100, 200), (300, 400) as tab2(x, y)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[(Double, Double, Double, Double)].collect().toList == List(
+        (10, 20, 100, 200),
+        (10, 20, 300, 400),
+        (30, 12, 100, 200),
+        (30, 12, 300, 400)
+      ))
     }
   }
 

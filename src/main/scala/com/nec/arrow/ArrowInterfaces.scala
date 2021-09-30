@@ -247,4 +247,15 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(input.offsets, varCharVector.getOffsetBufferAddress, 4 * (input.count + 1))
   }
 
+  def nullable_int_vector_to_BitVector(input: nullable_int_vector, bitVector: BitVector): Unit = {
+    val intVector = new IntVector("temp", ArrowUtilsExposed.rootAllocator)
+    nullable_int_vector_to_IntVector(input, intVector)
+    bitVector.setValueCount(intVector.getValueCount)
+    (0 until intVector.getValueCount).foreach {
+      case idx if(intVector.isNull(idx)) => bitVector.setNull(idx)
+      case idx => bitVector.set(idx, intVector.get(idx))
+    }
+    intVector.clear()
+    intVector.close()
+  }
 }
