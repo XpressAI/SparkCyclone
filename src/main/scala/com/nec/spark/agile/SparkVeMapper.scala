@@ -263,6 +263,17 @@ object SparkVeMapper {
         }
       case NoOp =>
         CExpression("0", Some("false"))
+      case CaseWhen(branches, Some(elseValue)) =>
+        branches match {
+          case Seq((caseExp, valueExp)) =>
+            val cond = eval(caseExp, fallback)
+            val value = eval(valueExp, fallback)
+
+            CExpression(
+              cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})",
+              isNotNullCode = Some(s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})")
+            )
+        }
       case fallback(result) =>
         result
       case other =>
