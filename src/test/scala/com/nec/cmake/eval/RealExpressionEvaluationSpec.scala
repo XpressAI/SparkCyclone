@@ -14,6 +14,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.DeclarativeAggregationConverter
+import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -26,6 +27,7 @@ import org.scalatest.freespec.AnyFreeSpec
  */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   import com.nec.cmake.eval.RealExpressionEvaluationSpec._
+  private implicit val fallback = EvalFallback.noOp
 
   "We can transform a column" in {
     expect(

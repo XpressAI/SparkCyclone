@@ -3,9 +3,10 @@ package com.nec.cmake.eval
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression}
 import com.nec.spark.agile.DeclarativeAggregationConverter
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.Sum
-import org.apache.spark.sql.types.DoubleType
+import com.nec.spark.agile.SparkVeMapper.EvalFallback
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Final, Sum}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Literal, Multiply}
+import org.apache.spark.sql.types.IntegerType
 import org.scalatest.freespec.AnyFreeSpec
 
 object SparkToVeAggregatorSpec {}
@@ -27,5 +28,21 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
     "free is computed" in {
       assert(as.free("x") == CodeLines.empty)
     }
+  }
+  private implicit val fb = EvalFallback.noOp
+
+  "We can do a simple replacement with an Aggregation" in {
+    val inputQuery = Multiply(
+      Literal(2, IntegerType),
+      AggregateExpression(Sum(AttributeReference("x", IntegerType)()), Final, isDistinct = false)
+    )
+
+    assert(
+      DeclarativeAggregationConverter
+        .transformingFetch(inputQuery)
+        .getOrElse(fail("Not found"))
+        .fetch("test")
+        .cCode == "((2) * (test_sum_nullable))"
+    )
   }
 }

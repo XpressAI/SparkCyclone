@@ -3,8 +3,8 @@ package com.nec.arrow
 import com.nec.arrow.ArrowInterfaces.c_bounded_data
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.ArrowInterfaces._
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{BigIntVectorInputWrapper, ByteBufferInputWrapper, DateDayVectorInputWrapper, Float8VectorInputWrapper, IntVectorInputWrapper, SmallIntVectorInputWrapper, StringInputWrapper, VarCharVectorInputWrapper}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{BigIntVectorInputWrapper, BitVectorInputWrapper, ByteBufferInputWrapper, DateDayVectorInputWrapper, Float8VectorInputWrapper, IntVectorInputWrapper, SmallIntVectorInputWrapper, StringInputWrapper, VarCharVectorInputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
 import com.sun.jna.Library
 import com.nec.arrow.ArrowNativeInterface._
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper._
@@ -54,6 +54,8 @@ object CArrowNativeInterface extends LazyLogging {
         val struct = new nullable_double_vector()
         vectorExtractions.append(() => nullable_double_vector_to_float8Vector(struct, doubleVector))
         struct
+      case NativeArgument.VectorInputNativeArgument(BitVectorInputWrapper(bitVector)) =>
+        c_nullable_bit_vector(bitVector)
       case NativeArgument.VectorOutputNativeArgument(IntVectorOutputWrapper(intVector)) =>
         val struct = new nullable_int_vector()
         vectorExtractions.append(() => nullable_int_vector_to_IntVector(struct, intVector))
@@ -69,6 +71,10 @@ object CArrowNativeInterface extends LazyLogging {
       case NativeArgument.VectorOutputNativeArgument(VarCharVectorOutputWrapper(vec)) =>
         val struct = new nullable_varchar_vector()
         vectorExtractions.append(() => nullable_varchar_vector_to_VarCharVector(struct, vec))
+        struct
+      case NativeArgument.VectorOutputNativeArgument(BitVectorOutputWrapper(bitVector)) =>
+        val struct = new nullable_int_vector()
+        vectorExtractions.append(() => nullable_int_vector_to_BitVector(struct, bitVector))
         struct
     }.toArray
 

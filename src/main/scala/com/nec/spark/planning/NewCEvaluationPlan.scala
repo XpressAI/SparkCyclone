@@ -3,7 +3,7 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, SmallIntVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{BigIntVector, BitVector, Float8Vector, IntVector, SmallIntVector, VarCharVector, VectorSchemaRoot}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -16,7 +16,7 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, ShortType, StringType}
+import org.apache.spark.sql.types.{BooleanType, DoubleType, IntegerType, LongType, ShortType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import scala.language.dynamics
@@ -36,9 +36,7 @@ final case class NewCEvaluationPlan(
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
-  override def output: Seq[Attribute] = outputExpressions.zipWithIndex.map { case (ne, idx) =>
-    AttributeReference(name = s"value_${idx}", dataType = ne.dataType, nullable = false)()
-  }
+  override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
   override def outputPartitioning: Partitioning = SinglePartition
 
@@ -78,6 +76,8 @@ final case class NewCEvaluationPlan(
                   bigIntVector
                 case smallIntVector: SmallIntVector =>
                   smallIntVector
+                case bitVector: BitVector =>
+                  bitVector
               }
             }
 
@@ -101,6 +101,7 @@ final case class NewCEvaluationPlan(
                   case IntegerType => new IntVector(s"out_${idx}", allocator)
                   case ShortType   => new SmallIntVector(s"out_${idx}", allocator)
                   case DoubleType  => new Float8Vector(s"out_${idx}", allocator)
+                  case BooleanType => new BitVector(s"out_${idx}", allocator)
                 }
               }
 
@@ -142,6 +143,9 @@ final case class NewCEvaluationPlan(
                       if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))
                     case vector: SmallIntVector =>
+                      if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+                      else writer.write(c_idx, vector.get(v_idx))
+                    case vector: BitVector =>
                       if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
                       else writer.write(c_idx, vector.get(v_idx))
                   }

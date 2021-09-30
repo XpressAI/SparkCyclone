@@ -196,7 +196,6 @@ object BenchTestingPossibilities extends LazyLogging {
     List(
       JoinPlanSpec.OurTesting,
       GroupBySumPlanSpec.OurTesting,
-      List(SubstringTesting(isVe = true), SubstringTesting(isVe = false)),
       List(StringGroupByTesting(isVe = true), StringGroupByTesting(isVe = false)),
       List(DateTesting(isVe = false)),
       List(DateTesting(isVe = true)),

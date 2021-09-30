@@ -5,7 +5,14 @@ import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
+import com.nec.testing.SampleSource.{
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin,
+  SampleColA,
+  SampleColB,
+  SampleColC,
+  SampleColD
+}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -94,9 +101,30 @@ class DynamicCSqlExpressionEvaluationSpec
     sparkSession.sql(sql_pairwise_short).debugSqlHere { ds =>
       assert(
         ds.as[Option[Short]].collect().toList.sorted == List(
-          None, None, Some(2), Some(4), Some(6), Some(8), Some(16), Some(18), Some(22), Some(24), Some(46), Some(84), Some(100)
+          None,
+          None,
+          Some(2),
+          Some(4),
+          Some(6),
+          Some(8),
+          Some(16),
+          Some(18),
+          Some(22),
+          Some(24),
+          Some(46),
+          Some(84),
+          Some(100)
         )
       )
+    }
+  }
+  val sum_multiplication = s"SELECT (SUM(${SampleColA} + ${SampleColB}) * 2) as ddz FROM nums"
+  "Support multiplication of sum" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sum_multiplication).ensureCEvaluating().debugSqlHere { ds =>
+      val result = ds.as[Double].collect().toList
+      assert(result == List(164.0))
     }
   }
 
@@ -484,12 +512,23 @@ class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
-        ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList should contain theSameElementsAs
-          List((None,None,None), (Some(2.0),Some(0.0),Some(0.5)), (Some(8.0),Some(6.0),Some(2.0)), (Some(6.0),Some(2.0),Some(1.5)), (Some(4.0),Some(3.0),Some(1.0)), (Some(40.0),Some(19.0),Some(10.0)), (Some(104.0),Some(51.0),Some(26.0)))
+        ds.as[(Option[Double], Option[Double], Option[Double])]
+          .collect()
+          .toList should contain theSameElementsAs
+          List(
+            (None, None, None),
+            (Some(2.0), Some(0.0), Some(0.5)),
+            (Some(8.0), Some(6.0), Some(2.0)),
+            (Some(6.0), Some(2.0), Some(1.5)),
+            (Some(4.0), Some(3.0), Some(1.0)),
+            (Some(40.0), Some(19.0), Some(10.0)),
+            (Some(104.0), Some(51.0), Some(26.0))
+          )
       }
     }
 
-    val sql3 = s"SELECT ${SampleColA}, SUM(${SampleColB}), SUM(${SampleColD}) FROM nums GROUP BY ${SampleColA}"
+    val sql3 =
+      s"SELECT ${SampleColA}, SUM(${SampleColB}), SUM(${SampleColD}) FROM nums GROUP BY ${SampleColA}"
 
     s"Simple Group by is possible with ${sql3}" in withSparkSession2(configuration) {
       sparkSession =>
@@ -499,7 +538,15 @@ class DynamicCSqlExpressionEvaluationSpec
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
           assert(
             ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted ==
-              List((None,Some(8.0),Some(60)), (Some(1.0),Some(2.0),None), (Some(2.0),Some(3.0),Some(32)), (Some(3.0),Some(4.0),Some(1)), (Some(4.0),Some(5.0),Some(46)), (Some(20.0),None,Some(3)), (Some(52.0),Some(6.0),Some(23)))
+              List(
+                (None, Some(8.0), Some(60)),
+                (Some(1.0), Some(2.0), None),
+                (Some(2.0), Some(3.0), Some(32)),
+                (Some(3.0), Some(4.0), Some(1)),
+                (Some(4.0), Some(5.0), Some(46)),
+                (Some(20.0), None, Some(3)),
+                (Some(52.0), Some(6.0), Some(23))
+              )
           )
         }
     }
@@ -523,7 +570,6 @@ class DynamicCSqlExpressionEvaluationSpec
 
       sparkSession.sql(sql5).ensureCEvaluating().debugSqlHere { ds =>
         val result = ds.as[(Double)].collect().toList
-        println(ds.queryExecution.executedPlan)
         assert(result.size == 1)
         result.head shouldEqual (0.7418736765817244 +- 0.05)
       }
@@ -652,9 +698,79 @@ class DynamicCSqlExpressionEvaluationSpec
       )
       .ensureJoinPlanEvaluated()
       .debugSqlHere { ds =>
-        println(ds.queryExecution.executedPlan)
         assert(ds.count() == 4)
       }
+  }
+
+  s"Boolean query does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select b, sum(x), sum(y) from values (true, 10, 20), (false, 30, 12), (true, 0, 10) as tab(b, x, y) group by b"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(
+        ds.as[(Boolean, Double, Double)].collect().toList == List((false, 30, 12), (true, 10, 30))
+      )
+    }
+  }
+
+  s"Strings can appear in the select clause" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select s, sum(x + y) from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      val result = ds.as[(String, Double)].collect().toList.sorted
+      val expected = List(("yes", 40), ("no", 42)).sorted
+      assert(result == expected)
+    }
+  }
+
+  s"OUTER JOINs do not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select a, b, x, y from values (10, 20), (30, 12) as tab1(a, b) full outer join values (100, 200), (300, 400) as tab2(x, y)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(
+        ds.as[(Double, Double, Double, Double)].collect().toList == List(
+          (10, 20, 100, 200),
+          (10, 20, 300, 400),
+          (30, 12, 100, 200),
+          (30, 12, 300, 400)
+        )
+      )
+    }
+  }
+
+  s"CASE with notnull does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select sum(case when isnull(a) then 0 when isnotnull(a) then a else a end), sum(b) from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[((Option[Double]), Double)].collect().toList == List((Some(42), 82)))
+    }
+  }
+
+  s"isnull with CASE does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select count(case when isnull(a) then -1 end) as foo, count(case when isnull(b) then -1 else 1 end) as bar  from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[(Long, Long)].collect().toList == List((1, 3)))
+    }
+  }
+
+  s"approximate count distinct does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Long].collect().toList == List(2))
+    }
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {

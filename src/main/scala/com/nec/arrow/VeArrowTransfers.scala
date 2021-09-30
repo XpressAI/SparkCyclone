@@ -1,19 +1,18 @@
 package com.nec.arrow
 
-import com.nec.arrow.ArrowInterfaces.{nullable_bigint_vector_to_BigIntVector, nullable_double_vector_to_float8Vector, nullable_int_vector_to_IntVector, nullable_int_vector_to_SmallIntVector, nullable_varchar_vector_to_VarCharVector}
+import com.nec.arrow.ArrowInterfaces.{nullable_bigint_vector_to_BigIntVector, nullable_double_vector_to_float8Vector, nullable_int_vector_to_BitVector, nullable_int_vector_to_IntVector, nullable_int_vector_to_SmallIntVector, nullable_varchar_vector_to_VarCharVector}
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.{VectorInputNativeArgument, VectorOutputNativeArgument}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.VeArrowNativeInterface.{Cleanup, copyBufferToVe, requireOk}
 import com.nec.aurora.Aurora
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector._
 import sun.nio.ch.DirectBuffer
+
 import java.nio.{ByteBuffer, ByteOrder}
-
 import scala.collection.mutable
-
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 object VeArrowTransfers extends LazyLogging {
@@ -65,6 +64,14 @@ object VeArrowTransfers extends LazyLogging {
         transferBack.append(() => {
           veo_read_nullable_int_vector(proc, structVector, byteBuffer)
           nullable_int_vector_to_SmallIntVector(structVector, smallIntVector)
+        })
+      case BitVectorOutputWrapper(bitVector) =>
+        val structVector = new nullable_int_vector()
+        val byteBuffer = nullableIntVectorToByteBuffer(structVector)
+        Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
+        transferBack.append(() => {
+          veo_read_nullable_int_vector(proc, structVector, byteBuffer)
+          nullable_int_vector_to_BitVector(structVector, bitVector)
         })
     }
   }
@@ -152,6 +159,17 @@ object VeArrowTransfers extends LazyLogging {
             20L
           )
         )
+      case BitVectorInputWrapper(bitVector) =>
+        val bit_vector_raw = make_veo_int_vector(proc, bitVector)
+        requireOk(
+          Aurora.veo_args_set_stack(
+            our_args,
+            0,
+            index,
+            nullableIntVectorToByteBuffer(bit_vector_raw),
+            20L
+          )
+        )
     }
   }
 
@@ -227,6 +245,29 @@ object VeArrowTransfers extends LazyLogging {
 
       .foreach{
         case idx if(!smallIntVector.isNull(idx)) => intVector.set(idx, smallIntVector.get(idx).toInt)
+        case idx => intVector.setNull(idx)
+      }
+    logger.debug(s"Copying Buffer to VE for $keyName")
+
+    val vcvr = new nullable_int_vector()
+    vcvr.count = intVector.getValueCount
+    vcvr.data = copyBufferToVe(proc, intVector.getDataBuffer.nioBuffer())(cleanup)
+    vcvr.validityBuffer = copyBufferToVe(proc, intVector.getValidityBuffer.nioBuffer())(cleanup)
+
+    vcvr
+  }
+
+  private def make_veo_int_vector(proc: Aurora.veo_proc_handle, bitVector: BitVector)(implicit
+    cleanup: Cleanup
+  ): nullable_int_vector = {
+    val keyName = "int1_" + bitVector.getName + "_" + bitVector.getDataBuffer.capacity()
+    val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
+    intVector.setValueCount(bitVector.getValueCount)
+
+    (0 until bitVector.getValueCount)
+
+      .foreach{
+        case idx if(!bitVector.isNull(idx)) => intVector.set(idx, bitVector.get(idx))
         case idx => intVector.setNull(idx)
       }
     logger.debug(s"Copying Buffer to VE for $keyName")

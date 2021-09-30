@@ -1,16 +1,23 @@
 package com.nec.spark.agile
+import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression}
-import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
+import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression, DelegatingAggregation}
+import com.nec.spark.agile.SparkVeMapper.EvalFallback
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  DeclarativeAggregate
+}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, Literal}
 
 /**
  * Many of Spark's aggregations can be reduced to repetition of simple operations.
  * Here we perform exactly that.
  */
-final case class DeclarativeAggregationConverter(declarativeAggregate: DeclarativeAggregate)
-  extends Aggregation {
+final case class DeclarativeAggregationConverter(declarativeAggregate: DeclarativeAggregate)(
+  implicit evalFallback: EvalFallback
+) extends Aggregation {
   override def initial(prefix: String): CodeLines = {
     CodeLines.from(
       declarativeAggregate.initialValues.zipWithIndex
@@ -47,7 +54,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
 
     CodeLines.from(
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e)
+        val codeEval = SparkVeMapper.eval(e)(evalFallback).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -70,7 +77,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         }
       }.toList,
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e)
+        val codeEval = SparkVeMapper.eval(e).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -90,11 +97,48 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
   override def compute(prefix: String): CodeLines =
     CodeLines.empty
 
-  override def fetch(prefix: String): CExpression = {
-    SparkVeMapper.eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)))
-  }
+  override def fetch(prefix: String): CExpression = SparkVeMapper
+    .eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)))
+    .getOrReport()
 
   override def free(prefix: String): CodeLines = CodeLines.empty
 }
 
-object DeclarativeAggregationConverter {}
+object DeclarativeAggregationConverter {
+
+  private final case class TransformingAggregation(
+    declarativeAggregationConverter: DeclarativeAggregationConverter,
+    transformResult: CExpression => CExpression
+  ) extends DelegatingAggregation(declarativeAggregationConverter) {
+    override def fetch(prefix: String): CExpression = {
+      transformResult(super.fetch(prefix))
+    }
+  }
+
+  object AggregateHole extends UnresolvedAttribute(Seq.empty)
+
+  def transformingFetch(
+    expression: Expression
+  )(implicit fallback: EvalFallback): Option[Aggregation] = {
+    expression.collectFirst {
+      case ae @ AggregateExpression(d: DeclarativeAggregate, mode, isDistinct, filter, resultId) =>
+        val conv = DeclarativeAggregationConverter(d)
+        TransformingAggregation(
+          conv,
+          originalResult =>
+            SparkVeMapper
+              .eval(expression.transformDown { case `ae` =>
+                AggregateHole
+              })(
+                EvalFallback
+                  .from { case AggregateHole =>
+                    originalResult
+                  }
+                  .orElse(fallback)
+              )
+              .getOrReport()
+        )
+    }
+  }
+
+}

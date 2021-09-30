@@ -89,6 +89,21 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_bit_vector(bitVector: BitVector): nullable_int_vector = {
+    val vc = new nullable_int_vector()
+    val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
+    intVector.setValueCount(bitVector.getValueCount)
+
+    (0 until bitVector.getValueCount).foreach{
+      case idx if(!bitVector.isNull(idx)) => intVector.set(idx, bitVector.get(idx))
+      case idx => intVector.setNull(idx)
+    }
+    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = bitVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = bitVector.getValueCount
+    vc
+  }
+
   def c_nullable_int_vector(smallIntVector: SmallIntVector): nullable_int_vector = {
     val vc = new nullable_int_vector()
     val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
@@ -232,4 +247,15 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(input.offsets, varCharVector.getOffsetBufferAddress, 4 * (input.count + 1))
   }
 
+  def nullable_int_vector_to_BitVector(input: nullable_int_vector, bitVector: BitVector): Unit = {
+    val intVector = new IntVector("temp", ArrowUtilsExposed.rootAllocator)
+    nullable_int_vector_to_IntVector(input, intVector)
+    bitVector.setValueCount(intVector.getValueCount)
+    (0 until intVector.getValueCount).foreach {
+      case idx if(intVector.isNull(idx)) => bitVector.setNull(idx)
+      case idx => bitVector.set(idx, intVector.get(idx))
+    }
+    intVector.clear()
+    intVector.close()
+  }
 }

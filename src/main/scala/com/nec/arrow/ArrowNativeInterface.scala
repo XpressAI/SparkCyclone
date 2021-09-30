@@ -142,6 +142,10 @@ object ArrowNativeInterface {
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = smallIntVector
         }
+        final case class BitVectorInputWrapper(bitVector: BitVector)
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = bitVector
+        }
       }
     }
     final case class VectorOutputNativeArgument(
@@ -170,6 +174,10 @@ object ArrowNativeInterface {
         final case class SmallIntVectorOutputWrapper(smallIntVector: SmallIntVector)
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = smallIntVector
+        }
+        final case class BitVectorOutputWrapper(bitVector: BitVector)
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = bitVector
         }
       }
     }
@@ -202,6 +210,7 @@ object ArrowNativeInterface {
           InputVectorWrapper.VarCharVectorInputWrapper(varCharVector)
         case bigIntVector: BigIntVector => InputVectorWrapper.BigIntVectorInputWrapper(bigIntVector)
         case smallIntVector: SmallIntVector => InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
+        case bitVector: BitVector => InputVectorWrapper.BitVectorInputWrapper(bitVector)
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {
@@ -214,6 +223,8 @@ object ArrowNativeInterface {
           OutputVectorWrapper.VarCharVectorOutputWrapper(varCharVector)
         case smallIntVector: SmallIntVector =>
           OutputVectorWrapper.SmallIntVectorOutputWrapper(smallIntVector)
+        case bitVector: BitVector =>
+          OutputVectorWrapper.BitVectorOutputWrapper(bitVector)
       }
     }
   }
