@@ -752,6 +752,18 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"isnull with CASE does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select count(case when isnull(a) then -1 end) as foo, count(case when isnull(b) then -1 else 1 end) as bar  from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[(Long, Long)].collect().toList == List(
+        (1, 3)
+      ))
+    }
+  }
+
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan

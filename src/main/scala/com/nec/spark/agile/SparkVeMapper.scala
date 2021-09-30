@@ -263,6 +263,23 @@ object SparkVeMapper {
         }
       case NoOp =>
         CExpression("0", Some("false"))
+      case CaseWhen(branches, None) =>
+        branches match {
+          case Seq((caseExp, valueExp)) =>
+            val cond = eval(caseExp, fallback)
+            val value = eval(valueExp, fallback)
+
+            CExpression(
+              cCode = s"(${value.cCode})",
+              isNotNullCode = Some(s"${cond.cCode}")
+            )
+          case Seq((caseExp, valueExp), xs@_*) =>
+            val cond = eval(caseExp, fallback)
+            val value = eval(valueExp, fallback)
+
+            // case when x then y when w then z end == case when x then y else case when w then z end
+            eval(CaseWhen(Seq((caseExp, valueExp)), Some(CaseWhen(xs))), fallback)
+        }
       case CaseWhen(branches, Some(elseValue)) =>
         branches match {
           case Seq((caseExp, valueExp)) =>
@@ -273,22 +290,8 @@ object SparkVeMapper {
               cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})",
               isNotNullCode = Some(s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})")
             )
-          case exps =>
-            var x = exps.toList
-            var out = ""
-            var sep = ""
-            while (x != Nil) {
-              val (caseExp, valueExp) = x.head
-              val cond = eval(caseExp, fallback)
-              val value = eval(valueExp, fallback)
-
-              out += s"$sep (${cond.cCode}) ? (${value.cCode})"
-                  sep = ":"
-              x = x.tail
-            }
-            out += s" : (${eval(elseValue, fallback).cCode})"
-
-            CExpression(out, Some(out))
+          case Seq((caseExp, valueExp), xs@_*) =>
+            eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)), fallback)
         }
       case fallback(result) =>
         result
