@@ -118,7 +118,7 @@ class DynamicCSqlExpressionEvaluationSpec
       )
     }
   }
-  val sum_multiplication = s"SELECT 2 * SUM(${SampleColA}) FROM nums"
+  val sum_multiplication = s"SELECT (AVG(${SampleColA} + ${SampleColB}) * 2) as ddz FROM nums"
   "Support multiplication of sum" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._

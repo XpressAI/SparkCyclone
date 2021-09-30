@@ -26,8 +26,8 @@ object CFunctionGeneration {
     override def veType: VeType = VeString
   }
   final case class CScalarVector(name: String, veType: VeScalarType) extends CVector
+  case class CExpression(cCode: String, isNotNullCode: Option[String])
 
-  final case class CExpression(cCode: String, isNotNullCode: Option[String])
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
 
   final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)
