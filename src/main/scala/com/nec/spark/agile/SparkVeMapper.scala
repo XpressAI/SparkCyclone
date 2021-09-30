@@ -273,6 +273,22 @@ object SparkVeMapper {
               cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})",
               isNotNullCode = Some(s"(${cond.cCode}) ? (${value.cCode}) : (${eval(elseValue, fallback).cCode})")
             )
+          case exps =>
+            var x = exps.toList
+            var out = ""
+            var sep = ""
+            while (x != Nil) {
+              val (caseExp, valueExp) = x.head
+              val cond = eval(caseExp, fallback)
+              val value = eval(valueExp, fallback)
+
+              out += s"$sep (${cond.cCode}) ? (${value.cCode})"
+                  sep = ":"
+              x = x.tail
+            }
+            out += s" : (${eval(elseValue, fallback).cCode})"
+
+            CExpression(out, Some(out))
         }
       case fallback(result) =>
         result
