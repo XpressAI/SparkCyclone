@@ -12,8 +12,7 @@ import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression
  */
 final case class DeclarativeAggregationConverter(
   declarativeAggregate: DeclarativeAggregate,
-  evalFallback: EvalFallback,
-  parent: Option[Expression] = None
+  evalFallback: EvalFallback
 ) extends Aggregation {
   override def initial(prefix: String): CodeLines = {
     CodeLines.from(
@@ -41,8 +40,6 @@ final case class DeclarativeAggregationConverter(
     case ar: AttributeReference
         if declarativeAggregate.aggBufferAttributes.exists(_.name == ar.name) =>
       ar.withName(s"${prefix}_${ar.name}_nullable")
-
-    case declarativeAggregate: DeclarativeAggregate => declarativeAggregate.evaluateExpression
   }
 
   override def iterate(prefix: String): CodeLines = {
@@ -76,7 +73,7 @@ final case class DeclarativeAggregationConverter(
         }
       }.toList,
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e, EvalFallback.NoOpFallback)
+        val codeEval = SparkVeMapper.eval(e, evalFallback)
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -97,16 +94,10 @@ final case class DeclarativeAggregationConverter(
     CodeLines.empty
 
   override def fetch(prefix: String): CExpression = {
-    parent match {
-      case Some(expr) => {
-        val fullExpr = SparkVeMapper.eval(expr.transformUp(transformInitial(prefix)), evalFallback)
-        val aggregate = SparkVeMapper.eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)), evalFallback)
-
-        fullExpr.copy(isNotNullCode = aggregate.isNotNullCode)
-      }
-      case None => SparkVeMapper.eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)), evalFallback)
-
-    }
+    SparkVeMapper.eval(
+      declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)),
+      evalFallback
+    )
   }
 
   override def free(prefix: String): CodeLines = CodeLines.empty

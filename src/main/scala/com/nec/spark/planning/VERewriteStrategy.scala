@@ -6,6 +6,11 @@ import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  DeclarativeAggregate
+}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic}
 import org.apache.spark.sql.catalyst.plans.logical
@@ -296,18 +301,6 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                             d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
                               .asInstanceOf[DeclarativeAggregate],
                             EvalFallback.noOp
-                          )
-                        )
-                      case al @ Alias(BinaryArithmetic(left, right), name)
-                        if(left.children.filter(_.isInstanceOf[DeclarativeAggregate]).size > 0 || right.children.filter(_.isInstanceOf[DeclarativeAggregate]).size > 0) =>
-                        val agg = left.children.filter(_.isInstanceOf[DeclarativeAggregate]).head
-                        GroupByExpression.GroupByAggregation(
-                          DeclarativeAggregationConverter(
-                            agg
-                              .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate],
-                            EvalFallback.AggregationProjectionFallback,
-                            Some(al.transform(SparkVeMapper.referenceReplacer(child.output.toList)))
                           )
                         )
                       case other if other.children.exists(_.isInstanceOf[DeclarativeAggregate]) =>

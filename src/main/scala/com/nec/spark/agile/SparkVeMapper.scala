@@ -1,9 +1,26 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
-
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, NoOp, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, EqualTo, ExprId, Expression, Greatest, If, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Sqrt}
+import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
+import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
+  AttributeReference,
+  BinaryOperator,
+  CaseWhen,
+  Cast,
+  Coalesce,
+  EqualTo,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Sqrt
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -125,18 +142,6 @@ object SparkVeMapper {
 
     object NoOpFallback extends EvalFallback {
       override def fallback: PartialFunction[Expression, CExpression] = PartialFunction.empty
-    }
-
-    object AggregationProjectionFallback extends EvalFallback {
-
-      override def fallback: PartialFunction[Expression, CExpression] = {
-        case Sum(child) => eval(child, this)
-        case Average(child) => eval(child, this)
-        case Alias(child, _) => eval(child, this)
-        case AggregateExpression(Sum(child), mode, isDistinct, filter, resultId) => eval(child, this)
-        case AggregateExpression(Average(child), mode, isDistinct, filter, resultId) => eval(child, this)
-
-      }
     }
   }
 
