@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 
+import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
@@ -232,6 +233,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   .aggregateFunction
                   .isInstanceOf[HyperLogLogPlusPlus]
               ).getOrElse(false) =>
+          implicit val fallback = EvalFallback.noOp
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
             NamedStringProducer,
             NamedGroupByExpression
@@ -268,11 +270,12 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   Right(
                     TypedCExpression2(
                       SparkVeMapper.sparkTypeToScalarVeType(other),
-                      SparkVeMapper.eval(
-                        SparkVeMapper
-                          .replaceReferences(inputs = child.output.toList, expression = expr),
-                        EvalFallback.noOp
-                      )
+                      SparkVeMapper
+                        .eval(
+                          SparkVeMapper
+                            .replaceReferences(inputs = child.output.toList, expression = expr)
+                        )
+                        .getOrReport()
                     )
                   )
               }
@@ -282,22 +285,24 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 Left(
                   NamedStringProducer(
                     name = s"output_${idx}",
-                    stringProducer = SparkVeMapper.evalString(
-                      namedExpression
-                        .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
-                      EvalFallback.noOp
-                    )
+                    stringProducer = SparkVeMapper
+                      .evalString(
+                        namedExpression
+                          .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                      )
+                      .getOrReport()
                   )
                 )
               case (stringExp, idx) if stringExp.dataType == StringType =>
                 Left(
                   NamedStringProducer(
                     name = s"output_${idx}",
-                    stringProducer = SparkVeMapper.evalString(
-                      stringExp
-                        .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
-                      EvalFallback.noOp
-                    )
+                    stringProducer = SparkVeMapper
+                      .evalString(
+                        stringExp
+                          .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                      )
+                      .getOrReport()
                   )
                 )
               case (namedExpression, idx) =>
@@ -310,8 +315,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter(
                             d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate],
-                            EvalFallback.noOp
+                              .asInstanceOf[DeclarativeAggregate]
                           )
                         )
                       case Alias(other, _) if other.collectFirst { case _: DeclarativeAggregate =>
@@ -321,8 +325,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                           DeclarativeAggregationConverter
                             .transformingFetch(
                               other
-                                .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
-                              EvalFallback.noOp
+                                .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                             )
                             .getOrElse(
                               sys.error(
@@ -337,8 +340,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                           DeclarativeAggregationConverter
                             .transformingFetch(
                               other
-                                .transform(SparkVeMapper.referenceReplacer(child.output.toList)),
-                              EvalFallback.noOp
+                                .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                             )
                             .getOrElse(
                               sys.error(
@@ -348,17 +350,19 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         )
                       case Alias(other, _) =>
                         GroupByExpression.GroupByProjection(
-                          SparkVeMapper.eval(
-                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList)),
-                            EvalFallback.noOp
-                          )
+                          SparkVeMapper
+                            .eval(
+                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            )
+                            .getOrReport()
                         )
                       case other =>
                         GroupByExpression.GroupByProjection(
-                          SparkVeMapper.eval(
-                            other.transform(SparkVeMapper.referenceReplacer(child.output.toList)),
-                            EvalFallback.noOp
-                          )
+                          SparkVeMapper
+                            .eval(
+                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            )
+                            .getOrReport()
                         )
                     }
                   )

@@ -1,4 +1,5 @@
 package com.nec.spark.agile
+import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression, DelegatingAggregation}
@@ -14,9 +15,8 @@ import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression
  * Many of Spark's aggregations can be reduced to repetition of simple operations.
  * Here we perform exactly that.
  */
-final case class DeclarativeAggregationConverter(
-  declarativeAggregate: DeclarativeAggregate,
-  evalFallback: EvalFallback
+final case class DeclarativeAggregationConverter(declarativeAggregate: DeclarativeAggregate)(
+  implicit evalFallback: EvalFallback
 ) extends Aggregation {
   override def initial(prefix: String): CodeLines = {
     CodeLines.from(
@@ -54,7 +54,7 @@ final case class DeclarativeAggregationConverter(
 
     CodeLines.from(
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e, evalFallback)
+        val codeEval = SparkVeMapper.eval(e)(evalFallback).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -77,7 +77,7 @@ final case class DeclarativeAggregationConverter(
         }
       }.toList,
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e, evalFallback)
+        val codeEval = SparkVeMapper.eval(e).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -97,12 +97,9 @@ final case class DeclarativeAggregationConverter(
   override def compute(prefix: String): CodeLines =
     CodeLines.empty
 
-  override def fetch(prefix: String): CExpression = {
-    SparkVeMapper.eval(
-      declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)),
-      evalFallback
-    )
-  }
+  override def fetch(prefix: String): CExpression = SparkVeMapper
+    .eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)))
+    .getOrReport()
 
   override def free(prefix: String): CodeLines = CodeLines.empty
 }
@@ -120,23 +117,26 @@ object DeclarativeAggregationConverter {
 
   object AggregateHole extends UnresolvedAttribute(Seq.empty)
 
-  def transformingFetch(expression: Expression, fallback: EvalFallback): Option[Aggregation] = {
+  def transformingFetch(
+    expression: Expression
+  )(implicit fallback: EvalFallback): Option[Aggregation] = {
     expression.collectFirst {
       case ae @ AggregateExpression(d: DeclarativeAggregate, mode, isDistinct, filter, resultId) =>
-        val conv = DeclarativeAggregationConverter(d, fallback)
+        val conv = DeclarativeAggregationConverter(d)
         TransformingAggregation(
           conv,
           originalResult =>
-            SparkVeMapper.eval(
-              expression.transformDown { case `ae` =>
+            SparkVeMapper
+              .eval(expression.transformDown { case `ae` =>
                 AggregateHole
-              },
-              EvalFallback
-                .from { case AggregateHole =>
-                  originalResult
-                }
-                .orElse(fallback)
-            )
+              })(
+                EvalFallback
+                  .from { case AggregateHole =>
+                    originalResult
+                  }
+                  .orElse(fallback)
+              )
+              .getOrReport()
         )
     }
   }
