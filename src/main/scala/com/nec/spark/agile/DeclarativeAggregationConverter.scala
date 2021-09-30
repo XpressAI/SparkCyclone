@@ -1,15 +1,28 @@
 package com.nec.spark.agile
 import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
-
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression, DelegatingAggregation}
+import com.nec.spark.agile.CFunctionGeneration.{
+  Aggregation,
+  CExpression,
+  DelegatingAggregation,
+  SuffixedAggregation
+}
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
 }
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.{
+  AttributeReference,
+  Expression,
+  LeafExpression,
+  Literal,
+  Unevaluable
+}
+import org.apache.spark.sql.types.DataType
 
 /**
  * Many of Spark's aggregations can be reduced to repetition of simple operations.
@@ -115,29 +128,69 @@ object DeclarativeAggregationConverter {
     }
   }
 
-  object AggregateHole extends UnresolvedAttribute(Seq.empty)
+  private final case class CombinedAggregation(
+    underlying: List[Aggregation],
+    combineResults: List[CExpression] => CExpression
+  ) extends Aggregation {
+    override def initial(prefix: String): CodeLines =
+      CodeLines.from(underlying.map(_.initial(prefix)))
+
+    override def iterate(prefix: String): CodeLines =
+      CodeLines.from(underlying.map(_.iterate(prefix)))
+
+    override def compute(prefix: String): CodeLines =
+      CodeLines.from(underlying.map(_.compute(prefix)))
+
+    override def fetch(prefix: String): CExpression =
+      combineResults(underlying.map(_.fetch(prefix)))
+
+    override def free(prefix: String): CodeLines = CodeLines.from(underlying.map(_.free(prefix)))
+  }
+
+  final case class AggregateHole(aggregateExpression: AggregateExpression)
+    extends LeafExpression
+    with Unevaluable {
+    override def nullable: Boolean = aggregateExpression.nullable
+
+    override def dataType: DataType = aggregateExpression.dataType
+  }
 
   def transformingFetch(
     expression: Expression
   )(implicit fallback: EvalFallback): Option[Aggregation] = {
-    expression.collectFirst {
+    val allAggregates = expression.collect {
       case ae @ AggregateExpression(d: DeclarativeAggregate, mode, isDistinct, filter, resultId) =>
-        val conv = DeclarativeAggregationConverter(d)
-        TransformingAggregation(
-          conv,
-          originalResult =>
-            SparkVeMapper
-              .eval(expression.transformDown { case `ae` =>
-                AggregateHole
-              })(
-                EvalFallback
-                  .from { case AggregateHole =>
-                    originalResult
-                  }
-                  .orElse(fallback)
-              )
-              .getOrReport()
-        )
+        (ae, d)
+    }
+
+    val aggregations: List[(AggregateExpression, Aggregation)] = allAggregates.zipWithIndex.map {
+      case ((ae, de), idx) =>
+        ae -> SuffixedAggregation(s"_$idx", DeclarativeAggregationConverter(de))
+    }.toList
+
+    val aeToAggregation: Map[AggregateExpression, Aggregation] = aggregations.toMap
+
+    val cheese = expression.transformDown {
+      case ae: AggregateExpression if aeToAggregation.contains(ae) =>
+        AggregateHole(ae)
+    }
+
+    Option {
+      CombinedAggregation(
+        underlying = aggregations.map(_._2),
+        combineResults = results => {
+          SparkVeMapper
+            .eval(cheese)(
+              EvalFallback
+                .from {
+                  case AggregateHole(h) if aeToAggregation.contains(h) =>
+                    results.apply(aggregations.indexWhere { case (_ae, _ag) => _ae == h })
+                }
+                .orElse(fallback)
+            )
+            .getOrReport()
+        }
+      )
     }
   }
 
