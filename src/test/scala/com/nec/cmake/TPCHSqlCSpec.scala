@@ -108,11 +108,11 @@ object TPCHSqlSpec {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
-//      .withExtensions(sse =>
-//        sse.injectPlannerStrategy(_ =>
-//          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
-//        )
-//      )
+      .withExtensions(sse =>
+        sse.injectPlannerStrategy(_ =>
+          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
+        )
+      )
   }
 
 }
