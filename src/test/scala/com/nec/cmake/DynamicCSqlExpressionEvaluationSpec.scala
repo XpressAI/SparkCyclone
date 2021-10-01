@@ -751,6 +751,44 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"LIKE works strings (startsWith)" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select sum(case when s LIKE 'n%' then 1 else 3 end), s from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
+    sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
+      val resultOriginal = ds.as[(BigInt, String)].collect().toList
+      val result = resultOriginal.sorted
+      val expected = List[(BigInt, String)]((6, "yes"), (1, "no")).sorted
+      assert(result == expected)
+    }
+  }
+
+  s"LIKE works strings (endsWith)" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select sum(case when not(s LIKE '%o') then 1 else 3 end), s from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      val resultOriginal = ds.as[(BigInt, String)].collect().toList
+      val result = resultOriginal.sorted
+      val expected = List[(BigInt, String)]((2, "yes"), (3, "no")).sorted
+      assert(result == expected)
+    }
+  }
+  s"LIKE works strings (contains)" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select sum(case when s LIKE '%e%' then 1 else 3 end), s from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      val resultOriginal = ds.as[(BigInt, String)].collect().toList
+      val result = resultOriginal.sorted
+      val expected = List[(BigInt, String)]((2, "yes"), (3, "no")).sorted
+      assert(result == expected)
+    }
+  }
+
   s"OUTER JOINs do not crash" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 

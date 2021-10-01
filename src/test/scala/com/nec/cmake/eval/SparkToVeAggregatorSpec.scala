@@ -47,7 +47,7 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
         .transformingFetch(inputQuery)
         .getOrElse(fail("Not found"))
         .fetch("test")
-        .cCode == "((2) * (test_sum_nullable))"
+        .cCode == "((2) * (test_0_sum_nullable))"
     )
   }
 
@@ -68,9 +68,8 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
         .fetch("test")
         .cCode
 
-    info(result)
     assert(
-      result == "((((test_0_sum_nullable) / ((double) test_0_count_nullable))) * (test_1_sum_nullable))"
+      result == "((((test_0_sum_nullable) / ((double) (test_0_count_nullable)))) * (test_1_sum_nullable))"
     )
   }
 }
