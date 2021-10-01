@@ -750,6 +750,7 @@ class DynamicCSqlExpressionEvaluationSpec
       assert(result == expected)
     }
   }
+
   s"LIKE works strings (startsWith)" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
