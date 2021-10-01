@@ -19,6 +19,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   KnownFloatingPointNormalized,
   Least,
   Literal,
+  Not,
   Sqrt
 }
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
@@ -285,9 +286,13 @@ object SparkVeMapper {
       case Cast(child, newDt, None) =>
         eval(child).map { ex =>
           CExpression(
-            cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) ${ex.cCode}",
+            cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) (${ex.cCode})",
             isNotNullCode = ex.isNotNullCode
           )
+        }
+      case Not(child) =>
+        eval(child).map { ex =>
+          CExpression(cCode = s"!(${ex.cCode})", isNotNullCode = ex.isNotNullCode)
         }
       case Greatest(children) =>
         val fails = children.map(exp => eval(exp)).flatMap(_.left.toOption)
@@ -324,7 +329,21 @@ object SparkVeMapper {
         for {
           cond <- eval(caseExp)
           value <- eval(valueExp)
-        } yield CExpression(cCode = s"(${value.cCode})", isNotNullCode = Some(s"${cond.cCode}"))
+        } yield CExpression(
+          cCode = value.cCode,
+          isNotNullCode = {
+            (cond.isNotNullCode, value.isNotNullCode) match {
+              case (None, None) =>
+                Some(cond.cCode)
+              case (Some(condNotNull), None) =>
+                Some(s"(${condNotNull}) && (${cond.cCode})")
+              case (None, Some(valueNotNull)) =>
+                Some(s"(${cond.cCode}) && ${valueNotNull})")
+              case (Some(condNotNull), Some(valueNotNull)) =>
+                Some(s"($condNotNull) && (${cond.cCode}) && (${valueNotNull})")
+            }
+          }
+        )
       case CaseWhen(Seq((caseExp, valueExp), xs @ _*), None) =>
         eval(CaseWhen(Seq((caseExp, valueExp)), Some(CaseWhen(xs))))
       case CaseWhen(Seq((caseExp, valueExp)), Some(elseValue)) =>
@@ -332,10 +351,26 @@ object SparkVeMapper {
           cond <- eval(caseExp)
           value <- eval(valueExp)
           ev <- eval(elseValue)
-        } yield CExpression(
-          cCode = s"(${cond.cCode}) ? (${value.cCode}) : (${ev.cCode})",
-          isNotNullCode = Some(s"(${cond.cCode}) ? (${value.cCode}) : (${ev.cCode})")
-        )
+        } yield {
+          val willBeTrue = cond.isNotNullCode match {
+            case None                => cond.cCode
+            case Some(condIsNotNull) => s"(${condIsNotNull}) && (${cond.cCode})"
+          }
+          CExpression(
+            cCode = s"(${willBeTrue}) ? (${value.cCode}) : (${ev.cCode})",
+            isNotNullCode = {
+              (value.isNotNullCode, ev.isNotNullCode) match {
+                case (None, None) => None
+                case (Some(valueNotNull), None) =>
+                  Some(s"(${willBeTrue}) ? (${valueNotNull}) : 1")
+                case (None, Some(evNotNull)) =>
+                  Some(s"(${willBeTrue}) ? 1 : (${evNotNull})")
+                case (Some(valueNotNull), Some(evNotNull)) =>
+                  Some(s"(${willBeTrue}) ? (${valueNotNull}) : (${evNotNull})")
+              }
+            }
+          )
+        }
       case CaseWhen(Seq((caseExp, valueExp), xs @ _*), Some(elseValue)) =>
         eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)))
       case fallback(result) =>
