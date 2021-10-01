@@ -742,12 +742,11 @@ class DynamicCSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     val sql =
-      "select sum(case when not(s = 'no') then 1 else 0 end), s from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
+      "select sum(case when not(s = 'no') then 1 else 3 end), s from values ('yes', 10, 20), ('no', 30, 12), ('yes', 0, 10) as tab(s, x, y) group by s"
     sparkSession.sql(sql).debugSqlHere { ds =>
       val resultOriginal = ds.as[(BigInt, String)].collect().toList
-      println(resultOriginal)
       val result = resultOriginal.sorted
-      val expected = List[(BigInt, String)]((2, "yes"), (1, "no")).sorted
+      val expected = List[(BigInt, String)]((2, "yes"), (3, "no")).sorted
       assert(result == expected)
     }
   }

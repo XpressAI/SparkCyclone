@@ -72,7 +72,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
           case None =>
             CodeLines.from(
               s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = ${prefix}_${aggb.name}_nullable_is_set;"
+              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
             )
           case Some(notNullCode) =>
             CodeLines.from(
