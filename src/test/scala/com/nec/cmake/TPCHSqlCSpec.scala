@@ -130,6 +130,7 @@ class TPCHSqlCSpec
 
   def configuration: SparkSession.Builder => SparkSession.Builder =
     DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
+  val resultsDir = "src/test/resources/com/nec/spark/results/"
 
   def createViews(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._
