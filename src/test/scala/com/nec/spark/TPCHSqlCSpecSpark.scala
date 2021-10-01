@@ -1,23 +1,18 @@
-package com.nec.cmake
+package com.nec.spark
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.aurora.Aurora
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.VERewriteStrategy
-import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
+import com.nec.cmake.{Customer, Lineitem, Nation, Order, Part, Partsupp, Region, Supplier}
 import com.typesafe.scalalogging.LazyLogging
-
-import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Ignore}
-import java.io.File
 
+import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.types.{DataTypes, DoubleType, LongType, StructField, StructType}
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 
-
+@Ignore
 class TPCHSqlCSpecSpark
   extends AnyFreeSpec
   with BeforeAndAfter
