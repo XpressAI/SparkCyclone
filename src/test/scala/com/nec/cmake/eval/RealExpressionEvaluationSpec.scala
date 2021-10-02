@@ -1,19 +1,36 @@
 package com.nec.cmake.eval
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
+import com.nec.arrow.ArrowVectorBuilders.{
+  withArrowStringVector,
+  withDirectBigIntVector,
+  withDirectFloat8Vector,
+  withDirectIntVector
+}
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
+import com.nec.cmake.functions.ParseCSVSpec.{
+  RichBigIntVector,
+  RichFloat8,
+  RichIntVector,
+  RichVarCharVector
+}
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
-import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.{DeclarativeAggregationConverter, GroupByFunctionGeneration}
+import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
+import com.nec.spark.agile.{
+  DeclarativeAggregationConverter,
+  GroupByFunctionGeneration,
+  StringProducer
+}
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
@@ -119,7 +136,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
         CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
       ) ==
-        List[(Double, Double)]((19.0 -> 1.0), 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
+        List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
     )
   }
 
@@ -147,6 +164,47 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       result ==
         List[Double](6.6)
     )
+  }
+
+  "Average is computed correctly" in {
+    val result = evalAggregate(List[Double](1, 2, 3))(
+      TypedGroupByExpression[Double](
+        GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
+      )
+    )
+    assert(
+      result ==
+        List[Double](2)
+    )
+  }
+
+  "Split Aggregation" - {
+
+    val groupBy = StringGrouping("input_0")
+
+    val inputData = List[(String, Double)](("x", 1.0), ("y", 1.0), ("x", 2.0))
+
+    val outputExpression = (
+      StringGrouping("input_0"),
+      TypedGroupByExpression[Double](
+        GroupByAggregation(Aggregation.avg(CExpression("input_1->data[i]", None)))
+      )
+    )
+
+    val grouper = SplitGroupBy(groupBy, outputExpression)
+
+    "Produces intermediate results" in {
+      val result = grouper.evalPartial(inputData)
+      assert(result == List[(String, Double, Int)](("x", 3.0, 2), ("y", 1.0, 1)))
+    }
+    "Computes final results" in {
+      val result = grouper.evalFinal(List[(String, Double, Long)](("x", 3.0, 2), ("y", 1.0, 1)))
+      assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
+    }
+    "Combines both" in {
+      val result = grouper.evalFull(inputData)
+      assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
+    }
   }
 
   "We can aggregate / group by" in {
@@ -848,4 +906,111 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
   }
 
+  final case class SplitGroupBy[Partial, Output](
+    stringGrouping: StringGrouping,
+    output: (StringGrouping, TypedGroupByExpression[Double])
+  ) {
+
+    def generator: GroupByFunctionGeneration = GroupByFunctionGeneration(
+      VeGroupBy(
+        inputs = List(CVector.varChar("input_0"), CVector.double("input_1")),
+        groups = List(Left(stringGrouping)),
+        outputs = List(
+          Left(NamedStringProducer("output_0", StringProducer.copyString(output._1.name))),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeScalarType.veNullableDouble,
+              output._2.groupByExpression
+            )
+          )
+        )
+      )
+    )
+
+    def evalFull(inputData: List[(String, Double)]): List[(String, Double)] = evalFinal(
+      evalPartial(inputData)
+    )
+
+    def evalFinal(partialInputData: List[(String, Double, Long)]): List[(String, Double)] = {
+      val functionName = "aggregate_final"
+
+      val generatedSource = generator.renderFinalGroupBy.toCodeLines(functionName)
+
+      logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+      val cLib = CMakeBuilder.buildCLogging(
+        List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+          .mkString("\n\n")
+      )
+
+      val nativeInterface = new CArrowNativeInterface(cLib.toString)
+      WithTestAllocator { implicit allocator =>
+        withArrowStringVector(partialInputData.map(_._1)) { vcv =>
+          withDirectFloat8Vector(partialInputData.map(_._2)) { f8v =>
+            withDirectBigIntVector(partialInputData.map(_._3)) { iv =>
+              withArrowStringVector(Seq.empty) { vcv_out =>
+                withDirectFloat8Vector(Seq.empty) { f8v_out =>
+                  nativeInterface.callFunctionWrapped(
+                    functionName,
+                    List(
+                      NativeArgument.input(vcv),
+                      NativeArgument.input(f8v),
+                      NativeArgument.input(iv),
+                      NativeArgument.output(vcv_out),
+                      NativeArgument.output(f8v_out)
+                    )
+                  )
+
+                  vcv_out.toList.zip(f8v_out.toList)
+                }
+              }
+            }
+          }
+        }
+      }
+
+    }
+
+    def evalPartial(inputData: List[(String, Double)]): List[(String, Double, Long)] = {
+      val functionName = "aggregate_partial"
+
+      val generatedSource = generator.renderPartialGroupBy.toCodeLines(functionName)
+
+      logger.debug(s"Generated code: ${generatedSource.cCode}")
+
+      val cLib = CMakeBuilder.buildCLogging(
+        List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+          .mkString("\n\n")
+      )
+
+      val nativeInterface = new CArrowNativeInterface(cLib.toString)
+      WithTestAllocator { implicit allocator =>
+        withArrowStringVector(inputData.map(_._1)) { vcv =>
+          withDirectFloat8Vector(inputData.map(_._2)) { f8v =>
+            withArrowStringVector(Seq.empty) { vcv_out =>
+              withDirectBigIntVector(Seq.empty) { iv_out =>
+                withDirectFloat8Vector(Seq.empty) { f8v_out =>
+                  nativeInterface.callFunctionWrapped(
+                    functionName,
+                    List(
+                      NativeArgument.input(vcv),
+                      NativeArgument.input(f8v),
+                      NativeArgument.output(vcv_out),
+                      NativeArgument.output(f8v_out),
+                      NativeArgument.output(iv_out)
+                    )
+                  )
+
+                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map { case ((s, d), i) =>
+                    (s, d, i)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

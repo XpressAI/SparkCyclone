@@ -1,8 +1,14 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.planning.StringCExpressionEvaluation
-
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
+  VeNullableDouble,
+  VeNullableFloat,
+  VeNullableInt,
+  VeNullableLong
+}
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, ValueVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
 
 /** Spark-free function evaluation */
@@ -21,6 +27,10 @@ object CFunctionGeneration {
   sealed trait CVector {
     def name: String
     def veType: VeType
+  }
+  object CVector {
+    def varChar(name: String): CVector = CVarChar(name)
+    def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
   }
   final case class CVarChar(name: String) extends CVector {
     override def veType: VeType = VeString
@@ -83,14 +93,6 @@ object CFunctionGeneration {
       def cVectorType: String = "nullable_bigint_vector"
 
       override def cSize: Int = 8
-    }
-
-    case object VeNullableString extends VeScalarType {
-      def cScalarType: String = "char *"
-
-      def cVectorType: String = "nullable_varchar_vector"
-
-      override def cSize: Int = 1
     }
 
     def veNullableDouble: VeScalarType = VeNullableDouble
@@ -181,6 +183,7 @@ object CFunctionGeneration {
 
   trait Aggregation extends Serializable {
     def initial(prefix: String): CodeLines
+    def partialValues(prefix: String): List[(CScalarVector, CExpression)]
     def iterate(prefix: String): CodeLines
     def compute(prefix: String): CodeLines
     def fetch(prefix: String): CExpression
@@ -197,6 +200,8 @@ object CFunctionGeneration {
     override def fetch(prefix: String): CExpression = original.fetch(s"$prefix$suffix")
 
     override def free(prefix: String): CodeLines = original.free(s"$prefix$suffix")
+
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = Nil
   }
 
   abstract class DelegatingAggregation(val original: Aggregation) extends Aggregation {
@@ -209,6 +214,9 @@ object CFunctionGeneration {
     override def fetch(prefix: String): CExpression = original.fetch(prefix)
 
     override def free(prefix: String): CodeLines = original.free(prefix)
+
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+      original.partialValues(prefix)
   }
 
   object Aggregation {
@@ -234,12 +242,74 @@ object CFunctionGeneration {
       override def free(prefix: String): CodeLines = CodeLines.empty
 
       override def compute(prefix: String): CodeLines = CodeLines.empty
+
+      override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = Nil
+    }
+    def avg(cExpression: CExpression): Aggregation = new Aggregation {
+      override def initial(prefix: String): CodeLines =
+        CodeLines.from(
+          s"double ${prefix}_aggregate_sum = 0;",
+          s"long ${prefix}_aggregate_count = 0;"
+        )
+
+      override def iterate(prefix: String): CodeLines =
+        cExpression.isNotNullCode match {
+          case None =>
+            CodeLines.from(
+              s"${prefix}_aggregate_sum += ${cExpression.cCode};",
+              s"${prefix}_aggregate_count += 1;"
+            )
+          case Some(notNullCheck) =>
+            CodeLines.from(
+              s"if ( ${notNullCheck} ) {",
+              CodeLines
+                .from(
+                  s"${prefix}_aggregate_sum += ${cExpression.cCode};",
+                  s"${prefix}_aggregate_count += 1;"
+                )
+                .indented,
+              "}"
+            )
+        }
+
+      override def fetch(prefix: String): CExpression =
+        CExpression(s"${prefix}_aggregate_sum / ${prefix}_aggregate_count", None)
+
+      override def free(prefix: String): CodeLines = CodeLines.empty
+
+      override def compute(prefix: String): CodeLines = CodeLines.empty
+
+      override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = List(
+        (
+          CScalarVector(s"${prefix}_aggregate_sum_partial_output", VeScalarType.veNullableDouble),
+          CExpression(s"${prefix}_aggregate_sum", None)
+        ),
+        (
+          CScalarVector(s"${prefix}_aggregate_count_partial_output", VeScalarType.veNullableLong),
+          CExpression(s"${prefix}_aggregate_count", None)
+        )
+      )
     }
   }
 
   final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
+
+  def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): ValueVector = {
+    cVector.veType match {
+      case VeString =>
+        new VarCharVector(cVector.name, bufferAllocator)
+      case VeNullableDouble =>
+        new Float8Vector(cVector.name, bufferAllocator)
+      case VeNullableFloat =>
+        new Float8Vector(cVector.name, bufferAllocator)
+      case VeNullableInt =>
+        new IntVector(cVector.name, bufferAllocator)
+      case VeNullableLong =>
+        new BigIntVector(cVector.name, bufferAllocator)
+    }
+  }
 
   final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
     def arguments: List[CVector] = inputs ++ outputs

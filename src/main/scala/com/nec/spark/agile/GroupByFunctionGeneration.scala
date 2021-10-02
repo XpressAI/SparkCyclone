@@ -1,12 +1,17 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration.{
   CFunction,
   CScalarVector,
   CVarChar,
   CVector,
   GroupBeforeSort,
+  GroupByExpression,
   NamedGroupByExpression,
   NamedStringProducer,
   StringGrouping,
@@ -14,6 +19,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
   VeGroupBy
 }
 
+//noinspection MapFlatten
 final case class GroupByFunctionGeneration(
   veDataTransformation: VeGroupBy[
     CVector,
@@ -75,8 +81,258 @@ final case class GroupByFunctionGeneration(
     s"int groups_count = groups_indices.size() - 1;"
   )
 
-  def renderGroupBy: CFunction = {
+  private def partialOutputs
+    : List[Either[(NamedStringProducer, CVector), (NamedGroupByExpression, List[CVector])]] = {
+    veDataTransformation.outputs.zipWithIndex.map {
+      case (
+            Right(
+              n @ NamedGroupByExpression(
+                outputName,
+                veType,
+                GroupByExpression.GroupByProjection(proj)
+              )
+            ),
+            idx
+          ) =>
+        Right(n -> List(CScalarVector(outputName, veType)))
+      case (
+            Right(
+              n @ NamedGroupByExpression(
+                outputName,
+                veType,
+                GroupByExpression.GroupByAggregation(agg)
+              )
+            ),
+            idx
+          ) =>
+        Right(n -> agg.partialValues(outputName).map(_._1))
+      case (e @ Left(n @ NamedStringProducer(outputName, _)), idx) =>
+        Left(n -> CVarChar(outputName))
+    }
+  }
 
+  private def partialOutputVectors: List[CVector] =
+    partialOutputs
+      .map(_.left.map(_._2).left.map(List.apply(_)))
+      .map(_.right.map(_._2))
+      .flatMap(_.fold(identity, identity))
+
+  def renderPartialGroupBy: CFunction = {
+    CFunction(
+      inputs = veDataTransformation.inputs,
+      outputs = partialOutputVectors,
+      body = CodeLines.from(
+        performGrouping,
+        "/** perform computations for every output **/",
+        CodeLines.from(
+          partialOutputs
+            .flatMap(_.left.toSeq)
+            .map(_._1)
+            .map { case NamedStringProducer(name, stringProducer) =>
+              val fp = StringProducer.FilteringProducer(name, stringProducer)
+              CodeLines
+                .from(
+                  fp.setup,
+                  "// for each group",
+                  "for (size_t g = 0; g < groups_count; g++) {",
+                  CodeLines
+                    .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
+                    .indented,
+                  "}",
+                  fp.complete,
+                  "for (size_t g = 0; g < groups_count; g++) {",
+                  CodeLines
+                    .from(
+                      "long i = sorted_idx[groups_indices[g]];",
+                      "long o = g;",
+                      fp.validityForEach
+                    )
+                    .indented,
+                  "}"
+                )
+                .blockCommented(s"Produce the string group")
+            }
+        ),
+        CodeLines.from(partialOutputs.flatMap(_.right.toSeq.map(_._1)).map {
+          case NamedGroupByExpression(outputName, veType, GroupByProjection(ex)) =>
+            CodeLines.from(
+              "",
+              s"// Output ${outputName}:",
+              s"$outputName->count = groups_count;",
+              s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+              "",
+              "// for each group",
+              "for (size_t g = 0; g < groups_count; g++) {",
+              CodeLines
+                .from(
+                  "// compute an aggregate",
+                  "size_t group_start_in_idx = groups_indices[g];",
+                  "size_t group_end_in_idx = groups_indices[g + 1];",
+                  "int i = 0;",
+                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                  CodeLines
+                    .from("i = sorted_idx[j];")
+                    .indented,
+                  "}",
+                  "// store the result",
+                  ex.isNotNullCode match {
+                    case None =>
+                      CodeLines.from(
+                        s"""$outputName->data[g] = ${ex.cCode};""",
+                        s"set_validity($outputName->validityBuffer, g, 1);"
+                      )
+                    case Some(notNullCheck) =>
+                      CodeLines.from(
+                        s"if ( $notNullCheck ) {",
+                        s"""  $outputName->data[g] = ${ex.cCode};""",
+                        s"  set_validity($outputName->validityBuffer, g, 1);",
+                        "} else {",
+                        s"  set_validity($outputName->validityBuffer, g, 0);",
+                        "}"
+                      )
+                  }
+                )
+                .indented,
+              "}"
+            )
+          case NamedGroupByExpression(finalOutputName, veType, GroupByAggregation(agg)) =>
+            CodeLines.from(
+              "",
+              s"// Partials' output for ${finalOutputName}:",
+              agg.partialValues(s"${finalOutputName}").map {
+                case (CScalarVector(outputName, partialType), cExpression) =>
+                  CodeLines.from(
+                    s"$outputName->count = groups_count;",
+                    s"$outputName->data = (${partialType.cScalarType}*) malloc($outputName->count * sizeof(${partialType.cScalarType}));",
+                    s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));"
+                  )
+              },
+              "",
+              "// for each group",
+              "for (size_t g = 0; g < groups_count; g++) {",
+              CodeLines
+                .from(
+                  "// compute an aggregate",
+                  agg.initial(finalOutputName),
+                  "size_t group_start_in_idx = groups_indices[g];",
+                  "size_t group_end_in_idx = groups_indices[g + 1];",
+                  "int i = 0;",
+                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                  CodeLines
+                    .from("i = sorted_idx[j];", agg.iterate(finalOutputName))
+                    .indented,
+                  "}",
+                  agg.compute(finalOutputName),
+                  "// store the result",
+                  agg.partialValues(s"${finalOutputName}").map {
+                    case (CScalarVector(outputName, partialType), cExpression) =>
+                      CodeLines.from(
+                        s"$outputName->data[g] = ${cExpression.cCode};",
+                        s"set_validity($outputName->validityBuffer, g, 1);"
+                      )
+                  }
+                )
+                .indented,
+              "}"
+            )
+        })
+      )
+    )
+  }
+
+  def renderFinalGroupBy: CFunction = {
+    CFunction(
+      inputs = veDataTransformation.inputs,
+      outputs = partialOutputVectors,
+      body = CodeLines.from(
+        performGrouping,
+        "/** perform computations for every output **/",
+        veDataTransformation.outputs.zipWithIndex.map {
+          case (Left(NamedStringProducer(name, stringProducer)), idx) =>
+            val fp = StringProducer.FilteringProducer(name, stringProducer)
+            CodeLines
+              .from(
+                fp.setup,
+                "// for each group",
+                "for (size_t g = 0; g < groups_count; g++) {",
+                CodeLines
+                  .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
+                  .indented,
+                "}",
+                fp.complete,
+                "for (size_t g = 0; g < groups_count; g++) {",
+                CodeLines
+                  .from(
+                    "long i = sorted_idx[groups_indices[g]];",
+                    "long o = g;",
+                    fp.validityForEach
+                  )
+                  .indented,
+                "}"
+              )
+              .blockCommented(s"Produce the string group")
+          case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
+            CodeLines.from(
+              "",
+              s"// Output #$idx for ${outputName}:",
+              s"$outputName->count = groups_count;",
+              s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+              "",
+              "// for each group",
+              "for (size_t g = 0; g < groups_count; g++) {",
+              CodeLines
+                .from(
+                  "// compute an aggregate",
+                  groupByExpr.fold(
+                    whenProj = _ => CodeLines.empty,
+                    whenAgg = agg => agg.initial(outputName)
+                  ),
+                  "size_t group_start_in_idx = groups_indices[g];",
+                  "size_t group_end_in_idx = groups_indices[g + 1];",
+                  "int i = 0;",
+                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                  CodeLines
+                    .from(
+                      "i = sorted_idx[j];",
+                      groupByExpr
+                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName))
+                    )
+                    .indented,
+                  "}",
+                  groupByExpr.fold(_ => CodeLines.empty, whenAgg = _.compute(outputName)),
+                  "// store the result",
+                  groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)) match {
+                    case ex =>
+                      ex.isNotNullCode match {
+                        case None =>
+                          CodeLines.from(
+                            s"""$outputName->data[g] = ${ex.cCode};""",
+                            s"set_validity($outputName->validityBuffer, g, 1);"
+                          )
+                        case Some(notNullCheck) =>
+                          CodeLines.from(
+                            s"if ( $notNullCheck ) {",
+                            s"""  $outputName->data[g] = ${ex.cCode};""",
+                            s"  set_validity($outputName->validityBuffer, g, 1);",
+                            "} else {",
+                            s"  set_validity($outputName->validityBuffer, g, 0);",
+                            "}"
+                          )
+                      }
+                  },
+                  groupByExpr.fold(_ => CodeLines.empty, _.free(outputName))
+                )
+                .indented,
+              "}"
+            )
+        }
+      )
+    )
+  }
+
+  def renderGroupBy: CFunction = {
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {

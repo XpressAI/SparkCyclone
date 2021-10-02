@@ -1,20 +1,13 @@
 package com.nec.spark.agile
-import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
+
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  Aggregation,
-  CExpression,
-  DelegatingAggregation,
-  SuffixedAggregation
-}
+import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
 }
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{
   AttributeReference,
   Expression,
@@ -115,6 +108,8 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
     .getOrReport()
 
   override def free(prefix: String): CodeLines = CodeLines.empty
+
+  override def partialValues(prefix: String) = Nil
 }
 
 object DeclarativeAggregationConverter {
@@ -145,6 +140,9 @@ object DeclarativeAggregationConverter {
       combineResults(underlying.map(_.fetch(prefix)))
 
     override def free(prefix: String): CodeLines = CodeLines.from(underlying.map(_.free(prefix)))
+
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+      underlying.flatMap(_.partialValues(prefix))
   }
 
   final case class AggregateHole(aggregateExpression: AggregateExpression)

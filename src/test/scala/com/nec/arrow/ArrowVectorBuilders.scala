@@ -1,9 +1,6 @@
 package com.nec.arrow
 import com.nec.arrow.CountArrowStringsSpec.schema
-import org.apache.arrow.vector.FieldVector
-import org.apache.arrow.vector.Float8Vector
-import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.VarCharVector
+import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 
 import java.util
 
@@ -63,6 +60,21 @@ object ArrowVectorBuilders {
   def withDirectIntVector[T](data: Seq[Int])(f: IntVector => T): T = {
     WithTestAllocator { alloc =>
       val vcv = new IntVector(s"value$vectorCount", alloc)
+      vectorCount += 1
+      vcv.allocateNew()
+      try {
+        data.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str)
+        }
+        vcv.setValueCount(data.size)
+
+        f(vcv)
+      } finally vcv.close()
+    }
+  }
+  def withDirectBigIntVector[T](data: Seq[Long])(f: BigIntVector => T): T = {
+    WithTestAllocator { alloc =>
+      val vcv = new BigIntVector(s"value$vectorCount", alloc)
       vectorCount += 1
       vcv.allocateNew()
       try {
