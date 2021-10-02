@@ -13,7 +13,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.DeclarativeAggregationConverter
+import com.nec.spark.agile.{DeclarativeAggregationConverter, GroupByFunctionGeneration}
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
@@ -27,7 +27,7 @@ import org.scalatest.freespec.AnyFreeSpec
  */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   import com.nec.cmake.eval.RealExpressionEvaluationSpec._
-  private implicit val fallback = EvalFallback.noOp
+  private implicit val fallback: EvalFallback = EvalFallback.noOp
 
   "We can transform a column" in {
     expect(
@@ -525,13 +525,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "agg"
 
     val generatedSource =
-      renderGroupBy(
+      GroupByFunctionGeneration(
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = Nil,
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).toCodeLines(functionName)
+      ).renderGroupBy.toCodeLines(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -668,13 +668,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "project_f"
 
     val generatedSource =
-      renderGroupBy(
+      GroupByFunctionGeneration(
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = List(Right(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).toCodeLines(functionName)
+      ).renderGroupBy.toCodeLines(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -711,13 +711,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "project_f"
 
     val generatedSource =
-      renderGroupBy(
+      GroupByFunctionGeneration(
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = List(Left(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions)
         )
-      ).toCodeLines(functionName)
+      ).renderGroupBy.toCodeLines(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 

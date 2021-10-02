@@ -4,7 +4,11 @@ import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
-import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
+import com.nec.spark.agile.{
+  DeclarativeAggregationConverter,
+  GroupByFunctionGeneration,
+  SparkVeMapper
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -370,7 +374,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             }
           )
           logger.debug(s"Group by = ${groupBySummary}")
-          val codeLines = renderGroupBy(groupBySummary).toCodeLines(fName)
+          val codeLines = GroupByFunctionGeneration(groupBySummary).renderGroupBy.toCodeLines(fName)
 
           List(
             NewCEvaluationPlan(

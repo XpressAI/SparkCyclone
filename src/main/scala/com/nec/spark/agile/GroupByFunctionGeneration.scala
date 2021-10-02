@@ -1,0 +1,175 @@
+package com.nec.spark.agile
+
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.{
+  CFunction,
+  CScalarVector,
+  CVarChar,
+  CVector,
+  GroupBeforeSort,
+  NamedGroupByExpression,
+  NamedStringProducer,
+  StringGrouping,
+  TypedCExpression2,
+  VeGroupBy
+}
+
+final case class GroupByFunctionGeneration(
+  veDataTransformation: VeGroupBy[
+    CVector,
+    Either[StringGrouping, TypedCExpression2],
+    Either[NamedStringProducer, NamedGroupByExpression]
+  ]
+) {
+
+  def tuple =
+    s"std::tuple<${veDataTransformation.groups
+      .flatMap {
+        case Right(v) =>
+          List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
+        case Left(s) =>
+          List("long")
+      }
+      .mkString(", ")}>"
+
+  def performGrouping: CodeLines = CodeLines.from(
+    s"/** sorting section - ${GroupBeforeSort} **/",
+    s"std::vector<${tuple}> full_grouping_vec;",
+    s"std::vector<size_t> sorted_idx(input_0->count);",
+    veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
+      val stringIdToHash = s"${name}_string_id_to_hash"
+      CodeLines.from(
+        s"std::vector<long> $stringIdToHash(input_0->count);",
+        "for ( long i = 0; i < input_0->count; i++ ) {",
+        CodeLines
+          .from(
+            // todo replace with a proper hash. I cannot do this quickly in C.
+            "// hash by string length... todo replace with something better",
+            s"long string_hash = 0;",
+            s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
+            CodeLines.from(s"string_hash = 31*string_hash + ${name}->data[q];").indented,
+            "}",
+            s"$stringIdToHash[i] = string_hash;"
+          )
+          .indented,
+        "}"
+      )
+    },
+    "for ( long i = 0; i < input_0->count; i++ ) {",
+    CodeLines
+      .from(
+        "sorted_idx[i] = i;",
+        s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups
+          .flatMap {
+            case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
+            case Left(StringGrouping(inputName)) =>
+              List(s"${inputName}_string_id_to_hash[i]")
+          }
+          .mkString(", ")}));"
+      )
+      .indented,
+    s"}",
+    "frovedis::insertion_sort(full_grouping_vec.data(), sorted_idx.data(), full_grouping_vec.size());",
+    "/** compute each group's range **/",
+    "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
+    s"int groups_count = groups_indices.size() - 1;"
+  )
+
+  def renderGroupBy: CFunction = {
+
+    CFunction(
+      inputs = veDataTransformation.inputs,
+      outputs = veDataTransformation.outputs.zipWithIndex.map {
+        case (Right(NamedGroupByExpression(outputName, veType, _)), idx) =>
+          CScalarVector(outputName, veType)
+        case (Left(NamedStringProducer(outputName, _)), idx) =>
+          CVarChar(outputName)
+      },
+      body = CodeLines.from(
+        performGrouping,
+        "/** perform computations for every output **/",
+        veDataTransformation.outputs.zipWithIndex.map {
+          case (Left(NamedStringProducer(name, stringProducer)), idx) =>
+            val fp = StringProducer.FilteringProducer(name, stringProducer)
+            CodeLines
+              .from(
+                fp.setup,
+                "// for each group",
+                "for (size_t g = 0; g < groups_count; g++) {",
+                CodeLines
+                  .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
+                  .indented,
+                "}",
+                fp.complete,
+                "for (size_t g = 0; g < groups_count; g++) {",
+                CodeLines
+                  .from(
+                    "long i = sorted_idx[groups_indices[g]];",
+                    "long o = g;",
+                    fp.validityForEach
+                  )
+                  .indented,
+                "}"
+              )
+              .blockCommented(s"Produce the string group")
+          case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
+            CodeLines.from(
+              "",
+              s"// Output #$idx for ${outputName}:",
+              s"$outputName->count = groups_count;",
+              s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
+              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+              "",
+              "// for each group",
+              "for (size_t g = 0; g < groups_count; g++) {",
+              CodeLines
+                .from(
+                  "// compute an aggregate",
+                  groupByExpr.fold(
+                    whenProj = _ => CodeLines.empty,
+                    whenAgg = agg => agg.initial(outputName)
+                  ),
+                  "size_t group_start_in_idx = groups_indices[g];",
+                  "size_t group_end_in_idx = groups_indices[g + 1];",
+                  "int i = 0;",
+                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                  CodeLines
+                    .from(
+                      "i = sorted_idx[j];",
+                      groupByExpr
+                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName))
+                    )
+                    .indented,
+                  "}",
+                  groupByExpr.fold(_ => CodeLines.empty, whenAgg = _.compute(outputName)),
+                  "// store the result",
+                  groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)) match {
+                    case ex =>
+                      ex.isNotNullCode match {
+                        case None =>
+                          CodeLines.from(
+                            s"""$outputName->data[g] = ${ex.cCode};""",
+                            s"set_validity($outputName->validityBuffer, g, 1);"
+                          )
+                        case Some(notNullCheck) =>
+                          CodeLines.from(
+                            s"if ( $notNullCheck ) {",
+                            s"""  $outputName->data[g] = ${ex.cCode};""",
+                            s"  set_validity($outputName->validityBuffer, g, 1);",
+                            "} else {",
+                            s"  set_validity($outputName->validityBuffer, g, 0);",
+                            "}"
+                          )
+                      }
+                  },
+                  groupByExpr.fold(_ => CodeLines.empty, _.free(outputName))
+                )
+                .indented,
+              "}"
+            )
+        }
+      )
+    )
+  }
+
+}
