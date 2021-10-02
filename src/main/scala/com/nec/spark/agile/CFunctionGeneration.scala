@@ -11,6 +11,8 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, ValueVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
 
+import scala.collection.Searching.SearchImpl
+
 /** Spark-free function evaluation */
 object CFunctionGeneration {
   def veType(d: DataType): VeScalarType = {
@@ -25,6 +27,7 @@ object CFunctionGeneration {
   }
 
   sealed trait CVector {
+    def replaceName(search: String, replacement: String): CVector
     def name: String
     def veType: VeType
   }
@@ -34,8 +37,12 @@ object CFunctionGeneration {
   }
   final case class CVarChar(name: String) extends CVector {
     override def veType: VeType = VeString
+
+    override def replaceName(search: String, replacement: String): CVector = copy(name = name.replaceFirst(search,replacement))
   }
-  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector
+  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
+    override def replaceName(search: String, replacement: String): CVector = copy(name = name.replaceFirst(search,replacement))
+  }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])

@@ -239,10 +239,13 @@ final case class GroupByFunctionGeneration(
     )
   }
 
+  def partialInputVectors: List[CVector] =
+    partialOutputVectors.map(_.replaceName("output", "input"))
+
   def renderFinalGroupBy: CFunction = {
     CFunction(
-      inputs = veDataTransformation.inputs,
-      outputs = partialOutputVectors,
+      inputs = partialInputVectors,
+      outputs = renderGroupBy.outputs,
       body = CodeLines.from(
         CodeLines.from(
           s"/** sorting section - ${GroupBeforeSort} **/",
