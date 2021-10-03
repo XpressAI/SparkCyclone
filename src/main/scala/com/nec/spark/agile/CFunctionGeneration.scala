@@ -8,7 +8,14 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableLong
 }
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, ValueVector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  FieldVector,
+  Float8Vector,
+  IntVector,
+  ValueVector,
+  VarCharVector
+}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
 
 import scala.collection.Searching.SearchImpl
@@ -321,7 +328,7 @@ object CFunctionGeneration {
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
 
-  def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): ValueVector = {
+  def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
     cVector.veType match {
       case VeString =>
         new VarCharVector(cVector.name, bufferAllocator)
@@ -334,7 +341,6 @@ object CFunctionGeneration {
       case VeNullableLong =>
         new BigIntVector(cVector.name, bufferAllocator)
     }
-  }
 
   final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
     def arguments: List[CVector] = inputs ++ outputs
@@ -351,6 +357,12 @@ object CFunctionGeneration {
         """#include "frovedis/dataframe/join.hpp"""",
         """#include "frovedis/dataframe/join.cc"""",
         """#include "frovedis/core/set_operations.hpp"""",
+        toCodeLinesNoHeader(functionName)
+      )
+    }
+
+    def toCodeLinesNoHeader(functionName: String): CodeLines = {
+      CodeLines.from(
         s"""extern "C" long $functionName(""",
         arguments
           .map { cVector =>

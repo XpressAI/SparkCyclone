@@ -1,11 +1,11 @@
 package com.nec.spark.agile
 
 import scala.language.implicitConversions
-
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
+
+import scala.annotation.tailrec
 
 object CExpressionEvaluation {
 
@@ -36,7 +36,7 @@ object CExpressionEvaluation {
             sys.error(
               s"Could not find a reference for '${expression}' with type: ${typeName} from set of: ${input}"
             )
-          case (idx, (DoubleType | FloatType | LongType | IntegerType | ShortType)) =>
+          case (idx, DoubleType | FloatType | LongType | IntegerType | ShortType) =>
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
         }
@@ -106,16 +106,36 @@ object CExpressionEvaluation {
     }
   }
 
+  def shortenLines(lines: List[String]): List[String] = {
+
+    @tailrec
+    def rec(charsSoFar: Int, remaining: List[String], linesSoFar: List[String]): List[String] = {
+      remaining match {
+        case Nil => linesSoFar
+        case one :: rest if one.length + charsSoFar > 100 =>
+          linesSoFar ++ List("...")
+        case one :: rest =>
+          rec(charsSoFar + one.length, rest, linesSoFar ++ List(one))
+      }
+    }
+
+    rec(0, lines, Nil)
+
+  }
+
   final case class CodeLines(lines: List[String]) {
+
     def ++(other: CodeLines): CodeLines = CodeLines(lines = lines ++ (" " :: other.lines))
 
     def block: CodeLines = CodeLines.from("", "{", this.indented, "}", "")
+
     def blockCommented(str: String): CodeLines =
       CodeLines.from(s"// ${str}", "{", this.indented, "}", "")
 
     def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
 
-    override def toString: String = (List(s"CodeLines(") ++ lines ++ List(")")).mkString("\n")
+    override def toString: String =
+      (List(s"CodeLines(") ++ shortenLines(lines) ++ List(")")).mkString("\n")
 
     def cCode: String = lines.mkString("\n", "\n", "\n")
 

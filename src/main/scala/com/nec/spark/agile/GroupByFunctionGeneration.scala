@@ -74,6 +74,7 @@ final case class GroupByFunctionGeneration(
       .flatMap(_.fold(identity, identity))
 
   def renderPartialGroupBy: CFunction = {
+    val firstInput = veDataTransformation.inputs.head
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = partialOutputVectors,
@@ -82,12 +83,12 @@ final case class GroupByFunctionGeneration(
         CodeLines.from(
           s"/** sorting section - ${GroupBeforeSort} **/",
           s"std::vector<${tuple}> full_grouping_vec;",
-          s"std::vector<size_t> sorted_idx(input_0->count);",
+          s"std::vector<size_t> sorted_idx(${firstInput.name}->count);",
           veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
             val stringIdToHash = s"${name}_string_id_to_hash"
             CodeLines.from(
-              s"std::vector<long> $stringIdToHash(input_0->count);",
-              "for ( long i = 0; i < input_0->count; i++ ) {",
+              s"std::vector<long> $stringIdToHash(${firstInput.name}->count);",
+              s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
               CodeLines
                 .from(
                   s"long string_hash = 0;",
@@ -101,7 +102,7 @@ final case class GroupByFunctionGeneration(
             )
           },
           CodeLines.debugHere,
-          "for ( long i = 0; i < input_0->count; i++ ) {",
+          s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
           CodeLines
             .from(
               "sorted_idx[i] = i;",
@@ -110,7 +111,7 @@ final case class GroupByFunctionGeneration(
                   List(s"${name}_string_id_to_hash[i]")
                 } ++ partialOutputs
                   .collect { case Right((NamedGroupByExpression(name, veType, GroupByProjection(cExpression)), cVector :: Nil)) =>
-                    List(s"${name}->data[i]", s"get_validity(${name}->validityBuffer, i)")
+                    List(s"${name}->data[i]", s"check_valid(${name}->validityBuffer, i)")
                   }
               }.flatten
                 .mkString(", ")}));"
@@ -254,6 +255,7 @@ final case class GroupByFunctionGeneration(
     partialOutputVectors.map(_.replaceName("output", "input"))
 
   def renderFinalGroupBy: CFunction = {
+    val firstInput = partialInputVectors.head
     CFunction(
       inputs = partialInputVectors,
       outputs = renderGroupBy.outputs,
@@ -261,13 +263,13 @@ final case class GroupByFunctionGeneration(
         CodeLines.from(
           s"/** sorting section - ${GroupBeforeSort} **/",
           s"std::vector<${tuple}> full_grouping_vec;",
-          s"std::vector<size_t> sorted_idx(input_0->count);",
+          s"std::vector<size_t> sorted_idx(${firstInput.name}->count);",
           CodeLines.debugHere,
           veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
             val stringIdToHash = s"${name}_string_id_to_hash"
             CodeLines.from(
-              s"std::vector<long> $stringIdToHash(input_0->count);",
-              "for ( long i = 0; i < input_0->count; i++ ) {",
+              s"std::vector<long> $stringIdToHash(${firstInput.name}->count);",
+              s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
               CodeLines
                 .from(
                   s"long string_hash = 0;",
@@ -281,7 +283,7 @@ final case class GroupByFunctionGeneration(
             )
           },
           CodeLines.debugHere,
-          "for ( long i = 0; i < input_0->count; i++ ) {",
+          s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
           CodeLines
             .from(
               "sorted_idx[i] = i;",
@@ -434,6 +436,7 @@ final case class GroupByFunctionGeneration(
   }
 
   def renderGroupBy: CFunction = {
+    val firstInput = veDataTransformation.inputs.head
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
@@ -446,12 +449,12 @@ final case class GroupByFunctionGeneration(
         CodeLines.from(
           s"/** sorting section - ${GroupBeforeSort} **/",
           s"std::vector<${tuple}> full_grouping_vec;",
-          s"std::vector<size_t> sorted_idx(input_0->count);",
+          s"std::vector<size_t> sorted_idx(${firstInput.name}->count);",
           veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
             val stringIdToHash = s"${name}_string_id_to_hash"
             CodeLines.from(
-              s"std::vector<long> $stringIdToHash(input_0->count);",
-              "for ( long i = 0; i < input_0->count; i++ ) {",
+              s"std::vector<long> $stringIdToHash(${firstInput.name}->count);",
+              s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
               CodeLines
                 .from(
                   // todo replace with a proper hash. I cannot do this quickly in C.
@@ -465,7 +468,7 @@ final case class GroupByFunctionGeneration(
               "}"
             )
           },
-          "for ( long i = 0; i < input_0->count; i++ ) {",
+          "for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
           CodeLines
             .from(
               "sorted_idx[i] = i;",

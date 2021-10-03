@@ -3,7 +3,7 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.{NativeAggregationEvaluationPlan, VERewriteStrategy}
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
   makeCsvNumsMultiColumn,
@@ -19,7 +19,6 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
 
@@ -837,15 +836,17 @@ class DynamicCSqlExpressionEvaluationSpec
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
-    def ensureCEvaluating(): Dataset[T] = {
-      val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("CEvaluation"))
-      dataSet
-    }
+    def ensureCEvaluating(): Dataset[T] = ensureNewCEvaluating()
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("NewCEvaluationPlan"))
+      expect(
+        thePlan
+          .toString()
+          .contains(
+            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
+          )
+      )
       dataSet
     }
 
