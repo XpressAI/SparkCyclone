@@ -46,24 +46,36 @@ final case class GroupByFunctionGeneration(
     veDataTransformation.outputs.zipWithIndex.map {
       case (
             Right(
-              n @ NamedGroupByExpression(outputName, veType, GroupByExpression.GroupByProjection(_))
+              n @ NamedGroupByExpression(
+                outputName,
+                veType,
+                g @ GroupByExpression.GroupByProjection(_)
+              )
             ),
             _
           ) =>
-        Right(n -> List(CScalarVector(outputName, veType)))
+        Right(
+          NamedGroupByExpression(s"partial_$outputName", veType, g) -> List(
+            CScalarVector(s"partial_${outputName}", veType)
+          )
+        )
       case (
             Right(
               n @ NamedGroupByExpression(
                 outputName,
                 veType,
-                GroupByExpression.GroupByAggregation(agg)
+                gg @ GroupByExpression.GroupByAggregation(agg)
               )
             ),
             idx
           ) =>
-        Right(n -> agg.partialValues(outputName).map(_._1))
-      case (e @ Left(n @ NamedStringProducer(outputName, _)), idx) =>
-        Left(n -> CVarChar(outputName))
+        Right(
+          NamedGroupByExpression(s"partial_${outputName}", veType, gg) -> agg
+            .partialValues(s"partial_${outputName}")
+            .map(_._1)
+        )
+      case (e @ Left(n @ NamedStringProducer(outputName, x)), idx) =>
+        Left(NamedStringProducer(s"partial_${outputName}", x) -> CVarChar(s"partial_${outputName}"))
     }
   }
 
@@ -254,12 +266,27 @@ final case class GroupByFunctionGeneration(
   private def partialInputs
     : List[Either[(NamedStringProducer, CVector), (NamedGroupByExpression, List[CVector])]] =
     partialOutputs.map {
-      case Left((nsp, cv)) => Left((nsp, cv.replaceName("output", "input")))
-      case Right((ng, lv)) => Right((ng, lv.map(_.replaceName("output", "input"))))
+      case Left((NamedStringProducer(name, stringProducer), cv)) =>
+        Left(
+          (
+            NamedStringProducer(
+              name.replaceAllLiterally("output", "partial_input"),
+              stringProducer
+            ),
+            cv.replaceName("output", "partial_input")
+          )
+        )
+      case Right((NamedGroupByExpression(name, vt, gb), lv)) =>
+        Right(
+          (
+            NamedGroupByExpression(name.replaceAllLiterally("output", "partial_input"), vt, gb),
+            lv.map(_.replaceName("output", "partial_input"))
+          )
+        )
     }
 
   def partialInputVectors: List[CVector] =
-    partialOutputVectors.map(_.replaceName("output", "input"))
+    partialOutputVectors.map(_.replaceName("partial_output", "partial_input"))
 
   def renderFinalGroupBy: CFunction = {
     val firstInput = partialInputVectors.head
@@ -363,7 +390,10 @@ final case class GroupByFunctionGeneration(
                     .from(
                       "i = sorted_idx[j];",
                       "// merge partial results",
-                      agg.merge(outputName, outputName.replaceAllLiterally("output", "input"))
+                      agg.merge(
+                        outputName,
+                        outputName.replaceAllLiterally("output", "partial_input")
+                      )
                     )
                     .indented,
                   "}",
