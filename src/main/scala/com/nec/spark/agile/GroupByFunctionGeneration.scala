@@ -161,45 +161,48 @@ final case class GroupByFunctionGeneration(
           case NamedGroupByExpression(outputName, veType, GroupByProjection(ex)) =>
             CodeLines.from(
               "",
-              CodeLines.debugHere,
-              s"// Output ${outputName}:",
-              s"$outputName->count = groups_count;",
-              s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
-              "",
-              "// for each group",
-              "for (size_t g = 0; g < groups_count; g++) {",
               CodeLines
                 .from(
-                  "// compute an aggregate",
-                  "size_t group_start_in_idx = groups_indices[g];",
-                  "size_t group_end_in_idx = groups_indices[g + 1];",
-                  "int i = 0;",
-                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                  CodeLines.debugHere,
+                  s"$outputName->count = groups_count;",
+                  s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
+                  s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+                  "",
+                  "// for each group",
+                  "for (size_t g = 0; g < groups_count; g++) {",
                   CodeLines
-                    .from("i = sorted_idx[j];")
+                    .from(
+                      "// compute an aggregate",
+                      "size_t group_start_in_idx = groups_indices[g];",
+                      "size_t group_end_in_idx = groups_indices[g + 1];",
+                      "int i = 0;",
+                      s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+                      CodeLines
+                        .from("i = sorted_idx[j];")
+                        .indented,
+                      "}",
+                      "// store the result",
+                      ex.isNotNullCode match {
+                        case None =>
+                          CodeLines.from(
+                            s"""$outputName->data[g] = ${ex.cCode};""",
+                            s"set_validity($outputName->validityBuffer, g, 1);"
+                          )
+                        case Some(notNullCheck) =>
+                          CodeLines.from(
+                            s"if ( $notNullCheck ) {",
+                            s"""  $outputName->data[g] = ${ex.cCode};""",
+                            s"  set_validity($outputName->validityBuffer, g, 1);",
+                            "} else {",
+                            s"  set_validity($outputName->validityBuffer, g, 0);",
+                            "}"
+                          )
+                      }
+                    )
                     .indented,
-                  "}",
-                  "// store the result",
-                  ex.isNotNullCode match {
-                    case None =>
-                      CodeLines.from(
-                        s"""$outputName->data[g] = ${ex.cCode};""",
-                        s"set_validity($outputName->validityBuffer, g, 1);"
-                      )
-                    case Some(notNullCheck) =>
-                      CodeLines.from(
-                        s"if ( $notNullCheck ) {",
-                        s"""  $outputName->data[g] = ${ex.cCode};""",
-                        s"  set_validity($outputName->validityBuffer, g, 1);",
-                        "} else {",
-                        s"  set_validity($outputName->validityBuffer, g, 0);",
-                        "}"
-                      )
-                  }
+                  "}"
                 )
-                .indented,
-              "}"
+                .blockCommented(s"Output ${outputName}")
             )
           case NamedGroupByExpression(finalOutputName, veType, GroupByAggregation(agg)) =>
             CodeLines.from(
