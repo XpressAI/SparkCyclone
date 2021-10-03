@@ -3,7 +3,15 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, BitVector, Float8Vector, IntVector, SmallIntVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVector,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  VarCharVector,
+  VectorSchemaRoot
+}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -14,19 +22,33 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{
+  ColumnarToRowExec,
+  ColumnarToRowTransition,
+  SparkPlan,
+  UnaryExecNode
+}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.{BooleanType, DoubleType, IntegerType, LongType, ShortType, StringType}
+import org.apache.spark.sql.types.{
+  BooleanType,
+  DoubleType,
+  IntegerType,
+  LongType,
+  ShortType,
+  StringType
+}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import scala.language.dynamics
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
+import com.nec.spark.agile.CFunctionGeneration.CFunction
 import org.apache.spark.unsafe.types.UTF8String
 
-final case class NewCEvaluationPlan(
-  fName: String,
+final case class NativeAggregationEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
-  lines: CodeLines,
+  functionPrefix: String,
+  partialFunction: CFunction,
+  finalFunction: CFunction,
   child: SparkPlan,
   inputReferenceNames: Set[String],
   nativeEvaluator: NativeEvaluator
@@ -41,7 +63,16 @@ final case class NewCEvaluationPlan(
   override def outputPartitioning: Partitioning = SinglePartition
 
   private def executeRowWise(): RDD[InternalRow] = {
-    val evaluator = nativeEvaluator.forCode(lines.lines.mkString("\n", "\n", "\n"))
+
+    val partialFunctionName = s"${functionPrefix}_partial"
+    val finalFunctionName = s"${functionPrefix}_final"
+
+    val evaluator = nativeEvaluator.forCode(
+      (
+        partialFunction.toCodeLines(partialFunctionName) ++ finalFunction
+          .toCodeLines(finalFunctionName)
+      ).lines.mkString("\n", "\n", "\n")
+    )
     logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
     child
       .execute()
@@ -110,7 +141,7 @@ final case class NewCEvaluationPlan(
 
             try {
               evaluator.callFunction(
-                name = fName,
+                name = partialFunctionName,
                 inputArguments = inputVectors.toList.map(iv =>
                   Some(SupportedVectorWrapper.wrapInput(iv))
                 ) ++ outputVectors.map(_ => None),

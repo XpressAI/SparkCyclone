@@ -373,17 +373,21 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 )
             }
           )
+
           logger.debug(s"Group by = ${groupBySummary}")
-          val codeLines = GroupByFunctionGeneration(groupBySummary).renderGroupBy.toCodeLines(fName)
+
+          val codeLinesPartial = GroupByFunctionGeneration(groupBySummary).renderPartialGroupBy
+          val codeLinesFinal = GroupByFunctionGeneration(groupBySummary).renderFinalGroupBy
 
           List(
-            NewCEvaluationPlan(
-              fName,
-              aggregateExpressions,
-              codeLines,
-              planLater(child),
-              agg.references.map(_.name).toSet,
-              nativeEvaluator
+            NativeAggregationEvaluationPlan(
+              outputExpressions = aggregateExpressions,
+              functionPrefix = fName,
+              partialFunction = codeLinesPartial,
+              finalFunction = codeLinesFinal,
+              child = planLater(child),
+              inputReferenceNames = agg.references.map(_.name).toSet,
+              nativeEvaluator = nativeEvaluator
             )
           )
 
