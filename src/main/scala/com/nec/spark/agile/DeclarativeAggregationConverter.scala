@@ -110,6 +110,8 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
   override def free(prefix: String): CodeLines = CodeLines.empty
 
   override def partialValues(prefix: String) = Nil
+
+  override def merge(prefix: String, inputPrefix: String): CodeLines = CodeLines.empty
 }
 
 object DeclarativeAggregationConverter {
@@ -143,6 +145,9 @@ object DeclarativeAggregationConverter {
 
     override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
       underlying.flatMap(_.partialValues(prefix))
+
+    override def merge(prefix: String, inputPrefix: String): CodeLines =
+      CodeLines.empty
   }
 
   final case class AggregateHole(aggregateExpression: AggregateExpression)

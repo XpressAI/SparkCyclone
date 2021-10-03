@@ -21,7 +21,10 @@ object CExpressionEvaluation {
       case NormalizeNaNAndZero(child)          => evaluateExpression(input, child)
       case KnownFloatingPointNormalized(child) => evaluateExpression(input, child)
       case alias @ Alias(expr, name)           => evaluateSub(input, alias.child)
-      case expr @ NamedExpression(name, DoubleType | FloatType | LongType | IntegerType | ShortType) =>
+      case expr @ NamedExpression(
+            name,
+            DoubleType | FloatType | LongType | IntegerType | ShortType
+          ) =>
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
@@ -37,7 +40,10 @@ object CExpressionEvaluation {
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
         }
-      case expr @ NamedExpression(name, DoubleType | FloatType | LongType | IntegerType | ShortType) =>
+      case expr @ NamedExpression(
+            name,
+            DoubleType | FloatType | LongType | IntegerType | ShortType
+          ) =>
         input.indexWhere(_.exprId == expr.exprId) match {
           case -1 =>
             sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
@@ -107,6 +113,8 @@ object CExpressionEvaluation {
 
     def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
 
+    def makeEmpty: CodeLines = CodeLines.empty
+
     override def toString: String = (List(s"CodeLines(") ++ lines ++ List(")")).mkString("\n")
 
     def cCode: String = lines.mkString("\n", "\n", "\n")
@@ -115,6 +123,11 @@ object CExpressionEvaluation {
   }
 
   object CodeLines {
+    def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
+      CodeLines.from(
+        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
+      )
+
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))

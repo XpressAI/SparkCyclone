@@ -178,7 +178,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "Split Aggregation" - {
+  "Split Aggregation (Simple)" - {
 
     val groupBy = StringGrouping("input_0")
 
@@ -188,6 +188,37 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       StringGrouping("input_0"),
       TypedGroupByExpression[Double](
         GroupByAggregation(Aggregation.avg(CExpression("input_1->data[i]", None)))
+      )
+    )
+
+    val grouper = SplitGroupBy(groupBy, outputExpression)
+
+    "Produces intermediate results" in {
+      val result = grouper.evalPartial(inputData)
+      assert(result == List[(String, Double, Int)](("x", 3.0, 2), ("y", 1.0, 1)))
+    }
+    "Computes final results" ignore {
+      val result = grouper.evalFinal(List[(String, Double, Long)](("x", 3.0, 2), ("y", 1.0, 1)))
+      assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
+    }
+    "Combines both" ignore {
+      val result = grouper.evalFull(inputData)
+      assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
+    }
+  }
+
+  "Split Aggregation (Declarative aggregate)" - {
+
+    val groupBy = StringGrouping("input_0")
+
+    val inputData = List[(String, Double)](("x", 1.0), ("y", 1.0), ("x", 2.0))
+
+    val outputExpression = (
+      StringGrouping("input_0"),
+      TypedGroupByExpression[Double](
+        GroupByAggregation(
+          DeclarativeAggregationConverter(Sum(AttributeReference("input_1->data[i]", DoubleType)()))
+        )
       )
     )
 
@@ -989,8 +1020,8 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         withArrowStringVector(inputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(inputData.map(_._2)) { f8v =>
             withArrowStringVector(Seq.empty) { vcv_out =>
-              withDirectBigIntVector(Seq.empty) { iv_out =>
-                withDirectFloat8Vector(Seq.empty) { f8v_out =>
+              withDirectFloat8Vector(Seq.empty) { f8v_out =>
+                withDirectBigIntVector(Seq.empty) { iv_out =>
                   nativeInterface.callFunctionWrapped(
                     functionName,
                     List(

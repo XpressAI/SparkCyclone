@@ -38,10 +38,12 @@ object CFunctionGeneration {
   final case class CVarChar(name: String) extends CVector {
     override def veType: VeType = VeString
 
-    override def replaceName(search: String, replacement: String): CVector = copy(name = name.replaceFirst(search,replacement))
+    override def replaceName(search: String, replacement: String): CVector =
+      copy(name = name.replaceAllLiterally(search, replacement))
   }
   final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
-    override def replaceName(search: String, replacement: String): CVector = copy(name = name.replaceFirst(search,replacement))
+    override def replaceName(search: String, replacement: String): CVector =
+      copy(name = name.replaceAllLiterally(search, replacement))
   }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
@@ -189,6 +191,7 @@ object CFunctionGeneration {
   )
 
   trait Aggregation extends Serializable {
+    def merge(prefix: String, inputPrefix: String): CodeLines
     def initial(prefix: String): CodeLines
     def partialValues(prefix: String): List[(CScalarVector, CExpression)]
     def iterate(prefix: String): CodeLines
@@ -209,6 +212,9 @@ object CFunctionGeneration {
     override def free(prefix: String): CodeLines = original.free(s"$prefix$suffix")
 
     override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = Nil
+
+    override def merge(prefix: String, inputPrefix: String): CodeLines =
+      merge(s"$prefix$suffix", s"$inputPrefix$suffix")
   }
 
   abstract class DelegatingAggregation(val original: Aggregation) extends Aggregation {
@@ -224,6 +230,9 @@ object CFunctionGeneration {
 
     override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
       original.partialValues(prefix)
+
+    override def merge(prefix: String, inputPrefix: String): CodeLines =
+      original.merge(prefix, inputPrefix)
   }
 
   object Aggregation {
@@ -251,6 +260,9 @@ object CFunctionGeneration {
       override def compute(prefix: String): CodeLines = CodeLines.empty
 
       override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = Nil
+
+      override def merge(prefix: String, inputPrefix: String): CodeLines =
+        CodeLines.from(s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum->data[i];")
     }
     def avg(cExpression: CExpression): Aggregation = new Aggregation {
       override def initial(prefix: String): CodeLines =
@@ -296,6 +308,12 @@ object CFunctionGeneration {
           CExpression(s"${prefix}_aggregate_count", None)
         )
       )
+
+      override def merge(prefix: String, inputPrefix: String): CodeLines =
+        CodeLines.from(
+          s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum_partial_input->data[i];",
+          s"${prefix}_aggregate_count += ${inputPrefix}_aggregate_count_partial_input->data[i];"
+        )
     }
   }
 
