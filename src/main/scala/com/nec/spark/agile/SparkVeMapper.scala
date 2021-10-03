@@ -31,47 +31,6 @@ import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
 
-  def referenceReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
-    case ar: AttributeReference =>
-      inputs.indexWhere(_.exprId == ar.exprId) match {
-        case -1 =>
-          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
-        case idx =>
-          if (ar.dataType == StringType)
-            ar.withName(s"input_${idx}")
-          else
-            ar.withName(s"input_${idx}->data[i]")
-      }
-  }
-
-  def referenceOutputReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
-    case ar: AttributeReference =>
-      inputs.indexWhere(_.exprId == ar.exprId) match {
-        case -1 =>
-          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
-        case idx =>
-          if (ar.dataType == StringType)
-            ar.withName(s"output_${idx}")
-          else
-            ar.withName(s"output_${idx}->data[i]")
-      }
-  }
-
-  def referenceReplacer(
-    inputs: Seq[Attribute],
-    leftIds: Set[ExprId],
-    rightIds: Set[ExprId]
-  ): PartialFunction[Expression, Expression] = { case ar: AttributeReference =>
-    inputs.indexWhere(_.exprId == ar.exprId) match {
-      case -1 =>
-        sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
-      case idx if (leftIds.contains(ar.exprId)) =>
-        ar.withName(s"input_${idx}->data[left_out[i]]")
-      case idx if (rightIds.contains(ar.exprId)) =>
-        ar.withName(s"input_${idx}->data[right_out[i]]")
-    }
-  }
-
   def referenceReplacerOuter(
     inputs: Seq[Attribute],
     leftIds: Set[ExprId],
@@ -94,20 +53,6 @@ object SparkVeMapper {
     }
   }
 
-  def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
-    expression.transform(referenceReplacer(inputs))
-
-  def replaceOutputReferences(inputs: Seq[Attribute], expression: Expression): Expression =
-    expression.transform(referenceOutputReplacer(inputs))
-
-  def replaceReferences(
-    inputs: Seq[Attribute],
-    expression: Expression,
-    leftIds: Set[ExprId],
-    rightIds: Set[ExprId]
-  ): Expression =
-    expression.transform(referenceReplacer(inputs, leftIds, rightIds))
-
   def replaceReferencesOuter(
     inputs: Seq[Attribute],
     expression: Expression,
@@ -119,9 +64,10 @@ object SparkVeMapper {
 
   val binaryOperatorOverride = Map("=" -> "==")
 
-  def evalString(
-    expression: Expression
-  )(implicit fallback: EvalFallback): Either[Expression, StringProducer] =
+  def evalString(expression: Expression)(implicit
+    evalFallback: EvalFallback,
+    stringEvalFallback: StringEvalFallback
+  ): Either[Expression, StringProducer] =
     expression match {
       case CaseWhen(
             Seq((predicate, Literal(t: UTF8String, StringType))),
@@ -130,9 +76,39 @@ object SparkVeMapper {
         eval(predicate).map { ce =>
           StringProducer.StringChooser(ce, t.toString, f.toString)
         }
-      case AttributeReference(name, StringType, _, _) =>
-        Right(StringProducer.copyString(name))
+      case stringEvalFallback(stringProducer) => Right(stringProducer)
     }
+
+  /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
+  trait StringEvalFallback { ef =>
+    def fallback: PartialFunction[Expression, StringProducer]
+
+    final def unapply(input: Expression): Option[StringProducer] = fallback.lift(input)
+
+    final def orElse(elseCase: StringEvalFallback): StringEvalFallback = new StringEvalFallback {
+      override def fallback: PartialFunction[Expression, StringProducer] =
+        ef.fallback.orElse(elseCase.fallback)
+    }
+  }
+
+  object StringEvalFallback {
+    def fromInputs(attributes: Attribute*): StringEvalFallback = from {
+      case ar: AttributeReference
+          if ar.dataType == StringType && attributes.indexWhere(_.exprId == ar.exprId) > -1 =>
+        StringProducer.copyString(s"input_${attributes.indexWhere(_.exprId == ar.exprId)}")
+    }
+
+    def noOp: StringEvalFallback = NoOpFallback
+
+    private object NoOpFallback extends StringEvalFallback {
+      override def fallback: PartialFunction[Expression, StringProducer] = PartialFunction.empty
+    }
+
+    def from(pf: PartialFunction[Expression, StringProducer]): StringEvalFallback =
+      new StringEvalFallback {
+        override def fallback: PartialFunction[Expression, StringProducer] = pf
+      }
+  }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
   trait EvalFallback { ef =>
@@ -144,10 +120,26 @@ object SparkVeMapper {
       override def fallback: PartialFunction[Expression, CExpression] =
         ef.fallback.orElse(elseCase.fallback)
     }
+
+    final def orElsePf(pf: PartialFunction[Expression, CExpression]): EvalFallback = orElse(
+      EvalFallback.from(pf)
+    )
   }
 
   object EvalFallback {
     def noOp: EvalFallback = NoOpFallback
+
+    def fromInputs(inputs: Attribute*): EvalFallback = from {
+      case ar: AttributeReference if inputs.indexWhere(_.exprId == ar.exprId) > -1 =>
+        val idx = inputs.indexWhere(_.exprId == ar.exprId)
+        val nme = s"input_${idx}"
+        if (ar.dataType == StringType) CExpression(nme, None)
+        else
+          CExpression(
+            cCode = s"${nme}->data[i]",
+            isNotNullCode = Some(s"check_valid(${nme}->validityBuffer, i)")
+          )
+    }
 
     private object NoOpFallback extends EvalFallback {
       override def fallback: PartialFunction[Expression, CExpression] = PartialFunction.empty
@@ -275,20 +267,6 @@ object SparkVeMapper {
                 )
               }
           }
-        }
-      case ar: AttributeReference if ar.name.endsWith("_nullable") =>
-        Right(CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set")))
-      case ar: AttributeReference if ar.name.contains("data[") =>
-        Right {
-          CExpression(
-            cCode = ar.name,
-            isNotNullCode = {
-              val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
-              Some(
-                s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
-              )
-            }
-          )
         }
       case IsNull(child) =>
         eval(child).map { ex =>

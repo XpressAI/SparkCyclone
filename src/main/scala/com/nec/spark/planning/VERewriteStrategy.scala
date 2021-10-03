@@ -1,9 +1,9 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.SparkVeMapper.EvalFallback
+import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
+import com.nec.spark.agile.SparkVeMapper.{EvalFallback, StringEvalFallback}
 import com.nec.spark.agile.{
   DeclarativeAggregationConverter,
   GroupByFunctionGeneration,
@@ -13,15 +13,10 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
-  DeclarativeAggregate
-}
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
   DeclarativeAggregate,
   HyperLogLogPlusPlus
 }
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
@@ -237,7 +232,9 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   .aggregateFunction
                   .isInstanceOf[HyperLogLogPlusPlus]
               ).getOrElse(false) =>
-          implicit val fallback = EvalFallback.noOp
+
+          implicit val fallback = EvalFallback.fromInputs(child.output:_*)
+          implicit val stringEvalFallback = StringEvalFallback.fromInputs(child.output:_*)
           val groupBySummary: VeGroupBy[CVector, Either[StringGrouping, TypedCExpression2], Either[
             NamedStringProducer,
             NamedGroupByExpression
@@ -257,15 +254,10 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                    */
                   Left(
                     expr
-                      .find(_.isInstanceOf[AttributeReference])
-                      .flatMap(expr =>
-                        SparkVeMapper
-                          .replaceReferences(inputs = child.output.toList, expression = expr)
-                          .collectFirst {
-                            case ar: AttributeReference if ar.name.contains("input_") =>
-                              StringGrouping(ar.name.replaceAllLiterally("->data[i]", ""))
-                          }
-                      )
+                      .collectFirst {
+                        case ar: AttributeReference if ar.dataType == StringType =>
+                          StringGrouping(ar.name)
+                      }
                       .getOrElse(
                         sys.error(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
                       )
@@ -275,10 +267,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     TypedCExpression2(
                       SparkVeMapper.sparkTypeToScalarVeType(other),
                       SparkVeMapper
-                        .eval(
-                          SparkVeMapper
-                            .replaceReferences(inputs = child.output.toList, expression = expr)
-                        )
+                        .eval(expr)
                         .getOrReport()
                     )
                   )
@@ -290,10 +279,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   NamedStringProducer(
                     name = s"output_${idx}",
                     stringProducer = SparkVeMapper
-                      .evalString(
-                        namedExpression
-                          .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                      )
+                      .evalString(namedExpression)
                       .getOrReport()
                   )
                 )
@@ -302,10 +288,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   NamedStringProducer(
                     name = s"output_${idx}",
                     stringProducer = SparkVeMapper
-                      .evalString(
-                        stringExp
-                          .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                      )
+                      .evalString(stringExp)
                       .getOrReport()
                   )
                 )
@@ -316,21 +299,13 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     veType = SparkVeMapper.sparkTypeToScalarVeType(namedExpression.dataType),
                     groupByExpression = namedExpression match {
                       case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-                        GroupByExpression.GroupByAggregation(
-                          DeclarativeAggregationConverter(
-                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                              .asInstanceOf[DeclarativeAggregate]
-                          )
-                        )
+                        GroupByExpression.GroupByAggregation(DeclarativeAggregationConverter(d))
                       case Alias(other, _) if other.collectFirst { case _: DeclarativeAggregate =>
                             ()
                           }.nonEmpty =>
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter
-                            .transformingFetch(
-                              other
-                                .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                            )
+                            .transformingFetch(other)
                             .getOrElse(
                               sys.error(
                                 s"Cannot figure out how to replace: ${other} (${other.getClass})"
@@ -342,10 +317,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                           }.nonEmpty =>
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter
-                            .transformingFetch(
-                              other
-                                .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                            )
+                            .transformingFetch(other)
                             .getOrElse(
                               sys.error(
                                 s"Cannot figure out how to replace: ${other} (${other.getClass})"
@@ -355,17 +327,13 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                       case Alias(other, _) =>
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper
-                            .eval(
-                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                            )
+                            .eval(other)
                             .getOrReport()
                         )
                       case other =>
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper
-                            .eval(
-                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                            )
+                            .eval(other)
                             .getOrReport()
                         )
                     }

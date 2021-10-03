@@ -13,7 +13,6 @@ import org.apache.arrow.vector.{
   FieldVector,
   Float8Vector,
   IntVector,
-  ValueVector,
   VarCharVector
 }
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
@@ -54,6 +53,7 @@ object CFunctionGeneration {
   }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
+  final case class NonNullCExpression(cCode: String)
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
 
   final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)
@@ -471,6 +471,8 @@ object CFunctionGeneration {
         CVarChar(name.replaceAllLiterally("input", "output"))
     }
 
+    val count = NonNullCExpression(s"input_0->count")
+
     CFunction(
       inputs = filter.data,
       outputs = filterOutput,
@@ -490,7 +492,7 @@ object CFunctionGeneration {
               .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "o++;", "}")
               .indented,
             "}",
-            fp.complete,
+            fp.complete(count),
             "o = 0;",
             "for ( long i = 0; i < input_0->count; i++ ) {",
             CodeLines
@@ -553,7 +555,7 @@ object CFunctionGeneration {
             s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
           )
         case (Left(NamedStringExpression(name, stringProducer)), idx) =>
-          StringProducer.produceVarChar(name, stringProducer).block
+          StringProducer.produceVarChar(name, stringProducer, NonNullCExpression("input_0->count")).block
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex

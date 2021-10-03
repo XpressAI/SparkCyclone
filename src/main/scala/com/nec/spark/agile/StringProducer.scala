@@ -1,7 +1,7 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.CExpression
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, NonNullCExpression}
 
 trait StringProducer extends Serializable {
   def produceTo(tempStringName: String, lenName: String): CodeLines
@@ -53,7 +53,7 @@ object StringProducer {
           s"${tmpCount}++;"
         )
 
-    def complete: CodeLines = CodeLines.from(
+    def complete(count: NonNullCExpression): CodeLines = CodeLines.from(
       s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
       s"""${outputName}->count = ${tmpCount};""",
       s"""${outputName}->size = ${tmpCurrentOffset};""",
@@ -61,22 +61,26 @@ object StringProducer {
       s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->size);""",
       s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
       s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
-      s"${outputName}->validityBuffer = (unsigned char *) malloc(input_0->count);"
+      s"${outputName}->validityBuffer = (unsigned char *) malloc(${count.cCode});"
     )
 
     def validityForEach: CodeLines =
       CodeLines.from(s"set_validity(${outputName}->validityBuffer, o, 1);")
   }
 
-  def produceVarChar(outputName: String, stringProducer: StringProducer): CodeLines = {
+  def produceVarChar(
+    outputName: String,
+    stringProducer: StringProducer,
+    count: NonNullCExpression
+  ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
-      """for ( int32_t i = 0; i < input_0->count; i++ ) {""",
+      s"""for ( int32_t i = 0; i < ${count.cCode}; i++ ) {""",
       fp.forEach.indented,
       "}",
-      fp.complete,
-      s"for( int32_t i = 0; i < input_0->count; i++ ) {",
+      fp.complete(count),
+      s"for( int32_t i = 0; i < ${count.cCode}; i++ ) {",
       CodeLines.from(s"int o = i;", fp.validityForEach).indented,
       "}"
     )

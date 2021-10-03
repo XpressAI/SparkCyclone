@@ -46,21 +46,23 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
     )
   }
 
-  private def transformInitial(prefix: String): PartialFunction[Expression, Expression] = {
+  private def extraFallback(prefix: String): EvalFallback = EvalFallback.from {
     case ar: AttributeReference
         if declarativeAggregate.aggBufferAttributes.exists(_.name == ar.name) =>
-      ar.withName(s"${prefix}_${ar.name}_nullable")
+      CExpression(
+        s"${prefix}_${ar.name}_nullable",
+        Some(s"check_valid(${prefix}_${ar.name}_nullable, i)")
+      )
   }
 
   override def iterate(prefix: String): CodeLines = {
-    val abbs = declarativeAggregate.updateExpressions
-      .map(e => e.transform(transformInitial(prefix)))
-      .zipWithIndex
+    val abbs = declarativeAggregate.updateExpressions.zipWithIndex
       .zip(declarativeAggregate.aggBufferAttributes)
 
     CodeLines.from(
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e)(evalFallback).getOrReport()
+        val codeEval =
+          SparkVeMapper.eval(e)(evalFallback.orElse(extraFallback(prefix))).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -83,7 +85,8 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         }
       }.toList,
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e).getOrReport()
+        val codeEval =
+          SparkVeMapper.eval(e)(evalFallback.orElse(extraFallback(prefix))).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -104,7 +107,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
     CodeLines.empty
 
   override def fetch(prefix: String): CExpression = SparkVeMapper
-    .eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)))
+    .eval(declarativeAggregate.evaluateExpression)(evalFallback.orElse(extraFallback(prefix)))
     .getOrReport()
 
   override def free(prefix: String): CodeLines = CodeLines.empty
@@ -156,12 +159,11 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         }
         .toList,
       CodeLines.from(
-        declarativeAggregate.mergeExpressions
-          .map(e => e.transform(transformInitial(prefix)))
-          .zipWithIndex
+        declarativeAggregate.mergeExpressions.zipWithIndex
           .zip(declarativeAggregate.aggBufferAttributes)
           .map { case ((mergeExp, idx), aggb) =>
-            val codeEval = SparkVeMapper.eval(mergeExp).getOrReport()
+            val codeEval =
+              SparkVeMapper.eval(mergeExp)(evalFallback.orElse(extraFallback(prefix))).getOrReport()
             codeEval.isNotNullCode match {
               case None =>
                 CodeLines.from(

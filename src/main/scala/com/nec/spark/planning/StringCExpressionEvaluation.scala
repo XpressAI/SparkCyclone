@@ -2,7 +2,7 @@ package com.nec.spark.planning
 
 import com.nec.spark.agile.{CExpressionEvaluation, StringProducer}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.CExpression
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, NonNullCExpression}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
 //noinspection SameParameterValue
@@ -33,10 +33,20 @@ object StringCExpressionEvaluation {
       CodeLines
         .from(
           StringProducer
-            .produceVarChar("output_strings", produce_string_to(beginIndex, endIndex))
+            .produceVarChar(
+              outputName = "output_strings",
+              stringProducer = produce_string_to(beginIndex, endIndex),
+              count = NonNullCExpression(s"input_0->count")
+            )
             .block,
           select_lengths.block,
-          StringProducer.produceVarChar("output_strings_2", produce_substr_dyn).block,
+          StringProducer
+            .produceVarChar(
+              outputName = "output_strings_2",
+              stringProducer = produce_substr_dyn,
+              count = NonNullCExpression(s"input_0->count")
+            )
+            .block,
           """return 0;"""
         )
         .indented,

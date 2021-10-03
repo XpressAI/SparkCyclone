@@ -14,6 +14,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
   GroupByExpression,
   NamedGroupByExpression,
   NamedStringProducer,
+  NonNullCExpression,
   StringGrouping,
   TypedCExpression2,
   VeGroupBy
@@ -87,6 +88,7 @@ final case class GroupByFunctionGeneration(
 
   def renderPartialGroupBy: CFunction = {
     val firstInput = veDataTransformation.inputs.head
+    val count = NonNullCExpression(s"${firstInput.name}->count")
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = partialOutputVectors,
@@ -154,7 +156,7 @@ final case class GroupByFunctionGeneration(
                     .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
                     .indented,
                   "}",
-                  fp.complete,
+                  fp.complete(count),
                   "for (size_t g = 0; g < groups_count; g++) {",
                   CodeLines
                     .from(
@@ -290,6 +292,7 @@ final case class GroupByFunctionGeneration(
 
   def renderFinalGroupBy: CFunction = {
     val firstInput = partialInputVectors.head
+    val count = NonNullCExpression(s"${firstInput.name}->count")
     CFunction(
       inputs = partialInputVectors,
       outputs = renderGroupBy.outputs,
@@ -299,11 +302,12 @@ final case class GroupByFunctionGeneration(
           s"std::vector<${tuple}> full_grouping_vec;",
           s"std::vector<size_t> sorted_idx(${firstInput.name}->count);",
           CodeLines.debugHere,
-          veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
+          partialInputs.collect { case Left((NamedStringProducer(_, _), cv)) =>
+            val name = cv.name
             val stringIdToHash = s"${name}_string_id_to_hash"
             CodeLines.from(
-              s"std::vector<long> $stringIdToHash(${firstInput.name}->count);",
-              s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
+              s"std::vector<long> $stringIdToHash(${name}->count);",
+              s"for ( long i = 0; i < ${name}->count; i++ ) {",
               CodeLines
                 .from(
                   s"long string_hash = 0;",
@@ -321,12 +325,12 @@ final case class GroupByFunctionGeneration(
           CodeLines
             .from(
               "sorted_idx[i] = i;",
-              s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups
-                .flatMap {
-                  case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
-                  case Left(StringGrouping(inputName)) =>
-                    List(s"${inputName}_string_id_to_hash[i]")
-                }
+              s"full_grouping_vec.push_back(${tuple}(${(veDataTransformation.groups
+                .collect { case Right(g) =>
+                  List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
+                } ++ partialInputs.collect { case Left((NamedStringProducer(_, _), cv)) =>
+                List(s"${cv.name}_string_id_to_hash[i]")
+              }).flatten
                 .mkString(", ")}));"
             )
             .indented,
@@ -354,7 +358,7 @@ final case class GroupByFunctionGeneration(
                     .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
                     .indented,
                   "}",
-                  fp.complete,
+                  fp.complete(count),
                   "for (size_t g = 0; g < groups_count; g++) {",
                   CodeLines
                     .from(
@@ -474,6 +478,7 @@ final case class GroupByFunctionGeneration(
 
   def renderGroupBy: CFunction = {
     val firstInput = veDataTransformation.inputs.head
+    val count = NonNullCExpression(s"${firstInput.name}->count")
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
@@ -537,7 +542,7 @@ final case class GroupByFunctionGeneration(
                   .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
                   .indented,
                 "}",
-                fp.complete,
+                fp.complete(count),
                 "for (size_t g = 0; g < groups_count; g++) {",
                 CodeLines
                   .from(
