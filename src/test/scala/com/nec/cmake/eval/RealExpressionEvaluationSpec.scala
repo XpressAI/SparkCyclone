@@ -160,10 +160,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
     )
-    assert(
-      result ==
-        List[Double](6.6)
-    )
+    assert(result == List[Double](6.6))
   }
 
   "Average is computed correctly" in {
@@ -172,10 +169,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
       )
     )
-    assert(
-      result ==
-        List[Double](2)
-    )
+    assert(result == List[Double](2))
   }
 
   "Split Aggregation (Simple)" - {
@@ -197,11 +191,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       val result = grouper.evalPartial(inputData)
       assert(result == List[(String, Double, Int)](("x", 3.0, 2), ("y", 1.0, 1)))
     }
-    "Computes final results" ignore {
+    "Computes final results" in {
       val result = grouper.evalFinal(List[(String, Double, Long)](("x", 3.0, 2), ("y", 1.0, 1)))
       assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
     }
-    "Combines both" ignore {
+    "Combines both" in {
       val result = grouper.evalFull(inputData)
       assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
     }
@@ -228,11 +222,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       val result = grouper.evalPartial(inputData)
       assert(result == List[(String, Double, Int)](("x", 3.0, 2), ("y", 1.0, 1)))
     }
-    "Computes final results" in {
+    "Computes final results" ignore {
       val result = grouper.evalFinal(List[(String, Double, Long)](("x", 3.0, 2), ("y", 1.0, 1)))
       assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
     }
-    "Combines both" in {
+    "Combines both" ignore {
       val result = grouper.evalFull(inputData)
       assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
     }
