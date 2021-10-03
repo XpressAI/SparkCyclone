@@ -155,7 +155,7 @@ class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Long, Double)].collect().toList == List((13, -42)))
+        expectVertical(ds.as[(Long, Double)].collect().toList.sorted, List((13, -42)).sorted)
       }
   }
 
@@ -166,8 +166,9 @@ class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_select_sort2).ensureCEvaluating().debugSqlHere { ds =>
-        assert(
-          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
+        expectVertical(
+          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList.sorted,
+          List(
             (Some(4.0), None, None),
             (Some(2.0), None, None),
             (None, None, None),
@@ -181,7 +182,7 @@ class DynamicCSqlExpressionEvaluationSpec
             (Some(4.0), Some(5.0), Some(9.0)),
             (None, Some(5.0), None),
             (Some(52.0), Some(6.0), Some(58.0))
-          )
+          ).sorted
         )
       }
   }
@@ -282,7 +283,7 @@ class DynamicCSqlExpressionEvaluationSpec
         (None, Some(32.0))
       ).sorted
 
-      assert(result == expected)
+      expectVertical(result, expected)
 
     }
   }
@@ -294,22 +295,26 @@ class DynamicCSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     sparkSession.sql(sql_join_outer_left).debugSqlHere { ds =>
-      ds.as[(Option[Double], Option[Double])]
-        .collect()
-        .toList should contain theSameElementsAs List(
-        (Some(2.0), None),
-        (Some(52.0), None),
-        (Some(4.0), None),
-        (None, None),
-        (Some(2.0), None),
-        (Some(1.0), None),
-        (Some(4.0), None),
-        (None, None),
-        (None, None),
-        (Some(2.0), None),
-        (Some(3.0), None),
-        (None, None),
-        (Some(20.0), None)
+      expectVertical(
+        ds.as[(Option[Double], Option[Double])]
+          .collect()
+          .toList
+          .sorted,
+        List(
+          (Some(2.0), Option.empty[Double]),
+          (Some(52.0), None),
+          (Some(4.0), None),
+          (None, None),
+          (Some(2.0), None),
+          (Some(1.0), None),
+          (Some(4.0), None),
+          (None, None),
+          (None, None),
+          (Some(2.0), None),
+          (Some(3.0), None),
+          (None, None),
+          (Some(20.0), None)
+        ).sorted
       )
     }
   }
@@ -326,21 +331,24 @@ class DynamicCSqlExpressionEvaluationSpec
         .collect()
         .toList
 
-      out should contain theSameElementsAs List(
-        (None, Some(1.0)),
-        (None, None),
-        (Some(4.0), None),
-        (None, None),
-        (None, Some(2.0)),
-        (None, Some(42.0)),
-        (None, Some(12.0)),
-        (None, Some(52.0)),
-        (None, Some(4.0)),
-        (None, None),
-        (None, Some(2.0)),
-        (None, Some(3.0)),
-        (None, None),
-        (None, Some(20.0))
+      expectVertical(
+        out,
+        List(
+          (None, Some(1.0)),
+          (None, None),
+          (Some(4.0), None),
+          (None, None),
+          (None, Some(2.0)),
+          (None, Some(42.0)),
+          (None, Some(12.0)),
+          (None, Some(52.0)),
+          (None, Some(4.0)),
+          (None, None),
+          (None, Some(2.0)),
+          (None, Some(3.0)),
+          (None, None),
+          (None, Some(20.0))
+        ).sorted
       )
     }
   }
@@ -552,9 +560,11 @@ class DynamicCSqlExpressionEvaluationSpec
       import sparkSession.implicits._
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
-        ds.as[(Option[Double], Option[Double], Option[Double])]
-          .collect()
-          .toList should contain theSameElementsAs
+        expectVertical(
+          ds.as[(Option[Double], Option[Double], Option[Double])]
+            .collect()
+            .toList
+            .sorted,
           List(
             (None, None, None),
             (Some(2.0), Some(0.0), Some(0.5)),
@@ -563,7 +573,8 @@ class DynamicCSqlExpressionEvaluationSpec
             (Some(4.0), Some(3.0), Some(1.0)),
             (Some(40.0), Some(19.0), Some(10.0)),
             (Some(104.0), Some(51.0), Some(26.0))
-          )
+          ).sorted
+        )
       }
     }
 
@@ -576,17 +587,17 @@ class DynamicCSqlExpressionEvaluationSpec
         import sparkSession.implicits._
 
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
-          assert(
-            ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted ==
-              List(
-                (None, Some(8.0), Some(60)),
-                (Some(1.0), Some(2.0), None),
-                (Some(2.0), Some(3.0), Some(32)),
-                (Some(3.0), Some(4.0), Some(1)),
-                (Some(4.0), Some(5.0), Some(46)),
-                (Some(20.0), None, Some(3)),
-                (Some(52.0), Some(6.0), Some(23))
-              )
+          expectVertical(
+            ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted,
+            List(
+              (None, Some(8.0), Some(60)),
+              (Some(1.0), Some(2.0), None),
+              (Some(2.0), Some(3.0), Some(32)),
+              (Some(3.0), Some(4.0), Some(1)),
+              (Some(4.0), Some(5.0), Some(46)),
+              (Some(20.0), None, Some(3)),
+              (Some(52.0), Some(6.0), Some(23))
+            ).sorted
           )
         }
     }
