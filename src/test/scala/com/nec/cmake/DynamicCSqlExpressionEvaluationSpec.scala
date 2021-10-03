@@ -332,7 +332,7 @@ class DynamicCSqlExpressionEvaluationSpec
         .toList
 
       expectVertical(
-        out,
+        out.sorted,
         List(
           (None, Some(1.0)),
           (None, None),

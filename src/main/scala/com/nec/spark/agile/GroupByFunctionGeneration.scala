@@ -309,7 +309,6 @@ final case class GroupByFunctionGeneration(
           "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
           s"int groups_count = groups_indices.size() - 1;"
         ),
-        CodeLines.debugHere("\"first item ==> \"", "input_0_sum_partial_input->data[0]"),
         CodeLines.debugHere,
         "/** perform computations for every output **/",
         CodeLines.from(

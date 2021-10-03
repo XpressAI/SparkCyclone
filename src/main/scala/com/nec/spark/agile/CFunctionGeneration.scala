@@ -218,10 +218,11 @@ object CFunctionGeneration {
 
     override def free(prefix: String): CodeLines = original.free(s"$prefix$suffix")
 
-    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = Nil
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+      original.partialValues(s"$prefix$suffix")
 
     override def merge(prefix: String, inputPrefix: String): CodeLines =
-      merge(s"$prefix$suffix", s"$inputPrefix$suffix")
+      original.merge(s"$prefix$suffix", s"$inputPrefix$suffix")
   }
 
   abstract class DelegatingAggregation(val original: Aggregation) extends Aggregation {
@@ -266,7 +267,13 @@ object CFunctionGeneration {
 
       override def compute(prefix: String): CodeLines = CodeLines.empty
 
-      override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = Nil
+      override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+        List(
+          (
+            CScalarVector(s"${prefix}_x", VeScalarType.veNullableDouble),
+            CExpression(s"${prefix}_aggregate_sum", None)
+          )
+        )
 
       override def merge(prefix: String, inputPrefix: String): CodeLines =
         CodeLines.from(s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum->data[i];")
