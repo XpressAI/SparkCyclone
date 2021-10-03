@@ -130,28 +130,36 @@ object TPCHBenchmark extends SparkSessionWrapper {
 
   def main(args: Array[String]): Unit = {
     createViews(sparkSession)
-    query1(sparkSession)
-    query2(sparkSession)
-    query3(sparkSession)
-    query4(sparkSession)
-    query5(sparkSession)
-    query6(sparkSession)
-    query7(sparkSession)
-    query8(sparkSession)
-    query9(sparkSession)
-    query10(sparkSession)
-    query11(sparkSession)
-    query12(sparkSession)
-    query13(sparkSession)
-    query14(sparkSession)
-    query15(sparkSession)
-    query16(sparkSession)
-    query17(sparkSession)
-    query18(sparkSession)
-    query19(sparkSession)
-    query20(sparkSession)
-    query21(sparkSession)
-    query22(sparkSession)
+
+    benchmark(query1)
+    benchmark(query2)
+    benchmark(query3)
+    benchmark(query4)
+    benchmark(query5)
+    benchmark(query6)
+    benchmark(query7)
+    benchmark(query8)
+    benchmark(query9)
+    benchmark(query10)
+    benchmark(query11)
+    benchmark(query12)
+    benchmark(query13)
+    benchmark(query14)
+    benchmark(query15)
+    benchmark(query16)
+    benchmark(query17)
+    benchmark(query18)
+    benchmark(query19)
+    benchmark(query20)
+    benchmark(query21)
+    benchmark(query22)
+  }
+
+  def benchmark(f: SparkSession => Unit)(implicit sparkSession: SparkSession): Unit = {
+    val start = System.nanoTime()
+    f(sparkSession)
+    val end = System.nanoTime()
+    println(s"Elapsed: ${(end - start).toDouble / 1e9 }s" )
   }
 
   def query1(sparkSession: SparkSession): Unit = {
@@ -176,11 +184,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by l_returnflag, l_linestatus
     """
 
-    val ds = sparkSession.sql(sql)
-    ds.explain(true)
+    val ds = sparkSession.sql(sql).limit(1)
     println("Running Query 1")
-    assert(ds.count() > 0)
-
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query2(sparkSession: SparkSession): Unit = {
@@ -233,10 +239,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
           s_name,
           p_partkey
     """
-    val ds = sparkSession.sql(sql)
-    ds.explain(true)
+    val ds = sparkSession.sql(sql).limit(100)
     println("Running Query 2")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query3(sparkSession: SparkSession): Unit = {
@@ -268,9 +273,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
         o_orderdate
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 3")
-    assert(ds.count() > 0)
+    val ds = sparkSession.sql(sql).limit(10)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query4(sparkSession: SparkSession): Unit = {
@@ -301,7 +305,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
 
     val ds = sparkSession.sql(sql)
     println("Running Query 4")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query5(sparkSession: SparkSession): Unit = {
@@ -336,9 +340,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 5")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query6(sparkSession: SparkSession): Unit = {
@@ -360,9 +363,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 6")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query7(sparkSession: SparkSession): Unit = {
@@ -410,9 +412,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 7")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query8(sparkSession: SparkSession): Unit = {
@@ -463,9 +464,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 8")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query9(sparkSession: SparkSession): Unit = {
@@ -506,9 +506,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 9")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query10(sparkSession: SparkSession): Unit = {
@@ -547,10 +546,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
         revenue desc
     """
 
-    val ds = sparkSession.sql(sql)
-    ds.explain(true)
+    val ds = sparkSession.sql(sql).limit(20)
     println("Running Query 10")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query11(sparkSession: SparkSession): Unit = {
@@ -587,9 +585,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 11")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query12(sparkSession: SparkSession): Unit = {
@@ -629,16 +626,16 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 12")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query13(sparkSession: SparkSession): Unit = {
     val word1 = "special"
     val word2 = "requests"
 
-    val sql = s"""
+    val sql =
+      s"""
       select
         c_count,
         count(*) as custdist
@@ -661,9 +658,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 13")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query14(sparkSession: SparkSession): Unit = {
@@ -688,9 +684,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 14")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query15(sparkSession: SparkSession): Unit = {
@@ -735,10 +730,11 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     sparkSession.sql(sql1)
+
     val ds = sparkSession.sql(sql2)
-    ds.explain(true)
     println("Running Query 15")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
+
     sparkSession.sql(sql3)
   }
 
@@ -781,9 +777,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 16")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query17(sparkSession: SparkSession): Unit = {
@@ -811,10 +806,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 17")
-
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query18(sparkSession: SparkSession): Unit = {
@@ -856,10 +849,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
         o_orderdate
     """
 
-    val ds = sparkSession.sql(sql)
-    ds.explain(true)
+    val ds = sparkSession.sql(sql).limit(100)
     println("Running Query 18")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query19(sparkSession: SparkSession): Unit = {
@@ -911,9 +903,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 19")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query20(sparkSession: SparkSession): Unit = {
@@ -961,8 +952,8 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
-    assert(ds.count() > 0)
+    println("Running Query 20")
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query21(sparkSession: SparkSession): Unit = {
@@ -1008,10 +999,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
         s_name
     """
 
-    val ds = sparkSession.sql(sql)
-    ds.explain(true)
+    val ds = sparkSession.sql(sql).limit(100)
     println("Running Query 21")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 
   def query22(sparkSession: SparkSession): Unit = {
@@ -1054,8 +1044,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
 
     val ds = sparkSession.sql(sql)
-    ds.explain(true)
     println("Running Query 22")
-    assert(ds.count() > 0)
+    println(ds.collect().toList.mkString("\n"))
   }
 }
