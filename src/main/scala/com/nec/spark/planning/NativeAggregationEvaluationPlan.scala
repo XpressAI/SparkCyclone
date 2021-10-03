@@ -59,13 +59,12 @@ final case class NativeAggregationEvaluationPlan(
   ): VectorSchemaRoot = {
     val root = new VectorSchemaRoot(target.asJava)
     val arrowWriter = ArrowWriter.create(root)
-    columnarBatches.foreach { columnarBatch =>
-      println(s"Processing col batch = ${columnarBatch}")
 
-      (0 until columnarBatch.numRows()).foreach { i =>
-        arrowWriter.write(columnarBatch.getRow(i))
-      }
-    }
+    for {
+      columnarBatch <- columnarBatches
+      i <- 0 until columnarBatch.numRows()
+    } arrowWriter.write(columnarBatch.getRow(i))
+
     arrowWriter.finish()
     root
   }
@@ -113,7 +112,8 @@ final case class NativeAggregationEvaluationPlan(
               )
 
               new ColumnarBatch(
-                partialOutputVectors.map(valueVector => new ArrowColumnVector(valueVector)).toArray
+                partialOutputVectors.map(valueVector => new ArrowColumnVector(valueVector)).toArray,
+                partialOutputVectors.head.getValueCount
               )
             } finally {
               inputVectors.foreach(_.close())
@@ -132,6 +132,7 @@ final case class NativeAggregationEvaluationPlan(
               finalFunction.inputs.map(CFunctionGeneration.allocateFrom(_))
 
             collectInputColBatches(iteratorColBatch, partialInputVectors)
+            println(partialInputVectors)
             val outputVectors = outputExpressions
               .flatMap {
                 case Alias(child, _) =>

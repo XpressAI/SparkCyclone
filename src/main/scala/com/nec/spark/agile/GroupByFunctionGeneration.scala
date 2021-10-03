@@ -79,7 +79,7 @@ final case class GroupByFunctionGeneration(
       inputs = veDataTransformation.inputs,
       outputs = partialOutputVectors,
       body = CodeLines.from(
-        CodeLines.debugHere,
+        CodeLines.debugHere("\"input count\"", s"${firstInput.name}->count"),
         CodeLines.from(
           s"/** sorting section - ${GroupBeforeSort} **/",
           s"std::vector<${tuple}> full_grouping_vec;",
@@ -156,7 +156,7 @@ final case class GroupByFunctionGeneration(
                 .blockCommented(s"Produce the string group")
             }
         ),
-        CodeLines.debugHere,
+        CodeLines.debugHere("groups_count"),
         CodeLines.from(partialOutputs.flatMap(_.right.toSeq.map(_._1)).map {
           case NamedGroupByExpression(outputName, veType, GroupByProjection(ex)) =>
             CodeLines.from(

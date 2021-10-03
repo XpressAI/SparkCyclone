@@ -21,6 +21,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalactic.{source, Prettifier}
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -191,23 +192,53 @@ class DynamicCSqlExpressionEvaluationSpec
 
       import sparkSession.implicits._
       //Results order here is different due to the fact that we sort the columns and seems that spark does not.
-      sparkSession.sql(s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}").debugSqlHere { ds =>
-        ds.as[(Option[Double], Option[Double], Option[Double])]
-          .collect()
-          .toList should contain theSameElementsAs List(
-          (None, None, Some(8.0)),
-          (Some(4.0), Some(5.0), None),
-          (Some(52.0), Some(6.0), None),
-          (Some(4.0), None, Some(2.0)),
-          (Some(2.0), Some(3.0), Some(4.0)),
-          (None, Some(3.0), Some(1.0)),
-          (Some(2.0), None, Some(2.0)),
-          (Some(3.0), Some(4.0), Some(5.0)),
-          (Some(1.0), Some(2.0), Some(8.0)),
-          (Some(20.0), None, None),
-          (None, Some(5.0), Some(2.0))
+      sparkSession
+        .sql(
+          s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
         )
-      }
+        .debugSqlHere { ds =>
+          val result = ds
+            .as[(Option[Double], Option[Double], Option[Double])]
+            .collect()
+            .toList
+
+          val expected = List(
+            (None, None, Some(8.0)),
+            (Some(4.0), Some(5.0), None),
+            (Some(52.0), Some(6.0), None),
+            (Some(4.0), None, Some(2.0)),
+            (Some(2.0), Some(3.0), Some(4.0)),
+            (None, Some(3.0), Some(1.0)),
+            (Some(2.0), None, Some(2.0)),
+            (Some(3.0), Some(4.0), Some(5.0)),
+            (Some(1.0), Some(2.0), Some(8.0)),
+            (Some(20.0), None, None),
+            (None, Some(5.0), Some(2.0))
+          )
+
+          expectVertical(result.sorted, expected.sorted)
+        }
+  }
+
+  def expectVertical[T](l: List[T], r: List[T])(implicit
+    prettifier: Prettifier,
+    pos: source.Position
+  ): Unit = {
+    if (l != r) {
+      val lW = if (l.isEmpty) 1 else l.map(_.toString.length).max
+      val rW = if (r.isEmpty) 1 else r.map(_.toString.length).max
+
+      val lines = l
+        .map(v => Some(v))
+        .zipAll(r.map(v => Some(v)), None, None)
+        .map { case (lvv, rvv) =>
+          val lv = lvv.getOrElse("-")
+          val rv = rvv.getOrElse("-")
+          s"| ${lv.toString.padTo(lW, ' ')} | ${rv.toString.padTo(rW, ' ')} |"
+        }
+
+      assert(l == r, ("" :: "Data:" :: "----" :: lines ::: List("")).mkString("\n"))
+    }
   }
 
   val sql_mcio =

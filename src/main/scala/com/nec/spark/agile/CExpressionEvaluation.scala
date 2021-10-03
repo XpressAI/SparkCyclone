@@ -146,7 +146,18 @@ object CExpressionEvaluation {
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
 //        "#ifdef DEBUG",
-        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;""",
+        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
+//        "#endif"
+      )
+
+    def debugHere(
+      what: String*
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
+      CodeLines.from(
+//        "#ifdef DEBUG",
+        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << """ + what
+          .map(x => s"""" " << ${x} << " " """)
+          .mkString(""" << ";" << """) + """ << std::endl << std::flush;"""
 //        "#endif"
       )
 
