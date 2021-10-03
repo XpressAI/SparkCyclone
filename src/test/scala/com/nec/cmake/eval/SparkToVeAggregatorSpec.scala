@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
   Sum
 }
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Literal, Multiply}
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{DoubleType, IntegerType}
 import org.scalatest.freespec.AnyFreeSpec
 
 object SparkToVeAggregatorSpec {}
@@ -70,6 +70,27 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
 
     assert(
       result == "((((test_0_sum_nullable) / ((double) (test_0_count_nullable)))) * (test_1_sum_nullable))"
+    )
+  }
+
+  "Merging 2 attributes" in {
+    assert(
+      DeclarativeAggregationConverter
+        .rewriteMerge("output", "input")(Average(AttributeReference("x", DoubleType)())) ==
+        List(
+          CExpression(
+            "((output_sum_nullable) + (input_sum_partial_input->data[i]))",
+            Some(
+              "(output_sum_nullable_is_set && check_valid(input_sum_partial_input->validityBuffer, i))"
+            )
+          ),
+          CExpression(
+            "((output_count_nullable) + (input_count_partial_input->data[i]))",
+            Some(
+              "(output_count_nullable_is_set && check_valid(input_count_partial_input->validityBuffer, i))"
+            )
+          )
+        )
     )
   }
 }

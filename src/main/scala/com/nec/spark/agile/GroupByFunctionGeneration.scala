@@ -262,6 +262,7 @@ final case class GroupByFunctionGeneration(
           s"/** sorting section - ${GroupBeforeSort} **/",
           s"std::vector<${tuple}> full_grouping_vec;",
           s"std::vector<size_t> sorted_idx(input_0->count);",
+          CodeLines.debugHere,
           veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
             val stringIdToHash = s"${name}_string_id_to_hash"
             CodeLines.from(
@@ -279,6 +280,7 @@ final case class GroupByFunctionGeneration(
               "}"
             )
           },
+          CodeLines.debugHere,
           "for ( long i = 0; i < input_0->count; i++ ) {",
           CodeLines
             .from(
@@ -298,6 +300,7 @@ final case class GroupByFunctionGeneration(
           "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
           s"int groups_count = groups_indices.size() - 1;"
         ),
+        CodeLines.debugHere,
         "/** perform computations for every output **/",
         CodeLines.from(
           partialInputs
@@ -309,6 +312,7 @@ final case class GroupByFunctionGeneration(
                 .from(
                   fp.setup,
                   "// for each group",
+                  CodeLines.debugHere,
                   "for (size_t g = 0; g < groups_count; g++) {",
                   CodeLines
                     .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
@@ -331,7 +335,7 @@ final case class GroupByFunctionGeneration(
         CodeLines.from(partialInputs.flatMap(_.right.toSeq).map {
           case (NamedGroupByExpression(outputName, veType, GroupByAggregation(agg)), vecs) =>
             CodeLines.from(
-              "",
+              CodeLines.debugHere,
               s"// Output for ${outputName}:",
               s"$outputName->count = groups_count;",
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
@@ -349,6 +353,7 @@ final case class GroupByFunctionGeneration(
                   CodeLines
                     .from(
                       "i = sorted_idx[j];",
+                      "// merge partial results",
                       agg.merge(outputName, outputName.replaceAllLiterally("output", "input"))
                     )
                     .indented,
@@ -382,6 +387,7 @@ final case class GroupByFunctionGeneration(
 
           case (NamedGroupByExpression(outputName, veType, GroupByProjection(ex)), _) =>
             CodeLines.from(
+              CodeLines.debugHere,
               "",
               s"// Output ${outputName}:",
               s"$outputName->count = groups_count;",

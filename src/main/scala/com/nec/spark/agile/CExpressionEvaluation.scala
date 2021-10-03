@@ -113,8 +113,6 @@ object CExpressionEvaluation {
 
     def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
 
-    def makeEmpty: CodeLines = CodeLines.empty
-
     override def toString: String = (List(s"CodeLines(") ++ lines ++ List(")")).mkString("\n")
 
     def cCode: String = lines.mkString("\n", "\n", "\n")
@@ -125,7 +123,9 @@ object CExpressionEvaluation {
   object CodeLines {
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
-        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
+        "#ifdef DEBUG",
+        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;""",
+        "#endif"
       )
 
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)

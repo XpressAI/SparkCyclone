@@ -35,7 +35,7 @@ import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -202,7 +202,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   }
 
   "Split Aggregation (Declarative aggregate)" - {
-
     val groupBy = StringGrouping("input_0")
 
     val inputData = List[(String, Double)](("x", 1.0), ("y", 1.0), ("x", 2.0))
@@ -211,24 +210,30 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       StringGrouping("input_0"),
       TypedGroupByExpression[Double](
         GroupByAggregation(
-          DeclarativeAggregationConverter(Sum(AttributeReference("input_1->data[i]", DoubleType)()))
+          DeclarativeAggregationConverter(
+            Average(AttributeReference("input_1->data[i]", DoubleType)())
+          )
         )
       )
     )
+
+    val finalOutput = List[(String, Double)](("x", 1.5), ("y", 1.0))
+
+    val partialOutput = List[(String, Double, Long)](("x", 3.0, 2), ("y", 1.0, 1))
 
     val grouper = SplitGroupBy(groupBy, outputExpression)
 
     "Produces intermediate results" in {
       val result = grouper.evalPartial(inputData)
-      assert(result == List[(String, Double, Int)](("x", 3.0, 2), ("y", 1.0, 1)))
+      assert(result == partialOutput)
     }
-    "Computes final results" ignore {
-      val result = grouper.evalFinal(List[(String, Double, Long)](("x", 3.0, 2), ("y", 1.0, 1)))
-      assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
+    "Computes final results" in {
+      val result = grouper.evalFinal(partialOutput)
+      assert(result == finalOutput)
     }
-    "Combines both" ignore {
+    "Combines both" in {
       val result = grouper.evalFull(inputData)
-      assert(result == List[(String, Double)](("x", 1.5), ("y", 1.0)))
+      assert(result == finalOutput)
     }
   }
 
