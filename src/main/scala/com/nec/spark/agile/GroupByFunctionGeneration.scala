@@ -109,9 +109,9 @@ final case class GroupByFunctionGeneration(
               s"full_grouping_vec.push_back(${tuple}(${{
                 veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
                   List(s"${name}_string_id_to_hash[i]")
-                } ++ partialOutputs
-                  .collect { case Right((NamedGroupByExpression(name, veType, GroupByProjection(cExpression)), cVector :: Nil)) =>
-                    List(s"${name}->data[i]", s"check_valid(${name}->validityBuffer, i)")
+                } ++ veDataTransformation.groups
+                  .collect { case Right(g) =>
+                    List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
                   }
               }.flatten
                 .mkString(", ")}));"
@@ -126,6 +126,7 @@ final case class GroupByFunctionGeneration(
         ),
         "/** perform computations for every output **/",
         CodeLines.debugHere,
+        "/** possibly perform a String re-mapping **/",
         CodeLines.from(
           partialOutputs
             .flatMap(_.left.toSeq)
@@ -160,6 +161,7 @@ final case class GroupByFunctionGeneration(
           case NamedGroupByExpression(outputName, veType, GroupByProjection(ex)) =>
             CodeLines.from(
               "",
+              CodeLines.debugHere,
               s"// Output ${outputName}:",
               s"$outputName->count = groups_count;",
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
@@ -203,6 +205,7 @@ final case class GroupByFunctionGeneration(
             CodeLines.from(
               "",
               s"// Partials' output for ${finalOutputName}:",
+              CodeLines.debugHere,
               agg.partialValues(s"${finalOutputName}").map {
                 case (CScalarVector(outputName, partialType), cExpression) =>
                   CodeLines.from(
@@ -213,6 +216,7 @@ final case class GroupByFunctionGeneration(
               },
               "",
               "// for each group",
+              CodeLines.debugHere,
               "for (size_t g = 0; g < groups_count; g++) {",
               CodeLines
                 .from(

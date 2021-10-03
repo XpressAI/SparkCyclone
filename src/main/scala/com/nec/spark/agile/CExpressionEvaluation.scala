@@ -145,9 +145,9 @@ object CExpressionEvaluation {
   object CodeLines {
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
-        "#ifdef DEBUG",
+//        "#ifdef DEBUG",
         s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;""",
-        "#endif"
+//        "#endif"
       )
 
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)

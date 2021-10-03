@@ -244,7 +244,7 @@ object DeclarativeAggregationConverter {
       underlying.flatMap(_.partialValues(prefix))
 
     override def merge(prefix: String, inputPrefix: String): CodeLines =
-      CodeLines.empty
+      underlying.map(_.merge(prefix, inputPrefix)).reduce(_ ++ _)
   }
 
   final case class AggregateHole(aggregateExpression: AggregateExpression)

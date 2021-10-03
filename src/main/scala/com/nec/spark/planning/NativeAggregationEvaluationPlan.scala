@@ -1,58 +1,26 @@
 package com.nec.spark.planning
 
-import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{
-  BigIntVector,
-  BitVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  SmallIntVector,
-  ValueVector,
-  VarCharVector,
-  VectorSchemaRoot
-}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.execution.{
-  ColumnarToRowExec,
-  ColumnarToRowTransition,
-  SparkPlan,
-  UnaryExecNode
-}
-import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.{
-  BooleanType,
-  DoubleType,
-  IntegerType,
-  LongType,
-  ShortType,
-  StringType
-}
-import org.apache.spark.sql.util.ArrowUtilsExposed
-
-import scala.language.dynamics
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
+import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CFunction
-import org.apache.arrow.flatbuf.Schema
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector._
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
+import org.apache.spark.sql.execution.arrow.ArrowWriter
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
 
-import java.util
-import java.util.Collections
 import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.language.dynamics
 
 //noinspection DuplicatedCode
 final case class NativeAggregationEvaluationPlan(
@@ -92,6 +60,8 @@ final case class NativeAggregationEvaluationPlan(
     val root = new VectorSchemaRoot(target.asJava)
     val arrowWriter = ArrowWriter.create(root)
     columnarBatches.foreach { columnarBatch =>
+      println(s"Processing col batch = ${columnarBatch}")
+
       (0 until columnarBatch.numRows()).foreach { i =>
         arrowWriter.write(columnarBatch.getRow(i))
       }
@@ -129,13 +99,17 @@ final case class NativeAggregationEvaluationPlan(
               partialFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
 
             try {
+
+              val outputArgs = inputVectors.toList.map(_ => None) ++
+                partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+              val inputArgs = inputVectors.toList.map(iv =>
+                Some(SupportedVectorWrapper.wrapInput(iv))
+              ) ++ partialOutputVectors.map(_ => None)
+
               evaluator.callFunction(
                 name = partialFunctionName,
-                inputArguments = inputVectors.toList.map(iv =>
-                  Some(SupportedVectorWrapper.wrapInput(iv))
-                ) ++ partialOutputVectors.map(_ => None),
-                outputArguments = inputVectors.toList.map(_ => None) ++
-                  partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+                inputArguments = inputArgs,
+                outputArguments = outputArgs
               )
 
               new ColumnarBatch(
@@ -144,7 +118,6 @@ final case class NativeAggregationEvaluationPlan(
             } finally {
               inputVectors.foreach(_.close())
             }
-
           }
           .take(1)
       }
