@@ -133,6 +133,7 @@ final case class NativeAggregationEvaluationPlan(
 
             collectInputColBatches(iteratorColBatch, partialInputVectors)
             println(partialInputVectors)
+
             val outputVectors = outputExpressions
               .flatMap {
                 case Alias(child, _) =>
@@ -159,13 +160,15 @@ final case class NativeAggregationEvaluationPlan(
 
             try {
               evaluator.callFunction(
-                name = partialFunctionName,
+                name = finalFunctionName,
                 inputArguments = partialInputVectors.map(iv =>
                   Some(SupportedVectorWrapper.wrapInput(iv))
                 ) ++ outputVectors.map(_ => None),
                 outputArguments = finalFunction.inputs.map(_ => None) ++
                   outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
               )
+
+              println(outputVectors)
 
               val cnt = outputVectors.head.getValueCount
               logger.info(s"Got ${cnt} results back; ${outputVectors}")
