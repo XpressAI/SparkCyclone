@@ -132,7 +132,6 @@ final case class NativeAggregationEvaluationPlan(
               finalFunction.inputs.map(CFunctionGeneration.allocateFrom(_))
 
             collectInputColBatches(iteratorColBatch, partialInputVectors)
-            println(partialInputVectors)
 
             val outputVectors = outputExpressions
               .flatMap {
@@ -167,8 +166,6 @@ final case class NativeAggregationEvaluationPlan(
                 outputArguments = finalFunction.inputs.map(_ => None) ++
                   outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
               )
-
-              println(outputVectors)
 
               val cnt = outputVectors.head.getValueCount
               logger.info(s"Got ${cnt} results back; ${outputVectors}")
