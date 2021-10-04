@@ -182,39 +182,39 @@
 
 ## Column APIs
 
-| Functions                                                                                                                                                                 | Supported ✅?                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| [Column.alias](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.alias.html#pyspark.sql.Column.alias)(\*alias, \*\*kwargs)                 | ⬜️ |
-| [Column.asc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.asc.html#pyspark.sql.Column.asc)()                                          | ⬜️ |
-| [Column.asc\_nulls\_first](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.asc_nulls_first.html#pyspark.sql.Column.asc_nulls_first)()    | ⬜️ |
-| [Column.asc\_nulls\_last](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.asc_nulls_last.html#pyspark.sql.Column.asc_nulls_last)()       | ⬜️ |
-| [Column.astype](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.astype.html#pyspark.sql.Column.astype)(dataType)                         | ⬜️ |
-| [Column.between](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.between.html#pyspark.sql.Column.between)(lowerBound, upperBound)        | ⬜️ |
-| [Column.bitwiseAND](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.bitwiseAND.html#pyspark.sql.Column.bitwiseAND)(other)                | ⬜️ |
-| [Column.bitwiseOR](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.bitwiseOR.html#pyspark.sql.Column.bitwiseOR)(other)                   | ⬜️ |
-| [Column.bitwiseXOR](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.bitwiseXOR.html#pyspark.sql.Column.bitwiseXOR)(other)                | ⬜️ |
-| [Column.cast](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.cast.html#pyspark.sql.Column.cast)(dataType)                               | ⬜️ |
-| [Column.contains](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.contains.html#pyspark.sql.Column.contains)(other)                      | ⬜️ |
-| [Column.desc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.desc.html#pyspark.sql.Column.desc)()                                       | ⬜️ |
-| [Column.desc\_nulls\_first](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.desc_nulls_first.html#pyspark.sql.Column.desc_nulls_first)() | ⬜️ |
-| [Column.desc\_nulls\_last](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.desc_nulls_last.html#pyspark.sql.Column.desc_nulls_last)()    | ⬜️ |
-| [Column.dropFields](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.dropFields.html#pyspark.sql.Column.dropFields)(\*fieldNames)         | ⬜️ |
-| [Column.endswith](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.endswith.html#pyspark.sql.Column.endswith)(other)                      | ⬜️ |
-| [Column.eqNullSafe](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.eqNullSafe.html#pyspark.sql.Column.eqNullSafe)(other)                | ⬜️ |
-| [Column.getField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.getField.html#pyspark.sql.Column.getField)(name)                       | ⬜️ |
-| [Column.getItem](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.getItem.html#pyspark.sql.Column.getItem)(key)                           | ⬜️ |
-| [Column.isNotNull](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.isNotNull.html#pyspark.sql.Column.isNotNull)()                        | ⬜️ |
-| [Column.isNull](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.isNull.html#pyspark.sql.Column.isNull)()                                 | ⬜️ |
-| [Column.isin](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.isin.html#pyspark.sql.Column.isin)(\*cols)                                 | ⬜️ |
-| [Column.like](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.like.html#pyspark.sql.Column.like)(other)                                  | ⬜️ |
-| [Column.name](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.name.html#pyspark.sql.Column.name)(\*alias, \*\*kwargs)                    | ⬜️ |
-| [Column.otherwise](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.otherwise.html#pyspark.sql.Column.otherwise)(value)                   | ⬜️ |
-| [Column.over](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.over.html#pyspark.sql.Column.over)(window)                                 | ⬜️ |
-| [Column.rlike](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.rlike.html#pyspark.sql.Column.rlike)(other)                               | ⬜️ |
-| [Column.startswith](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.startswith.html#pyspark.sql.Column.startswith)(other)                | ⬜️ |
-| [Column.substr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.substr.html#pyspark.sql.Column.substr)(startPos, length)                 | ✅ |
-| [Column.when](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.when.html#pyspark.sql.Column.when)(condition, value)                       | ⬜️ |
-| [Column.withField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.withField.html#pyspark.sql.Column.withField)(fieldName, col)          | ⬜️ |
+| Functions                                                    | Supported ✅? |
+| ------------------------------------------------------------ | ------------ |
+| [Column.alias](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.alias.html#pyspark.sql.Column.alias)(\*alias, \*\*kwargs) | ⬜️            |
+| [Column.asc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.asc.html#pyspark.sql.Column.asc)() | ⬜️            |
+| [Column.asc\_nulls\_first](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.asc_nulls_first.html#pyspark.sql.Column.asc_nulls_first)() | ⬜️            |
+| [Column.asc\_nulls\_last](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.asc_nulls_last.html#pyspark.sql.Column.asc_nulls_last)() | ⬜️            |
+| [Column.astype](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.astype.html#pyspark.sql.Column.astype)(dataType) | ⬜️            |
+| [Column.between](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.between.html#pyspark.sql.Column.between)(lowerBound, upperBound) | ⬜️            |
+| [Column.bitwiseAND](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.bitwiseAND.html#pyspark.sql.Column.bitwiseAND)(other) | ⬜️            |
+| [Column.bitwiseOR](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.bitwiseOR.html#pyspark.sql.Column.bitwiseOR)(other) | ⬜️            |
+| [Column.bitwiseXOR](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.bitwiseXOR.html#pyspark.sql.Column.bitwiseXOR)(other) | ⬜️            |
+| [Column.cast](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.cast.html#pyspark.sql.Column.cast)(dataType) | ⬜️            |
+| [Column.contains](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.contains.html#pyspark.sql.Column.contains)(other) | ⬜️            |
+| [Column.desc](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.desc.html#pyspark.sql.Column.desc)() | ⬜️            |
+| [Column.desc\_nulls\_first](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.desc_nulls_first.html#pyspark.sql.Column.desc_nulls_first)() | ⬜️            |
+| [Column.desc\_nulls\_last](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.desc_nulls_last.html#pyspark.sql.Column.desc_nulls_last)() | ⬜️            |
+| [Column.dropFields](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.dropFields.html#pyspark.sql.Column.dropFields)(\*fieldNames) | ⬜️            |
+| [Column.endswith](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.endswith.html#pyspark.sql.Column.endswith)(other) | ⬜️            |
+| [Column.eqNullSafe](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.eqNullSafe.html#pyspark.sql.Column.eqNullSafe)(other) | ⬜️            |
+| [Column.getField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.getField.html#pyspark.sql.Column.getField)(name) | ⬜️            |
+| [Column.getItem](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.getItem.html#pyspark.sql.Column.getItem)(key) | ⬜️            |
+| [Column.isNotNull](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.isNotNull.html#pyspark.sql.Column.isNotNull)() | ⬜️            |
+| [Column.isNull](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.isNull.html#pyspark.sql.Column.isNull)() | ⬜️            |
+| [Column.isin](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.isin.html#pyspark.sql.Column.isin)(\*cols) | ⬜️            |
+| [Column.like](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.like.html#pyspark.sql.Column.like)(other) | ✅            |
+| [Column.name](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.name.html#pyspark.sql.Column.name)(\*alias, \*\*kwargs) | ⬜️            |
+| [Column.otherwise](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.otherwise.html#pyspark.sql.Column.otherwise)(value) | ⬜️            |
+| [Column.over](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.over.html#pyspark.sql.Column.over)(window) | ⬜️            |
+| [Column.rlike](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.rlike.html#pyspark.sql.Column.rlike)(other) | ⬜️            |
+| [Column.startswith](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.startswith.html#pyspark.sql.Column.startswith)(other) | ⬜️            |
+| [Column.substr](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.substr.html#pyspark.sql.Column.substr)(startPos, length) | ✅            |
+| [Column.when](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.when.html#pyspark.sql.Column.when)(condition, value) | ⬜️            |
+| [Column.withField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.Column.withField.html#pyspark.sql.Column.withField)(fieldName, col) | ⬜️            |
 
 ## Data Types
 
@@ -233,7 +233,7 @@
 | [LongType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.LongType.html#pyspark.sql.types.LongType) | ✅            |
 | [MapType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.MapType.html#pyspark.sql.types.MapType)(keyType, valueType\[, valueContainsNull\]) | ⬜️            |
 | [NullType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.NullType.html#pyspark.sql.types.NullType) | ⬜️            |
-| [ShortType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ShortType.html#pyspark.sql.types.ShortType) | ⬜️            |
+| [ShortType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.ShortType.html#pyspark.sql.types.ShortType) | ✅            |
 | [StringType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StringType.html#pyspark.sql.types.StringType) | ⬜️            |
 | [StructField](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StructField.html#pyspark.sql.types.StructField)(name, dataType\[, nullable, metadata\]) | ⬜️            |
 | [StructType](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.types.StructType.html#pyspark.sql.types.StructType)(\[fields\]) | ⬜️            |
@@ -474,7 +474,7 @@
 | [var\_samp](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.var_samp.html#pyspark.sql.functions.var_samp)(col) | ⬜️            |
 | [variance](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.variance.html#pyspark.sql.functions.variance)(col) | ⬜️            |
 | [weekofyear](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.weekofyear.html#pyspark.sql.functions.weekofyear)(col) | ⬜️            |
-| [when](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.when.html#pyspark.sql.functions.when)(condition, value) | ⬜️            |
+| [when](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.when.html#pyspark.sql.functions.when)(condition, value) | ✅            |
 | [window](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.window.html#pyspark.sql.functions.window)(timeColumn, windowDuration\[, …\]) | ⬜️            |
 | [xxhash64](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.xxhash64.html#pyspark.sql.functions.xxhash64)(\*cols) | ⬜️            |
 | [year](https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.sql.functions.year.html#pyspark.sql.functions.year)(col) | ⬜️            |
