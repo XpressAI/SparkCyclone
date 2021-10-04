@@ -282,12 +282,12 @@ object SparkVeMapper {
         Right {
           CExpression(
             cCode = ar.name,
-            isNotNullCode = {
+            isNotNullCode = if(ar.nullable) {
               val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
               Some(
                 s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
               )
-            }
+            } else None
           )
         }
       case IsNull(child) =>
