@@ -6,7 +6,9 @@ import com.nec.spark.agile.GroupByComputation.{
   Aggregable,
   Copiable,
   Groupable,
+  Inputtable,
   OutputDescription,
+  Outputtable,
   Projectable
 }
 
@@ -38,20 +40,46 @@ final case class GroupByComputation[Output, Grouping, Projection, Aggregate](
   def mapAggregate[A2](f: Aggregate => A2): GroupByComputation[Output, Grouping, Projection, A2] =
     copy(outputs = outputs.map(_.mapAggregate(f)))
 
-  case class Produce()(implicit groupable: Groupable[Grouping], aggregable: Aggregable[Aggregate]) {
-    def producePartial(implicit projectable: Projectable[Projection]): CodeLines =
-      CodeLines.from(
-        grouping.map(groupable.groupInitial),
-        outputs.flatMap(_.source.right.toSeq).flatMap(_.left.toSeq).map(projectable.project),
-        outputs.flatMap(_.source.right.toSeq).flatMap(_.right.toSeq).map(aggregable.computePartials)
+  case class Produce[Inputs](inputs: Inputs)(implicit
+    groupable: Groupable[Grouping],
+    aggregable: Aggregable[Aggregate]
+  ) {
+    def producePartial(implicit
+      projectable: Projectable[Projection],
+      inputtable: Inputtable[Inputs],
+      og: Outputtable[Grouping],
+      op: Outputtable[Projection],
+      oa: Outputtable[Aggregate]
+    ): CFunction = {
+      CFunction(
+        inputs = inputtable.names(inputs),
+        outputs = List(
+          grouping.flatMap(og.names),
+          outputs.flatMap(_.source.right.toSeq).flatMap(_.left.toSeq).flatMap(op.names),
+          outputs.flatMap(_.source.right.toSeq).flatMap(_.right.toSeq).flatMap(oa.names)
+        ).flatten,
+        body = CodeLines.from(
+          groupable.groupInitial(grouping),
+          outputs.flatMap(_.source.right.toSeq).flatMap(_.left.toSeq).map(projectable.project),
+          outputs
+            .flatMap(_.source.right.toSeq)
+            .flatMap(_.right.toSeq)
+            .map(aggregable.computePartials)
+        )
       )
+    }
 
-    def produceFinal(implicit copiable: Copiable[Projection]): CodeLines =
-      CodeLines.from(
-        grouping.map(groupable.groupFinal),
-        outputs.flatMap(_.source.right.toSeq).flatMap(_.left.toSeq).map(copiable.copy),
-        outputs.flatMap(_.source.right.toSeq).flatMap(_.right.toSeq).map(aggregable.computeFinals)
+    def produceFinal(implicit copiable: Copiable[Projection], o: Outputtable[Output]): CFunction = {
+      CFunction(
+        inputs = Nil,
+        outputs = outputs.map(_.output).flatMap(o.names),
+        CodeLines.from(
+          groupable.groupFinal(grouping),
+          outputs.flatMap(_.source.right.toSeq).flatMap(_.left.toSeq).map(copiable.copy),
+          outputs.flatMap(_.source.right.toSeq).flatMap(_.right.toSeq).map(aggregable.computeFinals)
+        )
       )
+    }
   }
 
 }
@@ -63,6 +91,14 @@ object GroupByComputation {
     def computeFinals(a: Aggregate): CodeLines
   }
 
+  trait Inputtable[X] {
+    def names(x: X): List[CVector]
+  }
+
+  trait Outputtable[X] {
+    def names(x: X): List[CVector]
+  }
+
   trait Copiable[X] {
     def copy(x: X): CodeLines
   }
@@ -72,8 +108,8 @@ object GroupByComputation {
   }
 
   trait Groupable[Grouping] {
-    def groupInitial(grouping: Grouping): CodeLines
-    def groupFinal(grouping: Grouping): CodeLines
+    def groupInitial(grouping: List[Grouping]): CodeLines
+    def groupFinal(grouping: List[Grouping]): CodeLines
   }
 
   /**
