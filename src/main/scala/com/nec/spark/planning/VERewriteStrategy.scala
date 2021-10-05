@@ -4,10 +4,12 @@ import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
+import com.nec.spark.agile.StagedGroupBy.GroupingKey
 import com.nec.spark.agile.{
   DeclarativeAggregationConverter,
   GroupByFunctionGeneration,
-  SparkVeMapper
+  SparkVeMapper,
+  StagedGroupBy
 }
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
@@ -374,16 +376,35 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             }
           )
 
+          val stagedGroupBy = StagedGroupBy(
+            groupingKeys = groupingExpressions.zipWithIndex.map { case (e, i) =>
+              GroupingKey(s"g_${i}", SparkVeMapper.sparkTypeToScalarVeType(e.dataType))
+            }.toList,
+            finalOutputs = aggregateExpressions.map(_ => ???).toList
+          )
+
+          val pf = stagedGroupBy.createPartial(
+            inputs = ???,
+            computeGroupingKey = ???,
+            computeProjection = ???,
+            computeAggregate = ???
+          )
+
+          val pf = stagedGroupBy.createFinal(
+            groupingKeyIsString = ???,
+            computeAggregate = ???,
+            projectionIsString = ???
+          )
+
           logger.debug(s"Group by = ${groupBySummary}")
 
           List(
             NativeAggregationEvaluationPlan(
               outputExpressions = aggregateExpressions,
               functionPrefix = fName,
-              partialFunction = ???,
-              finalFunction = ???,
+              partialFunction = pf,
+              finalFunction = ff,
               child = planLater(child),
-              inputReferenceNames = agg.references.map(_.name).toSet,
               nativeEvaluator = nativeEvaluator
             )
           )

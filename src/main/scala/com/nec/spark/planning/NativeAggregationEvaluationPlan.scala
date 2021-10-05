@@ -29,7 +29,6 @@ final case class NativeAggregationEvaluationPlan(
   partialFunction: CFunction,
   finalFunction: CFunction,
   child: SparkPlan,
-  inputReferenceNames: Set[String],
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode

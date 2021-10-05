@@ -100,12 +100,13 @@ final case class StagedGroupBy(
   }
 
   def createPartial(
+    inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[CExpression],
     computeAggregate: StagedAggregation => Option[Aggregate]
   ): CFunction =
     CFunction(
-      inputs = ???,
+      inputs = inputs,
       outputs = partials,
       body = {
         CodeLines.from(
@@ -121,15 +122,13 @@ final case class StagedGroupBy(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
   ): CodeLines = ???
 
-  def performGroupingOnKeys(
-    compute: GroupingKey => Option[Either[StringReference, InputReference]]
-  ): CodeLines = ???
+  def performGroupingOnKeys(compute: GroupingKey => Boolean): CodeLines = ???
 
   def mergeAndProduceAggregatePartialsPerGroup(
     computeAggregate: StagedAggregation => Option[Aggregate]
   ): CodeLines = ???
 
-  def passProjectionsPerGroup: CodeLines =
+  def passProjectionsPerGroup(projectionIsString: StagedProjection => Boolean): CodeLines =
     CodeLines.from(projections.map { stagedProjection =>
       /*
           Copy over from name 'input_{name}' to '{name}' for each of the output
@@ -137,20 +136,21 @@ final case class StagedGroupBy(
       ??? : CodeLines
     })
 
-  def passGroupingKeysPerGroup: CodeLines = ???
+  def passGroupingKeysPerGroup(groupingKeyIsString: GroupingKey => Boolean): CodeLines = ???
 
   def createFinal(
-    groupingKeyToInputReference: GroupingKey => Option[Either[StringReference, InputReference]],
+    projectionIsString: StagedProjection => Boolean,
+    groupingKeyIsString: GroupingKey => Boolean,
     computeAggregate: StagedAggregation => Option[Aggregate]
   ): CFunction = CFunction(
     inputs = partials,
     outputs = outputs,
     body = {
       CodeLines.from(
-        performGroupingOnKeys(groupingKeyToInputReference),
+        performGroupingOnKeys(groupingKeyIsString),
         mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
-        passProjectionsPerGroup,
-        passGroupingKeysPerGroup
+        passProjectionsPerGroup(projectionIsString),
+        passGroupingKeysPerGroup(groupingKeyIsString)
       )
     }
   )
@@ -162,7 +162,8 @@ object StagedGroupBy {
     computeGroupingKey =
       groupingKey => Some(Right(CExpression("x + 2", None))) /* Generate this from SparkVeMapper */,
     computeProjection = ??? /* As above **/,
-    computeAggregate = ??? /* As above **/
+    computeAggregate = ??? /* As above **/,
+    inputs = ???
   )
 
   final case class StringReference(name: String)
