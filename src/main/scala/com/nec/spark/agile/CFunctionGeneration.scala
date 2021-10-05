@@ -66,16 +66,21 @@ object CFunctionGeneration {
 
   sealed trait VeType {
     def cVectorType: String
+    def makeCVector(name: String): CVector
   }
 
   case object VeString extends VeType {
     override def cVectorType: String = "nullable_varchar_vector"
+
+    override def makeCVector(name: String): CVector = CVector.varChar(name)
   }
 
   sealed trait VeScalarType extends VeType {
     def cScalarType: String
 
     def cSize: Int
+
+    override def makeCVector(name: String): CVector = CScalarVector(name, this)
   }
 
   object VeScalarType {
