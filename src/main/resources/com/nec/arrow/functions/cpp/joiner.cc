@@ -44,8 +44,8 @@ extern "C" long join_doubles(nullable_double_vector* left,
     int total_elems = left_out_size + right_out_size;
     double *out_data = (double *) malloc(total_elems * sizeof(double));
     int counter = 0;
-    int validityBufferSize = ceil(total_elems/8.0);
-    out->validityBuffer = (unsigned char *) malloc(validityBufferSize * sizeof(unsigned char));
+    int validityBufferSize = ceil(total_elems / 64.0);
+    out->validityBuffer = (uint64_t *) malloc(validityBufferSize * sizeof(uint64_t));
 
     #pragma _NEC ivdep
     for(int i = 0; i < left_out_size; i++) {
@@ -54,7 +54,7 @@ extern "C" long join_doubles(nullable_double_vector* left,
 
     #pragma _NEC ivdep
     for(int i = 0; i < validityBufferSize ; i++) {
-        out->validityBuffer[i] = 255;
+        out->validityBuffer[i] = 0xFFFFFFFFFFFFFFFF;
     }
 
     #pragma _NEC ivdep

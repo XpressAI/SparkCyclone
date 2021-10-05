@@ -505,13 +505,13 @@ object VeArrowTransfers extends LazyLogging {
 
     /** Transfer the validity buffer */
     val validityPtr = byteBuffer.getLong(16)
-    val vhValidity = ByteBuffer.allocateDirect(Math.ceil(vec.count / 8.0).toInt)
+    val vhValidity = ByteBuffer.allocateDirect(Math.ceil(vec.count / 64.0).toInt * 8)
     requireOk {
       Aurora
-        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhValidity), validityPtr, Math.ceil(vec.count / 8.0).toInt)
+        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhValidity), validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
     }
     vec.validityBuffer = vhValidity.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    cleanup.add(validityPtr, Math.ceil(vec.count / 8.0).toInt)
+    cleanup.add(validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
   }
 
   def stringToByteBuffer(str_buf: non_null_c_bounded_string): ByteBuffer = {

@@ -320,7 +320,7 @@ object CFunctionGeneration {
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
+            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
             s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
           )
         },
@@ -393,7 +393,7 @@ object CFunctionGeneration {
         filterOutput.collect { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));",
+            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
             s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
           )
         },
@@ -436,7 +436,7 @@ object CFunctionGeneration {
           CodeLines.from(
             s"$outputName->count = input_0->count;",
             s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-            s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
+            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
           )
         case (Left(NamedStringExpression(name, stringProducer)), idx) =>
           StringProducer.produceVarChar(name, stringProducer).block
@@ -506,13 +506,13 @@ object CFunctionGeneration {
         "std::vector<size_t> right_out;",
         "std::vector<size_t> left_out;",
         s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
-        "long validityBuffSize = ceil(left_out.size() / 8.0);",
+        "long validityBuffSize = ceil(left_out.size() / 64.0);",
           veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
           joinExpression.fold(whenProj =
             _ =>
               CodeLines.from(
                 s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cScalarType}));",
-                s"${outputName}->validityBuffer = (unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));"
+                s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
               )
           )
         },
@@ -664,14 +664,14 @@ object CFunctionGeneration {
               s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);"
             )
         },
-        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 8.0);"),
+        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 64.0);"),
         veOuterJoin.outputs.map {
           case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
             joinExpression.fold(whenProj =
               _ =>
                 CodeLines.from(
                   s"${outputName}->data = (${veType.cScalarType}*) malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType}));",
-                  s"${outputName}->validityBuffer = (unsigned char *) malloc(validityBuffSize * sizeof(unsigned char*));"
+                  s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
                 )
             )
         },
@@ -809,11 +809,14 @@ object CFunctionGeneration {
           )
           .indented,
         s"}",
+        """//log("insertion_sort");""",
         "frovedis::insertion_sort(full_grouping_vec.data(), sorted_idx.data(), full_grouping_vec.size());",
         "/** compute each group's range **/",
+        """//log("compute each group's range");""",
         "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
         s"int groups_count = groups_indices.size() - 1;",
         "/** perform computations for every output **/",
+        """//log("perform computations for every output");""",
         veDataTransformation.outputs.zipWithIndex.map {
           case (Left(NamedStringProducer(name, stringProducer)), idx) =>
             val fp = StringProducer.FilteringProducer(name, stringProducer)
@@ -844,9 +847,10 @@ object CFunctionGeneration {
               s"// Output #$idx for ${outputName}:",
               s"$outputName->count = groups_count;",
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-              s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
+              s"$outputName->validityBuffer = (uint64_t *) malloc(ceil(groups_count / 64.0) * sizeof(uint64_t));",
               "",
               "// for each group",
+              """//log("for each group2"); """,
               "for (size_t g = 0; g < groups_count; g++) {",
               CodeLines
                 .from(

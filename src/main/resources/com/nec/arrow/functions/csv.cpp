@@ -54,10 +54,10 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
     std::vector<double> doubles = frovedis::parsenumber<double>(words);
 
     int count = (doubles.size() / 3) - 1; // ignore header
-    int byteCount = ceil(count/8.0);
-    unsigned char* a_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
-    unsigned char* b_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
-    unsigned char* c_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    int byteCount = ceil(count / 64.0);
+    uint64_t* a_validityBuff = (uint64_t *)malloc(byteCount * sizeof(uint64_t));
+    uint64_t* b_validityBuff = (uint64_t *)malloc(byteCount * sizeof(uint64_t));
+    uint64_t* c_validityBuff = (uint64_t *)malloc(byteCount * sizeof(uint64_t));
 
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
@@ -74,9 +74,9 @@ extern "C" long parse_csv(  non_null_c_bounded_string* csv_data,
         b_data[i - 1] = doubles[i * 3 + 1];
         c_data[i - 1] = doubles[i * 3 + 2];
         if(i <= byteCount) {
-            a_validityBuff[i - 1] = 255;
-            b_validityBuff[i - 1] = 255;
-            c_validityBuff[i - 1] = 255;
+            a_validityBuff[i - 1] = 0xFFFFFFFFFFFFFFFF;
+            b_validityBuff[i - 1] = 0xFFFFFFFFFFFFFFFF;
+            c_validityBuff[i - 1] = 0xFFFFFFFFFFFFFFFF;
         }
     }
 
@@ -127,9 +127,9 @@ extern "C" long parse_csv_2(non_null_c_bounded_string* csv_data,
     std::vector<double> doubles = frovedis::parsenumber<double>(words);
 
     int count = (doubles.size() / 2) - 1; // ignore header
-    int byteCount = ceil(count/8.0);
-    unsigned char* a_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
-    unsigned char* b_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    int byteCount = ceil(count/643.0);
+    uint64_t* a_validityBuff = (uint64_t *)malloc(byteCount * sizeof(uint64_t));
+    uint64_t* b_validityBuff = (uint64_t *)malloc(byteCount * sizeof(uint64_t));
 
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
@@ -144,8 +144,8 @@ extern "C" long parse_csv_2(non_null_c_bounded_string* csv_data,
         a_data[i - 1] = doubles[i * 2 + 0];
         b_data[i - 1] = doubles[i * 2 + 1];
         if(i <= byteCount) {
-            a_validityBuff[i - 1] = 255;
-            b_validityBuff[i - 1] = 255;
+            a_validityBuff[i - 1] = 0xFFFFFFFFFFFFFFFF;
+            b_validityBuff[i - 1] = 0xFFFFFFFFFFFFFFFF;
         }
     }
 
@@ -229,10 +229,10 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
 
     std::vector<double> doubles = frovedis::parsenumber<double>(words);
     int count = doubles.size() - 1; // ignore header
-    int byteCount = ceil(count/8.0);
+    int byteCount = ceil(count / 64.0);
     size_t mem_len = sizeof (double) * count;
     double *a_data = (double *)malloc(mem_len);
-    unsigned char* a_validityBuff = (unsigned char *)malloc(byteCount * sizeof(unsigned char));
+    uint64_t* a_validityBuff = (uint64_t *)malloc(byteCount * sizeof(uint64_t));
 
     #if DEBUG
         std::cout << "Assigning" << std::endl;
@@ -242,7 +242,7 @@ extern "C" long parse_csv_1(  non_null_c_bounded_string* csv_data,
     for (int i = 1; i <= count; i++) {
         a_data[i - 1] = doubles[i];
         if(i < byteCount) {
-            a_validityBuff[i] = 255;
+            a_validityBuff[i] = 0xFFFFFFFFFFFFFFFF;
         }
     }
 

@@ -2,13 +2,11 @@ package com.nec.arrow
 
 import com.nec.arrow.ArrowTransferStructures._
 import org.apache.arrow.vector._
+import org.apache.spark.sql.util.ArrowUtilsExposed
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
+
 import java.nio.ByteBuffer
-
-import org.apache.arrow.memory.RootAllocator
-
-import org.apache.spark.sql.util.ArrowUtilsExposed
 
 object ArrowInterfaces {
 
@@ -168,7 +166,7 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(
       input.validityBuffer,
       bigintVector.getValidityBufferAddress,
-      Math.ceil(input.count / 8.0).toInt
+      Math.ceil(input.count / 64.0).toInt * 8
     )
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
   }
@@ -196,7 +194,7 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(
       input.validityBuffer,
       float8Vector.getValidityBufferAddress,
-      Math.ceil(input.count / 8.0).toInt
+      Math.ceil(input.count / 64.0).toInt * 8
     )
     getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.size())
   }
@@ -215,7 +213,7 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(
       input.validityBuffer,
       intVector.getValidityBufferAddress,
-      Math.ceil(input.count / 8.0).toInt
+      Math.ceil(input.count / 64.0).toInt * 8
     )
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
   }
@@ -241,7 +239,7 @@ object ArrowInterfaces {
     getUnsafe.copyMemory(
       input.validityBuffer,
       varCharVector.getValidityBufferAddress,
-      Math.ceil(input.count / 8.0).toInt
+      Math.ceil(input.count / 64.0).toInt * 8
     )
     getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.size.toLong)
     getUnsafe.copyMemory(input.offsets, varCharVector.getOffsetBufferAddress, 4 * (input.count + 1))
@@ -252,8 +250,10 @@ object ArrowInterfaces {
     nullable_int_vector_to_IntVector(input, intVector)
     bitVector.setValueCount(intVector.getValueCount)
     (0 until intVector.getValueCount).foreach {
-      case idx if(intVector.isNull(idx)) => bitVector.setNull(idx)
-      case idx => bitVector.set(idx, intVector.get(idx))
+      case idx if(intVector.isNull(idx)) =>
+        bitVector.setNull(idx)
+      case idx =>
+        bitVector.set(idx, intVector.get(idx))
     }
     intVector.clear()
     intVector.close()

@@ -22,10 +22,10 @@ final class LongBigIntRetrieveSpec extends AnyFreeSpec {
             .from(
               """ extern "C" long x(nullable_bigint_vector *v) { """,
               "v->count = 1;",
-              "v->data = (int64_t *)malloc(8);",
-              "v->validityBuffer = (unsigned char *) malloc(8); ",
+              "v->data = (int64_t *)malloc(v->count * sizeof(int64_t));",
+              "v->validityBuffer = (uint64_t *) malloc(ceil(v->count / 64.0) * sizeof(uint64_t)); ",
               "v->data[0] = 123;",
-              " set_validity(v->validityBuffer, 0, 1); ",
+              "set_validity(v->validityBuffer, 0, 1); ",
               "return 0;",
               """ }"""
             )
