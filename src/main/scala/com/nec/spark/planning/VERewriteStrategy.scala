@@ -6,25 +6,19 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate
-}
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate,
-  HyperLogLogPlusPlus
-}
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic, ExprId, Expression, KnownNotNull}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.plans.logical
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, SerializeFromObject}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StringType
-
 import scala.collection.immutable
 import scala.util.Try
+
+import org.apache.spark.sql.catalyst.expressions.objects.{Invoke, StaticInvoke}
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -36,6 +30,22 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
   with LazyLogging {
 
   import com.github.ghik.silencer.silent
+
+  def findNotNullable(plan: LogicalPlan): Seq[ExprId] = {
+    def traverseChildren(toTraverse: Seq[LogicalPlan], plans: Seq[LogicalPlan]): Seq[LogicalPlan] = {
+      toTraverse match {
+        case Nil => plans
+        case elem :: tail => traverseChildren(tail ++ elem.children, plans :+ elem)
+      }
+    }
+    traverseChildren(Seq(plan), Seq()).collect {
+      case SerializeFromObject(serializer, plan) => serializer.collect {
+        case exp @ Alias(StaticInvoke(_, _, "fromString", Seq(Invoke(a @ KnownNotNull(arg), _, _, _, _, _)), _, _), _) =>
+          exp.exprId
+      }
+    }.flatten
+
+  }
 
   @silent
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
@@ -254,13 +264,15 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   Left(
                     expr
                       .find(_.isInstanceOf[AttributeReference])
-                      .flatMap(expr =>
+                      .flatMap(expr => {
+                        val nullReplacedExpr = SparkVeMapper.replaceNullability(expr, findNotNullable(plan))
                         SparkVeMapper
-                          .replaceReferences(inputs = child.output.toList, expression = expr)
+                          .replaceReferences(inputs = child.output.toList, expression = nullReplacedExpr)
                           .collectFirst {
                             case ar: AttributeReference if ar.name.contains("input_") =>
                               StringGrouping(ar.name.replaceAllLiterally("->data[i]", ""))
                           }
+                      }
                       )
                       .getOrElse(
                         sys.error(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
@@ -273,7 +285,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                       SparkVeMapper
                         .eval(
                           SparkVeMapper
-                            .replaceReferences(inputs = child.output.toList, expression = expr)
+                            .replaceReferences(inputs = child.output.toList, expression = SparkVeMapper.replaceNullability(expr, findNotNullable(plan)))
                         )
                         .getOrReport()
                     )
@@ -287,7 +299,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     name = s"output_${idx}",
                     stringProducer = SparkVeMapper
                       .evalString(
-                        namedExpression
+                        SparkVeMapper.replaceNullability(namedExpression, findNotNullable(plan))
                           .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                       )
                       .getOrReport()
@@ -299,7 +311,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     name = s"output_${idx}",
                     stringProducer = SparkVeMapper
                       .evalString(
-                        stringExp
+                        SparkVeMapper.replaceNullability(stringExp, findNotNullable(plan))
                           .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                       )
                       .getOrReport()
@@ -314,7 +326,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                       case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter(
-                            d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                            SparkVeMapper.replaceNullability(d, findNotNullable(plan)).transform(SparkVeMapper.referenceReplacer(child.output.toList))
                               .asInstanceOf[DeclarativeAggregate]
                           )
                         )
@@ -324,7 +336,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter
                             .transformingFetch(
-                              other
+                              SparkVeMapper.replaceNullability(other, findNotNullable(plan))
                                 .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                             )
                             .getOrElse(
@@ -339,7 +351,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         GroupByExpression.GroupByAggregation(
                           DeclarativeAggregationConverter
                             .transformingFetch(
-                              other
+                              SparkVeMapper.replaceNullability(other, findNotNullable(plan))
                                 .transform(SparkVeMapper.referenceReplacer(child.output.toList))
                             )
                             .getOrElse(
@@ -352,7 +364,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper
                             .eval(
-                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                              SparkVeMapper.replaceNullability(other, findNotNullable(plan)).transform(SparkVeMapper.referenceReplacer(child.output.toList))
                             )
                             .getOrReport()
                         )
@@ -360,7 +372,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                         GroupByExpression.GroupByProjection(
                           SparkVeMapper
                             .eval(
-                              other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                              SparkVeMapper.replaceNullability(other, findNotNullable(plan)).transform(SparkVeMapper.referenceReplacer(child.output.toList))
                             )
                             .getOrReport()
                         )

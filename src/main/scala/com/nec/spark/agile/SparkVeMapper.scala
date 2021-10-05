@@ -94,6 +94,13 @@ object SparkVeMapper {
     }
   }
 
+  def replaceNullability(expr: Expression, nonNullColumns: Seq[ExprId]) = {
+    expr.transform{
+      case ar: AttributeReference if(nonNullColumns.contains(ar.exprId)) =>
+        ar.withNullability(false)
+    }
+  }
+
   def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
     expression.transform(referenceReplacer(inputs))
 
