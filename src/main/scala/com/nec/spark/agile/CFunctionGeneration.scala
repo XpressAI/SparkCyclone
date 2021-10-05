@@ -825,7 +825,7 @@ object CFunctionGeneration {
         CodeLines
           .from(
             "long i = sorted_idx[j];",
-            s"full_grouping_vec[i] = ${tuple}(${veDataTransformation.groups
+            s"full_grouping_vec[j] = ${tuple}(${veDataTransformation.groups
               .flatMap {
                 case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
                 case Left(StringGrouping(inputName)) =>
