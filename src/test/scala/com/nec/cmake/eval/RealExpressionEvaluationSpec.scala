@@ -20,6 +20,7 @@ import com.nec.cmake.functions.ParseCSVSpec.{
   RichIntVector,
   RichVarCharVector
 }
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
@@ -965,7 +966,8 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     def evalFinal(partialInputData: List[(String, Double, Long)]): List[(String, Double)] = {
       val functionName = "aggregate_final"
 
-      val generatedSource = generator.renderFinalGroupBy.toCodeLines(functionName)
+      val generatedSource: CodeLines =
+        ??? // = generator.renderFinalGroupBy.toCodeLines(functionName)
 
       logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -1005,7 +1007,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     def evalPartial(inputData: List[(String, Double)]): List[(String, Double, Long)] = {
       val functionName = "aggregate_partial"
 
-      val generatedSource = generator.renderPartialGroupBy.toCodeLines(functionName)
+      val generatedSource = CodeLines.empty //.renderPartialGroupBy.toCodeLines(functionName)
 
       logger.debug(s"Generated code: ${generatedSource.cCode}")
 

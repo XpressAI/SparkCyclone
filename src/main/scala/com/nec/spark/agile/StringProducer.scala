@@ -64,8 +64,8 @@ object StringProducer {
       s"${outputName}->validityBuffer = (unsigned char *) malloc(input_0->count);"
     )
 
-    def validityForEach: CodeLines =
-      CodeLines.from(s"set_validity(${outputName}->validityBuffer, o, 1);")
+    def validityForEach(idx: String): CodeLines =
+      CodeLines.from(s"set_validity(${outputName}->validityBuffer, ${idx}, 1);")
   }
 
   def produceVarChar(outputName: String, stringProducer: StringProducer): CodeLines = {
@@ -77,7 +77,7 @@ object StringProducer {
       "}",
       fp.complete,
       s"for( int32_t i = 0; i < input_0->count; i++ ) {",
-      CodeLines.from(s"int o = i;", fp.validityForEach).indented,
+      CodeLines.from(fp.validityForEach("i")).indented,
       "}"
     )
   }

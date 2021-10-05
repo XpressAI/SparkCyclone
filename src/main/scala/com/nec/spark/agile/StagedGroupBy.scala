@@ -99,115 +99,117 @@ object StagedGroupBy {
     attributes: List[StagedAggregationAttribute]
   )
 
-  def identifyGroups(
-    tupleType: String,
+  final case class GroupingCodeGenerator(
     groupingVecName: String,
-    count: String,
-    thingsToGroup: List[Either[String, CExpression]],
     groupsCountOutName: String,
     groupsIndicesName: String,
     sortedIdxName: String
-  ): CodeLines = {
-    val stringsToHash: List[String] = thingsToGroup.flatMap(_.left.toSeq)
-    CodeLines.from(
-      s"std::vector<${tupleType}> ${groupingVecName};",
-      s"std::vector<size_t> ${sortedIdxName}(${count});",
-      stringsToHash.map { name =>
-        val stringIdToHash = s"${name}_string_id_to_hash"
-        val stringHashTmp = s"${name}_string_id_to_hash_tmp"
-        CodeLines.from(
-          s"std::vector<long> $stringIdToHash(${count});",
-          s"for ( long i = 0; i < ${count}; i++ ) {",
+  ) {
+
+    def identifyGroups(
+      tupleType: String,
+      count: String,
+      thingsToGroup: List[Either[String, CExpression]]
+    ): CodeLines = {
+      val stringsToHash: List[String] = thingsToGroup.flatMap(_.left.toSeq)
+      CodeLines.from(
+        s"std::vector<${tupleType}> ${groupingVecName};",
+        s"std::vector<size_t> ${sortedIdxName}(${count});",
+        stringsToHash.map { name =>
+          val stringIdToHash = s"${name}_string_id_to_hash"
+          val stringHashTmp = s"${name}_string_id_to_hash_tmp"
+          CodeLines.from(
+            s"std::vector<long> $stringIdToHash(${count});",
+            s"for ( long i = 0; i < ${count}; i++ ) {",
+            CodeLines
+              .from(
+                s"long ${stringHashTmp} = 0;",
+                s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
+                CodeLines
+                  .from(s"${stringHashTmp} = 31*${stringHashTmp} + ${name}->data[q];")
+                  .indented,
+                "}",
+                s"$stringIdToHash[i] = ${stringHashTmp};"
+              )
+              .indented,
+            "}"
+          )
+        },
+        CodeLines.debugHere,
+        s"for ( long i = 0; i < ${count}; i++ ) {",
+        CodeLines
+          .from(
+            s"${sortedIdxName}[i] = i;",
+            s"${groupingVecName}.push_back(${tupleType}(${thingsToGroup
+              .flatMap {
+                case Right(g) => List(g.cCode) ++ g.isNotNullCode.toList
+                case Left(stringName) =>
+                  List(s"${stringName}_string_id_to_hash[i]")
+              }
+              .mkString(", ")}));"
+          )
+          .indented,
+        s"}",
+        s"frovedis::insertion_sort(${groupingVecName}.data(), ${sortedIdxName}.data(), ${groupingVecName}.size());",
+        "/** compute each group's range **/",
+        s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
+        s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
+      )
+    }
+
+    def forHeadOfEachGroup(f: => CodeLines): CodeLines =
+      CodeLines
+        .from(
+          s"for (size_t g = 0; g < ${groupsCountOutName}; g++) {",
           CodeLines
-            .from(
-              s"long ${stringHashTmp} = 0;",
-              s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
-              CodeLines
-                .from(s"${stringHashTmp} = 31*${stringHashTmp} + ${name}->data[q];")
-                .indented,
-              "}",
-              s"$stringIdToHash[i] = ${stringHashTmp};"
-            )
+            .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", f)
             .indented,
           "}"
         )
-      },
-      CodeLines.debugHere,
-      s"for ( long i = 0; i < ${count}; i++ ) {",
-      CodeLines
-        .from(
-          s"${sortedIdxName}[i] = i;",
-          s"${groupingVecName}.push_back(${tupleType}(${thingsToGroup
-            .flatMap {
-              case Right(g) => List(g.cCode) ++ g.isNotNullCode.toList
-              case Left(stringName) =>
-                List(s"${stringName}_string_id_to_hash[i]")
-            }
-            .mkString(", ")}));"
-        )
-        .indented,
-      s"}",
-      s"frovedis::insertion_sort(${groupingVecName}.data(), ${sortedIdxName}.data(), ${groupingVecName}.size());",
-      "/** compute each group's range **/",
-      s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
-      s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
-    )
-  }
 
-  def forHeadOfEachGroup(groupsCountName: String, groupsIndicesName: String, sortedIdxName: String)(
-    f: => CodeLines
-  ): CodeLines =
-    CodeLines
-      .from(
-        s"for (size_t g = 0; g < ${groupsCountName}; g++) {",
+    def forEachGroupItem(
+      beforeFirst: => CodeLines,
+      perItem: => CodeLines,
+      afterLast: => CodeLines
+    ): CodeLines =
+      CodeLines.from(
+        s"for (size_t g = 0; g < ${groupsCountOutName}; g++) {",
         CodeLines
-          .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", f)
+          .from(
+            s"size_t group_start_in_idx = ${groupsIndicesName}[g];",
+            s"size_t group_end_in_idx = ${groupsIndicesName}[g + 1];",
+            "int i = 0;",
+            beforeFirst,
+            s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+            CodeLines
+              .from(s"i = ${sortedIdxName}[j];", perItem)
+              .indented,
+            "}",
+            afterLast
+          )
           .indented,
         "}"
       )
+  }
 
-  def forEachGroupItem(
-    groupsCountName: String,
-    groupsIndicesName: String,
-    sortedIdxName: String
-  )(beforeFirst: => CodeLines, perItem: => CodeLines, afterLast: => CodeLines): CodeLines =
-    CodeLines.from(
-      s"for (size_t g = 0; g < ${groupsCountName}; g++) {",
-      CodeLines
-        .from(
-          s"size_t group_start_in_idx = ${groupsIndicesName}[g];",
-          s"size_t group_end_in_idx = ${groupsIndicesName}[g + 1];",
-          "int i = 0;",
-          beforeFirst,
-          s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
-          CodeLines
-            .from(s"i = ${sortedIdxName}[j];", perItem)
-            .indented,
-          "}",
-          afterLast
-        )
-        .indented,
-      "}"
-    )
-
-  def storeTo(outputName: String, cExpression: CExpression): CodeLines = {
+  def storeTo(outputName: String, cExpression: CExpression, idx: String): CodeLines = {
     cExpression.isNotNullCode match {
       case None =>
         CodeLines.from(
           s"""$outputName->data[g] = ${cExpression.cCode};""",
-          s"set_validity($outputName->validityBuffer, g, 1);"
+          s"set_validity($outputName->validityBuffer, ${idx}, 1);"
         )
       case Some(notNullCheck) =>
         CodeLines.from(
           s"if ( $notNullCheck ) {",
           CodeLines
             .from(
-              s"""$outputName->data[g] = ${cExpression.cCode};""",
-              s"set_validity($outputName->validityBuffer, g, 1);"
+              s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
+              s"set_validity($outputName->validityBuffer, ${idx}, 1);"
             )
             .indented,
           "} else {",
-          CodeLines.from(s"set_validity($outputName->validityBuffer, g, 0);").indented,
+          CodeLines.from(s"set_validity($outputName->validityBuffer, ${idx}, 0);").indented,
           "}"
         )
     }

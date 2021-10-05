@@ -376,26 +376,17 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
 
           logger.debug(s"Group by = ${groupBySummary}")
 
-          val codeLinesPartial = GroupByFunctionGeneration(groupBySummary).renderPartialGroupBy
-          val codeLinesFinal = GroupByFunctionGeneration(groupBySummary).renderFinalGroupBy
-
           List(
             NativeAggregationEvaluationPlan(
               outputExpressions = aggregateExpressions,
               functionPrefix = fName,
-              partialFunction = codeLinesPartial,
-              finalFunction = codeLinesFinal,
+              partialFunction = ???,
+              finalFunction = ???,
               child = planLater(child),
               inputReferenceNames = agg.references.map(_.name).toSet,
               nativeEvaluator = nativeEvaluator
             )
           )
-
-//        case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, Project(_, child))
-//            if aggregateExpressions.collect {
-//              case al @ Alias(AggregateExpression(Count(_), _, _, _, _), _) => al
-//            }.size == aggregateExpressions.size =>
-//          Nil
 
         case _ => Nil
       }

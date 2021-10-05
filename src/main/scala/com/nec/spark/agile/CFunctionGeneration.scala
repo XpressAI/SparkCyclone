@@ -13,12 +13,9 @@ import org.apache.arrow.vector.{
   FieldVector,
   Float8Vector,
   IntVector,
-  ValueVector,
   VarCharVector
 }
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
-
-import scala.collection.Searching.SearchImpl
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
@@ -501,7 +498,7 @@ object CFunctionGeneration {
             CodeLines
               .from(
                 s"if ( ${filter.condition.cCode} ) {",
-                CodeLines.from(fp.validityForEach.indented, "o++;").indented,
+                CodeLines.from(fp.validityForEach("o").indented, "o++;").indented,
                 "}"
               )
               .indented,
