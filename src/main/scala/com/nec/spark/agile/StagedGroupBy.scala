@@ -1,7 +1,13 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CExpression,
+  CFunction,
+  CVector,
+  VeScalarType,
+  VeType
+}
 import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection}
 
 final case class StagedGroupBy(
@@ -99,10 +105,10 @@ object StagedGroupBy {
     count: String,
     thingsToGroup: List[Either[String, String]],
     groupsCountOutName: String,
-    groupsIndicesName: String
+    groupsIndicesName: String,
+    sortedIdxName: String
   ): CodeLines = {
     val stringsToHash: List[String] = thingsToGroup.flatMap(_.left.toSeq)
-    val sortedIdxName = s"${groupingVecName}_sorted_idx";
     CodeLines.from(
       s"std::vector<${tupleType}> ${groupingVecName};",
       s"std::vector<size_t> ${sortedIdxName}(${count});",
@@ -182,6 +188,37 @@ object StagedGroupBy {
         )
         .indented,
       "}"
+    )
+
+  def storeTo(outputName: String, cExpression: CExpression): CodeLines = {
+    cExpression.isNotNullCode match {
+      case None =>
+        CodeLines.from(
+          s"""$outputName->data[g] = ${cExpression.cCode};""",
+          s"set_validity($outputName->validityBuffer, g, 1);"
+        )
+      case Some(notNullCheck) =>
+        CodeLines.from(
+          s"if ( $notNullCheck ) {",
+          s"""  $outputName->data[g] = ${cExpression.cCode};""",
+          s"  set_validity($outputName->validityBuffer, g, 1);",
+          "} else {",
+          s"  set_validity($outputName->validityBuffer, g, 0);",
+          "}"
+        )
+    }
+  }
+
+  def initializeOutputVector(
+    veScalarType: VeScalarType,
+    outputName: String,
+    count: String
+  ): CodeLines =
+    CodeLines.from(
+      s"// Output for ${outputName}:",
+      s"$outputName->count = ${count};",
+      s"$outputName->data = (${veScalarType.cScalarType}*) malloc($outputName->count * sizeof(${veScalarType.cScalarType}));",
+      s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(${count} / 8.0));"
     )
 
 }
