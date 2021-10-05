@@ -22,41 +22,6 @@ final case class GroupByFunctionGeneration(
       }
       .mkString(", ")}>"
 
-  /**
-   * We return: grouping constituents followed by the aggregate partials
-   */
-  private def partialOutputs
-    : List[Either[(NamedStringProducer, CVector), (NamedGroupByExpression, List[CVector])]] = {
-    veDataTransformation.outputs.zipWithIndex.map {
-      case (
-            Right(
-              n @ NamedGroupByExpression(outputName, veType, GroupByExpression.GroupByProjection(_))
-            ),
-            _
-          ) =>
-        Right(n -> List(CScalarVector(outputName, veType)))
-      case (
-            Right(
-              n @ NamedGroupByExpression(
-                outputName,
-                veType,
-                GroupByExpression.GroupByAggregation(agg)
-              )
-            ),
-            idx
-          ) =>
-        Right(n -> agg.partialValues(outputName).map(_._1))
-      case (e @ Left(n @ NamedStringProducer(outputName, _)), idx) =>
-        Left(n -> CVarChar(outputName))
-    }
-  }
-
-  private def partialOutputVectors: List[CVector] =
-    partialOutputs
-      .map(_.left.map(_._2).left.map(List.apply(_)))
-      .map(_.right.map(_._2))
-      .flatMap(_.fold(identity, identity))
-
   def codeGenerator: GroupingCodeGenerator = GroupingCodeGenerator(
     groupingVecName = "full_grouping_vec",
     groupsCountOutName = "groups_count",

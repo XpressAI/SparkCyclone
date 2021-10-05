@@ -8,7 +8,12 @@ import com.nec.spark.agile.CFunctionGeneration.{
   VeScalarType,
   VeType
 }
-import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection}
+import com.nec.spark.agile.StagedGroupBy.{
+  GroupingCodeGenerator,
+  GroupingKey,
+  StagedAggregation,
+  StagedProjection
+}
 
 /**
  * In a Staged groupBy, in the first function:
@@ -32,6 +37,8 @@ final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
   finalOutputs: List[Either[GroupingKey, Either[StagedProjection, StagedAggregation]]]
 ) {
+
+  def gcg: GroupingCodeGenerator = ???
 
   def intermediateTypes: List[VeType] =
     groupingKeys
@@ -66,29 +73,37 @@ final case class StagedGroupBy(
 
   def computeGroupingKeys: CodeLines = ???
 
-  def hashStringGroupingKeys: CodeLines = ???
-
-  def computeProjections: CodeLines = ???
-
   def computeAggregatePartialsPerGroup: CodeLines = ???
 
   def computeGroupingKeysPerGroup: CodeLines = ???
 
-  def computeProjectionsPerGroup: CodeLines = ???
+  def computeProjectionsPerGroup(compute: StagedProjection => Option[CExpression]): CodeLines = {
+    CodeLines.from(projections.map { case sp @ StagedProjection(name, veType: VeScalarType) =>
+      compute(sp) match {
+        case None => sys.error(s"Could not map ${sp}")
+        case Some(cExpression) =>
+          CodeLines.from(
+            StagedGroupBy.initializeOutputVector(veType, name, gcg.groupsCountOutName),
+            gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(name, cExpression, "g"))
+          )
+      }
+    })
+  }
 
-  def createPartial: CFunction = CFunction(
-    inputs = ???,
-    outputs = partials,
-    body = {
-      CodeLines.from(
-        computeGroupingKeys,
-        performGrouping,
-        computeGroupingKeysPerGroup,
-        computeProjectionsPerGroup,
-        computeAggregatePartialsPerGroup
-      )
-    }
-  )
+  def createPartial(computeProjection: StagedProjection => Option[CExpression]): CFunction =
+    CFunction(
+      inputs = ???,
+      outputs = partials,
+      body = {
+        CodeLines.from(
+          computeGroupingKeys,
+          performGrouping,
+          computeGroupingKeysPerGroup,
+          computeProjectionsPerGroup(computeProjection),
+          computeAggregatePartialsPerGroup
+        )
+      }
+    )
 
   def performGrouping: CodeLines = ???
 
