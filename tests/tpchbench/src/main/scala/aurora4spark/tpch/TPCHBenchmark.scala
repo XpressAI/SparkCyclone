@@ -2,6 +2,7 @@ package aurora4spark.tpch
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
+import org.apache.spark.sql.Dataset
 
 // TPC-H table schemas
 case class Customer(
@@ -131,38 +132,48 @@ object TPCHBenchmark extends SparkSessionWrapper {
   def main(args: Array[String]): Unit = {
     createViews(sparkSession)
 
-    //benchmark(query1)
-    //benchmark(query2)
-    benchmark(query3)
-    benchmark(query4)
-    benchmark(query5)
-    benchmark(query6)
-    benchmark(query7)
-    benchmark(query8)
-    //benchmark(query9)
-    //benchmark(query10)
-    benchmark(query11)
-    benchmark(query12)
-    benchmark(query13)
-    //benchmark(query14)
-    //benchmark(query15)
-    //benchmark(query16)
-    //benchmark(query17)
-    //benchmark(query18)
-    //benchmark(query19)
-    //benchmark(query20)
-    //benchmark(query21)
-    benchmark(query22)
+    val queries = Seq(
+      query1 _,
+      query2 _,
+      query3 _,
+      query4 _,
+      query5 _,
+      query6 _,
+      query7 _,
+      query8 _,
+      query9 _,
+      query10 _,
+      query11 _,
+      query12 _,
+      query13 _,
+      query14 _,
+      query15 _,
+      query16 _,
+      query17 _,
+      query18 _,
+      query19 _,
+      query20 _,
+      query21 _,
+      query22 _
+    )
+
+    queries.zipWithIndex.foreach {
+      case (query, i) =>
+        benchmark(i, query)
+    }
   }
 
-  def benchmark(f: SparkSession => Unit)(implicit sparkSession: SparkSession): Unit = {
+  def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
+    println(s"Running Query${i + 1}")
     val start = System.nanoTime()
-    f(sparkSession)
+    val res = f(sparkSession)
     val end = System.nanoTime()
-    println(s"Elapsed: ${(end - start).toDouble / 1e9 }s" )
+    println(s"Result returned ${res.length} records.")
+    println(s"Query${i + 1} elapsed: ${(end - start).toDouble / 1e9 } s" )
+    res.foreach(println)
   }
 
-  def query1(sparkSession: SparkSession): Unit = {
+  def query1(sparkSession: SparkSession): Array[_] = {
     val delta = 90
     val sql = s"""
       select
@@ -184,12 +195,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by l_returnflag, l_linestatus
     """
 
-    val ds = sparkSession.sql(sql).limit(1)
-    println("Running Query 1")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).limit(1).collect()
   }
 
-  def query2(sparkSession: SparkSession): Unit = {
+  def query2(sparkSession: SparkSession): Array[_] = {
     val size = 15
     val pType = "BRASS"
     val region = "EUROPE"
@@ -239,12 +248,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
           s_name,
           p_partkey
     """
-    val ds = sparkSession.sql(sql).limit(100)
-    println("Running Query 2")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).limit(100).collect()
   }
 
-  def query3(sparkSession: SparkSession): Unit = {
+  def query3(sparkSession: SparkSession): Array[_] = {
     val segment = "BUILDING"
     val date = "1995-03-15"
 
@@ -273,11 +280,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         o_orderdate
     """
 
-    val ds = sparkSession.sql(sql).limit(10)
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).limit(10).collect()
   }
 
-  def query4(sparkSession: SparkSession): Unit = {
+  def query4(sparkSession: SparkSession): Array[_] = {
     val date = "1993-07-01"
 
     val sql = s"""
@@ -303,12 +309,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         o_orderpriority;
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 4")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query5(sparkSession: SparkSession): Unit = {
+  def query5(sparkSession: SparkSession): Array[_] = {
     val region = "ASIA"
     val date = "1994-01-01"
 
@@ -339,12 +343,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         revenue desc
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 5")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query6(sparkSession: SparkSession): Unit = {
+  def query6(sparkSession: SparkSession): Array[_] = {
     val date = "1994-01-01"
     val discount = 0.06
     val quantity = 24
@@ -362,12 +364,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         and l_quantity < $quantity
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 6")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query7(sparkSession: SparkSession): Unit = {
+  def query7(sparkSession: SparkSession): Array[_] = {
     val nation1 = "FRANCE"
     val nation2 = "GERMANY"
 
@@ -411,12 +411,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         l_year
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 7")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query8(sparkSession: SparkSession): Unit = {
+  def query8(sparkSession: SparkSession): Array[_] = {
     val nation = "BRAZIL"
     val region = "AMERICA"
     val pType = "ECONOMY ANODIZED STEEL"
@@ -463,12 +461,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
       o_year
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 8")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query9(sparkSession: SparkSession): Unit = {
+  def query9(sparkSession: SparkSession): Array[_] = {
     val color = "green"
 
     val sql = s"""
@@ -505,12 +501,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         o_year desc
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 9")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query10(sparkSession: SparkSession): Unit = {
+  def query10(sparkSession: SparkSession): Array[_] = {
     val date = "1993-10-01"
 
     val sql = s"""
@@ -546,12 +540,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         revenue desc
     """
 
-    val ds = sparkSession.sql(sql).limit(20)
-    println("Running Query 10")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).limit(20).collect()
   }
 
-  def query11(sparkSession: SparkSession): Unit = {
+  def query11(sparkSession: SparkSession): Array[_] = {
     val nation = "GERMANY"
     val fraction = 0.0001
 
@@ -584,12 +576,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         value desc
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 11")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query12(sparkSession: SparkSession): Unit = {
+  def query12(sparkSession: SparkSession): Array[_] = {
     val shipMode1 = "MAIL"
     val shipMode2 = "SHIP"
     val date = "1994-01-01"
@@ -625,12 +615,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by l_shipmode
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 12")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query13(sparkSession: SparkSession): Unit = {
+  def query13(sparkSession: SparkSession): Array[_] = {
     val word1 = "special"
     val word2 = "requests"
 
@@ -657,12 +645,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         c_count desc
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 13")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query14(sparkSession: SparkSession): Unit = {
+  def query14(sparkSession: SparkSession): Array[_] = {
     val date = "1995-09-01"
 
     val sql = s"""
@@ -683,12 +669,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         and l_shipdate < date '$date' + interval '1' month
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 14")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query15(sparkSession: SparkSession): Unit = {
+  def query15(sparkSession: SparkSession): Array[_] = {
     val streamId = "1"
     val date = "1996-01-01"
 
@@ -725,20 +709,16 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by
         s_suppkey"""
 
-    val sql3 = s"""
-      drop view revenue$streamId;
-    """
+    //val sql3 = s"""
+    //  drop view revenue$streamId;
+    //"""
 
     sparkSession.sql(sql1)
 
-    val ds = sparkSession.sql(sql2)
-    println("Running Query 15")
-    println(ds.collect().toList.mkString("\n"))
-
-    sparkSession.sql(sql3)
+    sparkSession.sql(sql2).collect()
   }
 
-  def query16(sparkSession: SparkSession): Unit = {
+  def query16(sparkSession: SparkSession): Array[_] = {
     val brand = "Brand#45"
     val pType = "MEDIUM POLISHED"
     val sizes = Seq(49, 14, 23, 45, 19, 3, 36, 9)
@@ -776,12 +756,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         p_size
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 16")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query17(sparkSession: SparkSession): Unit = {
+  def query17(sparkSession: SparkSession): Array[_] = {
     val brand = "Brand#23"
     val container = "MED BOX"
 
@@ -805,12 +783,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         )
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 17")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query18(sparkSession: SparkSession): Unit = {
+  def query18(sparkSession: SparkSession): Array[_] = {
     val quantity = 300
 
     val sql = s"""
@@ -849,12 +825,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         o_orderdate
     """
 
-    val ds = sparkSession.sql(sql).limit(100)
-    println("Running Query 18")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).limit(100).collect()
   }
 
-  def query19(sparkSession: SparkSession): Unit = {
+  def query19(sparkSession: SparkSession): Array[_] = {
     val brand1 = "Brand#12"
     val quantity1 = 1
 
@@ -902,12 +876,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
       )
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 19")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query20(sparkSession: SparkSession): Unit = {
+  def query20(sparkSession: SparkSession): Array[_] = {
     val color = "forest"
     val date = "1994-01-01"
     val nation = "CANADA"
@@ -951,12 +923,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         s_name
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 20")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 
-  def query21(sparkSession: SparkSession): Unit = {
+  def query21(sparkSession: SparkSession): Array[_] = {
     val nation = "SAUDI ARABIA"
 
     val sql = s"""
@@ -999,12 +969,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
         s_name
     """
 
-    val ds = sparkSession.sql(sql).limit(100)
-    println("Running Query 21")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).limit(100).collect()
   }
 
-  def query22(sparkSession: SparkSession): Unit = {
+  def query22(sparkSession: SparkSession): Array[_] = {
     val items = Seq("'13'", "'31'", "'23'", "'29'", "'30'", "'18'", "'17'")
 
     val sql = s"""
@@ -1043,8 +1011,6 @@ object TPCHBenchmark extends SparkSessionWrapper {
         cntrycode
     """
 
-    val ds = sparkSession.sql(sql)
-    println("Running Query 22")
-    println(ds.collect().toList.mkString("\n"))
+    sparkSession.sql(sql).collect()
   }
 }
