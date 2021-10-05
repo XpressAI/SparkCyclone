@@ -92,4 +92,60 @@ object StagedGroupBy {
     finalType: VeType,
     attributes: List[StagedAggregationAttribute]
   )
+
+  def identifyGroups(
+    tupleType: String,
+    groupingVecName: String,
+    count: String,
+    thingsToGroup: List[Either[String, String]],
+    groupsCountOutName: String,
+    groupsIndicesName: String
+  ): CodeLines = {
+    val stringsToHash: List[String] = thingsToGroup.flatMap(_.left.toSeq)
+    val sortedIdxName = s"${groupingVecName}_sorted_idx";
+    CodeLines.from(
+      s"std::vector<${tupleType}> ${groupingVecName};",
+      s"std::vector<size_t> ${sortedIdxName}(${count});",
+      stringsToHash.map { name =>
+        val stringIdToHash = s"${name}_string_id_to_hash"
+        val stringHashTmp = s"${name}_string_id_to_hash_tmp"
+        CodeLines.from(
+          s"std::vector<long> $stringIdToHash(${count});",
+          s"for ( long i = 0; i < ${count}; i++ ) {",
+          CodeLines
+            .from(
+              s"long ${stringHashTmp} = 0;",
+              s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
+              CodeLines
+                .from(s"${stringHashTmp} = 31*${stringHashTmp} + ${name}->data[q];")
+                .indented,
+              "}",
+              s"$stringIdToHash[i] = ${stringHashTmp};"
+            )
+            .indented,
+          "}"
+        )
+      },
+      CodeLines.debugHere,
+      s"for ( long i = 0; i < ${count}; i++ ) {",
+      CodeLines
+        .from(
+          s"${sortedIdxName}[i] = i;",
+          s"${groupingVecName}.push_back(${tupleType}(${thingsToGroup
+            .flatMap {
+              case Right(g) => List(s"${g}->data[i]", s"check_valid(${g}->validityBuffer, i)")
+              case Left(stringName) =>
+                List(s"${stringName}_string_id_to_hash[i]")
+            }
+            .mkString(", ")}));"
+        )
+        .indented,
+      s"}",
+      s"frovedis::insertion_sort(${groupingVecName}.data(), ${sortedIdxName}.data(), ${groupingVecName}.size());",
+      "/** compute each group's range **/",
+      s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
+      s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
+    )
+  }
+
 }
