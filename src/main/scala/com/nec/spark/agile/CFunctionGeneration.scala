@@ -755,15 +755,14 @@ object CFunctionGeneration {
       Either[NamedStringProducer, NamedGroupByExpression]
     ]
   ): CFunction = {
-    val tuple =
-      s"std::tuple<${veDataTransformation.groups
+    val tuples = veDataTransformation.groups
         .flatMap {
           case Right(v) =>
             List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
           case Left(s) =>
             List("long")
         }
-        .mkString(", ")}>";
+    val tuple = s"std::tuple<${tuples.mkString(", ")}>";
     CFunction(
       inputs = veDataTransformation.inputs,
       outputs = veDataTransformation.outputs.zipWithIndex.map {
@@ -774,7 +773,7 @@ object CFunctionGeneration {
       },
       body = CodeLines.from(
         s"/** sorting section - ${GroupBeforeSort} **/",
-        s"std::vector<${tuple}> full_grouping_vec;",
+        s"std::vector<${tuple}> full_grouping_vec(input_0->count);",
         s"std::vector<size_t> sorted_idx(input_0->count);",
         veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
           val stringIdToHash = s"${name}_string_id_to_hash"
@@ -799,17 +798,43 @@ object CFunctionGeneration {
         CodeLines
           .from(
             "sorted_idx[i] = i;",
-            s"full_grouping_vec.push_back(${tuple}(${veDataTransformation.groups
+            s"full_grouping_vec[i] = ${tuple}(${veDataTransformation.groups
               .flatMap {
                 case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
                 case Left(StringGrouping(inputName)) =>
                   List(s"${inputName}_string_id_to_hash[i]")
               }
-              .mkString(", ")}));"
+              .mkString(", ")});"
           )
           .indented,
         s"}",
-        "frovedis::insertion_sort(full_grouping_vec.data(), sorted_idx.data(), full_grouping_vec.size());",
+        "std::vector<int64_t> temp(input_0->count);",
+        tuples.zipWithIndex.collect { case(_, idx) =>
+          CodeLines.from(
+            "for ( long i = 0; i < input_0->count; i++ ) {",
+            CodeLines
+              .from(
+                s"temp[i] = std::get<${tuples.length - idx - 1}>(full_grouping_vec[sorted_idx[i]]);",
+              )
+              .indented,
+            "}",
+            "frovedis::radix_sort(temp.data(), sorted_idx.data(), temp.size());",
+          )
+        },
+        "for ( long j = 0; j < input_0->count; j++ ) {",
+        CodeLines
+          .from(
+            "long i = sorted_idx[j];",
+            s"full_grouping_vec[i] = ${tuple}(${veDataTransformation.groups
+              .flatMap {
+                case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
+                case Left(StringGrouping(inputName)) =>
+                  List(s"${inputName}_string_id_to_hash[i]")
+              }
+              .mkString(", ")});"
+          )
+          .indented,
+        s"}",
         "/** compute each group's range **/",
         "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
         s"int groups_count = groups_indices.size() - 1;",
