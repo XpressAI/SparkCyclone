@@ -148,4 +148,40 @@ object StagedGroupBy {
     )
   }
 
+  def forHeadOfEachGroup(groupsCountName: String, groupsIndicesName: String, sortedIdxName: String)(
+    f: => CodeLines
+  ): CodeLines =
+    CodeLines
+      .from(
+        s"for (size_t g = 0; g < ${groupsCountName}; g++) {",
+        CodeLines
+          .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", "long o = g;", f)
+          .indented,
+        "}"
+      )
+
+  def forEachGroupItem(
+    groupsCountName: String,
+    groupsIndicesName: String,
+    sortedIdxName: String
+  )(beforeFirst: => CodeLines, perItem: => CodeLines, afterLast: => CodeLines): CodeLines =
+    CodeLines.from(
+      s"for (size_t g = 0; g < ${groupsCountName}; g++) {",
+      CodeLines
+        .from(
+          s"size_t group_start_in_idx = ${groupsIndicesName}[g];",
+          s"size_t group_end_in_idx = ${groupsIndicesName}[g + 1];",
+          "int i = 0;",
+          beforeFirst,
+          s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
+          CodeLines
+            .from(s"i = ${sortedIdxName}[j];", perItem)
+            .indented,
+          "}",
+          afterLast
+        )
+        .indented,
+      "}"
+    )
+
 }

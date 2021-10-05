@@ -517,7 +517,7 @@ final case class GroupByFunctionGeneration(
               "}"
             )
           },
-          "for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
+          s"for ( long i = 0; i < ${firstInput.name}->count; i++ ) {",
           CodeLines
             .from(
               "sorted_idx[i] = i;",
@@ -544,21 +544,17 @@ final case class GroupByFunctionGeneration(
               .from(
                 fp.setup,
                 "// for each group",
-                "for (size_t g = 0; g < groups_count; g++) {",
-                CodeLines
-                  .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
-                  .indented,
-                "}",
+                StagedGroupBy.forHeadOfEachGroup(
+                  groupsCountName = "groups_count",
+                  groupsIndicesName = "groups_indices",
+                  sortedIdxName = "sorted_idx"
+                )(fp.forEach),
                 fp.complete,
-                "for (size_t g = 0; g < groups_count; g++) {",
-                CodeLines
-                  .from(
-                    "long i = sorted_idx[groups_indices[g]];",
-                    "long o = g;",
-                    fp.validityForEach
-                  )
-                  .indented,
-                "}"
+                StagedGroupBy.forHeadOfEachGroup(
+                  groupsCountName = "groups_count",
+                  groupsIndicesName = "groups_indices",
+                  sortedIdxName = "sorted_idx"
+                )(fp.validityForEach)
               )
               .blockCommented(s"Produce the string group")
           case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
@@ -569,27 +565,16 @@ final case class GroupByFunctionGeneration(
               s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
               s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(groups_count / 8.0));",
               "",
-              "// for each group",
-              "for (size_t g = 0; g < groups_count; g++) {",
-              CodeLines
-                .from(
-                  "// compute an aggregate",
-                  groupByExpr.fold(
-                    whenProj = _ => CodeLines.empty,
-                    whenAgg = agg => agg.initial(outputName)
-                  ),
-                  "size_t group_start_in_idx = groups_indices[g];",
-                  "size_t group_end_in_idx = groups_indices[g + 1];",
-                  "int i = 0;",
-                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
-                  CodeLines
-                    .from(
-                      "i = sorted_idx[j];",
-                      groupByExpr
-                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName))
-                    )
-                    .indented,
-                  "}",
+              StagedGroupBy.forEachGroupItem(
+                groupsCountName = "groups_count",
+                groupsIndicesName = "groups_indices",
+                sortedIdxName = "sorted_idx"
+              )(
+                beforeFirst = groupByExpr
+                  .fold(whenProj = _ => CodeLines.empty, whenAgg = agg => agg.initial(outputName)),
+                perItem = groupByExpr
+                  .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName)),
+                afterLast = CodeLines.from(
                   groupByExpr.fold(_ => CodeLines.empty, whenAgg = _.compute(outputName)),
                   "// store the result",
                   groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)) match {
@@ -613,8 +598,7 @@ final case class GroupByFunctionGeneration(
                   },
                   groupByExpr.fold(_ => CodeLines.empty, _.free(outputName))
                 )
-                .indented,
-              "}"
+              )
             )
         }
       )
