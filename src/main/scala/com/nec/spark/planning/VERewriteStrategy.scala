@@ -390,7 +390,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             computeAggregate = ???
           )
 
-          val pf = stagedGroupBy.createFinal(
+          val ff = stagedGroupBy.createFinal(
             groupingKeyIsString = ???,
             computeAggregate = ???,
             projectionIsString = ???
