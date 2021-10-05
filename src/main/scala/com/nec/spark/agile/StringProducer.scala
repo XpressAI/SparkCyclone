@@ -61,7 +61,7 @@ object StringProducer {
       s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->size);""",
       s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
       s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
-      s"${outputName}->validityBuffer = (unsigned char *) malloc(input_0->count);"
+      s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(input_0->count / 64.0) * sizeof(uint64_t));"
     )
 
     def validityForEach: CodeLines =
