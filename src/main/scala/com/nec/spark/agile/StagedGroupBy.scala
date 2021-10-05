@@ -46,15 +46,18 @@ final case class StagedGroupBy(
 
   def computeProjections: CodeLines = ???
 
+  def computeAggregatePartials: CodeLines = ???
+
   def createPartial: CFunction = CFunction(
-    inputs = Nil,
+    inputs = ???,
     outputs = partials,
     body = {
       CodeLines.from(
         computeGroupingKeys,
         hashStringGroupingKeys,
         computeProjections,
-        performGrouping
+        performGrouping,
+        computeAggregatePartials
       )
     }
   )
@@ -63,13 +66,18 @@ final case class StagedGroupBy(
 
   def produceFinalOutputs: CodeLines = CodeLines.from(finalOutputs.map(fo => ??? : CodeLines))
 
-  def mergePartials: CodeLines = ???
+  def mergeAggregatePartials: CodeLines = ???
 
   def createFinal: CFunction = CFunction(
     inputs = partials,
     outputs = outputs,
     body = {
-      CodeLines.from(hashStringGroupingKeys, performGrouping, mergePartials, produceFinalOutputs)
+      CodeLines.from(
+        hashStringGroupingKeys,
+        performGrouping,
+        mergeAggregatePartials,
+        produceFinalOutputs
+      )
     }
   )
 
