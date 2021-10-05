@@ -103,7 +103,7 @@ object StagedGroupBy {
     tupleType: String,
     groupingVecName: String,
     count: String,
-    thingsToGroup: List[Either[String, String]],
+    thingsToGroup: List[Either[String, CExpression]],
     groupsCountOutName: String,
     groupsIndicesName: String,
     sortedIdxName: String
@@ -139,7 +139,7 @@ object StagedGroupBy {
           s"${sortedIdxName}[i] = i;",
           s"${groupingVecName}.push_back(${tupleType}(${thingsToGroup
             .flatMap {
-              case Right(g) => List(s"${g}->data[i]", s"check_valid(${g}->validityBuffer, i)")
+              case Right(g) => List(g.cCode) ++ g.isNotNullCode.toList
               case Left(stringName) =>
                 List(s"${stringName}_string_id_to_hash[i]")
             }
@@ -161,7 +161,7 @@ object StagedGroupBy {
       .from(
         s"for (size_t g = 0; g < ${groupsCountName}; g++) {",
         CodeLines
-          .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", "long o = g;", f)
+          .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", f)
           .indented,
         "}"
       )
@@ -200,10 +200,14 @@ object StagedGroupBy {
       case Some(notNullCheck) =>
         CodeLines.from(
           s"if ( $notNullCheck ) {",
-          s"""  $outputName->data[g] = ${cExpression.cCode};""",
-          s"  set_validity($outputName->validityBuffer, g, 1);",
+          CodeLines
+            .from(
+              s"""$outputName->data[g] = ${cExpression.cCode};""",
+              s"set_validity($outputName->validityBuffer, g, 1);"
+            )
+            .indented,
           "} else {",
-          s"  set_validity($outputName->validityBuffer, g, 0);",
+          CodeLines.from(s"set_validity($outputName->validityBuffer, g, 0);").indented,
           "}"
         )
     }
