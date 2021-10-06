@@ -19,7 +19,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
   DeclarativeAggregate,
   HyperLogLogPlusPlus
 }
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{aggregate, Alias, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
@@ -75,8 +75,11 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 case (ar: AttributeReference, idx)
                     if child.output.toList.exists(_.exprId == ar.exprId) =>
                   Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(ar.dataType)) -> ar)
-                case (Alias(agg, name), idx)
-                    if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
+                case (anything, idx)
+                    if anything.isInstanceOf[aggregate.AggregateExpression] || anything
+                      .find(_.isInstanceOf[DeclarativeAggregate])
+                      .nonEmpty =>
+                  /** Intentionally ignore -- these are not actual projections */
                   Option.empty
                 case (Alias(exp, name), idx) =>
                   Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)) -> exp)
@@ -103,9 +106,29 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     o,
                     idx
                   )
-                case (other @ Alias(_, _), idx) if other.collectFirst {
-                      case _: DeclarativeAggregate =>
-                        ()
+                case (Alias(other, _), idx) if other.collectFirst { case _: DeclarativeAggregate =>
+                      ()
+                    }.nonEmpty =>
+                  (
+                    GroupByExpression.GroupByAggregation(
+                      DeclarativeAggregationConverter
+                        .transformingFetch(
+                          other
+                            .transform(
+                              SparkVeMapper.referenceReplacer("input_", child.output.toList)
+                            )
+                        )
+                        .getOrElse(
+                          sys.error(
+                            s"Cannot figure out how to replace: ${other} (${other.getClass})"
+                          )
+                        )
+                    ),
+                    other,
+                    idx
+                  )
+                case (other, idx) if other.collectFirst { case _: DeclarativeAggregate =>
+                      ()
                     }.nonEmpty =>
                   (
                     GroupByExpression.GroupByAggregation(
@@ -139,7 +162,11 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
 
           val stagedGroupBy = StagedGroupBy(
             groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
-            finalOutputs = aggregateExpressions.map { namedExp =>
+            finalOutputs = aggregateExpressions.map { namedExp_ =>
+              val namedExp = namedExp_ match {
+                case Alias(child, _) => child
+                case other           => namedExp_
+              }
               projections
                 .collectFirst {
                   case (pk, `namedExp`)           => Left(pk)
@@ -153,7 +180,12 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                       Right(agg)
                   }
                 }
-                .getOrElse(sys.error(s"Unmatched output: ${namedExp}"))
+                .getOrElse(
+                  sys.error(
+                    s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
+                      .mkString(",")}"
+                  )
+                )
             }.toList
           )
           val computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]] =
