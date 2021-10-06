@@ -258,7 +258,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   )
             }
 
-          logDebug(s"Staged groupBy = ${stagedGroupBy}")
+          logInfo(s"Staged groupBy = ${stagedGroupBy}")
 
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
