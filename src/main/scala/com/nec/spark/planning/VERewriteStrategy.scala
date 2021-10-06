@@ -381,11 +381,11 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               .toList
               .flatten
 
-          val aggregates: List[(Expression, StagedAggregation)] =
+          val aggregates: List[(StagedAggregation, Expression)] =
             aggregateExpressions.zipWithIndex.collect {
               case (Alias(agg, name), idx)
                   if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
-                agg -> StagedAggregation(s"agg_${idx}", sparkTypeToVeType(agg.dataType), Nil)
+                StagedAggregation(s"agg_${idx}", sparkTypeToVeType(agg.dataType), Nil) -> agg
             }.toList
 
           val stagedGroupBy = StagedGroupBy(
@@ -397,7 +397,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 }
                 .orElse {
                   aggregates.collectFirst {
-                    case (exp, agg) if namedExp.find(_ == exp).nonEmpty =>
+                    case (agg, exp) if namedExp.find(_ == exp).nonEmpty =>
                       Right(agg)
                   }
                 }
@@ -416,13 +416,44 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 ).getOrReport()
             }
 
+          val computeAggregate: StagedAggregation => Option[Aggregation] = sa =>
+            aggregates.toMap.get(sa).map{
+              case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
+                DeclarativeAggregationConverter(
+                  d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                    .asInstanceOf[DeclarativeAggregate]
+                )
+
+              case Alias(other, _) =>
+                DeclarativeAggregationConverter
+                  .transformingFetch(
+                    other
+                      .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                  )
+                  .getOrElse(
+                    sys.error(
+                      s"Cannot figure out how to replace: ${other} (${other.getClass})"
+                    )
+                  )
+              case other =>
+                DeclarativeAggregationConverter
+                  .transformingFetch(
+                    other
+                      .transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                  )
+                  .getOrElse(
+                    sys.error(
+                      s"Cannot figure out how to replace: ${other} (${other.getClass})"
+                    )
+                  )
+            }
           val pf = stagedGroupBy.createPartial(
             inputs = child.output.zipWithIndex.map { case (att, id) =>
               sparkTypeToVeType(att.dataType).makeCVector(id.toString)
             }.toList,
             computeGroupingKey = computeGroupingKey,
             computeProjection = computeProjection,
-            computeAggregate = ???
+            computeAggregate = computeAggregate
           )
 
           val ff = stagedGroupBy.createFinal(computeAggregate = ???)
