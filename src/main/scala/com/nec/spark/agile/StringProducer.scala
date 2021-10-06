@@ -37,6 +37,7 @@ object StringProducer {
     val tmpCount = s"${outputName}_tmp_count";
     def setup: CodeLines =
       CodeLines.from(
+        CodeLines.debugHere,
         s"""std::string ${tmpString}("");""",
         s"""std::vector<int32_t> ${tmpOffsets};""",
         s"""int32_t ${tmpCurrentOffset} = 0;""",
@@ -46,6 +47,7 @@ object StringProducer {
     def forEach: CodeLines =
       CodeLines
         .from(
+          CodeLines.debugHere,
           "int len = 0;",
           stringProducer.produceTo(s"${tmpString}", "len"),
           s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
@@ -54,6 +56,7 @@ object StringProducer {
         )
 
     def complete: CodeLines = CodeLines.from(
+      CodeLines.debugHere,
       s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
       s"""${outputName}->count = ${tmpCount};""",
       s"""${outputName}->size = ${tmpCurrentOffset};""",
@@ -61,7 +64,8 @@ object StringProducer {
       s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->size);""",
       s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
       s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
-      s"${outputName}->validityBuffer = (unsigned char *) malloc(input_0->count);"
+      s"${outputName}->validityBuffer = (unsigned char *) malloc(${outputName}->count);",
+      CodeLines.debugHere
     )
 
     def validityForEach(idx: String): CodeLines =

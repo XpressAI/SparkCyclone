@@ -28,8 +28,8 @@ final case class OldUnifiedGroupByFunctionGeneration(
   def renderGroupBy: CFunction = {
     val stagedGroupBy = StagedGroupBy(
       groupingKeys = veDataTransformation.groups.zipWithIndex.map {
-        case (Left(stringGrouping), i) => GroupingKey(s"g_${i}", VeString)
-        case (Right(typedExp), i)      => GroupingKey(s"g_${i}", typedExp.veType)
+        case (Left(StringGrouping(name)), i) => GroupingKey(name, VeString)
+        case (Right(typedExp), i)            => GroupingKey(s"g_${i}", typedExp.veType)
       },
       finalOutputs = veDataTransformation.outputs.zipWithIndex.map {
         case (
@@ -65,12 +65,12 @@ final case class OldUnifiedGroupByFunctionGeneration(
     val pf = stagedGroupBy.createPartial(
       inputs = veDataTransformation.inputs,
       computeGroupingKey = gk =>
-        veDataTransformation.outputs
+        veDataTransformation.groups
           .lift(stagedGroupBy.groupingKeys.indexOf(gk))
-          .map {
-            case Left(NamedStringProducer(name, vt)) => Left(StringReference(name))
-            case Right(NamedGroupByExpression(name, veType, groupByExpression)) =>
-              Right(groupByExpression.fold(identity, s => sys.error(s.toString)))
+          .collect {
+            case Left(StringGrouping(name)) => Left(StringReference(name))
+            case Right(TypedCExpression2(vet, expr)) =>
+              Right(expr)
           },
       computeProjection = proj =>
         veDataTransformation.outputs
@@ -84,6 +84,8 @@ final case class OldUnifiedGroupByFunctionGeneration(
 
     val ff = stagedGroupBy.createFinal(computeAggregate = computeAggregate)
 
+    println(stagedGroupBy.groupingKeys)
+    println(pf.outputs)
     CFunction(
       inputs = pf.inputs,
       outputs = ff.outputs,
