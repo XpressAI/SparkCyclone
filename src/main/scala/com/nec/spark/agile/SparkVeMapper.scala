@@ -31,17 +31,19 @@ import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
 
-  def referenceReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
-    case ar: AttributeReference =>
-      inputs.indexWhere(_.exprId == ar.exprId) match {
-        case -1 =>
-          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
-        case idx =>
-          if (ar.dataType == StringType)
-            ar.withName(s"input_${idx}")
-          else
-            ar.withName(s"input_${idx}->data[i]")
-      }
+  def referenceReplacer(
+    prefix: String,
+    inputs: Seq[Attribute]
+  ): PartialFunction[Expression, Expression] = { case ar: AttributeReference =>
+    inputs.indexWhere(_.exprId == ar.exprId) match {
+      case -1 =>
+        sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
+      case idx =>
+        if (ar.dataType == StringType)
+          ar.withName(s"${prefix}${idx}")
+        else
+          ar.withName(s"${prefix}${idx}->data[i]")
+    }
   }
 
   def referenceOutputReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
@@ -94,13 +96,17 @@ object SparkVeMapper {
     }
   }
 
-  def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
-    expression.transform(referenceReplacer(inputs))
+  def replaceReferences(
+    prefix: String,
+    inputs: Seq[Attribute],
+    expression: Expression
+  ): Expression =
+    expression.transform(referenceReplacer(prefix, inputs))
 
   def replaceOutputReferences(inputs: Seq[Attribute], expression: Expression): Expression =
     expression.transform(referenceOutputReplacer(inputs))
 
-  def replaceReferences(
+  def replaceReferencesS(
     inputs: Seq[Attribute],
     expression: Expression,
     leftIds: Set[ExprId],
@@ -246,8 +252,8 @@ object SparkVeMapper {
           cCode = s"((${leftEx.cCode}) ${binaryOperatorOverride
             .getOrElse(b.symbol, b.symbol)} (${rightEx.cCode}))",
           isNotNullCode = Option(
-            (leftEx.isNotNullCode.toList ++
-              rightEx.isNotNullCode.toList)
+            leftEx.isNotNullCode.toList ++
+              rightEx.isNotNullCode.toList
           ).filter(_.nonEmpty).map(_.mkString("(", " && ", ")"))
         )
       case KnownFloatingPointNormalized(child) => eval(child)

@@ -554,7 +554,7 @@ object CFunctionGeneration {
             s"$outputName->validityBuffer = (unsigned char *) malloc(ceil($outputName->count / 8.0));"
           )
         case (Left(NamedStringExpression(name, stringProducer)), idx) =>
-          StringProducer.produceVarChar(name, stringProducer).block
+          StringProducer.produceVarChar("input_0->count", name, stringProducer).block
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex

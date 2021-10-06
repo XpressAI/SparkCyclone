@@ -72,15 +72,19 @@ object StringProducer {
       CodeLines.from(s"set_validity(${outputName}->validityBuffer, ${idx}, 1);")
   }
 
-  def produceVarChar(outputName: String, stringProducer: StringProducer): CodeLines = {
+  def produceVarChar(
+    count: String,
+    outputName: String,
+    stringProducer: StringProducer
+  ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
-      """for ( int32_t i = 0; i < input_0->count; i++ ) {""",
+      s"""for ( int32_t i = 0; i < ${count}; i++ ) {""",
       fp.forEach.indented,
       "}",
       fp.complete,
-      s"for( int32_t i = 0; i < input_0->count; i++ ) {",
+      s"for( int32_t i = 0; i < ${count}; i++ ) {",
       CodeLines.from(fp.validityForEach("i")).indented,
       "}"
     )
