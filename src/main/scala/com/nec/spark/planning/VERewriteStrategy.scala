@@ -423,18 +423,6 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   d.transform(SparkVeMapper.referenceReplacer(child.output.toList))
                     .asInstanceOf[DeclarativeAggregate]
                 )
-
-              case Alias(other, _) =>
-                DeclarativeAggregationConverter
-                  .transformingFetch(
-                    other
-                      .transform(SparkVeMapper.referenceReplacer(child.output.toList))
-                  )
-                  .getOrElse(
-                    sys.error(
-                      s"Cannot figure out how to replace: ${other} (${other.getClass})"
-                    )
-                  )
               case other =>
                 DeclarativeAggregationConverter
                   .transformingFetch(
