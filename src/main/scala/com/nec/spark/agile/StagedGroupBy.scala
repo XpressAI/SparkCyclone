@@ -521,7 +521,7 @@ object StagedGroupBy {
     CodeLines.from(
       s"$variableName->count = ${countExpression};",
       s"$variableName->data = (${veScalarType.cScalarType}*) malloc($variableName->count * sizeof(${veScalarType.cScalarType}));",
-      s"$variableName->validityBuffer = (unsigned char *) malloc(ceil(${countExpression} / 8.0));"
+      s"$variableName->validityBuffer = (uint64_t *) malloc(ceil(${countExpression} / 64.0) * sizeof(uint64_t));"
     )
 
 }
