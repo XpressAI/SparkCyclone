@@ -248,6 +248,51 @@ object SparkVeMapper {
             isNotNullCode = None
           )
         }
+      case Contains(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val mainString =
+                s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])"
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${mainString}.find(${rightString}) != std::string::npos"
+            },
+            isNotNullCode = None
+          )
+        }
+      case EndsWith(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val leftStringLength =
+                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
+              val expectedLength = right.toString().length
+              val leftStringSubstring =
+                s"""std::string(${left.name}->data, ${left.name}->offsets[i+1]-${expectedLength}, ${expectedLength})"""
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            },
+            isNotNullCode = None
+          )
+        }
+      case StartsWith(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val leftStringLength =
+                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
+              val expectedLength = right.toString().length
+              val leftStringSubstring =
+                s"""std::string(${left.name}->data, ${left.name}->offsets[i], ${expectedLength})"""
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            },
+            isNotNullCode = None
+          )
+        }
       case b: BinaryOperator =>
         for {
           leftEx <- eval(b.left)
@@ -294,12 +339,12 @@ object SparkVeMapper {
         Right {
           CExpression(
             cCode = ar.name,
-            isNotNullCode = {
+            isNotNullCode = if(ar.nullable) {
               val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
               Some(
                 s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
               )
-            }
+            } else None
           )
         }
       case IsNull(child) =>
