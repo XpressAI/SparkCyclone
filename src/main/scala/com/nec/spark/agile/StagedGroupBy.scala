@@ -78,7 +78,10 @@ final case class StagedGroupBy(
               afterLast = CodeLines.from(
                 stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
                   case (attr, (vec, ex)) =>
-                    StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g")
+                    CodeLines.from(
+                      CodeLines.debugExpr(ex),
+                      StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g")
+                    )
                 }
               )
             )
@@ -208,7 +211,10 @@ final case class StagedGroupBy(
                   ),
                   aggregation.initial(sa.name)
                 ),
-                afterLast = StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g"),
+                afterLast = CodeLines.from(
+                  CodeLines.debugExpr(aggregation.fetch(sa.name)),
+                  StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g")
+                ),
                 perItem = aggregation.merge(sa.name, s"partial_${sa.name}")
               )
             )

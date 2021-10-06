@@ -143,6 +143,17 @@ object CExpressionEvaluation {
   }
 
   object CodeLines {
+    def debugExpr(
+      ex: CFunctionGeneration.CExpression
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
+      CodeLines.from(
+        //        "#ifdef DEBUG",
+        s"""std::cout << ${ex.cCode} << "; " << ${ex.isNotNullCode.getOrElse(
+          "1"
+        )} << " $$ " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
+        //        "#endif"
+      )
+
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
 //        "#ifdef DEBUG",

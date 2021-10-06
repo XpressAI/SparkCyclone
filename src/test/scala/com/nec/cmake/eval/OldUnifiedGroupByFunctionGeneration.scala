@@ -88,10 +88,12 @@ final case class OldUnifiedGroupByFunctionGeneration(
       inputs = pf.inputs,
       outputs = ff.outputs,
       body = CodeLines.from(
-        CodeLines.commentHere("Declare partial variables - as this is a unified function"),
+        CodeLines.commentHere(
+          "Declare the variables for the output of the Partial stage for the unified function"
+        ),
         pf.outputs.map(cv => StagedGroupBy.declare(cv)),
-        pf.body.blockCommented("Partial stage"),
-        ff.body.blockCommented("Final stage"),
+        pf.body.blockCommented("Perform the Partial computation stage"),
+        ff.body.blockCommented("Perform the Final computation stage"),
         pf.outputs
           .map(cv => StagedGroupBy.dealloc(cv))
           .blockCommented("Deallocate the partial variables")
