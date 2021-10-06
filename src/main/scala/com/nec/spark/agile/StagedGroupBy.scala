@@ -207,15 +207,28 @@ final case class StagedGroupBy(
 
   def mergeAndProduceAggregatePartialsPerGroup(
     computeAggregate: StagedAggregation => Option[Aggregation]
-  ): CodeLines = CodeLines.empty
+  ): CodeLines = CodeLines.debugHere
 
   def passProjectionsPerGroup: CodeLines =
-    CodeLines.from(projections.map { stagedProjection =>
-      /*
+    CodeLines.from(
+      CodeLines.debugHere,
+      projections.map { stagedProjection =>
+        /*
           Copy over from name 'input_{name}' to '{name}' for each of the output
-       */
-      CodeLines.empty
-    })
+         */
+        gcg.forHeadOfEachGroup(
+          StagedGroupBy.storeTo(
+            stagedProjection.name,
+            CExpression(
+              cCode = s"partial_${stagedProjection.name}->data[i]",
+              isNotNullCode =
+                Some(s"check_valid(partial_${stagedProjection.name}->validityBuffer, i)")
+            ),
+            "g"
+          )
+        )
+      }
+    )
 
   def computeGroupingKeysPerGroup(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
@@ -235,13 +248,18 @@ final case class StagedGroupBy(
   )
 
   def passGroupingKeysPerGroup: CodeLines =
-    gcg.forHeadOfEachGroup(CodeLines.from(groupingKeys.map { groupingKey =>
-      storeTo(
-        outputName = s"partial_${groupingKey.name}",
-        cExpression = CExpression(s"${groupingKey.name}->data[i]", None),
-        idx = "g"
+    gcg.forHeadOfEachGroup(
+      CodeLines.from(
+        CodeLines.debugHere,
+        groupingKeys.map { groupingKey =>
+          storeTo(
+            outputName = s"partial_${groupingKey.name}",
+            cExpression = CExpression(s"${groupingKey.name}->data[i]", None),
+            idx = "g"
+          )
+        }
       )
-    }))
+    )
 
   def createFinal(computeAggregate: StagedAggregation => Option[Aggregation]): CFunction =
     CFunction(
@@ -251,8 +269,8 @@ final case class StagedGroupBy(
         CodeLines.from(
           performGroupingOnKeys,
           mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
-          passProjectionsPerGroup,
-          passGroupingKeysPerGroup
+          passProjectionsPerGroup
+//          passGroupingKeysPerGroup
         )
       }
     )
