@@ -146,7 +146,7 @@ object CExpressionEvaluation {
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
 //        "#ifdef DEBUG",
-        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
+        s"""std::cout << " $$ " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
 //        "#endif"
       )
 
@@ -155,10 +155,18 @@ object CExpressionEvaluation {
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
 //        "#ifdef DEBUG",
-        s"""std::cout << "[debug] " << "${fullName.value} (#${line.value})" << """ + what
+        s"""std::cout << " $$ " << "${fullName.value} (#${line.value})" << """ + what
           .map(x => s"""" " << ${x} << " " """)
           .mkString(""" << ";" << """) + """ << std::endl << std::flush;"""
 //        "#endif"
+      )
+
+    def commentHere(
+      what: String*
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
+      CodeLines.from(
+        what.map(w => CodeLines.from(s"// $w")).toList,
+        s"// ${fullName.value} (#${line.value})"
       )
 
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)

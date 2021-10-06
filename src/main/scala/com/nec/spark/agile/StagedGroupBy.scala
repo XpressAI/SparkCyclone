@@ -60,11 +60,13 @@ final case class StagedGroupBy(
     deriveAggregate: StagedAggregation => Option[Aggregation]
   ): CodeLines = CodeLines.from(
     CodeLines.debugHere,
+    CodeLines.commentHere("Compute aggregate partials per group"),
     aggregations.map { stagedAggregation =>
       deriveAggregate(stagedAggregation)
         .map { aggregate =>
           val prefix = s"${stagedAggregation.name}_"
           CodeLines.from(
+            CodeLines.debugHere,
             stagedAggregation.attributes.map(attribute =>
               StagedGroupBy.initializeScalarVector(
                 veScalarType = attribute.veScalarType,
@@ -72,6 +74,7 @@ final case class StagedGroupBy(
                 countExpression = gcg.groupsCountOutName
               )
             ),
+            CodeLines.debugHere,
             gcg.forEachGroupItem(
               beforeFirst = aggregate.initial(prefix),
               perItem = aggregate.iterate(prefix),
@@ -202,6 +205,17 @@ final case class StagedGroupBy(
   def computeGroupingKeysPerGroup(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
   ): CodeLines = CodeLines.from(
+    CodeLines.debugHere,
+    groupingKeys.map(groupingKey =>
+      groupingKey.veType match {
+        case scalarType: VeScalarType =>
+          StagedGroupBy.initializeScalarVector(
+            veScalarType = scalarType,
+            variableName = s"partial_${groupingKey.name}",
+            countExpression = gcg.groupsCountOutName
+          )
+      }
+    ),
     gcg.forHeadOfEachGroup(
       CodeLines.from(
         groupingKeys.map(groupingKey =>
@@ -316,6 +330,7 @@ object StagedGroupBy {
           )
           .indented,
         s"}",
+        CodeLines.debugHere,
         s"frovedis::insertion_sort(${groupingVecName}.data(), ${sortedIdxName}.data(), ${groupingVecName}.size());",
         s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
         s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"

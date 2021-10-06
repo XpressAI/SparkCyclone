@@ -95,10 +95,13 @@ final case class GroupByFunctionGeneration(
       inputs = pf.inputs,
       outputs = ff.outputs,
       body = CodeLines.from(
+        CodeLines.commentHere("Declare partial variables - as this is a unified function"),
         pf.outputs.map(cv => StagedGroupBy.declare(cv)),
         pf.body.blockCommented("Partial stage"),
         ff.body.blockCommented("Final stage"),
-        pf.outputs.map(cv => StagedGroupBy.dealloc(cv))
+        pf.outputs
+          .map(cv => StagedGroupBy.dealloc(cv))
+          .blockCommented("Deallocate the partial variables")
       )
     )
   }
