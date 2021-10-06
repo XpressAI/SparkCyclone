@@ -2,8 +2,9 @@ package com.nec.spark.planning
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CFunctionGeneration
+import com.nec.spark.agile.{CFunctionGeneration, SparkVeMapper}
 import com.nec.spark.agile.CFunctionGeneration.CFunction
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.writeVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -14,7 +15,6 @@ import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
@@ -146,14 +146,9 @@ final case class NativeAggregationEvaluationPlan(
               }
               .zipWithIndex
               .map { case (ne, idx) =>
-                ne.dataType match {
-                  case StringType  => new VarCharVector(s"out_${idx}", allocator)
-                  case LongType    => new BigIntVector(s"out_${idx}", allocator)
-                  case IntegerType => new IntVector(s"out_${idx}", allocator)
-                  case ShortType   => new SmallIntVector(s"out_${idx}", allocator)
-                  case DoubleType  => new Float8Vector(s"out_${idx}", allocator)
-                  case BooleanType => new BitVector(s"out_${idx}", allocator)
-                }
+                CFunctionGeneration.allocateFrom(
+                  SparkVeMapper.sparkTypeToVeType(ne.dataType).makeCVector(s"out_${idx}")
+                )(allocator)
               }
 
             try {
@@ -172,31 +167,7 @@ final case class NativeAggregationEvaluationPlan(
                 val writer = new UnsafeRowWriter(outputVectors.size)
                 writer.reset()
                 outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                  if (v_idx < v.getValueCount) {
-                    v match {
-                      case vector: VarCharVector =>
-                        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-                        else {
-                          val bytes = vector.get(v_idx)
-                          writer.write(c_idx, UTF8String.fromBytes(bytes))
-                        }
-                      case vector: Float8Vector =>
-                        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-                        else writer.write(c_idx, vector.get(v_idx))
-                      case vector: IntVector =>
-                        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-                        else writer.write(c_idx, vector.get(v_idx))
-                      case vector: BigIntVector =>
-                        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-                        else writer.write(c_idx, vector.get(v_idx))
-                      case vector: SmallIntVector =>
-                        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-                        else writer.write(c_idx, vector.get(v_idx))
-                      case vector: BitVector =>
-                        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-                        else writer.write(c_idx, vector.get(v_idx))
-                    }
-                  }
+                  if (v_idx < v.getValueCount) writeVector(v_idx, writer, v, c_idx)
                 }
                 writer.getRow
               }
@@ -214,4 +185,34 @@ final case class NativeAggregationEvaluationPlan(
   override protected def doExecute(): RDD[InternalRow] = {
     executeRowWise()
   }
+}
+
+object NativeAggregationEvaluationPlan {
+
+  private def writeVector(v_idx: Int, writer: UnsafeRowWriter, v: FieldVector, c_idx: Int): Unit = {
+    v match {
+      case vector: VarCharVector =>
+        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+        else {
+          val bytes = vector.get(v_idx)
+          writer.write(c_idx, UTF8String.fromBytes(bytes))
+        }
+      case vector: Float8Vector =>
+        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+        else writer.write(c_idx, vector.get(v_idx))
+      case vector: IntVector =>
+        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+        else writer.write(c_idx, vector.get(v_idx))
+      case vector: BigIntVector =>
+        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+        else writer.write(c_idx, vector.get(v_idx))
+      case vector: SmallIntVector =>
+        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+        else writer.write(c_idx, vector.get(v_idx))
+      case vector: BitVector =>
+        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
+        else writer.write(c_idx, vector.get(v_idx))
+    }
+  }
+
 }
