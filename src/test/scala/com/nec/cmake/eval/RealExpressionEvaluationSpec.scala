@@ -27,10 +27,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
-import com.nec.spark.agile.{
-  DeclarativeAggregationConverter,
-  StringProducer
-}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
 import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
@@ -239,7 +236,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   "We can aggregate / group by (simple sum)" in {
     val result = evalGroupBySum(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (3, 4, 9))
     )(
       (
         TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
@@ -260,7 +257,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
     assert(
       result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6))
+        List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6), (3.0, 5.0, 6.0))
     )
   }
 

@@ -24,6 +24,22 @@ final case class StagedGroupBy(
   finalOutputs: List[Either[StagedProjection, StagedAggregation]]
 ) {
 
+  def debugOutputs: CodeLines =
+    CodeLines.from(
+      CodeLines.commentHere("Debugging finals"),
+      finalOutputs.map(_.fold(_.name, _.name)).map { name =>
+        StagedGroupBy.debugVector(name)
+      }
+    )
+
+  def debugPartialOutputs: CodeLines =
+    CodeLines.from(
+      CodeLines.commentHere("Debugging partials"),
+      partials.map(_.name).map { name =>
+        StagedGroupBy.debugVector(name)
+      }
+    )
+
   def gcg: GroupingCodeGenerator = GroupingCodeGenerator(
     groupingVecName = "grouping_vec",
     groupsCountOutName = "groups_count",
@@ -78,10 +94,7 @@ final case class StagedGroupBy(
               afterLast = CodeLines.from(
                 stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
                   case (attr, (vec, ex)) =>
-                    CodeLines.from(
-                      CodeLines.debugExpr(ex),
-                      StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g")
-                    )
+                    CodeLines.from(StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g"))
                 }
               )
             )
@@ -138,9 +151,11 @@ final case class StagedGroupBy(
       outputs = outputs,
       body = {
         CodeLines.from(
+//          debugPartialOutputs,
           performGroupingOnKeys,
           mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
           passProjectionsPerGroup
+//          debugOutputs
         )
       }
     )
@@ -201,21 +216,21 @@ final case class StagedGroupBy(
           case None => sys.error(s"Could not compute for: ${sa}")
           case Some(aggregation) =>
             CodeLines.from(
+              StagedGroupBy.initializeScalarVector(
+                veScalarType = sa.finalType.asInstanceOf[VeScalarType],
+                variableName = sa.name,
+                countExpression = gcg.groupsCountOutName
+              ),
               CodeLines.commentHere("producing aggregate/partials per group"),
               gcg.forEachGroupItem(
-                beforeFirst = CodeLines.from(
-                  StagedGroupBy.initializeScalarVector(
-                    veScalarType = sa.finalType.asInstanceOf[VeScalarType],
-                    variableName = sa.name,
-                    countExpression = gcg.groupsCountOutName
-                  ),
-                  aggregation.initial(sa.name)
-                ),
+                beforeFirst = aggregation.initial(sa.name),
+                perItem = aggregation.merge(sa.name, s"partial_${sa.name}"),
                 afterLast = CodeLines.from(
-                  CodeLines.debugExpr(aggregation.fetch(sa.name)),
                   StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g")
-                ),
-                perItem = aggregation.merge(sa.name, s"partial_${sa.name}")
+//                  StagedGroupBy
+//                    .debugVector(sa.name)
+//                    .blockCommented(s"Debug ${sa.name} from aggregate")
+                )
               )
             )
         }
@@ -293,6 +308,15 @@ final case class StagedGroupBy(
 }
 
 object StagedGroupBy {
+  def debugVector(name: String): CodeLines = {
+    CodeLines.from(
+      s"for (int i = 0; i < ${name}->count; i++) {",
+      CodeLines.from(
+        s"""std::cout << "${name}[" << i << "] = " << ${name}->data[i] << " (valid? " << check_valid(${name}->validityBuffer, i) << ")" << std::endl << std::flush; """
+      ),
+      "}"
+    )
+  }
 
   def dealloc(cv: CVector): CodeLines = CodeLines.empty
 
