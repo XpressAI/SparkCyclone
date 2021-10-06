@@ -29,7 +29,6 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
 import com.nec.spark.agile.{
   DeclarativeAggregationConverter,
-  GroupByFunctionGeneration,
   StringProducer
 }
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
@@ -614,7 +613,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "agg"
 
     val generatedSource =
-      GroupByFunctionGeneration(
+      OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = Nil,
@@ -757,7 +756,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "project_f"
 
     val generatedSource =
-      GroupByFunctionGeneration(
+      OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = List(Right(groups._1), Right(groups._2)),
@@ -800,7 +799,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "project_f"
 
     val generatedSource =
-      GroupByFunctionGeneration(
+      OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
           inputs = inputArguments.inputs,
           groups = List(Left(groups._1), Right(groups._2)),
@@ -942,7 +941,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     output: (StringGrouping, TypedGroupByExpression[Double])
   ) {
 
-    def generator: GroupByFunctionGeneration = GroupByFunctionGeneration(
+    def generator: OldUnifiedGroupByFunctionGeneration = OldUnifiedGroupByFunctionGeneration(
       VeGroupBy(
         inputs = List(CVector.varChar("input_0"), CVector.double("input_1")),
         groups = List(Left(stringGrouping)),

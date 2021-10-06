@@ -7,7 +7,6 @@ import com.nec.spark.agile.SparkVeMapper.{sparkTypeToScalarVeType, sparkTypeToVe
 import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection}
 import com.nec.spark.agile.{
   DeclarativeAggregationConverter,
-  GroupByFunctionGeneration,
   SparkVeMapper,
   StagedGroupBy
 }

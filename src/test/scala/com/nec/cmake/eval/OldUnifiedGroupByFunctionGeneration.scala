@@ -1,4 +1,4 @@
-package com.nec.spark.agile
+package com.nec.cmake.eval
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
@@ -6,17 +6,10 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.StagedGroupBy.{
-  GroupingCodeGenerator,
-  GroupingKey,
-  StagedAggregation,
-  StagedAggregationAttribute,
-  StagedProjection,
-  StringReference
-}
+import com.nec.spark.agile.StagedGroupBy
+import com.nec.spark.agile.StagedGroupBy._
 
-//noinspection MapFlatten
-final case class GroupByFunctionGeneration(
+final case class OldUnifiedGroupByFunctionGeneration(
   veDataTransformation: VeGroupBy[
     CVector,
     Either[StringGrouping, TypedCExpression2],

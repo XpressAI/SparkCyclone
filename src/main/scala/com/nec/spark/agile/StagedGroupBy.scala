@@ -18,7 +18,6 @@ import com.nec.spark.agile.StagedGroupBy.{
   StagedProjection,
   StringReference
 }
-import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 
 final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
@@ -53,8 +52,6 @@ final case class StagedGroupBy(
       )
     ).flatten
   }
-
-  def computeGroupingKeys: CodeLines = ???
 
   def computeAggregatePartialsPerGroup(
     deriveAggregate: StagedAggregation => Option[Aggregation]
@@ -214,6 +211,7 @@ final case class StagedGroupBy(
             variableName = s"partial_${groupingKey.name}",
             countExpression = gcg.groupsCountOutName
           )
+        case other => sys.error(s"Not yet supported: ${other}")
       }
     ),
     gcg.forHeadOfEachGroup(
