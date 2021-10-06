@@ -3,8 +3,8 @@ package com.nec.spark.planning
 import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.SparkVeMapper.EvalFallback
-import com.nec.spark.agile.StagedGroupBy.GroupingKey
+import com.nec.spark.agile.SparkVeMapper.{sparkTypeToScalarVeType, sparkTypeToVeType, EvalFallback}
+import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection}
 import com.nec.spark.agile.{
   DeclarativeAggregationConverter,
   GroupByFunctionGeneration,
@@ -17,15 +17,19 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
 }
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  AttributeReference,
+  BinaryArithmetic,
+  Expression
+}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate,
   HyperLogLogPlusPlus
 }
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic}
 import org.apache.spark.sql.catalyst.plans.logical
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StringType
 
@@ -376,24 +380,68 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             }
           )
 
+          val groupingExpressionsKeys: List[(Expression, GroupingKey)] =
+            groupingExpressions.zipWithIndex.map { case (e, i) =>
+              (e, GroupingKey(s"group_${i}", SparkVeMapper.sparkTypeToScalarVeType(e.dataType)))
+            }.toList
+
+          val projectionsKeys: List[(Expression, StagedProjection)] =
+            aggregateExpressions.zipWithIndex
+              .collect {
+                case (Alias(agg, name), idx)
+                    if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
+                  Option.empty
+                case (Alias(exp, name), idx) =>
+                  Option(exp -> StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)))
+                case other => sys.error(s"Unexpected aggregate expression: ${other}")
+              }
+              .toList
+              .flatten
+
+          val aggregates: List[(Expression, StagedAggregation)] =
+            aggregateExpressions.zipWithIndex.collect {
+              case (Alias(agg, name), idx)
+                  if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
+                agg -> StagedAggregation(s"agg_${idx}", sparkTypeToVeType(agg.dataType), Nil)
+            }.toList
+
           val stagedGroupBy = StagedGroupBy(
-            groupingKeys = groupingExpressions.zipWithIndex.map { case (e, i) =>
-              GroupingKey(s"g_${i}", SparkVeMapper.sparkTypeToScalarVeType(e.dataType))
-            }.toList,
-            finalOutputs = aggregateExpressions.map(_ => ???).toList
+            groupingKeys = groupingExpressionsKeys.map { case (e, gk) => gk },
+            finalOutputs = aggregateExpressions.map { namedExp =>
+              groupingExpressionsKeys
+                .collectFirst {
+                  case (exp, gk) if namedExp.find(_ == exp).nonEmpty => Left(gk)
+                }
+                .orElse {
+                  projectionsKeys.collectFirst {
+                    case (exp, pk) if namedExp.find(_ == exp).nonEmpty => Right(Left(pk))
+                  }
+                }
+                .orElse {
+                  aggregates.collectFirst {
+                    case (exp, agg) if namedExp.find(_ == exp).nonEmpty =>
+                      Right(Right(agg))
+                  }
+                }
+                .getOrElse(sys.error(s"Unmatched output: ${namedExp}"))
+            }.toList
           )
 
           val pf = stagedGroupBy.createPartial(
-            inputs = ???,
+            inputs = child.output.zipWithIndex.map { case (att, id) =>
+              sparkTypeToVeType(att.dataType).makeCVector(id.toString)
+            }.toList,
             computeGroupingKey = ???,
             computeProjection = ???,
             computeAggregate = ???
           )
 
           val ff = stagedGroupBy.createFinal(
-            groupingKeyIsString = ???,
+            groupingKeyIsString = gk =>
+              groupingExpressionsKeys.exists { case (e, gkk) => gk == gkk && gk.veType.isString },
             computeAggregate = ???,
-            projectionIsString = ???
+            projectionIsString = proj =>
+              projectionsKeys.exists { case (exp, sp) => sp == proj && exp.dataType == StringType }
           )
 
           logger.debug(s"Group by = ${groupBySummary}")

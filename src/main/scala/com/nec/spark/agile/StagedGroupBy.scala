@@ -6,6 +6,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
   CFunction,
   CVector,
   VeScalarType,
+  VeString,
   VeType
 }
 import com.nec.spark.agile.StagedGroupBy.{
@@ -86,7 +87,8 @@ final case class StagedGroupBy(
 
   def computeProjectionsPerGroup(compute: StagedProjection => Option[CExpression]): CodeLines = {
     CodeLines.from(projections.map {
-      /** String version not implemented. You should implement. Else compiler will stop you. */
+      case sp @ StagedProjection(name, VeString) =>
+        ???
       case sp @ StagedProjection(name, veType: VeScalarType) =>
         compute(sp) match {
           case None => sys.error(s"Could not map ${sp}")
