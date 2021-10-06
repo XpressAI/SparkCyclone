@@ -306,10 +306,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                   s"agg_${idx}",
                   sparkTypeToVeType(expr.dataType),
                   groupByExpression.aggregation.partialValues(s"agg_${idx}").map { case (cs, ce) =>
-                    StagedAggregationAttribute(
-                      name = s"agg_${idx}_${cs.name}",
-                      veScalarType = cs.veType
-                    )
+                    StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
                   }
                 ) -> expr
               }
