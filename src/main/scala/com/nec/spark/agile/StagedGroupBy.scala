@@ -190,25 +190,32 @@ final case class StagedGroupBy(
 
   def mergeAndProduceAggregatePartialsPerGroup(
     computeAggregate: StagedAggregation => Option[Aggregation]
-  ): CodeLines =
-    aggregations.map(sa =>
-      computeAggregate(sa) match {
-        case None => sys.error(s"Could not compute for: ${sa}")
-        case Some(aggregation) =>
-          gcg.forEachGroupItem(
-            beforeFirst = CodeLines.from(
-              StagedGroupBy.initializeScalarVector(
-                veScalarType = sa.finalType.asInstanceOf[VeScalarType],
-                variableName = sa.name,
-                countExpression = gcg.groupsCountOutName
-              ),
-              aggregation.initial(sa.name)
-            ),
-            afterLast = StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g"),
-            perItem = aggregation.merge(sa.name, s"partial_${sa.name}")
-          )
-      }
+  ): CodeLines = {
+    CodeLines.from(
+      CodeLines.debugHere,
+      aggregations.map(sa =>
+        computeAggregate(sa) match {
+          case None => sys.error(s"Could not compute for: ${sa}")
+          case Some(aggregation) =>
+            CodeLines.from(
+              CodeLines.commentHere("producing aggregate/partials per group"),
+              gcg.forEachGroupItem(
+                beforeFirst = CodeLines.from(
+                  StagedGroupBy.initializeScalarVector(
+                    veScalarType = sa.finalType.asInstanceOf[VeScalarType],
+                    variableName = sa.name,
+                    countExpression = gcg.groupsCountOutName
+                  ),
+                  aggregation.initial(sa.name)
+                ),
+                afterLast = StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g"),
+                perItem = aggregation.merge(sa.name, s"partial_${sa.name}")
+              )
+            )
+        }
+      )
     )
+  }
 
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map { stagedProjection =>

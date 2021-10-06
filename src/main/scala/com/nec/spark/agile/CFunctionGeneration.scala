@@ -8,13 +8,7 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableLong
 }
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{
-  BigIntVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  VarCharVector
-}
+import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
 
 /** Spark-free function evaluation */
@@ -283,7 +277,7 @@ object CFunctionGeneration {
         )
 
       override def merge(prefix: String, inputPrefix: String): CodeLines =
-        CodeLines.from(s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum->data[i];")
+        CodeLines.from(s"${prefix}_aggregate_sum += ${inputPrefix}_x->data[i];")
     }
     def avg(cExpression: CExpression): Aggregation = new Aggregation {
       override def initial(prefix: String): CodeLines =

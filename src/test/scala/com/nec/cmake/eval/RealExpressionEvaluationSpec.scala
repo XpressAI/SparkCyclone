@@ -237,7 +237,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     }
   }
 
-  "We can aggregate / group by" in {
+  "We can aggregate / group by (simple sum)" in {
     val result = evalGroupBySum(
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(
