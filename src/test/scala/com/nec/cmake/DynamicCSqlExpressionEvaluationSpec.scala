@@ -555,7 +555,7 @@ class DynamicCSqlExpressionEvaluationSpec
     val sql2 =
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA})"
 
-    s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration) { sparkSession =>
+    s"Group by is possible with ${sql2}" in withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -587,6 +587,8 @@ class DynamicCSqlExpressionEvaluationSpec
         import sparkSession.implicits._
 
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
+          println(ds.rdd.toDebugString)
+
           expectVertical(
             ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted,
             List(
