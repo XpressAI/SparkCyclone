@@ -324,45 +324,37 @@ final case class StagedGroupBy(
       }
     ),
     CodeLines.debugHere,
-    gcg.forHeadOfEachGroup(
-      CodeLines.from(
-        groupingKeys.map(groupingKey =>
-          compute(groupingKey) match {
-            case Some(Right(cExp)) =>
-              storeTo(s"partial_${groupingKey.name}", cExp, "g")
-            case Some(Left(StringReference(name))) =>
-              val fp =
-                FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+    groupingKeys.map(groupingKey =>
+      gcg.forHeadOfEachGroup(CodeLines.from(compute(groupingKey) match {
+        case Some(Right(cExp)) =>
+          storeTo(s"partial_${groupingKey.name}", cExp, "g")
+        case Some(Left(StringReference(name))) =>
+          val fp =
+            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
 
-              CodeLines.from(fp.forEach)
-            case other =>
-              sys.error(s"Unsupported right now: ${other} (from ${groupingKey})")
-          }
-        )
-      )
+          CodeLines.from(fp.forEach)
+        case other =>
+          sys.error(s"Unsupported right now: ${other} (from ${groupingKey})")
+      }))
     ),
     CodeLines.debugHere,
-    gcg.forHeadOfEachGroup(
-      CodeLines.from(
-        groupingKeys.map(groupingKey =>
-          compute(groupingKey) match {
-            case Some(Left(StringReference(name))) =>
-              val fp =
-                FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+    groupingKeys.map(groupingKey =>
+      gcg.forHeadOfEachGroup(CodeLines.from(compute(groupingKey) match {
+        case Some(Left(StringReference(name))) =>
+          val fp =
+            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
 
-              CodeLines.from(fp.complete, gcg.forHeadOfEachGroup(fp.validityForEach("g")))
-            case _ => CodeLines.empty
-          }
-        )
-      )
+          CodeLines.from(fp.complete, gcg.forHeadOfEachGroup(fp.validityForEach("g")))
+        case _ => CodeLines.empty
+      }))
     )
   )
 
   def passGroupingKeysPerGroup: CodeLines =
-    gcg.forHeadOfEachGroup(
-      CodeLines.from(
-        CodeLines.debugHere,
-        groupingKeys.map { groupingKey =>
+    groupingKeys.map(groupingKey =>
+      gcg.forHeadOfEachGroup(
+        CodeLines.from(
+          CodeLines.debugHere,
           storeTo(
             outputName =
               if (groupingKey.veType.isString) s"partial_str_${groupingKey.name}"
@@ -370,7 +362,7 @@ final case class StagedGroupBy(
             cExpression = CExpression(s"${groupingKey.name}->data[i]", None),
             idx = "g"
           )
-        }
+        )
       )
     )
 
