@@ -186,6 +186,10 @@ final case class StagedGroupBy(
 }
 
 object StagedGroupBy {
+  def dealloc(cv: CVector): CodeLines = CodeLines.empty
+
+  def declare(cv: CVector): CodeLines = CodeLines.from(s"${cv.veType.cVectorType} ${cv.name};")
+
   def exampleUsage: CFunction = StagedGroupBy(groupingKeys = ???, finalOutputs = ???).createPartial(
     computeGroupingKey =
       groupingKey => Some(Right(CExpression("x + 2", None))) /* Generate this from SparkVeMapper */,

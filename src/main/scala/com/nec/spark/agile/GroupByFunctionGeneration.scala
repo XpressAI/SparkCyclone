@@ -1,8 +1,18 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.StagedGroupBy.GroupingCodeGenerator
+import com.nec.spark.agile.StagedGroupBy.{
+  GroupingCodeGenerator,
+  GroupingKey,
+  StagedAggregation,
+  StagedAggregationAttribute,
+  StagedProjection
+}
 
 //noinspection MapFlatten
 final case class GroupByFunctionGeneration(
@@ -30,6 +40,69 @@ final case class GroupByFunctionGeneration(
   )
 
   def renderGroupBy: CFunction = {
+    val stagedGroupBy = StagedGroupBy(
+      groupingKeys = veDataTransformation.groups.zipWithIndex.map {
+        case (Left(stringGrouping), i) => GroupingKey(s"g_${i}", VeString)
+        case (Right(typedExp), i)      => GroupingKey(s"g_${i}", typedExp.veType)
+      },
+      finalOutputs = veDataTransformation.outputs.zipWithIndex.map {
+        case (
+              Right(NamedGroupByExpression(outputName, veType, GroupByAggregation(aggregation))),
+              idx
+            ) =>
+          Right(
+            Right(
+              StagedAggregation(
+                outputName,
+                veType,
+                aggregation.partialValues(outputName).map { case (cv, ce) =>
+                  StagedAggregationAttribute(name = cv.name, veType)
+                }
+              )
+            )
+          )
+        case (
+              Right(NamedGroupByExpression(outputName, veType, GroupByProjection(cExpression))),
+              idx
+            ) if veDataTransformation.groups.exists(_.right.exists(_.cExpression == cExpression)) =>
+          Left(GroupingKey(outputName, veType))
+        case (
+              Right(NamedGroupByExpression(outputName, veType, GroupByProjection(cExpression))),
+              idx
+            ) =>
+          Right(Left(StagedProjection(outputName, veType)))
+        case (Left(NamedStringProducer(outputName, _)), idx)
+            if veDataTransformation.groups.exists(_.left.exists(_.name == outputName)) =>
+          Left(GroupingKey(outputName, VeString))
+        case (Left(NamedStringProducer(outputName, _)), idx) =>
+          Right(Left(StagedProjection(outputName, VeString)))
+      }
+    )
+
+    val pf = stagedGroupBy.createPartial(
+      inputs = veDataTransformation.inputs,
+      computeGroupingKey = ???,
+      computeProjection = ???,
+      computeAggregate = ???
+    )
+
+    val ff = stagedGroupBy.createFinal(
+      projectionIsString = ???,
+      groupingKeyIsString = ???,
+      computeAggregate = ???
+    )
+
+    CFunction(
+      inputs = pf.inputs,
+      outputs = ff.outputs,
+      body = CodeLines.from(
+        pf.outputs.map(cv => StagedGroupBy.declare(cv)),
+        pf.body.blockCommented("Partial stage"),
+        ff.body.blockCommented("Final stage"),
+        pf.outputs.map(cv => StagedGroupBy.dealloc(cv))
+      )
+    )
+
     val firstInput = veDataTransformation.inputs.head
     CFunction(
       inputs = veDataTransformation.inputs,
