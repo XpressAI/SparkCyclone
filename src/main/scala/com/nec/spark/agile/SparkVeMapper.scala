@@ -172,7 +172,10 @@ object SparkVeMapper {
     implicit class RichEvaluationAttempt(evaluationAttempt: EvaluationAttempt) {
       def getOrReport(): CExpression = {
         evaluationAttempt.fold(
-          expr => sys.error(s"Could not handle the expression ${expr}, type ${expr.getClass}"),
+          expr =>
+            sys.error(
+              s"Could not handle the expression ${expr}, type ${expr.getClass}, Spark type ${expr.dataType}"
+            ),
           identity
         )
       }
@@ -430,8 +433,8 @@ object SparkVeMapper {
         }
       case CaseWhen(Seq((caseExp, valueExp), xs @ _*), Some(elseValue)) =>
         eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)))
-      case fallback(result) =>
-        Right(result)
+      case fallback(result) => Right(result)
+      case other            => Left(other)
     }
   }
 

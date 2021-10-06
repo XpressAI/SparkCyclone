@@ -51,180 +51,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        /** This one is for testing */
-//        case proj @ logical.Project(
-//              Seq(
-//                Alias(
-//                  Concat(
-//                    Seq(
-//                      Substring(
-//                        inputExpr,
-//                        Literal(beginIndex: Int, IntegerType),
-//                        Literal(endIndex: Int, IntegerType)
-//                      ),
-//                      _,
-//                      _
-//                    )
-//                  ),
-//                  _
-//                ),
-//                Alias(Length(inputExpr2), _),
-//                Alias(
-//                  Substring(
-//                    inputExpr3,
-//                    Literal(beginIndex3: Int, IntegerType),
-//                    Subtract(Length(inputExpr4), Literal(2, IntegerType), false)
-//                  ),
-//                  _
-//                )
-//              ),
-//              child
-//            ) =>
-//          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-//          List(
-//            NewCEvaluationPlan(
-//              fName,
-//              proj.output,
-//              StringCExpressionEvaluation.evaluate(fName, child.output, beginIndex, endIndex),
-//              planLater(child),
-//              proj.references.map(_.name).toSet,
-//              nativeEvaluator
-//            )
-//          )
-//        case join @ logical.Join(
-//              left,
-//              right,
-//              Inner,
-//              Some(EqualTo(leftKeyExpr, rightKeyExpr)),
-//              hint
-//            ) => {
-//          val leftExprIds = left.output.map(_.exprId).toSet
-//          val rightExprIds = right.output.map(_.exprId).toSet
-//          val inputs = join.inputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
-//            CScalarVector(s"input_${idx}", SparkVeMapper.sparkTypeToScalarVeType(attr.dataType))
-//          }
-//          val leftKey = TypedCExpression2(
-//            SparkVeMapper.sparkTypeToScalarVeType(leftKeyExpr.dataType),
-//            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, leftKeyExpr))
-//          )
-//          val rightKey = TypedCExpression2(
-//            SparkVeMapper.sparkTypeToScalarVeType(rightKeyExpr.dataType),
-//            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, rightKeyExpr))
-//          )
-//          val outputs = join.output.zipWithIndex
-//            .map((attr) =>
-//              NamedJoinExpression(
-//                s"output_${attr._2}",
-//                SparkVeMapper.sparkTypeToScalarVeType(attr._1.dataType),
-//                JoinProjection(
-//                  SparkVeMapper.eval(
-//                    SparkVeMapper
-//                      .replaceReferences(join.inputSet.toSeq, attr._1, leftExprIds, rightExprIds)
-//                  )
-//                )
-//              )
-//            )
-//            .toList
-//
-//          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-//
-//          List(
-//            GeneratedJoinPlan(
-//              planLater(left),
-//              planLater(right),
-//              renderInnerJoin(VeInnerJoin(inputs.toList, leftKey, rightKey, outputs))
-//                .toCodeLines(fName),
-//              nativeEvaluator,
-//              join.inputSet.toSeq,
-//              join.output,
-//              fName
-//            )
-//          )
-//
-//        }
-
-//        case join @ logical.Join(
-//              left,
-//              right,
-//              outerJoin,
-//              Some(EqualTo(leftKeyExpr, rightKeyExpr)),
-//              hint
-//            ) => {
-//          val leftExprIds = left.output.map(_.exprId).toSet
-//          val rightExprIds = right.output.map(_.exprId).toSet
-//          val inputs = join.inputSet.toSeq.zipWithIndex.map { case (attr, idx) =>
-//            CScalarVector(s"input_${idx}", SparkVeMapper.sparkTypeToScalarVeType(attr.dataType))
-//          }.toList
-//          val leftKey = TypedCExpression2(
-//            SparkVeMapper.sparkTypeToScalarVeType(leftKeyExpr.dataType),
-//            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, leftKeyExpr))
-//          )
-//          val rightKey = TypedCExpression2(
-//            SparkVeMapper.sparkTypeToScalarVeType(rightKeyExpr.dataType),
-//            SparkVeMapper.eval(SparkVeMapper.replaceReferences(join.inputSet.toSeq, rightKeyExpr))
-//          )
-//          val outputsInner = join.output.zipWithIndex
-//            .map((attr) =>
-//              NamedJoinExpression(
-//                s"output_${attr._2}",
-//                SparkVeMapper.sparkTypeToScalarVeType(attr._1.dataType),
-//                JoinProjection(
-//                  SparkVeMapper.eval(
-//                    SparkVeMapper
-//                      .replaceReferences(join.inputSet.toSeq, attr._1, leftExprIds, rightExprIds)
-//                  )
-//                )
-//              )
-//            )
-//            .toList
-//          val outerJoinType = outerJoin match {
-//            case plans.LeftOuter  => LeftOuterJoin
-//            case plans.RightOuter => RightOuterJoin
-//          }
-//
-//          val outputsOuter = join.output.zipWithIndex
-//            .map((attr) =>
-//              NamedJoinExpression(
-//                s"output_${attr._2}",
-//                SparkVeMapper.sparkTypeToScalarVeType(attr._1.dataType),
-//                JoinProjection(
-//                  SparkVeMapper.eval(
-//                    SparkVeMapper.replaceReferencesOuter(
-//                      join.inputSet.toSeq,
-//                      attr._1,
-//                      leftExprIds,
-//                      rightExprIds,
-//                      outerJoinType
-//                    )
-//                  )
-//                )
-//              )
-//            )
-//            .toList
-//          val outputs = outputsInner
-//            .zip(outputsOuter)
-//            .map { case (inner, outer) =>
-//              OuterJoinOutput(inner, outer)
-//            }
-//
-//          implicit val nameCleaner: NameCleaner = NameCleaner.verbose
-//
-//          List(
-//            GeneratedJoinPlan(
-//              planLater(left),
-//              planLater(right),
-//              renderOuterJoin(VeOuterJoin(inputs, leftKey, rightKey, outputs, outerJoinType))
-//                .toCodeLines(fName),
-//              nativeEvaluator,
-//              join.inputSet.toSeq,
-//              join.output,
-//              fName
-//            )
-//          )
-//
-//        }
-
-        case agg @ logical.Aggregate(groupingExpressions, aggregateExpressions, child)
+        case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
             if child.output.nonEmpty &&
               aggregateExpressions.nonEmpty &&
               !Try(
@@ -247,7 +74,6 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               .collect {
                 case (ar: AttributeReference, idx)
                     if child.output.toList.exists(_.exprId == ar.exprId) =>
-//                  val srcIdx = child.output.indexWhere(_.exprId == ar.exprId)
                   Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(ar.dataType)) -> ar)
                 case (Alias(agg, name), idx)
                     if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
@@ -316,11 +142,14 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             finalOutputs = aggregateExpressions.map { namedExp =>
               projections
                 .collectFirst {
-                  case (pk, exp) if namedExp.find(_ == exp).nonEmpty => Left(pk)
+                  case (pk, `namedExp`)           => Left(pk)
+                  case (pk, Alias(`namedExp`, _)) => Left(pk)
                 }
                 .orElse {
                   aggregates.collectFirst {
-                    case (agg, exp) if namedExp.find(_ == exp).nonEmpty =>
+                    case (agg, `namedExp`) =>
+                      Right(agg)
+                    case (agg, Alias(`namedExp`, _)) =>
                       Right(agg)
                   }
                 }
@@ -336,6 +165,24 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           val computeProjection: StagedProjection => Option[Either[StringReference, CExpression]] =
             sp =>
               projections.toMap.get(sp).map {
+                case ar: AttributeReference if ar.dataType == StringType =>
+                  Left(
+                    StringReference(
+                      ar.transform(
+                        SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
+                      ).asInstanceOf[AttributeReference]
+                        .name
+                    )
+                  )
+                case Alias(ar: AttributeReference, _) if ar.dataType == StringType =>
+                  Left(
+                    StringReference(
+                      ar.transform(
+                        SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
+                      ).asInstanceOf[AttributeReference]
+                        .name
+                    )
+                  )
                 case Alias(other, name) =>
                   Right(
                     SparkVeMapper
@@ -378,13 +225,23 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                     sys.error(s"Cannot figure out how to replace: ${other} (${other.getClass})")
                   )
             }
+
+          logDebug(s"Staged groupBy = ${stagedGroupBy}")
+
+          val inputsList = child.output.zipWithIndex.map { case (att, id) =>
+            sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
+          }.toList
+
           val pf = stagedGroupBy.createPartial(
-            inputs = child.output.zipWithIndex.map { case (att, id) =>
-              sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
-            }.toList,
+            inputs = inputsList,
             computeGroupingKey = computeGroupingKey,
             computeProjection = computeProjection,
             computeAggregate = computeAggregate
+          )
+
+          assert(
+            pf.outputs.toSet.size == pf.outputs.size,
+            "Expected to have distinct outputs from a PF"
           )
 
           val ff = stagedGroupBy.createFinal(computeAggregate)
