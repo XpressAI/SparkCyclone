@@ -7,6 +7,7 @@ import com.nec.spark.agile.SparkVeMapper.{sparkTypeToVeType, EvalFallback}
 import com.nec.spark.agile.StagedGroupBy.{
   GroupingKey,
   StagedAggregation,
+  StagedAggregationAttribute,
   StagedProjection,
   StringReference
 }
@@ -260,11 +261,58 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               .flatten
 
           val aggregates: List[(StagedAggregation, Expression)] =
-            aggregateExpressions.zipWithIndex.collect {
-              case (Alias(agg, name), idx)
-                  if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
-                StagedAggregation(s"agg_${idx}", sparkTypeToVeType(agg.dataType), Nil) -> agg
-            }.toList
+            aggregateExpressions.zipWithIndex
+              .collect {
+                case (
+                      o @ Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _),
+                      idx
+                    ) =>
+                  (
+                    GroupByExpression.GroupByAggregation(
+                      DeclarativeAggregationConverter(
+                        d.transform(SparkVeMapper.referenceReplacer("input_", child.output.toList))
+                          .asInstanceOf[DeclarativeAggregate]
+                      )
+                    ),
+                    o,
+                    idx
+                  )
+                case (other @ Alias(_, _), idx) if other.collectFirst {
+                      case _: DeclarativeAggregate =>
+                        ()
+                    }.nonEmpty =>
+                  (
+                    GroupByExpression.GroupByAggregation(
+                      DeclarativeAggregationConverter
+                        .transformingFetch(
+                          other
+                            .transform(
+                              SparkVeMapper.referenceReplacer("input_", child.output.toList)
+                            )
+                        )
+                        .getOrElse(
+                          sys.error(
+                            s"Cannot figure out how to replace: ${other} (${other.getClass})"
+                          )
+                        )
+                    ),
+                    other,
+                    idx
+                  )
+              }
+              .toList
+              .map { case (groupByExpression, expr, idx) =>
+                StagedAggregation(
+                  s"agg_${idx}",
+                  sparkTypeToVeType(expr.dataType),
+                  groupByExpression.aggregation.partialValues(s"agg_${idx}").map { case (cs, ce) =>
+                    StagedAggregationAttribute(
+                      name = s"agg_${idx}_${cs.name}",
+                      veScalarType = cs.veType
+                    )
+                  }
+                ) -> expr
+              }
 
           val stagedGroupBy = StagedGroupBy(
             groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
