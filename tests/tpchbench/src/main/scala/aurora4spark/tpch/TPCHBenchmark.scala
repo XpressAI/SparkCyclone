@@ -125,7 +125,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
     )
 
     dfMap.foreach {
-      case (key, value) => value.cache().createOrReplaceTempView(key)
+      case (key, value) =>
+        value.createOrReplaceTempView(key)
+        sparkSession.sql("CACHE TABLE " + key)
     }
   }
 
