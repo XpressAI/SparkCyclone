@@ -11,6 +11,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
   VeType
 }
 import com.nec.spark.agile.StagedGroupBy.{
+  storeTo,
   GroupingCodeGenerator,
   GroupingKey,
   InputReference,
@@ -119,10 +120,6 @@ final case class StagedGroupBy(
     }
   )
 
-  def computeGroupingKeysPerGroup(
-    compute: GroupingKey => Option[Either[StringReference, CExpression]]
-  ): CodeLines = CodeLines.empty
-
   def computeProjectionsPerGroup(compute: StagedProjection => Option[CExpression]): CodeLines = {
     CodeLines.from(
       CodeLines.debugHere,
@@ -187,22 +184,26 @@ final case class StagedGroupBy(
       )
     )
 
-  def performGroupingOnKeys: CodeLines = gcg.identifyGroups(
-    tupleType = tupleType,
-    count = s"${partials.head.name}->count",
-    thingsToGroup = groupingKeys.map(gk =>
-      gk.veType match {
-        case _: VeScalarType =>
-          Right(
-            CExpression(
-              s"partial_${gk.name}->data[i]",
-              Some(s"check_valid(partial_${gk.name}->validityBuffer, i)")
-            )
-          )
-        case VeString => Left(gk.name)
-      }
+  def performGroupingOnKeys: CodeLines =
+    CodeLines.from(
+      CodeLines.debugHere,
+      gcg.identifyGroups(
+        tupleType = tupleType,
+        count = s"${partials.head.name}->count",
+        thingsToGroup = groupingKeys.map(gk =>
+          gk.veType match {
+            case _: VeScalarType =>
+              Right(
+                CExpression(
+                  s"partial_${gk.name}->data[i]",
+                  Some(s"check_valid(partial_${gk.name}->validityBuffer, i)")
+                )
+              )
+            case VeString => Left(s"partial_${gk.name}")
+          }
+        )
+      )
     )
-  )
 
   def mergeAndProduceAggregatePartialsPerGroup(
     computeAggregate: StagedAggregation => Option[Aggregation]
@@ -216,7 +217,31 @@ final case class StagedGroupBy(
       CodeLines.empty
     })
 
-  def passGroupingKeysPerGroup: CodeLines = CodeLines.empty
+  def computeGroupingKeysPerGroup(
+    compute: GroupingKey => Option[Either[StringReference, CExpression]]
+  ): CodeLines = CodeLines.from(
+    gcg.forHeadOfEachGroup(
+      CodeLines.from(
+        groupingKeys.map(groupingKey =>
+          compute(groupingKey) match {
+            case Some(Right(cExp)) =>
+              storeTo(s"partial_${groupingKey.name}", cExp, "g")
+            case other =>
+              sys.error(s"Unsupported right now: ${other} (from ${groupingKey})")
+          }
+        )
+      )
+    )
+  )
+
+  def passGroupingKeysPerGroup: CodeLines =
+    gcg.forHeadOfEachGroup(CodeLines.from(groupingKeys.map { groupingKey =>
+      storeTo(
+        outputName = s"partial_${groupingKey.name}",
+        cExpression = CExpression(s"${groupingKey.name}->data[i]", None),
+        idx = "g"
+      )
+    }))
 
   def createFinal(computeAggregate: StagedAggregation => Option[Aggregation]): CFunction =
     CFunction(
@@ -305,7 +330,6 @@ object StagedGroupBy {
           .indented,
         s"}",
         s"frovedis::insertion_sort(${groupingVecName}.data(), ${sortedIdxName}.data(), ${groupingVecName}.size());",
-        "/** compute each group's range **/",
         s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
         s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
       )
