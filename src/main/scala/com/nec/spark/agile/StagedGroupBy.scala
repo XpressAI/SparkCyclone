@@ -166,7 +166,7 @@ final case class StagedGroupBy(
       outputs = partialOutputs,
       body = {
         CodeLines.from(
-          performGrouping(computeGroupingKey),
+          performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
           computeGroupingKeysPerGroup(computeGroupingKey),
           computeProjectionsPerGroup(computeProjection),
           computeAggregatePartialsPerGroup(computeAggregate)
@@ -200,11 +200,12 @@ final case class StagedGroupBy(
       .mkString(start = "std::tuple<", sep = ", ", end = ">")
 
   def performGrouping(
+    count: String,
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
   ): CodeLines =
     CodeLines.debugHere ++ gcg.identifyGroups(
       tupleType = tupleType,
-      count = "input_0->count",
+      count = count,
       thingsToGroup = groupingKeys.map(gk =>
         compute(gk) match {
           case Some(Left(StringReference(name))) => Left(name)
