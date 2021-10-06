@@ -14,35 +14,15 @@ import com.nec.spark.agile.StagedGroupBy.{
   storeTo,
   GroupingCodeGenerator,
   GroupingKey,
-  InputReference,
   StagedAggregation,
   StagedProjection,
   StringReference
 }
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 
-/**
- * In a Staged groupBy, in the first function:
- * 1. Perform the necessary computations of grouping keys (eg. group by f(x), g(y), h(z)
- * 2. Perform the computation of the groups
- * 3. Perform the projections of eg select f(x) group by x
- * 4. Perform the partial aggregations eg select avg(x) ==> x_sum, x_count
- * 5. Return the grouping keys + projections + aggregations
- *
- * In the second function:
- * 1. Perform the computation of the groups (grouping keys have already been provides)
- * 2. Perform the merge of aggregations, final_x_sum += x_sum; final_x_count += x_count (per each group)
- * 3. Compute the final aggregation result eg final_avg = final_x_sum / final_x_count
- * 4. Return the projections + aggregations in the intended return order
- *
- * @param groupingKeys Things to group by -- there may be things we group by, but are not part of finalOutputs, hence
- *                     the below data structure and finalOutputs
- * @param finalOutputs Ordered final outputs that we will give back to Spark
- */
 final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
-  /** Todo clean up the Left/Right thing, it's messy */
-  finalOutputs: List[Either[GroupingKey, Either[StagedProjection, StagedAggregation]]]
+  finalOutputs: List[Either[StagedProjection, StagedAggregation]]
 ) {
 
   def gcg: GroupingCodeGenerator = GroupingCodeGenerator(
@@ -52,28 +32,17 @@ final case class StagedGroupBy(
     sortedIdxName = "sorted_idx"
   )
 
-  def intermediateTypes: List[VeType] =
-    groupingKeys
-      .map(_.veType) ++ finalOutputs
-      .flatMap(_.right.toSeq)
-      .flatMap(_.left.toSeq)
-      .map(_.veType) ++ finalOutputs
-      .flatMap(_.right.toSeq)
-      .flatMap(_.right.toSeq)
-      .flatMap(_.attributes.map(_.veScalarType))
-
   def outputs: List[CVector] = finalOutputs.map {
-    case Left(groupingKey)             => groupingKey.veType.makeCVector(groupingKey.name)
-    case Right(Left(stagedProjection)) => stagedProjection.veType.makeCVector(stagedProjection.name)
-    case Right(Right(stagedAggregation)) =>
+    case Left(stagedProjection) => stagedProjection.veType.makeCVector(stagedProjection.name)
+    case Right(stagedAggregation) =>
       stagedAggregation.finalType.makeCVector(stagedAggregation.name)
   }
 
   def projections: List[StagedProjection] =
-    finalOutputs.flatMap(_.right.toSeq).flatMap(_.left.toSeq)
+    finalOutputs.flatMap(_.left.toSeq)
 
   def aggregations: List[StagedAggregation] =
-    finalOutputs.flatMap(_.right.toSeq).flatMap(_.right.toSeq)
+    finalOutputs.flatMap(_.right.toSeq)
 
   private def partials: List[CVector] = {
     List(

@@ -44,37 +44,27 @@ final case class GroupByFunctionGeneration(
               idx
             ) =>
           Right(
-            Right(
-              StagedAggregation(
-                outputName,
-                veType,
-                aggregation.partialValues(outputName).map { case (cv, ce) =>
-                  StagedAggregationAttribute(name = cv.name, veType)
-                }
-              )
+            StagedAggregation(
+              outputName,
+              veType,
+              aggregation.partialValues(outputName).map { case (cv, ce) =>
+                StagedAggregationAttribute(name = cv.name, veType)
+              }
             )
           )
         case (
               Right(NamedGroupByExpression(outputName, veType, GroupByProjection(cExpression))),
               idx
-            ) if veDataTransformation.groups.exists(_.right.exists(_.cExpression == cExpression)) =>
-          Left(GroupingKey(outputName, veType))
-        case (
-              Right(NamedGroupByExpression(outputName, veType, GroupByProjection(cExpression))),
-              idx
             ) =>
-          Right(Left(StagedProjection(outputName, veType)))
-        case (Left(NamedStringProducer(outputName, _)), idx)
-            if veDataTransformation.groups.exists(_.left.exists(_.name == outputName)) =>
-          Left(GroupingKey(outputName, VeString))
+          Left(StagedProjection(outputName, veType))
         case (Left(NamedStringProducer(outputName, _)), idx) =>
-          Right(Left(StagedProjection(outputName, VeString)))
+          Left(StagedProjection(outputName, VeString))
       }
     )
 
     val computeAggregate: StagedAggregation => Option[Aggregation] = agg =>
       veDataTransformation.outputs
-        .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_.right.exists(_ == agg))))
+        .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_ == agg)))
         .collectFirst {
           case Right(NamedGroupByExpression(name, veType, GroupByAggregation(aggregation))) =>
             aggregation
@@ -91,7 +81,7 @@ final case class GroupByFunctionGeneration(
           },
       computeProjection = proj =>
         veDataTransformation.outputs
-          .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_.left.exists(_ == proj))))
+          .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
           .collectFirst {
             case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
               cExpression

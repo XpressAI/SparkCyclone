@@ -408,19 +408,14 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           val stagedGroupBy = StagedGroupBy(
             groupingKeys = groupingExpressionsKeys.map { case (e, gk) => gk },
             finalOutputs = aggregateExpressions.map { namedExp =>
-              groupingExpressionsKeys
+              projectionsKeys
                 .collectFirst {
-                  case (exp, gk) if namedExp.find(_ == exp).nonEmpty => Left(gk)
-                }
-                .orElse {
-                  projectionsKeys.collectFirst {
-                    case (exp, pk) if namedExp.find(_ == exp).nonEmpty => Right(Left(pk))
-                  }
+                  case (exp, pk) if namedExp.find(_ == exp).nonEmpty => Left(pk)
                 }
                 .orElse {
                   aggregates.collectFirst {
                     case (exp, agg) if namedExp.find(_ == exp).nonEmpty =>
-                      Right(Right(agg))
+                      Right(agg)
                   }
                 }
                 .getOrElse(sys.error(s"Unmatched output: ${namedExp}"))
