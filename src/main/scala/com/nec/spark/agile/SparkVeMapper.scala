@@ -3,6 +3,7 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
   Attribute,
   AttributeReference,
   BinaryOperator,
@@ -282,6 +283,8 @@ object SparkVeMapper {
               }
           }
         }
+      case Alias(child, _) =>
+        eval(child)
       case ar: AttributeReference if ar.name.endsWith("_nullable") =>
         Right(CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set")))
       case ar: AttributeReference if ar.name.contains("data[") =>

@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
   DeclarativeAggregate
 }
 import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
   AttributeReference,
   Expression,
   LeafExpression,
