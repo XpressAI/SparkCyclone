@@ -193,7 +193,12 @@ final case class StagedGroupBy(
     thingsToGroup = groupingKeys.map(gk =>
       gk.veType match {
         case _: VeScalarType =>
-          Right(CExpression(s"partial_${gk.name}->data[i]", Some(s"check_valid(partial_${gk.name}, i)")))
+          Right(
+            CExpression(
+              s"partial_${gk.name}->data[i]",
+              Some(s"check_valid(partial_${gk.name}->validityBuffer, i)")
+            )
+          )
         case VeString => Left(gk.name)
       }
     )
@@ -341,7 +346,7 @@ object StagedGroupBy {
       )
   }
 
-  def storeTo(outputName: String, cExpression: CExpression, idx: String): CodeLines = {
+  def storeTo(outputName: String, cExpression: CExpression, idx: String): CodeLines =
     cExpression.isNotNullCode match {
       case None =>
         CodeLines.from(
@@ -362,7 +367,6 @@ object StagedGroupBy {
           "}"
         )
     }
-  }
 
   def initializeScalarVector(
     veScalarType: VeScalarType,

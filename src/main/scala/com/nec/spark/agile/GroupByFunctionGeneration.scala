@@ -24,15 +24,6 @@ final case class GroupByFunctionGeneration(
   ]
 ) {
 
-  def tuple =
-    s"std::tuple<${veDataTransformation.groups
-      .flatMap {
-        case Right(v) =>
-          List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
-        case Left(_) => List("long")
-      }
-      .mkString(", ")}>"
-
   def codeGenerator: GroupingCodeGenerator = GroupingCodeGenerator(
     groupingVecName = "full_grouping_vec",
     groupsCountOutName = "groups_count",
