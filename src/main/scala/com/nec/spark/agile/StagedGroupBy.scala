@@ -101,8 +101,9 @@ final case class StagedGroupBy(
             case Some(cExpression) =>
               CodeLines.from(
                 CodeLines.debugHere,
-                StagedGroupBy.initializeScalarVector(veType, name, gcg.groupsCountOutName),
-                gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(name, cExpression, "g"))
+                StagedGroupBy
+                  .initializeScalarVector(veType, s"partial_${name}", gcg.groupsCountOutName),
+                gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g"))
               )
           }
       }
@@ -179,25 +180,28 @@ final case class StagedGroupBy(
   ): CodeLines = CodeLines.debugHere
 
   def passProjectionsPerGroup: CodeLines =
-    CodeLines.from(
-      CodeLines.debugHere,
-      projections.map { stagedProjection =>
-        /*
-          Copy over from name 'input_{name}' to '{name}' for each of the output
-         */
+    CodeLines.from(projections.map { stagedProjection =>
+      CodeLines.from(
+        StagedGroupBy.initializeScalarVector(
+          veScalarType = stagedProjection.veType.asInstanceOf[VeScalarType],
+          variableName = stagedProjection.name,
+          countExpression = gcg.groupsCountOutName
+        ),
         gcg.forHeadOfEachGroup(
-          StagedGroupBy.storeTo(
-            stagedProjection.name,
-            CExpression(
-              cCode = s"partial_${stagedProjection.name}->data[i]",
-              isNotNullCode =
-                Some(s"check_valid(partial_${stagedProjection.name}->validityBuffer, i)")
-            ),
-            "g"
+          CodeLines.from(
+            StagedGroupBy.storeTo(
+              stagedProjection.name,
+              CExpression(
+                cCode = s"partial_${stagedProjection.name}->data[i]",
+                isNotNullCode =
+                  Some(s"check_valid(partial_${stagedProjection.name}->validityBuffer, i)")
+              ),
+              "g"
+            )
           )
         )
-      }
-    )
+      )
+    })
 
   def computeGroupingKeysPerGroup(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
@@ -251,7 +255,6 @@ final case class StagedGroupBy(
           performGroupingOnKeys,
           mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
           passProjectionsPerGroup
-//          passGroupingKeysPerGroup
         )
       }
     )
