@@ -8,6 +8,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StagedGroupBy
 import com.nec.spark.agile.StagedGroupBy._
+import com.nec.spark.agile.StringProducer.CopyStringProducer
 
 final case class OldUnifiedGroupByFunctionGeneration(
   veDataTransformation: VeGroupBy[
@@ -77,7 +78,9 @@ final case class OldUnifiedGroupByFunctionGeneration(
           .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
           .collectFirst {
             case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
-              cExpression
+              Right(cExpression)
+            case Left(NamedStringProducer(name, CopyStringProducer(inputName))) =>
+              Left(StringReference(inputName))
           },
       computeAggregate = computeAggregate
     )

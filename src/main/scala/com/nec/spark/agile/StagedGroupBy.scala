@@ -115,29 +115,41 @@ final case class StagedGroupBy(
     }
   )
 
-  def computeProjectionsPerGroup(compute: StagedProjection => Option[CExpression]): CodeLines = {
+  def computeProjectionsPerGroup(
+    compute: StagedProjection => Option[Either[StringReference, CExpression]]
+  ): CodeLines = {
     CodeLines.from(
       CodeLines.debugHere,
       projections.map {
         case sp @ StagedProjection(name, VeString) =>
-          val fp = FilteringProducer(s"partial_str_${name}", CopyStringProducer(name))
-          CodeLines.from(
-            CodeLines.debugHere,
-            fp.setup,
-            gcg.forHeadOfEachGroup(fp.forEach),
-            fp.complete,
-            gcg.forHeadOfEachGroup(fp.validityForEach("g"))
-          )
+          compute(sp) match {
+            case Some(Left(StringReference(sourceName))) =>
+              val fp = FilteringProducer(s"partial_str_${name}", CopyStringProducer(sourceName))
+              CodeLines.from(
+                CodeLines.debugHere,
+                fp.setup,
+                gcg.forHeadOfEachGroup(
+                  CodeLines.from(
+                    //                CodeLines.debugExpr(CExpression(cCode = s"output_0->count", None)),
+                    //                CodeLines.debugExpr(CExpression(cCode = s"groups_count", None)),
+                    fp.forEach
+                  )
+                ),
+                fp.complete,
+                gcg.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
+              )
+            case other => sys.error(s"Could not produce for ${sp}; got ${other}")
+          }
         case sp @ StagedProjection(name, veType: VeScalarType) =>
           compute(sp) match {
-            case None => sys.error(s"Could not map ${sp}")
-            case Some(cExpression) =>
+            case Some(Right(cExpression)) =>
               CodeLines.from(
                 CodeLines.debugHere,
                 StagedGroupBy
                   .initializeScalarVector(veType, s"partial_${name}", gcg.groupsCountOutName),
                 gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g"))
               )
+            case other => sys.error(s"Could not map ${sp}, got ${other}")
           }
       }
     )
@@ -146,7 +158,7 @@ final case class StagedGroupBy(
   def createPartial(
     inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
-    computeProjection: StagedProjection => Option[CExpression],
+    computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
     computeAggregate: StagedAggregation => Option[Aggregation]
   ): CFunction =
     CFunction(
