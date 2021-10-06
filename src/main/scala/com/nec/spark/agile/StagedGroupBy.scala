@@ -88,51 +88,59 @@ final case class StagedGroupBy(
 
   def computeAggregatePartialsPerGroup(
     deriveAggregate: StagedAggregation => Option[Aggregation]
-  ): CodeLines = CodeLines.from(aggregations.map { stagedAggregation =>
-    deriveAggregate(stagedAggregation)
-      .map { aggregate =>
-        val prefix = s"${stagedAggregation.name}_"
-        CodeLines.from(
-          stagedAggregation.attributes.map(attribute =>
-            StagedGroupBy.initializeScalarVector(
-              veScalarType = attribute.veScalarType,
-              variableName = attribute.name,
-              countExpression = gcg.groupsCountOutName
+  ): CodeLines = CodeLines.from(
+    CodeLines.debugHere,
+    aggregations.map { stagedAggregation =>
+      deriveAggregate(stagedAggregation)
+        .map { aggregate =>
+          val prefix = s"${stagedAggregation.name}_"
+          CodeLines.from(
+            stagedAggregation.attributes.map(attribute =>
+              StagedGroupBy.initializeScalarVector(
+                veScalarType = attribute.veScalarType,
+                variableName = s"partial_${attribute.name}",
+                countExpression = gcg.groupsCountOutName
+              )
+            ),
+            gcg.forEachGroupItem(
+              beforeFirst = aggregate.initial(prefix),
+              perItem = aggregate.iterate(prefix),
+              afterLast = CodeLines.from(
+                stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
+                  case (attr, (vec, ex)) =>
+                    StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g")
+                }
+              )
             )
-          ),
-          gcg.forEachGroupItem(
-            beforeFirst = aggregate.initial(prefix),
-            perItem = aggregate.iterate(prefix),
-            afterLast =
-              CodeLines.from(stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
-                case (attr, (vec, ex)) =>
-                  StagedGroupBy.storeTo(attr.name, ex, "g")
-              })
           )
-        )
 
-      }
-      .getOrElse(sys.error(s"Could not match ${stagedAggregation}"))
-  })
+        }
+        .getOrElse(sys.error(s"Could not match ${stagedAggregation}"))
+    }
+  )
 
   def computeGroupingKeysPerGroup(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
   ): CodeLines = CodeLines.empty
 
   def computeProjectionsPerGroup(compute: StagedProjection => Option[CExpression]): CodeLines = {
-    CodeLines.from(projections.map {
-      case sp @ StagedProjection(name, VeString) =>
-        ???
-      case sp @ StagedProjection(name, veType: VeScalarType) =>
-        compute(sp) match {
-          case None => sys.error(s"Could not map ${sp}")
-          case Some(cExpression) =>
-            CodeLines.from(
-              StagedGroupBy.initializeScalarVector(veType, name, gcg.groupsCountOutName),
-              gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(name, cExpression, "g"))
-            )
-        }
-    })
+    CodeLines.from(
+      CodeLines.debugHere,
+      projections.map {
+        case sp @ StagedProjection(name, VeString) =>
+          ???
+        case sp @ StagedProjection(name, veType: VeScalarType) =>
+          compute(sp) match {
+            case None => sys.error(s"Could not map ${sp}")
+            case Some(cExpression) =>
+              CodeLines.from(
+                CodeLines.debugHere,
+                StagedGroupBy.initializeScalarVector(veType, name, gcg.groupsCountOutName),
+                gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(name, cExpression, "g"))
+              )
+          }
+      }
+    )
   }
 
   def createPartial(
@@ -166,21 +174,22 @@ final case class StagedGroupBy(
 
   def performGrouping(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
-  ): CodeLines = gcg.identifyGroups(
-    tupleType = tupleType,
-    count = "input_0->count",
-    thingsToGroup = groupingKeys.map(gk =>
-      compute(gk) match {
-        case Some(Left(StringReference(name))) => Left(name)
-        case Some(Right(cExpression))          => Right(cExpression)
-        case None                              => sys.error(s"Could not match ${gk}")
-      }
+  ): CodeLines =
+    CodeLines.debugHere ++ gcg.identifyGroups(
+      tupleType = tupleType,
+      count = "input_0->count",
+      thingsToGroup = groupingKeys.map(gk =>
+        compute(gk) match {
+          case Some(Left(StringReference(name))) => Left(name)
+          case Some(Right(cExpression))          => Right(cExpression)
+          case None                              => sys.error(s"Could not match ${gk}")
+        }
+      )
     )
-  )
 
   def performGroupingOnKeys: CodeLines = gcg.identifyGroups(
     tupleType = tupleType,
-    count = "groups_count",
+    count = s"${partials.head.name}->count",
     thingsToGroup = groupingKeys.map(gk =>
       gk.veType match {
         case _: VeScalarType =>
