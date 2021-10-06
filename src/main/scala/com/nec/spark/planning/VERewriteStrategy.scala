@@ -5,7 +5,7 @@ import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.{EvalFallback, sparkTypeToScalarVeType, sparkTypeToVeType}
 import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection, StringReference}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, GroupByFunctionGeneration, SparkVeMapper, StagedGroupBy}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper, StagedGroupBy}
 import com.typesafe.scalalogging.LazyLogging
 
 import org.apache.spark.sql.Strategy
@@ -368,14 +368,14 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
               (GroupingKey(s"group_${i}", SparkVeMapper.sparkTypeToScalarVeType(e.dataType)), e)
             }.toList
 
-          val projectionsKeys: List[(Expression, StagedProjection)] =
+          val projectionsKeys: List[(StagedProjection, Expression)] =
             aggregateExpressions.zipWithIndex
               .collect {
                 case (Alias(agg, name), idx)
                     if agg.find(_.isInstanceOf[DeclarativeAggregate]).nonEmpty =>
                   Option.empty
                 case (Alias(exp, name), idx) =>
-                  Option(exp -> StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)))
+                  Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)) -> exp)
                 case other => sys.error(s"Unexpected aggregate expression: ${other}")
               }
               .toList
@@ -393,7 +393,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             finalOutputs = aggregateExpressions.map { namedExp =>
               projectionsKeys
                 .collectFirst {
-                  case (exp, pk) if namedExp.find(_ == exp).nonEmpty => Left(pk)
+                  case (pk, exp) if namedExp.find(_ == exp).nonEmpty => Left(pk)
                 }
                 .orElse {
                   aggregates.collectFirst {
@@ -408,12 +408,20 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             groupingExpressionsKeys.toMap.get(gk)
               .map(exp => mapGroupingExpression(exp, child))
 
+          val computeProjection: StagedProjection => Option[CExpression] = sp =>
+            projectionsKeys.toMap.get(sp).map {
+              case Alias(other, name) => SparkVeMapper
+                .eval(
+                  other.transform(SparkVeMapper.referenceReplacer(child.output.toList))
+                ).getOrReport()
+            }
+
           val pf = stagedGroupBy.createPartial(
             inputs = child.output.zipWithIndex.map { case (att, id) =>
               sparkTypeToVeType(att.dataType).makeCVector(id.toString)
             }.toList,
             computeGroupingKey = computeGroupingKey,
-            computeProjection = ???,
+            computeProjection = computeProjection,
             computeAggregate = ???
           )
 
