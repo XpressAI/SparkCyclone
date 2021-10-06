@@ -436,13 +436,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             computeAggregate = ???
           )
 
-          val ff = stagedGroupBy.createFinal(
-            groupingKeyIsString = gk =>
-              groupingExpressionsKeys.exists { case (e, gkk) => gk == gkk && gk.veType.isString },
-            computeAggregate = ???,
-            projectionIsString = proj =>
-              projectionsKeys.exists { case (exp, sp) => sp == proj && exp.dataType == StringType }
-          )
+          val ff = stagedGroupBy.createFinal(computeAggregate = ???)
 
           logger.debug(s"Group by = ${groupBySummary}")
 

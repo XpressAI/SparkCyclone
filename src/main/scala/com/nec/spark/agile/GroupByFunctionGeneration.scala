@@ -11,7 +11,8 @@ import com.nec.spark.agile.StagedGroupBy.{
   GroupingKey,
   StagedAggregation,
   StagedAggregationAttribute,
-  StagedProjection
+  StagedProjection,
+  StringReference
 }
 
 //noinspection MapFlatten
@@ -39,6 +40,7 @@ final case class GroupByFunctionGeneration(
     sortedIdxName = "sorted_idx"
   )
 
+  /** Todo clean up the Left/Right thing, it's messy */
   def renderGroupBy: CFunction = {
     val stagedGroupBy = StagedGroupBy(
       groupingKeys = veDataTransformation.groups.zipWithIndex.map {
@@ -79,18 +81,34 @@ final case class GroupByFunctionGeneration(
       }
     )
 
+    val computeAggregate: StagedAggregation => Option[Aggregation] = agg =>
+      veDataTransformation.outputs
+        .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_.right.exists(_ == agg))))
+        .collectFirst {
+          case Right(NamedGroupByExpression(name, veType, GroupByAggregation(aggregation))) =>
+            aggregation
+        }
     val pf = stagedGroupBy.createPartial(
       inputs = veDataTransformation.inputs,
-      computeGroupingKey = ???,
-      computeProjection = ???,
-      computeAggregate = ???
+      computeGroupingKey = gk =>
+        veDataTransformation.outputs
+          .lift(stagedGroupBy.groupingKeys.indexOf(gk))
+          .map {
+            case Left(NamedStringProducer(name, vt)) => Left(StringReference(name))
+            case Right(NamedGroupByExpression(name, veType, groupByExpression)) =>
+              Right(groupByExpression.fold(identity, s => sys.error(s.toString)))
+          },
+      computeProjection = proj =>
+        veDataTransformation.outputs
+          .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_.left.exists(_ == proj))))
+          .collectFirst {
+            case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
+              cExpression
+          },
+      computeAggregate = computeAggregate
     )
 
-    val ff = stagedGroupBy.createFinal(
-      projectionIsString = ???,
-      groupingKeyIsString = ???,
-      computeAggregate = ???
-    )
+    val ff = stagedGroupBy.createFinal(computeAggregate = computeAggregate)
 
     CFunction(
       inputs = pf.inputs,
@@ -100,66 +118,6 @@ final case class GroupByFunctionGeneration(
         pf.body.blockCommented("Partial stage"),
         ff.body.blockCommented("Final stage"),
         pf.outputs.map(cv => StagedGroupBy.dealloc(cv))
-      )
-    )
-
-    val firstInput = veDataTransformation.inputs.head
-    CFunction(
-      inputs = veDataTransformation.inputs,
-      outputs = veDataTransformation.outputs.zipWithIndex.map {
-        case (Right(NamedGroupByExpression(outputName, veType, _)), idx) =>
-          CScalarVector(outputName, veType)
-        case (Left(NamedStringProducer(outputName, _)), idx) =>
-          CVarChar(outputName)
-      },
-      body = CodeLines.from(
-        codeGenerator.identifyGroups(
-          tupleType = tuple,
-          count = s"${firstInput.name}->count",
-          thingsToGroup = veDataTransformation.groups.map {
-            case Left(StringGrouping(name)) => Left(name)
-            case Right(tp) =>
-              Right(tp.cExpression)
-          }
-        ),
-        "/** perform computations for every output **/",
-        veDataTransformation.outputs.zipWithIndex.map {
-          case (Left(NamedStringProducer(name, stringProducer)), idx) =>
-            val fp = StringProducer.FilteringProducer(name, stringProducer)
-            CodeLines
-              .from(
-                fp.setup,
-                "// for each group",
-                codeGenerator.forHeadOfEachGroup(fp.forEach),
-                fp.complete,
-                codeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
-              )
-              .blockCommented(s"Produce the string group")
-          case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
-            CodeLines.from(
-              StagedGroupBy.initializeScalarVector(
-                veScalarType = veType,
-                variableName = outputName,
-                countExpression = "groups_count"
-              ),
-              codeGenerator.forEachGroupItem(
-                beforeFirst = groupByExpr
-                  .fold(whenProj = _ => CodeLines.empty, whenAgg = agg => agg.initial(outputName)),
-                perItem = groupByExpr
-                  .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName)),
-                afterLast = CodeLines.from(
-                  groupByExpr.fold(_ => CodeLines.empty, whenAgg = _.compute(outputName)),
-                  "// store the result",
-                  StagedGroupBy.storeTo(
-                    outputName,
-                    groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)),
-                    idx = "g"
-                  ),
-                  groupByExpr.fold(_ => CodeLines.empty, _.free(outputName))
-                )
-              )
-            )
-        }
       )
     )
   }
