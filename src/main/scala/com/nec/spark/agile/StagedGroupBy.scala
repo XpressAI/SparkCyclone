@@ -193,7 +193,7 @@ final case class StagedGroupBy(
     thingsToGroup = groupingKeys.map(gk =>
       gk.veType match {
         case _: VeScalarType =>
-          Right(CExpression(s"${gk.name}->data[i]", Some(s"check_valid(${gk.name}, i)")))
+          Right(CExpression(s"partial_${gk.name}->data[i]", Some(s"check_valid(partial_${gk.name}, i)")))
         case VeString => Left(gk.name)
       }
     )
