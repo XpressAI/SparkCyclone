@@ -3,35 +3,19 @@ package com.nec.spark.planning
 import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.SparkVeMapper.{sparkTypeToScalarVeType, sparkTypeToVeType, EvalFallback}
-import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection}
-import com.nec.spark.agile.{
-  DeclarativeAggregationConverter,
-  SparkVeMapper,
-  StagedGroupBy
-}
+import com.nec.spark.agile.SparkVeMapper.{EvalFallback, sparkTypeToScalarVeType, sparkTypeToVeType}
+import com.nec.spark.agile.StagedGroupBy.{GroupingKey, StagedAggregation, StagedProjection, StringReference}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, GroupByFunctionGeneration, SparkVeMapper, StagedGroupBy}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  BinaryArithmetic,
-  Expression
-}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  DeclarativeAggregate,
-  HyperLogLogPlusPlus
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, BinaryArithmetic, Expression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.StringType
-
 import scala.collection.immutable
 import scala.util.Try
 
@@ -379,9 +363,9 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             }
           )
 
-          val groupingExpressionsKeys: List[(Expression, GroupingKey)] =
+          val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
             groupingExpressions.zipWithIndex.map { case (e, i) =>
-              (e, GroupingKey(s"group_${i}", SparkVeMapper.sparkTypeToScalarVeType(e.dataType)))
+              (GroupingKey(s"group_${i}", SparkVeMapper.sparkTypeToScalarVeType(e.dataType)), e)
             }.toList
 
           val projectionsKeys: List[(Expression, StagedProjection)] =
@@ -405,7 +389,7 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
             }.toList
 
           val stagedGroupBy = StagedGroupBy(
-            groupingKeys = groupingExpressionsKeys.map { case (e, gk) => gk },
+            groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
             finalOutputs = aggregateExpressions.map { namedExp =>
               projectionsKeys
                 .collectFirst {
@@ -420,12 +404,15 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
                 .getOrElse(sys.error(s"Unmatched output: ${namedExp}"))
             }.toList
           )
+          val computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]] = gk =>
+            groupingExpressionsKeys.toMap.get(gk)
+              .map(exp => mapGroupingExpression(exp, child))
 
           val pf = stagedGroupBy.createPartial(
             inputs = child.output.zipWithIndex.map { case (att, id) =>
               sparkTypeToVeType(att.dataType).makeCVector(id.toString)
             }.toList,
-            computeGroupingKey = ???,
+            computeGroupingKey = computeGroupingKey,
             computeProjection = ???,
             computeAggregate = ???
           )
@@ -458,5 +445,39 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
         }
       }
     } else Nil
+  }
+
+  def mapGroupingExpression(expr: Expression, child: LogicalPlan)(implicit evalFallback: EvalFallback) : Either[StringReference, CExpression] = {
+    expr.dataType match {
+      case StringType =>
+        /**
+         * This is not correct for any group-by that are not a simple reference.
+         * todo fix it
+         */
+        Left(
+          expr
+            .find(_.isInstanceOf[AttributeReference])
+            .flatMap(expr =>
+              SparkVeMapper
+                .replaceReferences(inputs = child.output.toList, expression = expr)
+                .collectFirst {
+                  case ar: AttributeReference if ar.name.contains("input_") =>
+                    StringReference(ar.name.replaceAllLiterally("->data[i]", ""))
+                }
+            )
+            .getOrElse(
+              sys.error(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
+            )
+        )
+      case other =>
+        Right(
+            SparkVeMapper
+              .eval(
+                SparkVeMapper
+                  .replaceReferences(inputs = child.output.toList, expression = expr)
+              )
+              .getOrReport()
+        )
+    }
   }
 }
