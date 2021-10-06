@@ -64,10 +64,10 @@ final case class GroupByFunctionGeneration(
               .blockCommented(s"Produce the string group")
           case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
             CodeLines.from(
-              StagedGroupBy.initializeOutputVector(
+              StagedGroupBy.initializeScalarVector(
                 veScalarType = veType,
-                outputName = outputName,
-                count = "groups_count"
+                variableName = outputName,
+                countExpression = "groups_count"
               ),
               codeGenerator.forEachGroupItem(
                 beforeFirst = groupByExpr

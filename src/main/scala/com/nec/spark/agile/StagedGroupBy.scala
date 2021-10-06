@@ -2,6 +2,7 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{
+  Aggregation,
   CExpression,
   CFunction,
   CVector,
@@ -52,7 +53,7 @@ final case class StagedGroupBy(
       .map(_.veType) ++ finalOutputs
       .flatMap(_.right.toSeq)
       .flatMap(_.right.toSeq)
-      .flatMap(_.attributes.map(_.veType))
+      .flatMap(_.attributes.map(_.veScalarType))
 
   def outputs: List[CVector] = finalOutputs.map {
     case Left(groupingKey)             => groupingKey.veType.makeCVector(groupingKey.name)
@@ -71,15 +72,40 @@ final case class StagedGroupBy(
     List(
       groupingKeys.map(gk => gk.veType.makeCVector(gk.name)),
       projections.map(pr => pr.veType.makeCVector(pr.name)),
-      aggregations.flatMap(agg => agg.attributes.map(att => att.veType.makeCVector(att.name)))
+      aggregations.flatMap(agg => agg.attributes.map(att => att.veScalarType.makeCVector(att.name)))
     ).flatten
   }
 
   def computeGroupingKeys: CodeLines = ???
 
   def computeAggregatePartialsPerGroup(
-    deriveAggregate: StagedAggregation => Option[Aggregate]
-  ): CodeLines = ???
+    deriveAggregate: StagedAggregation => Option[Aggregation]
+  ): CodeLines = CodeLines.from(aggregations.map { stagedAggregation =>
+    deriveAggregate(stagedAggregation)
+      .map { aggregate =>
+        val prefix = s"${stagedAggregation.name}_"
+        CodeLines.from(
+          stagedAggregation.attributes.map(attribute =>
+            StagedGroupBy.initializeScalarVector(
+              veScalarType = attribute.veScalarType,
+              variableName = attribute.name,
+              countExpression = gcg.groupsCountOutName
+            )
+          ),
+          gcg.forEachGroupItem(
+            beforeFirst = aggregate.initial(prefix),
+            perItem = aggregate.iterate(prefix),
+            afterLast =
+              CodeLines.from(stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
+                case (attr, (vec, ex)) =>
+                  StagedGroupBy.storeTo(attr.name, ex, "g")
+              })
+          )
+        )
+
+      }
+      .getOrElse(sys.error(s"Could not match ${stagedAggregation}"))
+  })
 
   def computeGroupingKeysPerGroup(
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
@@ -94,7 +120,7 @@ final case class StagedGroupBy(
           case None => sys.error(s"Could not map ${sp}")
           case Some(cExpression) =>
             CodeLines.from(
-              StagedGroupBy.initializeOutputVector(veType, name, gcg.groupsCountOutName),
+              StagedGroupBy.initializeScalarVector(veType, name, gcg.groupsCountOutName),
               gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(name, cExpression, "g"))
             )
         }
@@ -105,7 +131,7 @@ final case class StagedGroupBy(
     inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[CExpression],
-    computeAggregate: StagedAggregation => Option[Aggregate]
+    computeAggregate: StagedAggregation => Option[Aggregation]
   ): CFunction =
     CFunction(
       inputs = inputs,
@@ -172,7 +198,7 @@ object StagedGroupBy {
   final case class InputReference(name: String)
   final case class GroupingKey(name: String, veType: VeType)
   final case class StagedProjection(name: String, veType: VeType)
-  final case class StagedAggregationAttribute(name: String, veType: VeType)
+  final case class StagedAggregationAttribute(name: String, veScalarType: VeScalarType)
   final case class StagedAggregation(
     name: String,
     finalType: VeType,
@@ -295,16 +321,15 @@ object StagedGroupBy {
     }
   }
 
-  def initializeOutputVector(
+  def initializeScalarVector(
     veScalarType: VeScalarType,
-    outputName: String,
-    count: String
+    variableName: String,
+    countExpression: String
   ): CodeLines =
     CodeLines.from(
-      s"// Output for ${outputName}:",
-      s"$outputName->count = ${count};",
-      s"$outputName->data = (${veScalarType.cScalarType}*) malloc($outputName->count * sizeof(${veScalarType.cScalarType}));",
-      s"$outputName->validityBuffer = (unsigned char *) malloc(ceil(${count} / 8.0));"
+      s"$variableName->count = ${countExpression};",
+      s"$variableName->data = (${veScalarType.cScalarType}*) malloc($variableName->count * sizeof(${veScalarType.cScalarType}));",
+      s"$variableName->validityBuffer = (unsigned char *) malloc(ceil(${countExpression} / 8.0));"
     )
 
 }
