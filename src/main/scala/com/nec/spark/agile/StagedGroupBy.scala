@@ -61,7 +61,7 @@ final case class StagedGroupBy(
     aggregations.map { stagedAggregation =>
       deriveAggregate(stagedAggregation)
         .map { aggregate =>
-          val prefix = s"${stagedAggregation.name}_"
+          val prefix = s"partial_${stagedAggregation.name}"
           CodeLines.from(
             CodeLines.debugHere,
             stagedAggregation.attributes.map(attribute =>
@@ -129,6 +129,19 @@ final case class StagedGroupBy(
       }
     )
 
+  def createFinal(computeAggregate: StagedAggregation => Option[Aggregation]): CFunction =
+    CFunction(
+      inputs = partials,
+      outputs = outputs,
+      body = {
+        CodeLines.from(
+          performGroupingOnKeys,
+          mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
+          passProjectionsPerGroup
+        )
+      }
+    )
+
   def tupleType: String =
     groupingKeys
       .flatMap { groupingKey =>
@@ -177,7 +190,25 @@ final case class StagedGroupBy(
 
   def mergeAndProduceAggregatePartialsPerGroup(
     computeAggregate: StagedAggregation => Option[Aggregation]
-  ): CodeLines = CodeLines.debugHere
+  ): CodeLines =
+    aggregations.map(sa =>
+      computeAggregate(sa) match {
+        case None => sys.error(s"Could not compute for: ${sa}")
+        case Some(aggregation) =>
+          gcg.forEachGroupItem(
+            beforeFirst = CodeLines.from(
+              StagedGroupBy.initializeScalarVector(
+                veScalarType = sa.finalType.asInstanceOf[VeScalarType],
+                variableName = sa.name,
+                countExpression = gcg.groupsCountOutName
+              ),
+              aggregation.initial(sa.name)
+            ),
+            afterLast = StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g"),
+            perItem = aggregation.merge(sa.name, s"partial_${sa.name}")
+          )
+      }
+    )
 
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map { stagedProjection =>
@@ -244,19 +275,6 @@ final case class StagedGroupBy(
           )
         }
       )
-    )
-
-  def createFinal(computeAggregate: StagedAggregation => Option[Aggregation]): CFunction =
-    CFunction(
-      inputs = partials,
-      outputs = outputs,
-      body = {
-        CodeLines.from(
-          performGroupingOnKeys,
-          mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
-          passProjectionsPerGroup
-        )
-      }
     )
 
 }

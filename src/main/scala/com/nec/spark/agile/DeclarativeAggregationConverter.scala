@@ -31,13 +31,13 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         .map {
           case ((Literal(null, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = 0;",
-              s"int ${prefix}_${att.name}_nullable_is_set = 0;"
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = 0;",
+              s"int ${prefix}_attr_${att.name}_nullable_is_set = 0;"
             )
           case ((Literal(other, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = ${other};",
-              s"int ${prefix}_${att.name}_nullable_is_set = 1;"
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = ${other};",
+              s"int ${prefix}_attr_${att.name}_nullable_is_set = 1;"
             )
           case (other, idx) =>
             sys.error(s"Not supported declarative aggregate input: ${other}")
@@ -49,7 +49,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
   private def transformInitial(prefix: String): PartialFunction[Expression, Expression] = {
     case ar: AttributeReference
         if declarativeAggregate.aggBufferAttributes.exists(_.name == ar.name) =>
-      ar.withName(s"${prefix}_${ar.name}_nullable")
+      ar.withName(s"${prefix}_attr_${ar.name}_nullable")
   }
 
   override def iterate(prefix: String): CodeLines = {
@@ -64,18 +64,22 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+              s"${SparkVeMapper
+                .sparkTypeToScalarVeType(aggb.dataType)
+                .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
+              s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
             )
           case Some(notNullCode) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = ${prefix}_${aggb.name}_nullable_is_set;",
+              s"${SparkVeMapper
+                .sparkTypeToScalarVeType(aggb.dataType)
+                .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
+              s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = ${prefix}_attr_${aggb.name}_nullable_is_set;",
               s"if (${notNullCode}) {",
               CodeLines
                 .from(
-                  s"tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-                  s"tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+                  s"tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
+                  s"tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
                 )
                 .indented,
               "}"
@@ -87,13 +91,13 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
-              s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
-              s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+              s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+              s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
             )
           case Some(notNullCode) =>
             CodeLines.from(
-              s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
-              s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+              s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+              s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
             )
         }
       }.toList
@@ -113,10 +117,10 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
     declarativeAggregate.aggBufferAttributes.map { attRef =>
       (
         CScalarVector(
-          s"${prefix}_${attRef.name}_partial_output",
+          s"${prefix}_attr_${attRef.name}",
           SparkVeMapper.sparkTypeToScalarVeType(attRef.dataType)
         ),
-        CExpression(s"${prefix}_${attRef.name}_nullable", None)
+        CExpression(s"${prefix}_attr_${attRef.name}_nullable", None)
       )
     }.toList
 
@@ -134,20 +138,20 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
               CodeLines.from(
                 s"${SparkVeMapper
                   .sparkTypeToScalarVeType(aggb.dataType)
-                  .cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${cExp.cCode};",
-                s"int tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+                  .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
+                s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
               )
             case Some(notNullCode) =>
               CodeLines.from(
                 s"${SparkVeMapper
                   .sparkTypeToScalarVeType(aggb.dataType)
-                  .cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${cExp.cCode};",
-                s"int tmp_${prefix}_${aggb.name}_nullable_is_set = ${prefix}_${aggb.name}_nullable_is_set;",
+                  .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
+                s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = ${prefix}_attr_${aggb.name}_nullable_is_set;",
                 s"if (${notNullCode}) {",
                 CodeLines
                   .from(
-                    s"tmp_${prefix}_${aggb.name}_nullable = ${cExp.cCode};",
-                    s"tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+                    s"tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
+                    s"tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
                   )
                   .indented,
                 "}"
@@ -165,13 +169,13 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
             codeEval.isNotNullCode match {
               case None =>
                 CodeLines.from(
-                  s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
-                  s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+                  s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+                  s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
                 )
               case Some(notNullCode) =>
                 CodeLines.from(
-                  s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
-                  s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+                  s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+                  s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
                 )
             }
           }
@@ -194,16 +198,16 @@ object DeclarativeAggregationConverter {
                 case aggregateAttribute
                     if declarativeAggregate.aggBufferAttributes.contains(aggregateAttribute) =>
                   CExpression(
-                    cCode = s"${prefix}_${targetAttribute.name}_nullable",
-                    isNotNullCode = Some(s"${prefix}_${targetAttribute.name}_nullable_is_set")
+                    cCode = s"${prefix}_attr_${targetAttribute.name}_nullable",
+                    isNotNullCode = Some(s"${prefix}_attr_${targetAttribute.name}_nullable_is_set")
                   )
                 case inputAggregateAttribute
                     if declarativeAggregate.inputAggBufferAttributes
                       .contains(inputAggregateAttribute) =>
                   CExpression(
-                    cCode = s"${inputPrefix}_${targetAttribute.name}_partial_input->data[i]",
+                    cCode = s"${inputPrefix}_attr_${targetAttribute.name}->data[i]",
                     isNotNullCode = Some(
-                      s"check_valid(${inputPrefix}_${targetAttribute.name}_partial_input->validityBuffer, i)"
+                      s"check_valid(${inputPrefix}_attr_${targetAttribute.name}->validityBuffer, i)"
                     )
                   )
               }
