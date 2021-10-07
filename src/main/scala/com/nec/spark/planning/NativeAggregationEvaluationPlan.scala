@@ -8,6 +8,7 @@ import com.nec.spark.planning.NativeAggregationEvaluationPlan.writeVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -18,9 +19,10 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
-
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.language.dynamics
+
+import org.apache.spark.sql.Row
 
 //noinspection DuplicatedCode
 final case class NativeAggregationEvaluationPlan(
@@ -68,6 +70,18 @@ final case class NativeAggregationEvaluationPlan(
     root
   }
 
+
+  def collectInputRows(inputRows: Iterator[InternalRow], target: List[FieldVector])(
+    implicit allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val root = new VectorSchemaRoot(target.asJava)
+    val arrowWriter = ArrowWriter.create(root)
+    inputRows.foreach(row => arrowWriter.write(row))
+
+    arrowWriter.finish()
+    root
+  }
+
   private def executeRowWise(): RDD[InternalRow] = {
     val partialFunctionName = s"${functionPrefix}_partial"
     val finalFunctionName = s"${functionPrefix}_final"
@@ -85,8 +99,6 @@ final case class NativeAggregationEvaluationPlan(
     child
       .execute()
       .mapPartitions { rows =>
-        Iterator
-          .continually {
             implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
             val timeZoneId = conf.sessionLocalTimeZone
@@ -110,17 +122,39 @@ final case class NativeAggregationEvaluationPlan(
                 outputArguments = outputArgs
               )
 
-              new ColumnarBatch(
-                partialOutputVectors.map(valueVector => new ArrowColumnVector(valueVector)).toArray,
-                partialOutputVectors.head.getValueCount
-              )
+              (0 until partialOutputVectors.head.getValueCount).iterator.map { v_idx =>
+                val writer = new UnsafeRowWriter(partialOutputVectors.size)
+                writer.reset()
+                partialOutputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                  if (v_idx < v.getValueCount) {
+                    v match {
+                      case vector: Float8Vector =>
+                        val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case vector: IntVector =>
+                        val isNull =
+                          BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case vector: BigIntVector =>
+                        val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case vector: SmallIntVector =>
+                        val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                    }
+                  }
+                }
+                writer.getRow
+              }
             } finally {
               inputVectors.foreach(_.close())
             }
-          }
-          .take(1)
       }
-      .coalesce(numPartitions = 1, shuffle = false)
+      .repartition(1)
       .mapPartitions { iteratorColBatch =>
         Iterator
           .continually {
@@ -130,7 +164,7 @@ final case class NativeAggregationEvaluationPlan(
             val partialInputVectors: List[FieldVector] =
               finalFunction.inputs.map(CFunctionGeneration.allocateFrom(_))
 
-            collectInputColBatches(iteratorColBatch, partialInputVectors)
+            collectInputRows(iteratorColBatch, partialInputVectors)
 
             val outputVectors = outputExpressions
               .flatMap {
