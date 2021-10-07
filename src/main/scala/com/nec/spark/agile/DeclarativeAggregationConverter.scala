@@ -121,7 +121,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
           s"${prefix}_attr_${attRef.name}",
           SparkVeMapper.sparkTypeToScalarVeType(attRef.dataType)
         ),
-        CExpression(s"${prefix}_attr_${attRef.name}_nullable", Some(s"${prefix}_attr_sum_nullable_is_set"))
+        CExpression(s"${prefix}_attr_${attRef.name}_nullable", Some(s"${prefix}_attr_${attRef.name}_nullable_is_set"))
       )
     }.toList
 

@@ -145,6 +145,10 @@ final case class NativeAggregationEvaluationPlan(
                         val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
                         if (isNull) writer.setNullAt(c_idx)
                         else writer.write(c_idx, vector.get(v_idx))
+                      case varChar: VarCharVector =>
+                        val isNull = BitVectorHelper.get(varChar.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, varChar.get(v_idx))
                     }
                   }
                 }
@@ -154,7 +158,7 @@ final case class NativeAggregationEvaluationPlan(
               inputVectors.foreach(_.close())
             }
       }
-      .repartition(1)
+      .coalesce(1, shuffle = true)
       .mapPartitions { iteratorColBatch =>
         Iterator
           .continually {
