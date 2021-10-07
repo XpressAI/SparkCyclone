@@ -189,7 +189,7 @@ final case class StagedGroupBy(
       }
     )
 
-  def tupleType: String =
+  def tupleTypes: List[String] =
     groupingKeys
       .flatMap { groupingKey =>
         groupingKey.veType match {
@@ -197,13 +197,16 @@ final case class StagedGroupBy(
           case VeString          => List("long")
         }
       }
-      .mkString(start = "std::tuple<", sep = ", ", end = ">")
+
+  def tupleType: String =
+    tupleTypes.mkString(start = "std::tuple<", sep = ", ", end = ">")
 
   def performGrouping(
     count: String,
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
   ): CodeLines =
     CodeLines.debugHere ++ gcg.identifyGroups(
+      tupleTypes = tupleTypes,
       tupleType = tupleType,
       count = count,
       thingsToGroup = groupingKeys.map(gk =>
@@ -219,6 +222,7 @@ final case class StagedGroupBy(
     CodeLines.from(
       CodeLines.debugHere,
       gcg.identifyGroups(
+        tupleTypes = tupleTypes,
         tupleType = tupleType,
         count = s"${partialOutputs.head.name}->count",
         thingsToGroup = groupingKeys.map(gk =>
@@ -406,13 +410,14 @@ object StagedGroupBy {
   ) {
 
     def identifyGroups(
+      tupleTypes: List[String],
       tupleType: String,
       count: String,
       thingsToGroup: List[Either[String, CExpression]]
     ): CodeLines = {
       val stringsToHash: List[String] = thingsToGroup.flatMap(_.left.toSeq)
       CodeLines.from(
-        s"std::vector<${tupleType}> ${groupingVecName};",
+        s"std::vector<${tupleType}> ${groupingVecName}(${count});",
         s"std::vector<size_t> ${sortedIdxName}(${count});",
         stringsToHash.map { name =>
           val stringIdToHash = s"${name}_string_id_to_hash"
@@ -439,18 +444,47 @@ object StagedGroupBy {
         CodeLines
           .from(
             s"${sortedIdxName}[i] = i;",
-            s"${groupingVecName}.push_back(${tupleType}(${thingsToGroup
+            s"${groupingVecName}[i] = ${tupleType}(${thingsToGroup
               .flatMap {
                 case Right(g) => List(g.cCode, g.isNotNullCode.getOrElse("1"))
                 case Left(stringName) =>
                   List(s"${stringName}_string_id_to_hash[i]")
               }
-              .mkString(", ")}));"
+              .mkString(", ")});"
           )
           .indented,
         s"}",
         CodeLines.debugHere,
-        s"frovedis::insertion_sort(${groupingVecName}.data(), ${sortedIdxName}.data(), ${groupingVecName}.size());",
+        tupleTypes.zipWithIndex.reverse.collect { case(t, idx) =>
+          CodeLines.from(
+            s"{",
+            s"std::vector<${t}> temp(${count});",
+            s"for ( long i = 0; i < ${count}; i++ ) {",
+            CodeLines
+              .from(
+                s"temp[i] = std::get<${idx}>(${groupingVecName}[${sortedIdxName}[i]]);",
+              )
+              .indented,
+            s"}",
+            s"frovedis::radix_sort(temp.data(), ${sortedIdxName}.data(), temp.size());",
+            s"}",
+          )
+        },
+        s"for ( long j = 0; j < ${count}; j++ ) {",
+        CodeLines
+          .from(
+            s"long i = ${sortedIdxName}[j];",
+            s"${groupingVecName}[j] = ${tupleType}(${thingsToGroup
+              .flatMap {
+                case Right(g) => List(g.cCode, g.isNotNullCode.getOrElse("1"))
+                case Left(stringName) =>
+                  List(s"${stringName}_string_id_to_hash[i]")
+              }
+              .mkString(", ")});"
+           )
+           .indented,
+        s"}",
+        CodeLines.debugHere,
         s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
         s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
       )
