@@ -123,7 +123,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         ),
         CExpression(
           s"${prefix}_attr_${attRef.name}_nullable",
-          if (attRef.nullable) Some(s"${prefix}_attr_sum_nullable_is_set") else None
+          if (attRef.nullable) Some(s"${prefix}_attr_${attRef.name}_nullable_is_set") else None
         )
       )
     }.toList
