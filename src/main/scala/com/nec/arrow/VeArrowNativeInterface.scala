@@ -31,10 +31,6 @@ object VeArrowNativeInterface extends LazyLogging {
     require(result >= 0, s"Result should be >=0, got $result")
   }
 
-  def requirePositive(result: Long): Unit = {
-    require(result > 0, s"Result should be > 0, got $result")
-  }
-
   final class VeArrowNativeInterfaceLazyLib(proc: Aurora.veo_proc_handle, libPath: String)
     extends ArrowNativeInterface {
     override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
@@ -121,20 +117,9 @@ object VeArrowNativeInterface extends LazyLogging {
           requireOk(Aurora.veo_args_set_i32(our_args, idx, num))
         case (NativeArgument.VectorInputNativeArgument(wrapper), index) =>
           VeArrowTransfers.transferInput(proc, our_args, wrapper, index)
-        case (NativeArgument.VectorOutputNativeArgument(wrapper), index) =>
-          val transferF = VeArrowTransfers.transferOutput(proc, our_args, wrapper, index)
 
-          transferBack.append(() => {
-            try transferF()
-            catch {
-              case e: Throwable =>
-                throw new RuntimeException(
-                  s"Failed to transfer back for index ${index}, type ${wrapper.valueVector
-                    .getClass()}: $e",
-                  e
-                )
-            }
-          })
+        case (NativeArgument.VectorOutputNativeArgument(wrapper), index) =>
+          VeArrowTransfers.transferOutput(proc, our_args, transferBack, wrapper, index)
       }
 
       val startTime = System.currentTimeMillis()
@@ -163,31 +148,12 @@ object VeArrowNativeInterface extends LazyLogging {
 
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      try transferBack.foreach(_.apply())
-      catch {
-        case e: Throwable =>
-          val inputs = arguments.collect { case NativeArgument.VectorInputNativeArgument(wrapper) =>
-            wrapper
-          }
-
-          val types = arguments.zipWithIndex.map {
-            case (
-                  NativeArgument.VectorInputNativeArgument(
-                    wrapper: NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
-                  ),
-                  idx
-                ) =>
-              s"${idx} => ${wrapper.valueVector.getClass()}"
-            case (NativeArgument.VectorOutputNativeArgument(wrapper), idx) =>
-              s"${idx} => ${wrapper.valueVector.getClass()}"
-            case (other, idx) =>
-              s"${idx} => ${other.getClass()}"
-          }
-
-          throw new RuntimeException(
-            s"Failed to transfer back due to $e; inputs were = ${inputs}; function was ${functionName}; types were ${types}",
-            e
-          )
+      if (transferBack.length >= 11) {
+        transferBack.foreach{ t =>
+          t.apply()
+        }
+      } else {
+        transferBack.foreach(_.apply())
       }
     } finally {
       val cleanupResult = cleanup.items.map(ptr => ptr -> Aurora.veo_free_mem(proc, ptr))
