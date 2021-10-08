@@ -589,8 +589,6 @@ class DynamicCSqlExpressionEvaluationSpec
         import sparkSession.implicits._
 
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
-          println(ds.rdd.toDebugString)
-
           expectVertical(
             ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted,
             List(
