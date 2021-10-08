@@ -147,29 +147,29 @@ object CExpressionEvaluation {
       ex: CFunctionGeneration.CExpression
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
-        //        "#ifdef DEBUG",
+        "#ifdef DEBUG",
         s"""std::cout << ${ex.cCode} << "; " << ${ex.isNotNullCode.getOrElse(
           "1"
-        )} << " $$ " << "${fullName.value} (#${line.value})" << std::endl << std::flush;"""
-        //        "#endif"
+        )} << " $$ " << "${fullName.value} (#${line.value})" << std::endl << std::flush;""",
+        "#endif"
       )
 
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
-//        "#ifdef DEBUG",
-        s"""std::cout << " $$ " << "${fullName.value} (#${line.value}/#" << __LINE__ << ")" << std::endl << std::flush;"""
-//        "#endif"
+        "#ifdef DEBUG",
+        s"""std::cout << " $$ " << "${fullName.value} (#${line.value}/#" << __LINE__ << ")" << std::endl << std::flush;""",
+        "#endif"
       )
 
     def debugHere(
       what: String*
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
-//        "#ifdef DEBUG",
+        "#ifdef DEBUG",
         s"""std::cout << " $$ " << "${fullName.value} (#${line.value})" << """ + what
           .map(x => s"""" " << ${x} << " " """)
-          .mkString(""" << ";" << """) + """ << std::endl << std::flush;"""
-//        "#endif"
+          .mkString(""" << ";" << """) + """ << std::endl << std::flush;""",
+        "#endif"
       )
 
     def commentHere(

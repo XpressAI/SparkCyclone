@@ -144,6 +144,9 @@ object ArrowInterfaces {
   }
 
   def non_null_int_vector_to_intVector(input: non_null_int_vector, intVector: IntVector): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     intVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.count * 4)
@@ -153,6 +156,9 @@ object ArrowInterfaces {
     input: non_null_bigint_vector,
     bigintVector: BigIntVector
   ): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     bigintVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
     getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
@@ -162,6 +168,9 @@ object ArrowInterfaces {
     input: nullable_bigint_vector,
     bigintVector: BigIntVector
   ): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     bigintVector.setValueCount(input.count)
     getUnsafe.copyMemory(
       input.validityBuffer,
@@ -178,6 +187,9 @@ object ArrowInterfaces {
     if (input.count == 0xffffffff) {
       sys.error(s"Returned count was infinite; input ${input}")
     }
+    if ( input.count < 1 ) {
+      return
+    }
     float8Vector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
     getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.size())
@@ -190,6 +202,9 @@ object ArrowInterfaces {
     if (input.count == 0xffffffff) {
       sys.error(s"Returned count was infinite; input ${input}")
     }
+    if ( input.count < 1 ) {
+      return
+    }
     float8Vector.setValueCount(input.count)
     getUnsafe.copyMemory(
       input.validityBuffer,
@@ -200,12 +215,18 @@ object ArrowInterfaces {
   }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     intVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(intVector.getValidityBuffer, i))
     getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
   }
 
   def nullable_int_vector_to_IntVector(input: nullable_int_vector, intVector: IntVector): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     if (input.count == 0xffffffff) {
       sys.error(s"Returned count was infinite; input ${input}")
     }
@@ -219,6 +240,9 @@ object ArrowInterfaces {
   }
 
   def nullable_int_vector_to_SmallIntVector(input: nullable_int_vector, smallIntVector: SmallIntVector): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     val intVector = new IntVector("temp", ArrowUtilsExposed.rootAllocator)
     nullable_int_vector_to_IntVector(input, intVector)
     smallIntVector.setValueCount(intVector.getValueCount)
@@ -234,6 +258,9 @@ object ArrowInterfaces {
     input: nullable_varchar_vector,
     varCharVector: VarCharVector
   ): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     varCharVector.allocateNew(input.size.toLong, input.count)
     varCharVector.setValueCount(input.count)
     getUnsafe.copyMemory(
@@ -246,6 +273,9 @@ object ArrowInterfaces {
   }
 
   def nullable_int_vector_to_BitVector(input: nullable_int_vector, bitVector: BitVector): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
     val intVector = new IntVector("temp", ArrowUtilsExposed.rootAllocator)
     nullable_int_vector_to_IntVector(input, intVector)
     bitVector.setValueCount(intVector.getValueCount)
