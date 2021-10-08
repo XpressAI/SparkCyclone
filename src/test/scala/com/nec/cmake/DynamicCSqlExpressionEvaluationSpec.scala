@@ -867,6 +867,16 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"Counting with isnan does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select count(case when isnan(a) or a in (1/0, -1/0) then null else a end) from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Long].collect().toList == List(2))
+    }
+  }
+
   s"approximate count distinct does not crash" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 

@@ -2,30 +2,7 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  BinaryOperator,
-  CaseWhen,
-  Cast,
-  Coalesce,
-  Contains,
-  EndsWith,
-  EqualTo,
-  ExprId,
-  Expression,
-  Greatest,
-  If,
-  IsNotNull,
-  IsNull,
-  KnownFloatingPointNormalized,
-  Least,
-  Literal,
-  Not,
-  Sqrt,
-  StartsWith
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Contains, EndsWith, EqualTo, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, Sqrt, StartsWith}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -370,6 +347,10 @@ object SparkVeMapper {
             // result is never null here
             isNotNullCode = None
           )
+        }
+      case IsNaN(child) =>
+        eval(child).map { ex =>
+          CExpression(cCode = s"std::isnan(${ex.cCode})", isNotNullCode = ex.isNotNullCode)
         }
       case If(predicate, trueValue, falseValue) =>
         for {
