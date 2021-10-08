@@ -37,6 +37,7 @@ object StringProducer {
     val tmpCount = s"${outputName}_tmp_count";
     def setup: CodeLines =
       CodeLines.from(
+        CodeLines.debugHere,
         s"""std::string ${tmpString}("");""",
         s"""std::vector<int32_t> ${tmpOffsets};""",
         s"""int32_t ${tmpCurrentOffset} = 0;""",
@@ -46,6 +47,7 @@ object StringProducer {
     def forEach: CodeLines =
       CodeLines
         .from(
+          CodeLines.debugHere,
           "int len = 0;",
           stringProducer.produceTo(s"${tmpString}", "len"),
           s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
@@ -54,6 +56,7 @@ object StringProducer {
         )
 
     def complete: CodeLines = CodeLines.from(
+      CodeLines.debugHere,
       s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
       s"""${outputName}->count = ${tmpCount};""",
       s"""${outputName}->size = ${tmpCurrentOffset};""",
@@ -61,23 +64,28 @@ object StringProducer {
       s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->size);""",
       s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
       s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
-      s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(input_0->count / 64.0) * sizeof(uint64_t));"
+      s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(${outputName}->count / 64.0) * sizeof(uint64_t));",
+      CodeLines.debugHere
     )
 
-    def validityForEach: CodeLines =
-      CodeLines.from(s"set_validity(${outputName}->validityBuffer, o, 1);")
+    def validityForEach(idx: String): CodeLines =
+      CodeLines.from(s"set_validity(${outputName}->validityBuffer, ${idx}, 1);")
   }
 
-  def produceVarChar(outputName: String, stringProducer: StringProducer): CodeLines = {
+  def produceVarChar(
+    count: String,
+    outputName: String,
+    stringProducer: StringProducer
+  ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
-      """for ( int32_t i = 0; i < input_0->count; i++ ) {""",
+      s"""for ( int32_t i = 0; i < ${count}; i++ ) {""",
       fp.forEach.indented,
       "}",
       fp.complete,
-      s"for( int32_t i = 0; i < input_0->count; i++ ) {",
-      CodeLines.from(s"int o = i;", fp.validityForEach).indented,
+      s"for( int32_t i = 0; i < ${count}; i++ ) {",
+      CodeLines.from(fp.validityForEach("i")).indented,
       "}"
     )
   }

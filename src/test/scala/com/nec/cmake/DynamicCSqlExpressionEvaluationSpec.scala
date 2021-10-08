@@ -3,7 +3,7 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.{NativeAggregationEvaluationPlan, VERewriteStrategy}
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
   makeCsvNumsMultiColumn,
@@ -19,9 +19,9 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalactic.{source, Prettifier}
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -155,7 +155,7 @@ class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_cnt_multiple_ops).ensureCEvaluating().debugSqlHere { ds =>
-        assert(ds.as[(Long, Double)].collect().toList == List((13, -42)))
+        expectVertical(ds.as[(Long, Double)].collect().toList.sorted, List((13, -42)).sorted)
       }
   }
 
@@ -166,8 +166,9 @@ class DynamicCSqlExpressionEvaluationSpec
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
       sparkSession.sql(sql_select_sort2).ensureCEvaluating().debugSqlHere { ds =>
-        assert(
-          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList == List(
+        expectVertical(
+          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList.sorted,
+          List(
             (Some(4.0), None, None),
             (Some(2.0), None, None),
             (None, None, None),
@@ -181,36 +182,64 @@ class DynamicCSqlExpressionEvaluationSpec
             (Some(4.0), Some(5.0), Some(9.0)),
             (None, Some(5.0), None),
             (Some(52.0), Some(6.0), Some(58.0))
-          )
+          ).sorted
         )
       }
   }
 
-  val multisort_sql =
-    s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
   "Support group by sum with multiple grouping columns" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
 
       import sparkSession.implicits._
       //Results order here is different due to the fact that we sort the columns and seems that spark does not.
-      sparkSession.sql(multisort_sql).debugSqlHere { ds =>
-        ds.as[(Option[Double], Option[Double], Option[Double])]
-          .collect()
-          .toList should contain theSameElementsAs List(
-          (None, None, Some(8.0)),
-          (Some(4.0), Some(5.0), None),
-          (Some(52.0), Some(6.0), None),
-          (Some(4.0), None, Some(2.0)),
-          (Some(2.0), Some(3.0), Some(4.0)),
-          (None, Some(3.0), Some(1.0)),
-          (Some(2.0), None, Some(2.0)),
-          (Some(3.0), Some(4.0), Some(5.0)),
-          (Some(1.0), Some(2.0), Some(8.0)),
-          (Some(20.0), None, None),
-          (None, Some(5.0), Some(2.0))
+      sparkSession
+        .sql(
+          s"SELECT ${SampleColA}, ${SampleColB}, SUM(${SampleColC}) FROM nums GROUP BY ${SampleColA}, ${SampleColB}"
         )
-      }
+        .debugSqlHere { ds =>
+          val result = ds
+            .as[(Option[Double], Option[Double], Option[Double])]
+            .collect()
+            .toList
+
+          val expected = List(
+            (None, None, Some(8.0)),
+            (Some(4.0), Some(5.0), None),
+            (Some(52.0), Some(6.0), None),
+            (Some(4.0), None, Some(2.0)),
+            (Some(2.0), Some(3.0), Some(4.0)),
+            (None, Some(3.0), Some(1.0)),
+            (Some(2.0), None, Some(2.0)),
+            (Some(3.0), Some(4.0), Some(5.0)),
+            (Some(1.0), Some(2.0), Some(8.0)),
+            (Some(20.0), None, None),
+            (None, Some(5.0), Some(2.0))
+          )
+
+          expectVertical(result.sorted, expected.sorted)
+        }
+  }
+
+  def expectVertical[T](l: List[T], r: List[T])(implicit
+    prettifier: Prettifier,
+    pos: source.Position
+  ): Unit = {
+    if (l != r) {
+      val lW = if (l.isEmpty) 1 else l.map(_.toString.length).max
+      val rW = if (r.isEmpty) 1 else r.map(_.toString.length).max
+
+      val lines = l
+        .map(v => Some(v))
+        .zipAll(r.map(v => Some(v)), None, None)
+        .map { case (lvv, rvv) =>
+          val lv = lvv.getOrElse("-")
+          val rv = rvv.getOrElse("-")
+          s"| ${lv.toString.padTo(lW, ' ')} | ${rv.toString.padTo(rW, ' ')} |"
+        }
+
+      assert(l == r, ("" :: "Data:" :: "----" :: lines ::: List("")).mkString("\n"))
+    }
   }
 
   val sql_mcio =
@@ -254,7 +283,7 @@ class DynamicCSqlExpressionEvaluationSpec
         (None, Some(32.0))
       ).sorted
 
-      assert(result == expected)
+      expectVertical(result, expected)
 
     }
   }
@@ -266,22 +295,26 @@ class DynamicCSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     sparkSession.sql(sql_join_outer_left).debugSqlHere { ds =>
-      ds.as[(Option[Double], Option[Double])]
-        .collect()
-        .toList should contain theSameElementsAs List(
-        (Some(2.0), None),
-        (Some(52.0), None),
-        (Some(4.0), None),
-        (None, None),
-        (Some(2.0), None),
-        (Some(1.0), None),
-        (Some(4.0), None),
-        (None, None),
-        (None, None),
-        (Some(2.0), None),
-        (Some(3.0), None),
-        (None, None),
-        (Some(20.0), None)
+      expectVertical(
+        ds.as[(Option[Double], Option[Double])]
+          .collect()
+          .toList
+          .sorted,
+        List(
+          (Some(2.0), Option.empty[Double]),
+          (Some(52.0), None),
+          (Some(4.0), None),
+          (None, None),
+          (Some(2.0), None),
+          (Some(1.0), None),
+          (Some(4.0), None),
+          (None, None),
+          (None, None),
+          (Some(2.0), None),
+          (Some(3.0), None),
+          (None, None),
+          (Some(20.0), None)
+        ).sorted
       )
     }
   }
@@ -298,21 +331,24 @@ class DynamicCSqlExpressionEvaluationSpec
         .collect()
         .toList
 
-      out should contain theSameElementsAs List(
-        (None, Some(1.0)),
-        (None, None),
-        (Some(4.0), None),
-        (None, None),
-        (None, Some(2.0)),
-        (None, Some(42.0)),
-        (None, Some(12.0)),
-        (None, Some(52.0)),
-        (None, Some(4.0)),
-        (None, None),
-        (None, Some(2.0)),
-        (None, Some(3.0)),
-        (None, None),
-        (None, Some(20.0))
+      expectVertical(
+        out.sorted,
+        List(
+          (None, Some(1.0)),
+          (None, None),
+          (Some(4.0), None),
+          (None, None),
+          (None, Some(2.0)),
+          (None, Some(42.0)),
+          (None, Some(12.0)),
+          (None, Some(52.0)),
+          (None, Some(4.0)),
+          (None, None),
+          (None, Some(2.0)),
+          (None, Some(3.0)),
+          (None, None),
+          (None, Some(20.0))
+        ).sorted
       )
     }
   }
@@ -519,14 +555,16 @@ class DynamicCSqlExpressionEvaluationSpec
     val sql2 =
       s"SELECT AVG(2 * ${SampleColA}), SUM(${SampleColA} - 1), ${SampleColA} / 2 FROM nums GROUP BY (${SampleColA})"
 
-    s"Group by is possible with ${sql2}" ignore withSparkSession2(configuration) { sparkSession =>
+    s"Group by is possible with ${sql2}" in withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
       sparkSession.sql(sql2).ensureCEvaluating().debugSqlHere { ds =>
-        ds.as[(Option[Double], Option[Double], Option[Double])]
-          .collect()
-          .toList should contain theSameElementsAs
+        expectVertical(
+          ds.as[(Option[Double], Option[Double], Option[Double])]
+            .collect()
+            .toList
+            .sorted,
           List(
             (None, None, None),
             (Some(2.0), Some(0.0), Some(0.5)),
@@ -535,7 +573,8 @@ class DynamicCSqlExpressionEvaluationSpec
             (Some(4.0), Some(3.0), Some(1.0)),
             (Some(40.0), Some(19.0), Some(10.0)),
             (Some(104.0), Some(51.0), Some(26.0))
-          )
+          ).sorted
+        )
       }
     }
 
@@ -548,17 +587,19 @@ class DynamicCSqlExpressionEvaluationSpec
         import sparkSession.implicits._
 
         sparkSession.sql(sql3).ensureNewCEvaluating().debugSqlHere { ds =>
-          assert(
-            ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted ==
-              List(
-                (None, Some(8.0), Some(60)),
-                (Some(1.0), Some(2.0), None),
-                (Some(2.0), Some(3.0), Some(32)),
-                (Some(3.0), Some(4.0), Some(1)),
-                (Some(4.0), Some(5.0), Some(46)),
-                (Some(20.0), None, Some(3)),
-                (Some(52.0), Some(6.0), Some(23))
-              )
+          println(ds.rdd.toDebugString)
+
+          expectVertical(
+            ds.as[(Option[Double], Option[Double], Option[BigInt])].collect().toList.sorted,
+            List(
+              (None, Some(8.0), Some(60)),
+              (Some(1.0), Some(2.0), None),
+              (Some(2.0), Some(3.0), Some(32)),
+              (Some(3.0), Some(4.0), Some(1)),
+              (Some(4.0), Some(5.0), Some(46)),
+              (Some(20.0), None, Some(3)),
+              (Some(52.0), Some(6.0), Some(23))
+            ).sorted
           )
         }
     }
@@ -826,6 +867,16 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"Counting with isnan does not crash" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select count(case when isnan(a) or a in (1/0, -1/0) then null else a end) from values (12, 20), (30, 12), (null, 50) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Long].collect().toList == List(2))
+    }
+  }
+
   s"approximate count distinct does not crash" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
@@ -837,15 +888,17 @@ class DynamicCSqlExpressionEvaluationSpec
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
-    def ensureCEvaluating(): Dataset[T] = {
-      val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("CEvaluation"))
-      dataSet
-    }
+    def ensureCEvaluating(): Dataset[T] = ensureNewCEvaluating()
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("NewCEvaluationPlan"))
+      expect(
+        thePlan
+          .toString()
+          .contains(
+            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
+          )
+      )
       dataSet
     }
 

@@ -1,21 +1,15 @@
 package com.nec.spark.agile
-import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
+
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  Aggregation,
-  CExpression,
-  DelegatingAggregation,
-  SuffixedAggregation
-}
+import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvalFallback
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
 }
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
   AttributeReference,
   Expression,
   LeafExpression,
@@ -38,13 +32,13 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         .map {
           case ((Literal(null, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = 0;",
-              s"int ${prefix}_${att.name}_nullable_is_set = 0;"
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = 0;",
+              s"int ${prefix}_attr_${att.name}_nullable_is_set = 0;"
             )
           case ((Literal(other, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_${att.name}_nullable = ${other};",
-              s"int ${prefix}_${att.name}_nullable_is_set = 1;"
+              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = ${other};",
+              s"int ${prefix}_attr_${att.name}_nullable_is_set = 1;"
             )
           case (other, idx) =>
             sys.error(s"Not supported declarative aggregate input: ${other}")
@@ -56,7 +50,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
   private def transformInitial(prefix: String): PartialFunction[Expression, Expression] = {
     case ar: AttributeReference
         if declarativeAggregate.aggBufferAttributes.exists(_.name == ar.name) =>
-      ar.withName(s"${prefix}_${ar.name}_nullable")
+      ar.withName(s"${prefix}_attr_${ar.name}_nullable")
   }
 
   override def iterate(prefix: String): CodeLines = {
@@ -71,18 +65,22 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+              s"${SparkVeMapper
+                .sparkTypeToScalarVeType(aggb.dataType)
+                .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
+              s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
             )
           case Some(notNullCode) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(aggb.dataType).cScalarType} tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-              s"int tmp_${prefix}_${aggb.name}_nullable_is_set = ${prefix}_${aggb.name}_nullable_is_set;",
+              s"${SparkVeMapper
+                .sparkTypeToScalarVeType(aggb.dataType)
+                .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
+              s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = ${prefix}_attr_${aggb.name}_nullable_is_set;",
               s"if (${notNullCode}) {",
               CodeLines
                 .from(
-                  s"tmp_${prefix}_${aggb.name}_nullable = ${codeEval.cCode};",
-                  s"tmp_${prefix}_${aggb.name}_nullable_is_set = 1;"
+                  s"tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
+                  s"tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
                 )
                 .indented,
               "}"
@@ -94,13 +92,13 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
-              s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
-              s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+              s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+              s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
             )
           case Some(notNullCode) =>
             CodeLines.from(
-              s"${prefix}_${aggb.name}_nullable = tmp_${prefix}_${aggb.name}_nullable;",
-              s"${prefix}_${aggb.name}_nullable_is_set = tmp_${prefix}_${aggb.name}_nullable_is_set;"
+              s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+              s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
             )
         }
       }.toList
@@ -115,9 +113,110 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
     .getOrReport()
 
   override def free(prefix: String): CodeLines = CodeLines.empty
+
+  override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+    declarativeAggregate.aggBufferAttributes.map { attRef =>
+      (
+        CScalarVector(
+          s"${prefix}_attr_${attRef.name}",
+          SparkVeMapper.sparkTypeToScalarVeType(attRef.dataType)
+        ),
+        CExpression(s"${prefix}_attr_${attRef.name}_nullable", Some(s"${prefix}_attr_sum_nullable_is_set"))
+      )
+    }.toList
+
+  override def merge(prefix: String, inputPrefix: String): CodeLines = {
+    CodeLines.from(
+      declarativeAggregate.mergeExpressions.zipWithIndex
+        .zip(declarativeAggregate.aggBufferAttributes)
+        .zip(
+          DeclarativeAggregationConverter
+            .rewriteMerge(prefix, inputPrefix)(declarativeAggregate)
+        )
+        .map { case (((mergeExp, idx), aggb), cExp) =>
+          cExp.isNotNullCode match {
+            case None =>
+              CodeLines.from(
+                s"${SparkVeMapper
+                  .sparkTypeToScalarVeType(aggb.dataType)
+                  .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
+                s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
+              )
+            case Some(notNullCode) =>
+              CodeLines.from(
+                s"${SparkVeMapper
+                  .sparkTypeToScalarVeType(aggb.dataType)
+                  .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
+                s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = ${prefix}_attr_${aggb.name}_nullable_is_set;",
+                s"if (${notNullCode}) {",
+                CodeLines
+                  .from(
+                    s"tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
+                    s"tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
+                  )
+                  .indented,
+                "}"
+              )
+          }
+        }
+        .toList,
+      CodeLines.from(
+        declarativeAggregate.mergeExpressions
+          .map(e => e.transform(transformInitial(prefix)))
+          .zipWithIndex
+          .zip(declarativeAggregate.aggBufferAttributes)
+          .map { case ((mergeExp, idx), aggb) =>
+            val codeEval = SparkVeMapper.eval(mergeExp).getOrReport()
+            codeEval.isNotNullCode match {
+              case None =>
+                CodeLines.from(
+                  s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+                  s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
+                )
+              case Some(notNullCode) =>
+                CodeLines.from(
+                  s"${prefix}_attr_${aggb.name}_nullable = tmp_${prefix}_attr_${aggb.name}_nullable;",
+                  s"${prefix}_attr_${aggb.name}_nullable_is_set = tmp_${prefix}_attr_${aggb.name}_nullable_is_set;"
+                )
+            }
+          }
+          .toList
+      )
+    )
+  }
 }
 
 object DeclarativeAggregationConverter {
+  def rewriteMerge(prefix: String, inputPrefix: String)(
+    declarativeAggregate: DeclarativeAggregate
+  )(implicit evalFallback: EvalFallback): List[CExpression] = {
+    declarativeAggregate.aggBufferAttributes.zip(declarativeAggregate.mergeExpressions).map {
+      case (targetAttribute, mergeExpression) =>
+        SparkVeMapper
+          .eval(mergeExpression)(
+            EvalFallback
+              .from {
+                case aggregateAttribute
+                    if declarativeAggregate.aggBufferAttributes.contains(aggregateAttribute) =>
+                  CExpression(
+                    cCode = s"${prefix}_attr_${targetAttribute.name}_nullable",
+                    isNotNullCode = Some(s"${prefix}_attr_${targetAttribute.name}_nullable_is_set")
+                  )
+                case inputAggregateAttribute
+                    if declarativeAggregate.inputAggBufferAttributes
+                      .contains(inputAggregateAttribute) =>
+                  CExpression(
+                    cCode = s"${inputPrefix}_attr_${targetAttribute.name}->data[i]",
+                    isNotNullCode = Some(
+                      s"check_valid(${inputPrefix}_attr_${targetAttribute.name}->validityBuffer, i)"
+                    )
+                  )
+              }
+              .orElse(evalFallback)
+          )
+          .getOrReport()
+    }
+  }.toList
 
   private final case class TransformingAggregation(
     declarativeAggregationConverter: DeclarativeAggregationConverter,
@@ -145,6 +244,12 @@ object DeclarativeAggregationConverter {
       combineResults(underlying.map(_.fetch(prefix)))
 
     override def free(prefix: String): CodeLines = CodeLines.from(underlying.map(_.free(prefix)))
+
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+      underlying.flatMap(_.partialValues(prefix))
+
+    override def merge(prefix: String, inputPrefix: String): CodeLines =
+      underlying.map(_.merge(prefix, inputPrefix)).reduce(_ ++ _)
   }
 
   final case class AggregateHole(aggregateExpression: AggregateExpression)

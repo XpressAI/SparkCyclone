@@ -76,6 +76,10 @@ object CMakeBuilder extends LazyLogging {
     } catch {
       case e: Exception =>
         logger.info(s"Could not compile code due to error: ${e}", e)
+        e.toString
+          .split("\r?\n")
+          .find(_.contains(": error "))
+          .foreach(errLine => logger.error(errLine))
         throw new CompileError("Could not compile code. Reported in the log.")
     }
   }

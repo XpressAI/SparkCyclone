@@ -2,46 +2,26 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  AttributeReference,
-  BinaryOperator,
-  CaseWhen,
-  Cast,
-  Coalesce,
-  Contains,
-  EndsWith,
-  EqualTo,
-  ExprId,
-  Expression,
-  Greatest,
-  If,
-  IsNotNull,
-  IsNull,
-  KnownFloatingPointNormalized,
-  Least,
-  Literal,
-  Not,
-  Sqrt,
-  StartsWith
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Contains, EndsWith, EqualTo, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, Sqrt, StartsWith}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 object SparkVeMapper {
 
-  def referenceReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
-    case ar: AttributeReference =>
-      inputs.indexWhere(_.exprId == ar.exprId) match {
-        case -1 =>
-          sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
-        case idx =>
-          if (ar.dataType == StringType)
-            ar.withName(s"input_${idx}")
-          else
-            ar.withName(s"input_${idx}->data[i]")
-      }
+  def referenceReplacer(
+    prefix: String,
+    inputs: Seq[Attribute]
+  ): PartialFunction[Expression, Expression] = { case ar: AttributeReference =>
+    inputs.indexWhere(_.exprId == ar.exprId) match {
+      case -1 =>
+        sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
+      case idx =>
+        if (ar.dataType == StringType)
+          ar.withName(s"${prefix}${idx}")
+        else
+          ar.withName(s"${prefix}${idx}->data[i]")
+    }
   }
 
   def referenceOutputReplacer(inputs: Seq[Attribute]): PartialFunction[Expression, Expression] = {
@@ -94,20 +74,17 @@ object SparkVeMapper {
     }
   }
 
-  def replaceNullability(expr: Expression, nonNullColumns: Seq[ExprId]) = {
-    expr.transform{
-      case ar: AttributeReference if(nonNullColumns.contains(ar.exprId)) =>
-        ar.withNullability(false)
-    }
-  }
-
-  def replaceReferences(inputs: Seq[Attribute], expression: Expression): Expression =
-    expression.transform(referenceReplacer(inputs))
+  def replaceReferences(
+    prefix: String,
+    inputs: Seq[Attribute],
+    expression: Expression
+  ): Expression =
+    expression.transform(referenceReplacer(prefix, inputs))
 
   def replaceOutputReferences(inputs: Seq[Attribute], expression: Expression): Expression =
     expression.transform(referenceOutputReplacer(inputs))
 
-  def replaceReferences(
+  def replaceReferencesS(
     inputs: Seq[Attribute],
     expression: Expression,
     leftIds: Set[ExprId],
@@ -172,7 +149,10 @@ object SparkVeMapper {
     implicit class RichEvaluationAttempt(evaluationAttempt: EvaluationAttempt) {
       def getOrReport(): CExpression = {
         evaluationAttempt.fold(
-          expr => sys.error(s"Could not handle the expression ${expr}, type ${expr.getClass}"),
+          expr =>
+            sys.error(
+              s"Could not handle the expression ${expr}, type ${expr.getClass}, Spark type ${expr.dataType}"
+            ),
           identity
         )
       }
@@ -245,6 +225,51 @@ object SparkVeMapper {
             isNotNullCode = None
           )
         }
+      case Contains(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val mainString =
+                s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])"
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${mainString}.find(${rightString}) != std::string::npos"
+            },
+            isNotNullCode = None
+          )
+        }
+      case EndsWith(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val leftStringLength =
+                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
+              val expectedLength = right.toString().length
+              val leftStringSubstring =
+                s"""std::string(${left.name}->data, ${left.name}->offsets[i+1]-${expectedLength}, ${expectedLength})"""
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            },
+            isNotNullCode = None
+          )
+        }
+      case StartsWith(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val leftStringLength =
+                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
+              val expectedLength = right.toString().length
+              val leftStringSubstring =
+                s"""std::string(${left.name}->data, ${left.name}->offsets[i], ${expectedLength})"""
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            },
+            isNotNullCode = None
+          )
+        }
       case b: BinaryOperator =>
         for {
           leftEx <- eval(b.left)
@@ -253,8 +278,8 @@ object SparkVeMapper {
           cCode = s"((${leftEx.cCode}) ${binaryOperatorOverride
             .getOrElse(b.symbol, b.symbol)} (${rightEx.cCode}))",
           isNotNullCode = Option(
-            (leftEx.isNotNullCode.toList ++
-              rightEx.isNotNullCode.toList)
+            leftEx.isNotNullCode.toList ++
+              rightEx.isNotNullCode.toList
           ).filter(_.nonEmpty).map(_.mkString("(", " && ", ")"))
         )
       case KnownFloatingPointNormalized(child) => eval(child)
@@ -283,6 +308,8 @@ object SparkVeMapper {
               }
           }
         }
+      case Alias(child, _) =>
+        eval(child)
       case ar: AttributeReference if ar.name.endsWith("_nullable") =>
         Right(CExpression(cCode = ar.name, isNotNullCode = Some(s"${ar.name}_is_set")))
       case ar: AttributeReference if ar.name.contains("data[") =>
@@ -320,6 +347,10 @@ object SparkVeMapper {
             // result is never null here
             isNotNullCode = None
           )
+        }
+      case IsNaN(child) =>
+        eval(child).map { ex =>
+          CExpression(cCode = s"std::isnan(${ex.cCode})", isNotNullCode = ex.isNotNullCode)
         }
       case If(predicate, trueValue, falseValue) =>
         for {
@@ -428,8 +459,8 @@ object SparkVeMapper {
         }
       case CaseWhen(Seq((caseExp, valueExp), xs @ _*), Some(elseValue)) =>
         eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)))
-      case fallback(result) =>
-        Right(result)
+      case fallback(result) => Right(result)
+      case other            => Left(other)
     }
   }
 
@@ -440,6 +471,16 @@ object SparkVeMapper {
       case LongType    => VeScalarType.veNullableLong
       case ShortType   => VeScalarType.veNullableInt
       case BooleanType => VeScalarType.veNullableInt
+    }
+  }
+  def sparkTypeToVeType(dataType: DataType): VeType = {
+    dataType match {
+      case DoubleType  => VeScalarType.veNullableDouble
+      case IntegerType => VeScalarType.veNullableInt
+      case LongType    => VeScalarType.veNullableLong
+      case ShortType   => VeScalarType.veNullableInt
+      case BooleanType => VeScalarType.veNullableInt
+      case StringType  => VeString
     }
   }
 }

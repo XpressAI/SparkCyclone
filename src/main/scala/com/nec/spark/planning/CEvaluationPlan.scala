@@ -38,7 +38,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import org.apache.parquet.format.IntType
 object CEvaluationPlan {
 
   object HasFloat8Vector {

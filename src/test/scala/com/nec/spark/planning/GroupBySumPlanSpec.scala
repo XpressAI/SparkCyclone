@@ -170,7 +170,7 @@ final class GroupBySumPlanSpec
       .queryExecution
       .executedPlan
 
-    assert(plan.isInstanceOf[NewCEvaluationPlan])
+    assert(plan.isInstanceOf[NativeAggregationEvaluationPlan])
   }
 
 }

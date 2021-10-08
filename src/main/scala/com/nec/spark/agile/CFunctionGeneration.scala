@@ -1,8 +1,14 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.planning.StringCExpressionEvaluation
-
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
+  VeNullableDouble,
+  VeNullableFloat,
+  VeNullableInt,
+  VeNullableLong
+}
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
 
 /** Spark-free function evaluation */
@@ -19,13 +25,24 @@ object CFunctionGeneration {
   }
 
   sealed trait CVector {
+    def replaceName(search: String, replacement: String): CVector
     def name: String
     def veType: VeType
   }
+  object CVector {
+    def varChar(name: String): CVector = CVarChar(name)
+    def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
+  }
   final case class CVarChar(name: String) extends CVector {
     override def veType: VeType = VeString
+
+    override def replaceName(search: String, replacement: String): CVector =
+      copy(name = name.replaceAllLiterally(search, replacement))
   }
-  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector
+  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
+    override def replaceName(search: String, replacement: String): CVector =
+      copy(name = name.replaceAllLiterally(search, replacement))
+  }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String])
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
@@ -39,17 +56,27 @@ object CFunctionGeneration {
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
   sealed trait VeType {
+    def isString: Boolean
     def cVectorType: String
+    def makeCVector(name: String): CVector
   }
 
   case object VeString extends VeType {
     override def cVectorType: String = "nullable_varchar_vector"
+
+    override def makeCVector(name: String): CVector = CVector.varChar(name)
+
+    override def isString: Boolean = true
   }
 
   sealed trait VeScalarType extends VeType {
     def cScalarType: String
 
     def cSize: Int
+
+    override def makeCVector(name: String): CVector = CScalarVector(name, this)
+
+    override def isString: Boolean = false
   }
 
   object VeScalarType {
@@ -83,14 +110,6 @@ object CFunctionGeneration {
       def cVectorType: String = "nullable_bigint_vector"
 
       override def cSize: Int = 8
-    }
-
-    case object VeNullableString extends VeScalarType {
-      def cScalarType: String = "char *"
-
-      def cVectorType: String = "nullable_varchar_vector"
-
-      override def cSize: Int = 1
     }
 
     def veNullableDouble: VeScalarType = VeNullableDouble
@@ -180,7 +199,9 @@ object CFunctionGeneration {
   )
 
   trait Aggregation extends Serializable {
+    def merge(prefix: String, inputPrefix: String): CodeLines
     def initial(prefix: String): CodeLines
+    def partialValues(prefix: String): List[(CScalarVector, CExpression)]
     def iterate(prefix: String): CodeLines
     def compute(prefix: String): CodeLines
     def fetch(prefix: String): CExpression
@@ -197,9 +218,15 @@ object CFunctionGeneration {
     override def fetch(prefix: String): CExpression = original.fetch(s"$prefix$suffix")
 
     override def free(prefix: String): CodeLines = original.free(s"$prefix$suffix")
+
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+      original.partialValues(s"$prefix$suffix")
+
+    override def merge(prefix: String, inputPrefix: String): CodeLines =
+      original.merge(s"$prefix$suffix", s"$inputPrefix$suffix")
   }
 
-  abstract class DelegatingAggregation(val original: Aggregation) extends  Aggregation {
+  abstract class DelegatingAggregation(val original: Aggregation) extends Aggregation {
     override def initial(prefix: String): CodeLines = original.initial(prefix)
 
     override def iterate(prefix: String): CodeLines = original.iterate(prefix)
@@ -209,6 +236,12 @@ object CFunctionGeneration {
     override def fetch(prefix: String): CExpression = original.fetch(prefix)
 
     override def free(prefix: String): CodeLines = original.free(prefix)
+
+    override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+      original.partialValues(prefix)
+
+    override def merge(prefix: String, inputPrefix: String): CodeLines =
+      original.merge(prefix, inputPrefix)
   }
 
   object Aggregation {
@@ -234,12 +267,88 @@ object CFunctionGeneration {
       override def free(prefix: String): CodeLines = CodeLines.empty
 
       override def compute(prefix: String): CodeLines = CodeLines.empty
+
+      override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
+        List(
+          (
+            CScalarVector(s"${prefix}_x", VeScalarType.veNullableDouble),
+            CExpression(s"${prefix}_aggregate_sum", None)
+          )
+        )
+
+      override def merge(prefix: String, inputPrefix: String): CodeLines =
+        CodeLines.from(s"${prefix}_aggregate_sum += ${inputPrefix}_x->data[i];")
+    }
+    def avg(cExpression: CExpression): Aggregation = new Aggregation {
+      override def initial(prefix: String): CodeLines =
+        CodeLines.from(
+          s"double ${prefix}_aggregate_sum = 0;",
+          s"long ${prefix}_aggregate_count = 0;"
+        )
+
+      override def iterate(prefix: String): CodeLines =
+        cExpression.isNotNullCode match {
+          case None =>
+            CodeLines.from(
+              s"${prefix}_aggregate_sum += ${cExpression.cCode};",
+              s"${prefix}_aggregate_count += 1;"
+            )
+          case Some(notNullCheck) =>
+            CodeLines.from(
+              s"if ( ${notNullCheck} ) {",
+              CodeLines
+                .from(
+                  s"${prefix}_aggregate_sum += ${cExpression.cCode};",
+                  s"${prefix}_aggregate_count += 1;"
+                )
+                .indented,
+              "}"
+            )
+        }
+
+      override def fetch(prefix: String): CExpression =
+        CExpression(s"${prefix}_aggregate_sum / ${prefix}_aggregate_count", None)
+
+      override def free(prefix: String): CodeLines = CodeLines.empty
+
+      override def compute(prefix: String): CodeLines = CodeLines.empty
+
+      override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = List(
+        (
+          CScalarVector(s"${prefix}_aggregate_sum_partial_output", VeScalarType.veNullableDouble),
+          CExpression(s"${prefix}_aggregate_sum", None)
+        ),
+        (
+          CScalarVector(s"${prefix}_aggregate_count_partial_output", VeScalarType.veNullableLong),
+          CExpression(s"${prefix}_aggregate_count", None)
+        )
+      )
+
+      override def merge(prefix: String, inputPrefix: String): CodeLines =
+        CodeLines.from(
+          s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum_partial_input->data[i];",
+          s"${prefix}_aggregate_count += ${inputPrefix}_aggregate_count_partial_input->data[i];"
+        )
     }
   }
 
   final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
+
+  def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
+    cVector.veType match {
+      case VeString =>
+        new VarCharVector(cVector.name, bufferAllocator)
+      case VeNullableDouble =>
+        new Float8Vector(cVector.name, bufferAllocator)
+      case VeNullableFloat =>
+        new Float8Vector(cVector.name, bufferAllocator)
+      case VeNullableInt =>
+        new IntVector(cVector.name, bufferAllocator)
+      case VeNullableLong =>
+        new BigIntVector(cVector.name, bufferAllocator)
+    }
 
   final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
     def arguments: List[CVector] = inputs ++ outputs
@@ -256,6 +365,12 @@ object CFunctionGeneration {
         """#include "frovedis/dataframe/join.hpp"""",
         """#include "frovedis/dataframe/join.cc"""",
         """#include "frovedis/core/set_operations.hpp"""",
+        toCodeLinesNoHeader(functionName)
+      )
+    }
+
+    def toCodeLinesNoHeader(functionName: String): CodeLines = {
+      CodeLines.from(
         s"""extern "C" long $functionName(""",
         arguments
           .map { cVector =>
@@ -382,7 +497,7 @@ object CFunctionGeneration {
             CodeLines
               .from(
                 s"if ( ${filter.condition.cCode} ) {",
-                CodeLines.from(fp.validityForEach.indented, "o++;").indented,
+                CodeLines.from(fp.validityForEach("o").indented, "o++;").indented,
                 "}"
               )
               .indented,
@@ -439,7 +554,7 @@ object CFunctionGeneration {
             s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
           )
         case (Left(NamedStringExpression(name, stringProducer)), idx) =>
-          StringProducer.produceVarChar(name, stringProducer).block
+          StringProducer.produceVarChar("input_0->count", name, stringProducer).block
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex
@@ -494,14 +609,17 @@ object CFunctionGeneration {
           .from(
             s"left_vec.push_back(${veInnerJoin.leftKey.cExpression.cCode});",
             "left_idx.push_back(i);"
-          ).indented,
+          )
+          .indented,
         "}",
         s"for(int i = 0; i < ${veInnerJoin.rightKey.cExpression.cCode
           .replace("data[i]", "count")}; i++) { ",
-        CodeLines.from(
+        CodeLines
+          .from(
             s"right_vec.push_back(${veInnerJoin.rightKey.cExpression.cCode});",
             "right_idx.push_back(i);"
-        ).indented,
+          )
+          .indented,
         "}",
         "std::vector<size_t> right_out;",
         "std::vector<size_t> left_out;",
@@ -748,182 +866,5 @@ object CFunctionGeneration {
   final case class StringGrouping(name: String)
 
   final case class NamedStringProducer(name: String, stringProducer: StringProducer)
-  def renderGroupBy(
-    veDataTransformation: VeGroupBy[
-      CVector,
-      Either[StringGrouping, TypedCExpression2],
-      Either[NamedStringProducer, NamedGroupByExpression]
-    ]
-  ): CFunction = {
-    val tuples = veDataTransformation.groups
-        .flatMap {
-          case Right(v) =>
-            List(v.veType.cScalarType) ++ v.cExpression.isNotNullCode.map(_ => "int").toList
-          case Left(s) =>
-            List("long")
-        }
-    val tuple = s"std::tuple<${tuples.mkString(", ")}>";
-    CFunction(
-      inputs = veDataTransformation.inputs,
-      outputs = veDataTransformation.outputs.zipWithIndex.map {
-        case (Right(NamedGroupByExpression(outputName, veType, _)), idx) =>
-          CScalarVector(outputName, veType)
-        case (Left(NamedStringProducer(outputName, _)), idx) =>
-          CVarChar(outputName)
-      },
-      body = CodeLines.from(
-        s"/** sorting section - ${GroupBeforeSort} **/",
-        s"std::vector<${tuple}> full_grouping_vec(input_0->count);",
-        s"std::vector<size_t> sorted_idx(input_0->count);",
-        veDataTransformation.groups.collect { case Left(StringGrouping(name)) =>
-          val stringIdToHash = s"${name}_string_id_to_hash"
-          CodeLines.from(
-            s"std::vector<long> $stringIdToHash(input_0->count);",
-            "for ( long i = 0; i < input_0->count; i++ ) {",
-            CodeLines
-              .from(
-                // todo replace with a proper hash. I cannot do this quickly in C.
-                "// hash by string length... todo replace with something better",
-                s"long string_hash = 0;",
-                s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
-                CodeLines.from(s"string_hash = 31*string_hash + ${name}->data[q];").indented,
-                "}",
-                s"$stringIdToHash[i] = string_hash;"
-              )
-              .indented,
-            "}"
-          )
-        },
-        "for ( long i = 0; i < input_0->count; i++ ) {",
-        CodeLines
-          .from(
-            "sorted_idx[i] = i;",
-            s"full_grouping_vec[i] = ${tuple}(${veDataTransformation.groups
-              .flatMap {
-                case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
-                case Left(StringGrouping(inputName)) =>
-                  List(s"${inputName}_string_id_to_hash[i]")
-              }
-              .mkString(", ")});"
-          )
-          .indented,
-        s"}",
-        "std::vector<int64_t> temp(input_0->count);",
-        tuples.zipWithIndex.collect { case(_, idx) =>
-          CodeLines.from(
-            "for ( long i = 0; i < input_0->count; i++ ) {",
-            CodeLines
-              .from(
-                s"temp[i] = std::get<${tuples.length - idx - 1}>(full_grouping_vec[sorted_idx[i]]);",
-              )
-              .indented,
-            "}",
-            "frovedis::radix_sort(temp.data(), sorted_idx.data(), temp.size());",
-          )
-        },
-        "for ( long j = 0; j < input_0->count; j++ ) {",
-        CodeLines
-          .from(
-            "long i = sorted_idx[j];",
-            s"full_grouping_vec[j] = ${tuple}(${veDataTransformation.groups
-              .flatMap {
-                case Right(g) => List(g.cExpression.cCode) ++ g.cExpression.isNotNullCode.toList
-                case Left(StringGrouping(inputName)) =>
-                  List(s"${inputName}_string_id_to_hash[i]")
-              }
-              .mkString(", ")});"
-          )
-          .indented,
-        s"}",
-        "/** compute each group's range **/",
-        """//log("compute each group's range");""",
-        "std::vector<size_t> groups_indices = frovedis::set_separate(full_grouping_vec);",
-        s"int groups_count = groups_indices.size() - 1;",
-        "/** perform computations for every output **/",
-        """//log("perform computations for every output");""",
-        veDataTransformation.outputs.zipWithIndex.map {
-          case (Left(NamedStringProducer(name, stringProducer)), idx) =>
-            val fp = StringProducer.FilteringProducer(name, stringProducer)
-            CodeLines
-              .from(
-                fp.setup,
-                "// for each group",
-                "for (size_t g = 0; g < groups_count; g++) {",
-                CodeLines
-                  .from("long i = sorted_idx[groups_indices[g]];", "long o = g;", fp.forEach)
-                  .indented,
-                "}",
-                fp.complete,
-                "for (size_t g = 0; g < groups_count; g++) {",
-                CodeLines
-                  .from(
-                    "long i = sorted_idx[groups_indices[g]];",
-                    "long o = g;",
-                    fp.validityForEach
-                  )
-                  .indented,
-                "}"
-              )
-              .blockCommented(s"Produce the string group")
-          case (Right(NamedGroupByExpression(outputName, veType, groupByExpr)), idx) =>
-            CodeLines.from(
-              "",
-              s"// Output #$idx for ${outputName}:",
-              s"$outputName->count = groups_count;",
-              s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-              s"$outputName->validityBuffer = (uint64_t *) malloc(ceil(groups_count / 64.0) * sizeof(uint64_t));",
-              "",
-              "// for each group",
-              """//log("for each group2"); """,
-              "for (size_t g = 0; g < groups_count; g++) {",
-              CodeLines
-                .from(
-                  "// compute an aggregate",
-                  groupByExpr.fold(
-                    whenProj = _ => CodeLines.empty,
-                    whenAgg = agg => agg.initial(outputName)
-                  ),
-                  "size_t group_start_in_idx = groups_indices[g];",
-                  "size_t group_end_in_idx = groups_indices[g + 1];",
-                  "int i = 0;",
-                  s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
-                  CodeLines
-                    .from(
-                      "i = sorted_idx[j];",
-                      groupByExpr
-                        .fold(whenProj = _ => CodeLines.empty, whenAgg = _.iterate(outputName))
-                    )
-                    .indented,
-                  "}",
-                  groupByExpr.fold(_ => CodeLines.empty, whenAgg = _.compute(outputName)),
-                  "// store the result",
-                  groupByExpr.fold(whenProj = ce => ce, whenAgg = _.fetch(outputName)) match {
-                    case ex =>
-                      ex.isNotNullCode match {
-                        case None =>
-                          CodeLines.from(
-                            s"""$outputName->data[g] = ${ex.cCode};""",
-                            s"set_validity($outputName->validityBuffer, g, 1);"
-                          )
-                        case Some(notNullCheck) =>
-                          CodeLines.from(
-                            s"if ( $notNullCheck ) {",
-                            s"""  $outputName->data[g] = ${ex.cCode};""",
-                            s"  set_validity($outputName->validityBuffer, g, 1);",
-                            "} else {",
-                            s"  set_validity($outputName->validityBuffer, g, 0);",
-                            "}"
-                          )
-                      }
-                  },
-                  groupByExpr.fold(_ => CodeLines.empty, _.free(outputName))
-                )
-                .indented,
-              "}"
-            )
-        }
-      )
-    )
-  }
 
 }

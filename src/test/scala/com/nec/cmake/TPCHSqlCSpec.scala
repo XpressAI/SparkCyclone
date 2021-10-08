@@ -3,7 +3,7 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.aurora.Aurora
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.{NativeAggregationEvaluationPlan, VERewriteStrategy}
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
 import com.typesafe.scalalogging.LazyLogging
 
@@ -47,12 +47,7 @@ case class Lineitem(
   l_comment: String
 )
 
-case class Nation(
-  n_nationkey: Long,
-  n_name: String,
-  n_regionkey: Long,
-  n_comment: String
-)
+case class Nation(n_nationkey: Long, n_name: String, n_regionkey: Long, n_comment: String)
 
 case class Order(
   o_orderkey: Long,
@@ -86,11 +81,7 @@ case class Partsupp(
   ps_comment: String
 )
 
-case class Region(
-  r_regionkey: Long,
-  r_name: String,
-  r_comment: String
-)
+case class Region(r_regionkey: Long, r_name: String, r_comment: String)
 
 case class Supplier(
   s_suppkey: Long,
@@ -109,14 +100,11 @@ object TPCHSqlSpec {
       .config("spark.sql.codegen.comments", value = true)
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(_ =>
-          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
-        )
+        sse.injectPlannerStrategy(_ => new VERewriteStrategy(ExecutorPluginManagedEvaluator))
       )
   }
 
 }
-
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
@@ -139,36 +127,124 @@ class TPCHSqlCSpec
     val inputDir = "src/test/resources/dbgen"
 
     val dfMap = Map(
-      "customer" -> sc.textFile(inputDir + "/customer.tbl*").map(_.split('|')).map(p =>
-        Customer(p(0).trim.toLong, p(1).trim, p(2).trim, p(3).trim.toLong, p(4).trim, p(5).trim.toDouble, p(6).trim, p(7).trim)).toDF(),
-
-      "lineitem" -> sc.textFile(inputDir + "/lineitem.tbl*").map(_.split('|')).map(p =>
-        Lineitem(p(0).trim.toLong, p(1).trim.toLong, p(2).trim.toLong, p(3).trim.toLong, p(4).trim.toDouble, p(5).trim.toDouble, p(6).trim.toDouble, p(7).trim.toDouble, p(8).trim, p(9).trim, p(10).trim, p(11).trim, p(12).trim, p(13).trim, p(14).trim, p(15).trim)).toDF(),
-
-      "nation" -> sc.textFile(inputDir + "/nation.tbl*").map(_.split('|')).map(p =>
-        Nation(p(0).trim.toLong, p(1).trim, p(2).trim.toLong, p(3).trim)).toDF(),
-
-      "region" -> sc.textFile(inputDir + "/region.tbl*").map(_.split('|')).map(p =>
-        Region(p(0).trim.toLong, p(1).trim, p(2).trim)).toDF(),
-
-      "orders" -> sc.textFile(inputDir + "/orders.tbl*").map(_.split('|')).map(p =>
-        Order(p(0).trim.toLong, p(1).trim.toLong, p(2).trim, p(3).trim.toDouble, p(4).trim, p(5).trim, p(6).trim, p(7).trim.toLong, p(8).trim)).toDF(),
-
-      "part" -> sc.textFile(inputDir + "/part.tbl*").map(_.split('|')).map(p =>
-        Part(p(0).trim.toLong, p(1).trim, p(2).trim, p(3).trim, p(4).trim, p(5).trim.toLong, p(6).trim, p(7).trim.toDouble, p(8).trim)).toDF(),
-
-      "partsupp" -> sc.textFile(inputDir + "/partsupp.tbl*").map(_.split('|')).map(p =>
-        Partsupp(p(0).trim.toLong, p(1).trim.toLong, p(2).trim.toLong, p(3).trim.toDouble, p(4).trim)).toDF(),
-
-      "supplier" -> sc.textFile(inputDir + "/supplier.tbl*").map(_.split('|')).map(p =>
-        Supplier(p(0).trim.toLong, p(1).trim, p(2).trim, p(3).trim.toLong, p(4).trim, p(5).trim.toDouble, p(6).trim)).toDF()
+      "customer" -> sc
+        .textFile(inputDir + "/customer.tbl*")
+        .map(_.split('|'))
+        .map(p =>
+          Customer(
+            p(0).trim.toLong,
+            p(1).trim,
+            p(2).trim,
+            p(3).trim.toLong,
+            p(4).trim,
+            p(5).trim.toDouble,
+            p(6).trim,
+            p(7).trim
+          )
+        )
+        .toDF(),
+      "lineitem" -> sc
+        .textFile(inputDir + "/lineitem.tbl*")
+        .map(_.split('|'))
+        .map(p =>
+          Lineitem(
+            p(0).trim.toLong,
+            p(1).trim.toLong,
+            p(2).trim.toLong,
+            p(3).trim.toLong,
+            p(4).trim.toDouble,
+            p(5).trim.toDouble,
+            p(6).trim.toDouble,
+            p(7).trim.toDouble,
+            p(8).trim,
+            p(9).trim,
+            p(10).trim,
+            p(11).trim,
+            p(12).trim,
+            p(13).trim,
+            p(14).trim,
+            p(15).trim
+          )
+        )
+        .toDF(),
+      "nation" -> sc
+        .textFile(inputDir + "/nation.tbl*")
+        .map(_.split('|'))
+        .map(p => Nation(p(0).trim.toLong, p(1).trim, p(2).trim.toLong, p(3).trim))
+        .toDF(),
+      "region" -> sc
+        .textFile(inputDir + "/region.tbl*")
+        .map(_.split('|'))
+        .map(p => Region(p(0).trim.toLong, p(1).trim, p(2).trim))
+        .toDF(),
+      "orders" -> sc
+        .textFile(inputDir + "/orders.tbl*")
+        .map(_.split('|'))
+        .map(p =>
+          Order(
+            p(0).trim.toLong,
+            p(1).trim.toLong,
+            p(2).trim,
+            p(3).trim.toDouble,
+            p(4).trim,
+            p(5).trim,
+            p(6).trim,
+            p(7).trim.toLong,
+            p(8).trim
+          )
+        )
+        .toDF(),
+      "part" -> sc
+        .textFile(inputDir + "/part.tbl*")
+        .map(_.split('|'))
+        .map(p =>
+          Part(
+            p(0).trim.toLong,
+            p(1).trim,
+            p(2).trim,
+            p(3).trim,
+            p(4).trim,
+            p(5).trim.toLong,
+            p(6).trim,
+            p(7).trim.toDouble,
+            p(8).trim
+          )
+        )
+        .toDF(),
+      "partsupp" -> sc
+        .textFile(inputDir + "/partsupp.tbl*")
+        .map(_.split('|'))
+        .map(p =>
+          Partsupp(
+            p(0).trim.toLong,
+            p(1).trim.toLong,
+            p(2).trim.toLong,
+            p(3).trim.toDouble,
+            p(4).trim
+          )
+        )
+        .toDF(),
+      "supplier" -> sc
+        .textFile(inputDir + "/supplier.tbl*")
+        .map(_.split('|'))
+        .map(p =>
+          Supplier(
+            p(0).trim.toLong,
+            p(1).trim,
+            p(2).trim,
+            p(3).trim.toLong,
+            p(4).trim,
+            p(5).trim.toDouble,
+            p(6).trim
+          )
+        )
+        .toDF()
     )
 
-    dfMap.foreach {
-      case (key, value) => value.createOrReplaceTempView(key)
+    dfMap.foreach { case (key, value) =>
+      value.createOrReplaceTempView(key)
     }
   }
-
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = {
@@ -179,7 +255,13 @@ class TPCHSqlCSpec
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(thePlan.toString().contains("NewCEvaluationPlan"))
+      expect(
+        thePlan
+          .toString()
+          .contains(
+            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
+          )
+      )
       dataSet
     }
 
@@ -199,7 +281,9 @@ class TPCHSqlCSpec
     }
   }
 
-  def withTpchViews[T](configure: SparkSession.Builder => SparkSession.Builder)(f: SparkSession => T): T = {
+  def withTpchViews[T](
+    configure: SparkSession.Builder => SparkSession.Builder
+  )(f: SparkSession => T): T = {
     withSparkSession2(configure) { sparkSession =>
       createViews(sparkSession)
       f(sparkSession)

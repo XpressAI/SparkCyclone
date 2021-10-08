@@ -33,10 +33,16 @@ object StringCExpressionEvaluation {
       CodeLines
         .from(
           StringProducer
-            .produceVarChar("output_strings", produce_string_to(beginIndex, endIndex))
+            .produceVarChar(
+              "input_0->count",
+              "output_strings",
+              produce_string_to(beginIndex, endIndex)
+            )
             .block,
           select_lengths.block,
-          StringProducer.produceVarChar("output_strings_2", produce_substr_dyn).block,
+          StringProducer
+            .produceVarChar("input_0->count", "output_strings_2", produce_substr_dyn)
+            .block,
           """return 0;"""
         )
         .indented,
