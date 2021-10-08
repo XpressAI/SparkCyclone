@@ -71,7 +71,6 @@ final case class NativeCSVParserBenchmark(
   }
 
   override def cleanUp(state: State): Unit = {
-    println(s"Cleaning up! ${state}")
   }
   override def testingTarget: Testing.TestingTarget = simpleTestType.testingTarget
   override def init(): State = {

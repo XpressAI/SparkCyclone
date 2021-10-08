@@ -87,8 +87,6 @@ final case class OldUnifiedGroupByFunctionGeneration(
 
     val ff = stagedGroupBy.createFinal(computeAggregate = computeAggregate)
 
-    println(stagedGroupBy.groupingKeys)
-    println(pf.outputs)
     CFunction(
       inputs = pf.inputs,
       outputs = ff.outputs,
