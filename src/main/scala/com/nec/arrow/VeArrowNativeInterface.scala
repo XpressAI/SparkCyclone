@@ -166,8 +166,12 @@ object VeArrowNativeInterface extends LazyLogging {
       try transferBack.foreach(_.apply())
       catch {
         case e: Throwable =>
-          val inputs = arguments.collect { case NativeArgument.VectorInputNativeArgument(wrapper) =>
-            wrapper
+          val inputs = arguments.collect {
+            case NativeArgument.VectorInputNativeArgument(
+                  wrapper: NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
+                ) =>
+              wrapper.valueVector.getValueCount
+            case other => other.getClass.toString
           }
 
           val types = arguments.zipWithIndex.map {
