@@ -28,7 +28,7 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
   private var initialized = false
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
-    identity //DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
 
   override protected def afterAll(): Unit = {
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
