@@ -28,6 +28,7 @@ object DynamicCSqlExpressionEvaluationSpec {
   val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
+      .config(org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, false)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => new VERewriteStrategy(CNativeEvaluator))
       )
@@ -63,6 +64,7 @@ class DynamicCSqlExpressionEvaluationSpec
         import sparkSession.implicits._
 
         sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
+          println(ds.queryExecution.executedPlan)
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }

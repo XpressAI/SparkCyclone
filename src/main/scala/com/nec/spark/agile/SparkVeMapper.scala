@@ -2,7 +2,30 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Contains, EndsWith, EqualTo, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, Sqrt, StartsWith}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  BinaryOperator,
+  CaseWhen,
+  Cast,
+  Coalesce,
+  Contains,
+  EndsWith,
+  EqualTo,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Not,
+  Sqrt,
+  StartsWith
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -177,6 +200,51 @@ object SparkVeMapper {
               s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])",
               s"""std::string("${right.toString()}")"""
             ).mkString(" == "),
+            isNotNullCode = None
+          )
+        }
+      case Contains(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val mainString =
+                s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])"
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${mainString}.find(${rightString}) != std::string::npos"
+            },
+            isNotNullCode = None
+          )
+        }
+      case EndsWith(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val leftStringLength =
+                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
+              val expectedLength = right.toString().length
+              val leftStringSubstring =
+                s"""std::string(${left.name}->data, ${left.name}->offsets[i+1]-${expectedLength}, ${expectedLength})"""
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            },
+            isNotNullCode = None
+          )
+        }
+      case StartsWith(left: AttributeReference, right: Literal)
+          if left.dataType == StringType && right.dataType == StringType =>
+        Right {
+          CExpression(
+            cCode = {
+              val leftStringLength =
+                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
+              val expectedLength = right.toString().length
+              val leftStringSubstring =
+                s"""std::string(${left.name}->data, ${left.name}->offsets[i], ${expectedLength})"""
+              val rightString = s"""std::string("${right.toString()}")"""
+              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            },
             isNotNullCode = None
           )
         }
@@ -471,6 +539,16 @@ object SparkVeMapper {
       case LongType    => VeScalarType.veNullableLong
       case ShortType   => VeScalarType.veNullableInt
       case BooleanType => VeScalarType.veNullableInt
+    }
+  }
+  def sparkTypeToVeType(dataType: DataType): VeType = {
+    dataType match {
+      case DoubleType  => VeScalarType.veNullableDouble
+      case IntegerType => VeScalarType.veNullableInt
+      case LongType    => VeScalarType.veNullableLong
+      case ShortType   => VeScalarType.veNullableInt
+      case BooleanType => VeScalarType.veNullableInt
+      case StringType  => VeString
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
