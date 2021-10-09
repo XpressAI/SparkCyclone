@@ -62,7 +62,8 @@ $ /opt/spark/bin/spark-submit \
 
 ## NCC arguments
 
-A good set of NCC defaults is set up, however if further overriding is needed, it can be done with the following Spark config:
+A good set of NCC defaults is set up, however if further overriding is needed, it can be done with the following Spark
+config:
 
 ```
 --conf spark.com.nec.spark.ncc.debug=true
@@ -82,11 +83,12 @@ To use the native CSV parser (default is 'off'):
 ```
 
 To skip using IPC for parsing CSV:
+
 ```
 --conf spark.com.nec.native-csv-ipc=false
 ```
 
-To use String allocation as opposed to ByteArray optimization in `NativeCsvExec`, use: 
+To use String allocation as opposed to ByteArray optimization in `NativeCsvExec`, use:
 
 ```
 --conf spark.com.nec.native-csv-skip-strings=false
@@ -117,6 +119,7 @@ A variety of options are available - not tested with YARN yet.
 ## Compilation lifecycle
 
 ### Use a precompiled directory
+
 ```
 --conf spark.com.nec.spark.kernel.precompiled=/path/to/precompiled/dir
 ```
@@ -131,11 +134,21 @@ If this is not specified, then a random temporary directory will be used (not re
 
 ## Batching
 
-This is to batch ColumnarBatch together, to allow for larger input sizes into the VE.
-This may however use more on-heap and off-heap memory.
+This is to batch ColumnarBatch together, to allow for larger input sizes into the VE. This may however use more on-heap
+and off-heap memory.
 
 ```
 --conf spark.com.nec.spark.batch-batches=3
 ```
 
 Default is 0, which is just to pass ColumnarBatch directly in.
+
+## Pre-shuffling/hashing
+
+This will try to pre-shuffle the data so that we only need to call the VE in one stage for aggregations. It might be
+more performant due to avoiding a coalesce/shuffle afterwards.
+
+```
+--conf com.nec.spark.preshuffle-partitions=8
+```
+
