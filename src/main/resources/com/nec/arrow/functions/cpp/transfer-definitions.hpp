@@ -89,10 +89,18 @@ typedef struct
     int32_t length;
 } non_null_c_bounded_string;
 
-inline void log(std::string msg) {
-    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+static std::string utcnanotime() {
+    auto now = std::chrono::system_clock::now();
+    auto seconds = std::chrono::system_clock::to_time_t(now);
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count() % 1000000000;
+    char utc[32];
+    strftime(utc, 32, "%FT%T", gmtime(&seconds));
+    snprintf(strchr(utc, 0), 32 - strlen(utc), ".%09ldZ", ns);
+    return utc;
+}
 
-    std::cout << std::ctime(&now) << msg.c_str() << std::endl;
+inline void log(std::string msg) {
+    std::cout << utcnanotime().c_str() << " " << msg.c_str() << std::endl;
 }
 
 inline void set_validity(uint64_t *validityBuffer, int32_t idx, int32_t validity) {
