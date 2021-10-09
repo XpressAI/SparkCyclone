@@ -294,27 +294,31 @@ final case class VERewriteStrategy(
             computeAggregate = computeAggregate
           )
 
-          List(
-            NativeAggregationEvaluationPlan(
-              outputExpressions = aggregateExpressions,
-              functionPrefix = fName,
-              evaluationMode =
-                if (options.preShufflePartitions.isDefined)
-                  EvaluationMode.PrePartitioned(fullFunction)
-                else EvaluationMode.TwoStaged(pf, ff),
-              child = options.preShufflePartitions
-                .map { n =>
-                  ShuffleExchangeExec(
-                    outputPartitioning =
-                      HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                    child = planLater(child),
-                    shuffleOrigin = REPARTITION
-                  )
-                }
-                .getOrElse { planLater(child) },
-              nativeEvaluator = nativeEvaluator
-            )
+          val evaluationPlan = NativeAggregationEvaluationPlan(
+            outputExpressions = aggregateExpressions,
+            functionPrefix = fName,
+            evaluationMode =
+              if (options.preShufflePartitions.isDefined)
+                EvaluationMode.PrePartitioned(fullFunction)
+              else EvaluationMode.TwoStaged(pf, ff),
+            child = options.preShufflePartitions
+              .map { n =>
+                ShuffleExchangeExec(
+                  outputPartitioning =
+                    HashPartitioning(expressions = groupingExpressions, numPartitions = n),
+                  child = planLater(child),
+                  shuffleOrigin = REPARTITION
+                )
+              }
+              .getOrElse {
+                planLater(child)
+              },
+            nativeEvaluator = nativeEvaluator
           )
+
+          logger.info(s"Plan is: ${evaluationPlan}")
+
+          List(evaluationPlan)
 
         case _ => Nil
       }
