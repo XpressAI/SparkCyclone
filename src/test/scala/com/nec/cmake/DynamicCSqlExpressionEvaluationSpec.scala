@@ -29,7 +29,9 @@ object DynamicCSqlExpressionEvaluationSpec {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession => new VERewriteStrategy(CNativeEvaluator))
+        sse.injectPlannerStrategy(sparkSession =>
+          new VERewriteStrategy(CNativeEvaluator(debug = false))
+        )
       )
   }
 
@@ -760,7 +762,10 @@ class DynamicCSqlExpressionEvaluationSpec
       "select b, sum(x), sum(y) from values (true, 10, 20), (false, 30, 12), (true, 0, 10) as tab(b, x, y) group by b"
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(Boolean, Double, Double)].collect().toList == List((false, 30, 12), (true, 10, 30))
+        ds.as[(Boolean, Double, Double)].collect().toList.sorted == List(
+          (false, 30, 12),
+          (true, 10, 30)
+        ).sorted
       )
     }
   }

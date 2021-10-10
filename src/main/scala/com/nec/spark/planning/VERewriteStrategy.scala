@@ -12,6 +12,8 @@ import com.nec.spark.agile.StagedGroupBy.{
   StringReference
 }
 import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper, StagedGroupBy}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
+import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -22,7 +24,9 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
 import org.apache.spark.sql.catalyst.expressions.{aggregate, Alias, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.types.StringType
 
 import scala.collection.immutable
@@ -31,10 +35,16 @@ import scala.util.Try
 object VERewriteStrategy {
   var _enabled: Boolean = true
   var failFast: Boolean = false
+  final case class VeRewriteStrategyOptions(preShufflePartitions: Option[Int])
+  object VeRewriteStrategyOptions {
+    val default: VeRewriteStrategyOptions = VeRewriteStrategyOptions(preShufflePartitions = Some(8))
+  }
 }
 
-final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
-  extends Strategy
+final case class VERewriteStrategy(
+  nativeEvaluator: NativeEvaluator,
+  options: VeRewriteStrategyOptions = VeRewriteStrategyOptions.default
+) extends Strategy
   with LazyLogging {
 
   import com.github.ghik.silencer.silent
@@ -277,17 +287,38 @@ final case class VERewriteStrategy(nativeEvaluator: NativeEvaluator)
           )
 
           val ff = stagedGroupBy.createFinal(computeAggregate)
-
-          List(
-            NativeAggregationEvaluationPlan(
-              outputExpressions = aggregateExpressions,
-              functionPrefix = fName,
-              partialFunction = pf,
-              finalFunction = ff,
-              child = planLater(child),
-              nativeEvaluator = nativeEvaluator
-            )
+          val fullFunction = stagedGroupBy.createFull(
+            inputs = inputsList,
+            computeGroupingKey = computeGroupingKey,
+            computeProjection = computeProjection,
+            computeAggregate = computeAggregate
           )
+
+          val evaluationPlan = NativeAggregationEvaluationPlan(
+            outputExpressions = aggregateExpressions,
+            functionPrefix = fName,
+            evaluationMode =
+              if (options.preShufflePartitions.isDefined)
+                EvaluationMode.PrePartitioned(fullFunction)
+              else EvaluationMode.TwoStaged(pf, ff),
+            child = options.preShufflePartitions
+              .map { n =>
+                ShuffleExchangeExec(
+                  outputPartitioning =
+                    HashPartitioning(expressions = groupingExpressions, numPartitions = n),
+                  child = planLater(child),
+                  shuffleOrigin = REPARTITION
+                )
+              }
+              .getOrElse {
+                planLater(child)
+              },
+            nativeEvaluator = nativeEvaluator
+          )
+
+          logger.info(s"Plan is: ${evaluationPlan}")
+
+          List(evaluationPlan)
 
         case _ => Nil
       }
