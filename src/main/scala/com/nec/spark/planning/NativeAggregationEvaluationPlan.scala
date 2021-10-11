@@ -5,6 +5,8 @@ import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkVeMapper}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.writeVector
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -16,7 +18,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartiti
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
 
 import scala.collection.JavaConverters.asJavaIterableConverter
@@ -26,8 +28,7 @@ import scala.language.dynamics
 final case class NativeAggregationEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
   functionPrefix: String,
-  partialFunction: CFunction,
-  finalFunction: CFunction,
+  evaluationMode: EvaluationMode,
   child: SparkPlan,
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
@@ -79,7 +80,8 @@ final case class NativeAggregationEvaluationPlan(
     root
   }
 
-  private def executeRowWise(): RDD[InternalRow] = {
+  private def executeRowWise(twoStaged: TwoStaged): RDD[InternalRow] = {
+    import twoStaged._
     val partialFunctionName = s"${functionPrefix}_partial"
     val finalFunctionName = s"${functionPrefix}_final"
 
@@ -217,13 +219,82 @@ final case class NativeAggregationEvaluationPlan(
 
       }
   }
+  private def executeOneGo(cFunction: CFunction): RDD[InternalRow] = {
+    val functionName = s"${functionPrefix}_full"
+
+    val evaluator = nativeEvaluator.forCode(
+      List(cFunction.toCodeLines(functionName)).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
+    )
+
+    logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
+
+    child
+      .execute()
+      .mapPartitions { rows =>
+        Iterator
+          .continually {
+            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+              .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+            val timeZoneId = conf.sessionLocalTimeZone
+            val root =
+              collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
+            val inputVectors = child.output.indices.map(root.getVector)
+            val outputVectors: List[FieldVector] =
+              cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+
+            try {
+
+              val outputArgs = inputVectors.toList.map(_ => None) ++
+                outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+              val inputArgs = inputVectors.toList.map(iv =>
+                Some(SupportedVectorWrapper.wrapInput(iv))
+              ) ++ outputVectors.map(_ => None)
+
+              evaluator.callFunction(
+                name = functionName,
+                inputArguments = inputArgs,
+                outputArguments = outputArgs
+              )
+
+              new ColumnarBatch(
+                outputVectors.map(valueVector => new ArrowColumnVector(valueVector)).toArray,
+                outputVectors.head.getValueCount
+              )
+              val cnt = outputVectors.head.getValueCount
+              logger.info(s"Got ${cnt} results back; ${outputVectors}")
+              (0 until cnt).iterator.map { v_idx =>
+                val writer = new UnsafeRowWriter(outputVectors.size)
+                writer.reset()
+                outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                  if (v_idx < v.getValueCount) writeVector(v_idx, writer, v, c_idx)
+                }
+                writer.getRow
+              }
+            } finally {
+              inputVectors.foreach(_.close())
+            }
+          }
+          .take(1)
+      }
+      .flatMap(identity)
+  }
 
   override protected def doExecute(): RDD[InternalRow] = {
-    executeRowWise()
+    evaluationMode match {
+      case ts @ TwoStaged(_, _)      => executeRowWise(ts)
+      case PrePartitioned(cFunction) => executeOneGo(cFunction)
+    }
   }
 }
 
 object NativeAggregationEvaluationPlan {
+
+  sealed trait EvaluationMode extends Serializable
+  object EvaluationMode {
+    final case class PrePartitioned(cFunction: CFunction) extends EvaluationMode
+    final case class TwoStaged(partialFunction: CFunction, finalFunction: CFunction)
+      extends EvaluationMode
+  }
 
   private def writeVector(v_idx: Int, writer: UnsafeRowWriter, v: FieldVector, c_idx: Int): Unit = {
     v match {
