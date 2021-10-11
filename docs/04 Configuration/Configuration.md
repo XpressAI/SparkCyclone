@@ -40,5 +40,6 @@ $SPARK_HOME/bin/spark-submit \
 | spark.com.nec.spark.kernel.precompiled               | Use a precompiled directory                                  | -                         |
 | spark.com.nec.spark.kernel.directory                 | If precompiled directory is not yet exist, then you can also specify a destination for on-demand compilation. If this is not specified, then a random temporary directory will be used (not removed, however). | random temporay directory |
 | spark.com.nec.spark.batch-batches                    | This is to batch ColumnarBatch together, to allow for larger input sizes into the VE. This may however use more on-heap and off-heap memory. | 0                         |
+| com.nec.spark.preshuffle-partitions                  | Avoids a coalesce into a single partition, trading it off for pre-sorting/pre-partitioning data by hashes of the group-by expressions | -                         |
 
 For `spark.com.nec.spark.ncc.extra-argument.[0-?]`. Please refer https://www.hpc.nec/documents/sdk/pdfs/g2af01e-C++UsersGuide-023.pdf
