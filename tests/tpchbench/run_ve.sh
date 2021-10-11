@@ -15,8 +15,10 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.com.nec.native-csv=false \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
-    --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/egonzalez \
+    --conf spark.com.nec.spark.kernel.precompiled=/opt/spark/work/egonzalez \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
-    --conf spark.sql.codegen.wholeStage=false \
+    --conf com.nec.spark.preshuffle-partitions=8 \
     target/scala-2.12/tpchbench_2.12-0.0.1.jar
+
+#    --conf spark.sql.codegen.wholeStage=false \
 
