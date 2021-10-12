@@ -30,42 +30,45 @@ object StringProducer {
       )
   }
 
-  final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
-    val tmpString = s"${outputName}_tmp";
+  final case class FilteringProducer(inputName: String, outputName: String, stringProducer: StringProducer) {
+    val tmpData = s"${outputName}_data";
     val tmpOffsets = s"${outputName}_tmp_offsets";
+    val tmpLengths = s"${outputName}_tmp_lengths";
     val tmpCurrentOffset = s"${outputName}_tmp_current_offset";
     val tmpCount = s"${outputName}_tmp_count";
     def setup: CodeLines =
       CodeLines.from(
         CodeLines.debugHere,
-        s"""std::string ${tmpString}("");""",
-        s"""std::vector<int32_t> ${tmpOffsets};""",
-        s"""int32_t ${tmpCurrentOffset} = 0;""",
-        s"int ${tmpCount} = 0;"
+        s"""std::vector<char *> ${tmpData}(${inputName}->size);""",
+        s"""std::vector<int32_t> ${tmpOffsets}(groups_count + 1);""",
+        s"""int32_t ${tmpCurrentOffset} = 0;"""
       )
 
     def forEach: CodeLines =
       CodeLines
         .from(
-          CodeLines.debugHere,
-          "int len = 0;",
-          stringProducer.produceTo(s"${tmpString}", "len"),
-          s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
+          //CodeLines.debugHere,
+          s"int32_t len = ${inputName}->offsets[i + 1] - ${inputName}->offsets[i];",
+          //stringProducer.produceTo(s"${tmpString}", "len"),
+          s"""for (int x = 0; x < len; x++) {""",
+          CodeLines.from(
+            s"""${tmpData}[x] = ${inputName}->data[${inputName}->offsets[i + x]];"""
+          ).indented,
+          s"""}""",
+          s"""${tmpOffsets}[i] = ${tmpCurrentOffset}""",
           s"""${tmpCurrentOffset} += len;""",
-          s"${tmpCount}++;"
         )
 
     def complete: CodeLines = CodeLines.from(
       CodeLines.debugHere,
-      s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
-      s"""${outputName}->count = ${tmpCount};""",
+      s"""${tmpOffsets}[groups_count] = ${tmpCurrentOffset};""",
+      s"""${outputName}->count = groups_count;""",
       s"""${outputName}->size = ${tmpCurrentOffset};""",
-      s"""${outputName}->data = (char*)malloc(${outputName}->size);""",
-      s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->size);""",
+      s"""${outputName}->data = (char*)malloc(${outputName}->size * sizeof(char));""",
       s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
-      s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
       s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(${outputName}->count / 64.0) * sizeof(uint64_t));",
-      CodeLines.debugHere
+      s"""memcpy(${outputName}->data, ${tmpData}.data(), ${outputName}->size);""",
+      s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
     )
 
     def validityForEach(idx: String): CodeLines =
@@ -77,7 +80,7 @@ object StringProducer {
     outputName: String,
     stringProducer: StringProducer
   ): CodeLines = {
-    val fp = FilteringProducer(outputName, stringProducer)
+    val fp = FilteringProducer("sdf", outputName, stringProducer)
     CodeLines.from(
       fp.setup,
       s"""for ( int32_t i = 0; i < ${count}; i++ ) {""",

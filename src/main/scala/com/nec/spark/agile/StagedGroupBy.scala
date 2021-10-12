@@ -150,7 +150,7 @@ final case class StagedGroupBy(
         case sp @ StagedProjection(name, VeString) =>
           compute(sp) match {
             case Some(Left(StringReference(sourceName))) =>
-              val fp = FilteringProducer(s"partial_str_${name}", CopyStringProducer(sourceName))
+              val fp = FilteringProducer(sourceName, s"partial_str_${name}", CopyStringProducer(sourceName))
               CodeLines.from(
                 CodeLines.debugHere,
                 fp.setup,
@@ -246,7 +246,7 @@ final case class StagedGroupBy(
 
   def performGroupingOnKeys: CodeLines =
     CodeLines.from(
-      CodeLines.debugHere("partial_str_group_0->count"),
+      CodeLines.debugHere("partial_group_0->count"),
       gcg.identifyGroups(
         tupleTypes = tupleTypes,
         tupleType = tupleType,
@@ -301,7 +301,7 @@ final case class StagedGroupBy(
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map {
       case StagedProjection(name, VeString) =>
-        val fp = FilteringProducer(name, CopyStringProducer(s"partial_str_${name}"))
+        val fp = FilteringProducer(s"partial_str_${name}", name, CopyStringProducer(s"partial_str_${name}"))
         CodeLines.from(
           CodeLines.debugHere,
           fp.setup,
@@ -347,6 +347,7 @@ final case class StagedGroupBy(
         case VeString =>
           val fp =
             FilteringProducer(
+              groupingKey.name,
               s"partial_str_${groupingKey.name}",
               CopyStringProducer(groupingKey.name)
             )
@@ -360,7 +361,7 @@ final case class StagedGroupBy(
           storeTo(s"partial_${groupingKey.name}", cExp, "g")
         case Some(Left(StringReference(name))) =>
           val fp =
-            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+            FilteringProducer(name, s"partial_str_${groupingKey.name}", CopyStringProducer(name))
 
           CodeLines.from(fp.forEach)
         case other =>
@@ -372,7 +373,7 @@ final case class StagedGroupBy(
       CodeLines.from(compute(groupingKey) match {
         case Some(Left(StringReference(name))) =>
           val fp =
-            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+            FilteringProducer(name, s"partial_str_${groupingKey.name}", CopyStringProducer(name))
 
           CodeLines.from(fp.complete, gcg.forHeadOfEachGroup(fp.validityForEach("g")))
         case _ => CodeLines.empty
