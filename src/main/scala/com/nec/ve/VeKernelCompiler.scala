@@ -9,6 +9,8 @@ import com.typesafe.scalalogging.LazyLogging
 import java.nio.file._
 import org.apache.spark.SparkConf
 
+import java.io.PrintWriter
+
 object VeKernelCompiler {
 
   lazy val DefaultIncludes = {
@@ -19,7 +21,7 @@ object VeKernelCompiler {
   final case class VeCompilerConfig(
     nccPath: String = "ncc",
     optimizationLevel: Int = 4,
-    doDebug: Boolean = false,
+    doDebug: Boolean = true,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
@@ -27,6 +29,7 @@ object VeKernelCompiler {
       // Optimizations used in frovedis: -fno-defer-inline-template-instantiation -finline-functions -finline-max-depth = 10 -msched-block
       val ret = List(
         s"-O$optimizationLevel",
+        "-g",
         "-fpic",
         "-fno-defer-inline-template-instantiation",
         "-finline-functions",
@@ -127,7 +130,16 @@ final case class VeKernelCompiler(
     val proc = process.run(io)
     val ev = proc.exitValue()
     if (config.doDebug) {
-      logger.debug(s"NCC output: \n${res}; \n${resErr}")
+      new PrintWriter(buildDir.toString +  "/ncc.log") {
+        write(res);
+        close()
+      }
+      new PrintWriter(buildDir.toString + "/ncc.err") {
+        write(resErr)
+        close()
+      }
+
+      println(s"NCC output: \n${res}; \n${resErr}")
     }
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }

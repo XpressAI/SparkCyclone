@@ -39,7 +39,7 @@ object StringProducer {
     def setup: CodeLines =
       CodeLines.from(
         CodeLines.debugHere,
-        s"""std::vector<char *> ${tmpData}(${inputName}->size);""",
+        s"""std::vector<char> ${tmpData};""",
         s"""std::vector<int32_t> ${tmpOffsets}(groups_count + 1);""",
         s"""int32_t ${tmpCurrentOffset} = 0;"""
       )
@@ -47,15 +47,15 @@ object StringProducer {
     def forEach: CodeLines =
       CodeLines
         .from(
-          //CodeLines.debugHere,
+          CodeLines.debugHere,
           s"int32_t len = ${inputName}->offsets[i + 1] - ${inputName}->offsets[i];",
           //stringProducer.produceTo(s"${tmpString}", "len"),
           s"""for (int x = 0; x < len; x++) {""",
           CodeLines.from(
-            s"""${tmpData}[x] = ${inputName}->data[${inputName}->offsets[i + x]];"""
+            s"""${tmpData}.push_back(${inputName}->data[${inputName}->offsets[i + x]]);"""
           ).indented,
           s"""}""",
-          s"""${tmpOffsets}[i] = ${tmpCurrentOffset}""",
+          s"""${tmpOffsets}[i] = ${tmpCurrentOffset};""",
           s"""${tmpCurrentOffset} += len;""",
         )
 
