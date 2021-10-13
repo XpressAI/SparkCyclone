@@ -7,7 +7,7 @@ import org.scalatest.freespec.AnyFreeSpec
 final class IncludeUDPDebugSpec extends AnyFreeSpec {
   "It works" in {
     if (!scala.util.Properties.isWin) {
-      val debugger = UdpDebug.Always("sock", "dest", "127.0.0.1", "12345")
+      val debugger = UdpDebug.Always("sock", "dest", "\"127.0.0.1\"", "12345")
       val code = CodeLines.from(
         debugger.headers,
         s"void debugIt() {",

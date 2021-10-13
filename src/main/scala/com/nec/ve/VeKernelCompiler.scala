@@ -57,7 +57,7 @@ object VeKernelCompiler {
           maybeProfileTarget.toList.flatMap(tgt =>
             List(
               "-D",
-              s"${UdpDebug.default.hostName}=${tgt.host}",
+              s"""${UdpDebug.default.hostName}="${tgt.host}"""",
               "-D",
               s"${UdpDebug.default.port}=${tgt.port}"
             )
