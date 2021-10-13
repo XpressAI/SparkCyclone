@@ -42,9 +42,10 @@ object UdpDebug {
     override def createSock: CodeLines = CodeLines.from(
       s"int ${sockName} = ::socket(AF_INET, SOCK_DGRAM, 0);",
       s"sockaddr_in ${destinationName};",
-      s"${destinationName}.sin_family = AF_INET;",
+      "#define str(s) #s",
+    s"${destinationName}.sin_family = AF_INET;",
       s"${destinationName}.sin_port = htons(${port});",
-      s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string(${hostName}).c_str());"""
+      s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string(str(${hostName})).c_str());"""
     )
 
     override def close: CodeLines = CodeLines.from(s"::close(${sockName});")
