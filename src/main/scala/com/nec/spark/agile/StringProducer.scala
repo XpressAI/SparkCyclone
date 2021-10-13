@@ -36,43 +36,40 @@ object StringProducer {
     val tmpLengths = s"${outputName}_tmp_lengths";
     val tmpCurrentOffset = s"${outputName}_tmp_current_offset";
     val tmpCount = s"${outputName}_tmp_count";
-    def setup: CodeLines =
+    val tmpDataInit = stringProducer match {
+      case CopyStringProducer(producerInput) =>
+        s"""${producerInput}"""
+      case _ =>
+        s"""${inputName}"""
+    }
+
+    def setup: CodeLines = {
       CodeLines.from(
         CodeLines.debugHere,
-        s"""std::vector<char> ${tmpData};""",
-        s"""std::vector<int32_t> ${tmpOffsets}(groups_count + 1);""",
-        s"""int32_t ${tmpCurrentOffset} = 0;"""
+        s"""frovedis::words ${tmpData} = varchar_vector_to_words(${tmpDataInit});""",
+        s"""std::vector<size_t> ${tmpData}_new_starts(${tmpData}.starts.size());""",
+        s"""std::vector<size_t> ${tmpData}_new_lens(${tmpData}.lens.size());"""
       )
+    }
 
     def forEach: CodeLines =
-      CodeLines
-        .from(
-          CodeLines.debugHere,
-          s"int32_t len = ${inputName}->offsets[i + 1] - ${inputName}->offsets[i];",
-          //stringProducer.produceTo(s"${tmpString}", "len"),
-          s"""for (int x = 0; x < len; x++) {""",
-          CodeLines.from(
-            s"""${tmpData}.push_back(${inputName}->data[${inputName}->offsets[i + x]]);"""
-          ).indented,
-          s"""}""",
-          s"""${tmpOffsets}[i] = ${tmpCurrentOffset};""",
-          s"""${tmpCurrentOffset} += len;""",
-        )
+      CodeLines.from(
+        s"""${tmpData}_new_starts[g] = ${tmpData}.starts[i];""",
+        s"""${tmpData}_new_lens[g] = ${tmpData}.lens[i];"""
+      )
 
     def complete: CodeLines = CodeLines.from(
       CodeLines.debugHere,
-      s"""${tmpOffsets}[groups_count] = ${tmpCurrentOffset};""",
-      s"""${outputName}->count = groups_count;""",
-      s"""${outputName}->size = ${tmpCurrentOffset};""",
-      s"""${outputName}->data = (char*)malloc(${outputName}->size * sizeof(char));""",
-      s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
-      s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(${outputName}->count / 64.0) * sizeof(uint64_t));",
-      s"""memcpy(${outputName}->data, ${tmpData}.data(), ${outputName}->size);""",
-      s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
+      s"""std::vector<size_t> ${tmpData}_unused;""",
+      s"""std::vector<int> ${tmpData}_new_chars = frovedis::concat_words(${tmpData}.chars, ${tmpData}_new_starts, ${tmpData}_new_lens, "", ${tmpData}_unused);""",
+      s"""${tmpData}.chars = ${tmpData}_new_chars;""",
+      s"""${tmpData}.starts = ${tmpData}_new_starts;""",
+      s"""${tmpData}.lens = ${tmpData}_new_lens;""",
+      s"""words_to_varchar_vector(${tmpData}, ${outputName});""",
     )
 
     def validityForEach(idx: String): CodeLines =
-      CodeLines.from(s"set_validity(${outputName}->validityBuffer, ${idx}, 1);")
+      CodeLines.from(s"//set_validity(${outputName}->validityBuffer, ${idx}, 1);")
   }
 
   def produceVarChar(

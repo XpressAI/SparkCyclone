@@ -21,7 +21,7 @@ object VeKernelCompiler {
   final case class VeCompilerConfig(
     nccPath: String = "ncc",
     optimizationLevel: Int = 4,
-    doDebug: Boolean = true,
+    doDebug: Boolean = false,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
@@ -138,9 +138,9 @@ final case class VeKernelCompiler(
         write(resErr)
         close()
       }
-
-      println(s"NCC output: \n${res}; \n${resErr}")
     }
+    println(s"NCC output: \n${res}; \n${resErr}")
+
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }
 

@@ -8,6 +8,9 @@
 #include <vector>
 #include <chrono>
 #include <ctime>
+#include "words.hpp"
+#include "char_int_conv.hpp"
+#include "char_int_conv.cc"
 
 #ifndef VE_TD_DEFS
 typedef struct
@@ -120,6 +123,53 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
     uint64_t res = (validityBuffer[byte] >> bitIndex) & 1;
 
     return res;
+}
+
+frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, const int32_t size, const int32_t count) {
+    frovedis::words ret;
+    if (count == 0 || size == 0) {
+        return ret;
+    }
+
+    ret.lens.resize(count);
+    for (int i = 0; i < count; i++) {
+        ret.lens[i] = offsets[i + 1] - offsets[i];
+    }
+
+    ret.starts.resize(count);
+    for (int i = 0; i < count; i++) {
+        ret.starts[i] = offsets[i];
+    }
+
+    ret.chars.resize(size);
+    frovedis::char_to_int(data, size, ret.chars.data());
+
+    return ret;
+}
+
+frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v) {
+    return data_offsets_to_words(v->data, v->offsets, v->size, v->count);
+}
+
+frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
+    return data_offsets_to_words(v->data, v->offsets, v->size, v->count);
+}
+
+void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
+    in.starts.push_back(in.chars.size());
+    out->count = in.lens.size();
+    out->size = in.chars.size();
+    out->offsets = (int32_t *)malloc(in.starts.size() * sizeof(int32_t));
+    for (int i = 0; i < in.starts.size(); i++) {
+        out->offsets[i] = in.starts[i];
+    }
+    out->data = (char *)malloc(out->size * sizeof(char));
+    frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
+    size_t validity_count = ceil(out->count / 64.0);
+    out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
+    for (int i = 0; i < validity_count; i++) {
+        out->validityBuffer[i] = 0xffffffffffffffff;
+    }
 }
 
 #define VE_TD_DEFS 1
