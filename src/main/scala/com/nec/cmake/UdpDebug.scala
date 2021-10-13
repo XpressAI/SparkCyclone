@@ -44,7 +44,7 @@ object UdpDebug {
       s"sockaddr_in ${destinationName};",
       s"${destinationName}.sin_family = AF_INET;",
       s"${destinationName}.sin_port = htons(${port});",
-      s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string("${hostName}").c_str());"""
+      s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string(${hostName}).c_str());"""
     )
 
     override def close: CodeLines = CodeLines.from(s"::close(${sockName});")
