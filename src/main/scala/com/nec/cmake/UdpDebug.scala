@@ -8,6 +8,7 @@ object UdpDebug {
     override def headers: CodeLines = CodeLines.from(
       "#include <iostream>",
       "#include <string>",
+      "#include <sstream>",
       "#include <arpa/inet.h> // htons, inet_addr",
       "#include <netinet/in.h> // sockaddr_in",
       "#include <sys/types.h> // uint16_t",
@@ -27,9 +28,9 @@ object UdpDebug {
 
     override def send(what: String*): CodeLines = CodeLines
       .from(
-        "ostringstream s;",
-        "s " + what.map(s => s"<< $s ") + ";",
-        s"::sendto(${sockName}, s.str().c_str(), s.length(), 0, reinterpret_cast<sockaddr*>(&${destinationName}), sizeof(${destinationName}));"
+        "std::ostringstream s;",
+        "s " + what.map(s => s"<< $s ").mkString + ";",
+        s"::sendto(${sockName}, s.str().c_str(), s.str().length(), 0, reinterpret_cast<sockaddr*>(&${destinationName}), sizeof(${destinationName}));"
       )
       .blockCommented("Send via UDP")
   }
