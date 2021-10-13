@@ -16,7 +16,7 @@ It seems that just as RAPIDS we need to implement custom profiling tool to allow
 The idea is to simplify the VE side as much as possible. To achieve that, from VE side we are going to publish messages only to UDP port. Those messages will then be received, aggregated and published on JVM side.
 
 To reduce the work needed and maximize the usability the idea is to use common format for messages known from `Zipkin` and
-described [here].
+described [here](https://zipkin.io/zipkin-api/).
 
 
 For Scala side we should be able to incorporate `Zipkin` library for publishing of messages.
