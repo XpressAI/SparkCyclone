@@ -1,23 +1,10 @@
 package com.nec.spark.agile
 
+import com.nec.cmake
+import com.nec.cmake.UdpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  Aggregation,
-  CExpression,
-  CFunction,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
-import com.nec.spark.agile.StagedGroupBy.{
-  storeTo,
-  GroupingCodeGenerator,
-  GroupingKey,
-  StagedAggregation,
-  StagedProjection,
-  StringReference
-}
+import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression, CFunction, CVector, VeScalarType, VeString, VeType}
+import com.nec.spark.agile.StagedGroupBy.{GroupingCodeGenerator, GroupingKey, StagedAggregation, StagedProjection, StringReference, storeTo}
 import com.nec.spark.agile.StringProducer.{CopyStringProducer, FilteringProducer}
 
 final case class StagedGroupBy(
@@ -192,10 +179,12 @@ final case class StagedGroupBy(
       outputs = partialOutputs,
       body = {
         CodeLines.from(
+          UdpDebug.conditional.createSock,
           performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
           computeGroupingKeysPerGroup(computeGroupingKey),
           computeProjectionsPerGroup(computeProjection),
-          computeAggregatePartialsPerGroup(computeAggregate)
+          computeAggregatePartialsPerGroup(computeAggregate),
+          UdpDebug.conditional.close
         )
       }
     )
@@ -206,10 +195,12 @@ final case class StagedGroupBy(
       outputs = outputs,
       body = {
         CodeLines.from(
+          UdpDebug.conditional.createSock,
 //          debugPartialOutputs,
           performGroupingOnKeys,
           mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
-          passProjectionsPerGroup
+          passProjectionsPerGroup,
+          UdpDebug.conditional.close
 //          debugOutputs
         )
       }
@@ -246,7 +237,6 @@ final case class StagedGroupBy(
 
   def performGroupingOnKeys: CodeLines =
     CodeLines.from(
-      CodeLines.debugHere("partial_str_group_0->count"),
       gcg.identifyGroups(
         tupleTypes = tupleTypes,
         tupleType = tupleType,

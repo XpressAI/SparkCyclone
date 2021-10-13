@@ -4,7 +4,30 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 
 object UdpDebug {
 
-  final case class Always(sockName: String, destinationName: String, hostName: String, port: String) extends UdpDebug {
+  def conditional: UdpDebug = Conditional(default)
+
+  private def conditionOn(define: String)(code: CodeLines): CodeLines =
+    CodeLines.from(s"#ifdef ${define}", code, "#endif")
+
+  final case class Conditional(underlying: Always) extends UdpDebug {
+
+    override def headers: CodeLines =
+      conditionOn(underlying.hostName)(underlying.headers)
+
+    override def createSock: CodeLines =
+      conditionOn(underlying.hostName)(underlying.createSock)
+
+    override def close: CodeLines =
+      conditionOn(underlying.hostName)(underlying.close)
+
+    override def send(what: String*): CodeLines =
+      conditionOn(underlying.hostName)(underlying.send(what: _*))
+  }
+
+  def default: Always = Always("profile_sock", "profile_sock_dest", "PROFILE_HOST", "PROFILE_PORT")
+
+  final case class Always(sockName: String, destinationName: String, hostName: String, port: String)
+    extends UdpDebug {
     override def headers: CodeLines = CodeLines.from(
       "#include <iostream>",
       "#include <string>",
