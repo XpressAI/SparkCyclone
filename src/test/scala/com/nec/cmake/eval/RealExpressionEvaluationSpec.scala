@@ -218,8 +218,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
 
-    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0))
-    assert(result == expected)
+    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0)).sorted
+    assert(result.asInstanceOf[List[(String, Double)]].sorted == expected)
   }
 
   "We can aggregate / group by with NULL input check values" in {

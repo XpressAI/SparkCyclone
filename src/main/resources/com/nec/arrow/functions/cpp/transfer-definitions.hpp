@@ -125,6 +125,54 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
 
     return res;
 }
+frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, const int32_t size, const int32_t count) {
+    frovedis::words ret;
+    if (count == 0 || size == 0) {
+        return ret;
+    }
+
+    #ifdef DEBUG
+        std::cout << "count: " << count << std::endl;
+    #endif
+
+    ret.lens.resize(count);
+    for (int i = 0; i < count; i++) {
+        ret.lens[i] = offsets[i + 1] - offsets[i];
+    }
+
+    ret.starts.resize(count);
+    for (int i = 0; i < count; i++) {
+        ret.starts[i] = offsets[i];
+    }
+
+    #ifdef DEBUG
+        std::cout << "size: " << size << std::endl;
+    #endif
+
+    if (size == 32) {
+        size_t chars_size = ret.starts[count - 1] + ret.lens[count - 1];
+
+        #ifdef DEBUG
+            std::cout << "using new size: " << chars_size << std::endl;
+        #endif
+
+        ret.chars.resize(chars_size);
+        frovedis::char_to_int(data, chars_size, ret.chars.data());
+    } else {
+        ret.chars.resize(size);
+        frovedis::char_to_int(data, size, ret.chars.data());
+    }
+
+    return ret;
+}
+
+frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v) {
+    return data_offsets_to_words(v->data, v->offsets, v->size, v->count);
+}
+
+frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
+    return data_offsets_to_words(v->data, v->offsets, v->size, v->count);
+}
 
 void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
     #ifdef DEBUG

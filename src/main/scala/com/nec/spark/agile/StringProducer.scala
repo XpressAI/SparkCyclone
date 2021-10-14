@@ -12,14 +12,45 @@ object StringProducer {
   }
 
   trait FrovedisStringProducer extends StringProducer {
-    def produceTo(stringVectorName: String): CodeLines
+    def init(outputName: String): CodeLines
+    def produce(outputName: String): CodeLines
+    def complete(outputName: String): CodeLines
   }
 
   def copyString(inputName: String): StringProducer = CopyStringProducer(inputName)
 
   final case class CopyStringProducer(inputName: String) extends FrovedisStringProducer {
-    def produceTo(stringVectorName: String): CodeLines = CodeLines.from(
-      s"${stringVectorName}.push_back(std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]));"
+
+    def frovedisStarts(outputName: String) = s"${outputName}_starts"
+
+    def frovedisLens(outputName: String) = s"${outputName}_lens"
+
+    def wordName(outputName: String) = s"${outputName}_words"
+    def newChars(outputName: String) = s"${outputName}_new_chars"
+    def newStarts(outputName: String) = s"${outputName}_new_starts"
+
+    def produce(outputName: String): CodeLines =
+      CodeLines.from(
+        s"${frovedisStarts(outputName)}[g] = ${wordName(outputName)}.starts[i];",
+        s"${frovedisLens(outputName)}[g] = ${wordName(outputName)}.lens[i];"
+      )
+
+    override def init(outputName: String): CodeLines =
+      CodeLines.from(
+        s"frovedis::words ${wordName(outputName)} = varchar_vector_to_words(${inputName});",
+        s"""std::vector<size_t> ${frovedisStarts(outputName)}(groups_count);""",
+        s"""std::vector<size_t> ${frovedisLens(outputName)}(groups_count);"""
+      )
+
+    override def complete(outputName: String): CodeLines = CodeLines.from(
+      s"""std::vector<size_t> ${newStarts(outputName)};""",
+      s"""std::vector<int> ${newChars(outputName)} = concat_words(${wordName(
+        outputName
+      )}, "", ${newStarts(outputName)});""",
+      s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
+      s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
+      s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
+      s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
     )
   }
 
@@ -40,7 +71,6 @@ object StringProducer {
     val tmpCurrentOffset = s"${outputName}_tmp_current_offset";
     val tmpCount = s"${outputName}_tmp_count";
 
-    val frovedisTmpVector = s"${outputName}_tmp_vector"
     def setup: CodeLines =
       stringProducer match {
         case _: ImperativeStringProducer =>
@@ -51,11 +81,8 @@ object StringProducer {
             s"""int32_t ${tmpCurrentOffset} = 0;""",
             s"int ${tmpCount} = 0;"
           )
-        case _: FrovedisStringProducer =>
-          CodeLines.from(
-            CodeLines.debugHere,
-            s"""std::vector<std::string> ${frovedisTmpVector}(0);"""
-          )
+        case f: FrovedisStringProducer =>
+          CodeLines.from(CodeLines.debugHere, f.init(outputName))
       }
 
     def forEach: CodeLines = {
@@ -72,7 +99,7 @@ object StringProducer {
             )
         case frovedisStringProducer: FrovedisStringProducer =>
           CodeLines
-            .from(CodeLines.debugHere, frovedisStringProducer.produceTo(frovedisTmpVector))
+            .from(CodeLines.debugHere, frovedisStringProducer.produce(outputName))
       }
     }
 
@@ -92,15 +119,12 @@ object StringProducer {
             CodeLines.debugHere
           )
 
-        case _: FrovedisStringProducer =>
-          CodeLines.from(
-            CodeLines.debugHere,
-            s"words_to_varchar_vector(frovedis::vector_string_to_words(${frovedisTmpVector}), ${outputName});",
-          )
+        case f: FrovedisStringProducer =>
+          CodeLines.from(CodeLines.debugHere, f.complete(outputName))
       }
 
     def validityForEach(idx: String): CodeLines =
-      CodeLines.from(s"set_validity(${outputName}->validityBuffer, ${idx}, 1);")
+      CodeLines.from(s"set_validity($outputName->validityBuffer, $idx, 1);")
   }
 
   def produceVarChar(
@@ -111,11 +135,11 @@ object StringProducer {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
-      s"""for ( int32_t i = 0; i < ${count}; i++ ) {""",
+      s"""for ( int32_t i = 0; i < $count; i++ ) {""",
       fp.forEach.indented,
       "}",
       fp.complete,
-      s"for( int32_t i = 0; i < ${count}; i++ ) {",
+      s"for( int32_t i = 0; i < $count; i++ ) {",
       CodeLines.from(fp.validityForEach("i")).indented,
       "}"
     )
