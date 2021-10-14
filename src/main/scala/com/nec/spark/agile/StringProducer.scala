@@ -17,10 +17,30 @@ object StringProducer {
     def complete(outputName: String): CodeLines
   }
 
-  def copyString(inputName: String): StringProducer = CopyStringProducer(inputName)
+  def copyString(inputName: String): StringProducer = FrovedisCopyStringProducer(inputName)
 
-  final case class CopyStringProducer(inputName: String) extends FrovedisStringProducer {
+//  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
 
+  private final case class ImpCopyStringProducer(inputName: String)
+    extends ImperativeStringProducer
+    with CopyStringProducer {
+
+    override def produceTo(tsn: String, iln: String): CodeLines = {
+      CodeLines.from(
+        s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+        s"${tsn}.append(sub_str);",
+        s"${iln} += sub_str.size();"
+      )
+    }
+  }
+
+  sealed trait CopyStringProducer {
+    def inputName: String
+  }
+
+  private final case class FrovedisCopyStringProducer(inputName: String)
+    extends FrovedisStringProducer
+    with CopyStringProducer {
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
 
     def frovedisLens(outputName: String) = s"${outputName}_lens"

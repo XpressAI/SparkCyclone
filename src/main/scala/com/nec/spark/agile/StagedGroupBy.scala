@@ -1,26 +1,10 @@
 package com.nec.spark.agile
 
-import com.nec.cmake
 import com.nec.cmake.UdpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  Aggregation,
-  CExpression,
-  CFunction,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
-import com.nec.spark.agile.StagedGroupBy.{
-  storeTo,
-  GroupingCodeGenerator,
-  GroupingKey,
-  StagedAggregation,
-  StagedProjection,
-  StringReference
-}
-import com.nec.spark.agile.StringProducer.{CopyStringProducer, FilteringProducer}
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.StagedGroupBy._
+import com.nec.spark.agile.StringProducer.FilteringProducer
 
 final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
@@ -152,7 +136,8 @@ final case class StagedGroupBy(
         case sp @ StagedProjection(name, VeString) =>
           compute(sp) match {
             case Some(Left(StringReference(sourceName))) =>
-              val fp = FilteringProducer(s"partial_str_${name}", CopyStringProducer(sourceName))
+              val fp =
+                FilteringProducer(s"partial_str_${name}", StringProducer.copyString(sourceName))
               CodeLines.from(
                 CodeLines.debugHere,
                 fp.setup,
@@ -306,7 +291,7 @@ final case class StagedGroupBy(
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map {
       case StagedProjection(name, VeString) =>
-        val fp = FilteringProducer(name, CopyStringProducer(s"partial_str_${name}"))
+        val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
         CodeLines
           .from(
             CodeLines.debugHere,
@@ -352,12 +337,17 @@ final case class StagedGroupBy(
             countExpression = gcg.groupsCountOutName
           )
         case VeString =>
-          val fp =
-            FilteringProducer(
-              s"partial_str_${groupingKey.name}",
-              CopyStringProducer(groupingKey.name)
-            )
-          fp.setup
+          compute(groupingKey) match {
+            case Some(Left(StringReference(sr))) =>
+              val fp =
+                FilteringProducer(
+                  s"partial_str_${groupingKey.name}",
+                  StringProducer.copyString(sr)
+                )
+              fp.setup
+            case other =>
+              sys.error(s"Unsupported right now: ${other} (from ${groupingKey})")
+          }
       }
     ),
     CodeLines.debugHere,
@@ -367,7 +357,7 @@ final case class StagedGroupBy(
           storeTo(s"partial_${groupingKey.name}", cExp, "g")
         case Some(Left(StringReference(name))) =>
           val fp =
-            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+            FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(name))
 
           CodeLines.from(fp.forEach)
         case other =>
@@ -379,7 +369,7 @@ final case class StagedGroupBy(
       CodeLines.from(compute(groupingKey) match {
         case Some(Left(StringReference(name))) =>
           val fp =
-            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+            FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(name))
 
           CodeLines.from(fp.complete, gcg.forHeadOfEachGroup(fp.validityForEach("g")))
         case _ => CodeLines.empty
@@ -410,7 +400,7 @@ object StagedGroupBy {
 
   def debugVector(name: String): CodeLines = {
     CodeLines.from(
-      s"for (int i = 0; i < ${name}->count; i++) {",
+      s"for (int i = 0; i < $name->count; i++) {",
       CodeLines.from(
         s"""std::cout << "${name}[" << i << "] = " << ${name}->data[i] << " (valid? " << check_valid(${name}->validityBuffer, i) << ")" << std::endl << std::flush; """
       ),
