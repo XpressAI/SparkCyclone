@@ -743,8 +743,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n")
+      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n"),
+      debug = true
     )
 
     val nativeInterface = new CArrowNativeInterface(cLib.toString)

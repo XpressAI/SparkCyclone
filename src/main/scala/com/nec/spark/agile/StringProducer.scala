@@ -19,7 +19,8 @@ object StringProducer {
 
   final case class CopyStringProducer(inputName: String) extends FrovedisStringProducer {
     def produceTo(stringVectorName: String): CodeLines = CodeLines.from(
-      s"${stringVectorName}.push_back(std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]));"
+      s"${stringVectorName}.push_back(std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]));",
+      s"""std::cout << std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]) << std::endl << std::flush;"""
     )
   }
 
@@ -43,7 +44,7 @@ object StringProducer {
     val frovedisTmpVector = s"${outputName}_tmp_vector"
     def setup: CodeLines =
       stringProducer match {
-        case imperative: ImperativeStringProducer =>
+        case _: ImperativeStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
             s"""std::string ${tmpString}("");""",
@@ -51,10 +52,10 @@ object StringProducer {
             s"""int32_t ${tmpCurrentOffset} = 0;""",
             s"int ${tmpCount} = 0;"
           )
-        case frovedisStringProducer: FrovedisStringProducer =>
+        case _: FrovedisStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
-            s"""const std::vector<std::string> ${frovedisTmpVector}(0);"""
+            s"""std::vector<std::string> ${frovedisTmpVector}(0);"""
           )
       }
 
@@ -78,7 +79,7 @@ object StringProducer {
 
     def complete: CodeLines =
       stringProducer match {
-        case imperative: ImperativeStringProducer =>
+        case _: ImperativeStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
             s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
@@ -95,7 +96,8 @@ object StringProducer {
         case frovedisStringProducer: FrovedisStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
-            s"words_to_varchar_vector(frovedis::vector_string_to_words(&${frovedisTmpVector}), ${outputName});"
+            s"words_to_varchar_vector(frovedis::vector_string_to_words(${frovedisTmpVector}), ${outputName});",
+            s"frovedis::vector_string_to_words(${frovedisTmpVector}).print();"
           )
       }
 

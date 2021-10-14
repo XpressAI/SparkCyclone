@@ -140,11 +140,14 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->size " << out->size << std::endl << std::flush;
     #endif
 
-    out->offsets = (int32_t *)malloc((in.starts.size()) * sizeof(int32_t));
+    out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
     for (int i = 0; i < in.starts.size(); i++) {
+        std::cout << utcnanotime().c_str() << " $$ " << "here crash " << i << " " << in.starts.size() << std::endl << std::flush;
         out->offsets[i] = in.starts[i];
     }
-    out->offsets[in.starts.size()] = in.lens[in.lens.size()];
+    std::cout << utcnanotime().c_str() << " $$ " << "here crash!!! " << " " << in.starts.size() << std::endl << std::flush;
+
+    out->offsets[in.starts.size()] = in.chars.size();
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
     #endif
@@ -161,6 +164,26 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     for (int i = 0; i < validity_count; i++) {
         out->validityBuffer[i] = 0xffffffffffffffff;
     }
+}
+
+void debug_words(frovedis::words &in) {
+    std::cout << "words char count: " << in.chars.size() << std::endl;
+    std::cout << "words starts count: " << in.starts.size() << std::endl;
+    std::cout << "words lens count: " << in.lens.size() << std::endl;
+    std::cout << "First word starts at: " << in.starts[0] << " length: " << in.lens[0] << " '";
+
+    size_t start = in.starts[0];
+    for (int i = 0; i < std::min((long)in.lens[0], 64L); i++) {
+        std::cout << (char)in.chars[start + i];
+    }
+    std::cout << "'" << std::endl;
+
+    std::cout << "Last word " << in.starts.size() - 1 << " starts at: " << in.starts[in.starts.size() -1] << " length[" << in.lens.size() - 1 << "]: " << in.lens[in.lens.size() - 1] << " '";
+    start = in.starts[in.starts.size() - 1];
+    for (int i = 0; i < std::min((long)in.lens[in.lens.size() - 1], 64L); i++) {
+        std::cout << (char)in.chars[start + i];
+    }
+    std::cout << "'" << std::endl;
 }
 
 #define VE_TD_DEFS 1
