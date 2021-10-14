@@ -21,7 +21,7 @@ object VeKernelCompiler {
   final case class VeCompilerConfig(
     nccPath: String = "ncc",
     optimizationLevel: Int = 4,
-    doDebug: Boolean = false,
+    doDebug: Boolean = true,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {

@@ -67,16 +67,23 @@ object NativeCompiler {
       logger.debug(s"Compiling for the VE...: $code")
       val startTime = System.currentTimeMillis()
       val cc = combinedCode(code)
-      val soName =
-        VeKernelCompiler(
-          compilationPrefix = s"_spark_${cc.hashCode}",
-          Paths.get(buildDir),
-          veCompilerConfig
-        )
-          .compile_c(cc)
-      val endTime = System.currentTimeMillis() - startTime
-      logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
-      soName
+      val sourcePath = Paths.get(buildDir).resolve(s"_spark_${cc.hashCode}.so").toAbsolutePath
+      if (sourcePath.toFile.exists()) {
+        logger.debug(s"Using precompiled code...: $sourcePath")
+        sourcePath
+      } else {
+        logger.debug("precompiled so file not found, compiling...")
+        val soName =
+          VeKernelCompiler(
+            compilationPrefix = s"_spark_${cc.hashCode}",
+            Paths.get(buildDir),
+            veCompilerConfig
+          )
+            .compile_c(cc)
+        val endTime = System.currentTimeMillis() - startTime
+        logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
+        soName
+      }
     }
   }
 

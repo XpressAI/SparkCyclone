@@ -1,4 +1,4 @@
-#ifndef _VEC_OPERATIONS_ 
+#ifndef _VEC_OPERATIONS_
 #define _VEC_OPERATIONS_
 
 #include <limits>

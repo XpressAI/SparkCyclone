@@ -7,7 +7,7 @@
 #include "../core/set_operations.hpp"
 #include "../core/radix_sort.hpp"
 #include "../core/lower_bound.hpp"
-#include "../core/vector_operations.hpp"
+//include "../core/vector_operations.hpp"
 
 #if defined(_SX) || defined(__ve__) // might be used in x86
 #define FIND_MISS_VLEN 1024

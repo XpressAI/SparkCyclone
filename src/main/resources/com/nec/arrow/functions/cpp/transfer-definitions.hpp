@@ -1,3 +1,6 @@
+#ifndef VE_TD_DEFS
+#define VE_TD_DEFS 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,10 +12,10 @@
 #include <chrono>
 #include <ctime>
 #include "words.hpp"
+#include "words.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
 
-#ifndef VE_TD_DEFS
 typedef struct
 {
     void **data;
@@ -131,18 +134,37 @@ frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, 
         return ret;
     }
 
-    ret.lens.resize(count);
-    for (int i = 0; i < count; i++) {
+    #ifdef DEBUG
+        std::cout << "count: " << count << std::endl;
+    #endif
+
+    ret.lens.resize(count - 1);
+    for (int i = 0; i < count - 1; i++) {
         ret.lens[i] = offsets[i + 1] - offsets[i];
     }
 
-    ret.starts.resize(count);
-    for (int i = 0; i < count; i++) {
+    ret.starts.resize(count - 1);
+    for (int i = 0; i < count - 1; i++) {
         ret.starts[i] = offsets[i];
     }
 
-    ret.chars.resize(size);
-    frovedis::char_to_int(data, size, ret.chars.data());
+    #ifdef DEBUG
+        std::cout << "size: " << size << std::endl;
+    #endif
+
+    if (size == 32) {
+        size_t chars_size = ret.starts[count - 1] + ret.lens[count - 1];
+
+        #ifdef DEBUG
+            std::cout << "using new size: " << chars_size << std::endl;
+        #endif
+
+        ret.chars.resize(chars_size);
+        frovedis::char_to_int(data, chars_size, ret.chars.data());
+    } else {
+        ret.chars.resize(size);
+        frovedis::char_to_int(data, size, ret.chars.data());
+    }
 
     return ret;
 }
@@ -156,15 +178,35 @@ frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
 }
 
 void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
-    in.starts.push_back(in.chars.size());
-    out->count = in.lens.size();
-    out->size = in.chars.size();
-    out->offsets = (int32_t *)malloc(in.starts.size() * sizeof(int32_t));
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector" << std::endl << std::flush;
+    #endif
+
+    out->count = in.lens.size() - 1;
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->count " << out->count << std::endl << std::flush;
+    #endif
+    out->size = in.chars.size() - 1;
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->size " << out->size << std::endl << std::flush;
+    #endif
+
+    out->offsets = (int32_t *)malloc((in.starts.size()) * sizeof(int32_t));
     for (int i = 0; i < in.starts.size(); i++) {
         out->offsets[i] = in.starts[i];
     }
+    out->offsets[in.starts.size()] = in.lens[in.lens.size()];
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
+    #endif
+
     out->data = (char *)malloc(out->size * sizeof(char));
     frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->data[0] " << out->data[0] << std::endl << std::flush;
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector in.chars.data[0] " << (char)in.chars.data()[0] << std::endl << std::flush;
+    #endif
+
     size_t validity_count = ceil(out->count / 64.0);
     out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
     for (int i = 0; i < validity_count; i++) {
@@ -172,6 +214,25 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     }
 }
 
-#define VE_TD_DEFS 1
+void debug_words(frovedis::words &in) {
+    std::cout << "words char count: " << in.chars.size() << std::endl;
+    std::cout << "words starts count: " << in.starts.size() << std::endl;
+    std::cout << "words lens count: " << in.lens.size() << std::endl;
+    std::cout << "First word starts at: " << in.starts[0] << " length: " << in.lens[0] << " '";
+
+    size_t start = in.starts[0];
+    for (int i = 0; i < std::min((long)in.lens[0], 64L); i++) {
+        std::cout << (char)in.chars[start + i];
+    }
+    std::cout << "'" << std::endl;
+
+    std::cout << "Last word " << in.starts.size() - 1 << " starts at: " << in.starts[in.starts.size() -1] << " length[" << in.lens.size() - 1 << "]: " << in.lens[in.lens.size() - 1] << " '";
+    start = in.starts[in.starts.size() - 1];
+    for (int i = 0; i < std::min((long)in.lens[in.lens.size() - 1], 64L); i++) {
+        std::cout << (char)in.chars[start + i];
+    }
+    std::cout << "'" << std::endl;
+}
+
 #endif
 

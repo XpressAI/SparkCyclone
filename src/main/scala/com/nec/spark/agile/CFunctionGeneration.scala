@@ -479,7 +479,6 @@ object CFunctionGeneration {
         filterOutput.collect { case CVarChar(nom) =>
           val fp = StringProducer
             .FilteringProducer(
-              nom.replaceAllLiterally("output", "input"),
               nom,
               StringProducer.copyString(nom.replaceAllLiterally("output", "input"))
             )

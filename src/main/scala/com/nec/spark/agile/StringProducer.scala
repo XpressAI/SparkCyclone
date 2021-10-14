@@ -30,7 +30,7 @@ object StringProducer {
       )
   }
 
-  final case class FilteringProducer(inputName: String, outputName: String, stringProducer: StringProducer) {
+  final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
     val tmpData = s"${outputName}_data";
     val tmpOffsets = s"${outputName}_tmp_offsets";
     val tmpLengths = s"${outputName}_tmp_lengths";
@@ -40,15 +40,16 @@ object StringProducer {
       case CopyStringProducer(producerInput) =>
         s"""${producerInput}"""
       case _ =>
-        s"""${inputName}"""
+        "wat"
     }
 
     def setup: CodeLines = {
       CodeLines.from(
         CodeLines.debugHere,
+        s"""std::cout << "varchar_vector_to_words(${tmpDataInit})" << std::endl;""",
         s"""frovedis::words ${tmpData} = varchar_vector_to_words(${tmpDataInit});""",
-        s"""std::vector<size_t> ${tmpData}_new_starts(${tmpData}.starts.size());""",
-        s"""std::vector<size_t> ${tmpData}_new_lens(${tmpData}.lens.size());"""
+        s"""std::vector<size_t> ${tmpData}_new_starts(groups_count);""",
+        s"""std::vector<size_t> ${tmpData}_new_lens(groups_count);"""
       )
     }
 
@@ -60,11 +61,18 @@ object StringProducer {
 
     def complete: CodeLines = CodeLines.from(
       CodeLines.debugHere,
-      s"""std::vector<size_t> ${tmpData}_unused;""",
-      s"""std::vector<int> ${tmpData}_new_chars = frovedis::concat_words(${tmpData}.chars, ${tmpData}_new_starts, ${tmpData}_new_lens, "", ${tmpData}_unused);""",
+      s"""std::vector<size_t> ${tmpData}_new_new_starts;""",
+      """std::cout << "Calling concat_words" << std::endl; """,
+      s"""debug_words(${tmpData});""",
+      s"""std::vector<int> ${tmpData}_new_chars = frovedis::concat_words(${tmpData}.chars, ${tmpData}_new_starts, ${tmpData}_new_lens, "", ${tmpData}_new_new_starts);""",
       s"""${tmpData}.chars = ${tmpData}_new_chars;""",
-      s"""${tmpData}.starts = ${tmpData}_new_starts;""",
+      s"""${tmpData}.starts = ${tmpData}_new_new_starts;""",
+      s"""${tmpData}.starts.resize(${tmpData}.starts.size() - 2);""",
       s"""${tmpData}.lens = ${tmpData}_new_lens;""",
+      s"""${tmpData}.lens.resize(${tmpData}.lens.size() - 2);""",
+      """std::cout << "After concat_words:" << std::endl; """,
+      s"""debug_words(${tmpData});""",
+      """std::cout << "Calling words_to_varchar_vector" << std::endl; """,
       s"""words_to_varchar_vector(${tmpData}, ${outputName});""",
     )
 
@@ -77,7 +85,7 @@ object StringProducer {
     outputName: String,
     stringProducer: StringProducer
   ): CodeLines = {
-    val fp = FilteringProducer("sdf", outputName, stringProducer)
+    val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
       s"""for ( int32_t i = 0; i < ${count}; i++ ) {""",
