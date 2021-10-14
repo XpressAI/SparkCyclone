@@ -3,8 +3,23 @@ package com.nec.spark.agile
 import com.nec.cmake
 import com.nec.cmake.UdpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CExpression, CFunction, CVector, VeScalarType, VeString, VeType}
-import com.nec.spark.agile.StagedGroupBy.{GroupingCodeGenerator, GroupingKey, StagedAggregation, StagedProjection, StringReference, storeTo}
+import com.nec.spark.agile.CFunctionGeneration.{
+  Aggregation,
+  CExpression,
+  CFunction,
+  CVector,
+  VeScalarType,
+  VeString,
+  VeType
+}
+import com.nec.spark.agile.StagedGroupBy.{
+  storeTo,
+  GroupingCodeGenerator,
+  GroupingKey,
+  StagedAggregation,
+  StagedProjection,
+  StringReference
+}
 import com.nec.spark.agile.StringProducer.{CopyStringProducer, FilteringProducer}
 
 final case class StagedGroupBy(
@@ -150,7 +165,7 @@ final case class StagedGroupBy(
                 ),
                 fp.complete,
                 gcg.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
-              ).block
+              )
             case other => sys.error(s"Could not produce for ${sp}; got ${other}")
           }
         case sp @ StagedProjection(name, veType: VeScalarType) =>
@@ -292,13 +307,15 @@ final case class StagedGroupBy(
     CodeLines.from(projections.map {
       case StagedProjection(name, VeString) =>
         val fp = FilteringProducer(name, CopyStringProducer(s"partial_str_${name}"))
-        CodeLines.from(
-          CodeLines.debugHere,
-          fp.setup,
-          gcg.forHeadOfEachGroup(fp.forEach),
-          fp.complete,
-          gcg.forHeadOfEachGroup(fp.validityForEach("g"))
-        ).block
+        CodeLines
+          .from(
+            CodeLines.debugHere,
+            fp.setup,
+            gcg.forHeadOfEachGroup(fp.forEach),
+            fp.complete,
+            gcg.forHeadOfEachGroup(fp.validityForEach("g"))
+          )
+          .block
       case stagedProjection @ StagedProjection(name, scalarType: VeScalarType) =>
         CodeLines.from(
           StagedGroupBy.initializeScalarVector(
