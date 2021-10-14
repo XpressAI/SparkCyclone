@@ -142,7 +142,6 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
 
     out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
     for (int i = 0; i < in.starts.size(); i++) {
-        std::cout << utcnanotime().c_str() << " $$ " << "here crash " << i << " " << in.starts.size() << std::endl << std::flush;
         out->offsets[i] = in.starts[i];
     }
 
