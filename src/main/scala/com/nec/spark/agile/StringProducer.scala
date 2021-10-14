@@ -12,7 +12,7 @@ object StringProducer {
   }
 
   trait FrovedisStringProducer extends StringProducer {
-    def init(outputName: String): CodeLines
+    def init(outputName: String, size: String): CodeLines
     def produce(outputName: String): CodeLines
     def complete(outputName: String): CodeLines
   }
@@ -35,11 +35,11 @@ object StringProducer {
         s"${frovedisLens(outputName)}[g] = ${wordName(outputName)}.lens[i];"
       )
 
-    override def init(outputName: String): CodeLines =
+    override def init(outputName: String, size: String): CodeLines =
       CodeLines.from(
         s"frovedis::words ${wordName(outputName)} = varchar_vector_to_words(${inputName});",
-        s"""std::vector<size_t> ${frovedisStarts(outputName)}(groups_count);""",
-        s"""std::vector<size_t> ${frovedisLens(outputName)}(groups_count);"""
+        s"""std::vector<size_t> ${frovedisStarts(outputName)}(${size});""",
+        s"""std::vector<size_t> ${frovedisLens(outputName)}(${size});"""
       )
 
     override def complete(outputName: String): CodeLines = CodeLines.from(
@@ -82,7 +82,7 @@ object StringProducer {
             s"int ${tmpCount} = 0;"
           )
         case f: FrovedisStringProducer =>
-          CodeLines.from(CodeLines.debugHere, f.init(outputName))
+          CodeLines.from(CodeLines.debugHere, f.init(outputName, "groups_count"))
       }
 
     def forEach: CodeLines = {
@@ -92,7 +92,7 @@ object StringProducer {
             .from(
               CodeLines.debugHere,
               "int len = 0;",
-              imperative.produceTo(s"${tmpString}", "len"),
+              imperative.produceTo(s"$tmpString", "len"),
               s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
               s"""${tmpCurrentOffset} += len;""",
               s"${tmpCount}++;"

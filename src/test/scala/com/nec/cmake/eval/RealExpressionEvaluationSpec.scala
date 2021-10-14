@@ -98,7 +98,9 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can filter a column by a String (FilterByString)" in {
+  "We can filter a column by a String (FilterByString)" ignore {
+
+    /** Ignored because we are likely not going to support filtering * */
     val result = evalFilter[(String, Double)](
       ("x", 90.0),
       ("one", 1.0),
@@ -116,7 +118,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     expect(result == expected)
   }
-  "We can filter a column with a String" in {
+  "We can filter a column with a String" ignore {
+
+    /** Ignored because we are likely not going to support filtering * */
+
     val result = evalFilter[(String, Double)](
       ("x", 90.0),
       ("one", 1.0),
