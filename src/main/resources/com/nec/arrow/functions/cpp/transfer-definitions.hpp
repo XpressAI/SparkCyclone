@@ -138,13 +138,13 @@ frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, 
         std::cout << "count: " << count << std::endl;
     #endif
 
-    ret.lens.resize(count - 1);
-    for (int i = 0; i < count - 1; i++) {
+    ret.lens.resize(count);
+    for (int i = 0; i < count; i++) {
         ret.lens[i] = offsets[i + 1] - offsets[i];
     }
 
-    ret.starts.resize(count - 1);
-    for (int i = 0; i < count - 1; i++) {
+    ret.starts.resize(count);
+    for (int i = 0; i < count; i++) {
         ret.starts[i] = offsets[i];
     }
 
