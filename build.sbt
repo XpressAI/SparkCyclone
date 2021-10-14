@@ -20,6 +20,15 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(CMake)
 
+lazy val tracing = project
+  .dependsOn(root)
+  .settings(
+    libraryDependencies ++= Seq(
+      "co.fs2" %% "fs2-io" % "3.0.6",
+      "co.fs2" %% "fs2-core" % "3.0.6",
+    ),
+    name := "tracing"
+  )
 /**
  * Run with:
  *
