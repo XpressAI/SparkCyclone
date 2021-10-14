@@ -19,8 +19,7 @@ object StringProducer {
 
   final case class CopyStringProducer(inputName: String) extends FrovedisStringProducer {
     def produceTo(stringVectorName: String): CodeLines = CodeLines.from(
-      s"${stringVectorName}.push_back(std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]));",
-      s"""std::cout << std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]) << std::endl << std::flush;"""
+      s"${stringVectorName}.push_back(std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]));"
     )
   }
 
@@ -93,11 +92,10 @@ object StringProducer {
             CodeLines.debugHere
           )
 
-        case frovedisStringProducer: FrovedisStringProducer =>
+        case _: FrovedisStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
             s"words_to_varchar_vector(frovedis::vector_string_to_words(${frovedisTmpVector}), ${outputName});",
-            s"frovedis::vector_string_to_words(${frovedisTmpVector}).print();"
           )
       }
 

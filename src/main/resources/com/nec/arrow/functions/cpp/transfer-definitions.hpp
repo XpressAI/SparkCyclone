@@ -131,11 +131,11 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector" << std::endl << std::flush;
     #endif
 
-    out->count = in.lens.size() - 1;
+    out->count = in.lens.size();
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->count " << out->count << std::endl << std::flush;
     #endif
-    out->size = in.chars.size() - 1;
+    out->size = in.chars.size();
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->size " << out->size << std::endl << std::flush;
     #endif
@@ -145,7 +145,6 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "here crash " << i << " " << in.starts.size() << std::endl << std::flush;
         out->offsets[i] = in.starts[i];
     }
-    std::cout << utcnanotime().c_str() << " $$ " << "here crash!!! " << " " << in.starts.size() << std::endl << std::flush;
 
     out->offsets[in.starts.size()] = in.chars.size();
     #ifdef DEBUG
