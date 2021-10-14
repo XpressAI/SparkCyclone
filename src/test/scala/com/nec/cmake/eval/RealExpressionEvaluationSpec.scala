@@ -55,7 +55,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   "We can transform a column to a String and a Double" in {
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
-        StringCExpressionEvaluation.expr_to_string(CExpression("2 * input_0->data[i]", None)),
+        StringCExpressionEvaluation
+          .expr_to_string(CExpression("2 * input_0->data[i]", None)): StringProducer,
         TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
       ) == List[(String, Double)](
         ("180.000000", 92.0),

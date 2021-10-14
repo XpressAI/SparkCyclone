@@ -150,7 +150,7 @@ final case class StagedGroupBy(
                 ),
                 fp.complete,
                 gcg.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
-              )
+              ).block
             case other => sys.error(s"Could not produce for ${sp}; got ${other}")
           }
         case sp @ StagedProjection(name, veType: VeScalarType) =>
@@ -181,7 +181,7 @@ final case class StagedGroupBy(
         CodeLines.from(
           UdpDebug.conditional.createSock,
           performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
-          computeGroupingKeysPerGroup(computeGroupingKey),
+          computeGroupingKeysPerGroup(computeGroupingKey).block,
           computeProjectionsPerGroup(computeProjection),
           computeAggregatePartialsPerGroup(computeAggregate),
           UdpDebug.conditional.close
@@ -298,7 +298,7 @@ final case class StagedGroupBy(
           gcg.forHeadOfEachGroup(fp.forEach),
           fp.complete,
           gcg.forHeadOfEachGroup(fp.validityForEach("g"))
-        )
+        ).block
       case stagedProjection @ StagedProjection(name, scalarType: VeScalarType) =>
         CodeLines.from(
           StagedGroupBy.initializeScalarVector(

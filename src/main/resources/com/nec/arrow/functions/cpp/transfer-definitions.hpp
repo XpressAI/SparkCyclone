@@ -8,6 +8,10 @@
 #include <vector>
 #include <chrono>
 #include <ctime>
+#include "words.hpp"
+#include "words.cc"
+#include "char_int_conv.hpp"
+#include "char_int_conv.cc"
 
 #ifndef VE_TD_DEFS
 typedef struct
@@ -120,6 +124,43 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
     uint64_t res = (validityBuffer[byte] >> bitIndex) & 1;
 
     return res;
+}
+
+void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector" << std::endl << std::flush;
+    #endif
+
+    out->count = in.lens.size() - 1;
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->count " << out->count << std::endl << std::flush;
+    #endif
+    out->size = in.chars.size() - 1;
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->size " << out->size << std::endl << std::flush;
+    #endif
+
+    out->offsets = (int32_t *)malloc((in.starts.size()) * sizeof(int32_t));
+    for (int i = 0; i < in.starts.size(); i++) {
+        out->offsets[i] = in.starts[i];
+    }
+    out->offsets[in.starts.size()] = in.lens[in.lens.size()];
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
+    #endif
+
+    out->data = (char *)malloc(out->size * sizeof(char));
+    frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->data[0] " << out->data[0] << std::endl << std::flush;
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector in.chars.data[0] " << (char)in.chars.data()[0] << std::endl << std::flush;
+    #endif
+
+    size_t validity_count = ceil(out->count / 64.0);
+    out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
+    for (int i = 0; i < validity_count; i++) {
+        out->validityBuffer[i] = 0xffffffffffffffff;
+    }
 }
 
 #define VE_TD_DEFS 1

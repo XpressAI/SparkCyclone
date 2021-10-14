@@ -3,6 +3,7 @@ package com.nec.spark.planning
 import com.nec.spark.agile.{CExpressionEvaluation, StringProducer}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
+import com.nec.spark.agile.StringProducer.ImperativeStringProducer
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
 //noinspection SameParameterValue
@@ -50,7 +51,7 @@ object StringCExpressionEvaluation {
     )
   }
 
-  private def produce_substr_dyn: StringProducer = (tempStringName, lenName) =>
+  private def produce_substr_dyn: ImperativeStringProducer = (tempStringName, lenName) =>
     CodeLines
       .from(
         s"int32_t beginIndex_2 = 1;",
@@ -83,7 +84,7 @@ object StringCExpressionEvaluation {
     )
   }
 
-  private def produce_string_to(beginIndex: Int, endIndex: Int): StringProducer =
+  private def produce_string_to(beginIndex: Int, endIndex: Int): ImperativeStringProducer =
     (tempStringName, itemLengthName) =>
       CodeLines
         .from(
@@ -105,7 +106,7 @@ object StringCExpressionEvaluation {
           s"${itemLengthName} += len_str.size();"
         )
 
-  def expr_to_string(cExpression: CExpression): StringProducer =
+  def expr_to_string(cExpression: CExpression): ImperativeStringProducer =
     (tsn, iln) =>
       CodeLines
         .from(
