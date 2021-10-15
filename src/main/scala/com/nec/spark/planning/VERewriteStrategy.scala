@@ -321,28 +321,27 @@ final case class VERewriteStrategy(
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
           }.toList
 
-          val pf = {
-            for {
-              stagedGroupBy <- stagedGroupByE
-              gks <-
-                stagedGroupBy.groupingKeys
-                  .map(gk => computeGroupingKey(gk).map(r => gk -> r))
-                  .sequence
-              projections <- projectionsE
-              ps <- projections.map { case (sp, _) =>
-                computeProjection(sp).map(r => sp -> r)
-              }.sequence
-              ca <- stagedGroupBy.aggregations
-                .map(sa => computeAggregate(sa).map(a => sa -> a))
+          val gpgE = for {
+            stagedGroupBy <- stagedGroupByE
+            gks <-
+              stagedGroupBy.groupingKeys
+                .map(gk => computeGroupingKey(gk).map(r => gk -> r))
                 .sequence
-            } yield GroupByPartialGenerator(
-              finalGenerator = GroupByPartialToFinalGenerator(
-                stagedGroupBy = stagedGroupBy,
-                computeAggregate = ca
-              ),
-              computeGroupingKey = gks,
-              computeProjection = ps
-            ).createPartial(inputs = inputsList)
+            projections <- projectionsE
+            ps <- projections.map { case (sp, _) =>
+              computeProjection(sp).map(r => sp -> r)
+            }.sequence
+            ca <- stagedGroupBy.aggregations
+              .map(sa => computeAggregate(sa).map(a => sa -> a))
+              .sequence
+          } yield GroupByPartialGenerator(
+            finalGenerator =
+              GroupByPartialToFinalGenerator(stagedGroupBy = stagedGroupBy, computeAggregate = ca),
+            computeGroupingKey = gks,
+            computeProjection = ps
+          )
+          val pf = {
+            gpgE.map(_.createPartial(inputs = inputsList))
           }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
@@ -360,27 +359,10 @@ final case class VERewriteStrategy(
             )
           }
             .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
-          val fullFunction = {
-            for {
-              stagedGroupBy <- stagedGroupByE
-              gks <-
-                stagedGroupBy.groupingKeys
-                  .map(gk => computeGroupingKey(gk).map(r => gk -> r))
-                  .sequence
-              cps <- stagedGroupBy.projections
-                .map(sp => computeProjection(sp).map(r => sp -> r))
-                .sequence
-              ca <- stagedGroupBy.aggregations
-                .map(sa => computeAggregate(sa).map(a => sa -> a))
-                .sequence
-            } yield GroupByPartialGenerator(
-              GroupByPartialToFinalGenerator(stagedGroupBy, ca),
-              computeGroupingKey = gks,
-              computeProjection = cps
-            )
-              .createFull(inputs = inputsList)
-          }
-            .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
+          val fullFunction =
+            gpgE
+              .map(_.createFull(inputs = inputsList))
+              .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
           val evaluationPlan = NativeAggregationEvaluationPlan(
             outputExpressions = aggregateExpressions,
