@@ -56,13 +56,14 @@ final case class OldUnifiedGroupByFunctionGeneration(
       }
     )
 
-    val computeAggregate: StagedAggregation => Option[Aggregation] = agg =>
+    val computeAggregate: StagedAggregation => Either[String, Aggregation] = agg =>
       veDataTransformation.outputs
         .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_ == agg)))
         .collectFirst {
           case Right(NamedGroupByExpression(name, veType, GroupByAggregation(aggregation))) =>
             aggregation
-        }
+        }.toRight(s"Could not compute aggregate for: ${agg}")
+
     val pf = stagedGroupBy
       .createPartial(
         inputs = veDataTransformation.inputs,

@@ -253,26 +253,29 @@ final case class VERewriteStrategy(
                   )
               }
 
-          val computeAggregate: StagedAggregation => Option[Aggregation] = sa =>
-            aggregates.toMap.get(sa).map {
-              case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-                DeclarativeAggregationConverter(
-                  d.transform(
-                    SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                  ).asInstanceOf[DeclarativeAggregate]
-                )
-              case other =>
-                DeclarativeAggregationConverter
-                  .transformingFetch(
-                    other
-                      .transform(
-                        SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                      )
+          val computeAggregate: StagedAggregation => Either[String, Aggregation] = sa =>
+            aggregates.toMap
+              .get(sa)
+              .map {
+                case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
+                  DeclarativeAggregationConverter(
+                    d.transform(
+                      SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
+                    ).asInstanceOf[DeclarativeAggregate]
                   )
-                  .getOrElse(
-                    sys.error(s"Cannot figure out how to replace: ${other} (${other.getClass})")
-                  )
-            }
+                case other =>
+                  DeclarativeAggregationConverter
+                    .transformingFetch(
+                      other
+                        .transform(
+                          SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
+                        )
+                    )
+                    .getOrElse(
+                      sys.error(s"Cannot figure out how to replace: ${other} (${other.getClass})")
+                    )
+              }
+              .toRight(s"Could not compute aggregate for ${sa}")
 
           logInfo(s"Staged groupBy = ${stagedGroupBy}")
 

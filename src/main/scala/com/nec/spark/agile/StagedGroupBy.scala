@@ -15,7 +15,7 @@ final case class StagedGroupBy(
     inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
-    computeAggregate: StagedAggregation => Option[Aggregation]
+    computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
       pf <- createPartial(inputs, computeGroupingKey, computeProjection, computeAggregate)
@@ -149,7 +149,7 @@ final case class StagedGroupBy(
     inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
-    computeAggregate: StagedAggregation => Option[Aggregation]
+    computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
       aggregatePartialsPerGroup <-
@@ -157,7 +157,6 @@ final case class StagedGroupBy(
           .map(stagedAggregation =>
             computeAggregate(stagedAggregation)
               .map(aggregation => (stagedAggregation, aggregation))
-              .toRight(s"Could not process aggregation: ${stagedAggregation}")
           )
           .sequence
           .map(_.map(Function.tupled(computeAggregatePartialsPerGroup)))
@@ -181,13 +180,12 @@ final case class StagedGroupBy(
     )
 
   def createFinal(
-    computeAggregate: StagedAggregation => Option[Aggregation]
+    computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
       aggregatePartialsPerGroup <- aggregations
         .map { stagedAggregation =>
           computeAggregate(stagedAggregation)
-            .toRight(s"Could not compute aggregation for: ${stagedAggregation}")
             .map(aggregation => stagedAggregation -> aggregation)
         }
         .sequence
