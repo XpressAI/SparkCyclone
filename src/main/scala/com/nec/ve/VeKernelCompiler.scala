@@ -30,7 +30,7 @@ object VeKernelCompiler {
   }
 
   final case class VeCompilerConfig(
-    nccPath: String = "ncc",
+    nccPath: String = "/opt/nec/ve/bin/ncc",
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
     maybeProfileTarget: Option[ProfileTarget] = Some(ProfileTarget.default),
