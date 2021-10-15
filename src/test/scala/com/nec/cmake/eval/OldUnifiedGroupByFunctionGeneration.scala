@@ -62,7 +62,8 @@ final case class OldUnifiedGroupByFunctionGeneration(
         .collectFirst {
           case Right(NamedGroupByExpression(name, veType, GroupByAggregation(aggregation))) =>
             aggregation
-        }.toRight(s"Could not compute aggregate for: ${agg}")
+        }
+        .toRight(s"Could not compute aggregate for: ${agg}")
 
     val pf = stagedGroupBy
       .createPartial(
@@ -80,10 +81,11 @@ final case class OldUnifiedGroupByFunctionGeneration(
             .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
             .collectFirst {
               case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
-                Right(cExpression)
+                Right(veType -> cExpression)
               case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
                 Left(StringReference(c.inputName))
-            },
+            }
+            .toRight(s"Could not compute projection for ${proj}"),
         computeAggregate = computeAggregate
       )
       .fold(sys.error, identity)

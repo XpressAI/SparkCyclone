@@ -210,48 +210,58 @@ final case class VERewriteStrategy(
                 .get(gk)
                 .map(exp => mapGroupingExpression(exp, child))
 
-          val computeProjection: StagedProjection => Option[Either[StringReference, CExpression]] =
+          val computeProjection: StagedProjection => Either[String, Either[
+            StringReference,
+            (VeScalarType, CExpression)
+          ]] =
             sp =>
-              projections.toMap.get(sp).map {
-                case ar: AttributeReference if ar.dataType == StringType =>
-                  Left(
-                    StringReference(
-                      ar.transform(
-                        SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                      ).asInstanceOf[AttributeReference]
-                        .name
-                    )
-                  )
-                case Alias(ar: AttributeReference, _) if ar.dataType == StringType =>
-                  Left(
-                    StringReference(
-                      ar.transform(
-                        SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                      ).asInstanceOf[AttributeReference]
-                        .name
-                    )
-                  )
-                case Alias(other, name) =>
-                  Right(
-                    SparkVeMapper
-                      .eval(
-                        other.transform(
+              projections.toMap
+                .get(sp)
+                .map {
+                  case ar: AttributeReference if ar.dataType == StringType =>
+                    Left(
+                      StringReference(
+                        ar.transform(
                           SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                        )
+                        ).asInstanceOf[AttributeReference]
+                          .name
                       )
-                      .getOrReport()
-                  )
-                case other =>
-                  Right(
-                    SparkVeMapper
-                      .eval(
-                        other.transform(
+                    )
+                  case Alias(ar: AttributeReference, _) if ar.dataType == StringType =>
+                    Left(
+                      StringReference(
+                        ar.transform(
                           SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                        )
+                        ).asInstanceOf[AttributeReference]
+                          .name
                       )
-                      .getOrReport()
-                  )
-              }
+                    )
+                  case Alias(other, name) =>
+                    Right(
+                      SparkVeMapper.sparkTypeToScalarVeType(other.dataType) ->
+                        SparkVeMapper
+                          .eval(
+                            other.transform(
+                              SparkVeMapper
+                                .referenceReplacer(prefix = "input_", child.output.toList)
+                            )
+                          )
+                          .getOrReport()
+                    )
+                  case other =>
+                    Right(
+                      SparkVeMapper.sparkTypeToScalarVeType(other.dataType) ->
+                        SparkVeMapper
+                          .eval(
+                            other.transform(
+                              SparkVeMapper
+                                .referenceReplacer(prefix = "input_", child.output.toList)
+                            )
+                          )
+                          .getOrReport()
+                    )
+                }
+                .toRight(s"Could not compute for ${sp}")
 
           val computeAggregate: StagedAggregation => Either[String, Aggregation] = sa =>
             aggregates.toMap

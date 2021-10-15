@@ -14,7 +14,10 @@ final case class StagedGroupBy(
   def createFull(
     inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
-    computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
+    computeProjection: StagedProjection => Either[
+      String,
+      Either[StringReference, (VeScalarType, CExpression)]
+    ],
     computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
@@ -103,13 +106,17 @@ final case class StagedGroupBy(
   }
 
   def computeProjectionsPerGroup(
-    compute: StagedProjection => Option[Either[StringReference, CExpression]]
+    compute: StagedProjection => Either[
+      String,
+      Either[StringReference, (VeScalarType, CExpression)]
+    ]
   ): Either[String, CodeLines] = {
     projections
-      .map {
-        case sp @ StagedProjection(name, VeString) =>
-          compute(sp)
-            .collect { case Left(StringReference(sourceName)) =>
+      .map { sp =>
+        val name = sp.name
+        compute(sp)
+          .map {
+            case Left(StringReference(sourceName)) =>
               val fp =
                 FilteringProducer(s"partial_str_${name}", StringProducer.copyString(sourceName))
               CodeLines.from(
@@ -119,11 +126,7 @@ final case class StagedGroupBy(
                 fp.complete,
                 groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
               )
-            }
-            .toRight(s"Could not produce for ${sp}; got ${compute(sp)}")
-        case sp @ StagedProjection(name, veType: VeScalarType) =>
-          compute(sp)
-            .collect { case Right(cExpression) =>
+            case Right((veType, cExpression)) =>
               CodeLines.from(
                 CodeLines.debugHere,
                 StagedGroupBy
@@ -136,8 +139,7 @@ final case class StagedGroupBy(
                   StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g")
                 )
               )
-            }
-            .toRight(s"Could not produce for ${sp}; got ${compute(sp)}")
+          }
       }
       .sequence
       .map { listCodeLines =>
@@ -148,7 +150,10 @@ final case class StagedGroupBy(
   def createPartial(
     inputs: List[CVector],
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
-    computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
+    computeProjection: StagedProjection => Either[
+      String,
+      Either[StringReference, (VeScalarType, CExpression)]
+    ],
     computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
