@@ -6,7 +6,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.StagedGroupBy
+import com.nec.spark.agile.{GroupingCodeGenerator, StagedGroupBy}
 import com.nec.spark.agile.StagedGroupBy._
 import com.nec.spark.agile.StringProducer.CopyStringProducer
 
