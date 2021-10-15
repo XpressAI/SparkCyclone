@@ -76,7 +76,13 @@ final case class VERewriteStrategy(
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
             groupingExpressions.zipWithIndex.map { case (e, i) =>
-              (GroupingKey(s"group_${i}", SparkVeMapper.sparkTypeToVeType(e.dataType)), e)
+              (
+                GroupingKey(
+                  name = s"group_${i}",
+                  veType = SparkVeMapper.sparkTypeToVeType(e.dataType)
+                ),
+                e
+              )
             }.toList
 
           val projections: List[(StagedProjection, Expression)] =
