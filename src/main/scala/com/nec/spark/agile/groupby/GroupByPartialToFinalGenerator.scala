@@ -2,19 +2,8 @@ package com.nec.spark.agile.groupby
 
 import com.nec.cmake.UdpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  Aggregation,
-  CFunction,
-  TypedCExpression2,
-  VeScalarType
-}
-import com.nec.spark.agile.StringProducer
-import com.nec.spark.agile.StringProducer.FilteringProducer
-import com.nec.spark.agile.groupby.GroupByOutline.{
-  StagedAggregation,
-  StagedProjection,
-  StringReference
-}
+import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, VeScalarType}
+import com.nec.spark.agile.groupby.GroupByOutline.StagedAggregation
 
 final case class GroupByPartialToFinalGenerator(
   stagedGroupBy: GroupByOutline,

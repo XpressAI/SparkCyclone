@@ -357,13 +357,12 @@ final case class VERewriteStrategy(
               ca <- stagedGroupBy.aggregations
                 .map(sa => computeAggregate(sa).map(a => sa -> a))
                 .sequence
-            } yield stagedGroupBy
-              .createFull(
-                inputs = inputsList,
-                computeGroupingKey = gks,
-                computeProjection = cps,
-                computeAggregate = ca
-              )
+            } yield GroupByPartialGenerator(
+              GroupByPartialToFinalGenerator(stagedGroupBy, ca),
+              computeGroupingKey = gks,
+              computeProjection = cps
+            )
+              .createFull(inputs = inputsList)
           }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
