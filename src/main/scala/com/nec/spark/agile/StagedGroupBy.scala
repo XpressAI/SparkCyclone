@@ -69,45 +69,31 @@ final case class StagedGroupBy(
   }
 
   def computeAggregatePartialsPerGroup(
-    deriveAggregate: StagedAggregation => Option[Aggregation]
-  ): Either[String, CodeLines] =
-    aggregations
-      .map { stagedAggregation =>
-        deriveAggregate(stagedAggregation)
-          .map { aggregate =>
-            val prefix = s"partial_${stagedAggregation.name}"
-            CodeLines.from(
-              CodeLines.debugHere,
-              stagedAggregation.attributes.map(attribute =>
-                StagedGroupBy.initializeScalarVector(
-                  veScalarType = attribute.veScalarType,
-                  variableName = s"partial_${attribute.name}",
-                  countExpression = groupingCodeGenerator.groupsCountOutName
-                )
-              ),
-              CodeLines.debugHere,
-              groupingCodeGenerator.forEachGroupItem(
-                beforeFirst = aggregate.initial(prefix),
-                perItem = aggregate.iterate(prefix),
-                afterLast = CodeLines.from(
-                  stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
-                    case (attr, (vec, ex)) =>
-                      CodeLines.from(StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g"))
-                  }
-                )
-              )
-            )
-          }
-          .toRight(s"Could not map aggregation: ${stagedAggregation}")
-      }
-      .sequence
-      .map { aggregationsCodeLines =>
-        CodeLines.from(
-          CodeLines.debugHere,
-          CodeLines.commentHere("Compute aggregate partials per group"),
-          aggregationsCodeLines
+    stagedAggregation: StagedAggregation,
+    aggregate: Aggregation
+  ): CodeLines = {
+    val prefix = s"partial_${stagedAggregation.name}"
+    CodeLines.from(
+      CodeLines.debugHere,
+      stagedAggregation.attributes.map(attribute =>
+        StagedGroupBy.initializeScalarVector(
+          veScalarType = attribute.veScalarType,
+          variableName = s"partial_${attribute.name}",
+          countExpression = groupingCodeGenerator.groupsCountOutName
         )
-      }
+      ),
+      CodeLines.debugHere,
+      groupingCodeGenerator.forEachGroupItem(
+        beforeFirst = aggregate.initial(prefix),
+        perItem = aggregate.iterate(prefix),
+        afterLast =
+          CodeLines.from(stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
+            case (attr, (vec, ex)) =>
+              CodeLines.from(StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g"))
+          })
+      )
+    )
+  }
 
   private implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
@@ -166,7 +152,15 @@ final case class StagedGroupBy(
     computeAggregate: StagedAggregation => Option[Aggregation]
   ): Either[String, CFunction] =
     for {
-      aggregatePartialsPerGroup <- computeAggregatePartialsPerGroup(computeAggregate)
+      aggregatePartialsPerGroup <-
+        aggregations
+          .map(stagedAggregation =>
+            computeAggregate(stagedAggregation)
+              .map(aggregation => (stagedAggregation, aggregation))
+              .toRight(s"Could not process aggregation: ${stagedAggregation}")
+          )
+          .sequence
+          .map(_.map(Function.tupled(computeAggregatePartialsPerGroup)))
       projectionsPerGroup <- computeProjectionsPerGroup(computeProjection)
       groupingKeysPerGroup <- computeGroupingKeysPerGroup(computeGroupingKey)
       performingGrouping <- performGrouping(
@@ -190,7 +184,15 @@ final case class StagedGroupBy(
     computeAggregate: StagedAggregation => Option[Aggregation]
   ): Either[String, CFunction] =
     for {
-      aggregatePartialsPerGroup <- mergeAndProduceAggregatePartialsPerGroup(computeAggregate)
+      aggregatePartialsPerGroup <- aggregations
+        .map { stagedAggregation =>
+          computeAggregate(stagedAggregation)
+            .toRight(s"Could not compute aggregation for: ${stagedAggregation}")
+            .map(aggregation => stagedAggregation -> aggregation)
+        }
+        .sequence
+        .map(_.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)))
+        .map(listOfCodeLines => CodeLines.from(listOfCodeLines))
     } yield CFunction(
       inputs = partialOutputs,
       outputs = finalOutputs.map {
@@ -265,31 +267,23 @@ final case class StagedGroupBy(
     )
 
   def mergeAndProduceAggregatePartialsPerGroup(
-    computeAggregate: StagedAggregation => Option[Aggregation]
-  ): Either[String, CodeLines] =
-    aggregations
-      .map(sa =>
-        computeAggregate(sa)
-          .map(aggregation =>
-            CodeLines.from(
-              StagedGroupBy.initializeScalarVector(
-                veScalarType = sa.finalType.asInstanceOf[VeScalarType],
-                variableName = sa.name,
-                countExpression = groupingCodeGenerator.groupsCountOutName
-              ),
-              CodeLines.commentHere("producing aggregate/partials per group"),
-              groupingCodeGenerator.forEachGroupItem(
-                beforeFirst = aggregation.initial(sa.name),
-                perItem = aggregation.merge(sa.name, s"partial_${sa.name}"),
-                afterLast =
-                  CodeLines.from(StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g"))
-              )
-            )
-          )
-          .toRight(s"Could not compute for: ${sa}")
+    sa: StagedAggregation,
+    aggregation: Aggregation
+  ): CodeLines =
+    CodeLines.from(
+      CodeLines.debugHere,
+      StagedGroupBy.initializeScalarVector(
+        veScalarType = sa.finalType.asInstanceOf[VeScalarType],
+        variableName = sa.name,
+        countExpression = groupingCodeGenerator.groupsCountOutName
+      ),
+      CodeLines.commentHere("producing aggregate/partials per group"),
+      groupingCodeGenerator.forEachGroupItem(
+        beforeFirst = aggregation.initial(sa.name),
+        perItem = aggregation.merge(sa.name, s"partial_${sa.name}"),
+        afterLast = CodeLines.from(StagedGroupBy.storeTo(sa.name, aggregation.fetch(sa.name), "g"))
       )
-      .sequence
-      .map(codeLinesList => CodeLines.from(CodeLines.debugHere, codeLinesList))
+    )
 
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map {
