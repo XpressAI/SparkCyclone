@@ -163,7 +163,10 @@ final case class StagedGroupBy(
           .sequence
           .map(_.map(Function.tupled(computeAggregatePartialsPerGroup)))
       projectionsPerGroup <- computeProjectionsPerGroup(computeProjection)
-      groupingKeysPerGroup <- computeGroupingKeysPerGroup(computeGroupingKey)
+      groupingKeysPerGroup <- groupingKeys
+        .map(gk => computeGroupingKey(gk).map(e => gk -> e))
+        .sequence
+        .map(computeGroupingKeysPerGroup)
       performingGrouping <- performGrouping(
         count = s"${inputs.head.name}->count",
         compute = computeGroupingKey
@@ -297,7 +300,7 @@ final case class StagedGroupBy(
             groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
           )
           .block
-      case stagedProjection @ StagedProjection(name, scalarType: VeScalarType) =>
+      case stagedProjection @ StagedProjection(_, scalarType: VeScalarType) =>
         CodeLines.from(
           StagedGroupBy.initializeScalarVector(
             veScalarType = scalarType,
@@ -321,43 +324,35 @@ final case class StagedGroupBy(
     })
 
   def computeGroupingKeysPerGroup(
-    compute: GroupingKey => Either[String, Either[StringReference, TypedCExpression2]]
-  ): Either[String, CodeLines] = {
+    compute: List[(GroupingKey, Either[StringReference, TypedCExpression2])]
+  ): CodeLines = {
     final case class ProductionTriplet(init: CodeLines, forEach: CodeLines, complete: CodeLines)
-    for {
-      initVars <- groupingKeys
-        .map(groupingKey =>
-          compute(groupingKey)
-            .map {
-              case Right(TypedCExpression2(scalarType, cExp)) =>
-                ProductionTriplet(
-                  init = StagedGroupBy.initializeScalarVector(
-                    veScalarType = scalarType,
-                    variableName = s"partial_${groupingKey.name}",
-                    countExpression = groupingCodeGenerator.groupsCountOutName
-                  ),
-                  forEach = storeTo(s"partial_${groupingKey.name}", cExp, "g"),
-                  complete = CodeLines.empty
-                )
-              case Left(StringReference(sr)) =>
-                val fp =
-                  FilteringProducer(
-                    s"partial_str_${groupingKey.name}",
-                    StringProducer.copyString(sr)
-                  )
-
-                ProductionTriplet(
-                  init = fp.setup,
-                  forEach = fp.forEach,
-                  complete = CodeLines.from(
-                    fp.complete,
-                    groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
-                  )
-                )
-            }
+    val initVars = compute.map {
+      case (groupingKey, Right(TypedCExpression2(scalarType, cExp))) =>
+        ProductionTriplet(
+          init = StagedGroupBy.initializeScalarVector(
+            veScalarType = scalarType,
+            variableName = s"partial_${groupingKey.name}",
+            countExpression = groupingCodeGenerator.groupsCountOutName
+          ),
+          forEach = storeTo(s"partial_${groupingKey.name}", cExp, "g"),
+          complete = CodeLines.empty
         )
-        .sequence
-    } yield CodeLines.from(
+      case (groupingKey, Left(StringReference(sr))) =>
+        val fp =
+          FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(sr))
+
+        ProductionTriplet(
+          init = fp.setup,
+          forEach = fp.forEach,
+          complete = CodeLines.from(
+            fp.complete,
+            groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
+          )
+        )
+    }
+
+    CodeLines.from(
       CodeLines.debugHere,
       initVars.map(_.init),
       CodeLines.debugHere,
@@ -366,22 +361,6 @@ final case class StagedGroupBy(
       initVars.map(_.complete)
     )
   }
-
-  def passGroupingKeysPerGroup: CodeLines =
-    groupingKeys.map(groupingKey =>
-      groupingCodeGenerator.forHeadOfEachGroup(
-        CodeLines.from(
-          CodeLines.debugHere,
-          storeTo(
-            outputName =
-              if (groupingKey.veType.isString) s"partial_str_${groupingKey.name}"
-              else s"partial_${groupingKey.name}",
-            cExpression = CExpression(s"${groupingKey.name}->data[i]", None),
-            idx = "g"
-          )
-        )
-      )
-    )
 
 }
 
