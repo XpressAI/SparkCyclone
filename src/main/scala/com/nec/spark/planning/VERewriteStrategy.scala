@@ -204,16 +204,16 @@ final case class VERewriteStrategy(
                 )
             }.toList
           )
-          val computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]] =
+          val computeGroupingKey
+            : GroupingKey => Either[String, Either[StringReference, TypedCExpression2]] =
             gk =>
               groupingExpressionsKeys.toMap
                 .get(gk)
                 .map(exp => mapGroupingExpression(exp, child))
+                .toRight(s"Could not compute grouping key ${gk}")
 
-          val computeProjection: StagedProjection => Either[String, Either[
-            StringReference,
-            (VeScalarType, CExpression)
-          ]] =
+          val computeProjection
+            : StagedProjection => Either[String, Either[StringReference, TypedCExpression2]] =
             sp =>
               projections.toMap
                 .get(sp)
@@ -238,7 +238,8 @@ final case class VERewriteStrategy(
                     )
                   case Alias(other, name) =>
                     Right(
-                      SparkVeMapper.sparkTypeToScalarVeType(other.dataType) ->
+                      TypedCExpression2(
+                        SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
                         SparkVeMapper
                           .eval(
                             other.transform(
@@ -247,10 +248,12 @@ final case class VERewriteStrategy(
                             )
                           )
                           .getOrReport()
+                      )
                     )
                   case other =>
                     Right(
-                      SparkVeMapper.sparkTypeToScalarVeType(other.dataType) ->
+                      TypedCExpression2(
+                        SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
                         SparkVeMapper
                           .eval(
                             other.transform(
@@ -259,6 +262,7 @@ final case class VERewriteStrategy(
                             )
                           )
                           .getOrReport()
+                      )
                     )
                 }
                 .toRight(s"Could not compute for ${sp}")
@@ -362,7 +366,7 @@ final case class VERewriteStrategy(
 
   def mapGroupingExpression(expr: Expression, child: LogicalPlan)(implicit
     evalFallback: EvalFallback
-  ): Either[StringReference, CExpression] = {
+  ): Either[StringReference, TypedCExpression2] = {
     expr.dataType match {
       case StringType =>
         /**
@@ -388,16 +392,19 @@ final case class VERewriteStrategy(
         )
       case other =>
         Right(
-          SparkVeMapper
-            .eval(
-              SparkVeMapper
-                .replaceReferences(
-                  prefix = "input_",
-                  inputs = child.output.toList,
-                  expression = expr
-                )
-            )
-            .getOrReport()
+          TypedCExpression2(
+            veType = SparkVeMapper.sparkTypeToScalarVeType(expr.dataType),
+            cExpression = SparkVeMapper
+              .eval(
+                SparkVeMapper
+                  .replaceReferences(
+                    prefix = "input_",
+                    inputs = child.output.toList,
+                    expression = expr
+                  )
+              )
+              .getOrReport()
+          )
         )
     }
   }

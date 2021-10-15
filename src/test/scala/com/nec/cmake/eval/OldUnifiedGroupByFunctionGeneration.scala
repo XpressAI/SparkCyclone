@@ -73,15 +73,15 @@ final case class OldUnifiedGroupByFunctionGeneration(
             .lift(stagedGroupBy.groupingKeys.indexOf(gk))
             .collect {
               case Left(StringGrouping(name)) => Left(StringReference(name))
-              case Right(TypedCExpression2(vet, expr)) =>
-                Right(expr)
-            },
+              case Right(v)                   => Right(v)
+            }
+            .toRight(s"Could not compute grouping key ${gk}"),
         computeProjection = proj =>
           veDataTransformation.outputs
             .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
             .collectFirst {
               case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
-                Right(veType -> cExpression)
+                Right(TypedCExpression2(veType, cExpression))
               case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
                 Left(StringReference(c.inputName))
             }
