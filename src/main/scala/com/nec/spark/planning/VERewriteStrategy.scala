@@ -294,7 +294,9 @@ final case class VERewriteStrategy(
             "Expected to have distinct outputs from a PF"
           )
 
-          val ff = stagedGroupBy.createFinal(computeAggregate)
+          val ff = stagedGroupBy
+            .createFinal(computeAggregate)
+            .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
           val fullFunction = stagedGroupBy
             .createFull(
               inputs = inputsList,

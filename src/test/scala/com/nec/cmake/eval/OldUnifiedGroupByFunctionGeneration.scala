@@ -87,7 +87,9 @@ final case class OldUnifiedGroupByFunctionGeneration(
       )
       .fold(sys.error, identity)
 
-    val ff = stagedGroupBy.createFinal(computeAggregate = computeAggregate)
+    val ff = stagedGroupBy
+      .createFinal(computeAggregate = computeAggregate)
+      .fold(sys.error, identity)
 
     CFunction(
       inputs = pf.inputs,
