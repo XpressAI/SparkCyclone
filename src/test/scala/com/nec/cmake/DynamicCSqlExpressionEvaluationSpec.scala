@@ -28,7 +28,6 @@ object DynamicCSqlExpressionEvaluationSpec {
   val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
-      .config(org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, false)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
           new VERewriteStrategy(CNativeEvaluator(debug = false))
