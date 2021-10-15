@@ -209,14 +209,6 @@ final case class VERewriteStrategy(
             )
           }
 
-          val computeGroupingKey
-            : GroupingKey => Either[String, Either[StringReference, TypedCExpression2]] =
-            gk =>
-              groupingExpressionsKeys.toMap
-                .get(gk)
-                .toRight(s"Could not compute grouping key ${gk}")
-                .flatMap(exp => mapGroupingExpression(exp, child))
-
           val computeProjection
             : StagedProjection => Either[String, Either[StringReference, TypedCExpression2]] =
             sp =>
@@ -325,7 +317,13 @@ final case class VERewriteStrategy(
             stagedGroupBy <- stagedGroupByE
             gks <-
               stagedGroupBy.groupingKeys
-                .map(gk => computeGroupingKey(gk).map(r => gk -> r))
+                .map(gk =>
+                  groupingExpressionsKeys.toMap
+                    .get(gk)
+                    .toRight(s"Could not compute grouping key ${gk}")
+                    .flatMap(exp => mapGroupingExpression(exp, child))
+                    .map(r => gk -> r)
+                )
                 .sequence
             projections <- projectionsE
             ps <- projections.map { case (sp, _) =>
