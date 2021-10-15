@@ -9,6 +9,7 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{GroupingCodeGenerator, StagedGroupBy}
 import com.nec.spark.agile.StagedGroupBy._
 import com.nec.spark.agile.StringProducer.CopyStringProducer
+import com.nec.spark.planning.VERewriteStrategy.SequenceList
 
 final case class OldUnifiedGroupByFunctionGeneration(
   veDataTransformation: VeGroupBy[
@@ -65,29 +66,41 @@ final case class OldUnifiedGroupByFunctionGeneration(
         }
         .toRight(s"Could not compute aggregate for: ${agg}")
 
-    val pf = stagedGroupBy
-      .createPartial(
-        inputs = veDataTransformation.inputs,
-        computeGroupingKey = gk =>
-          veDataTransformation.groups
-            .lift(stagedGroupBy.groupingKeys.indexOf(gk))
-            .collect {
-              case Left(StringGrouping(name)) => Left(StringReference(name))
-              case Right(v)                   => Right(v)
-            }
-            .toRight(s"Could not compute grouping key ${gk}"),
-        computeProjection = proj =>
-          veDataTransformation.outputs
-            .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
-            .collectFirst {
-              case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
-                Right(TypedCExpression2(veType, cExpression))
-              case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
-                Left(StringReference(c.inputName))
-            }
-            .toRight(s"Could not compute projection for ${proj}"),
-        computeAggregate = computeAggregate
-      )
+    val pf = {
+      for {
+        gks <- stagedGroupBy.groupingKeys
+          .map(gk =>
+            veDataTransformation.groups
+              .lift(stagedGroupBy.groupingKeys.indexOf(gk))
+              .collect {
+                case Left(StringGrouping(name)) => gk -> Left(StringReference(name))
+                case Right(v)                   => gk -> Right(v)
+              }
+              .toRight(s"Could not compute grouping key ${gk}")
+          )
+          .sequence
+        cpr <- stagedGroupBy.projections
+          .map(proj =>
+            veDataTransformation.outputs
+              .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
+              .collectFirst {
+                case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
+                  proj -> Right(TypedCExpression2(veType, cExpression))
+                case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
+                  proj -> Left(StringReference(c.inputName))
+              }
+              .toRight(s"Could not compute projection for ${proj}")
+          )
+          .sequence
+        cp <- stagedGroupBy
+          .createPartial(
+            inputs = veDataTransformation.inputs,
+            computeGroupingKey = gks,
+            computeProjection = cpr,
+            computeAggregate = computeAggregate
+          )
+      } yield cp
+    }
       .fold(sys.error, identity)
 
     val ff = stagedGroupBy

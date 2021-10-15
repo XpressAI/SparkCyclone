@@ -5,6 +5,7 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StagedGroupBy._
 import com.nec.spark.agile.StringProducer.FilteringProducer
+import com.nec.spark.planning.VERewriteStrategy.SequenceList
 
 final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
@@ -13,11 +14,8 @@ final case class StagedGroupBy(
 
   def createFull(
     inputs: List[CVector],
-    computeGroupingKey: GroupingKey => Either[String, Either[StringReference, TypedCExpression2]],
-    computeProjection: StagedProjection => Either[
-      String,
-      Either[StringReference, TypedCExpression2]
-    ],
+    computeGroupingKey: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
+    computeProjection: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
     computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
@@ -98,59 +96,42 @@ final case class StagedGroupBy(
     )
   }
 
-  private implicit class SequenceList[A, B](l: List[Either[A, B]]) {
-    def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
-      case Some(error) => Left(error)
-      case None        => Right(l.flatMap(_.right.toOption))
-    }
-  }
-
   def computeProjectionsPerGroup(
-    compute: StagedProjection => Either[String, Either[StringReference, TypedCExpression2]]
-  ): Either[String, CodeLines] = {
-    projections
-      .map { sp =>
-        val name = sp.name
-        compute(sp)
-          .map {
-            case Left(StringReference(sourceName)) =>
-              val fp =
-                FilteringProducer(s"partial_str_${name}", StringProducer.copyString(sourceName))
-              CodeLines.from(
-                CodeLines.debugHere,
-                fp.setup,
-                groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach)),
-                fp.complete,
-                groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
-              )
-            case Right(TypedCExpression2(veType, cExpression)) =>
-              CodeLines.from(
-                CodeLines.debugHere,
-                StagedGroupBy
-                  .initializeScalarVector(
-                    veType,
-                    s"partial_${name}",
-                    groupingCodeGenerator.groupsCountOutName
-                  ),
-                groupingCodeGenerator.forHeadOfEachGroup(
-                  StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g")
-                )
-              )
-          }
-      }
-      .sequence
-      .map { listCodeLines =>
-        CodeLines.from(CodeLines.debugHere, listCodeLines)
-      }
+    stagedProjection: StagedProjection,
+    r: Either[StringReference, TypedCExpression2]
+  ): CodeLines = r match {
+    case Left(StringReference(sourceName)) =>
+      val fp =
+        FilteringProducer(
+          s"partial_str_${stagedProjection.name}",
+          StringProducer.copyString(sourceName)
+        )
+      CodeLines.from(
+        CodeLines.debugHere,
+        fp.setup,
+        groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach)),
+        fp.complete,
+        groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
+      )
+    case Right(TypedCExpression2(veType, cExpression)) =>
+      CodeLines.from(
+        CodeLines.debugHere,
+        StagedGroupBy
+          .initializeScalarVector(
+            veType,
+            s"partial_${stagedProjection.name}",
+            groupingCodeGenerator.groupsCountOutName
+          ),
+        groupingCodeGenerator.forHeadOfEachGroup(
+          StagedGroupBy.storeTo(s"partial_${stagedProjection.name}", cExpression, "g")
+        )
+      )
   }
 
   def createPartial(
     inputs: List[CVector],
-    computeGroupingKey: GroupingKey => Either[String, Either[StringReference, TypedCExpression2]],
-    computeProjection: StagedProjection => Either[
-      String,
-      Either[StringReference, TypedCExpression2]
-    ],
+    computeGroupingKey: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
+    computeProjection: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
     computeAggregate: StagedAggregation => Either[String, Aggregation]
   ): Either[String, CFunction] =
     for {
@@ -162,23 +143,14 @@ final case class StagedGroupBy(
           )
           .sequence
           .map(_.map(Function.tupled(computeAggregatePartialsPerGroup)))
-      projectionsPerGroup <- computeProjectionsPerGroup(computeProjection)
-      groupingKeysPerGroup <- groupingKeys
-        .map(gk => computeGroupingKey(gk).map(e => gk -> e))
-        .sequence
-        .map(computeGroupingKeysPerGroup)
-      performingGrouping <- performGrouping(
-        count = s"${inputs.head.name}->count",
-        compute = computeGroupingKey
-      )
     } yield CFunction(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
         UdpDebug.conditional.createSock,
-        performingGrouping,
-        groupingKeysPerGroup.block,
-        projectionsPerGroup,
+        performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
+        computeGroupingKeysPerGroup(computeGroupingKey).block,
+        computeProjection.map(Function.tupled(computeProjectionsPerGroup)),
         aggregatePartialsPerGroup,
         UdpDebug.conditional.close
       )
@@ -228,24 +200,14 @@ final case class StagedGroupBy(
 
   def performGrouping(
     count: String,
-    compute: GroupingKey => Either[String, Either[StringReference, TypedCExpression2]]
-  ): Either[String, CodeLines] =
-    groupingKeys
-      .map(gk =>
-        compute(gk).map {
-          case Left(StringReference(name))              => Left(name)
-          case Right(TypedCExpression2(_, cExpression)) => Right(cExpression)
-        }
-      )
-      .sequence
-      .map(thingsToGroup =>
-        CodeLines.debugHere ++ groupingCodeGenerator.identifyGroups(
-          tupleTypes = tupleTypes,
-          tupleType = tupleType,
-          count = count,
-          thingsToGroup = thingsToGroup
-        )
-      )
+    compute: List[(GroupingKey, Either[StringReference, TypedCExpression2])]
+  ): CodeLines =
+    CodeLines.debugHere ++ groupingCodeGenerator.identifyGroups(
+      tupleTypes = tupleTypes,
+      tupleType = tupleType,
+      count = count,
+      thingsToGroup = compute.map { case (gk, e) => e.map(_.cExpression).left.map(_.name) }
+    )
 
   def performGroupingOnKeys: CodeLines =
     CodeLines.from(

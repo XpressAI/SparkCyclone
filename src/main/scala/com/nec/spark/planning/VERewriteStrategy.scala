@@ -13,7 +13,7 @@ import com.nec.spark.agile.StagedGroupBy.{
 }
 import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper, StagedGroupBy}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
-import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
+import com.nec.spark.planning.VERewriteStrategy.{SequenceList, VeRewriteStrategyOptions}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -38,6 +38,13 @@ object VERewriteStrategy {
   final case class VeRewriteStrategyOptions(preShufflePartitions: Option[Int])
   object VeRewriteStrategyOptions {
     val default: VeRewriteStrategyOptions = VeRewriteStrategyOptions(preShufflePartitions = Some(8))
+  }
+
+  implicit class SequenceList[A, B](l: List[Either[A, B]]) {
+    def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
+      case Some(error) => Left(error)
+      case None        => Right(l.flatMap(_.right.toOption))
+    }
   }
 }
 
@@ -204,6 +211,7 @@ final case class VERewriteStrategy(
                 )
             }.toList
           )
+
           val computeGroupingKey
             : GroupingKey => Either[String, Either[StringReference, TypedCExpression2]] =
             gk =>
@@ -297,13 +305,23 @@ final case class VERewriteStrategy(
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
           }.toList
 
-          val pf = stagedGroupBy
-            .createPartial(
-              inputs = inputsList,
-              computeGroupingKey = computeGroupingKey,
-              computeProjection = computeProjection,
-              computeAggregate = computeAggregate
-            )
+          val pf = {
+            for {
+              gks <-
+                stagedGroupBy.groupingKeys
+                  .map(gk => computeGroupingKey(gk).map(r => gk -> r))
+                  .sequence
+              ps <- projections.map { case (sp, _) =>
+                computeProjection(sp).map(r => sp -> r)
+              }.sequence
+              p <- stagedGroupBy.createPartial(
+                inputs = inputsList,
+                computeGroupingKey = gks,
+                computeProjection = ps,
+                computeAggregate = computeAggregate
+              )
+            } yield p
+          }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
           assert(
@@ -314,13 +332,25 @@ final case class VERewriteStrategy(
           val ff = stagedGroupBy
             .createFinal(computeAggregate)
             .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
-          val fullFunction = stagedGroupBy
-            .createFull(
-              inputs = inputsList,
-              computeGroupingKey = computeGroupingKey,
-              computeProjection = computeProjection,
-              computeAggregate = computeAggregate
-            )
+          val fullFunction = {
+            for {
+              gks <-
+                stagedGroupBy.groupingKeys
+                  .map(gk => computeGroupingKey(gk).map(r => gk -> r))
+                  .sequence
+
+              cps <- stagedGroupBy.projections
+                .map(sp => computeProjection(sp).map(r => sp -> r))
+                .sequence
+              ff <- stagedGroupBy
+                .createFull(
+                  inputs = inputsList,
+                  computeGroupingKey = gks,
+                  computeProjection = cps,
+                  computeAggregate = computeAggregate
+                )
+            } yield ff
+          }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
           val evaluationPlan = NativeAggregationEvaluationPlan(
