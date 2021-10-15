@@ -153,7 +153,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     expect(results == expected)
   }
 
-  "We can aggregate / group by on an empty grouping" in {
+  "We can aggregate / group by on an empty grouping" ignore {
     val result = evalAggregate(
       List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
     )(

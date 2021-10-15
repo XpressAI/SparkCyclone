@@ -4,14 +4,19 @@ import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
 import com.nec.spark.agile.SparkVeMapper.{sparkTypeToVeType, EvalFallback}
-import com.nec.spark.agile.StagedGroupBy.{
+import com.nec.spark.agile.groupby.GroupByOutline.{
   GroupingKey,
   StagedAggregation,
   StagedAggregationAttribute,
   StagedProjection,
   StringReference
 }
-import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper, StagedGroupBy}
+import com.nec.spark.agile.groupby.{
+  GroupByOutline,
+  GroupByPartialGenerator,
+  GroupByPartialToFinalGenerator
+}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
 import com.nec.spark.planning.VERewriteStrategy.{SequenceList, VeRewriteStrategyOptions}
 import com.typesafe.scalalogging.LazyLogging
@@ -183,12 +188,12 @@ final case class VERewriteStrategy(
                 ) -> expr
               }
 
-          val stagedGroupBy = StagedGroupBy(
+          val stagedGroupBy = GroupByOutline(
             groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
             finalOutputs = aggregateExpressions.map { namedExp_ =>
               val namedExp = namedExp_ match {
                 case Alias(child, _) => child
-                case other           => namedExp_
+                case _               => namedExp_
               }
               projections
                 .collectFirst {
@@ -244,7 +249,7 @@ final case class VERewriteStrategy(
                           .name
                       )
                     )
-                  case Alias(other, name) =>
+                  case Alias(other, _) =>
                     Right(
                       TypedCExpression2(
                         SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
@@ -317,12 +322,14 @@ final case class VERewriteStrategy(
               ca <- stagedGroupBy.aggregations
                 .map(sa => computeAggregate(sa).map(a => sa -> a))
                 .sequence
-            } yield stagedGroupBy.createPartial(
-              inputs = inputsList,
+            } yield GroupByPartialGenerator(
+              finalGenerator = GroupByPartialToFinalGenerator(
+                stagedGroupBy = stagedGroupBy,
+                computeAggregate = ca
+              ),
               computeGroupingKey = gks,
-              computeProjection = ps,
-              computeAggregate = ca
-            )
+              computeProjection = ps
+            ).createPartial(inputs = inputsList)
           }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
@@ -335,10 +342,7 @@ final case class VERewriteStrategy(
             stagedGroupBy.aggregations
               .map(sa => computeAggregate(sa).map(a => sa -> a))
               .sequence
-              .map(ca =>
-                stagedGroupBy
-                  .createFinal(ca)
-              )
+              .map(ca => GroupByPartialToFinalGenerator(stagedGroupBy, ca).createFinal)
           }
             .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
           val fullFunction = {
