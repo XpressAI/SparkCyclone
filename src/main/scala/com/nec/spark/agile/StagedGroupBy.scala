@@ -36,34 +36,12 @@ final case class StagedGroupBy(
       )
     )
 
-  def debugOutputs: CodeLines =
-    CodeLines.from(
-      CodeLines.commentHere("Debugging finals"),
-      finalOutputs.map(_.fold(_.name, _.name)).map { name =>
-        StagedGroupBy.debugVector(name)
-      }
-    )
-
-  def debugPartialOutputs: CodeLines =
-    CodeLines.from(
-      CodeLines.commentHere("Debugging partials"),
-      partialOutputs.map(_.name).map { name =>
-        StagedGroupBy.debugVector(name)
-      }
-    )
-
-  def gcg: GroupingCodeGenerator = GroupingCodeGenerator(
+  def groupingCodeGenerator: GroupingCodeGenerator = GroupingCodeGenerator(
     groupingVecName = "grouping_vec",
     groupsCountOutName = "groups_count",
     groupsIndicesName = "groups_indices",
     sortedIdxName = "sorted_idx"
   )
-
-  def outputs: List[CVector] = finalOutputs.map {
-    case Left(stagedProjection) => stagedProjection.veType.makeCVector(stagedProjection.name)
-    case Right(stagedAggregation) =>
-      stagedAggregation.finalType.makeCVector(stagedAggregation.name)
-  }
 
   def projections: List[StagedProjection] =
     finalOutputs.flatMap(_.left.toSeq)
@@ -104,11 +82,11 @@ final case class StagedGroupBy(
                 StagedGroupBy.initializeScalarVector(
                   veScalarType = attribute.veScalarType,
                   variableName = s"partial_${attribute.name}",
-                  countExpression = gcg.groupsCountOutName
+                  countExpression = groupingCodeGenerator.groupsCountOutName
                 )
               ),
               CodeLines.debugHere,
-              gcg.forEachGroupItem(
+              groupingCodeGenerator.forEachGroupItem(
                 beforeFirst = aggregate.initial(prefix),
                 perItem = aggregate.iterate(prefix),
                 afterLast = CodeLines.from(
@@ -131,7 +109,7 @@ final case class StagedGroupBy(
         )
       }
 
-  implicit class SequenceList[A, B](l: List[Either[A, B]]) {
+  private implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
       case Some(error) => Left(error)
       case None        => Right(l.flatMap(_.right.toOption))
@@ -151,15 +129,9 @@ final case class StagedGroupBy(
               CodeLines.from(
                 CodeLines.debugHere,
                 fp.setup,
-                gcg.forHeadOfEachGroup(
-                  CodeLines.from(
-                    //                CodeLines.debugExpr(CExpression(cCode = s"output_0->count", None)),
-                    //                CodeLines.debugExpr(CExpression(cCode = s"groups_count", None)),
-                    fp.forEach
-                  )
-                ),
+                groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach)),
                 fp.complete,
-                gcg.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
+                groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
               )
             }
             .toRight(s"Could not produce for ${sp}; got ${compute(sp)}")
@@ -169,8 +141,14 @@ final case class StagedGroupBy(
               CodeLines.from(
                 CodeLines.debugHere,
                 StagedGroupBy
-                  .initializeScalarVector(veType, s"partial_${name}", gcg.groupsCountOutName),
-                gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g"))
+                  .initializeScalarVector(
+                    veType,
+                    s"partial_${name}",
+                    groupingCodeGenerator.groupsCountOutName
+                  ),
+                groupingCodeGenerator.forHeadOfEachGroup(
+                  StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g")
+                )
               )
             }
             .toRight(s"Could not produce for ${sp}; got ${compute(sp)}")
@@ -186,26 +164,27 @@ final case class StagedGroupBy(
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
     computeAggregate: StagedAggregation => Option[Aggregation]
-  ): Either[String, CFunction] = {
+  ): Either[String, CFunction] =
     for {
       aggregatePartialsPerGroup <- computeAggregatePartialsPerGroup(computeAggregate)
       projectionsPerGroup <- computeProjectionsPerGroup(computeProjection)
       groupingKeysPerGroup <- computeGroupingKeysPerGroup(computeGroupingKey)
+      performingGrouping <- performGrouping(
+        count = s"${inputs.head.name}->count",
+        compute = computeGroupingKey
+      )
     } yield CFunction(
       inputs = inputs,
       outputs = partialOutputs,
-      body = {
-        CodeLines.from(
-          UdpDebug.conditional.createSock,
-          performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
-          groupingKeysPerGroup.block,
-          projectionsPerGroup,
-          aggregatePartialsPerGroup,
-          UdpDebug.conditional.close
-        )
-      }
+      body = CodeLines.from(
+        UdpDebug.conditional.createSock,
+        performingGrouping,
+        groupingKeysPerGroup.block,
+        projectionsPerGroup,
+        aggregatePartialsPerGroup,
+        UdpDebug.conditional.close
+      )
     )
-  }
 
   def createFinal(
     computeAggregate: StagedAggregation => Option[Aggregation]
@@ -214,16 +193,18 @@ final case class StagedGroupBy(
       aggregatePartialsPerGroup <- mergeAndProduceAggregatePartialsPerGroup(computeAggregate)
     } yield CFunction(
       inputs = partialOutputs,
-      outputs = outputs,
+      outputs = finalOutputs.map {
+        case Left(stagedProjection) => stagedProjection.veType.makeCVector(stagedProjection.name)
+        case Right(stagedAggregation) =>
+          stagedAggregation.finalType.makeCVector(stagedAggregation.name)
+      },
       body = {
         CodeLines.from(
           UdpDebug.conditional.createSock,
-//          debugPartialOutputs,
           performGroupingOnKeys,
           aggregatePartialsPerGroup,
           passProjectionsPerGroup,
           UdpDebug.conditional.close
-//          debugOutputs
         )
       }
     )
@@ -243,23 +224,28 @@ final case class StagedGroupBy(
   def performGrouping(
     count: String,
     compute: GroupingKey => Option[Either[StringReference, CExpression]]
-  ): CodeLines =
-    CodeLines.debugHere ++ gcg.identifyGroups(
-      tupleTypes = tupleTypes,
-      tupleType = tupleType,
-      count = count,
-      thingsToGroup = groupingKeys.map(gk =>
+  ): Either[String, CodeLines] =
+    groupingKeys
+      .map(gk =>
         compute(gk) match {
-          case Some(Left(StringReference(name))) => Left(name)
-          case Some(Right(cExpression))          => Right(cExpression)
-          case None                              => sys.error(s"Could not match ${gk}")
+          case Some(Left(StringReference(name))) => Right(Left(name))
+          case Some(Right(cExpression))          => Right(Right(cExpression))
+          case None                              => Left(s"Could not match ${gk}")
         }
       )
-    )
+      .sequence
+      .map(thingsToGroup =>
+        CodeLines.debugHere ++ groupingCodeGenerator.identifyGroups(
+          tupleTypes = tupleTypes,
+          tupleType = tupleType,
+          count = count,
+          thingsToGroup = thingsToGroup
+        )
+      )
 
   def performGroupingOnKeys: CodeLines =
     CodeLines.from(
-      gcg.identifyGroups(
+      groupingCodeGenerator.identifyGroups(
         tupleTypes = tupleTypes,
         tupleType = tupleType,
         count = s"${partialOutputs.head.name}->count",
@@ -289,10 +275,10 @@ final case class StagedGroupBy(
               StagedGroupBy.initializeScalarVector(
                 veScalarType = sa.finalType.asInstanceOf[VeScalarType],
                 variableName = sa.name,
-                countExpression = gcg.groupsCountOutName
+                countExpression = groupingCodeGenerator.groupsCountOutName
               ),
               CodeLines.commentHere("producing aggregate/partials per group"),
-              gcg.forEachGroupItem(
+              groupingCodeGenerator.forEachGroupItem(
                 beforeFirst = aggregation.initial(sa.name),
                 perItem = aggregation.merge(sa.name, s"partial_${sa.name}"),
                 afterLast =
@@ -313,9 +299,9 @@ final case class StagedGroupBy(
           .from(
             CodeLines.debugHere,
             fp.setup,
-            gcg.forHeadOfEachGroup(fp.forEach),
+            groupingCodeGenerator.forHeadOfEachGroup(fp.forEach),
             fp.complete,
-            gcg.forHeadOfEachGroup(fp.validityForEach("g"))
+            groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
           )
           .block
       case stagedProjection @ StagedProjection(name, scalarType: VeScalarType) =>
@@ -323,9 +309,9 @@ final case class StagedGroupBy(
           StagedGroupBy.initializeScalarVector(
             veScalarType = scalarType,
             variableName = stagedProjection.name,
-            countExpression = gcg.groupsCountOutName
+            countExpression = groupingCodeGenerator.groupsCountOutName
           ),
-          gcg.forHeadOfEachGroup(
+          groupingCodeGenerator.forHeadOfEachGroup(
             CodeLines.from(
               StagedGroupBy.storeTo(
                 stagedProjection.name,
@@ -353,7 +339,7 @@ final case class StagedGroupBy(
                 StagedGroupBy.initializeScalarVector(
                   veScalarType = scalarType,
                   variableName = s"partial_${groupingKey.name}",
-                  countExpression = gcg.groupsCountOutName
+                  countExpression = groupingCodeGenerator.groupsCountOutName
                 )
               )
             case VeString =>
@@ -389,7 +375,7 @@ final case class StagedGroupBy(
           }
         )
         .sequence
-        .map(codeLines => gcg.forHeadOfEachGroup(codeLines))
+        .map(codeLines => groupingCodeGenerator.forHeadOfEachGroup(codeLines))
     } yield CodeLines.from(
       CodeLines.debugHere,
       gkCodes,
@@ -402,7 +388,10 @@ final case class StagedGroupBy(
             val fp =
               FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(name))
 
-            CodeLines.from(fp.complete, gcg.forHeadOfEachGroup(fp.validityForEach("g")))
+            CodeLines.from(
+              fp.complete,
+              groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
+            )
           case _ => CodeLines.empty
         })
       )
@@ -411,7 +400,7 @@ final case class StagedGroupBy(
 
   def passGroupingKeysPerGroup: CodeLines =
     groupingKeys.map(groupingKey =>
-      gcg.forHeadOfEachGroup(
+      groupingCodeGenerator.forHeadOfEachGroup(
         CodeLines.from(
           CodeLines.debugHere,
           storeTo(
