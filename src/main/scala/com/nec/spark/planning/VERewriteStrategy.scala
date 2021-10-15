@@ -222,63 +222,73 @@ final case class VERewriteStrategy(
             gk =>
               groupingExpressionsKeys.toMap
                 .get(gk)
-                .map(exp => mapGroupingExpression(exp, child))
                 .toRight(s"Could not compute grouping key ${gk}")
+                .flatMap(exp => mapGroupingExpression(exp, child))
 
           val computeProjection
             : StagedProjection => Either[String, Either[StringReference, TypedCExpression2]] =
             sp =>
               projections.toMap
                 .get(sp)
-                .map {
+                .toRight(s"Could not find a projection for ${sp}")
+                .flatMap {
                   case ar: AttributeReference if ar.dataType == StringType =>
-                    Left(
-                      StringReference(
-                        ar.transform(
-                          SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                        ).asInstanceOf[AttributeReference]
-                          .name
+                    Right(
+                      Left(
+                        StringReference(
+                          ar.transform(
+                            SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
+                          ).asInstanceOf[AttributeReference]
+                            .name
+                        )
                       )
                     )
                   case Alias(ar: AttributeReference, _) if ar.dataType == StringType =>
-                    Left(
-                      StringReference(
-                        ar.transform(
-                          SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
-                        ).asInstanceOf[AttributeReference]
-                          .name
+                    Right(
+                      Left(
+                        StringReference(
+                          ar.transform(
+                            SparkVeMapper.referenceReplacer(prefix = "input_", child.output.toList)
+                          ).asInstanceOf[AttributeReference]
+                            .name
+                        )
                       )
                     )
                   case Alias(other, _) =>
-                    Right(
-                      TypedCExpression2(
-                        SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
-                        SparkVeMapper
-                          .eval(
-                            other.transform(
-                              SparkVeMapper
-                                .referenceReplacer(prefix = "input_", child.output.toList)
-                            )
-                          )
-                          .getOrReport()
+                    SparkVeMapper
+                      .eval(
+                        other.transform(
+                          SparkVeMapper
+                            .referenceReplacer(prefix = "input_", child.output.toList)
+                        )
                       )
-                    )
+                      .reportToString
+                      .map(ce =>
+                        Right(
+                          TypedCExpression2(
+                            SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
+                            ce
+                          )
+                        )
+                      )
                   case other =>
-                    Right(
-                      TypedCExpression2(
-                        SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
-                        SparkVeMapper
-                          .eval(
-                            other.transform(
-                              SparkVeMapper
-                                .referenceReplacer(prefix = "input_", child.output.toList)
-                            )
-                          )
-                          .getOrReport()
+                    SparkVeMapper
+                      .eval(
+                        other.transform(
+                          SparkVeMapper
+                            .referenceReplacer(prefix = "input_", child.output.toList)
+                        )
                       )
-                    )
+                      .reportToString
+                      .map(ce =>
+                        Right(
+                          TypedCExpression2(
+                            SparkVeMapper.sparkTypeToScalarVeType(other.dataType),
+                            ce
+                          )
+                        )
+                      )
                 }
-                .toRight(s"Could not compute for ${sp}")
 
           val computeAggregate: StagedAggregation => Either[String, Aggregation] = sa =>
             aggregates.toMap
@@ -409,46 +419,39 @@ final case class VERewriteStrategy(
 
   def mapGroupingExpression(expr: Expression, child: LogicalPlan)(implicit
     evalFallback: EvalFallback
-  ): Either[StringReference, TypedCExpression2] = {
+  ): Either[String, Either[StringReference, TypedCExpression2]] = {
     expr.dataType match {
       case StringType =>
         /**
          * This is not correct for any group-by that are not a simple reference.
          * todo fix it
          */
-        Left(
-          expr
-            .find(_.isInstanceOf[AttributeReference])
-            .flatMap(expr =>
-              SparkVeMapper
-                .replaceReferences(
-                  prefix = "input_",
-                  inputs = child.output.toList,
-                  expression = expr
-                )
-                .collectFirst {
-                  case ar: AttributeReference if ar.name.contains("input_") =>
-                    StringReference(ar.name.replaceAllLiterally("->data[i]", ""))
-                }
-            )
-            .getOrElse(sys.error(s"Cannot support group by: ${expr} (type: ${expr.dataType})"))
-        )
-      case other =>
-        Right(
-          TypedCExpression2(
-            veType = SparkVeMapper.sparkTypeToScalarVeType(expr.dataType),
-            cExpression = SparkVeMapper
-              .eval(
-                SparkVeMapper
-                  .replaceReferences(
-                    prefix = "input_",
-                    inputs = child.output.toList,
-                    expression = expr
-                  )
-              )
-              .getOrReport()
+        expr
+          .find(_.isInstanceOf[AttributeReference])
+          .flatMap(expr =>
+            SparkVeMapper
+              .replaceReferences(prefix = "input_", inputs = child.output.toList, expression = expr)
+              .collectFirst {
+                case ar: AttributeReference if ar.name.contains("input_") =>
+                  Left(StringReference(ar.name.replaceAllLiterally("->data[i]", "")))
+              }
           )
-        )
+          .toRight(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
+      case other =>
+        SparkVeMapper
+          .eval(
+            SparkVeMapper
+              .replaceReferences(prefix = "input_", inputs = child.output.toList, expression = expr)
+          )
+          .reportToString
+          .map(ce =>
+            Right(
+              TypedCExpression2(
+                veType = SparkVeMapper.sparkTypeToScalarVeType(expr.dataType),
+                cExpression = ce
+              )
+            )
+          )
     }
   }
 }
