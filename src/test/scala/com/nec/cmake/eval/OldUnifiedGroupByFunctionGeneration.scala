@@ -30,7 +30,7 @@ final case class OldUnifiedGroupByFunctionGeneration(
     val stagedGroupBy = StagedGroupBy(
       groupingKeys = veDataTransformation.groups.zipWithIndex.map {
         case (Left(StringGrouping(name)), i) => GroupingKey(name, VeString)
-        case (Right(typedExp), i)            => GroupingKey(s"g_${i}", typedExp.veType)
+        case (Right(typedExp), i)            => GroupingKey(s"g_$i", typedExp.veType)
       },
       finalOutputs = veDataTransformation.outputs.zipWithIndex.map {
         case (
@@ -63,27 +63,29 @@ final case class OldUnifiedGroupByFunctionGeneration(
           case Right(NamedGroupByExpression(name, veType, GroupByAggregation(aggregation))) =>
             aggregation
         }
-    val pf = stagedGroupBy.createPartial(
-      inputs = veDataTransformation.inputs,
-      computeGroupingKey = gk =>
-        veDataTransformation.groups
-          .lift(stagedGroupBy.groupingKeys.indexOf(gk))
-          .collect {
-            case Left(StringGrouping(name)) => Left(StringReference(name))
-            case Right(TypedCExpression2(vet, expr)) =>
-              Right(expr)
-          },
-      computeProjection = proj =>
-        veDataTransformation.outputs
-          .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
-          .collectFirst {
-            case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
-              Right(cExpression)
-            case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
-              Left(StringReference(c.inputName))
-          },
-      computeAggregate = computeAggregate
-    )
+    val pf = stagedGroupBy
+      .createPartial(
+        inputs = veDataTransformation.inputs,
+        computeGroupingKey = gk =>
+          veDataTransformation.groups
+            .lift(stagedGroupBy.groupingKeys.indexOf(gk))
+            .collect {
+              case Left(StringGrouping(name)) => Left(StringReference(name))
+              case Right(TypedCExpression2(vet, expr)) =>
+                Right(expr)
+            },
+        computeProjection = proj =>
+          veDataTransformation.outputs
+            .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
+            .collectFirst {
+              case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
+                Right(cExpression)
+              case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
+                Left(StringReference(c.inputName))
+            },
+        computeAggregate = computeAggregate
+      )
+      .fold(sys.error, identity)
 
     val ff = stagedGroupBy.createFinal(computeAggregate = computeAggregate)
 

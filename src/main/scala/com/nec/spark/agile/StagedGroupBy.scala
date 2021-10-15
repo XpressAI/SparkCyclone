@@ -16,26 +16,27 @@ final case class StagedGroupBy(
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
     computeAggregate: StagedAggregation => Option[Aggregation]
-  ): CFunction = {
-
-    val pf = createPartial(inputs, computeGroupingKey, computeProjection, computeAggregate)
-    val ff = createFinal(computeAggregate)
-    CFunction(
-      inputs = pf.inputs,
-      outputs = ff.outputs,
-      body = CodeLines.from(
-        CodeLines.commentHere(
-          "Declare the variables for the output of the Partial stage for the unified function"
-        ),
-        pf.outputs.map(cv => StagedGroupBy.declare(cv)),
-        pf.body.blockCommented("Perform the Partial computation stage"),
-        ff.body.blockCommented("Perform the Final computation stage"),
-        pf.outputs
-          .map(cv => StagedGroupBy.dealloc(cv))
-          .blockCommented("Deallocate the partial variables")
+  ): Either[String, CFunction] =
+    for {
+      pf <- createPartial(inputs, computeGroupingKey, computeProjection, computeAggregate)
+    } yield {
+      val ff = createFinal(computeAggregate)
+      CFunction(
+        inputs = pf.inputs,
+        outputs = ff.outputs,
+        body = CodeLines.from(
+          CodeLines.commentHere(
+            "Declare the variables for the output of the Partial stage for the unified function"
+          ),
+          pf.outputs.map(cv => StagedGroupBy.declare(cv)),
+          pf.body.blockCommented("Perform the Partial computation stage"),
+          ff.body.blockCommented("Perform the Final computation stage"),
+          pf.outputs
+            .map(cv => StagedGroupBy.dealloc(cv))
+            .blockCommented("Deallocate the partial variables")
+        )
       )
-    )
-  }
+    }
 
   def debugOutputs: CodeLines =
     CodeLines.from(
@@ -93,49 +94,60 @@ final case class StagedGroupBy(
 
   def computeAggregatePartialsPerGroup(
     deriveAggregate: StagedAggregation => Option[Aggregation]
-  ): CodeLines = CodeLines.from(
-    CodeLines.debugHere,
-    CodeLines.commentHere("Compute aggregate partials per group"),
-    aggregations.map { stagedAggregation =>
-      deriveAggregate(stagedAggregation)
-        .map { aggregate =>
-          val prefix = s"partial_${stagedAggregation.name}"
-          CodeLines.from(
-            CodeLines.debugHere,
-            stagedAggregation.attributes.map(attribute =>
-              StagedGroupBy.initializeScalarVector(
-                veScalarType = attribute.veScalarType,
-                variableName = s"partial_${attribute.name}",
-                countExpression = gcg.groupsCountOutName
-              )
-            ),
-            CodeLines.debugHere,
-            gcg.forEachGroupItem(
-              beforeFirst = aggregate.initial(prefix),
-              perItem = aggregate.iterate(prefix),
-              afterLast = CodeLines.from(
-                stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
-                  case (attr, (vec, ex)) =>
-                    CodeLines.from(StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g"))
-                }
+  ): Either[String, CodeLines] =
+    aggregations
+      .map { stagedAggregation =>
+        deriveAggregate(stagedAggregation)
+          .map { aggregate =>
+            val prefix = s"partial_${stagedAggregation.name}"
+            CodeLines.from(
+              CodeLines.debugHere,
+              stagedAggregation.attributes.map(attribute =>
+                StagedGroupBy.initializeScalarVector(
+                  veScalarType = attribute.veScalarType,
+                  variableName = s"partial_${attribute.name}",
+                  countExpression = gcg.groupsCountOutName
+                )
+              ),
+              CodeLines.debugHere,
+              gcg.forEachGroupItem(
+                beforeFirst = aggregate.initial(prefix),
+                perItem = aggregate.iterate(prefix),
+                afterLast = CodeLines.from(
+                  stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
+                    case (attr, (vec, ex)) =>
+                      CodeLines.from(StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g"))
+                  }
+                )
               )
             )
-          )
+          }
+          .toRight(s"Could not map aggregation: ${stagedAggregation}")
+      }
+      .sequence
+      .map { aggregationsCodeLines =>
+        CodeLines.from(
+          CodeLines.debugHere,
+          CodeLines.commentHere("Compute aggregate partials per group"),
+          aggregationsCodeLines
+        )
+      }
 
-        }
-        .getOrElse(sys.error(s"Could not match ${stagedAggregation}"))
+  implicit class SequenceList[A, B](l: List[Either[A, B]]) {
+    def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
+      case Some(error) => Left(error)
+      case None        => Right(l.flatMap(_.right.toOption))
     }
-  )
+  }
 
   def computeProjectionsPerGroup(
     compute: StagedProjection => Option[Either[StringReference, CExpression]]
-  ): CodeLines = {
-    CodeLines.from(
-      CodeLines.debugHere,
-      projections.map {
+  ): Either[String, CodeLines] = {
+    projections
+      .map {
         case sp @ StagedProjection(name, VeString) =>
-          compute(sp) match {
-            case Some(Left(StringReference(sourceName))) =>
+          compute(sp)
+            .collect { case Left(StringReference(sourceName)) =>
               val fp =
                 FilteringProducer(s"partial_str_${name}", StringProducer.copyString(sourceName))
               CodeLines.from(
@@ -151,21 +163,24 @@ final case class StagedGroupBy(
                 fp.complete,
                 gcg.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
               )
-            case other => sys.error(s"Could not produce for ${sp}; got ${other}")
-          }
+            }
+            .toRight(s"Could not produce for ${sp}; got ${compute(sp)}")
         case sp @ StagedProjection(name, veType: VeScalarType) =>
-          compute(sp) match {
-            case Some(Right(cExpression)) =>
+          compute(sp)
+            .collect { case Right(cExpression) =>
               CodeLines.from(
                 CodeLines.debugHere,
                 StagedGroupBy
                   .initializeScalarVector(veType, s"partial_${name}", gcg.groupsCountOutName),
                 gcg.forHeadOfEachGroup(StagedGroupBy.storeTo(s"partial_${name}", cExpression, "g"))
               )
-            case other => sys.error(s"Could not map ${sp}, got ${other}")
-          }
+            }
+            .toRight(s"Could not produce for ${sp}; got ${compute(sp)}")
       }
-    )
+      .sequence
+      .map { listCodeLines =>
+        CodeLines.from(CodeLines.debugHere, listCodeLines)
+      }
   }
 
   def createPartial(
@@ -173,8 +188,11 @@ final case class StagedGroupBy(
     computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
     computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
     computeAggregate: StagedAggregation => Option[Aggregation]
-  ): CFunction =
-    CFunction(
+  ): Either[String, CFunction] = {
+    for {
+      aggregatePartialsPerGroup <- computeAggregatePartialsPerGroup(computeAggregate)
+      projectionsPerGroup <- computeProjectionsPerGroup(computeProjection)
+    } yield CFunction(
       inputs = inputs,
       outputs = partialOutputs,
       body = {
@@ -182,12 +200,13 @@ final case class StagedGroupBy(
           UdpDebug.conditional.createSock,
           performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
           computeGroupingKeysPerGroup(computeGroupingKey).block,
-          computeProjectionsPerGroup(computeProjection),
-          computeAggregatePartialsPerGroup(computeAggregate),
+          projectionsPerGroup,
+          aggregatePartialsPerGroup,
           UdpDebug.conditional.close
         )
       }
     )
+  }
 
   def createFinal(computeAggregate: StagedAggregation => Option[Aggregation]): CFunction =
     CFunction(
@@ -340,10 +359,7 @@ final case class StagedGroupBy(
           compute(groupingKey) match {
             case Some(Left(StringReference(sr))) =>
               val fp =
-                FilteringProducer(
-                  s"partial_str_${groupingKey.name}",
-                  StringProducer.copyString(sr)
-                )
+                FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(sr))
               fp.setup
             case other =>
               sys.error(s"Unsupported right now: ${other} (from ${groupingKey})")

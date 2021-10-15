@@ -280,12 +280,14 @@ final case class VERewriteStrategy(
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
           }.toList
 
-          val pf = stagedGroupBy.createPartial(
-            inputs = inputsList,
-            computeGroupingKey = computeGroupingKey,
-            computeProjection = computeProjection,
-            computeAggregate = computeAggregate
-          )
+          val pf = stagedGroupBy
+            .createPartial(
+              inputs = inputsList,
+              computeGroupingKey = computeGroupingKey,
+              computeProjection = computeProjection,
+              computeAggregate = computeAggregate
+            )
+            .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
           assert(
             pf.outputs.toSet.size == pf.outputs.size,
@@ -293,12 +295,14 @@ final case class VERewriteStrategy(
           )
 
           val ff = stagedGroupBy.createFinal(computeAggregate)
-          val fullFunction = stagedGroupBy.createFull(
-            inputs = inputsList,
-            computeGroupingKey = computeGroupingKey,
-            computeProjection = computeProjection,
-            computeAggregate = computeAggregate
-          )
+          val fullFunction = stagedGroupBy
+            .createFull(
+              inputs = inputsList,
+              computeGroupingKey = computeGroupingKey,
+              computeProjection = computeProjection,
+              computeAggregate = computeAggregate
+            )
+            .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
           val evaluationPlan = NativeAggregationEvaluationPlan(
             outputExpressions = aggregateExpressions,
