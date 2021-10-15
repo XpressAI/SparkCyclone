@@ -97,26 +97,6 @@ final case class VERewriteStrategy(
               )
             }.toList
 
-          val projections: List[(StagedProjection, Expression)] =
-            aggregateExpressions.zipWithIndex
-              .collect {
-                case (ar: AttributeReference, idx)
-                    if child.output.toList.exists(_.exprId == ar.exprId) =>
-                  Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(ar.dataType)) -> ar)
-                case (anything, idx)
-                    if anything.isInstanceOf[aggregate.AggregateExpression] || anything
-                      .find(_.isInstanceOf[DeclarativeAggregate])
-                      .nonEmpty =>
-                  /** Intentionally ignore -- these are not actual projections */
-                  Option.empty
-                case (Alias(exp, name), idx) =>
-                  Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)) -> exp)
-                case other =>
-                  sys.error(s"Unexpected aggregate expression: ${other}, type ${other._1.getClass}")
-              }
-              .toList
-              .flatten
-
           val aggregates: List[(StagedAggregation, Expression)] =
             aggregateExpressions.zipWithIndex
               .collect {
@@ -188,34 +168,61 @@ final case class VERewriteStrategy(
                 ) -> expr
               }
 
-          val stagedGroupBy = GroupByOutline(
-            groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
-            finalOutputs = aggregateExpressions.map { namedExp_ =>
-              val namedExp = namedExp_ match {
-                case Alias(child, _) => child
-                case _               => namedExp_
-              }
-              projections
-                .collectFirst {
-                  case (pk, `namedExp`)           => Left(pk)
-                  case (pk, Alias(`namedExp`, _)) => Left(pk)
-                }
-                .orElse {
-                  aggregates.collectFirst {
-                    case (agg, `namedExp`) =>
-                      Right(agg)
-                    case (agg, Alias(`namedExp`, _)) =>
-                      Right(agg)
-                  }
-                }
-                .getOrElse(
-                  sys.error(
-                    s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
-                      .mkString(",")}"
+          val projectionsE: Either[String, List[(StagedProjection, Expression)]] =
+            aggregateExpressions.zipWithIndex
+              .map {
+                case (ar: AttributeReference, idx)
+                    if child.output.toList.exists(_.exprId == ar.exprId) =>
+                  Right(
+                    Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(ar.dataType)) -> ar)
                   )
-                )
-            }.toList
-          )
+                case (anything, idx)
+                    if anything.isInstanceOf[aggregate.AggregateExpression] || anything
+                      .find(_.isInstanceOf[DeclarativeAggregate])
+                      .nonEmpty =>
+                  /** Intentionally ignore -- these are not actual projections */
+                  Right(Option.empty)
+                case (Alias(exp, name), idx) =>
+                  Right(
+                    Option(StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)) -> exp)
+                  )
+                case other =>
+                  Left(s"Unexpected aggregate expression: ${other}, type ${other._1.getClass}")
+              }
+              .toList
+              .sequence
+              .map(_.flatten)
+
+          val stagedGroupByE = projectionsE.map { projections =>
+            GroupByOutline(
+              groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
+              finalOutputs = aggregateExpressions.map { namedExp_ =>
+                val namedExp = namedExp_ match {
+                  case Alias(child, _) => child
+                  case _               => namedExp_
+                }
+                projections
+                  .collectFirst {
+                    case (pk, `namedExp`)           => Left(pk)
+                    case (pk, Alias(`namedExp`, _)) => Left(pk)
+                  }
+                  .orElse {
+                    aggregates.collectFirst {
+                      case (agg, `namedExp`) =>
+                        Right(agg)
+                      case (agg, Alias(`namedExp`, _)) =>
+                        Right(agg)
+                    }
+                  }
+                  .getOrElse(
+                    sys.error(
+                      s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
+                        .mkString(",")}"
+                    )
+                  )
+              }.toList
+            )
+          }
 
           val computeGroupingKey
             : GroupingKey => Either[String, Either[StringReference, TypedCExpression2]] =
@@ -228,9 +235,12 @@ final case class VERewriteStrategy(
           val computeProjection
             : StagedProjection => Either[String, Either[StringReference, TypedCExpression2]] =
             sp =>
-              projections.toMap
-                .get(sp)
-                .toRight(s"Could not find a projection for ${sp}")
+              projectionsE
+                .flatMap(
+                  _.toMap
+                    .get(sp)
+                    .toRight(s"Could not find a projection for ${sp}")
+                )
                 .flatMap {
                   case ar: AttributeReference if ar.dataType == StringType =>
                     Right(
@@ -314,7 +324,7 @@ final case class VERewriteStrategy(
               }
               .toRight(s"Could not compute aggregate for ${sa}")
 
-          logInfo(s"Staged groupBy = ${stagedGroupBy}")
+          logInfo(s"stagedGroupByE = ${stagedGroupByE}")
 
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
@@ -322,10 +332,12 @@ final case class VERewriteStrategy(
 
           val pf = {
             for {
+              stagedGroupBy <- stagedGroupByE
               gks <-
                 stagedGroupBy.groupingKeys
                   .map(gk => computeGroupingKey(gk).map(r => gk -> r))
                   .sequence
+              projections <- projectionsE
               ps <- projections.map { case (sp, _) =>
                 computeProjection(sp).map(r => sp -> r)
               }.sequence
@@ -349,14 +361,17 @@ final case class VERewriteStrategy(
           )
 
           val ff = {
-            stagedGroupBy.aggregations
-              .map(sa => computeAggregate(sa).map(a => sa -> a))
-              .sequence
-              .map(ca => GroupByPartialToFinalGenerator(stagedGroupBy, ca).createFinal)
+            stagedGroupByE.flatMap(stagedGroupBy =>
+              stagedGroupBy.aggregations
+                .map(sa => computeAggregate(sa).map(a => sa -> a))
+                .sequence
+                .map(ca => GroupByPartialToFinalGenerator(stagedGroupBy, ca).createFinal)
+            )
           }
             .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
           val fullFunction = {
             for {
+              stagedGroupBy <- stagedGroupByE
               gks <-
                 stagedGroupBy.groupingKeys
                   .map(gk => computeGroupingKey(gk).map(r => gk -> r))
@@ -437,7 +452,7 @@ final case class VERewriteStrategy(
               }
           )
           .toRight(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
-      case other =>
+      case _ =>
         SparkVeMapper
           .eval(
             SparkVeMapper
