@@ -1,6 +1,3 @@
-![aurora4spark](https://user-images.githubusercontent.com/68586800/133747830-d79fa5ff-06e0-4127-9de0-90cf5af719aa.png)
-
-
 # Overview
 
 The Aurora4Spark plugin showcases the performance of the Aurora Vector Engine (VE) for Big Data Analytics use cases. The plugin we have created enables developers to accelerate Spark jobs with VE hardware. We believe that the architecture of the VE makes it better suited for these Big Data workloads as it has high-performance support for the typical data types used in Spark jobs and has much larger memory capacity and higher memory bandwidth than all but the recently released A100 GPU.

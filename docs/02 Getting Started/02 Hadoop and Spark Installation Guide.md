@@ -1,6 +1,13 @@
-# Installation Guide
+# Hadoop and Spark Installation Guide
 
-1\. Download hadoop 3.3 (or later) and Spark 3.1.1 (or later) built for hadoop 3.2.
+1\. Download hadoop 3.3.0 and Spark 3.1.0.
+
+In this guide We have used the Spark distribution without hadoop, however you should be able to use the one bundled with Hadoop.
+
+	# wget https://archive.apache.org/dist/hadoop/common/hadoop-3.3.0/hadoop-3.3.0.tar.gz
+	# wget https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-without-hadoop.tgz
+
+
 2\. Create the hadoop user
 
 	# useradd hadoop
@@ -32,7 +39,7 @@
 	# java -version
 	openjdk version "1.8.0_282"
 
-6\. Create profile.d script to set hadoop variables for all users.
+6\. Create profile.d script to set hadoop variables for all users. Ensure that the JAVA_HOME points to your distribution of JDK. 
 
 	# vi /etc/profile.d/hadoop.sh
   
@@ -59,11 +66,17 @@
 
 	# exit
 
+If you are using Spark without Hadoop bundled, consider adding
+
+	export SPARK_DIST_CLASSPATH=$(/opt/hadoop/bin/hadoop classpath)
+
 7\. **Login again and verify variables set.**
 
 	  # echo $HADOOP_HOME
 
 8\. **Extract hadoop and spark downloads into /opt/hadoop and /opt/spark**
+
+Ensure that they are extracted such that the path is ```/opt/hadoop/etc``` instead of ```/opt/hadoop/hadoop3.3/etc```
 
 9\. Add getVEsResources.sh
 
@@ -103,7 +116,7 @@
 	# yum install pdsh
 
 
-13\. Set hadoop configuration
+13\. Set hadoop configuration. Take note that if you have no GPUs installed in your system, exclude the GPU related configurations in yarn-site.xml, container-executor.cfg, and resource-types.xml.
 
 	# su hadoop
 	$ vi /opt/hadoop/etc/hadoop/core-site.xml

@@ -18,9 +18,9 @@ VE Architecture: SX-Aurora TSUBASA Vector Engine Type x
 
 
 ```
-Apache Spark 3.0.0
+Apache Spark 3.1.0
 
-Apache Hadoop 2.10+ or 3.1.1+
+Apache Hadoop 3.3.0
 
 Python 3.6+, Scala 2.12, Java 8
 ```
