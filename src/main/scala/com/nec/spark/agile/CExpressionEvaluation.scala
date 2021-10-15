@@ -1,5 +1,7 @@
 package com.nec.spark.agile
 
+import com.nec.cmake.UdpDebug
+
 import scala.language.implicitConversions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
@@ -143,32 +145,18 @@ object CExpressionEvaluation {
   }
 
   object CodeLines {
-    def debugExpr(
-      ex: CFunctionGeneration.CExpression
-    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
-      CodeLines.from(
-        "#ifdef DEBUG",
-        s"""std::cout << ${ex.cCode} << "; " << ${ex.isNotNullCode.getOrElse(
-          "1"
-        )} << " $$ " << "${fullName.value} (#${line.value})" << std::endl << std::flush;""",
-        "#endif"
-      )
 
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
       CodeLines.from(
+        UdpDebug.conditional
+          .send(
+            "utcnanotime().c_str()",
+            """" """",
+            s""""${fullName.value}#${line.value}"""",
+            """" """"
+          ),
         "#ifdef DEBUG",
-        s"""std::cout << " $$ " << "${fullName.value} (#${line.value}/#" << __LINE__ << ")" << std::endl << std::flush;""",
-        "#endif"
-      )
-
-    def debugHere(
-      what: String*
-    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
-      CodeLines.from(
-        "#ifdef DEBUG",
-        s"""std::cout << " $$ " << "${fullName.value} (#${line.value})" << """ + what
-          .map(x => s"""" " << ${x} << " " """)
-          .mkString(""" << ";" << """) + """ << std::endl << std::flush;""",
+        s"""std::cout << utcnanotime().c_str() << " $$ " << "${fullName.value} (#${line.value}/#" << __LINE__ << ")" << std::endl << std::flush;""",
         "#endif"
       )
 

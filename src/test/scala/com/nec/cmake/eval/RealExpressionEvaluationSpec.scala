@@ -55,7 +55,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   "We can transform a column to a String and a Double" in {
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
-        StringCExpressionEvaluation.expr_to_string(CExpression("2 * input_0->data[i]", None)),
+        StringCExpressionEvaluation
+          .expr_to_string(CExpression("2 * input_0->data[i]", None)): StringProducer,
         TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
       ) == List[(String, Double)](
         ("180.000000", 92.0),
@@ -97,7 +98,9 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can filter a column by a String (FilterByString)" in {
+  "We can filter a column by a String (FilterByString)" ignore {
+
+    /** Ignored because we are likely not going to support filtering * */
     val result = evalFilter[(String, Double)](
       ("x", 90.0),
       ("one", 1.0),
@@ -115,7 +118,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     expect(result == expected)
   }
-  "We can filter a column with a String" in {
+  "We can filter a column with a String" ignore {
+
+    /** Ignored because we are likely not going to support filtering * */
+
     val result = evalFilter[(String, Double)](
       ("x", 90.0),
       ("one", 1.0),
@@ -217,8 +223,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
 
-    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0))
-    assert(result == expected)
+    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0)).sorted
+    assert(result.asInstanceOf[List[(String, Double)]].sorted == expected)
   }
 
   "We can aggregate / group by with NULL input check values" in {
@@ -742,8 +748,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n")
+      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n"),
+      debug = true
     )
 
     val nativeInterface = new CArrowNativeInterface(cLib.toString)

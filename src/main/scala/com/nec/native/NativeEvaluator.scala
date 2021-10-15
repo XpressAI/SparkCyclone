@@ -5,7 +5,7 @@ import com.nec.arrow.ArrowNativeInterface.DeferredArrowInterface
 import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.VeArrowNativeInterface.VeArrowNativeInterfaceLazyLib
 import com.nec.aurora.Aurora
-import com.nec.native.NativeCompiler.CNativeCompiler
+import com.nec.native.NativeCompiler.{CNativeCompiler, CNativeCompilerDebug}
 import com.nec.spark.Aurora4SparkExecutorPlugin
 import com.typesafe.scalalogging.LazyLogging
 
@@ -19,6 +19,13 @@ object NativeEvaluator {
   object CNativeEvaluator extends NativeEvaluator {
     override def forCode(code: String): ArrowNativeInterface = {
       new CArrowNativeInterface(CNativeCompiler.forCode(code).toAbsolutePath.toString)
+    }
+  }
+  final case class CNativeEvaluator(debug: Boolean) extends NativeEvaluator {
+    override def forCode(code: String): ArrowNativeInterface = {
+      new CArrowNativeInterface(
+        (if (debug) CNativeCompilerDebug else CNativeCompiler).forCode(code).toAbsolutePath.toString
+      )
     }
   }
 

@@ -18,16 +18,18 @@ import javassist.compiler.CompileError
  *
  * Major OS are supported.
  */
-final case class CMakeBuilder(targetDir: Path) {
+final case class CMakeBuilder(targetDir: Path, debug: Boolean) {
   def buildC(cSource: String): Path = {
     val SourcesDir = targetDir.resolve("sources")
     CppResources.All.copyTo(SourcesDir)
+    val maybeDebug = if (debug) "add_definitions(-DDEBUG)" else ""
     lazy val CMakeListsTXT =
       s"""
 cmake_minimum_required(VERSION 3.6)
 project(HelloWorld LANGUAGES CXX C)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set (CMAKE_CXX_STANDARD 17)
+$maybeDebug
 ${CppResources.All.all
         .map(_.containingDir(SourcesDir))
         .toList
@@ -58,7 +60,7 @@ endif()
 
 object CMakeBuilder extends LazyLogging {
 
-  def buildC(cSource: String): Path = {
+  def buildC(cSource: String, debug: Boolean = false): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
     if (Files.exists(targetDir)) {
       FileUtils.deleteDirectory(targetDir.toFile)
@@ -66,13 +68,13 @@ object CMakeBuilder extends LazyLogging {
 
     Files.createDirectories(targetDir)
 
-    CMakeBuilder(targetDir).buildC(cSource)
+    CMakeBuilder(targetDir, debug).buildC(cSource)
   }
 
-  def buildCLogging(cSource: String): Path = {
+  def buildCLogging(cSource: String, debug: Boolean = false): Path = {
     try {
       logger.debug(s"Code to compile: ${cSource}")
-      buildC(cSource)
+      buildC(cSource, debug)
     } catch {
       case e: Exception =>
         logger.info(s"Could not compile code due to error: ${e}", e)

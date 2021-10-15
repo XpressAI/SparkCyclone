@@ -79,8 +79,8 @@ final case class OldUnifiedGroupByFunctionGeneration(
           .collectFirst {
             case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
               Right(cExpression)
-            case Left(NamedStringProducer(name, CopyStringProducer(inputName))) =>
-              Left(StringReference(inputName))
+            case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
+              Left(StringReference(c.inputName))
           },
       computeAggregate = computeAggregate
     )

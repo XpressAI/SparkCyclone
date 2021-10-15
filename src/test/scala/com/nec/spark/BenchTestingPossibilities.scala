@@ -194,6 +194,16 @@ object BenchTestingPossibilities extends LazyLogging {
 
   val possibilities: List[Testing] =
     List(
+      List(
+        SimpleSql(
+          sql = s"SELECT SUM(${SampleColA}), AVG(${SampleColB}), COUNT(*) FROM nums",
+          expectedResult = (90.0, 4.0, 13),
+          source = SampleSource.CSV,
+          testingTarget = TestingTarget.Rapids,
+          offHeapMode = None,
+          csvStrategy = None
+        )
+      ),
       JoinPlanSpec.OurTesting,
       GroupBySumPlanSpec.OurTesting,
       List(StringGroupByTesting(isVe = true), StringGroupByTesting(isVe = false)),

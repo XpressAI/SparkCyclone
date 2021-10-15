@@ -1,29 +1,41 @@
 package com.nec.spark.agile
 
+import com.nec.cmake.UdpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  Aggregation,
-  CExpression,
-  CFunction,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
-import com.nec.spark.agile.StagedGroupBy.{
-  storeTo,
-  GroupingCodeGenerator,
-  GroupingKey,
-  StagedAggregation,
-  StagedProjection,
-  StringReference
-}
-import com.nec.spark.agile.StringProducer.{CopyStringProducer, FilteringProducer}
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.StagedGroupBy._
+import com.nec.spark.agile.StringProducer.FilteringProducer
 
 final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
   finalOutputs: List[Either[StagedProjection, StagedAggregation]]
 ) {
+
+  def createFull(
+    inputs: List[CVector],
+    computeGroupingKey: GroupingKey => Option[Either[StringReference, CExpression]],
+    computeProjection: StagedProjection => Option[Either[StringReference, CExpression]],
+    computeAggregate: StagedAggregation => Option[Aggregation]
+  ): CFunction = {
+
+    val pf = createPartial(inputs, computeGroupingKey, computeProjection, computeAggregate)
+    val ff = createFinal(computeAggregate)
+    CFunction(
+      inputs = pf.inputs,
+      outputs = ff.outputs,
+      body = CodeLines.from(
+        CodeLines.commentHere(
+          "Declare the variables for the output of the Partial stage for the unified function"
+        ),
+        pf.outputs.map(cv => StagedGroupBy.declare(cv)),
+        pf.body.blockCommented("Perform the Partial computation stage"),
+        ff.body.blockCommented("Perform the Final computation stage"),
+        pf.outputs
+          .map(cv => StagedGroupBy.dealloc(cv))
+          .blockCommented("Deallocate the partial variables")
+      )
+    )
+  }
 
   def debugOutputs: CodeLines =
     CodeLines.from(
@@ -124,7 +136,8 @@ final case class StagedGroupBy(
         case sp @ StagedProjection(name, VeString) =>
           compute(sp) match {
             case Some(Left(StringReference(sourceName))) =>
-              val fp = FilteringProducer(s"partial_str_${name}", CopyStringProducer(sourceName))
+              val fp =
+                FilteringProducer(s"partial_str_${name}", StringProducer.copyString(sourceName))
               CodeLines.from(
                 CodeLines.debugHere,
                 fp.setup,
@@ -166,10 +179,12 @@ final case class StagedGroupBy(
       outputs = partialOutputs,
       body = {
         CodeLines.from(
+          UdpDebug.conditional.createSock,
           performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
-          computeGroupingKeysPerGroup(computeGroupingKey),
+          computeGroupingKeysPerGroup(computeGroupingKey).block,
           computeProjectionsPerGroup(computeProjection),
-          computeAggregatePartialsPerGroup(computeAggregate)
+          computeAggregatePartialsPerGroup(computeAggregate),
+          UdpDebug.conditional.close
         )
       }
     )
@@ -180,10 +195,12 @@ final case class StagedGroupBy(
       outputs = outputs,
       body = {
         CodeLines.from(
+          UdpDebug.conditional.createSock,
 //          debugPartialOutputs,
           performGroupingOnKeys,
           mergeAndProduceAggregatePartialsPerGroup(computeAggregate),
-          passProjectionsPerGroup
+          passProjectionsPerGroup,
+          UdpDebug.conditional.close
 //          debugOutputs
         )
       }
@@ -220,7 +237,6 @@ final case class StagedGroupBy(
 
   def performGroupingOnKeys: CodeLines =
     CodeLines.from(
-      CodeLines.debugHere,
       gcg.identifyGroups(
         tupleTypes = tupleTypes,
         tupleType = tupleType,
@@ -275,14 +291,16 @@ final case class StagedGroupBy(
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map {
       case StagedProjection(name, VeString) =>
-        val fp = FilteringProducer(name, CopyStringProducer(s"partial_str_${name}"))
-        CodeLines.from(
-          CodeLines.debugHere,
-          fp.setup,
-          gcg.forHeadOfEachGroup(fp.forEach),
-          fp.complete,
-          gcg.forHeadOfEachGroup(fp.validityForEach("g"))
-        )
+        val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
+        CodeLines
+          .from(
+            CodeLines.debugHere,
+            fp.setup,
+            gcg.forHeadOfEachGroup(fp.forEach),
+            fp.complete,
+            gcg.forHeadOfEachGroup(fp.validityForEach("g"))
+          )
+          .block
       case stagedProjection @ StagedProjection(name, scalarType: VeScalarType) =>
         CodeLines.from(
           StagedGroupBy.initializeScalarVector(
@@ -319,12 +337,17 @@ final case class StagedGroupBy(
             countExpression = gcg.groupsCountOutName
           )
         case VeString =>
-          val fp =
-            FilteringProducer(
-              s"partial_str_${groupingKey.name}",
-              CopyStringProducer(groupingKey.name)
-            )
-          CodeLines.from(fp.setup)
+          compute(groupingKey) match {
+            case Some(Left(StringReference(sr))) =>
+              val fp =
+                FilteringProducer(
+                  s"partial_str_${groupingKey.name}",
+                  StringProducer.copyString(sr)
+                )
+              fp.setup
+            case other =>
+              sys.error(s"Unsupported right now: ${other} (from ${groupingKey})")
+          }
       }
     ),
     CodeLines.debugHere,
@@ -334,7 +357,7 @@ final case class StagedGroupBy(
           storeTo(s"partial_${groupingKey.name}", cExp, "g")
         case Some(Left(StringReference(name))) =>
           val fp =
-            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+            FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(name))
 
           CodeLines.from(fp.forEach)
         case other =>
@@ -343,14 +366,14 @@ final case class StagedGroupBy(
     ),
     CodeLines.debugHere,
     groupingKeys.map(groupingKey =>
-      gcg.forHeadOfEachGroup(CodeLines.from(compute(groupingKey) match {
+      CodeLines.from(compute(groupingKey) match {
         case Some(Left(StringReference(name))) =>
           val fp =
-            FilteringProducer(s"partial_str_${groupingKey.name}", CopyStringProducer(name))
+            FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(name))
 
           CodeLines.from(fp.complete, gcg.forHeadOfEachGroup(fp.validityForEach("g")))
         case _ => CodeLines.empty
-      }))
+      })
     )
   )
 
@@ -377,7 +400,7 @@ object StagedGroupBy {
 
   def debugVector(name: String): CodeLines = {
     CodeLines.from(
-      s"for (int i = 0; i < ${name}->count; i++) {",
+      s"for (int i = 0; i < $name->count; i++) {",
       CodeLines.from(
         s"""std::cout << "${name}[" << i << "] = " << ${name}->data[i] << " (valid? " << check_valid(${name}->validityBuffer, i) << ")" << std::endl << std::flush; """
       ),
@@ -455,19 +478,17 @@ object StagedGroupBy {
           .indented,
         s"}",
         CodeLines.debugHere,
-        tupleTypes.zipWithIndex.reverse.collect { case(t, idx) =>
+        tupleTypes.zipWithIndex.reverse.collect { case (t, idx) =>
           CodeLines.from(
             s"{",
             s"std::vector<${t}> temp(${count});",
             s"for ( long i = 0; i < ${count}; i++ ) {",
             CodeLines
-              .from(
-                s"temp[i] = std::get<${idx}>(${groupingVecName}[${sortedIdxName}[i]]);",
-              )
+              .from(s"temp[i] = std::get<${idx}>(${groupingVecName}[${sortedIdxName}[i]]);")
               .indented,
             s"}",
             s"frovedis::radix_sort(temp.data(), ${sortedIdxName}.data(), temp.size());",
-            s"}",
+            s"}"
           )
         },
         s"for ( long j = 0; j < ${count}; j++ ) {",
@@ -481,8 +502,8 @@ object StagedGroupBy {
                   List(s"${stringName}_string_id_to_hash[i]")
               }
               .mkString(", ")});"
-           )
-           .indented,
+          )
+          .indented,
         s"}",
         CodeLines.debugHere,
         s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",

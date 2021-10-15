@@ -98,4 +98,14 @@ object NativeCompiler {
     }
   }
 
+  object CNativeCompilerDebug extends NativeCompiler {
+    override def forCode(code: String): Path = {
+      CMakeBuilder.buildCLogging(
+        cSource = List(TransferDefinitions.TransferDefinitionsSourceCode, code)
+          .mkString("\n\n"),
+        debug = true
+      )
+    }
+  }
+
 }
