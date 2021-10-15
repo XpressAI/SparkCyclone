@@ -5,8 +5,6 @@
 
 ## Usage of the plugin
 
-### on Aurora 5 or Aurora 6
-
 ```
 
 $ /opt/spark/bin/spark-submit \
@@ -66,6 +64,7 @@ A good set of NCC defaults is set up, however if further overriding is needed, i
 config:
 
 ```
+--conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc
 --conf spark.com.nec.spark.ncc.debug=true
 --conf spark.com.nec.spark.ncc.o=3
 --conf spark.com.nec.spark.ncc.openmp=false
@@ -118,19 +117,26 @@ A variety of options are available - not tested with YARN yet.
 
 ## Compilation lifecycle
 
-### Use a precompiled directory
-
-```
---conf spark.com.nec.spark.kernel.precompiled=/path/to/precompiled/dir
-```
-
-### If not, then you can also specify a destination for on-demand compilation:
+The aurora4spark plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.  
+Compilation can take anywhere from a few seconds to a couple minutes.  While insignificant if your queries take hours
+you can optimize the compilation time by specifying a directory to cache kernels using the following config.
 
 ```
 --conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
 ```
 
-If this is not specified, then a random temporary directory will be used (not removed, however).
+If a suitable kernel exists in the directory, the aurora4spark plugin will use it and not compile a new one from
+scratch.
+
+### Use a precompiled directory
+
+You can also disable on-demand compilation by specifying a precompiled directory instead.
+
+```
+--conf spark.com.nec.spark.kernel.precompiled=/path/to/precompiled/dir
+```
+
+If neither are specified, then a random temporary directory will be used (not removed, however).
 
 ## Batching
 
