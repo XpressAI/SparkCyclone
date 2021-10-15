@@ -30,29 +30,26 @@ final case class OldUnifiedGroupByFunctionGeneration(
   def renderGroupBy: CFunction = {
     val stagedGroupBy = StagedGroupBy(
       groupingKeys = veDataTransformation.groups.zipWithIndex.map {
-        case (Left(StringGrouping(name)), i) => GroupingKey(name, VeString)
+        case (Left(StringGrouping(name)), _) => GroupingKey(name, VeString)
         case (Right(typedExp), i)            => GroupingKey(s"g_$i", typedExp.veType)
       },
       finalOutputs = veDataTransformation.outputs.zipWithIndex.map {
         case (
               Right(NamedGroupByExpression(outputName, veType, GroupByAggregation(aggregation))),
-              idx
+              _
             ) =>
           Right(
             StagedAggregation(
               outputName,
               veType,
-              aggregation.partialValues(outputName).map { case (cv, ce) =>
+              aggregation.partialValues(outputName).map { case (cv, _) =>
                 StagedAggregationAttribute(name = cv.name, veType)
               }
             )
           )
-        case (
-              Right(NamedGroupByExpression(outputName, veType, GroupByProjection(cExpression))),
-              idx
-            ) =>
+        case (Right(NamedGroupByExpression(outputName, veType, GroupByProjection(_))), _) =>
           Left(StagedProjection(outputName, veType))
-        case (Left(NamedStringProducer(outputName, _)), idx) =>
+        case (Left(NamedStringProducer(outputName, _)), _) =>
           Left(StagedProjection(outputName, VeString))
       }
     )
@@ -60,9 +57,8 @@ final case class OldUnifiedGroupByFunctionGeneration(
     val computeAggregate: StagedAggregation => Either[String, Aggregation] = agg =>
       veDataTransformation.outputs
         .lift(stagedGroupBy.finalOutputs.indexWhere(_.right.exists(_ == agg)))
-        .collectFirst {
-          case Right(NamedGroupByExpression(name, veType, GroupByAggregation(aggregation))) =>
-            aggregation
+        .collectFirst { case Right(NamedGroupByExpression(_, _, GroupByAggregation(aggregation))) =>
+          aggregation
         }
         .toRight(s"Could not compute aggregate for: ${agg}")
 
@@ -84,27 +80,32 @@ final case class OldUnifiedGroupByFunctionGeneration(
             veDataTransformation.outputs
               .lift(stagedGroupBy.finalOutputs.indexWhere(_.left.exists(_ == proj)))
               .collectFirst {
-                case Right(NamedGroupByExpression(name, veType, GroupByProjection(cExpression))) =>
+                case Right(NamedGroupByExpression(_, veType, GroupByProjection(cExpression))) =>
                   proj -> Right(TypedCExpression2(veType, cExpression))
-                case Left(NamedStringProducer(name, c: CopyStringProducer)) =>
+                case Left(NamedStringProducer(_, c: CopyStringProducer)) =>
                   proj -> Left(StringReference(c.inputName))
               }
               .toRight(s"Could not compute projection for ${proj}")
           )
           .sequence
-        cp <- stagedGroupBy
-          .createPartial(
-            inputs = veDataTransformation.inputs,
-            computeGroupingKey = gks,
-            computeProjection = cpr,
-            computeAggregate = computeAggregate
-          )
-      } yield cp
+        ca <- stagedGroupBy.aggregations.map(sa => computeAggregate(sa).map(c => sa -> c)).sequence
+      } yield stagedGroupBy
+        .createPartial(
+          inputs = veDataTransformation.inputs,
+          computeGroupingKey = gks,
+          computeProjection = cpr,
+          computeAggregate = ca
+        )
     }
       .fold(sys.error, identity)
 
-    val ff = stagedGroupBy
-      .createFinal(computeAggregate = computeAggregate)
+    val ff = stagedGroupBy.aggregations
+      .map(sa => computeAggregate(sa).map(c => sa -> c))
+      .sequence
+      .map(r =>
+        stagedGroupBy
+          .createFinal(computeAggregate = r)
+      )
       .fold(sys.error, identity)
 
     CFunction(

@@ -314,13 +314,15 @@ final case class VERewriteStrategy(
               ps <- projections.map { case (sp, _) =>
                 computeProjection(sp).map(r => sp -> r)
               }.sequence
-              p <- stagedGroupBy.createPartial(
-                inputs = inputsList,
-                computeGroupingKey = gks,
-                computeProjection = ps,
-                computeAggregate = computeAggregate
-              )
-            } yield p
+              ca <- stagedGroupBy.aggregations
+                .map(sa => computeAggregate(sa).map(a => sa -> a))
+                .sequence
+            } yield stagedGroupBy.createPartial(
+              inputs = inputsList,
+              computeGroupingKey = gks,
+              computeProjection = ps,
+              computeAggregate = ca
+            )
           }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 
@@ -329,8 +331,15 @@ final case class VERewriteStrategy(
             "Expected to have distinct outputs from a PF"
           )
 
-          val ff = stagedGroupBy
-            .createFinal(computeAggregate)
+          val ff = {
+            stagedGroupBy.aggregations
+              .map(sa => computeAggregate(sa).map(a => sa -> a))
+              .sequence
+              .map(ca =>
+                stagedGroupBy
+                  .createFinal(ca)
+              )
+          }
             .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
           val fullFunction = {
             for {
@@ -338,18 +347,19 @@ final case class VERewriteStrategy(
                 stagedGroupBy.groupingKeys
                   .map(gk => computeGroupingKey(gk).map(r => gk -> r))
                   .sequence
-
               cps <- stagedGroupBy.projections
                 .map(sp => computeProjection(sp).map(r => sp -> r))
                 .sequence
-              ff <- stagedGroupBy
-                .createFull(
-                  inputs = inputsList,
-                  computeGroupingKey = gks,
-                  computeProjection = cps,
-                  computeAggregate = computeAggregate
-                )
-            } yield ff
+              ca <- stagedGroupBy.aggregations
+                .map(sa => computeAggregate(sa).map(a => sa -> a))
+                .sequence
+            } yield stagedGroupBy
+              .createFull(
+                inputs = inputsList,
+                computeGroupingKey = gks,
+                computeProjection = cps,
+                computeAggregate = ca
+              )
           }
             .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
 

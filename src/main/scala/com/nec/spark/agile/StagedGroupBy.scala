@@ -5,7 +5,6 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StagedGroupBy._
 import com.nec.spark.agile.StringProducer.FilteringProducer
-import com.nec.spark.planning.VERewriteStrategy.SequenceList
 
 final case class StagedGroupBy(
   groupingKeys: List[GroupingKey],
@@ -16,12 +15,11 @@ final case class StagedGroupBy(
     inputs: List[CVector],
     computeGroupingKey: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
     computeProjection: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
-    computeAggregate: StagedAggregation => Either[String, Aggregation]
-  ): Either[String, CFunction] =
-    for {
-      pf <- createPartial(inputs, computeGroupingKey, computeProjection, computeAggregate)
-      ff <- createFinal(computeAggregate)
-    } yield CFunction(
+    computeAggregate: List[(StagedAggregation, Aggregation)]
+  ): CFunction = {
+    val pf = createPartial(inputs, computeGroupingKey, computeProjection, computeAggregate)
+    val ff = createFinal(computeAggregate)
+    CFunction(
       inputs = pf.inputs,
       outputs = ff.outputs,
       body = CodeLines.from(
@@ -36,6 +34,7 @@ final case class StagedGroupBy(
           .blockCommented("Deallocate the partial variables")
       )
     )
+  }
 
   def groupingCodeGenerator: GroupingCodeGenerator = GroupingCodeGenerator(
     groupingVecName = "grouping_vec",
@@ -89,7 +88,7 @@ final case class StagedGroupBy(
         perItem = aggregate.iterate(prefix),
         afterLast =
           CodeLines.from(stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
-            case (attr, (vec, ex)) =>
+            case (attr, (_, ex)) =>
               CodeLines.from(StagedGroupBy.storeTo(s"partial_${attr.name}", ex, "g"))
           })
       )
@@ -132,18 +131,9 @@ final case class StagedGroupBy(
     inputs: List[CVector],
     computeGroupingKey: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
     computeProjection: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
-    computeAggregate: StagedAggregation => Either[String, Aggregation]
-  ): Either[String, CFunction] =
-    for {
-      aggregatePartialsPerGroup <-
-        aggregations
-          .map(stagedAggregation =>
-            computeAggregate(stagedAggregation)
-              .map(aggregation => (stagedAggregation, aggregation))
-          )
-          .sequence
-          .map(_.map(Function.tupled(computeAggregatePartialsPerGroup)))
-    } yield CFunction(
+    computeAggregate: List[(StagedAggregation, Aggregation)]
+  ): CFunction =
+    CFunction(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
@@ -151,24 +141,13 @@ final case class StagedGroupBy(
         performGrouping(count = s"${inputs.head.name}->count", compute = computeGroupingKey),
         computeGroupingKeysPerGroup(computeGroupingKey).block,
         computeProjection.map(Function.tupled(computeProjectionsPerGroup)),
-        aggregatePartialsPerGroup,
+        computeAggregate.map(Function.tupled(computeAggregatePartialsPerGroup)),
         UdpDebug.conditional.close
       )
     )
 
-  def createFinal(
-    computeAggregate: StagedAggregation => Either[String, Aggregation]
-  ): Either[String, CFunction] =
-    for {
-      aggregatePartialsPerGroup <- aggregations
-        .map { stagedAggregation =>
-          computeAggregate(stagedAggregation)
-            .map(aggregation => stagedAggregation -> aggregation)
-        }
-        .sequence
-        .map(_.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)))
-        .map(listOfCodeLines => CodeLines.from(listOfCodeLines))
-    } yield CFunction(
+  def createFinal(computeAggregate: List[(StagedAggregation, Aggregation)]): CFunction =
+    CFunction(
       inputs = partialOutputs,
       outputs = finalOutputs.map {
         case Left(stagedProjection) => stagedProjection.veType.makeCVector(stagedProjection.name)
@@ -179,7 +158,7 @@ final case class StagedGroupBy(
         CodeLines.from(
           UdpDebug.conditional.createSock,
           performGroupingOnKeys,
-          aggregatePartialsPerGroup,
+          computeAggregate.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
           passProjectionsPerGroup,
           UdpDebug.conditional.close
         )
@@ -206,7 +185,7 @@ final case class StagedGroupBy(
       tupleTypes = tupleTypes,
       tupleType = tupleType,
       count = count,
-      thingsToGroup = compute.map { case (gk, e) => e.map(_.cExpression).left.map(_.name) }
+      thingsToGroup = compute.map { case (_, e) => e.map(_.cExpression).left.map(_.name) }
     )
 
   def performGroupingOnKeys: CodeLines =
