@@ -12,28 +12,30 @@ import org.scalatest.freespec.AnyFreeSpec
 class TracerTest extends AnyFreeSpec {
   lazy val evaluator: NativeEvaluator = NativeEvaluator.CNativeEvaluator
   "We can trace" in {
-    val functionName = "test"
-    val ani = evaluator.forCode(code =
-      CodeLines
-        .from(
-          Tracer.DefineTracer.cCode,
-          UdpDebug.default.headers,
-          CFunction(
-            inputs = List(Tracer.TracerVector),
-            outputs = Nil,
-            body = CodeLines.from(CodeLines.debugHere)
+    if (!scala.util.Properties.isWin) {
+      val functionName = "test"
+      val ani = evaluator.forCode(code =
+        CodeLines
+          .from(
+            Tracer.DefineTracer.cCode,
+            UdpDebug.default.headers,
+            CFunction(
+              inputs = List(Tracer.TracerVector),
+              outputs = Nil,
+              body = CodeLines.from(CodeLines.debugHere)
+            )
+              .toCodeLinesNoHeader(functionName)
+              .cCode
           )
-            .toCodeLinesNoHeader(functionName)
-            .cCode
-        )
-        .cCode
-    )
-    WithTestAllocator { implicit allocator =>
-      val inVec = Tracer.Launched("launchId").map("mappingId")
-      val vec = inVec.createVector()
-      try {
-        ani.callFunctionWrapped(functionName, List(NativeArgument.input(vec)))
-      } finally vec.close()
+          .cCode
+      )
+      WithTestAllocator { implicit allocator =>
+        val inVec = Tracer.Launched("launchId").map("mappingId")
+        val vec = inVec.createVector()
+        try {
+          ani.callFunctionWrapped(functionName, List(NativeArgument.input(vec)))
+        } finally vec.close()
+      }
     }
   }
 }
