@@ -22,6 +22,7 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
 
 lazy val tracing = project
   .dependsOn(root)
+  .enablePlugins(JavaServerAppPackaging)
   .enablePlugins(SystemdPlugin)
   .enablePlugins(RpmPlugin)
   .settings(
