@@ -40,7 +40,7 @@ object Tracer {
       """";"""",
       s"std::string(${TracerDefName}->data, ${TracerDefName}->offsets[0], ${TracerDefName}->offsets[1] - ${TracerDefName}->offsets[0])",
       """";"""",
-      s"${TracerDefName}->size",
+      s"${TracerDefName}->dataSize",
       """";"""",
       s"${TracerDefName}->count",
       """";"""",
