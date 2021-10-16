@@ -256,9 +256,8 @@ final case class VERewriteStrategy(
                 ) -> expr
               })
 
-            stagedGroupBy = GroupByOutline(
-              groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
-              finalOutputs = aggregateExpressions.map { namedExp_ =>
+            finalOutputs <- aggregateExpressions
+              .map { namedExp_ =>
                 val namedExp = namedExp_ match {
                   case Alias(child, _) => child
                   case _               => namedExp_
@@ -276,13 +275,16 @@ final case class VERewriteStrategy(
                         Right(agg)
                     }
                   }
-                  .getOrElse(
-                    sys.error(
-                      s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
-                        .mkString(",")}"
-                    )
+                  .toRight(
+                    s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
+                      .mkString(",")}"
                   )
-              }.toList
+              }
+              .toList
+              .sequence
+            stagedGroupBy = GroupByOutline(
+              groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
+              finalOutputs = finalOutputs
             )
             _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             gks <-
