@@ -13,7 +13,6 @@ object TracingListenerApp extends IOApp {
     fs2.Stream
       .resource(Network[IO].openDatagramSocket(serverHost, serverPort))
       .flatMap(_.reads)
-      .evalTap(dgram => IO.println(dgram.bytes))
       .evalMap(chunkBytes =>
         fs2.Stream
           .chunk[IO, Byte](chunkBytes.bytes)
