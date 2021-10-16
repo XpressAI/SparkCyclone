@@ -175,40 +175,6 @@ final case class VERewriteStrategy(
               .sequence
               .map(_.flatten)
 
-          val stagedGroupByE = for {
-            projections <- projectionsE
-            aggregates <- aggregatesE
-          } yield {
-            GroupByOutline(
-              groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
-              finalOutputs = aggregateExpressions.map { namedExp_ =>
-                val namedExp = namedExp_ match {
-                  case Alias(child, _) => child
-                  case _               => namedExp_
-                }
-                projections
-                  .collectFirst {
-                    case (pk, `namedExp`)           => Left(pk)
-                    case (pk, Alias(`namedExp`, _)) => Left(pk)
-                  }
-                  .orElse {
-                    aggregates.collectFirst {
-                      case (agg, `namedExp`) =>
-                        Right(agg)
-                      case (agg, Alias(`namedExp`, _)) =>
-                        Right(agg)
-                    }
-                  }
-                  .getOrElse(
-                    sys.error(
-                      s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
-                        .mkString(",")}"
-                    )
-                  )
-              }.toList
-            )
-          }
-
           def doProj(e: Expression): Either[String, Either[StringReference, TypedCExpression2]] =
             e match {
               case ar: AttributeReference if ar.dataType == StringType =>
@@ -293,14 +259,42 @@ final case class VERewriteStrategy(
               )
               .flatMap(identity)
 
-          logInfo(s"stagedGroupByE = ${stagedGroupByE}")
-
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
           }.toList
 
-          val gpgE = for {
-            stagedGroupBy <- stagedGroupByE
+          val evaluationPlanE = for {
+            projections <- projectionsE
+            aggregates <- aggregatesE
+            stagedGroupBy = GroupByOutline(
+              groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
+              finalOutputs = aggregateExpressions.map { namedExp_ =>
+                val namedExp = namedExp_ match {
+                  case Alias(child, _) => child
+                  case _               => namedExp_
+                }
+                projections
+                  .collectFirst {
+                    case (pk, `namedExp`)           => Left(pk)
+                    case (pk, Alias(`namedExp`, _)) => Left(pk)
+                  }
+                  .orElse {
+                    aggregates.collectFirst {
+                      case (agg, `namedExp`) =>
+                        Right(agg)
+                      case (agg, Alias(`namedExp`, _)) =>
+                        Right(agg)
+                    }
+                  }
+                  .getOrElse(
+                    sys.error(
+                      s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
+                        .mkString(",")}"
+                    )
+                  )
+              }.toList
+            )
+            _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             gks <-
               stagedGroupBy.groupingKeys
                 .map(gk =>
@@ -327,25 +321,21 @@ final case class VERewriteStrategy(
             ca <- stagedGroupBy.aggregations
               .map(sa => computeAggregate(sa).map(a => sa -> a))
               .sequence
-          } yield GroupByPartialGenerator(
-            finalGenerator =
-              GroupByPartialToFinalGenerator(stagedGroupBy = stagedGroupBy, computeAggregate = ca),
-            computeGroupingKey = gks,
-            computeProjection = ps
-          )
-          val evaluationPlanE = for {
-            pf <- gpgE.map(_.createPartial(inputs = inputsList))
-            _ =
-              assert(
-                pf.outputs.toSet.size == pf.outputs.size,
-                "Expected to have distinct outputs from a PF"
-              )
-            ff <- gpgE
-              .map(_.finalGenerator.createFinal)
-            fullFunction <-
-              gpgE
-                .map(_.createFull(inputs = inputsList))
-
+            gpg = GroupByPartialGenerator(
+              finalGenerator = GroupByPartialToFinalGenerator(
+                stagedGroupBy = stagedGroupBy,
+                computeAggregate = ca
+              ),
+              computeGroupingKey = gks,
+              computeProjection = ps
+            )
+            pf = gpg.createPartial(inputs = inputsList)
+            _ <-
+              if (pf.outputs.toSet.size == pf.outputs.size) Right(())
+              else Left(s"Expected to have distinct outputs from a PF, got: ${pf.outputs}")
+            ff = gpg.finalGenerator.createFinal
+            fullFunction =
+              gpg.createFull(inputs = inputsList)
           } yield NativeAggregationEvaluationPlan(
             outputExpressions = aggregateExpressions,
             functionPrefix = fName,
@@ -367,13 +357,9 @@ final case class VERewriteStrategy(
               },
             nativeEvaluator = nativeEvaluator
           )
-
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
-
           logger.info(s"Plan is: ${evaluationPlan}")
-
           List(evaluationPlan)
-
         case _ => Nil
       }
 
