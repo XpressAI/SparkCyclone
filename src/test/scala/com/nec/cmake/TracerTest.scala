@@ -1,10 +1,8 @@
 package com.nec.cmake
 
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
+import com.nec.arrow.WithTestAllocator
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CFunction
@@ -18,10 +16,9 @@ class TracerTest extends AnyFreeSpec {
     val ani = evaluator.forCode(code =
       List(
         Tracer.DefineTracer.cCode,
-        TransferDefinitionsSourceCode,
         "\n\n",
         CFunction(inputs = List(Tracer.TracerVector), outputs = Nil, body = CodeLines.debugHere)
-          .toCodeLines(functionName)
+          .toCodeLinesNoHeader(functionName)
           .cCode
       )
         .mkString("\n\n")
