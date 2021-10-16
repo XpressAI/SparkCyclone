@@ -26,9 +26,12 @@ lazy val tracing = project
     libraryDependencies ++= Seq(
       "co.fs2" %% "fs2-io" % "3.0.6",
       "co.fs2" %% "fs2-core" % "3.0.6",
+      "org.scalatest" %% "scalatest" % "3.2.9" % Test
     ),
-    name := "tracing"
+    name := "tracing",
+    reStart := reStart.dependsOn((Test / testQuick).toTask("")).evaluated
   )
+
 /**
  * Run with:
  *

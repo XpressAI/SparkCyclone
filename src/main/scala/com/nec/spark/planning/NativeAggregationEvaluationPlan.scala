@@ -18,6 +18,7 @@ import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+import org.apache.arrow.vector.util.Text
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -261,7 +262,7 @@ final case class NativeAggregationEvaluationPlan(
             tracer.setValueCount(1)
             val mappingId = UUID.randomUUID().toString.take(4)
             val uniqueId = s"$launchId-$mappingId"
-            tracer.asInstanceOf[VarCharVector].setSafe(0, s"[$uniqueId]".getBytes())
+            tracer.asInstanceOf[VarCharVector].setSafe(0, new Text(s"[$uniqueId]"))
             logger.debug(s"[$uniqueId] preparing execution")
             val inputVectors = tracer :: child.output.indices.map(root.getVector).toList
             val outputVectors: List[FieldVector] =
