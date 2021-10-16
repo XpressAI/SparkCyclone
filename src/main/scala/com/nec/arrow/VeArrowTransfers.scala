@@ -1,11 +1,28 @@
 package com.nec.arrow
 
-import com.nec.arrow.ArrowInterfaces.{nullable_bigint_vector_to_BigIntVector, nullable_double_vector_to_float8Vector, nullable_int_vector_to_BitVector, nullable_int_vector_to_IntVector, nullable_int_vector_to_SmallIntVector, nullable_varchar_vector_to_VarCharVector}
+import com.nec.arrow.ArrowInterfaces.{
+  nullable_bigint_vector_to_BigIntVector,
+  nullable_double_vector_to_float8Vector,
+  nullable_int_vector_to_BitVector,
+  nullable_int_vector_to_IntVector,
+  nullable_int_vector_to_SmallIntVector,
+  nullable_varchar_vector_to_VarCharVector
+}
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.{VectorInputNativeArgument, VectorOutputNativeArgument}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
+  VectorInputNativeArgument,
+  VectorOutputNativeArgument
+}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{
+  BigIntVectorOutputWrapper,
+  BitVectorOutputWrapper,
+  Float8VectorOutputWrapper,
+  IntVectorOutputWrapper,
+  SmallIntVectorOutputWrapper,
+  VarCharVectorOutputWrapper
+}
 import com.nec.arrow.ArrowTransferStructures._
-import com.nec.arrow.VeArrowNativeInterface.{Cleanup, copyBufferToVe, requireOk, requirePositive}
+import com.nec.arrow.VeArrowNativeInterface.{copyBufferToVe, requireOk, requirePositive, Cleanup}
 import com.nec.aurora.Aurora
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector._
@@ -29,7 +46,6 @@ object VeArrowTransfers extends LazyLogging {
         val byteBuffer = nullableDoubleVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
 
-        
         (() => {
           veo_read_nullable_double_vector(proc, structVector, byteBuffer)
           nullable_double_vector_to_float8Vector(structVector, doubleVector)
@@ -39,7 +55,7 @@ object VeArrowTransfers extends LazyLogging {
         val structVector = new nullable_int_vector()
         val byteBuffer = nullableIntVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
-        
+
         (() => {
           veo_read_nullable_int_vector(proc, structVector, byteBuffer)
           nullable_int_vector_to_IntVector(structVector, intWrapper)
@@ -48,7 +64,7 @@ object VeArrowTransfers extends LazyLogging {
         val structVector = new nullable_bigint_vector()
         val byteBuffer = nullableBigintVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
-        
+
         (() => {
           veo_read_nullable_bigint_vector(proc, structVector, byteBuffer)
           nullable_bigint_vector_to_BigIntVector(structVector, bigIntWrapper)
@@ -57,7 +73,7 @@ object VeArrowTransfers extends LazyLogging {
         val structVector = new nullable_varchar_vector()
         val byteBuffer = nullableVarCharVectorVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
-        
+
         (() => {
           veo_read_nullable_varchar_vector(proc, structVector, byteBuffer)
           nullable_varchar_vector_to_VarCharVector(structVector, varCharVector)
@@ -66,7 +82,7 @@ object VeArrowTransfers extends LazyLogging {
         val structVector = new nullable_int_vector()
         val byteBuffer = nullableIntVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
-        
+
         (() => {
           veo_read_nullable_int_vector(proc, structVector, byteBuffer)
           nullable_int_vector_to_SmallIntVector(structVector, smallIntVector)
@@ -75,7 +91,7 @@ object VeArrowTransfers extends LazyLogging {
         val structVector = new nullable_int_vector()
         val byteBuffer = nullableIntVectorToByteBuffer(structVector)
         Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
-        
+
         (() => {
           veo_read_nullable_int_vector(proc, structVector, byteBuffer)
           nullable_int_vector_to_BitVector(structVector, bitVector)
@@ -241,17 +257,17 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_int_vector(proc: Aurora.veo_proc_handle, smallIntVector: SmallIntVector)(implicit
-                                                                                      cleanup: Cleanup
+  private def make_veo_int_vector(proc: Aurora.veo_proc_handle, smallIntVector: SmallIntVector)(
+    implicit cleanup: Cleanup
   ): nullable_int_vector = {
     val keyName = "int2_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
     val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
     intVector.setValueCount(smallIntVector.getValueCount)
 
     (0 until smallIntVector.getValueCount)
-
-      .foreach{
-        case idx if(!smallIntVector.isNull(idx)) => intVector.set(idx, smallIntVector.get(idx).toInt)
+      .foreach {
+        case idx if (!smallIntVector.isNull(idx)) =>
+          intVector.set(idx, smallIntVector.get(idx).toInt)
         case idx => intVector.setNull(idx)
       }
     logger.debug(s"Copying Buffer to VE for $keyName")
@@ -272,10 +288,9 @@ object VeArrowTransfers extends LazyLogging {
     intVector.setValueCount(bitVector.getValueCount)
 
     (0 until bitVector.getValueCount)
-
-      .foreach{
-        case idx if(!bitVector.isNull(idx)) => intVector.set(idx, bitVector.get(idx))
-        case idx => intVector.setNull(idx)
+      .foreach {
+        case idx if (!bitVector.isNull(idx)) => intVector.set(idx, bitVector.get(idx))
+        case idx                             => intVector.setNull(idx)
       }
     logger.debug(s"Copying Buffer to VE for $keyName")
 
@@ -312,7 +327,7 @@ object VeArrowTransfers extends LazyLogging {
 
     val vcvr = new nullable_varchar_vector()
     vcvr.count = varcharVector.getValueCount
-    vcvr.dataSize = varcharVector.getOffsetBuffer.getInt(4 * vcvr.count)
+    vcvr.dataSize = varcharVector.getDataBuffer.capacity().toInt
     vcvr.data = copyBufferToVe(proc, varcharVector.getDataBuffer.nioBuffer())(cleanup)
     vcvr.offsets = copyBufferToVe(proc, varcharVector.getOffsetBuffer.nioBuffer())(cleanup)
     vcvr
@@ -342,7 +357,7 @@ object VeArrowTransfers extends LazyLogging {
   )(implicit cleanup: Cleanup): Unit = {
     val veoPtr = byteBuffer.getLong(0)
     val dataCount = byteBuffer.getInt(8)
-    if ( dataCount < 1 ) {
+    if (dataCount < 1) {
       // no data, do nothing
       return
     }
@@ -364,7 +379,7 @@ object VeArrowTransfers extends LazyLogging {
     val veoPtr = byteBuffer.getLong(0)
     val validityPtr = byteBuffer.getLong(8)
     val dataCount = byteBuffer.getInt(16)
-    if ( dataCount < 1 ) {
+    if (dataCount < 1) {
       // no data, do nothing
       return
     }
@@ -397,7 +412,7 @@ object VeArrowTransfers extends LazyLogging {
     val veoPtr = byteBuffer.getLong(0)
     val validityPtr = byteBuffer.getLong(8)
     val dataCount = byteBuffer.getInt(16)
-    if ( dataCount < 1 ) {
+    if (dataCount < 1) {
       // no data, do nothing
       return
     }
@@ -429,7 +444,7 @@ object VeArrowTransfers extends LazyLogging {
   )(implicit cleanup: Cleanup): Unit = {
     val veoPtr = byteBuffer.getLong(0)
     val dataCount = byteBuffer.getInt(8)
-    if ( dataCount < 1 ) {
+    if (dataCount < 1) {
       // no data, do nothing
       return
     }
@@ -452,8 +467,8 @@ object VeArrowTransfers extends LazyLogging {
     val validityPtr = byteBuffer.getLong(8)
     val dataCount = byteBuffer.getInt(16)
     val dataSize = dataCount * 8
-    
-    if ( dataCount < 1 ) {
+
+    if (dataCount < 1) {
       // no data, do nothing
       return
     }
@@ -495,7 +510,7 @@ object VeArrowTransfers extends LazyLogging {
     val dataCount = byteBuffer.getInt(28)
     vec.count = dataCount
 
-    if ( dataCount < 1 ) {
+    if (dataCount < 1) {
       // no data, do nothing
       return
     }
@@ -517,7 +532,12 @@ object VeArrowTransfers extends LazyLogging {
     val vhTargetOffsets = ByteBuffer.allocateDirect((dataCount + 1) * 4)
     requireOk {
       Aurora
-        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTargetOffsets), offsetsPtr, (dataCount + 1) * 4)
+        .veo_read_mem(
+          proc,
+          new org.bytedeco.javacpp.Pointer(vhTargetOffsets),
+          offsetsPtr,
+          (dataCount + 1) * 4
+        )
     }
     vec.offsets = vhTargetOffsets.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(offsetsPtr, (dataCount + 1) * 4)
@@ -528,7 +548,12 @@ object VeArrowTransfers extends LazyLogging {
     val vhValidity = ByteBuffer.allocateDirect(Math.ceil(vec.count / 64.0).toInt * 8)
     requireOk {
       Aurora
-        .veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhValidity), validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
+        .veo_read_mem(
+          proc,
+          new org.bytedeco.javacpp.Pointer(vhValidity),
+          validityPtr,
+          Math.ceil(vec.count / 64.0).toInt * 8
+        )
     }
     vec.validityBuffer = vhValidity.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
