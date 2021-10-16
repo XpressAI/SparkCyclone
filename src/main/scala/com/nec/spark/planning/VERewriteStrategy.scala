@@ -2,9 +2,9 @@ package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.SparkVeMapper
-import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
-import com.nec.spark.agile.SparkVeMapper.{sparkTypeToVeType, EvalFallback}
+import com.nec.spark.agile.SparkExpressionToCExpression
+import com.nec.spark.agile.SparkExpressionToCExpression.EvaluationAttempt._
+import com.nec.spark.agile.SparkExpressionToCExpression.{sparkTypeToVeType, EvalFallback}
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection, StringReference}
 import com.nec.spark.agile.groupby.{
@@ -91,14 +91,14 @@ final case class VERewriteStrategy(
               (
                 GroupingKey(
                   name = s"group_${i}",
-                  veType = SparkVeMapper.sparkTypeToVeType(e.dataType)
+                  veType = SparkExpressionToCExpression.sparkTypeToVeType(e.dataType)
                 ),
                 e
               )
             }.toList
 
           val referenceReplacer =
-            SparkVeMapper.referenceReplacer(prefix = "input_", inputs = child.output.toList)
+            SparkExpressionToCExpression.referenceReplacer(prefix = "input_", inputs = child.output.toList)
 
           val projectionsE: Either[String, List[(StagedProjection, Expression)]] =
             aggregateExpressions.zipWithIndex

@@ -5,7 +5,7 @@ import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
-import com.nec.spark.agile.{CFunctionGeneration, SparkVeMapper}
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.writeVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -185,7 +185,7 @@ final case class NativeAggregationEvaluationPlan(
               .zipWithIndex
               .map { case (ne, idx) =>
                 CFunctionGeneration.allocateFrom(
-                  SparkVeMapper.sparkTypeToVeType(ne.dataType).makeCVector(s"out_${idx}")
+                  SparkExpressionToCExpression.sparkTypeToVeType(ne.dataType).makeCVector(s"out_${idx}")
                 )(allocator)
               }
 

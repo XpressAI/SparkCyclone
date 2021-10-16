@@ -1,8 +1,8 @@
 package com.nec.spark.agile.groupby
 
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, GroupByExpression, TypedCExpression2}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkVeMapper}
-import com.nec.spark.agile.SparkVeMapper.{sparkTypeToVeType, EvalFallback}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, SparkExpressionToCExpression}
+import com.nec.spark.agile.SparkExpressionToCExpression.{sparkTypeToVeType, EvalFallback}
 import com.nec.spark.agile.groupby.GroupByOutline.{
   StagedAggregation,
   StagedAggregationAttribute,
@@ -22,8 +22,12 @@ import org.apache.spark.sql.catalyst.expressions.{
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.types.StringType
 
+/**
+ * All the logic to convert from Spark's NamedExpression to C Expressions OR Aggregations, encompassing Aliases,
+ * DeclarativeAggregates, and other possibilities
+ */
 object ConvertNamedExpression {
-  import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
+  import com.nec.spark.agile.SparkExpressionToCExpression.EvaluationAttempt._
   def doProj(e: Expression)(implicit
     evalFallback: EvalFallback
   ): Either[String, Either[StringReference, TypedCExpression2]] =
@@ -33,18 +37,18 @@ object ConvertNamedExpression {
       case Alias(ar: AttributeReference, _) if ar.dataType == StringType =>
         Right(Left(StringReference(ar.name)))
       case Alias(other, _) =>
-        SparkVeMapper
+        SparkExpressionToCExpression
           .eval(other)
           .reportToString
           .map(ce =>
-            Right(TypedCExpression2(SparkVeMapper.sparkTypeToScalarVeType(other.dataType), ce))
+            Right(TypedCExpression2(SparkExpressionToCExpression.sparkTypeToScalarVeType(other.dataType), ce))
           )
       case other =>
-        SparkVeMapper
+        SparkExpressionToCExpression
           .eval(other)
           .reportToString
           .map(ce =>
-            Right(TypedCExpression2(SparkVeMapper.sparkTypeToScalarVeType(other.dataType), ce))
+            Right(TypedCExpression2(SparkExpressionToCExpression.sparkTypeToScalarVeType(other.dataType), ce))
           )
     }
 
@@ -148,13 +152,13 @@ object ConvertNamedExpression {
           )
           .toRight(s"Cannot support group by: ${expr} (type: ${expr.dataType})")
       case _ =>
-        SparkVeMapper
+        SparkExpressionToCExpression
           .eval(expr.transform(refRep))
           .reportToString
           .map(ce =>
             Right(
               TypedCExpression2(
-                veType = SparkVeMapper.sparkTypeToScalarVeType(expr.dataType),
+                veType = SparkExpressionToCExpression.sparkTypeToScalarVeType(expr.dataType),
                 cExpression = ce
               )
             )

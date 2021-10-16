@@ -31,7 +31,10 @@ import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-object SparkVeMapper {
+/**
+ * Utility to convert from Spark's expressions to CExpressions for scalars
+ */
+object SparkExpressionToCExpression {
 
   def referenceReplacer(
     prefix: String,
