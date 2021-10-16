@@ -16,6 +16,7 @@ class TracerTest extends AnyFreeSpec {
     val ani = evaluator.forCode(code =
       List(
         Tracer.DefineTracer.cCode,
+        UdpDebug.default.headers,
         "\n\n",
         CFunction(inputs = List(Tracer.TracerVector), outputs = Nil, body = CodeLines.debugHere)
           .toCodeLinesNoHeader(functionName)
