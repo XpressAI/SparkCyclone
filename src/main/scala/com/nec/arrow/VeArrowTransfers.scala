@@ -328,8 +328,16 @@ object VeArrowTransfers extends LazyLogging {
     val vcvr = new nullable_varchar_vector()
     vcvr.count = varcharVector.getValueCount
     vcvr.dataSize = varcharVector.getDataBuffer.capacity().toInt
-    vcvr.data = copyBufferToVe(proc, varcharVector.getDataBuffer.nioBuffer())(cleanup)
-    vcvr.offsets = copyBufferToVe(proc, varcharVector.getOffsetBuffer.nioBuffer())(cleanup)
+    vcvr.data = copyBufferToVe(
+      proc = proc,
+      byteBuffer = varcharVector.getDataBuffer.nioBuffer(),
+      len = Some(varcharVector.getDataBuffer.capacity())
+    )(cleanup)
+    vcvr.offsets = copyBufferToVe(
+      proc,
+      varcharVector.getOffsetBuffer.nioBuffer(),
+      len = Some(varcharVector.getOffsetBuffer.capacity())
+    )(cleanup)
     vcvr
   }
 
