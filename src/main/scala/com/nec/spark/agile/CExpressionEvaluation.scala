@@ -162,9 +162,9 @@ object CExpressionEvaluation {
         UdpDebug
           .Conditional(TracerDefName, UdpDebug.conditional)
           .send(debugInfo: _*),
-//        UdpDebug.conditionOn("DEBUG")(
-        CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
-//        )
+        UdpDebug.conditionOn("DEBUG")(
+          CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
+        )
       )
     }
 
