@@ -10,7 +10,7 @@ import com.nec.spark.agile.groupby.GroupByOutline.{
   StringReference
 }
 import com.nec.spark.planning.VERewriteStrategy
-import com.nec.spark.planning.VERewriteStrategy.StagedProjectionPrefix
+import com.nec.spark.planning.VERewriteStrategy.{AggPrefix, StagedProjectionPrefix}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
@@ -139,15 +139,13 @@ object ConvertNamedExpression {
         StagedAggregation(
           s"${AggPrefix}${index}",
           sparkTypeToVeType(expr.dataType),
-          groupByExpression.aggregation.partialValues(s"${AggPrefix}${index}").map {
-            case (cs, ce) =>
-              StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
+          groupByExpression.aggregation.partialValues(s"${AggPrefix}${index}").map { case (cs, _) =>
+            StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
           }
         ) -> expr
       })
   }
 
-  val AggPrefix = "agg_"
   def computeAggregate(
     exp: Expression
   )(implicit evalFallback: EvalFallback): Either[String, Aggregation] = exp match {

@@ -49,7 +49,7 @@ object VERewriteStrategy {
     }
   }
   val StagedProjectionPrefix = "sp_"
-
+  val AggPrefix = "agg_"
   val InputPrefix: String = "input_"
   val GroupPrefix: String = "group_"
 }
