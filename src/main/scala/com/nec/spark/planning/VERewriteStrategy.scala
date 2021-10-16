@@ -97,59 +97,6 @@ final case class VERewriteStrategy(
               )
             }.toList
 
-          val aggregatesE: Either[String, List[(StagedAggregation, Expression)]] =
-            aggregateExpressions.zipWithIndex
-              .collect {
-                case (
-                      o @ Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _),
-                      idx
-                    ) =>
-                  Right {
-                    (
-                      GroupByExpression.GroupByAggregation(
-                        DeclarativeAggregationConverter(
-                          d.transform(
-                            SparkVeMapper.referenceReplacer("input_", child.output.toList)
-                          ).asInstanceOf[DeclarativeAggregate]
-                        )
-                      ),
-                      o,
-                      idx
-                    )
-                  }
-                case (Alias(other, _), idx) if other.collectFirst { case _: DeclarativeAggregate =>
-                      ()
-                    }.nonEmpty =>
-                  DeclarativeAggregationConverter
-                    .transformingFetch(
-                      other
-                        .transform(SparkVeMapper.referenceReplacer("input_", child.output.toList))
-                    )
-                    .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
-                    .map(ag => (GroupByExpression.GroupByAggregation(ag), other, idx))
-                case (other, idx) if other.collectFirst { case _: DeclarativeAggregate =>
-                      ()
-                    }.nonEmpty =>
-                  DeclarativeAggregationConverter
-                    .transformingFetch(
-                      other
-                        .transform(SparkVeMapper.referenceReplacer("input_", child.output.toList))
-                    )
-                    .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
-                    .map(ag => (GroupByExpression.GroupByAggregation(ag), other, idx))
-              }
-              .toList
-              .sequence
-              .map(_.map { case (groupByExpression, expr, idx) =>
-                StagedAggregation(
-                  s"agg_${idx}",
-                  sparkTypeToVeType(expr.dataType),
-                  groupByExpression.aggregation.partialValues(s"agg_${idx}").map { case (cs, ce) =>
-                    StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
-                  }
-                ) -> expr
-              })
-
           val projectionsE: Either[String, List[(StagedProjection, Expression)]] =
             aggregateExpressions.zipWithIndex
               .map {
@@ -229,35 +176,27 @@ final case class VERewriteStrategy(
                   )
             }
 
-          val computeAggregate: StagedAggregation => Either[String, Aggregation] = sa =>
-            aggregatesE
-              .map(
-                _.toMap
-                  .get(sa)
-                  .toRight(s"Could not compute aggregate for ${sa}")
-                  .flatMap {
-                    case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-                      Right(
-                        DeclarativeAggregationConverter(
-                          d.transform(
-                            SparkVeMapper
-                              .referenceReplacer(prefix = "input_", child.output.toList)
-                          ).asInstanceOf[DeclarativeAggregate]
-                        )
-                      )
-                    case other =>
-                      DeclarativeAggregationConverter
-                        .transformingFetch(
-                          other
-                            .transform(
-                              SparkVeMapper
-                                .referenceReplacer(prefix = "input_", child.output.toList)
-                            )
-                        )
-                        .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
-                  }
+          def computeAggregate(exp: Expression): Either[String, Aggregation] = exp match {
+            case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
+              Right(
+                DeclarativeAggregationConverter(
+                  d.transform(
+                    SparkVeMapper
+                      .referenceReplacer(prefix = "input_", child.output.toList)
+                  ).asInstanceOf[DeclarativeAggregate]
+                )
               )
-              .flatMap(identity)
+            case other =>
+              DeclarativeAggregationConverter
+                .transformingFetch(
+                  other
+                    .transform(
+                      SparkVeMapper
+                        .referenceReplacer(prefix = "input_", child.output.toList)
+                    )
+                )
+                .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
+          }
 
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
@@ -265,7 +204,58 @@ final case class VERewriteStrategy(
 
           val evaluationPlanE = for {
             projections <- projectionsE
-            aggregates <- aggregatesE
+            aggregates <- aggregateExpressions.zipWithIndex
+              .collect {
+                case (
+                      o @ Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _),
+                      idx
+                    ) =>
+                  Right {
+                    (
+                      GroupByExpression.GroupByAggregation(
+                        DeclarativeAggregationConverter(
+                          d.transform(
+                            SparkVeMapper.referenceReplacer("input_", child.output.toList)
+                          ).asInstanceOf[DeclarativeAggregate]
+                        )
+                      ),
+                      o,
+                      idx
+                    )
+                  }
+                case (Alias(other, _), idx) if other.collectFirst { case _: DeclarativeAggregate =>
+                      ()
+                    }.nonEmpty =>
+                  DeclarativeAggregationConverter
+                    .transformingFetch(
+                      other
+                        .transform(SparkVeMapper.referenceReplacer("input_", child.output.toList))
+                    )
+                    .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
+                    .map(ag => (GroupByExpression.GroupByAggregation(ag), other, idx))
+                case (other, idx) if other.collectFirst { case _: DeclarativeAggregate =>
+                      ()
+                    }.nonEmpty =>
+                  DeclarativeAggregationConverter
+                    .transformingFetch(
+                      other
+                        .transform(SparkVeMapper.referenceReplacer("input_", child.output.toList))
+                    )
+                    .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
+                    .map(ag => (GroupByExpression.GroupByAggregation(ag), other, idx))
+              }
+              .toList
+              .sequence
+              .map(_.map { case (groupByExpression, expr, idx) =>
+                StagedAggregation(
+                  s"agg_${idx}",
+                  sparkTypeToVeType(expr.dataType),
+                  groupByExpression.aggregation.partialValues(s"agg_${idx}").map { case (cs, ce) =>
+                    StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
+                  }
+                ) -> expr
+              })
+
             stagedGroupBy = GroupByOutline(
               groupingKeys = groupingExpressionsKeys.map { case (gk, e) => gk },
               finalOutputs = aggregateExpressions.map { namedExp_ =>
@@ -296,31 +286,15 @@ final case class VERewriteStrategy(
             )
             _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             gks <-
-              stagedGroupBy.groupingKeys
-                .map(gk =>
-                  groupingExpressionsKeys.toMap
-                    .get(gk)
-                    .toRight(s"Could not compute grouping key ${gk}")
-                    .flatMap(exp => mapGroupingExpression(exp, child))
-                    .map(r => gk -> r)
-                )
-                .sequence
-            projections <- projectionsE
-            ps <- projections.map { case (sp, _) =>
-              projectionsE
-                .flatMap(
-                  _.toMap
-                    .get(sp)
-                    .toRight(s"Could not find a projection for ${sp}")
-                )
-                .flatMap {
-                  doProj
-                }
-                .map(r => sp -> r)
+              groupingExpressionsKeys.map { case (gk, exp) =>
+                mapGroupingExpression(exp, child)
+                  .map(e => gk -> e)
+              }.sequence
+            ps <- projections.map { case (sp, p) => doProj(p).map(r => sp -> r) }.sequence
+            ca <- aggregates.map { case (sa, exp) =>
+              computeAggregate(exp)
+                .map(r => sa -> r)
             }.sequence
-            ca <- stagedGroupBy.aggregations
-              .map(sa => computeAggregate(sa).map(a => sa -> a))
-              .sequence
             gpg = GroupByPartialGenerator(
               finalGenerator = GroupByPartialToFinalGenerator(
                 stagedGroupBy = stagedGroupBy,
