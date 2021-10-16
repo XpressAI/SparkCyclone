@@ -24,8 +24,8 @@ final case class GroupByOutline(
   ): CFunction =
     GroupByPartialGenerator(
       finalGenerator = GroupByPartialToFinalGenerator(this, computeAggregate),
-      computeGroupingKey = computeGroupingKey,
-      computeProjection = computeProjection
+      computedGroupingKeys = computeGroupingKey,
+      computedProjections = computeProjection
     ).createFull(inputs)
 
   def groupingCodeGenerator: GroupingCodeGenerator = GroupingCodeGenerator(

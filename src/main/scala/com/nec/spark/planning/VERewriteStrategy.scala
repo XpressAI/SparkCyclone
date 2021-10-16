@@ -128,22 +128,15 @@ final case class VERewriteStrategy(
               .sequence
               .map(_.flatten)
 
-          def doProj(
-            e: Expression,
-            refRep: PartialFunction[Expression, Expression]
-          ): Either[String, Either[StringReference, TypedCExpression2]] =
+          def doProj(e: Expression): Either[String, Either[StringReference, TypedCExpression2]] =
             e match {
               case ar: AttributeReference if ar.dataType == StringType =>
-                Right(
-                  Left(StringReference(ar.transform(refRep).asInstanceOf[AttributeReference].name))
-                )
+                Right(Left(StringReference(ar.name)))
               case Alias(ar: AttributeReference, _) if ar.dataType == StringType =>
-                Right(
-                  Left(StringReference(ar.transform(refRep).asInstanceOf[AttributeReference].name))
-                )
+                Right(Left(StringReference(ar.name)))
               case Alias(other, _) =>
                 SparkVeMapper
-                  .eval(other.transform(refRep))
+                  .eval(other)
                   .reportToString
                   .map(ce =>
                     Right(
@@ -152,7 +145,7 @@ final case class VERewriteStrategy(
                   )
               case other =>
                 SparkVeMapper
-                  .eval(other.transform(refRep))
+                  .eval(other)
                   .reportToString
                   .map(ce =>
                     Right(
@@ -163,23 +156,10 @@ final case class VERewriteStrategy(
 
           def computeAggregate(exp: Expression): Either[String, Aggregation] = exp match {
             case Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-              Right(
-                DeclarativeAggregationConverter(
-                  d.transform(
-                    SparkVeMapper
-                      .referenceReplacer(prefix = "input_", child.output.toList)
-                  ).asInstanceOf[DeclarativeAggregate]
-                )
-              )
+              Right(DeclarativeAggregationConverter(d))
             case other =>
               DeclarativeAggregationConverter
-                .transformingFetch(
-                  other
-                    .transform(
-                      SparkVeMapper
-                        .referenceReplacer(prefix = "input_", child.output.toList)
-                    )
-                )
+                .transformingFetch(other)
                 .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
           }
 
@@ -228,18 +208,20 @@ final case class VERewriteStrategy(
                 mapGroupingExpression(exp, refRep)
                   .map(e => gk -> e)
               }.sequence
-            ps <- projections.map { case (sp, p) => doProj(p, refRep).map(r => sp -> r) }.sequence
+            ps <- projections.map { case (sp, p) =>
+              doProj(p.transform(refRep)).map(r => sp -> r)
+            }.sequence
             ca <- aggregates.map { case (sa, exp) =>
-              computeAggregate(exp)
+              computeAggregate(exp.transform(refRep))
                 .map(r => sa -> r)
             }.sequence
             gpg = GroupByPartialGenerator(
               finalGenerator = GroupByPartialToFinalGenerator(
                 stagedGroupBy = stagedGroupBy,
-                computeAggregate = ca
+                computedAggregates = ca
               ),
-              computeGroupingKey = gks,
-              computeProjection = ps
+              computedGroupingKeys = gks,
+              computedProjections = ps
             )
             pf = gpg.createPartial(inputs = inputsList)
             _ <-

@@ -7,7 +7,7 @@ import com.nec.spark.agile.groupby.GroupByOutline.StagedAggregation
 
 final case class GroupByPartialToFinalGenerator(
   stagedGroupBy: GroupByOutline,
-  computeAggregate: List[(StagedAggregation, Aggregation)]
+  computedAggregates: List[(StagedAggregation, Aggregation)]
 ) {
   import stagedGroupBy._
   def createFinal: CFunction =
@@ -22,7 +22,7 @@ final case class GroupByPartialToFinalGenerator(
         CodeLines.from(
           UdpDebug.conditional.createSock,
           performGroupingOnKeys,
-          computeAggregate.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
+          computedAggregates.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
           passProjectionsPerGroup,
           UdpDebug.conditional.close
         )

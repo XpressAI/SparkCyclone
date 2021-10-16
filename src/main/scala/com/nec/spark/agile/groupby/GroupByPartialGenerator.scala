@@ -15,8 +15,8 @@ import com.nec.spark.agile.groupby.GroupByOutline.{
 
 final case class GroupByPartialGenerator(
   finalGenerator: GroupByPartialToFinalGenerator,
-  computeGroupingKey: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
-  computeProjection: List[(StagedProjection, Either[StringReference, TypedCExpression2])]
+  computedGroupingKeys: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
+  computedProjections: List[(StagedProjection, Either[StringReference, TypedCExpression2])]
 ) {
   import finalGenerator._
   import stagedGroupBy._
@@ -48,8 +48,8 @@ final case class GroupByPartialGenerator(
         UdpDebug.conditional.createSock,
         performGrouping(count = s"${inputs.head.name}->count"),
         computeGroupingKeysPerGroup.block,
-        computeProjection.map(Function.tupled(computeProjectionsPerGroup)),
-        computeAggregate.map(Function.tupled(computeAggregatePartialsPerGroup)),
+        computedProjections.map(Function.tupled(computeProjectionsPerGroup)),
+        computedAggregates.map(Function.tupled(computeAggregatePartialsPerGroup)),
         UdpDebug.conditional.close
       )
     )
@@ -118,14 +118,14 @@ final case class GroupByPartialGenerator(
       tupleTypes = tupleTypes,
       tupleType = tupleType,
       count = count,
-      thingsToGroup = computeGroupingKey.map { case (_, e) =>
+      thingsToGroup = computedGroupingKeys.map { case (_, e) =>
         e.map(_.cExpression).left.map(_.name)
       }
     )
 
   def computeGroupingKeysPerGroup: CodeLines = {
     final case class ProductionTriplet(init: CodeLines, forEach: CodeLines, complete: CodeLines)
-    val initVars = computeGroupingKey.map {
+    val initVars = computedGroupingKeys.map {
       case (groupingKey, Right(TypedCExpression2(scalarType, cExp))) =>
         ProductionTriplet(
           init = GroupByOutline.initializeScalarVector(
