@@ -154,7 +154,7 @@ object CExpressionEvaluation {
           .send(
             "utcnanotime().c_str()",
             """";"""",
-            s"std::string(${TracerDefName}->data, ${TracerDefName}->offsets[0], ${TracerDefName}->offsets[1] - ${TracerDefName}->offsets[0])",
+            s"std::string(${TracerDefName}->data, 0, 1)",
             """";"""",
             s"${TracerDefName}->size",
             """";"""",
