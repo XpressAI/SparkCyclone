@@ -85,6 +85,7 @@ final case class VERewriteStrategy(
                   .aggregateFunction
                   .isInstanceOf[HyperLogLogPlusPlus]
               ).getOrElse(false) =>
+
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
@@ -104,8 +105,12 @@ final case class VERewriteStrategy(
               inputs = child.output.toList
             )
 
-          val projectionsE: Either[String, List[(StagedProjection, Expression)]] =
-            aggregateExpressions.zipWithIndex
+          val inputsList = child.output.zipWithIndex.map { case (att, id) =>
+            sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${id}")
+          }.toList
+
+          val evaluationPlanE: Either[String, NativeAggregationEvaluationPlan] = for {
+            projections <- aggregateExpressions.zipWithIndex
               .map { case (ne, i) =>
                 ConvertNamedExpression
                   .mapNamedExp(ne, i, referenceReplacer, child)
@@ -114,13 +119,6 @@ final case class VERewriteStrategy(
               .toList
               .sequence
               .map(_.flatten)
-
-          val inputsList = child.output.zipWithIndex.map { case (att, id) =>
-            sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${id}")
-          }.toList
-
-          val evaluationPlanE = for {
-            projections <- projectionsE
             aggregates <-
               aggregateExpressions.zipWithIndex
                 .map { case (ne, i) =>
