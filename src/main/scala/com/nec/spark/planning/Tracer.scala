@@ -27,7 +27,7 @@ object Tracer {
     def createVector()(implicit bufferAllocator: BufferAllocator): VarCharVector = {
       val tracer = CFunctionGeneration.allocateFrom(TracerVector).asInstanceOf[VarCharVector]
       tracer.setValueCount(1)
-      tracer.setSafe(0, new Text(s"[$uniqueId]"))
+      tracer.setSafe(0, new Text(s"$uniqueId"))
       tracer
     }
   }

@@ -236,7 +236,10 @@ final case class NativeAggregationEvaluationPlan(
         .mkString("\n", "\n", "\n")
     )
 
-    val launched = Tracer.Launched(UUID.randomUUID().toString.take(8))
+    val launched = Tracer.Launched(
+      s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
+    )
+
     logger.debug(
       s"[${launched.launchId}] Will execute NewCEvaluationPlan for child ${child}; ${child.output}"
     )
