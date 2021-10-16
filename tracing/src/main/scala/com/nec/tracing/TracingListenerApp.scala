@@ -17,6 +17,6 @@ object TracingListenerApp extends IOApp {
       .through(fs2.io.stdoutLines())
       .compile
       .drain
-      .as(ExitCode.Error)
+      .as(ExitCode.Success)
   }
 }
