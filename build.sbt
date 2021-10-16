@@ -22,7 +22,10 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
 
 lazy val tracing = project
   .dependsOn(root)
+  .enablePlugins(SystemdPlugin)
+  .enablePlugins(RpmPlugin)
   .settings(
+    rpmVendor := "nec",
     libraryDependencies ++= Seq(
       "co.fs2" %% "fs2-io" % "3.0.6",
       "co.fs2" %% "fs2-core" % "3.0.6",
