@@ -1,12 +1,13 @@
 package com.nec.cmake
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.planning.Tracer
 
 object UdpDebug {
 
   def conditional: UdpDebug = Conditional(default.hostName, default)
 
-  private def conditionOn(define: String)(code: CodeLines): CodeLines =
+  def conditionOn(define: String)(code: CodeLines): CodeLines =
     CodeLines.from(s"#ifdef ${define}", code, "#endif")
 
   final case class Conditional(name: String, underlying: UdpDebug) extends UdpDebug {
@@ -52,7 +53,7 @@ object UdpDebug {
     override def send(what: String*): CodeLines = CodeLines
       .from(
         "std::ostringstream s;",
-        "s " + what.map(s => s"<< $s ").mkString + ";",
+        "s " + Tracer.concatStr(what.toList) + ";",
         s"sendto(${sockName}, s.str().c_str(), s.str().length(), 0, reinterpret_cast<sockaddr*>(&${destinationName}), sizeof(${destinationName}));"
       )
       .blockCommented("Send via UDP")

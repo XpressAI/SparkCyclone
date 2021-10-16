@@ -29,7 +29,7 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
 import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.planning.StringCExpressionEvaluation
+import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
@@ -748,7 +748,12 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      cSource = List(
+        Tracer.DefineTracer.cCode,
+        TransferDefinitionsSourceCode,
+        "\n\n",
+        generatedSource.cCode
+      )
         .mkString("\n\n"),
       debug = true
     )
