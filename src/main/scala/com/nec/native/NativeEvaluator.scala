@@ -14,7 +14,6 @@ trait NativeEvaluator extends Serializable {
 }
 
 object NativeEvaluator {
-
   /** Selected when running in CMake mode */
   object CNativeEvaluator extends NativeEvaluator {
     override def forCode(code: String): ArrowNativeInterface = {
