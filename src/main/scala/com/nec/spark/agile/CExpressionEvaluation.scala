@@ -150,12 +150,11 @@ object CExpressionEvaluation {
 
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
       val debugInfo: List[String] = {
-        List("utcnanotime().c_str()", """" $ """", """";"""") ++ TracerOutput ++ List(
-          """";"""",
-          s""""${fullName.value}#${line.value}"""",
-          """" """",
-          s""""${fullName.value} (#${line.value}/#"""",
-          "__LINE__"
+        List("utcnanotime().c_str()", """" $ """") ++ TracerOutput ++ List(
+          """" $$ """",
+          s""""${fullName.value}#${line.value}/#"""",
+          "__LINE__",
+          "std::endl"
         )
       }
 

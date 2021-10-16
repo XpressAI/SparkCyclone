@@ -11,16 +11,14 @@ final class VeTracerTest extends TracerTest with BeforeAndAfterAll {
 
   override def includeUdpHeader: Boolean = false
 
-  private val (path, compiler) = NativeCompiler.fromTemporaryDirectory(
-    // just to output to the console - not to UDP.
-    VeCompilerConfig.testConfig.copy(maybeProfileTarget = None)
-  )
+  private val (_, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
 
   private var initialized = false
   private lazy val proc = {
     initialized = true
     Aurora.veo_proc_create(0)
   }
+
   override lazy val evaluator: NativeEvaluator = new VectorEngineNativeEvaluator(proc, compiler)
 
   override protected def afterAll(): Unit = {

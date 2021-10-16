@@ -31,15 +31,14 @@ object Tracer {
       tracer
     }
   }
+
   final case class Launched(launchId: String) {
     def map(mappingId: String): Mapped = Mapped(this, mappingId)
   }
 
   val TracerOutput: List[String] =
     List(
-      """";"""",
-      s"std::string(${TracerDefName}->data, ${TracerDefName}->offsets[0], ${TracerDefName}->offsets[1] - ${TracerDefName}->offsets[0])",
-      """";""""
+      s"std::string(${TracerDefName}->data, ${TracerDefName}->offsets[0], ${TracerDefName}->offsets[1] - ${TracerDefName}->offsets[0])"
     )
 
   def concatStr(parts: List[String]): String =
