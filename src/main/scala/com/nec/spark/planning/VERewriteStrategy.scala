@@ -176,30 +176,31 @@ final case class VERewriteStrategy(
               .flatMap { case (ne, idx) => computeIndexedAggregate(ne, idx, referenceReplacer) }
               .toList
               .sequence
-            finalOutputs <- aggregateExpressions
-              .map { namedExp_ =>
-                val namedExp = namedExp_ match {
-                  case Alias(child, _) => child
-                  case _               => namedExp_
-                }
-                projections
-                  .collectFirst {
-                    case (pk, `namedExp`)           => Left(pk)
-                    case (pk, Alias(`namedExp`, _)) => Left(pk)
-                  }
-                  .orElse {
-                    aggregates.collectFirst {
-                      case (agg, `namedExp`) =>
-                        Right(agg)
-                      case (agg, Alias(`namedExp`, _)) =>
-                        Right(agg)
-                    }
-                  }
-                  .toRight(
-                    s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
-                      .mkString(",")}"
-                  )
+            computeNamedOutput = { namedExp_ : NamedExpression =>
+              val namedExp = namedExp_ match {
+                case Alias(child, _) => child
+                case _               => namedExp_
               }
+              projections
+                .collectFirst {
+                  case (pk, `namedExp`)           => Left(pk)
+                  case (pk, Alias(`namedExp`, _)) => Left(pk)
+                }
+                .orElse {
+                  aggregates.collectFirst {
+                    case (agg, `namedExp`) =>
+                      Right(agg)
+                    case (agg, Alias(`namedExp`, _)) =>
+                      Right(agg)
+                  }
+                }
+                .toRight(
+                  s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
+                    .mkString(",")}"
+                )
+            }
+            finalOutputs <- aggregateExpressions
+              .map(computeNamedOutput)
               .toList
               .sequence
             stagedGroupBy = GroupByOutline(
