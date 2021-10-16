@@ -39,14 +39,7 @@ object Tracer {
     List(
       """";"""",
       s"std::string(${TracerDefName}->data, ${TracerDefName}->offsets[0], ${TracerDefName}->offsets[1] - ${TracerDefName}->offsets[0])",
-      """";"""",
-      s"${TracerDefName}->dataSize",
-      """";"""",
-      s"${TracerDefName}->count",
-      """";"""",
-      s"${TracerDefName}->offsets[0]",
-      """";"""",
-      s"${TracerDefName}->offsets[1]"
+      """";""""
     )
 
   def concatStr(parts: List[String]): String =
