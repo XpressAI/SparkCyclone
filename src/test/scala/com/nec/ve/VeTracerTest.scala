@@ -9,7 +9,10 @@ import org.scalatest.BeforeAndAfterAll
 
 final class VeTracerTest extends TracerTest with BeforeAndAfterAll {
 
-  private val (path, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
+  private val (path, compiler) = NativeCompiler.fromTemporaryDirectory(
+    // just to output to the console - not to UDP.
+    VeCompilerConfig.testConfig.copy(maybeProfileTarget = None)
+  )
 
   private var initialized = false
   private lazy val proc = {

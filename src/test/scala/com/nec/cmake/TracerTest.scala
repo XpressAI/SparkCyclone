@@ -14,15 +14,19 @@ class TracerTest extends AnyFreeSpec {
   "We can trace" in {
     val functionName = "test"
     val ani = evaluator.forCode(code =
-      List(
-        Tracer.DefineTracer.cCode,
-        UdpDebug.default.headers,
-        "\n\n",
-        CFunction(inputs = List(Tracer.TracerVector), outputs = Nil, body = CodeLines.debugHere)
-          .toCodeLinesNoHeader(functionName)
-          .cCode
-      )
-        .mkString("\n\n")
+      CodeLines
+        .from(
+          Tracer.DefineTracer.cCode,
+          UdpDebug.default.headers,
+          CFunction(
+            inputs = List(Tracer.TracerVector),
+            outputs = Nil,
+            body = CodeLines.from(CodeLines.debugHere)
+          )
+            .toCodeLinesNoHeader(functionName)
+            .cCode
+        )
+        .cCode
     )
     WithTestAllocator { implicit allocator =>
       val inVec = Tracer.Launched("launchId").map("mappingId")
