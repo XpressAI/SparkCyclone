@@ -29,6 +29,7 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
 
+import java.util.UUID
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.language.dynamics
 
@@ -243,7 +244,8 @@ final case class NativeAggregationEvaluationPlan(
         .mkString("\n", "\n", "\n")
     )
 
-    logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
+    val launchId = UUID.randomUUID().toString.take(8)
+    logger.debug(s"[$launchId] Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
 
     child
       .execute()
@@ -257,7 +259,10 @@ final case class NativeAggregationEvaluationPlan(
               collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
             val tracer = CFunctionGeneration.allocateFrom(tracerVector)
             tracer.setValueCount(1)
-            tracer.asInstanceOf[VarCharVector].setSafe(0, "test".getBytes())
+            val mappingId = UUID.randomUUID().toString.take(4)
+            val uniqueId = s"$launchId-$mappingId"
+            tracer.asInstanceOf[VarCharVector].setSafe(0, s"[$uniqueId]".getBytes())
+            logger.debug(s"[$uniqueId] preparing execution")
             val inputVectors = tracer :: child.output.indices.map(root.getVector).toList
             val outputVectors: List[FieldVector] =
               cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
@@ -270,18 +275,21 @@ final case class NativeAggregationEvaluationPlan(
                 Some(SupportedVectorWrapper.wrapInput(iv))
               ) ++ outputVectors.map(_ => None)
 
+              val startTime = java.time.Instant.now()
               evaluator.callFunction(
                 name = functionName,
                 inputArguments = inputArgs,
                 outputArguments = outputArgs
               )
+              val endTime = java.time.Instant.now()
+              val timeTaken = java.time.Duration.between(startTime, endTime)
 
               new ColumnarBatch(
                 outputVectors.map(valueVector => new ArrowColumnVector(valueVector)).toArray,
                 outputVectors.head.getValueCount
               )
               val cnt = outputVectors.head.getValueCount
-              logger.info(s"Got ${cnt} results back; ${outputVectors}")
+              logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
               (0 until cnt).iterator.map { v_idx =>
                 val writer = new UnsafeRowWriter(outputVectors.size)
                 writer.reset()
