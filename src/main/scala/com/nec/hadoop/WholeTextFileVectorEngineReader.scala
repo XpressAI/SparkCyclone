@@ -28,8 +28,8 @@ object WholeTextFileVectorEngineReader {
 }
 
 /**
- * A [[org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader CombineFileRecordReader]]
- * that can pass Hadoop Configuration to [[org.apache.hadoop.conf.Configurable Configurable]]
+ * A org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader CombineFileRecordReader
+ * that can pass Hadoop Configuration to org.apache.hadoop.conf.Configurable Configurable
  * RecordReaders.
  */
 class ConfigurableCombineFileRecordReader[K, V](
