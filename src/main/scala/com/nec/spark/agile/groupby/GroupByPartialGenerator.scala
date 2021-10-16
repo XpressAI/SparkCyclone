@@ -46,10 +46,19 @@ final case class GroupByPartialGenerator(
       outputs = partialOutputs,
       body = CodeLines.from(
         UdpDebug.conditional.createSock,
-        performGrouping(count = s"${inputs.head.name}->count"),
-        computeGroupingKeysPerGroup.block,
-        computedProjections.map(Function.tupled(computeProjectionsPerGroup)),
-        computedAggregates.map(Function.tupled(computeAggregatePartialsPerGroup)),
+        CodeLines
+          .from(
+            performGrouping(count = s"${inputs.head.name}->count")
+              .time("Grouping"),
+            computeGroupingKeysPerGroup.block.time("Compute grouping keys per group"),
+            computedProjections.map { case (sp, e) =>
+              computeProjectionsPerGroup(sp, e).time(s"Compute projection ${sp.name}")
+            },
+            computedAggregates.map { case (a, ag) =>
+              computeAggregatePartialsPerGroup(a, ag).time(s"Compute aggregate ${a.name}")
+            }
+          )
+          .time("Execution of Partial"),
         UdpDebug.conditional.close
       )
     )
