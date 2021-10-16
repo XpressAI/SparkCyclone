@@ -748,12 +748,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      cSource = List(
-        Tracer.DefineTracer.cCode,
-        TransferDefinitionsSourceCode,
-        "\n\n",
-        generatedSource.cCode
-      )
+      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
         .mkString("\n\n"),
       debug = true
     )
