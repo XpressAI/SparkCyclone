@@ -9,6 +9,8 @@ import com.nec.spark.agile.groupby.GroupByOutline.{
   StagedProjection,
   StringReference
 }
+import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.VERewriteStrategy.StagedProjectionPrefix
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
@@ -41,14 +43,24 @@ object ConvertNamedExpression {
           .eval(other)
           .reportToString
           .map(ce =>
-            Right(TypedCExpression2(SparkExpressionToCExpression.sparkTypeToScalarVeType(other.dataType), ce))
+            Right(
+              TypedCExpression2(
+                SparkExpressionToCExpression.sparkTypeToScalarVeType(other.dataType),
+                ce
+              )
+            )
           )
       case other =>
         SparkExpressionToCExpression
           .eval(other)
           .reportToString
           .map(ce =>
-            Right(TypedCExpression2(SparkExpressionToCExpression.sparkTypeToScalarVeType(other.dataType), ce))
+            Right(
+              TypedCExpression2(
+                SparkExpressionToCExpression.sparkTypeToScalarVeType(other.dataType),
+                ce
+              )
+            )
           )
     }
 
@@ -65,9 +77,23 @@ object ConvertNamedExpression {
       case None =>
         namedExpression match {
           case ar: AttributeReference if child.output.toList.exists(_.exprId == ar.exprId) =>
-            Right(Right(StagedProjection(s"sp_${idx}", sparkTypeToVeType(ar.dataType)) -> ar))
+            Right(
+              Right(
+                StagedProjection(
+                  s"${StagedProjectionPrefix}${idx}",
+                  sparkTypeToVeType(ar.dataType)
+                ) -> ar
+              )
+            )
           case Alias(exp, _) =>
-            Right(Right(StagedProjection(s"sp_${idx}", sparkTypeToVeType(exp.dataType)) -> exp))
+            Right(
+              Right(
+                StagedProjection(
+                  s"${StagedProjectionPrefix}${idx}",
+                  sparkTypeToVeType(exp.dataType)
+                ) -> exp
+              )
+            )
           case other =>
             Left(s"Unexpected aggregate expression: ${other}, type ${other.getClass}")
         }
@@ -111,15 +137,17 @@ object ConvertNamedExpression {
       }
       .map(_.map { case (groupByExpression, expr) =>
         StagedAggregation(
-          s"agg_${index}",
+          s"${AggPrefix}${index}",
           sparkTypeToVeType(expr.dataType),
-          groupByExpression.aggregation.partialValues(s"agg_${index}").map { case (cs, ce) =>
-            StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
+          groupByExpression.aggregation.partialValues(s"${AggPrefix}${index}").map {
+            case (cs, ce) =>
+              StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
           }
         ) -> expr
       })
   }
 
+  val AggPrefix = "agg_"
   def computeAggregate(
     exp: Expression
   )(implicit evalFallback: EvalFallback): Either[String, Aggregation] = exp match {
@@ -146,7 +174,7 @@ object ConvertNamedExpression {
             expr
               .transform(refRep)
               .collectFirst {
-                case ar: AttributeReference if ar.name.contains("input_") =>
+                case ar: AttributeReference if ar.name.contains(VERewriteStrategy.InputPrefix) =>
                   Left(StringReference(ar.name.replaceAllLiterally("->data[i]", "")))
               }
           )

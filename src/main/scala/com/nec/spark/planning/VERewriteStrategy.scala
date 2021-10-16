@@ -1,12 +1,10 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression
-import com.nec.spark.agile.SparkExpressionToCExpression.EvaluationAttempt._
 import com.nec.spark.agile.SparkExpressionToCExpression.{sparkTypeToVeType, EvalFallback}
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
-import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection, StringReference}
+import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection}
 import com.nec.spark.agile.groupby.{
   ConvertNamedExpression,
   GroupByOutline,
@@ -14,25 +12,24 @@ import com.nec.spark.agile.groupby.{
   GroupByPartialToFinalGenerator
 }
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
-import com.nec.spark.planning.VERewriteStrategy.{SequenceList, VeRewriteStrategyOptions}
+import com.nec.spark.planning.VERewriteStrategy.{
+  GroupPrefix,
+  InputPrefix,
+  SequenceList,
+  VeRewriteStrategyOptions
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   HyperLogLogPlusPlus
 }
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  Expression,
-  NamedExpression
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
-import org.apache.spark.sql.types.StringType
 
 import scala.collection.immutable
 import scala.util.Try
@@ -51,6 +48,10 @@ object VERewriteStrategy {
       case None        => Right(l.flatMap(_.right.toOption))
     }
   }
+  val StagedProjectionPrefix = "sp_"
+
+  val InputPrefix: String = "input_"
+  val GroupPrefix: String = "group_"
 }
 
 final case class VERewriteStrategy(
@@ -90,7 +91,7 @@ final case class VERewriteStrategy(
             groupingExpressions.zipWithIndex.map { case (e, i) =>
               (
                 GroupingKey(
-                  name = s"group_${i}",
+                  name = s"${GroupPrefix}${i}",
                   veType = SparkExpressionToCExpression.sparkTypeToVeType(e.dataType)
                 ),
                 e
@@ -98,7 +99,10 @@ final case class VERewriteStrategy(
             }.toList
 
           val referenceReplacer =
-            SparkExpressionToCExpression.referenceReplacer(prefix = "input_", inputs = child.output.toList)
+            SparkExpressionToCExpression.referenceReplacer(
+              prefix = InputPrefix,
+              inputs = child.output.toList
+            )
 
           val projectionsE: Either[String, List[(StagedProjection, Expression)]] =
             aggregateExpressions.zipWithIndex
@@ -112,7 +116,7 @@ final case class VERewriteStrategy(
               .map(_.flatten)
 
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
-            sparkTypeToVeType(att.dataType).makeCVector(s"input_${id}")
+            sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${id}")
           }.toList
 
           val evaluationPlanE = for {
