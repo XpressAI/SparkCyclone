@@ -9,7 +9,7 @@ import org.scalatest.BeforeAndAfterAll
 
 final class VeTracerTest extends TracerTest with BeforeAndAfterAll {
 
-  override def includeUdpHeader: Boolean = true
+  override def includeUdp: Boolean = true
 
   private val (_, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
 

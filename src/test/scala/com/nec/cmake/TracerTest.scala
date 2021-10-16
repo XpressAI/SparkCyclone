@@ -10,7 +10,7 @@ import com.nec.spark.planning.Tracer
 import org.scalatest.freespec.AnyFreeSpec
 
 class TracerTest extends AnyFreeSpec {
-  def includeUdpHeader: Boolean = false
+  def includeUdp: Boolean = false
   lazy val evaluator: NativeEvaluator = NativeEvaluator.CNativeEvaluator
   "We can trace" in {
     val functionName = "test"
@@ -18,11 +18,15 @@ class TracerTest extends AnyFreeSpec {
       CodeLines
         .from(
           Tracer.DefineTracer.cCode,
-          if (includeUdpHeader) UdpDebug.default.headers else CodeLines.empty,
+          if (includeUdp) UdpDebug.default.headers else CodeLines.empty,
           CFunction(
             inputs = List(Tracer.TracerVector),
             outputs = Nil,
-            body = CodeLines.from(CodeLines.debugHere)
+            body = CodeLines.from(
+              if (includeUdp) UdpDebug.default.createSock else CodeLines.empty,
+              CodeLines.debugHere,
+              if (includeUdp) UdpDebug.default.close else CodeLines.empty
+            )
           )
             .toCodeLinesNoHeader(functionName)
             .cCode
