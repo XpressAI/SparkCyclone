@@ -2,12 +2,39 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Contains, EndsWith, EqualTo, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, Sqrt, StartsWith}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  BinaryOperator,
+  CaseWhen,
+  Cast,
+  Coalesce,
+  Contains,
+  EndsWith,
+  EqualTo,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNaN,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Not,
+  Sqrt,
+  StartsWith
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-object SparkVeMapper {
+/**
+ * Utility to convert from Spark's expressions to CExpressions for scalars
+ */
+object SparkExpressionToCExpression {
 
   def referenceReplacer(
     prefix: String,
@@ -147,15 +174,12 @@ object SparkVeMapper {
 
   object EvaluationAttempt {
     implicit class RichEvaluationAttempt(evaluationAttempt: EvaluationAttempt) {
-      def getOrReport(): CExpression = {
-        evaluationAttempt.fold(
-          expr =>
-            sys.error(
-              s"Could not handle the expression ${expr}, type ${expr.getClass}, Spark type ${expr.dataType}"
-            ),
-          identity
+      def getOrReport(): CExpression = reportToString.fold(sys.error, identity)
+
+      def reportToString: Either[String, CExpression] =
+        evaluationAttempt.left.map(expr =>
+          s"Could not handle the expression ${expr}, type ${expr.getClass}, Spark type ${expr.dataType}"
         )
-      }
     }
     implicit class RichEvaluationAttemptStr(evaluationAttempt: Either[Expression, StringProducer]) {
       def getOrReport(): StringProducer = {
@@ -271,7 +295,7 @@ object SparkVeMapper {
         Right {
           CExpression(
             cCode = ar.name,
-            isNotNullCode = if(ar.nullable) {
+            isNotNullCode = if (ar.nullable) {
               val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
               Some(
                 s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"

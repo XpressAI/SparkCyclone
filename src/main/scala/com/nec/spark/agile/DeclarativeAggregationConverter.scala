@@ -2,8 +2,8 @@ package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.SparkVeMapper.EvalFallback
-import com.nec.spark.agile.SparkVeMapper.EvaluationAttempt._
+import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
+import com.nec.spark.agile.SparkExpressionToCExpression.EvaluationAttempt._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate
@@ -32,12 +32,12 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         .map {
           case ((Literal(null, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = 0;",
+              s"${SparkExpressionToCExpression.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = 0;",
               s"int ${prefix}_attr_${att.name}_nullable_is_set = 0;"
             )
           case ((Literal(other, tpe), idx), att) =>
             CodeLines.from(
-              s"${SparkVeMapper.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = ${other};",
+              s"${SparkExpressionToCExpression.sparkTypeToScalarVeType(tpe).cScalarType} ${prefix}_attr_${att.name}_nullable = ${other};",
               s"int ${prefix}_attr_${att.name}_nullable_is_set = 1;"
             )
           case (other, idx) =>
@@ -61,18 +61,18 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
 
     CodeLines.from(
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e)(evalFallback).getOrReport()
+        val codeEval = SparkExpressionToCExpression.eval(e)(evalFallback).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
-              s"${SparkVeMapper
+              s"${SparkExpressionToCExpression
                 .sparkTypeToScalarVeType(aggb.dataType)
                 .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
               s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
             )
           case Some(notNullCode) =>
             CodeLines.from(
-              s"${SparkVeMapper
+              s"${SparkExpressionToCExpression
                 .sparkTypeToScalarVeType(aggb.dataType)
                 .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${codeEval.cCode};",
               s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = ${prefix}_attr_${aggb.name}_nullable_is_set;",
@@ -88,7 +88,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
         }
       }.toList,
       abbs.map { case ((e, idx), aggb) =>
-        val codeEval = SparkVeMapper.eval(e).getOrReport()
+        val codeEval = SparkExpressionToCExpression.eval(e).getOrReport()
         codeEval.isNotNullCode match {
           case None =>
             CodeLines.from(
@@ -108,7 +108,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
   override def compute(prefix: String): CodeLines =
     CodeLines.empty
 
-  override def fetch(prefix: String): CExpression = SparkVeMapper
+  override def fetch(prefix: String): CExpression = SparkExpressionToCExpression
     .eval(declarativeAggregate.evaluateExpression.transform(transformInitial(prefix)))
     .getOrReport()
 
@@ -119,7 +119,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
       (
         CScalarVector(
           s"${prefix}_attr_${attRef.name}",
-          SparkVeMapper.sparkTypeToScalarVeType(attRef.dataType)
+          SparkExpressionToCExpression.sparkTypeToScalarVeType(attRef.dataType)
         ),
         CExpression(s"${prefix}_attr_${attRef.name}_nullable", Some(s"${prefix}_attr_${attRef.name}_nullable_is_set"))
       )
@@ -137,14 +137,14 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
           cExp.isNotNullCode match {
             case None =>
               CodeLines.from(
-                s"${SparkVeMapper
+                s"${SparkExpressionToCExpression
                   .sparkTypeToScalarVeType(aggb.dataType)
                   .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
                 s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = 1;"
               )
             case Some(notNullCode) =>
               CodeLines.from(
-                s"${SparkVeMapper
+                s"${SparkExpressionToCExpression
                   .sparkTypeToScalarVeType(aggb.dataType)
                   .cScalarType} tmp_${prefix}_attr_${aggb.name}_nullable = ${cExp.cCode};",
                 s"int tmp_${prefix}_attr_${aggb.name}_nullable_is_set = ${prefix}_attr_${aggb.name}_nullable_is_set;",
@@ -166,7 +166,7 @@ final case class DeclarativeAggregationConverter(declarativeAggregate: Declarati
           .zipWithIndex
           .zip(declarativeAggregate.aggBufferAttributes)
           .map { case ((mergeExp, idx), aggb) =>
-            val codeEval = SparkVeMapper.eval(mergeExp).getOrReport()
+            val codeEval = SparkExpressionToCExpression.eval(mergeExp).getOrReport()
             codeEval.isNotNullCode match {
               case None =>
                 CodeLines.from(
@@ -192,7 +192,7 @@ object DeclarativeAggregationConverter {
   )(implicit evalFallback: EvalFallback): List[CExpression] = {
     declarativeAggregate.aggBufferAttributes.zip(declarativeAggregate.mergeExpressions).map {
       case (targetAttribute, mergeExpression) =>
-        SparkVeMapper
+        SparkExpressionToCExpression
           .eval(mergeExpression)(
             EvalFallback
               .from {
@@ -284,7 +284,7 @@ object DeclarativeAggregationConverter {
       CombinedAggregation(
         underlying = aggregations.map(_._2),
         combineResults = results => {
-          SparkVeMapper
+          SparkExpressionToCExpression
             .eval(cheese)(
               EvalFallback
                 .from {
