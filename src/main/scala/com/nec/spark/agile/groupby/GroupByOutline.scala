@@ -11,6 +11,14 @@ import com.nec.spark.agile.groupby.GroupByOutline.{
 }
 import com.nec.spark.agile.{GroupingCodeGenerator, StringProducer}
 
+/**
+ * General class to describe a group-by to create the function outline
+ *
+ * Its methods are used by [[GroupByPartialGenerator]] and [[GroupByPartialToFinalGenerator]].
+ *
+ * The reason to have this in a separate space is for a cleaner separation of concerns
+ * and providing the very minimum number of dependencies that are really needed.
+ */
 final case class GroupByOutline(
   groupingKeys: List[GroupingKey],
   finalOutputs: List[Either[StagedProjection, StagedAggregation]]
