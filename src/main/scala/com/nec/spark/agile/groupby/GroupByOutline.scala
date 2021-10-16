@@ -24,18 +24,6 @@ final case class GroupByOutline(
   finalOutputs: List[Either[StagedProjection, StagedAggregation]]
 ) {
 
-  def createFull(
-    inputs: List[CVector],
-    computeGroupingKey: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
-    computeProjection: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
-    computeAggregate: List[(StagedAggregation, Aggregation)]
-  ): CFunction =
-    GroupByPartialGenerator(
-      finalGenerator = GroupByPartialToFinalGenerator(this, computeAggregate),
-      computedGroupingKeys = computeGroupingKey,
-      computedProjections = computeProjection
-    ).createFull(inputs)
-
   def groupingCodeGenerator: GroupingCodeGenerator = GroupingCodeGenerator(
     groupingVecName = "grouping_vec",
     groupsCountOutName = "groups_count",
