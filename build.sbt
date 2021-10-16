@@ -1,4 +1,5 @@
 import sbt.Def.spaceDelimited
+import sbt.Keys.envVars
 
 import java.lang.management.ManagementFactory
 import java.nio.file.Files
@@ -21,14 +22,24 @@ lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(CMake)
 
 lazy val tracing = project
-  .dependsOn(root)
+  .enablePlugins(JavaServerAppPackaging)
+  .enablePlugins(SystemdPlugin)
+  .enablePlugins(RpmPlugin)
   .settings(
+    scalaVersion := "2.13.6",
+    rpmLicense := Some("Proprietary"),
+    rpmVendor := "nec",
     libraryDependencies ++= Seq(
-      "co.fs2" %% "fs2-io" % "3.0.6",
-      "co.fs2" %% "fs2-core" % "3.0.6",
+      "co.fs2" %% "fs2-io" % "3.1.5",
+      "co.fs2" %% "fs2-core" % "3.1.5",
+      "org.scalatest" %% "scalatest" % "3.2.10" % Test,
+      "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test
     ),
-    name := "tracing"
+    name := "tracing",
+    reStart := reStart.dependsOn((Test / testQuick).toTask("")).evaluated,
+    reStart / envVars += "LOG_DIR" -> file("tracing-dir").getAbsolutePath
   )
+
 /**
  * Run with:
  *

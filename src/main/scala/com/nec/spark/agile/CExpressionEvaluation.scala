@@ -1,7 +1,8 @@
 package com.nec.spark.agile
 
 import com.nec.cmake.UdpDebug
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.TracerDefName
+import com.nec.spark.planning.Tracer
+import com.nec.spark.planning.Tracer.{TracerDefName, TracerOutput}
 
 import scala.language.implicitConversions
 import org.apache.spark.sql.catalyst.expressions._
@@ -147,21 +148,23 @@ object CExpressionEvaluation {
 
   object CodeLines {
 
-    def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines =
+    def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
+      val startdebug: List[String] = List("utcnanotime().c_str()", """" $ """")
+      val enddebug: List[String] =
+        List("""" $$ """", s""""${fullName.value}#${line.value}/#"""", "__LINE__", "std::endl")
+
+      val udpdebug: List[String] = startdebug ++ TracerOutput ++ enddebug
+
+      val debugInfo = startdebug ++ enddebug
       CodeLines.from(
         UdpDebug
           .Conditional(TracerDefName, UdpDebug.conditional)
-          .send(
-            "utcnanotime().c_str()",
-            s"std::string(${TracerDefName}->data, 0, ${TracerDefName}->offsets[1])",
-            """" """",
-            s""""${fullName.value}#${line.value}"""",
-            """" """"
-          ),
-        "#ifdef DEBUG",
-        s"""std::cout << utcnanotime().c_str() << " $$ " << "${fullName.value} (#${line.value}/#" << __LINE__ << ")" << std::endl << std::flush;""",
-        "#endif"
+          .send(udpdebug: _*),
+        UdpDebug.conditionOn("DEBUG")(
+          CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
+        )
       )
+    }
 
     def commentHere(
       what: String*

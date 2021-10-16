@@ -2,19 +2,14 @@ package com.nec.spark.planning
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeString}
+import com.nec.spark.agile.CFunctionGeneration.CFunction
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
   PrePartitioned,
   TwoStaged
 }
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{
-  writeVector,
-  EvaluationMode,
-  TracerDefName,
-  TracerName
-}
-import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
+import com.nec.spark.planning.Tracer.DefineTracer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -230,22 +225,26 @@ final case class NativeAggregationEvaluationPlan(
       }
   }
   private def executeOneGo(cFunctionNaked: CFunction): RDD[InternalRow] = {
-    val tracerVector = VeString.makeCVector(TracerName)
-    val cFunction = cFunctionNaked.copy(inputs = tracerVector :: cFunctionNaked.inputs)
+
+    val cFunction = Tracer.includeInFunction(cFunctionNaked)
     val functionName = s"${functionPrefix}_full"
 
     val evaluator = nativeEvaluator.forCode(
-      List(
-        CodeLines.from(s"#define ${TracerDefName} ${TracerName}"),
-        cFunction.toCodeLines(functionName)
-      )
+      List(DefineTracer, cFunction.toCodeLines(functionName))
         .reduce(_ ++ _)
         .lines
         .mkString("\n", "\n", "\n")
     )
 
-    val launchId = UUID.randomUUID().toString.take(8)
-    logger.debug(s"[$launchId] Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
+    val executionId =
+
+    val launched = Tracer.Launched(
+      s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
+    )
+
+    logger.debug(
+      s"[${launched.launchId}] Will execute NewCEvaluationPlan for child ${child}; ${child.output}"
+    )
 
     child
       .execute()
@@ -257,13 +256,13 @@ final case class NativeAggregationEvaluationPlan(
             val timeZoneId = conf.sessionLocalTimeZone
             val root =
               collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
-            val tracer = CFunctionGeneration.allocateFrom(tracerVector)
-            tracer.setValueCount(1)
-            val mappingId = UUID.randomUUID().toString.take(4)
-            val uniqueId = s"$launchId-$mappingId"
-            tracer.asInstanceOf[VarCharVector].setSafe(0, s"[$uniqueId]".getBytes())
+            val mapped = launched.map(UUID.randomUUID().toString.take(4))
+            import mapped._
+            val tracer = createVector()
             logger.debug(s"[$uniqueId] preparing execution")
-            val inputVectors = tracer :: child.output.indices.map(root.getVector).toList
+            logger.info(s"Tracer ==> ${tracer}")
+            val inputVectors =
+              Tracer.includeInInputs(tracer, child.output.indices.map(root.getVector).toList)
             val outputVectors: List[FieldVector] =
               cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
 
@@ -316,9 +315,6 @@ final case class NativeAggregationEvaluationPlan(
 }
 
 object NativeAggregationEvaluationPlan {
-
-  val TracerDefName = "TRACER"
-  val TracerName = "tracer"
 
   sealed trait EvaluationMode extends Serializable
   object EvaluationMode {
