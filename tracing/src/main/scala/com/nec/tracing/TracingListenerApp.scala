@@ -10,10 +10,17 @@ object TracingListenerApp extends IOApp {
   val serverPort = Port.fromInt(45705)
 
   override def run(args: List[String]): IO[ExitCode] = {
-    fs2.Stream.resource(Network[IO].openDatagramSocket(serverHost, serverPort))
+    fs2.Stream
+      .resource(Network[IO].openDatagramSocket(serverHost, serverPort))
       .flatMap(_.reads)
       .evalMap(datagram => IO.delay(datagram.bytes))
-      .through(text.utf8DecodeC)
+      .evalMap(chunkBytes =>
+        fs2.Stream
+          .chunk[IO, Byte](chunkBytes)
+          .through(text.utf8Decode)
+          .compile
+          .string
+      )
       .through(fs2.io.stdoutLines())
       .compile
       .drain
