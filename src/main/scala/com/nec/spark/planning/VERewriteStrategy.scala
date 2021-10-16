@@ -333,31 +333,20 @@ final case class VERewriteStrategy(
             computeGroupingKey = gks,
             computeProjection = ps
           )
-          val pf = {
-            gpgE.map(_.createPartial(inputs = inputsList))
-          }
-            .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
+          val evaluationPlanE = for {
+            pf <- gpgE.map(_.createPartial(inputs = inputsList))
+            _ =
+              assert(
+                pf.outputs.toSet.size == pf.outputs.size,
+                "Expected to have distinct outputs from a PF"
+              )
+            ff <- gpgE
+              .map(_.finalGenerator.createFinal)
+            fullFunction <-
+              gpgE
+                .map(_.createFull(inputs = inputsList))
 
-          assert(
-            pf.outputs.toSet.size == pf.outputs.size,
-            "Expected to have distinct outputs from a PF"
-          )
-
-          val ff = {
-            stagedGroupByE.flatMap(stagedGroupBy =>
-              stagedGroupBy.aggregations
-                .map(sa => computeAggregate(sa).map(a => sa -> a))
-                .sequence
-                .map(ca => GroupByPartialToFinalGenerator(stagedGroupBy, ca).createFinal)
-            )
-          }
-            .fold(err => sys.error(s"Could not generate final => ${err}"), identity)
-          val fullFunction =
-            gpgE
-              .map(_.createFull(inputs = inputsList))
-              .fold(err => sys.error(s"Could not generate partial => ${err}"), identity)
-
-          val evaluationPlan = NativeAggregationEvaluationPlan(
+          } yield NativeAggregationEvaluationPlan(
             outputExpressions = aggregateExpressions,
             functionPrefix = fName,
             evaluationMode =
@@ -378,6 +367,8 @@ final case class VERewriteStrategy(
               },
             nativeEvaluator = nativeEvaluator
           )
+
+          val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
 
           logger.info(s"Plan is: ${evaluationPlan}")
 
