@@ -74,7 +74,7 @@ typedef struct
 {
     char *data;
     int32_t *offsets;
-    int32_t size;
+    int32_t dataSize;
     int32_t count;
 } non_null_varchar_vector;
 
@@ -83,7 +83,7 @@ typedef struct
     char *data;
     int32_t *offsets;
     uint64_t *validityBuffer;
-    int32_t size;
+    int32_t dataSize;
     int32_t count;
 } nullable_varchar_vector;
 
@@ -167,11 +167,11 @@ frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, 
 }
 
 frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v) {
-    return data_offsets_to_words(v->data, v->offsets, v->size, v->count);
+    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
 }
 
 frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
-    return data_offsets_to_words(v->data, v->offsets, v->size, v->count);
+    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
 }
 
 void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
@@ -183,9 +183,9 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->count " << out->count << std::endl << std::flush;
     #endif
-    out->size = in.chars.size();
+    out->dataSize = in.chars.size();
     #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->size " << out->size << std::endl << std::flush;
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->dataSize " << out->dataSize << std::endl << std::flush;
     #endif
 
     out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
@@ -198,7 +198,7 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
     #endif
 
-    out->data = (char *)malloc(out->size * sizeof(char));
+    out->data = (char *)malloc(out->dataSize * sizeof(char));
     frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->data[0] " << out->data[0] << std::endl << std::flush;

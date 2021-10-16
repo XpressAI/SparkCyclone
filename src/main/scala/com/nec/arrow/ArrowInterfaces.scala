@@ -44,7 +44,7 @@ object ArrowInterfaces {
     vc.validityBuffer =
       varCharVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = varCharVector.getValueCount
-    vc.size = varCharVector.sizeOfValueBuffer()
+    vc.dataSize = varCharVector.sizeOfValueBuffer()
     vc
   }
 
@@ -261,14 +261,14 @@ object ArrowInterfaces {
     if ( input.count < 1 ) {
       return
     }
-    varCharVector.allocateNew(input.size.toLong, input.count)
+    varCharVector.allocateNew(input.dataSize.toLong, input.count)
     varCharVector.setValueCount(input.count)
     getUnsafe.copyMemory(
       input.validityBuffer,
       varCharVector.getValidityBufferAddress,
       Math.ceil(input.count / 64.0).toInt * 8
     )
-    getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.size.toLong)
+    getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.dataSize.toLong)
     getUnsafe.copyMemory(input.offsets, varCharVector.getOffsetBufferAddress, 4 * (input.count + 1))
   }
 
