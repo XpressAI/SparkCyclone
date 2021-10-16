@@ -1,7 +1,6 @@
 package com.nec.cmake
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.aurora.Aurora
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.{NativeAggregationEvaluationPlan, VERewriteStrategy}
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin, SparkAdditions}
@@ -281,16 +280,18 @@ class TPCHSqlCSpec
     }
   }
 
-  def withTpchViews[T](
-    configure: SparkSession.Builder => SparkSession.Builder
-  )(f: SparkSession => T): T = {
-    withSparkSession2(configure) { sparkSession =>
-      createViews(sparkSession)
-      f(sparkSession)
+  def withTpchViews[T](appName: String, configure: SparkSession.Builder => SparkSession.Builder)(
+    f: SparkSession => T
+  ): Unit =
+    appName in {
+      withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
+        sparkSession =>
+          createViews(sparkSession)
+          f(sparkSession)
+      }
     }
-  }
 
-  "Query 1" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 1", configuration) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
     val sql = s"""
@@ -316,10 +317,63 @@ class TPCHSqlCSpec
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (String, String, Double, Double, Double, Double, Double, Double, Double, Long)
       assert(
-        ds.as[(String, String, Double, Double, Double, Double, Double, Double, Double, Long)].collect().toList.sortBy(v => (v._1, v._2)) == List[Tpe](("A","F",3.7734107E7,5.658655440073002E10,5.3758257134869965E10,5.590906522282772E10,25.522005853257337,38273.12973462168,0.04998529583840328,1478493), ("N","F",991417.0,1.4875047103799999E9,1.4130821680541E9,1.4696492231943748E9,25.516471920522985,38284.4677608483,0.050093426674216374,38854), ("N","O",7.447604E7,1.1170172969773961E11,1.0611823030760545E11,1.1036704387249672E11,25.50222676958499,38249.11798890814,0.049996586053750215,2920374), ("R","F",3.7719753E7,5.656804138090005E10,5.3741292684604004E10,5.588961911983193E10,25.50579361269077,38250.85462609969,0.05000940583013268,1478870)).sortBy(v => (v._1, v._2)))
+        ds.as[(String, String, Double, Double, Double, Double, Double, Double, Double, Long)]
+          .collect()
+          .toList
+          .sortBy(v => (v._1, v._2)) == List[Tpe](
+          (
+            "A",
+            "F",
+            3.7734107e7,
+            5.658655440073002e10,
+            5.3758257134869965e10,
+            5.590906522282772e10,
+            25.522005853257337,
+            38273.12973462168,
+            0.04998529583840328,
+            1478493
+          ),
+          (
+            "N",
+            "F",
+            991417.0,
+            1.4875047103799999e9,
+            1.4130821680541e9,
+            1.4696492231943748e9,
+            25.516471920522985,
+            38284.4677608483,
+            0.050093426674216374,
+            38854
+          ),
+          (
+            "N",
+            "O",
+            7.447604e7,
+            1.1170172969773961e11,
+            1.0611823030760545e11,
+            1.1036704387249672e11,
+            25.50222676958499,
+            38249.11798890814,
+            0.049996586053750215,
+            2920374
+          ),
+          (
+            "R",
+            "F",
+            3.7719753e7,
+            5.656804138090005e10,
+            5.3741292684604004e10,
+            5.588961911983193e10,
+            25.50579361269077,
+            38250.85462609969,
+            0.05000940583013268,
+            1478870
+          )
+        ).sortBy(v => (v._1, v._2))
+      )
     }
   }
-  "Query 2" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 2", configuration) { sparkSession =>
     import sparkSession.implicits._
     val size = 15
     val pType = "BRASS"
@@ -390,10 +444,15 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Double, String, String, Long, String, String, String, String)].collect().toList.sorted == result.sorted)
+      assert(
+        ds.as[(Double, String, String, Long, String, String, String, String)]
+          .collect()
+          .toList
+          .sorted == result.sorted
+      )
     }
   }
-  "Query 3" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 3", configuration) { sparkSession =>
     import sparkSession.implicits._
     val segment = "BUILDING"
     val date = "1995-03-15"
@@ -429,20 +488,23 @@ class TPCHSqlCSpec
         StructField("_0", LongType),
         StructField("_1", DoubleType),
         StructField("_2", DataTypes.StringType),
-        StructField("_3", DataTypes.LongType),
-
+        StructField("_3", DataTypes.LongType)
       )
     )
 
-    val result = sparkSession.read.schema(resultSchema).csv(resultsDir + "Query3.csv")
-      .as[(Long, Double, String, Long)].collect().toList
+    val result = sparkSession.read
+      .schema(resultSchema)
+      .csv(resultsDir + "Query3.csv")
+      .as[(Long, Double, String, Long)]
+      .collect()
+      .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[(Long, Double, String, Long)].collect().toList.sorted == result.sorted)
     }
   }
 
-  "Query 4" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 4", configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val date = "1993-07-01"
@@ -470,10 +532,18 @@ class TPCHSqlCSpec
         o_orderpriority;
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Long)].collect().toList.sorted == List(("1-URGENT",10594), ("2-HIGH",10476), ("3-MEDIUM",10410), ("4-NOT SPECIFIED",10556), ("5-LOW",10487)).sorted)
+      assert(
+        ds.as[(String, Long)].collect().toList.sorted == List(
+          ("1-URGENT", 10594),
+          ("2-HIGH", 10476),
+          ("3-MEDIUM", 10410),
+          ("4-NOT SPECIFIED", 10556),
+          ("5-LOW", 10487)
+        ).sorted
+      )
     }
   }
-  "Query 5" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 5", configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val region = "ASIA"
@@ -506,10 +576,18 @@ class TPCHSqlCSpec
         revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Double)].collect().toList.sorted == List(("INDONESIA",5.5502041169699915E7), ("VIETNAM",5.529508699669991E7), ("CHINA",5.372449425660001E7), ("INDIA",5.2035512000199996E7), ("JAPAN",4.5410175695400015E7)).sorted)
+      assert(
+        ds.as[(String, Double)].collect().toList.sorted == List(
+          ("INDONESIA", 5.5502041169699915e7),
+          ("VIETNAM", 5.529508699669991e7),
+          ("CHINA", 5.372449425660001e7),
+          ("INDIA", 5.2035512000199996e7),
+          ("JAPAN", 4.5410175695400015e7)
+        ).sorted
+      )
     }
   }
-  "Query 6" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 6", configuration) { sparkSession =>
     import sparkSession.implicits._
     val date = "1994-01-01"
     val discount = 0.06
@@ -528,10 +606,12 @@ class TPCHSqlCSpec
         and l_quantity < $quantity
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      ds.as[scala.Double].collect.toList.head shouldEqual 1.2314107822829995E8.+- (0.00001) // We get here 1.2314107822829895E8 from our code
+      ds.as[scala.Double].collect.toList.head shouldEqual 1.2314107822829995e8.+-(
+        0.00001
+      ) // We get here 1.2314107822829895E8 from our code
     }
   }
-  "Query 7" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 7", configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val nation1 = "FRANCE"
@@ -577,11 +657,18 @@ class TPCHSqlCSpec
         l_year
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, String,Int ,Double)].collect().toList.sorted == List(("FRANCE","GERMANY",1995,5.463973273360003E7), ("FRANCE","GERMANY",1996,5.463308330760005E7), ("GERMANY","FRANCE",1995,5.253174666970001E7), ("GERMANY","FRANCE",1996,5.2520549022399865E7))) // FRANCE GERMANY 1995 54639732.7.sorted3
+      assert(
+        ds.as[(String, String, Int, Double)].collect().toList.sorted == List(
+          ("FRANCE", "GERMANY", 1995, 5.463973273360003e7),
+          ("FRANCE", "GERMANY", 1996, 5.463308330760005e7),
+          ("GERMANY", "FRANCE", 1995, 5.253174666970001e7),
+          ("GERMANY", "FRANCE", 1996, 5.2520549022399865e7)
+        )
+      ) // FRANCE GERMANY 1995 54639732.7.sorted3
     }
   }
   //Fails
-  "Query 8" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 8", configuration) { sparkSession =>
     import sparkSession.implicits._
     val nation = "BRAZIL"
     val region = "AMERICA"
@@ -629,10 +716,15 @@ class TPCHSqlCSpec
       o_year
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double)].collect.toList.sorted == List((1995,0.03443589040665487), (1996,0.041485521293530316)).sorted)
+      assert(
+        ds.as[(Long, Double)].collect.toList.sorted == List(
+          (1995, 0.03443589040665487),
+          (1996, 0.041485521293530316)
+        ).sorted
+      )
     }
   }
-  "Query 9" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 9", configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val color = "green"
@@ -675,19 +767,21 @@ class TPCHSqlCSpec
       Seq(
         StructField("_0", DataTypes.StringType),
         StructField("_1", DataTypes.IntegerType),
-        StructField("_2", DoubleType),
+        StructField("_2", DoubleType)
       )
     )
     val result = sparkSession.read
       .schema(resultSchema)
       .csv(resultsDir + "Query9.csv")
-      .as[(String, Int, Double)].collect().toList
+      .as[(String, Int, Double)]
+      .collect()
+      .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[(String, Int, Double)].collect().toList.sorted == result.sorted)
     }
   }
-  "Query 10" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 10", configuration) { sparkSession =>
     import sparkSession.implicits._
     val date = "1993-10-01"
 
@@ -733,7 +827,7 @@ class TPCHSqlCSpec
         StructField("_4", DataTypes.StringType),
         StructField("_5", DataTypes.StringType),
         StructField("_6", DataTypes.StringType),
-        StructField("_7", DataTypes.StringType),
+        StructField("_7", DataTypes.StringType)
       )
     )
     val result = sparkSession.read
@@ -744,10 +838,15 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, String, Double, Double, String, String, String, String)].collect().toList.sorted == result.sorted)
+      assert(
+        ds.as[(Long, String, Double, Double, String, String, String, String)]
+          .collect()
+          .toList
+          .sorted == result.sorted
+      )
     }
   }
-  "Query 11" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 11", configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val nation = "GERMANY"
@@ -782,12 +881,7 @@ class TPCHSqlCSpec
         value desc
     """
 
-    val resultSchema = StructType(
-      Seq(
-        StructField("_0", LongType),
-        StructField("_1", DoubleType)
-      )
-    )
+    val resultSchema = StructType(Seq(StructField("_0", LongType), StructField("_1", DoubleType)))
     val result = sparkSession.read
       .schema(resultSchema)
       .csv(resultsDir + "Query11.csv")
@@ -796,12 +890,11 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-
       assert(ds.as[(Long, Double)].collect().toList.sorted == result.sorted)
     }
   }
   //This doesn't work.
-  "Query 12" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 12", configuration) { sparkSession =>
     import sparkSession.implicits._
     val shipMode1 = "MAIL"
     val shipMode2 = "SHIP"
@@ -838,10 +931,15 @@ class TPCHSqlCSpec
       order by l_shipmode
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, BigInt, BigInt)].collect.toList.sorted == List(("MAIL",6202,9324), ("SHIP",6200,9262)).sorted)
+      assert(
+        ds.as[(String, BigInt, BigInt)].collect.toList.sorted == List(
+          ("MAIL", 6202, 9324),
+          ("SHIP", 6200, 9262)
+        ).sorted
+      )
     }
   }
-  "Query 13" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 13", configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val word1 = "special"
@@ -869,11 +967,56 @@ class TPCHSqlCSpec
         c_count desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Long)].collect.toList.sorted == List((0,50005), (9,6641), (10,6532), (11,6014), (8,5937), (12,5639), (13,5024), (19,4793), (7,4687), (17,4587), (18,4529), (20,4516), (15,4505), (14,4446), (16,4273), (21,4190), (22,3623), (6,3265), (23,3225), (24,2742), (25,2086), (5,1948), (26,1612), (27,1179), (4,1007), (28,893), (29,593), (3,415), (30,376), (31,226), (32,148), (2,134), (33,75), (34,50), (35,37), (1,17), (36,14), (38,5), (37,5), (40,4), (41,2), (39,1)).sorted)
+      assert(
+        ds.as[(Long, Long)].collect.toList.sorted == List(
+          (0, 50005),
+          (9, 6641),
+          (10, 6532),
+          (11, 6014),
+          (8, 5937),
+          (12, 5639),
+          (13, 5024),
+          (19, 4793),
+          (7, 4687),
+          (17, 4587),
+          (18, 4529),
+          (20, 4516),
+          (15, 4505),
+          (14, 4446),
+          (16, 4273),
+          (21, 4190),
+          (22, 3623),
+          (6, 3265),
+          (23, 3225),
+          (24, 2742),
+          (25, 2086),
+          (5, 1948),
+          (26, 1612),
+          (27, 1179),
+          (4, 1007),
+          (28, 893),
+          (29, 593),
+          (3, 415),
+          (30, 376),
+          (31, 226),
+          (32, 148),
+          (2, 134),
+          (33, 75),
+          (34, 50),
+          (35, 37),
+          (1, 17),
+          (36, 14),
+          (38, 5),
+          (37, 5),
+          (40, 4),
+          (41, 2),
+          (39, 1)
+        ).sorted
+      )
     }
   }
   //Fails
-  "Query 14" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 14", configuration) { sparkSession =>
     import sparkSession.implicits._
     val date = "1995-09-01"
 
@@ -899,7 +1042,7 @@ class TPCHSqlCSpec
       assert(ds.as[Double].collect.toList.sorted == List(16.38077862639553)) //  16.3.sorted8
     }
   }
-  "Query 15" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 15", configuration) { sparkSession =>
     import sparkSession.implicits._
     val streamId = "1"
     val date = "1996-01-01"
@@ -943,12 +1086,16 @@ class TPCHSqlCSpec
 
     sparkSession.sql(sql1).show()
     sparkSession.sql(sql2).debugSqlHere { ds =>
-      assert(ds.as[(Long, String ,String, String, Double)].collect.toList.sorted == List((8449,"Supplier#000008449","Wp34zim9qYFbVctdW","20-469-856-8873",1772627.2087000003)).sorted)
+      assert(
+        ds.as[(Long, String, String, String, Double)].collect.toList.sorted == List(
+          (8449, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003)
+        ).sorted
+      )
     }
     sparkSession.sql(sql3).show()
   }
 
-  "Query 16" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 16", configuration) { sparkSession =>
     import sparkSession.implicits._
     val brand = "Brand#45"
     val pType = "MEDIUM POLISHED"
@@ -992,8 +1139,9 @@ class TPCHSqlCSpec
         StructField("_0", DataTypes.StringType),
         StructField("_1", DataTypes.StringType),
         StructField("_2", LongType),
-        StructField("_3", LongType),
-      ))
+        StructField("_3", LongType)
+      )
+    )
 
     val result = sparkSession.read
       .schema(resultSchema)
@@ -1006,7 +1154,7 @@ class TPCHSqlCSpec
       assert(ds.as[(String, String, Long, Long)].collect.toList.sorted == result.sorted)
     }
   }
-  "Query 17" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 17", configuration) { sparkSession =>
     import sparkSession.implicits._
     val brand = "Brand#23"
     val container = "MED BOX"
@@ -1034,7 +1182,7 @@ class TPCHSqlCSpec
       assert(ds.as[Double].collect().toList.sorted == List(348406.05428571434)) //  348406.0.sorted5
     }
   }
-  "Query 18" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 18", configuration) { sparkSession =>
     import sparkSession.implicits._
     val quantity = 300
 
@@ -1081,8 +1229,9 @@ class TPCHSqlCSpec
         StructField("_2", LongType),
         StructField("_3", DataTypes.StringType),
         StructField("_4", DoubleType),
-        StructField("_5", DoubleType),
-      ))
+        StructField("_5", DoubleType)
+      )
+    )
 
     val result = sparkSession.read
       .schema(resultSchema)
@@ -1092,12 +1241,15 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Long, Long, String, Double, Double)]
-        .collect()
-        .toList.sorted == result) // Customer#000128120 128120 4722021 1994-04-07 544089.09 323.0.sorted0
+      assert(
+        ds.as[(String, Long, Long, String, Double, Double)]
+          .collect()
+          .toList
+          .sorted == result
+      ) // Customer#000128120 128120 4722021 1994-04-07 544089.09 323.0.sorted0
     }
   }
-  "Query 19" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 19", configuration) { sparkSession =>
     import sparkSession.implicits._
     val brand1 = "Brand#12"
     val quantity1 = 1
@@ -1150,7 +1302,7 @@ class TPCHSqlCSpec
       assert(ds.as[Double].collect.toList.sorted == List(3083843.057799999)) // 3083843.0.sorted5
     }
   }
-  "Query 20" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 20", configuration) { sparkSession =>
     import sparkSession.implicits._
     val color = "forest"
     val date = "1994-01-01"
@@ -1195,10 +1347,8 @@ class TPCHSqlCSpec
         s_name
     """
     val resultSchema = StructType(
-      Seq(
-        StructField("_0", DataTypes.StringType),
-        StructField("_1", DataTypes.StringType),
-      ))
+      Seq(StructField("_0", DataTypes.StringType), StructField("_1", DataTypes.StringType))
+    )
 
     val result = sparkSession.read
       .schema(resultSchema)
@@ -1210,7 +1360,7 @@ class TPCHSqlCSpec
       assert(ds.as[(String, String)].collect().toList.sorted == result.sorted)
     }
   }
-  "Query 21" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 21", configuration) { sparkSession =>
     import sparkSession.implicits._
     val nation = "SAUDI ARABIA"
 
@@ -1254,10 +1404,8 @@ class TPCHSqlCSpec
         s_name
     """
     val resultSchema = StructType(
-      Seq(
-        StructField("_0", DataTypes.StringType),
-        StructField("_1", DataTypes.LongType),
-      ))
+      Seq(StructField("_0", DataTypes.StringType), StructField("_1", DataTypes.LongType))
+    )
 
     val result = sparkSession.read
       .schema(resultSchema)
@@ -1269,7 +1417,7 @@ class TPCHSqlCSpec
       assert(ds.as[(String, Long)].collect.toList.sorted == result.sorted)
     }
   }
-  "Query 22" in withTpchViews(configuration) { sparkSession =>
+  withTpchViews("Query 22", configuration) { sparkSession =>
     import sparkSession.implicits._
     val items = Seq("'13'", "'31'", "'23'", "'29'", "'30'", "'18'", "'17'")
 
@@ -1309,7 +1457,17 @@ class TPCHSqlCSpec
         cntrycode
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Long, Double)].collect.toList.sorted == List(("13",888,6737713.989999999), ("17",861,6460573.719999993), ("18",964,7236687.399999998), ("23",892,6701457.950000002), ("29",948,7158866.629999999), ("30",909,6808436.129999996), ("31",922,6806670.179999999))) // 13 888 6737713.9.sorted9
+      assert(
+        ds.as[(String, Long, Double)].collect.toList.sorted == List(
+          ("13", 888, 6737713.989999999),
+          ("17", 861, 6460573.719999993),
+          ("18", 964, 7236687.399999998),
+          ("23", 892, 6701457.950000002),
+          ("29", 948, 7158866.629999999),
+          ("30", 909, 6808436.129999996),
+          ("31", 922, 6806670.179999999)
+        )
+      ) // 13 888 6737713.9.sorted9
     }
   }
 }
