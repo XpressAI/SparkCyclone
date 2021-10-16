@@ -174,12 +174,12 @@ public interface ArrowTransferStructures extends Library {
         }
     }
 
-    @Structure.FieldOrder({"data", "offsets", "validityBuffer", "size", "count"})
+    @Structure.FieldOrder({"data", "offsets", "validityBuffer", "dataSize", "count"})
     class nullable_varchar_vector extends Structure {
         public long data;
         public long offsets;
         public long validityBuffer;
-        public Integer size;
+        public Integer dataSize;
         public Integer count;
         /* 24 + 8 = 32 bytes in size */
 
