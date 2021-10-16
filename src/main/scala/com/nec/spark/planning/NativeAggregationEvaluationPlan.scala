@@ -236,6 +236,8 @@ final case class NativeAggregationEvaluationPlan(
         .mkString("\n", "\n", "\n")
     )
 
+    val executionId =
+
     val launched = Tracer.Launched(
       s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
     )

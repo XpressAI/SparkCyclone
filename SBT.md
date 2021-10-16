@@ -235,4 +235,10 @@ sbt> show tracing / Rpm / packageBin
 # rpm --force -i /path/to/aurora4spark/tracing/target/rpm/RPMS/noarch/tracing-0.1.0-SNAPSHOT.noarch.rpm
 sbt> VectorEngine / testOnly *TPC* -- -z " 4"
 # journalctl -u tracing -f
+# echo 'LOG_DIR=/home/tracing' >> /etc/default/tracing
+# mkdir -p /home/tracing
+# chown -R tracing:tracing /home/tracing
+# chmod -R 777 /home/tracing
+# systemctl daemon-reload
+# systemctl restart tracing
 ```

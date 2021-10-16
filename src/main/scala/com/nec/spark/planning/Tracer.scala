@@ -22,7 +22,7 @@ object Tracer {
 
   final case class Mapped(launched: Launched, mappingId: String) {
     import launched.launchId
-    def uniqueId = s"$launchId-$mappingId"
+    def uniqueId = s"$launchId|$mappingId"
 
     def createVector()(implicit bufferAllocator: BufferAllocator): VarCharVector = {
       val tracer = CFunctionGeneration.allocateFrom(TracerVector).asInstanceOf[VarCharVector]
