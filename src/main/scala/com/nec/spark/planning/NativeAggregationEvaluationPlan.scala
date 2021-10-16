@@ -258,12 +258,13 @@ final case class NativeAggregationEvaluationPlan(
             val timeZoneId = conf.sessionLocalTimeZone
             val root =
               collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
-            val tracer = CFunctionGeneration.allocateFrom(tracerVector)
+            val tracer = CFunctionGeneration.allocateFrom(tracerVector).asInstanceOf[VarCharVector]
             tracer.setValueCount(1)
             val mappingId = UUID.randomUUID().toString.take(4)
             val uniqueId = s"$launchId-$mappingId"
-            tracer.asInstanceOf[VarCharVector].setSafe(0, new Text(s"[$uniqueId]"))
+            tracer.setSafe(0, new Text(s"[$uniqueId]"))
             logger.debug(s"[$uniqueId] preparing execution")
+            logger.info(s"Tracer ==> ${tracer}")
             val inputVectors = tracer :: child.output.indices.map(root.getVector).toList
             val outputVectors: List[FieldVector] =
               cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
