@@ -69,7 +69,7 @@ final case class VERewriteStrategy(
 
   @silent
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-    def fName: String = s"eval_${Math.abs(plan.toString.hashCode())}"
+    def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
     val failFast = VERewriteStrategy.failFast
 
@@ -230,27 +230,31 @@ final case class VERewriteStrategy(
             ff = gpg.finalGenerator.createFinal
             fullFunction =
               gpg.createFull(inputs = inputsList)
-          } yield NativeAggregationEvaluationPlan(
-            outputExpressions = aggregateExpressions,
-            functionPrefix = fName,
-            evaluationMode =
-              if (options.preShufflePartitions.isDefined)
-                EvaluationMode.PrePartitioned(fullFunction)
-              else EvaluationMode.TwoStaged(pf, ff),
-            child = options.preShufflePartitions
-              .map { n =>
-                ShuffleExchangeExec(
-                  outputPartitioning =
-                    HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                  child = planLater(child),
-                  shuffleOrigin = REPARTITION
+          } yield {
+            options.preShufflePartitions match {
+              case Some(n) =>
+                NativeAggregationEvaluationPlan(
+                  outputExpressions = aggregateExpressions,
+                  functionPrefix = functionPrefix,
+                  evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
+                  child = ShuffleExchangeExec(
+                    outputPartitioning =
+                      HashPartitioning(expressions = groupingExpressions, numPartitions = n),
+                    child = planLater(child),
+                    shuffleOrigin = REPARTITION
+                  ),
+                  nativeEvaluator = nativeEvaluator
                 )
-              }
-              .getOrElse {
-                planLater(child)
-              },
-            nativeEvaluator = nativeEvaluator
-          )
+              case None =>
+                NativeAggregationEvaluationPlan(
+                  outputExpressions = aggregateExpressions,
+                  functionPrefix = functionPrefix,
+                  evaluationMode = EvaluationMode.TwoStaged(pf, ff),
+                  child = planLater(child),
+                  nativeEvaluator = nativeEvaluator
+                )
+            }
+          }
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
