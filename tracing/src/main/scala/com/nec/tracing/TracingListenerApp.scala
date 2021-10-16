@@ -28,6 +28,7 @@ object TracingListenerApp extends IOApp {
                 System.err.println(s"Unexpected input, will ignore: ${str}")
               case Some(tracingRecord) =>
                 val logFile = path.resolve(tracingRecord.appId + ".log")
+                if (!Files.exists(logFile)) Files.createFile(logFile)
                 Files.write(logFile, str.getBytes(), StandardOpenOption.APPEND)
             }
           }
