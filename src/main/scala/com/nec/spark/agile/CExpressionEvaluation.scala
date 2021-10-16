@@ -149,19 +149,17 @@ object CExpressionEvaluation {
   object CodeLines {
 
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
-      val debugInfo: List[String] = {
-        List("utcnanotime().c_str()", """" $ """") ++ TracerOutput ++ List(
-          """" $$ """",
-          s""""${fullName.value}#${line.value}/#"""",
-          "__LINE__",
-          "std::endl"
-        )
-      }
+      val startdebug: List[String] = List("utcnanotime().c_str()", """" $ """")
+      val enddebug: List[String] =
+        List("""" $$ """", s""""${fullName.value}#${line.value}/#"""", "__LINE__", "std::endl")
 
+      val udpdebug: List[String] = startdebug ++ TracerOutput ++ enddebug
+
+      val debugInfo = startdebug ++ enddebug
       CodeLines.from(
         UdpDebug
           .Conditional(TracerDefName, UdpDebug.conditional)
-          .send(debugInfo: _*),
+          .send(udpdebug: _*),
         UdpDebug.conditionOn("DEBUG")(
           CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
         )
