@@ -129,14 +129,20 @@ object CExpressionEvaluation {
 
   final case class CodeLines(lines: List[String]) {
     def time(name: String): CodeLines = {
-      val udpdebug: List[String] = List(
-        "utcnanotime().c_str()",
-        """" $ """"
-      ) ++ TracerOutput ++ List("""" $$ """", s""""S:${name}"""", "std::endl")
-      val udpdebugE: List[String] = List(
-        "utcnanotime().c_str()",
-        """" $ """"
-      ) ++ TracerOutput ++ List("""" $$ """", s""""E:${name}"""", "std::endl")
+      val udpdebug: List[String] =
+        List("utcnanotime().c_str()", """" $ """") ++ TracerOutput ++ List(
+          """" $$ """",
+          s""""S:${name}:L"""",
+          "__LINE__",
+          "std::endl"
+        )
+      val udpdebugE: List[String] =
+        List("utcnanotime().c_str()", """" $ """") ++ TracerOutput ++ List(
+          """" $$ """",
+          s""""E:${name}:L"""",
+          "__LINE__",
+          "std::endl"
+        )
       CodeLines.from(
         UdpDebug
           .Conditional(TracerDefName, UdpDebug.conditional)
