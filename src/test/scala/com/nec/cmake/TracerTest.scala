@@ -10,32 +10,31 @@ import com.nec.spark.planning.Tracer
 import org.scalatest.freespec.AnyFreeSpec
 
 class TracerTest extends AnyFreeSpec {
+  def includeUdpHeader: Boolean = false
   lazy val evaluator: NativeEvaluator = NativeEvaluator.CNativeEvaluator
   "We can trace" in {
-    if (!scala.util.Properties.isWin) {
-      val functionName = "test"
-      val ani = evaluator.forCode(code =
-        CodeLines
-          .from(
-            Tracer.DefineTracer.cCode,
-            UdpDebug.default.headers,
-            CFunction(
-              inputs = List(Tracer.TracerVector),
-              outputs = Nil,
-              body = CodeLines.from(CodeLines.debugHere)
-            )
-              .toCodeLinesNoHeader(functionName)
-              .cCode
+    val functionName = "test"
+    val ani = evaluator.forCode(code =
+      CodeLines
+        .from(
+          Tracer.DefineTracer.cCode,
+          if (includeUdpHeader) UdpDebug.default.headers else CodeLines.empty,
+          CFunction(
+            inputs = List(Tracer.TracerVector),
+            outputs = Nil,
+            body = CodeLines.from(CodeLines.debugHere)
           )
-          .cCode
-      )
-      WithTestAllocator { implicit allocator =>
-        val inVec = Tracer.Launched("launchId").map("mappingId")
-        val vec = inVec.createVector()
-        try {
-          ani.callFunctionWrapped(functionName, List(NativeArgument.input(vec)))
-        } finally vec.close()
-      }
+            .toCodeLinesNoHeader(functionName)
+            .cCode
+        )
+        .cCode
+    )
+    WithTestAllocator { implicit allocator =>
+      val inVec = Tracer.Launched("launchId").map("mappingId")
+      val vec = inVec.createVector()
+      try {
+        ani.callFunctionWrapped(functionName, List(NativeArgument.input(vec)))
+      } finally vec.close()
     }
   }
 }

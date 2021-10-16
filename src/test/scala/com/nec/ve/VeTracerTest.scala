@@ -9,6 +9,8 @@ import org.scalatest.BeforeAndAfterAll
 
 final class VeTracerTest extends TracerTest with BeforeAndAfterAll {
 
+  override def includeUdpHeader: Boolean = false
+
   private val (path, compiler) = NativeCompiler.fromTemporaryDirectory(
     // just to output to the console - not to UDP.
     VeCompilerConfig.testConfig.copy(maybeProfileTarget = None)
