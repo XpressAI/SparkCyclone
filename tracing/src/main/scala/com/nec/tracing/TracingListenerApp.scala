@@ -21,6 +21,7 @@ object TracingListenerApp extends IOApp {
           .compile
           .string
       )
+      .map(_.trim)
       .through(fs2.io.stdoutLines())
       .compile
       .drain
