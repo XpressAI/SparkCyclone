@@ -329,7 +329,7 @@ object SparkExpressionToCExpression {
         }
       case IsNaN(child) =>
         eval(child).map { ex =>
-          CExpression(cCode = s"std::isnan(${ex.cCode})", isNotNullCode = ex.isNotNullCode)
+          CExpression(cCode = s"std::isnan(static_cast<double>(${ex.cCode}))", isNotNullCode = ex.isNotNullCode)
         }
       case If(predicate, trueValue, falseValue) =>
         for {
