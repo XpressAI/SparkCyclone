@@ -5,6 +5,7 @@ import com.nec.cmake.TPCHSqlCSpec
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.ve.TPCHSqlSpec.VeConfiguration
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 
@@ -13,8 +14,10 @@ import java.io.File
 object TPCHSqlSpec {
 
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
-    _.config(CODEGEN_FALLBACK.key, value = false)
+    _.config(CODEGEN_FALLBACK.key, value = true)
       .config("spark.sql.codegen.comments", value = true)
+      .config("spark.rpc.askTimeout", 600)
+      .config("spark.com.nec.spark.kernel.directory", new File("work/egonzalez").getAbsolutePath)
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(_ => new VERewriteStrategy(ExecutorPluginManagedEvaluator))
@@ -28,7 +31,7 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
   private var initialized = false
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
-    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+    VeConfiguration
 
   override protected def afterAll(): Unit = {
     Aurora4SparkExecutorPlugin.closeProcAndCtx()

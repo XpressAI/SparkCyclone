@@ -33,7 +33,7 @@ object VeKernelCompiler {
   final case class VeCompilerConfig(
     nccPath: String = "/opt/nec/ve/bin/ncc",
     optimizationLevel: Int = 4,
-    doDebug: Boolean = false,
+    doDebug: Boolean = true,
     maybeProfileTarget: Option[ProfileTarget] = Some(ProfileTarget.default),
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false

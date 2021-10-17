@@ -26,6 +26,7 @@ final class VeArrowNativeInterface(proc: Aurora.veo_proc_handle, lib: Long)
 object VeArrowNativeInterface extends LazyLogging {
   private var libs: Map[String, Long] = Map()
   private var functionAddrs: Map[(Long, String), Long] = Map()
+  private var totalTime = 0L
 
   def requireOk(result: Int): Unit = {
     require(result >= 0, s"Result should be >=0, got $result")
@@ -140,7 +141,7 @@ object VeArrowNativeInterface extends LazyLogging {
       val startTime = System.currentTimeMillis()
       val uuid = java.util.UUID.randomUUID()
 
-      logger.debug(s"[$uuid] Starting VE call to '$functionName'...")
+      println(s"[$uuid] Starting VE call to '$functionName'...")
       val fnAddr = if (functionAddrs.contains((lib, functionName))) {
         functionAddrs((lib, functionName))
       } else {
@@ -152,8 +153,9 @@ object VeArrowNativeInterface extends LazyLogging {
       val fnCallResult = new LongPointer(8)
       val callRes = Aurora.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
       val time = System.currentTimeMillis() - startTime
-      logger.debug(
-        s"[$uuid] Got result from VE call to '$functionName': '$callRes'. Took ${time}ms"
+      totalTime += time
+      println(
+        s"[$uuid] Got result from VE call to '$functionName': '$callRes'. Took ${time}ms (total so far $totalTime ms)"
       )
 
       require(

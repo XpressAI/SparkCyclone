@@ -17,6 +17,8 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/egonzalez \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
-    --conf spark.sql.codegen.wholeStage=false \
+    --conf com.nec.spark.preshuffle-partitions=8 \
+    --conf spark.rpc.askTimeout=600 \
     target/scala-2.12/tpchbench_2.12-0.0.1.jar
+
 

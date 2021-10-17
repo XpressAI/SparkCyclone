@@ -158,8 +158,8 @@ CMake / parallelExecution := false
 VectorEngine / parallelExecution := false
 inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
-VectorEngine / fork := true
-VectorEngine / run / fork := true
+VectorEngine / fork := false
+VectorEngine / run / fork := false
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
 VectorEngine / run / javaOptions ++= {
