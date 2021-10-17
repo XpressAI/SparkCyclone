@@ -40,13 +40,10 @@ object VeKernelCompiler {
   ) {
     def definitions: List[String] = {
       List(
-        if (doDebug) List("-D", "DEBUG=1") else Nil,
-        if (useOpenmp) List("-fopenmp") else Nil,
+        if (doDebug) List("DEBUG=1") else Nil,
         maybeProfileTarget.toList.flatMap(tgt =>
           List(
-            "-D",
             s"""${UdpDebug.default.hostName}="${tgt.host}"""",
-            "-D",
             s"${UdpDebug.default.port}=${tgt.port}"
           )
         )
@@ -66,7 +63,8 @@ object VeKernelCompiler {
         /* "-ftrace", */
         "-fdiag-vector=2"
       ) ++ additionalOptions.toList.sortBy(_._1).map(_._2)
-      ret
+
+      ret ++ (if (useOpenmp) List("-fopenmp") else Nil)
     }
 
     def include(key: String, value: String): VeCompilerConfig = key match {
