@@ -1,16 +1,15 @@
-package com.nec.ve
+package com.nec.tpc
 
-import com.nec.aurora.Aurora
-import com.nec.cmake.TPCHSqlCSpec
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 
 import java.io.File
 
-object TPCHSqlSpec {
+object TPCHVESqlSpec {
 
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
@@ -23,7 +22,7 @@ object TPCHSqlSpec {
 
 }
 
-final class TPCHSqlSpec extends TPCHSqlCSpec {
+final class TPCHVESqlSpec extends TPCHSqlCSpec {
 
   private var initialized = false
 
@@ -35,7 +34,6 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
   }
 
   override protected def beforeAll(): Unit = {
-    import sys.process._
 
 //    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
 
@@ -47,7 +45,6 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
 
     val tableFile = new File("src/test/resoruces/dbgen/lineitem.tbl")
     if (!tableFile.exists()) {
-      import sys.process._
 
 //      s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
     }
