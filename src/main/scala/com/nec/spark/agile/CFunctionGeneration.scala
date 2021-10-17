@@ -582,8 +582,6 @@ object CFunctionGeneration {
     )
   )
 
-  val GroupBeforeSort = "before we can group we need to sort"
-
   def renderInnerJoin(
     veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
   ): CFunction = {

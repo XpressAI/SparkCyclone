@@ -29,9 +29,10 @@ object DynamicCSqlExpressionEvaluationSpec {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession =>
+        sse.injectPlannerStrategy(sparkSession => {
+          VERewriteStrategy.failFast = true
           new VERewriteStrategy(CNativeEvaluator(debug = false))
-        )
+        })
       )
   }
 

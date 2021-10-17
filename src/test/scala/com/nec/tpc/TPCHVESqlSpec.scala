@@ -16,7 +16,10 @@ object TPCHVESqlSpec {
       .config("spark.sql.codegen.comments", value = true)
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(_ => new VERewriteStrategy(ExecutorPluginManagedEvaluator))
+        sse.injectPlannerStrategy(_ => {
+          VERewriteStrategy.failFast = true
+          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
+        })
       )
   }
 
