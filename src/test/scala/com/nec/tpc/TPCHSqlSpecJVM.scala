@@ -1,15 +1,11 @@
-package com.nec.spark
+package com.nec.tpc
 
-import com.eed3si9n.expecty.Expecty.expect
-import com.nec.cmake.{Customer, Lineitem, Nation, Order, Part, Partsupp, Region, Supplier, TPCHSqlCSpec}
+import com.nec.spark.SparkAdditions
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.freespec.AnyFreeSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Ignore}
-
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.types.{DataTypes, DoubleType, LongType, StructField, StructType}
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
 
 class TPCHSqlSpecJVM

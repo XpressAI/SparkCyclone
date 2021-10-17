@@ -161,7 +161,7 @@ object GroupByOutline {
     cExpression.isNotNullCode match {
       case None =>
         CodeLines.from(
-          s"""$outputName->data[g] = ${cExpression.cCode};""",
+          s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
           s"set_validity($outputName->validityBuffer, ${idx}, 1);"
         )
       case Some(notNullCheck) =>

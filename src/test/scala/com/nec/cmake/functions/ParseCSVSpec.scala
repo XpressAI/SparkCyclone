@@ -1,7 +1,6 @@
 package com.nec.cmake.functions
 
 import scala.util.Random
-
 import com.eed3si9n.expecty.Expecty.expect
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.arrow.ArrowNativeInterface
@@ -24,8 +23,10 @@ import org.apache.arrow.vector.{
 }
 import org.scalacheck.Gen
 import org.scalacheck.Prop
+import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatestplus.scalacheck.Checkers
+
 import java.time.LocalDate
 
 object ParseCSVSpec {
@@ -195,6 +196,7 @@ object ParseCSVSpec {
 
 }
 
+@Ignore
 final class ParseCSVSpec extends AnyFreeSpec with Checkers {
 
   "Through Arrow, it works" in {
@@ -211,7 +213,7 @@ final class ParseCSVSpec extends AnyFreeSpec with Checkers {
     }
   }
 
-  "We do a property test" ignore {
+  "We do a property test" in {
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitions.TransferDefinitionsSourceCode, CsvParse.CsvParseCode)
         .mkString("\n\n")

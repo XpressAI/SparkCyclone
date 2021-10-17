@@ -132,7 +132,7 @@ object StringProducer {
             s"""${outputName}->count = ${tmpCount};""",
             s"""${outputName}->dataSize = ${tmpCurrentOffset};""",
             s"""${outputName}->data = (char*)malloc(${outputName}->dataSize);""",
-            s"""memcpy(${outputName}->dataSize, ${tmpString}.data(), ${outputName}->dataSize);""",
+            s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->dataSize);""",
             s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
             s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
             s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(${outputName}->count / 64.0) * sizeof(uint64_t));",

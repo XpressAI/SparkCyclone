@@ -1,44 +1,42 @@
-package com.nec.ve
+package com.nec.tpc
 
-import com.nec.aurora.Aurora
-import com.nec.cmake.TPCHSqlCSpec
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.VERewriteStrategy
 import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
-import com.nec.ve.TPCHSqlSpec.VeConfiguration
+import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 
 import java.io.File
 
-object TPCHSqlSpec {
+object TPCHVESqlSpec {
 
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
-    _.config(CODEGEN_FALLBACK.key, value = true)
+    _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
-      .config("spark.rpc.askTimeout", 600)
-      .config("spark.com.nec.spark.kernel.directory", new File("work/egonzalez").getAbsolutePath)
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(_ => new VERewriteStrategy(ExecutorPluginManagedEvaluator))
+        sse.injectPlannerStrategy(_ => {
+          VERewriteStrategy.failFast = true
+          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
+        })
       )
   }
 
 }
 
-final class TPCHSqlSpec extends TPCHSqlCSpec {
+final class TPCHVESqlSpec extends TPCHSqlCSpec {
 
   private var initialized = false
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
-    VeConfiguration
+    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
 
   override protected def afterAll(): Unit = {
     Aurora4SparkExecutorPlugin.closeProcAndCtx()
   }
 
   override protected def beforeAll(): Unit = {
-    import sys.process._
 
 //    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
 
@@ -50,7 +48,6 @@ final class TPCHSqlSpec extends TPCHSqlCSpec {
 
     val tableFile = new File("src/test/resoruces/dbgen/lineitem.tbl")
     if (!tableFile.exists()) {
-      import sys.process._
 
 //      s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
     }

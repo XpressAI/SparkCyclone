@@ -9,17 +9,8 @@ import org.scalatest.freespec.AnyFreeSpec
 import com.nec.spark.agile.SparkExpressionToCExpression.EvaluationAttempt._
 
 final class SparkVeMapperTest extends AnyFreeSpec {
+
   private implicit val fb = EvalFallback.noOp
-  "Coalesce returns a non-nullable 'x', as we don't know if it's possible for it to be null" in {
-    val res = SparkExpressionToCExpression
-      .eval(
-        Coalesce(
-          Seq(AttributeReference.apply(name = "x", dataType = DoubleType, nullable = true)())
-        )
-      )
-      .getOrReport()
-    expect(res == CExpression(cCode = "x", isNotNullCode = None))
-  }
 
   "Coalesce of a nullable attribute and 0.0 gives a value, always" in {
     val res = SparkExpressionToCExpression

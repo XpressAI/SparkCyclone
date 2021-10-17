@@ -322,8 +322,8 @@ object CFunctionGeneration {
 
       override def merge(prefix: String, inputPrefix: String): CodeLines =
         CodeLines.from(
-          s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum_partial_input->data[i];",
-          s"${prefix}_aggregate_count += ${inputPrefix}_aggregate_count_partial_input->data[i];"
+          s"${prefix}_aggregate_sum += ${inputPrefix}_aggregate_sum_partial_output->data[i];",
+          s"${prefix}_aggregate_count += ${inputPrefix}_aggregate_count_partial_output->data[i];"
         )
     }
   }
@@ -581,8 +581,6 @@ object CFunctionGeneration {
       "}"
     )
   )
-
-  val GroupBeforeSort = "before we can group we need to sort"
 
   def renderInnerJoin(
     veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]

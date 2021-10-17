@@ -47,7 +47,7 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
         .transformingFetch(inputQuery)
         .getOrElse(fail("Not found"))
         .fetch("test")
-        .cCode == "((2) * (test_0_sum_nullable))"
+        .cCode == "((2) * (test_0_attr_sum_nullable))"
     )
   }
 
@@ -69,7 +69,7 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
         .cCode
 
     assert(
-      result == "((((test_0_sum_nullable) / ((double) (test_0_count_nullable)))) * (test_1_sum_nullable))"
+      result == "((((test_0_attr_sum_nullable) / ((double) (test_0_attr_count_nullable)))) * (test_1_attr_sum_nullable))"
     )
   }
 
@@ -79,15 +79,15 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
         .rewriteMerge("output", "input")(Average(AttributeReference("x", DoubleType)())) ==
         List(
           CExpression(
-            "((output_sum_nullable) + (input_sum_partial_input->data[i]))",
+            "((output_attr_sum_nullable) + (input_attr_sum->data[i]))",
             Some(
-              "(output_sum_nullable_is_set && check_valid(input_sum_partial_input->validityBuffer, i))"
+              "(output_attr_sum_nullable_is_set && check_valid(input_attr_sum->validityBuffer, i))"
             )
           ),
           CExpression(
-            "((output_count_nullable) + (input_count_partial_input->data[i]))",
+            "((output_attr_count_nullable) + (input_attr_count->data[i]))",
             Some(
-              "(output_count_nullable_is_set && check_valid(input_count_partial_input->validityBuffer, i))"
+              "(output_attr_count_nullable_is_set && check_valid(input_attr_count->validityBuffer, i))"
             )
           )
         )

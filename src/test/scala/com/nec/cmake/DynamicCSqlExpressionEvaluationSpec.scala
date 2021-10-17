@@ -29,9 +29,10 @@ object DynamicCSqlExpressionEvaluationSpec {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession =>
+        sse.injectPlannerStrategy(sparkSession => {
+          VERewriteStrategy.failFast = true
           new VERewriteStrategy(CNativeEvaluator(debug = false))
-        )
+        })
       )
   }
 
@@ -65,7 +66,6 @@ class DynamicCSqlExpressionEvaluationSpec
         import sparkSession.implicits._
 
         sparkSession.sql(sql).ensureCEvaluating().debugSqlHere { ds =>
-          println(ds.queryExecution.executedPlan)
           assert(ds.as[Double].collect().toList == List(expectation))
         }
       }

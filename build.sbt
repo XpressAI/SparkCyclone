@@ -6,6 +6,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 
 val CMake = config("cmake") extend Test
+val TPC = config("tpc") extend Test
 val VectorEngine = config("ve") extend Test
 
 /**
@@ -19,6 +20,7 @@ val slf4jVersion = "1.7.30"
 lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
+  .configs(TPC)
   .configs(CMake)
 
 lazy val tracing = project
@@ -171,6 +173,22 @@ VectorEngine / run / javaOptions ++= {
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 
+TPC / parallelExecution := false
+inConfig(TPC)(Defaults.testTasks)
+def tpcFilter(name: String): Boolean = name.startsWith("com.nec.tpc")
+TPC / fork := true
+TPC / run / fork := true
+
+/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
+TPC / run / javaOptions ++= {
+  // The feature was removed in JDK9, however for Spark we must support JDK8
+  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
+    List("-agentlib:hprof=cpu=samples")
+  else Nil
+}
+TPC / sourceDirectory := baseDirectory.value / "src" / "test"
+TPC / testOptions := Seq(Tests.Filter(tpcFilter))
+
 /** CMake specific configuration */
 inConfig(CMake)(Defaults.testTasks)
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
@@ -179,7 +197,8 @@ CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
 Global / cancelable := true
 
-def otherFilter(name: String): Boolean = !accFilter(name) && !veFilter(name) && !cmakeFilter(name)
+def otherFilter(name: String): Boolean =
+  !accFilter(name) && !veFilter(name) && !cmakeFilter(name) && !tpcFilter(name)
 Test / testOptions := Seq(Tests.Filter(otherFilter))
 
 /** Acceptance Testing configuration */
