@@ -2,7 +2,8 @@ package com.nec.ve
 
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Join.JoinSourceCode
-import com.nec.cmake.UdpDebug
+import com.nec.cmake.CMakeBuilder.BuildArguments
+import com.nec.cmake.{CMakeBuilder, UdpDebug}
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -104,7 +105,7 @@ object VeKernelCompiler {
   }
 
   def compile_c(buildDir: Path = Paths.get("_ve_build"), config: VeCompilerConfig): Path = {
-    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
+    VeKernelCompiler(CMakeBuilder(buildDir.toAbsolutePath, debug = false), config)
       .compile_c(
         List(TransferDefinitionsSourceCode, JoinSourceCode)
           .mkString("\n\n\n")
@@ -116,86 +117,22 @@ object VeKernelCompiler {
     config: VeCompilerConfig,
     code: String
   ): Path = {
-    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
+    VeKernelCompiler(CMakeBuilder(buildDir.toAbsolutePath, debug = false), config)
       .compile_c(code)
   }
 
 }
 
 final case class VeKernelCompiler(
-  compilationPrefix: String,
-  buildDir: Path,
+  cMake: CMakeBuilder,
   config: VeKernelCompiler.VeCompilerConfig = VeCompilerConfig.testConfig
 ) extends LazyLogging {
-  require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
 
-  import scala.sys.process._
-
-  def runHopeOk(process: ProcessBuilder): Unit = {
-    var res = ""
-    var resErr = ""
-    val io = new ProcessIO(
-      stdin => { stdin.close() },
-      stdout => {
-        val src = scala.io.Source.fromInputStream(stdout)
-        try res = src.mkString
-        finally stdout.close()
-      },
-      stderr => {
-        val src = scala.io.Source.fromInputStream(stderr)
-        try resErr = src.mkString
-        finally stderr.close()
-      }
+  def compile_c(sourceCode: String): Path =
+    cMake.buildC(
+      sourceCode,
+      Some(
+        BuildArguments(compiler = Some(config.nccPath), cxxFlags = Some(config.compilerArguments))
+      )
     )
-    val proc = process.run(io)
-    val ev = proc.exitValue()
-    if (config.doDebug) {
-      logger.debug(s"NCC output: \n${res}; \n${resErr}")
-    }
-    assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
-  }
-
-  def compile_c(sourceCode: String): Path = {
-    if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
-    val cSource = buildDir.resolve(s"${compilationPrefix}.c")
-
-    val sourcesDir = buildDir.resolve("sources")
-    CppResources.All.copyTo(sourcesDir)
-    val includes: List[String] = {
-      CppResources.All.all
-        .map(_.containingDir(sourcesDir))
-        .toList
-        .map(i => i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length))
-    }
-    Files.write(cSource, sourceCode.getBytes())
-    try {
-      val oFile = buildDir.resolve(s"${compilationPrefix}.o")
-      val soFile = buildDir.resolve(s"${compilationPrefix}.so")
-      import scala.sys.process._
-      import config._
-      val includesArgs = includes.map(i => s"-I${i}")
-      val command: Seq[String] =
-        Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
-          "-xc++",
-          "-c",
-          cSource.toString,
-          "-o",
-          oFile.toString
-        )
-      runHopeOk(Process(command = command, cwd = buildDir.toFile))
-
-      val command2 =
-        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
-          "-o",
-          soFile.toString,
-          oFile.toString
-        )
-      runHopeOk(Process(command = command2, cwd = buildDir.toFile))
-
-      soFile
-    } catch {
-      case e: Throwable =>
-        throw new RuntimeException(s"Failed to compile: ${e}; source was ${cSource}", e)
-    }
-  }
 }

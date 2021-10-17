@@ -9,6 +9,7 @@ import com.nec.aurora.Aurora
 import com.nec.arrow.functions.Join._
 import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.WithTestAllocator
+import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.JoinCSpec.JoinerSource
 import com.typesafe.scalalogging.LazyLogging
 import com.nec.spark.SparkAdditions
@@ -46,7 +47,7 @@ final class JoinVeSpec
 
   "We can join two lists" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    val oPath = VeKernelCompiler("avg", veBuildPath).compile_c(
+    val oPath = VeKernelCompiler(CMakeBuilder(veBuildPath, debug = false)).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, JoinerSource)
         .mkString("\n\n")
     )
@@ -95,7 +96,7 @@ final class JoinVeSpec
 
   "We can join two smaller lists" in {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    val oPath = VeKernelCompiler("avg", veBuildPath).compile_c(
+    val oPath = VeKernelCompiler(CMakeBuilder(veBuildPath, debug = false)).compile_c(
       List(TransferDefinitions.TransferDefinitionsSourceCode, JoinerSource)
         .mkString("\n\n")
     )

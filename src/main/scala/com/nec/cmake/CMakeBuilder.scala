@@ -8,10 +8,12 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import scala.sys.process._
 import com.nec.arrow.TransferDefinitions
-import com.nec.cmake.CMakeBuilder.Builder
+import com.nec.cmake.CMakeBuilder.{BuildArguments, Builder}
 import com.nec.spark.agile.CppResource.CppResources
 import com.typesafe.scalalogging.LazyLogging
 import javassist.compiler.CompileError
+
+import scala.collection.GenTraversableOnce
 
 /**
  * Utilities to build C libraries using CMake
@@ -19,7 +21,7 @@ import javassist.compiler.CompileError
  * Major OS are supported.
  */
 final case class CMakeBuilder(targetDir: Path, debug: Boolean) {
-  def buildC(cSource: String): Path = {
+  def buildC(cSource: String, buildArguments: Option[BuildArguments] = None): Path = {
     val SourcesDir = targetDir.resolve("sources")
     CppResources.All.copyTo(SourcesDir)
     val maybeDebug = if (debug) "add_definitions(-DDEBUG)" else ""
@@ -37,7 +39,7 @@ ${CppResources.All.all
           s"include_directories(${i.toUri.toString.drop(SourcesDir.getParent.toUri.toString.length)})"
         )
         .mkString("\n")}
-
+${buildArguments.toList.flatMap(_.cMakeLines).mkString("\n")}
 add_library(aurora4spark SHARED aurora4spark.cpp)
 if(WIN32)
   target_link_libraries(aurora4spark wsock32 ws2_32)
@@ -59,6 +61,14 @@ endif()
 }
 
 object CMakeBuilder extends LazyLogging {
+
+  final case class BuildArguments(compiler: Option[String], cxxFlags: Option[List[String]]) {
+    def cMakeLines: List[String] =
+      List(
+        compiler.map(c => s"set (CXX $c)").toList,
+        cxxFlags.toList.map(c => s"set (CMAKE_CXX_FLAGS ${c.mkString(" ")})")
+      ).flatten
+  }
 
   def buildC(cSource: String, debug: Boolean = false): Path = {
     val targetDir = Paths.get("target", s"c", s"${Instant.now().toEpochMilli}").toAbsolutePath
