@@ -66,7 +66,7 @@ object CMakeBuilder extends LazyLogging {
     def cMakeLines: List[String] =
       List(
         compiler.map(c => s"set (CMAKE_CXX_COMPILER $c)").toList,
-        cxxFlags.toList.map(c => s"set (CMAKE_CXX_FLAGS ${c.mkString(" ")})")
+        cxxFlags.toList.flatMap(c => c.map(o => s"add_compile_options($o)"))
       ).flatten
   }
 
