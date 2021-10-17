@@ -11,6 +11,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   Cast,
   Coalesce,
   Contains,
+  Divide,
   EndsWith,
   EqualTo,
   ExprId,
@@ -249,6 +250,21 @@ object SparkExpressionToCExpression {
             isNotNullCode = None
           )
         }
+      case b @ Divide(_, _, false) =>
+        for {
+          leftEx <- eval(b.left)
+          rightEx <- eval(b.right)
+        } yield CExpression(
+          cCode = s"((${leftEx.cCode}) ${binaryOperatorOverride
+            .getOrElse(b.symbol, b.symbol)} (${rightEx.cCode}))",
+          isNotNullCode = Option(
+            List(
+              List(s"(${rightEx.cCode} != 0)"),
+              leftEx.isNotNullCode.toList,
+              rightEx.isNotNullCode.toList
+            ).reduce(_ ++ _)
+          ).filter(_.nonEmpty).map(_.mkString("(", " && ", ")"))
+        )
       case b: BinaryOperator =>
         for {
           leftEx <- eval(b.left)
@@ -329,7 +345,10 @@ object SparkExpressionToCExpression {
         }
       case IsNaN(child) =>
         eval(child).map { ex =>
-          CExpression(cCode = s"std::isnan(static_cast<double>(${ex.cCode}))", isNotNullCode = ex.isNotNullCode)
+          CExpression(
+            cCode = s"std::isnan(static_cast<double>(${ex.cCode}))",
+            isNotNullCode = ex.isNotNullCode
+          )
         }
       case If(predicate, trueValue, falseValue) =>
         for {
