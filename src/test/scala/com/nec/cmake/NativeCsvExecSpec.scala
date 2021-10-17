@@ -6,11 +6,13 @@ import com.nec.spark.planning.NativeCsvExec.transformInputStream
 import com.nec.spark.planning.NativeCsvExec.transformRawTextFile
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.hadoop.io.Text
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, Ignore}
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.io.ByteArrayInputStream
 
+/** Not used any more. Candidate for deletion */
+@Ignore
 final class NativeCsvExecSpec
   extends AnyFreeSpec
   with BeforeAndAfter

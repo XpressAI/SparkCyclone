@@ -26,6 +26,7 @@ final case class StringGroupByTesting(isVe: Boolean) extends Testing {
       .config(CODEGEN_COMMENTS.key, value = true)
       .config(key = "spark.ui.enabled", value = false)
 
+    VERewriteStrategy.failFast = true
     if (isVe)
       builder
         .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
@@ -54,7 +55,9 @@ final case class StringGroupByTesting(isVe: Boolean) extends Testing {
 
     // note the filtering is probably done in the JVM here
     val ds = sparkSession
-      .sql("SELECT (CASE WHEN value = 'abc' THEN 'Y' ELSE 'N' END), sum(o) FROM sample_tbl WHERE value IN ('abc', 'def') group by value")
+      .sql(
+        "SELECT (CASE WHEN value = 'abc' THEN 'Y' ELSE 'N' END), sum(o) FROM sample_tbl WHERE value IN ('abc', 'def') group by value"
+      )
       .as[Result]
 
 //    val planString = ds.queryExecution.executedPlan.toString()

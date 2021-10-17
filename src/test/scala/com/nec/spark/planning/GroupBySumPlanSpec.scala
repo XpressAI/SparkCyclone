@@ -3,7 +3,6 @@ package com.nec.spark.planning
 import com.eed3si9n.expecty.Expecty.assert
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.agile.CFunctionGeneration.GroupBeforeSort
 import com.nec.spark.{AuroraSqlPlugin, SparkAdditions}
 import com.nec.testing.SampleSource._
 import com.nec.testing.Testing.DataSize.{BenchmarkSize, SanityCheckSize}
@@ -72,7 +71,9 @@ object GroupBySumPlanSpec {
 
       if (testingTarget.isNative) {
         assert(
-          ds.queryExecution.executedPlan.toString().contains(GroupBeforeSort),
+          ds.queryExecution.executedPlan
+            .toString()
+            .contains(classOf[NativeAggregationEvaluationPlan].getSimpleName),
           "Native execution should have C code from the group-by generator"
         )
       }
