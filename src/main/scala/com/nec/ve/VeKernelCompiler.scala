@@ -38,6 +38,20 @@ object VeKernelCompiler {
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
+    def definitions: List[String] = {
+      List(
+        if (doDebug) List("-D", "DEBUG=1") else Nil,
+        if (useOpenmp) List("-fopenmp") else Nil,
+        maybeProfileTarget.toList.flatMap(tgt =>
+          List(
+            "-D",
+            s"""${UdpDebug.default.hostName}="${tgt.host}"""",
+            "-D",
+            s"${UdpDebug.default.port}=${tgt.port}"
+          )
+        )
+      ).flatten
+    }
     def compilerArguments: List[String] = {
       // Optimizations used in frovedis: -fno-defer-inline-template-instantiation -finline-functions -finline-max-depth = 10 -msched-block
       val ret = List(
@@ -51,19 +65,7 @@ object VeKernelCompiler {
         "-report-all",
         /* "-ftrace", */
         "-fdiag-vector=2"
-      ) ++
-        List(
-          if (doDebug) List("-D", "DEBUG=1") else Nil,
-          if (useOpenmp) List("-fopenmp") else Nil,
-          maybeProfileTarget.toList.flatMap(tgt =>
-            List(
-              "-D",
-              s"""${UdpDebug.default.hostName}="${tgt.host}"""",
-              "-D",
-              s"${UdpDebug.default.port}=${tgt.port}"
-            )
-          )
-        ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
+      ) ++ additionalOptions.toList.sortBy(_._1).map(_._2)
       ret
     }
 
@@ -132,7 +134,11 @@ final case class VeKernelCompiler(
     cMake.buildC(
       sourceCode,
       Some(
-        BuildArguments(compiler = Some(config.nccPath), cxxFlags = Some(config.compilerArguments))
+        BuildArguments(
+          compiler = Some(config.nccPath),
+          cxxFlags = Some(config.compilerArguments),
+          definitions = Some(config.definitions)
+        )
       )
     )
 }

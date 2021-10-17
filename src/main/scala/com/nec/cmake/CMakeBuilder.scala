@@ -62,9 +62,10 @@ endif()
 
 object CMakeBuilder extends LazyLogging {
 
-  final case class BuildArguments(compiler: Option[String], cxxFlags: Option[List[String]]) {
+  final case class BuildArguments(compiler: Option[String], cxxFlags: Option[List[String]], definitions: Option[List[String]]) {
     def cMakeLines: List[String] =
       List(
+        definitions.map(defns => defns.map(defn => s"add_compile_definitions(${defn})")).toList,
         compiler.map(c => s"set (CMAKE_CXX_COMPILER $c)").toList,
         cxxFlags.toList.map(c => s"set (CMAKE_CXX_FLAGS ${c.mkString(" ")})")
       ).flatten
