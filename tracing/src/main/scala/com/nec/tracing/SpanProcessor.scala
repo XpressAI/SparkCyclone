@@ -23,7 +23,7 @@ object SpanProcessor {
       .mapValues(_.map(_._2))
       .toMap
       .toList
-      .sortBy(_._2.total)
+      .sortBy(_._2.max)
       .reverse
       .map { case (name, durations) =>
         List(
