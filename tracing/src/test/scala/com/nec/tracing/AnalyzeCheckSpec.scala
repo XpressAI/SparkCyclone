@@ -21,7 +21,7 @@ final class AnalyzeCheckSpec extends AnyFreeSpec {
   "We can aggregate by context" in {
     val expectedOutput = List(
       "[PT8.871S] prepare evaluator",
-      "[Total: PT0.268S, Count: 2, Average: PT0.134S, Max: PT0.262S] evaluate a partition",
+      "[Total: PT0.268S,    Count: 2, Average: PT0.134S,    Max: PT0.262S   ] evaluate a partition",
       "[Total: PT0.002515S, Count: 1, Average: PT0.002515S, Max: PT0.002515S] Execution of Final"
     )
     val result = analyzeLines(sampleLines)

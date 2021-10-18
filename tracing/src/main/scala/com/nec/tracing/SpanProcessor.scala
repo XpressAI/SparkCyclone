@@ -15,9 +15,7 @@ object SpanProcessor {
       .toList
 
     val partitionSpans = spansFound
-      .flatMap(span =>
-        span.start.partId.map(partId => span.start.positionName -> span.duration)
-      )
+      .flatMap(span => span.start.partId.map(partId => span.start.positionName -> span.duration))
       .groupBy(_._1)
       .view
       .mapValues(_.map(_._2))
@@ -27,17 +25,13 @@ object SpanProcessor {
       .reverse
       .map { case (name, durations) =>
         List(
-          List(
-            s"Total: ${durations.total}",
-            s"Count: ${durations.size}",
-            s"Average: ${durations.average}",
-            s"Max: ${durations.max}"
-          )
-            .mkString("[", ", ", "]"),
-          name
-        )
-          .mkString(" ")
+          s"Total: ${durations.total}",
+          s"Count: ${durations.size}",
+          s"Average: ${durations.average}",
+          s"Max: ${durations.max}"
+        ) -> name
       }
+      .tabulate
 
     val nonPartition = spansFound
       .filterNot(_.inPartition)
@@ -46,6 +40,25 @@ object SpanProcessor {
       .map(span => s"[${span.duration}] ${span.start.positionName}")
 
     nonPartition ++ partitionSpans
+  }
+
+  implicit class RichListStr(ls: List[(List[String], String)]) {
+    def tabulate: List[String] = {
+      val colWidths = ls.map(_._1).transpose.map(_.map(_.length).max)
+
+      ls.map { case (cols, last) =>
+        cols
+          .zip(colWidths)
+          .zipWithIndex
+          .map { case ((col, padding), idx) =>
+            val ws = if (colWidths.indices.lastOption.contains(idx)) s"$col" else s"$col,"
+            val padLen = if (colWidths.indices.lastOption.contains(idx)) padding else padding + 1
+            val t = ws.padTo(padLen, ' ')
+            if (idx == 0) t else s" $t"
+          }
+          .mkString("[", "", "]") + " " + last
+      }
+    }
   }
 
   final case class SpanFound(start: TracingRecord, end: TracingRecord) {
