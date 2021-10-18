@@ -1,6 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
+import com.nec.cmake.ScalaUdpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
@@ -10,6 +11,7 @@ import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
 }
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
 import com.nec.spark.planning.Tracer.DefineTracer
+import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -224,21 +226,28 @@ final case class NativeAggregationEvaluationPlan(
 
       }
   }
-  private def executeOneGo(cFunctionNaked: CFunction): RDD[InternalRow] = {
 
+  private def executeOneGo(cFunctionNaked: CFunction): RDD[InternalRow] = {
     val cFunction = Tracer.includeInFunction(cFunctionNaked)
     val functionName = s"${functionPrefix}_full"
 
-    val evaluator = nativeEvaluator.forCode(
-      List(DefineTracer, cFunction.toCodeLines(functionName))
-        .reduce(_ ++ _)
-        .lines
-        .mkString("\n", "\n", "\n")
-    )
+    val compilerConfig = VeCompilerConfig.fromSparkConf(sparkContext.getConf)
+    val udpDebug = compilerConfig.maybeProfileTarget
+      .map(pt => ScalaUdpDebug.UdpTarget(pt))
+      .getOrElse(ScalaUdpDebug.NoOp)
 
     val launched = Tracer.Launched(
       s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
     )
+
+    val evaluator = udpDebug.span(launched.launchId, "prepare evaluator") {
+      nativeEvaluator.forCode(
+        List(DefineTracer, cFunction.toCodeLines(functionName))
+          .reduce(_ ++ _)
+          .lines
+          .mkString("\n", "\n", "\n")
+      )
+    }
 
     logger.debug(
       s"[${launched.launchId}] Will execute NewCEvaluationPlan for child ${child}; ${child.output}"
@@ -249,54 +258,56 @@ final case class NativeAggregationEvaluationPlan(
       .mapPartitions { rows =>
         Iterator
           .continually {
-            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-              .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
-            val timeZoneId = conf.sessionLocalTimeZone
-            val root =
-              collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
             val mapped = launched.map(UUID.randomUUID().toString.take(4))
             import mapped._
-            val tracer = createVector()
-            logger.debug(s"[$uniqueId] preparing execution")
-            logger.info(s"Tracer ==> ${tracer}")
-            val inputVectors =
-              Tracer.includeInInputs(tracer, child.output.indices.map(root.getVector).toList)
-            val outputVectors: List[FieldVector] =
-              cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
-
-            try {
-
-              val outputArgs = inputVectors.map(_ => None) ++
-                outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-              val inputArgs = inputVectors.map(iv =>
-                Some(SupportedVectorWrapper.wrapInput(iv))
-              ) ++ outputVectors.map(_ => None)
-
-              val startTime = java.time.Instant.now()
-              evaluator.callFunction(
-                name = functionName,
-                inputArguments = inputArgs,
-                outputArguments = outputArgs
-              )
-              val endTime = java.time.Instant.now()
-              val timeTaken = java.time.Duration.between(startTime, endTime)
-
-              new ColumnarBatch(
-                outputVectors.map(valueVector => new ArrowColumnVector(valueVector)).toArray,
-                outputVectors.head.getValueCount
-              )
-              val cnt = outputVectors.head.getValueCount
-              logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
-              (0 until cnt).iterator.map { v_idx =>
-                val writer = new UnsafeRowWriter(outputVectors.size)
-                writer.reset()
-                outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                  if (v_idx < v.getValueCount) writeVector(v_idx, writer, v, c_idx)
-                }
-                writer.getRow
+            udpDebug.span(uniqueId, "evaluate a partition") {
+              implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+                .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+              val timeZoneId = conf.sessionLocalTimeZone
+              val root = udpDebug.span(uniqueId, "collect input rows") {
+                collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
               }
-            } finally {
-              inputVectors.foreach(_.close())
+              val tracer = createVector()
+              logger.debug(s"[$uniqueId] preparing execution")
+              logger.info(s"Tracer ==> ${tracer}")
+              val inputVectors =
+                Tracer.includeInInputs(tracer, child.output.indices.map(root.getVector).toList)
+              val outputVectors: List[FieldVector] =
+                cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+
+              try {
+                val outputArgs = inputVectors.map(_ => None) ++
+                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+                val inputArgs = inputVectors.map(iv =>
+                  Some(SupportedVectorWrapper.wrapInput(iv))
+                ) ++ outputVectors.map(_ => None)
+
+                val startTime = java.time.Instant.now()
+                udpDebug.span(uniqueId, "evaluate") {
+                  evaluator.callFunction(
+                    name = functionName,
+                    inputArguments = inputArgs,
+                    outputArguments = outputArgs
+                  )
+                }
+                val endTime = java.time.Instant.now()
+                val timeTaken = java.time.Duration.between(startTime, endTime)
+
+                val cnt = outputVectors.head.getValueCount
+                logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
+                udpDebug.spanIterator(uniqueId, "emit rows") {
+                  (0 until cnt).iterator.map { v_idx =>
+                    val writer = new UnsafeRowWriter(outputVectors.size)
+                    writer.reset()
+                    outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                      if (v_idx < v.getValueCount) writeVector(v_idx, writer, v, c_idx)
+                    }
+                    writer.getRow
+                  }
+                }
+              } finally {
+                inputVectors.foreach(_.close())
+              }
             }
           }
           .take(1)

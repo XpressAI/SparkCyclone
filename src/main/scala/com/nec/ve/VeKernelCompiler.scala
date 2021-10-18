@@ -4,7 +4,6 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.cmake.CMakeBuilder.BuildArguments
 import com.nec.cmake.{CMakeBuilder, UdpDebug}
-import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 

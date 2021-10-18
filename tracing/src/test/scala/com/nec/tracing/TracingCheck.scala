@@ -14,9 +14,11 @@ final class TracingCheck extends AnyFreeSpec {
   "Slash ID is unsafe" in {
     assert(!safeAppId("///////////"))
   }
+
   "Simple ID is safe" in {
     assert(safeAppId("local-1634418262014"))
   }
+
   "it works" in {
     val inputString =
       "2021-10-16T21:05:45.671390000Z $ Query 4|local-1634418262014|2021-10-16T21:04:27.833Z|9b97 $$ com.nec.spark.agile.StringProducer.FilteringProducer.complete#143/#452"
@@ -29,7 +31,7 @@ final class TracingCheck extends AnyFreeSpec {
       appName == "Query 4",
       appId == "local-1634418262014",
       executionId == Instant.parse("2021-10-16T21:04:27.833Z"),
-      partId == "9b97",
+      partId.contains("9b97"),
       position == "com.nec.spark.agile.StringProducer.FilteringProducer.complete#143/#452"
     )
   }
