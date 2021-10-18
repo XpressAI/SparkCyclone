@@ -193,3 +193,5 @@ thread-samples.json
 *.tbl
 *.o
 src/test/resources/dbgen/dbgen
+
+*.log
