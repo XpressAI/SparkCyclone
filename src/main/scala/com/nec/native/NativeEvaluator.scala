@@ -14,6 +14,7 @@ trait NativeEvaluator extends Serializable {
 }
 
 object NativeEvaluator {
+
   /** Selected when running in CMake mode */
   object CNativeEvaluator extends NativeEvaluator {
     override def forCode(code: String): ArrowNativeInterface = {
@@ -44,11 +45,10 @@ object NativeEvaluator {
     def forCode(code: String): ArrowNativeInterface = {
       // defer because we need the executors to initialize first
       logger.debug(s"For evaluation, will refer to the Executor Plugin")
+      val localLibraryPath =
+        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
       DeferredArrowInterface(() =>
-        new VeArrowNativeInterfaceLazyLib(
-          Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
-        )
+        new VeArrowNativeInterfaceLazyLib(Aurora4SparkExecutorPlugin._veo_proc, localLibraryPath)
       )
     }
   }
