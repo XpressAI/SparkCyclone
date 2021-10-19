@@ -136,26 +136,26 @@ object TPCHBenchmark extends SparkSessionWrapper {
 
     val queries = Seq(
       (1, query1 _),
-      (2, query2 _,),
-      (3, query3 _,),
-      (4, query4 _,),
-      (5, query5 _,),
-      (6, query6 _,),
-      (7, query7 _,),
-      (8, query8 _,),
-      (9, query9 _,),
-      (10, query10 _,),
-      (11, query11 _,),
-      (12, query12 _,),
-      (13, query13 _,),
-      (14, query14 _,),
-      (15, query15 _,),
-      (16, query16 _,),
-      (17, query17 _,),
-      (18, query18 _,),
-      (19, query19 _,),
-      (20, query20 _,),
-      (21, query21 _,),
+      (2, query2 _),
+      (3, query3 _),
+      (4, query4 _),
+      (5, query5 _),
+      (6, query6 _),
+      (7, query7 _),
+      (8, query8 _),
+      (9, query9 _),
+      (10, query10 _),
+      (11, query11 _),
+      (12, query12 _),
+      (13, query13 _),
+      (14, query14 _),
+      (15, query15 _),
+      (16, query16 _),
+      (17, query17 _),
+      (18, query18 _),
+      (19, query19 _),
+      (20, query20 _),
+      (21, query21 _),
       (22, query22 _)
     )
 
@@ -172,7 +172,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
     println(s"Query$i elapsed: ${(end - start).toDouble / 1e9 } s" )
-    res.foreach(println)
+    //res.foreach(println)
   }
 
   def query1(sparkSession: SparkSession): Array[_] = {
