@@ -62,21 +62,28 @@ object NativeCompiler {
 
   final case class OnDemandCompilation(buildDir: String, veCompilerConfig: VeCompilerConfig)
     extends NativeCompiler
-    with LazyLogging {
+      with LazyLogging {
     override def forCode(code: String): Path = {
-      logger.debug(s"Compiling for the VE...: $code")
-      val startTime = System.currentTimeMillis()
       val cc = combinedCode(code)
-      val soName =
-        VeKernelCompiler(
-          compilationPrefix = s"_spark_${cc.hashCode}",
-          Paths.get(buildDir),
-          veCompilerConfig
-        )
-          .compile_c(cc)
-      val endTime = System.currentTimeMillis() - startTime
-      logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
-      soName
+      val sourcePath = Paths.get(buildDir).resolve(s"_spark_${cc.hashCode}.so").toAbsolutePath
+
+      if (sourcePath.toFile.exists()) {
+        logger.debug(s"Loading precompiled from path: $sourcePath")
+        sourcePath
+      } else {
+        logger.debug(s"Compiling for the VE...: $code")
+        val startTime = System.currentTimeMillis()
+        val soName =
+          VeKernelCompiler(
+            compilationPrefix = s"_spark_${cc.hashCode}",
+            Paths.get(buildDir),
+            veCompilerConfig
+          )
+            .compile_c(cc)
+        val endTime = System.currentTimeMillis() - startTime
+        logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
+        soName
+      }
     }
   }
 
