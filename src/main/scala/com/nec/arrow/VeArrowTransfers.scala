@@ -344,7 +344,7 @@ object VeArrowTransfers extends LazyLogging {
   private def make_veo_bigint_vector(proc: Aurora.veo_proc_handle, bigintVector: BigIntVector)(
     implicit cleanup: Cleanup
   ): nullable_bigint_vector = {
-    val keyName = "biging_" + bigintVector.getName + "_" + bigintVector.getDataBuffer.capacity()
+    val keyName = "bigint_" + bigintVector.getName + "_" + bigintVector.getDataBuffer.capacity()
 
     logger.debug(s"Copying Buffer to VE for $keyName")
 
