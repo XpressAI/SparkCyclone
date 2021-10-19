@@ -172,7 +172,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
     println(s"Query${i + 1} elapsed: ${(end - start).toDouble / 1e9 } s" )
-    //res.foreach(println)
+    res.foreach(println)
   }
 
   def query1(sparkSession: SparkSession): Array[_] = {
