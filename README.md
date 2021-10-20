@@ -155,6 +155,6 @@ This will try to pre-shuffle the data so that we only need to call the VE in one
 more performant due to avoiding a coalesce/shuffle afterwards.
 
 ```
---conf com.nec.spark.preshuffle-partitions=8
+--conf spark.com.nec.spark.preshuffle-partitions=8
 ```
 
