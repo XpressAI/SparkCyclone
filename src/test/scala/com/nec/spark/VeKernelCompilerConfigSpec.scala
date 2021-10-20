@@ -20,12 +20,11 @@ object VeKernelCompilerConfigSpec {
   )
 
   private def stringValue = compilerConfig.compilerArguments.toString
-  private def defnsStringValue = compilerConfig.definitions.toString
 
 }
 final class VeKernelCompilerConfigSpec extends AnyFreeSpec {
   "it captures DEBUG option" in {
-    assert(defnsStringValue.contains("DEBUG=1"))
+    assert(stringValue.contains("DEBUG=1"))
   }
   "it captures Optimization override" in {
     assert(stringValue.contains("-O3"))
