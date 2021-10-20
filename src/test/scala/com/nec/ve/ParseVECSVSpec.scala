@@ -5,7 +5,6 @@ import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.CsvParse
 import com.nec.aurora.Aurora
-import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.functions.ParseCSVSpec.verifyOn
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
@@ -19,7 +18,8 @@ final class ParseVECSVSpec extends AnyFreeSpec {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     Files.createDirectories(veBuildPath)
     val soPath = VeKernelCompiler(
-      CMakeBuilder(veBuildPath, debug = false),
+      compilationPrefix = "csv",
+      buildDir = veBuildPath,
       config = VeKernelCompiler.VeCompilerConfig.testConfig
         .copy(doDebug = false)
     ).compile_c(

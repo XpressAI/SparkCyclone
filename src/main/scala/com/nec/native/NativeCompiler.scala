@@ -74,7 +74,11 @@ object NativeCompiler {
         logger.debug(s"Compiling for the VE...: $code")
         val startTime = System.currentTimeMillis()
         val soName =
-          VeKernelCompiler(CMakeBuilder(Paths.get(buildDir), debug = false), veCompilerConfig)
+          VeKernelCompiler(
+            compilationPrefix = s"_spark_${cc.hashCode}",
+            Paths.get(buildDir),
+            veCompilerConfig
+          )
             .compile_c(cc)
         val endTime = System.currentTimeMillis() - startTime
         logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
