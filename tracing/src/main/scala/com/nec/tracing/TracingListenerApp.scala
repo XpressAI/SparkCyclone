@@ -11,8 +11,8 @@ import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object TracingListenerApp extends IOApp {
-  val serverHost = Host.fromString("localhost")
-  val serverPort = Port.fromInt(45705)
+  val serverHost = Host.fromString(sys.env.getOrElse("TRACING_HOST", "0.0.0.0"))
+  val serverPort = Port.fromInt(sys.env.get("TRACING_PORT").map(_.toInt).getOrElse(45705))
 
   def safeAppId(appId: String): Boolean = {
     appId.length < 100 && appId.length > 5 && appId.matches(s"^[A-Za-z0-9][A-Za-z0-9-]+")
