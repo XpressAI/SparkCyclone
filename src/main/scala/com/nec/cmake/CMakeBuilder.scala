@@ -28,9 +28,8 @@ final case class CMakeBuilder(targetDir: Path, debug: Boolean) {
     lazy val CMakeListsTXT =
       s"""
 cmake_minimum_required(VERSION 3.6)
-project(HelloWorld LANGUAGES CXX C)
+project(aurora4spark LANGUAGES CXX C)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-set (CMAKE_CXX_STANDARD 17)
 $maybeDebug
 ${CppResources.All.all
         .map(_.containingDir(SourcesDir))
@@ -67,6 +66,7 @@ object CMakeBuilder extends LazyLogging {
       List(
         definitions.toList.flatMap(defns => defns.map(defn => s"add_compile_definitions(${defn})")),
         compiler.map(c => s"set (CMAKE_CXX_COMPILER $c)").toList,
+        compiler.map(c => s"set (CMAKE_C_COMPILER $c)").toList,
         cxxFlags.toList.flatMap(c => c.map(o => s"add_compile_options($o)"))
       ).flatten
   }
@@ -134,7 +134,7 @@ object CMakeBuilder extends LazyLogging {
 
     object LinuxBuilder extends Builder {
       override def prepare(targetPath: Path): Unit = {
-        val cmd = List("cmake", targetPath.toString)
+        val cmd = List("/usr/bin/local/cmake", targetPath.toString)
         runHopeOk(cmd)
       }
 

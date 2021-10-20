@@ -45,10 +45,11 @@ object NativeEvaluator {
     def forCode(code: String): ArrowNativeInterface = {
       // defer because we need the executors to initialize first
       logger.debug(s"For evaluation, will refer to the Executor Plugin")
-      val localLibraryPath =
-        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
       DeferredArrowInterface(() =>
-        new VeArrowNativeInterfaceLazyLib(Aurora4SparkExecutorPlugin._veo_proc, localLibraryPath)
+        new VeArrowNativeInterfaceLazyLib(
+          Aurora4SparkExecutorPlugin._veo_proc,
+          Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
+        )
       )
     }
   }
