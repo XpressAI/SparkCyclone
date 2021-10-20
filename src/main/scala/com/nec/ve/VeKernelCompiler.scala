@@ -2,8 +2,8 @@ package com.nec.ve
 
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Join.JoinSourceCode
-import com.nec.cmake.CMakeBuilder.BuildArguments
-import com.nec.cmake.{CMakeBuilder, UdpDebug}
+import com.nec.cmake.UdpDebug
+import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 
@@ -37,17 +37,6 @@ object VeKernelCompiler {
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
-    def definitions: List[String] = {
-      List(
-        if (doDebug) List("DEBUG=1") else Nil,
-        maybeProfileTarget.toList.flatMap(tgt =>
-          List(
-            s"""${UdpDebug.default.hostName}="${tgt.host}"""",
-            s"${UdpDebug.default.port}=${tgt.port}"
-          )
-        )
-      ).flatten
-    }
     def compilerArguments: List[String] = {
       // Optimizations used in frovedis: -fno-defer-inline-template-instantiation -finline-functions -finline-max-depth = 10 -msched-block
       val ret = List(
@@ -61,9 +50,20 @@ object VeKernelCompiler {
         "-report-all",
         /* "-ftrace", */
         "-fdiag-vector=2"
-      ) ++ additionalOptions.toList.sortBy(_._1).map(_._2)
-
-      ret ++ (if (useOpenmp) List("-fopenmp") else Nil)
+      ) ++
+        List(
+          if (doDebug) List("-D", "DEBUG=1") else Nil,
+          if (useOpenmp) List("-fopenmp") else Nil,
+          maybeProfileTarget.toList.flatMap(tgt =>
+            List(
+              "-D",
+              s"""${UdpDebug.default.hostName}="${tgt.host}"""",
+              "-D",
+              s"${UdpDebug.default.port}=${tgt.port}"
+            )
+          )
+        ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
+      ret
     }
 
     def include(key: String, value: String): VeCompilerConfig = key match {
@@ -104,7 +104,7 @@ object VeKernelCompiler {
   }
 
   def compile_c(buildDir: Path = Paths.get("_ve_build"), config: VeCompilerConfig): Path = {
-    VeKernelCompiler(CMakeBuilder(buildDir.toAbsolutePath, debug = false), config)
+    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(
         List(TransferDefinitionsSourceCode, JoinSourceCode)
           .mkString("\n\n\n")
@@ -116,26 +116,86 @@ object VeKernelCompiler {
     config: VeCompilerConfig,
     code: String
   ): Path = {
-    VeKernelCompiler(CMakeBuilder(buildDir.toAbsolutePath, debug = false), config)
+    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(code)
   }
 
 }
 
 final case class VeKernelCompiler(
-  cMake: CMakeBuilder,
+  compilationPrefix: String,
+  buildDir: Path,
   config: VeKernelCompiler.VeCompilerConfig = VeCompilerConfig.testConfig
 ) extends LazyLogging {
+  require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
 
-  def compile_c(sourceCode: String): Path =
-    cMake.buildC(
-      sourceCode,
-      Some(
-        BuildArguments(
-          compiler = Some(config.nccPath),
-          cxxFlags = Some(config.compilerArguments),
-          definitions = Some(config.definitions)
-        )
-      )
+  import scala.sys.process._
+
+  def runHopeOk(process: ProcessBuilder): Unit = {
+    var res = ""
+    var resErr = ""
+    val io = new ProcessIO(
+      stdin => { stdin.close() },
+      stdout => {
+        val src = scala.io.Source.fromInputStream(stdout)
+        try res = src.mkString
+        finally stdout.close()
+      },
+      stderr => {
+        val src = scala.io.Source.fromInputStream(stderr)
+        try resErr = src.mkString
+        finally stderr.close()
+      }
     )
+    val proc = process.run(io)
+    val ev = proc.exitValue()
+    if (config.doDebug) {
+      logger.debug(s"NCC output: \n${res}; \n${resErr}")
+    }
+    assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
+  }
+
+  def compile_c(sourceCode: String): Path = {
+    if (!Files.exists(buildDir)) Files.createDirectories(buildDir)
+    val cSource = buildDir.resolve(s"${compilationPrefix}.c")
+
+    val sourcesDir = buildDir.resolve("sources")
+    CppResources.All.copyTo(sourcesDir)
+    val includes: List[String] = {
+      CppResources.All.all
+        .map(_.containingDir(sourcesDir))
+        .toList
+        .map(i => i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length))
+    }
+    Files.write(cSource, sourceCode.getBytes())
+    try {
+      val oFile = buildDir.resolve(s"${compilationPrefix}.o")
+      val soFile = buildDir.resolve(s"${compilationPrefix}.so")
+      import scala.sys.process._
+      import config._
+      val includesArgs = includes.map(i => s"-I${i}")
+      val command: Seq[String] =
+        Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
+          "-xc++",
+          "-c",
+          cSource.toString,
+          "-o",
+          oFile.toString
+        )
+      runHopeOk(Process(command = command, cwd = buildDir.toFile))
+
+      val command2 =
+        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
+          "-o",
+          soFile.toString,
+          oFile.toString
+        )
+      runHopeOk(Process(command = command2, cwd = buildDir.toFile))
+
+      soFile
+    } catch {
+      case e: Throwable =>
+        throw new RuntimeException(s"Failed to compile: ${e}; source was ${cSource}", e)
+    }
+  }
 }
