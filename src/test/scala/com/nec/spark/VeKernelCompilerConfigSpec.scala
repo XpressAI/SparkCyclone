@@ -1,6 +1,6 @@
 package com.nec.spark
 
-import com.nec.spark.VeKernelCompilerConfigSpec.{defnsStringValue, stringValue}
+import com.nec.spark.VeKernelCompilerConfigSpec.stringValue
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import org.scalatest.freespec.AnyFreeSpec
 import org.apache.spark.SparkConf
