@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Join.JoinSourceCode
-import com.nec.cmake.UdpDebug
+import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -57,9 +57,9 @@ object VeKernelCompiler {
           maybeProfileTarget.toList.flatMap(tgt =>
             List(
               "-D",
-              s"""${UdpDebug.default.hostName}="${tgt.host}"""",
+              s"""${TcpDebug.default.hostName}="${tgt.host}"""",
               "-D",
-              s"${UdpDebug.default.port}=${tgt.port}"
+              s"${TcpDebug.default.port}=${tgt.port}"
             )
           )
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)

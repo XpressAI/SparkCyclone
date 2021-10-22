@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.cmake.ScalaUdpDebug
+import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
@@ -233,8 +233,8 @@ final case class NativeAggregationEvaluationPlan(
 
     val compilerConfig = VeCompilerConfig.fromSparkConf(sparkContext.getConf)
     val udpDebug = compilerConfig.maybeProfileTarget
-      .map(pt => ScalaUdpDebug.UdpTarget(pt))
-      .getOrElse(ScalaUdpDebug.NoOp)
+      .map(pt => ScalaTcpDebug.TcpTarget(pt))
+      .getOrElse(ScalaTcpDebug.NoOp)
 
     val launched = Tracer.Launched(
       s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"

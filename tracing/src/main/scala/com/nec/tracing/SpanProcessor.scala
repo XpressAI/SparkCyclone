@@ -17,7 +17,6 @@ object SpanProcessor {
     val partitionSpans = spansFound
       .flatMap(span => span.start.partId.map(partId => span.start.positionName -> span.duration))
       .groupBy(_._1)
-      .view
       .mapValues(_.map(_._2))
       .toMap
       .toList

@@ -27,8 +27,8 @@ lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
   .enablePlugins(SystemdPlugin)
   .enablePlugins(RpmPlugin)
+  .dependsOn(root % "test->test")
   .settings(
-    scalaVersion := "2.13.6",
     rpmLicense := Some("Proprietary"),
     rpmVendor := "nec",
     libraryDependencies ++= Seq(
