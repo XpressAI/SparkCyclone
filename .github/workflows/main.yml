@@ -11,10 +11,13 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: Check User
-        run: who am i
+        run: whoami
         
       - name: Check Path
         run: pwd
+        
+      - name: Check Access to VE
+        run: /opt/nec/ve/bin/vecmd info
 
       - name: Branch Ref
         run: echo ${GITHUB_REF#refs/heads/}
