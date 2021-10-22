@@ -6,6 +6,7 @@ import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
 import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
+import org.bytedeco.veoffload.global.veo
 
 import java.io.File
 
@@ -38,7 +39,7 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
 
   override protected def beforeAll(): Unit = {
 
-//    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
+//    Aurora4SparkExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
 
     val dbGenFile = new File("src/test/resources/dbgen/dbgen")
     if (!dbGenFile.exists()) {

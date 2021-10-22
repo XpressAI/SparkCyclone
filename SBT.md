@@ -225,7 +225,7 @@ $ docker run -it frov:1
 
 We've built some JAR files from the Frovedis sources, so they can be easily consumed from the plug-in and browsed
 through IntelliJ's powerful navigation capabilities. This is to aid exploration of what is available. The repository is
-located in `frovedis-ivy`
+located in at https://github.com/bytedeco/javacpp-presets/tree/aurora/frovedis
 and is available through a default import of SBT. It includes both source and test JARs.
 
 # Tracing

@@ -3,7 +3,6 @@ import com.nec.arrow.ArrowNativeInterface
 import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.functions.CsvParse
-import com.nec.aurora.Aurora
 import com.nec.testing.NativeCSVParserBenchmark.ParserTestState
 import com.nec.testing.NativeCSVParserBenchmark.SimpleTestType
 import com.nec.testing.Testing.TestingTarget
@@ -16,6 +15,7 @@ import com.eed3si9n.expecty.Expecty._
 import com.nec.cmake.functions.ParseCSVSpec
 import com.nec.cmake.functions.ParseCSVSpec.inTolerance
 import com.nec.native.NativeEvaluator.CNativeEvaluator
+import org.bytedeco.veoffload.global.veo
 
 import java.nio.file.Files
 
@@ -112,16 +112,16 @@ final case class NativeCSVParserBenchmark(
               "\n\n"
             )
           ).toAbsolutePath.toString
-          val proc = Aurora.veo_proc_create(0)
+          val proc = veo.veo_proc_create(0)
 
-          val lib = Aurora.veo_load_library(proc, soName)
+          val lib = veo.veo_load_library(proc, soName)
           require(lib != 0, s"Expected lib != 0, got ${lib}")
 
           val interface =
             new VeArrowNativeInterface(proc, lib)
 
           def close(): Unit = {
-            Aurora.veo_proc_destroy(proc)
+            veo.veo_proc_destroy(proc)
           }
 
           override def originalArray: Array[Array[Double]] = inputArray

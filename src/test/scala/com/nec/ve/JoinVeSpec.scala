@@ -5,7 +5,6 @@ import com.nec.arrow.TransferDefinitions
 
 import java.nio.file.Paths
 import java.time.Instant
-import com.nec.aurora.Aurora
 import com.nec.arrow.functions.Join._
 import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.WithTestAllocator
@@ -14,6 +13,8 @@ import com.typesafe.scalalogging.LazyLogging
 import com.nec.spark.SparkAdditions
 import org.scalatest.freespec.AnyFreeSpec
 import org.apache.arrow.vector.Float8Vector
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.veo_proc_handle
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, ConfigMap}
 
 final class JoinVeSpec
@@ -22,8 +23,8 @@ final class JoinVeSpec
   with SparkAdditions
   with LazyLogging {
 
-  implicit class RichVeProc(proc: Aurora.veo_proc_handle) {
-    def ensureOk(): Aurora.veo_proc_handle = {
+  implicit class RichVeProc(proc: veo_proc_handle) {
+    def ensureOk(): veo_proc_handle = {
       require(proc != null, "Proc could not be allocated, got null")
       require(proc.address() != 0, s"Address for 0 for proc was ${proc}")
       logger.info(s"VE Process = ${proc}")
@@ -34,13 +35,13 @@ final class JoinVeSpec
   private var initialized = false
   private lazy val proc = {
     initialized = true
-    Aurora.veo_proc_create(0).ensureOk()
+    veo.veo_proc_create(0).ensureOk()
   }
 
   override protected def afterAll(): Unit = {
     super.afterAll()
     if (initialized) {
-      Aurora.veo_proc_destroy(proc)
+      veo.veo_proc_destroy(proc)
     }
   }
 
@@ -50,7 +51,7 @@ final class JoinVeSpec
       List(TransferDefinitions.TransferDefinitionsSourceCode, JoinerSource)
         .mkString("\n\n")
     )
-    val proc = Aurora.veo_proc_create(0)
+    val proc = veo.veo_proc_create(0)
     val (sorted, expectedSorted) =
       try {
 
@@ -60,7 +61,7 @@ final class JoinVeSpec
           val secondColumn: Seq[Double] = Seq(100, 15, 92, 331, 49)
           val firstColumnKeys: Seq[Int] = Seq(1, 2, 3, 4, 5)
           val secondColumnKeys: Seq[Int] = Seq(4, 2, 5, 200, 800)
-          val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
+          val lib: Long = veo.veo_load_library(proc, oPath.toString)
           try ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
             ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
               ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
@@ -87,7 +88,7 @@ final class JoinVeSpec
           } finally outVector.close()
         }
 
-      } finally Aurora.veo_proc_destroy(proc)
+      } finally veo.veo_proc_destroy(proc)
 
     assert(sorted.nonEmpty)
     assert(sorted == expectedSorted)
@@ -99,7 +100,7 @@ final class JoinVeSpec
       List(TransferDefinitions.TransferDefinitionsSourceCode, JoinerSource)
         .mkString("\n\n")
     )
-    val proc = Aurora.veo_proc_create(0)
+    val proc = veo.veo_proc_create(0)
     try {
 
       WithTestAllocator { alloc =>
@@ -108,7 +109,7 @@ final class JoinVeSpec
         val secondColumn: Seq[Double] = Seq(2, 3)
         val firstColumnKeys: Seq[Int] = Seq(1, 2)
         val secondColumnKeys: Seq[Int] = Seq(1, 2)
-        val lib: Long = Aurora.veo_load_library(proc, oPath.toString)
+        val lib: Long = veo.veo_load_library(proc, oPath.toString)
         try ArrowVectorBuilders.withDirectFloat8Vector(firstColumn) { firstColumnVec =>
           ArrowVectorBuilders.withDirectFloat8Vector(secondColumn) { secondColumnVec =>
             ArrowVectorBuilders.withDirectIntVector(firstColumnKeys) { firstKeysVec =>
@@ -132,7 +133,7 @@ final class JoinVeSpec
           outVector.close()
         }
       }
-    } finally Aurora.veo_proc_destroy(proc)
+    } finally veo.veo_proc_destroy(proc)
 
   }
 }

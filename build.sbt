@@ -109,6 +109,8 @@ ThisBuild / sparkVersion := {
 
 val silencerVersion = "1.6.0"
 
+resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+
 libraryDependencies ++= Seq(
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
   "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
@@ -118,9 +120,10 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "provided",
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
-  "com.nec" % "aveo4j" % "0.0.1",
   "com.lihaoyi" %% "sourcecode" % "0.2.7",
-  "org.bytedeco" % "javacpp" % "1.5.5",
+  "org.bytedeco" % "javacpp" % "1.5.7-SNAPSHOT",
+  "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT",
+  "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
@@ -305,9 +308,6 @@ deployExamples := {
   ) ! logger
   logger.info("Uploaded examples.")
 }
-
-ThisBuild / resolvers += "frovedis-repo" at file("frovedis-ivy").toURI.toASCIIString
-ThisBuild / resolvers += "aveo4j-repo" at Paths.get("aveo4j-repo").toUri.toASCIIString
 
 Test / testOptions += Tests.Argument("-oD")
 

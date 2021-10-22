@@ -39,9 +39,8 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
     List(
       "/classes/",
       "/test-classes/",
-      "aurora-presets",
       "scala-logging",
-      "aveo4j",
+      "veoffload",
       "javacpp",
       "jna",
       "commons-io",

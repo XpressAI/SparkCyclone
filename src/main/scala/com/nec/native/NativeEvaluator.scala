@@ -4,9 +4,9 @@ import com.nec.arrow.ArrowNativeInterface
 import com.nec.arrow.ArrowNativeInterface.DeferredArrowInterface
 import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.VeArrowNativeInterface.VeArrowNativeInterfaceLazyLib
-import com.nec.aurora.Aurora
 import com.nec.native.NativeCompiler.{CNativeCompiler, CNativeCompilerDebug}
 import com.nec.spark.Aurora4SparkExecutorPlugin
+import org.bytedeco.veoffload.veo_proc_handle
 import com.typesafe.scalalogging.LazyLogging
 
 trait NativeEvaluator extends Serializable {
@@ -30,7 +30,7 @@ object NativeEvaluator {
   }
 
   final class VectorEngineNativeEvaluator(
-    proc: Aurora.veo_proc_handle,
+    proc: veo_proc_handle,
     nativeCompiler: NativeCompiler
   ) extends NativeEvaluator
     with LazyLogging {

@@ -8,7 +8,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.ConfigMap
 import org.apache.log4j.Level
 import org.apache.log4j.Logger
-import com.nec.aurora.Aurora
+import org.bytedeco.veoffload.global.veo
 
 final class DynamicBenchmarkVeCheck
   extends AnyFreeSpec
@@ -18,7 +18,7 @@ final class DynamicBenchmarkVeCheck
   override protected def beforeAll(): Unit = {
     val rootLogger = Logger.getRootLogger
     rootLogger.setLevel(Level.INFO)
-    Aurora4SparkExecutorPlugin._veo_proc = Aurora.veo_proc_create(-1)
+    Aurora4SparkExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
     super.beforeAll()
   }
 

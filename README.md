@@ -1,7 +1,7 @@
 # aurora4spark
 
 - For the plug-in development: [SBT.md](SBT.md).
-- For the JavaCPP layer around AVEO, see: [aurora4spark-parent/aveo4j/README.md](aurora4spark-parent/aveo4j/README.md).
+- For the JavaCPP layer around AVEO, see: [https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload](https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload).
 
 ## Usage of the plugin
 

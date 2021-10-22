@@ -4,9 +4,10 @@ import com.nec.arrow.TransferDefinitions
 import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.functions.CsvParse
-import com.nec.aurora.Aurora
 import com.nec.cmake.functions.ParseCSVSpec.verifyOn
 import org.apache.arrow.vector.Float8Vector
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.veo_thr_ctxt
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.nio.file.Files
@@ -27,16 +28,16 @@ final class ParseVECSVSpec extends AnyFreeSpec {
         .mkString("\n\n")
     )
 
-    val proc = Aurora.veo_proc_create(0)
+    val proc = veo.veo_proc_create(0)
     try {
-      val ctx: Aurora.veo_thr_ctxt = Aurora.veo_context_open(proc)
+      val ctx: veo_thr_ctxt = veo.veo_context_open(proc)
       try {
         WithTestAllocator { alloc =>
           val outVector = new Float8Vector("value", alloc)
-          val lib: Long = Aurora.veo_load_library(proc, soPath.toString)
+          val lib: Long = veo.veo_load_library(proc, soPath.toString)
           verifyOn(new VeArrowNativeInterface(proc, lib))
         }
-      } finally Aurora.veo_context_close(ctx)
-    } finally Aurora.veo_proc_destroy(proc)
+      } finally veo.veo_context_close(ctx)
+    } finally veo.veo_proc_destroy(proc)
   }
 }

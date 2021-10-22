@@ -1,8 +1,8 @@
 package com.nec.spark
 
 import com.nec.arrow.VeArrowNativeInterface
-import com.nec.aurora.Aurora
-import com.nec.aurora.Aurora.veo_proc_handle
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
@@ -41,7 +41,7 @@ object Aurora4SparkExecutorPlugin {
   var closeAutomatically: Boolean = false
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
-      Aurora.veo_proc_destroy(_veo_proc)
+      veo.veo_proc_destroy(_veo_proc)
     }
   }
 
@@ -113,7 +113,7 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
     logInfo(s"Using VE node = ${selectedVeNodeId}")
 
     if (_veo_proc == null) {
-      _veo_proc = Aurora.veo_proc_create(selectedVeNodeId)
+      _veo_proc = veo.veo_proc_create(selectedVeNodeId)
       require(
         _veo_proc != null,
         s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
@@ -128,7 +128,7 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
        */
       if (extraConf.containsKey("ve_so_name")) {
         Aurora4SparkExecutorPlugin.lib =
-          Aurora.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
+          veo.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
       }
       veArrowNativeInterfaceNumeric = new VeArrowNativeInterface(_veo_proc, lib)
     }
