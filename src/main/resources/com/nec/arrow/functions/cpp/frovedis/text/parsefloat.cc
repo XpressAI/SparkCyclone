@@ -1,3 +1,4 @@
+#pragma once
 #include "parseint.hpp"
 #include "parsefloat.hpp"
 

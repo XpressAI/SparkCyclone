@@ -8,10 +8,14 @@
 #include <vector>
 #include <chrono>
 #include <ctime>
+#include <algorithm>
 #include "words.hpp"
 #include "words.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
+#include "parsefloat.hpp"
+#include "parsefloat.cc"
+
 
 #ifndef VE_TD_DEFS
 typedef struct

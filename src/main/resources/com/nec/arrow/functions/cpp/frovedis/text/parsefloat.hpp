@@ -1,9 +1,9 @@
 #ifndef PARSEFLOAT_HPP
 #define PARSEFLOAT_HPP
 
-#include "words.hpp"
-#include "../core/find_condition.hpp"
-#include "../core/set_operations.hpp"
+//include "words.hpp"
+//include "../core/find_condition.hpp"
+//include "../core/set_operations.hpp"
 #include <stdexcept>
 #include <limits>
 #include <math.h>

@@ -7,12 +7,10 @@
 #include <vector>
 #include <omp.h>
 #include <cmath>
-#include "words.hpp"
-#include "words.cc"
-#include "parsefloat.hpp"
-#include "parsefloat.cc"
-#include "char_int_conv.hpp"
-#include "char_int_conv.cc"
+//include "words.hpp"
+//include "parsefloat.hpp"
+//include "parsefloat.cc"
+//include "char_int_conv.hpp"
 
 #ifndef _WIN32
 #include "unix-read.cpp"
@@ -169,11 +167,11 @@ extern "C" long parse_csv_ipc(  non_null_c_bounded_string* input_sock_name,
     non_null_varchar_vector temp_input_str;
     read_fully_2(input_sock_name, &temp_input_str);
 #ifdef DEBUG
-    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+    std::cout << "Read input size " << temp_input_str.dataSize << std::endl << std::flush;
 #endif
     non_null_c_bounded_string temp_input_str_;
     temp_input_str_.data = temp_input_str.data;
-    temp_input_str_.length = temp_input_str.size;
+    temp_input_str_.length = temp_input_str.dataSize;
     long result = parse_csv(&temp_input_str_, output_a, output_b, output_c);
 #ifdef DEBUG
     std::cout << "output_a count = " << output_a->count << std::endl << std::flush;
@@ -188,11 +186,11 @@ extern "C" long parse_csv_2_ipc(  non_null_c_bounded_string* input_sock_name,
     non_null_varchar_vector temp_input_str;
     read_fully_2(input_sock_name, &temp_input_str);
 #ifdef DEBUG
-    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+    std::cout << "Read input size " << temp_input_str.dataSize << std::endl << std::flush;
 #endif
     non_null_c_bounded_string temp_input_str_;
     temp_input_str_.data = temp_input_str.data;
-    temp_input_str_.length = temp_input_str.size;
+    temp_input_str_.length = temp_input_str.dataSize;
     return parse_csv_2(&temp_input_str_, output_a, output_b);
 }
 #endif
@@ -260,11 +258,11 @@ extern "C" long parse_csv_1_ipc(  non_null_c_bounded_string* input_sock_name,
     non_null_varchar_vector temp_input_str;
     read_fully_2(input_sock_name, &temp_input_str);
 #ifdef DEBUG
-    std::cout << "Read input size " << temp_input_str.size << std::endl << std::flush;
+    std::cout << "Read input size " << temp_input_str.dataSize << std::endl << std::flush;
 #endif
     non_null_c_bounded_string temp_input_str_;
     temp_input_str_.data = temp_input_str.data;
-    temp_input_str_.length = temp_input_str.size;
+    temp_input_str_.length = temp_input_str.dataSize;
     return parse_csv_1(&temp_input_str_, output_a);
 }
 
@@ -289,7 +287,7 @@ extern "C" long parse_csv_double1_str2_int3_long4(
     output_b->offsets[1] = 14;
     output_b->offsets[2] = 26;
     output_b->count = 2;
-    output_b->size = 26;
+    output_b->dataSize = 26;
 
     output_c->data = (int *)malloc(2 * sizeof(int));
     output_c->data[0] = 1;
