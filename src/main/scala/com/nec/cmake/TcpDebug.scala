@@ -45,7 +45,10 @@ object TcpDebug {
       s"sockaddr_in ${destinationName};",
       s"${destinationName}.sin_family = AF_INET;",
       s"${destinationName}.sin_port = htons(${port});",
-      s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string(${hostName}).c_str());"""
+      s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string(${hostName}).c_str());""",
+      s"if (connect(${sockName}, (struct sockaddr*)&${destinationName}, sizeof(${destinationName})) != 0) {",
+      s"""  std::cout << "error connecting..." << std::endl << std::flush;""",
+      "}"
     )
 
     override def close: CodeLines = CodeLines.from(s"::close(${sockName});")
@@ -54,11 +57,7 @@ object TcpDebug {
       .from(
         "std::ostringstream s;",
         "s " + Tracer.concatStr(what.toList) + ";",
-        s"if (connect(${sockName}, (struct sockaddr*)&${destinationName}, sizeof(${destinationName})) != 0) {",
-        s"""  std::cout << "error connecting..." << std::endl << std::flush;""",
-        "}",
-        s"write(${sockName}, s.str().c_str(), s.str().length());",
-        s"close(${sockName});"
+        s"write(${sockName}, s.str().c_str(), s.str().length());"
       )
       .blockCommented("Send via TCP")
   }
