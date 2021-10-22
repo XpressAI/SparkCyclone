@@ -91,7 +91,7 @@ extern "C" long read_fully_2(non_null_c_bounded_string* input_sock_name, non_nul
     fclose(stream);
     output_data->data = bp;
     output_data->offsets[1] = size;
-    output_data->size = size;
+    output_data->dataSize = size;
 #ifdef TRACE
     std::string collected = string(bp, size);
     std::cout << "Got data [" << collected << "]\n" << std::flush;
@@ -104,15 +104,15 @@ extern "C" long read_fully(non_null_varchar_vector* input_sock_name, non_null_va
 output_data->data = (char*) malloc(0);
 output_data->offsets = (int*) malloc(4 * 2);
 int i = 0;
-for (i = 0; i < input_sock_name->size; i++ ) {
+for (i = 0; i < input_sock_name->dataSize; i++ ) {
 output_data->data = (char*)realloc(output_data->data, (i + 1));
 output_data->data[i] = input_sock_name->data[i];
 }
 std::cout << i << "\n" << std::flush;
-std::cout << input_sock_name->size << "\n" << std::flush;
+std::cout << input_sock_name->dataSize << "\n" << std::flush;
 output_data->offsets[0] = 0;
 output_data->offsets[1] = i;
-output_data->size = i;
+output_data->dataSize = i;
 output_data->count = 1;
 return 0;
 }

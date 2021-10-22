@@ -1,3 +1,5 @@
+#pragma once
+
 #include "words.hpp"
 #include "find.hpp"
 #include "find.cc"
