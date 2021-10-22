@@ -54,7 +54,7 @@ object TcpDebug {
       .from(
         "std::ostringstream s;",
         "s " + Tracer.concatStr(what.toList) + ";",
-        s"if (connect(${sockName}, ${destinationName}, sizeof(${destinationName}) != 0) {",
+        s"if (connect(${sockName}, (struct sockaddr*)&${destinationName}, sizeof(${destinationName})) != 0) {",
         s"""  std::cout << "error connecting..." << std::endl << std::flush;""",
         "}",
         s"write(${sockName}, s.str().c_str(), s.str().length());",
