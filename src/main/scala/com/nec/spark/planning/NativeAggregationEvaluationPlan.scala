@@ -334,7 +334,7 @@ object NativeAggregationEvaluationPlan {
       extends EvaluationMode
   }
 
-  private def writeVector(v_idx: Int, writer: UnsafeRowWriter, v: FieldVector, c_idx: Int): Unit = {
+  def writeVector(v_idx: Int, writer: UnsafeRowWriter, v: FieldVector, c_idx: Int): Unit = {
     v match {
       case vector: VarCharVector =>
         if (vector.isNull(v_idx)) writer.setNullAt(c_idx)

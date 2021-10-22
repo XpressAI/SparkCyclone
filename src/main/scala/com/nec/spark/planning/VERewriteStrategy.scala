@@ -1,36 +1,23 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.SparkExpressionToCExpression
-import com.nec.spark.agile.SparkExpressionToCExpression.{sparkTypeToVeType, EvalFallback}
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
+import com.nec.spark.agile.SparkExpressionToCExpression.{EvalFallback, sparkTypeToVeType}
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection}
-import com.nec.spark.agile.groupby.{
-  ConvertNamedExpression,
-  GroupByOutline,
-  GroupByPartialGenerator,
-  GroupByPartialToFinalGenerator
-}
+import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
-import com.nec.spark.planning.VERewriteStrategy.{
-  GroupPrefix,
-  InputPrefix,
-  SequenceList,
-  VeRewriteStrategyOptions
-}
+import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList, VeRewriteStrategyOptions}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.Strategy
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  HyperLogLogPlusPlus
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans.logical
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
-
 import scala.collection.immutable
 import scala.util.Try
 
@@ -219,6 +206,16 @@ final case class VERewriteStrategy(
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
+        case Sort(orders, global, child) => {
+          val code = CFunctionGeneration.renderSort()
+          new NativeSortEvaluationPlan(
+            outputExpressions = child.output,
+            functionPrefix = functionPrefix,
+            NativeSortEvaluationPlan.SortingMode.Coalesced(),
+            child,
+            nativeEvaluator = nativeEvaluator
+          )
+        }
         case _ => Nil
       }
 

@@ -164,13 +164,15 @@ class DynamicCSqlExpressionEvaluationSpec
 
   val sql_select_sort2 =
     s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select with addition" ignore withSparkSession2(configuration) {
+  "Support order by with select with addition" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_select_sort2).ensureCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql_select_sort2).debugSqlHere { ds =>
+        val a = ds.as[(Option[Double], Option[Double], Option[Double])]
+        println(a.queryExecution.executedPlan)
         expectVertical(
-          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList.sorted,
+          a.collect().toList.sorted,
           List(
             (Some(4.0), None, None),
             (Some(2.0), None, None),
