@@ -9,6 +9,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      
+      - name: Check User
+        run: who am i
+        
+      - name: Check Path
+        run: pwd
 
       - name: Branch Ref
         run: echo ${GITHUB_REF#refs/heads/}
