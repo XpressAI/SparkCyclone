@@ -3,14 +3,14 @@ package com.nec.cmake
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.Tracer
 
-object UdpDebug {
+object TcpDebug {
 
-  def conditional: UdpDebug = Conditional(default.hostName, default)
+  def conditional: TcpDebug = Conditional(default.hostName, default)
 
   def conditionOn(define: String)(code: CodeLines): CodeLines =
     CodeLines.from(s"#ifdef ${define}", code, "#endif")
 
-  final case class Conditional(name: String, underlying: UdpDebug) extends UdpDebug {
+  final case class Conditional(name: String, underlying: TcpDebug) extends TcpDebug {
 
     override def headers: CodeLines =
       conditionOn(name)(underlying.headers)
@@ -28,20 +28,20 @@ object UdpDebug {
   def default: Always = Always("profile_sock", "profile_sock_dest", "PROFILE_HOST", "PROFILE_PORT")
 
   final case class Always(sockName: String, destinationName: String, hostName: String, port: String)
-    extends UdpDebug {
+    extends TcpDebug {
     override def headers: CodeLines = CodeLines.from(
       "#include <iostream>",
       "#include <string>",
       "#include <sstream>",
-      "#include <arpa/inet.h> // htons, inet_addr",
-      "#include <netinet/in.h> // sockaddr_in",
-      "#include <sys/types.h> // uint16_t",
-      "#include <sys/socket.h> // socket, sendto",
-      "#include <unistd.h> // close"
+      "#include <arpa/inet.h>",
+      "#include <netinet/in.h>",
+      "#include <sys/types.h>",
+      "#include <sys/socket.h>",
+      "#include <unistd.h>"
     )
 
     override def createSock: CodeLines = CodeLines.from(
-      s"int ${sockName} = ::socket(AF_INET, SOCK_DGRAM, 0);",
+      s"int ${sockName} = ::socket(AF_INET, SOCK_STREAM, 0);",
       s"sockaddr_in ${destinationName};",
       s"${destinationName}.sin_family = AF_INET;",
       s"${destinationName}.sin_port = htons(${port});",
@@ -54,13 +54,17 @@ object UdpDebug {
       .from(
         "std::ostringstream s;",
         "s " + Tracer.concatStr(what.toList) + ";",
-        s"sendto(${sockName}, s.str().c_str(), s.str().length(), 0, reinterpret_cast<sockaddr*>(&${destinationName}), sizeof(${destinationName}));"
+        s"if (connect(${sockName}, ${destinationName}, sizeof(${destinationName}) != 0) {",
+        s"""  std::cout << "error connecting..." << std::endl << std::flush;""",
+        "}",
+        s"write(${sockName}, s.str().c_str(), s.str().length());",
+        s"close(${sockName});"
       )
-      .blockCommented("Send via UDP")
+      .blockCommented("Send via TCP")
   }
 }
 
-trait UdpDebug {
+trait TcpDebug {
   def headers: CodeLines
   def createSock: CodeLines
   def close: CodeLines

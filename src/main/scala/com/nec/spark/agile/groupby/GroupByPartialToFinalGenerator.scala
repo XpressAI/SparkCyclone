@@ -1,6 +1,6 @@
 package com.nec.spark.agile.groupby
 
-import com.nec.cmake.UdpDebug
+import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline.StagedAggregation
@@ -25,7 +25,7 @@ final case class GroupByPartialToFinalGenerator(
           stagedAggregation.finalType.makeCVector(stagedAggregation.name)
       },
       body = CodeLines.from(
-        UdpDebug.conditional.createSock,
+        TcpDebug.conditional.createSock,
         CodeLines
           .from(
             performGroupingOnKeys,
@@ -33,7 +33,7 @@ final case class GroupByPartialToFinalGenerator(
             passProjectionsPerGroup
           )
           .time("Execution of Final"),
-        UdpDebug.conditional.close
+        TcpDebug.conditional.close
       )
     )
 

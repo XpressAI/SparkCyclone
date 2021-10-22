@@ -1,13 +1,13 @@
 package com.nec.cmake.functions
 
-import com.nec.cmake.{CMakeBuilder, UdpDebug}
+import com.nec.cmake.{CMakeBuilder, TcpDebug}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.scalatest.freespec.AnyFreeSpec
 
-final class IncludeUDPDebugSpec extends AnyFreeSpec {
+final class IncludeTCPDebugSpec extends AnyFreeSpec {
   "It works" in {
     if (!scala.util.Properties.isWin) {
-      val debugger = UdpDebug.Always("sock", "dest", "\"127.0.0.1\"", "12345")
+      val debugger = TcpDebug.Always("sock", "dest", "\"127.0.0.1\"", "12345")
       val code = CodeLines.from(
         debugger.headers,
         s"void debugIt() {",

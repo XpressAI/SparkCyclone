@@ -18,14 +18,14 @@ class TracerTest extends AnyFreeSpec {
       CodeLines
         .from(
           Tracer.DefineTracer.cCode,
-          if (includeUdp) UdpDebug.default.headers else CodeLines.empty,
+          if (includeUdp) TcpDebug.default.headers else CodeLines.empty,
           CFunction(
             inputs = List(Tracer.TracerVector),
             outputs = Nil,
             body = CodeLines.from(
-              if (includeUdp) UdpDebug.default.createSock else CodeLines.empty,
+              if (includeUdp) TcpDebug.default.createSock else CodeLines.empty,
               CodeLines.debugHere,
-              if (includeUdp) UdpDebug.default.close else CodeLines.empty
+              if (includeUdp) TcpDebug.default.close else CodeLines.empty
             )
           )
             .toCodeLinesNoHeader(functionName)

@@ -45,15 +45,10 @@ object TracingListenerApp extends IOApp {
     fileToAnalyze match {
       case None =>
         fs2.Stream
-          .resource(Network[IO].openDatagramSocket(serverHost, serverPort))
-          .flatMap(_.reads)
-          .evalMap(chunkBytes =>
-            fs2.Stream
-              .chunk[IO, Byte](chunkBytes.bytes)
-              .through(text.utf8.decode)
-              .compile
-              .string
-          )
+          .resource(Network[IO].serverResource(address = serverHost, port = serverPort))
+          .flatMap { case (socketAddress, socketStream) =>
+            socketStream.evalMap(_.reads.through(text.utf8.decode).compile.string)
+          }
           .through(savingStream.getOrElse(fs2.io.stdoutLines[IO, String]()))
           .compile
           .drain
