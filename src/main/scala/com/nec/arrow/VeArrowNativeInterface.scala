@@ -1,8 +1,10 @@
 package com.nec.arrow
 
 import java.nio.ByteBuffer
-import com.nec.aurora.Aurora
 import org.bytedeco.javacpp.LongPointer
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.veo_args
+import org.bytedeco.veoffload.veo_proc_handle
 import com.nec.arrow.ArrowNativeInterface._
 import com.typesafe.scalalogging.LazyLogging
 
@@ -11,7 +13,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import com.nec.util.LruVeoMemCache
 
-final class VeArrowNativeInterface(proc: Aurora.veo_proc_handle, lib: Long)
+final class VeArrowNativeInterface(proc: veo_proc_handle, lib: Long)
   extends ArrowNativeInterface {
   override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
     VeArrowNativeInterface.executeVe(
@@ -35,7 +37,7 @@ object VeArrowNativeInterface extends LazyLogging {
     require(result > 0, s"Result should be > 0, got $result")
   }
 
-  final class VeArrowNativeInterfaceLazyLib(proc: Aurora.veo_proc_handle, libPath: String)
+  final class VeArrowNativeInterfaceLazyLib(proc: veo_proc_handle, libPath: String)
     extends ArrowNativeInterface {
     override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
       val lib = if (!libs.contains(libPath)) {
@@ -45,7 +47,7 @@ object VeArrowNativeInterface extends LazyLogging {
           val (libPath, lib) = libs.head
           logger.debug(s"Unloading: $libPath")
           val startUnload = System.currentTimeMillis()
-          Aurora.veo_unload_library(proc, lib)
+          veo.veo_unload_library(proc, lib)
           val unloadTime = System.currentTimeMillis() - startUnload
           logger.debug(s"Unloaded: $libPath in $unloadTime")
           libs -= libPath
@@ -56,7 +58,7 @@ object VeArrowNativeInterface extends LazyLogging {
           throw new FileNotFoundException(s"Required fille $libPath does not exist")
         }
         val startLoad = System.currentTimeMillis()
-        val lib = Aurora.veo_load_library(proc, libPath)
+        val lib = veo.veo_load_library(proc, libPath)
         val loadTime = System.currentTimeMillis() - startLoad
         logger.debug(s"Loaded: '$libPath in $loadTime")
         require(lib != 0, s"Expected lib != 0, got $lib")
@@ -80,7 +82,7 @@ object VeArrowNativeInterface extends LazyLogging {
   }
 
   def copyBufferToVe(
-    proc: Aurora.veo_proc_handle,
+    proc: veo_proc_handle,
     byteBuffer: ByteBuffer,
     len: Option[Long] = None
   )(implicit cleanup: Cleanup): Long = {
@@ -88,9 +90,9 @@ object VeArrowNativeInterface extends LazyLogging {
 
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
     val size = len.getOrElse(byteBuffer.capacity().toLong)
-    requireOk(Aurora.veo_alloc_mem(proc, veInputPointer, size))
+    requireOk(veo.veo_alloc_mem(proc, veInputPointer, size))
     requireOk(
-      Aurora.veo_write_mem(
+      veo.veo_write_mem(
         proc,
         /** after allocating, this pointer now contains a value of the VE storage address * */
         veInputPointer.get(),
@@ -105,20 +107,20 @@ object VeArrowNativeInterface extends LazyLogging {
   }
 
   private def executeVe(
-    proc: Aurora.veo_proc_handle,
+    proc: veo_proc_handle,
     lib: Long,
     functionName: String,
     arguments: List[NativeArgument]
   ): Unit = {
     assert(lib > 0, s"Expected lib to be >0, was $lib")
-    val our_args = Aurora.veo_args_alloc()
+    val our_args = veo.veo_args_alloc()
     implicit val cleanup: Cleanup = new Cleanup()
     try {
 
       val transferBack = scala.collection.mutable.Buffer.empty[() => Unit]
       arguments.zipWithIndex.foreach {
         case (NativeArgument.ScalarInputNativeArgument(ScalarInput.ForInt(num)), idx) =>
-          requireOk(Aurora.veo_args_set_i32(our_args, idx, num))
+          requireOk(veo.veo_args_set_i32(our_args, idx, num))
         case (NativeArgument.VectorInputNativeArgument(wrapper), index) =>
           VeArrowTransfers.transferInput(proc, our_args, wrapper, index)
         case (NativeArgument.VectorOutputNativeArgument(wrapper), index) =>
@@ -144,13 +146,13 @@ object VeArrowNativeInterface extends LazyLogging {
       val fnAddr = if (functionAddrs.contains((lib, functionName))) {
         functionAddrs((lib, functionName))
       } else {
-        val addr = Aurora.veo_get_sym(proc, lib, functionName)
+        val addr = veo.veo_get_sym(proc, lib, functionName)
         functionAddrs += ((lib, functionName) -> addr)
         addr
       }
 
       val fnCallResult = new LongPointer(8)
-      val callRes = Aurora.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
+      val callRes = veo.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
       val time = System.currentTimeMillis() - startTime
       logger.debug(
         s"[$uuid] Got result from VE call to '$functionName': '$callRes'. Took ${time}ms"
@@ -194,11 +196,11 @@ object VeArrowNativeInterface extends LazyLogging {
           )
       }
     } finally {
-      val cleanupResult = cleanup.items.map(ptr => ptr -> Aurora.veo_free_mem(proc, ptr))
+      val cleanupResult = cleanup.items.map(ptr => ptr -> veo.veo_free_mem(proc, ptr))
       if (cleanupResult.exists(_._2 < 0)) {
         logger.error(s"Clean-up failed for some cases: $cleanupResult")
       }
-      Aurora.veo_args_free(our_args)
+      veo.veo_args_free(our_args)
     }
   }
 }

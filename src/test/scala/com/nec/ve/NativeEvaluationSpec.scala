@@ -1,8 +1,8 @@
 package com.nec.ve
-import com.nec.aurora.Aurora
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeEvaluator.VectorEngineNativeEvaluator
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import org.bytedeco.veoffload.global.veo
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers._
@@ -14,13 +14,13 @@ final class NativeEvaluationSpec extends AnyFreeSpec with BeforeAndAfterAll {
   private var initialized = false
   private lazy val proc = {
     initialized = true
-    Aurora.veo_proc_create(0)
+    veo.veo_proc_create(0)
   }
 
   override protected def afterAll(): Unit = {
     super.afterAll()
     if (initialized) {
-      Aurora.veo_proc_destroy(proc)
+      veo.veo_proc_destroy(proc)
     }
   }
 
