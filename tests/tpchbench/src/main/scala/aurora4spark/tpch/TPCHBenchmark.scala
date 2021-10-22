@@ -135,43 +135,43 @@ object TPCHBenchmark extends SparkSessionWrapper {
     createViews(sparkSession)
 
     val queries = Seq(
-      query1 _,
-      query2 _,
-      query3 _,
-      query4 _,
-      query5 _,
-      query6 _,
-      query7 _,
-      query8 _,
-      query9 _,
-      query10 _,
-      query11 _,
-      query12 _,
-      query13 _,
-      query14 _,
-      query15 _,
-      query16 _,
-      query17 _,
-      query18 _,
-      query19 _,
-      query20 _,
-      query21 _,
-      query22 _
+      (query1 _, 1),
+      (query2 _, 2),
+      (query3 _, 3),
+      (query4 _, 4),
+      (query5 _, 5),
+      (query6 _, 6),
+      (query7 _, 7),
+      (query8 _, 8),
+      (query9 _, 9),
+      //(query10 _, 10),
+      (query11 _, 11),
+      (query12 _, 12),
+      (query13 _, 13),
+      (query14 _, 14),
+      (query15 _, 15),
+      (query16 _, 16),
+      (query17 _, 17),
+      (query18 _, 18),
+      (query19 _, 19),
+      (query20 _, 20),
+      (query21 _, 21),
+      (query22 _, 22)
     )
 
-    queries.zipWithIndex.foreach {
+    queries.foreach {
       case (query, i) =>
         benchmark(i, query)
     }
   }
 
   def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
-    println(s"Running Query${i + 1}")
+    println(s"Running Query${i}")
     val start = System.nanoTime()
     val res = f(sparkSession)
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
-    println(s"Query${i + 1} elapsed: ${(end - start).toDouble / 1e9 } s" )
+    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9 } s" )
     res.foreach(println)
   }
 
