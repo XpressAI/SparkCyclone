@@ -24,9 +24,8 @@ object SpanProcessor {
       .reverse
       .map { case (name, durations) =>
         List(
-          s"Total: ${durations.total}",
           s"Count: ${durations.size}",
-          s"Average: ${durations.average}",
+          s"Median: ${durations.median}",
           s"Max: ${durations.max}"
         ) -> name
       }
@@ -66,8 +65,14 @@ object SpanProcessor {
   }
 
   implicit class RichL(l: List[Duration]) {
-    def average: Duration = {
-      l.total.dividedBy(l.size.toLong)
+    def median: Duration = {
+      if (l.length == 1)
+        l(0)
+      else if (l.length == 2)
+        l(0).plus(l(1)).dividedBy(2)
+      if (l.length % 2 == 0) {
+        l(l.length / 2 - 1).plus(l(l.length / 2)).dividedBy(2)
+      } else l(l.length / 2)
     }
     def total: Duration = {
       l.reduce(_.plus(_))
