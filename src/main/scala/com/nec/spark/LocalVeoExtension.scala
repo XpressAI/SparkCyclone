@@ -17,7 +17,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
         ExecutorPluginManagedEvaluator,
         VeRewriteStrategyOptions(preShufflePartitions =
           sparkSession.sparkContext.getConf
-            .getOption(key = "com.nec.spark.preshuffle-partitions")
+            .getOption(key = "spark.com.nec.spark.preshuffle-partitions")
             .map(_.toInt)
         )
       )

@@ -1,6 +1,6 @@
 package com.nec.spark
 
-import com.nec.spark.VeKernelCompilerConfigSpec.{defnsStringValue, stringValue}
+import com.nec.spark.VeKernelCompilerConfigSpec.stringValue
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import org.scalatest.freespec.AnyFreeSpec
 import org.apache.spark.SparkConf
@@ -20,12 +20,11 @@ object VeKernelCompilerConfigSpec {
   )
 
   private def stringValue = compilerConfig.compilerArguments.toString
-  private def defnsStringValue = compilerConfig.definitions.toString
 
 }
 final class VeKernelCompilerConfigSpec extends AnyFreeSpec {
   "it captures DEBUG option" in {
-    assert(defnsStringValue.contains("DEBUG=1"))
+    assert(stringValue.contains("DEBUG=1"))
   }
   "it captures Optimization override" in {
     assert(stringValue.contains("-O3"))
