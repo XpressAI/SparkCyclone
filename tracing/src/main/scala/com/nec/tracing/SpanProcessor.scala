@@ -31,13 +31,34 @@ object SpanProcessor {
       }
       .tabulate
 
+    val partitionExecutorSpans = spansFound
+      .filter(_.start.executorId.nonEmpty)
+      .flatMap(span =>
+        span.start.partId.map(partId =>
+          (span.start.positionName, span.start.executorId) -> span.duration
+        )
+      )
+      .groupBy(_._1)
+      .mapValues(_.map(_._2))
+      .toList
+      .sortBy { case ((n, exid), cts) => (exid, cts.max) }
+      .reverse
+      .map { case ((pn, exId), durations) =>
+        List(
+          s"Count: ${durations.size}",
+          s"Median: ${durations.median}",
+          s"Max: ${durations.max}"
+        ) -> s"${exId.getOrElse("")} | ${pn}"
+      }
+      .tabulate
+
     val nonPartition = spansFound
       .filterNot(_.inPartition)
       .sortBy(_.duration)
       .reverse
       .map(span => s"[${span.duration}] ${span.start.positionName}")
 
-    nonPartition ++ partitionSpans
+    List(nonPartition, List("--"), partitionSpans, List("--"), partitionExecutorSpans).flatten
   }
 
   implicit class RichListStr(ls: List[(List[String], String)]) {

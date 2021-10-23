@@ -35,7 +35,7 @@ final class AnalyzeCheckSpec extends AnyFreeSpec {
     "2021-10-18T10:19:30.123Z $ local-test|local-1634552356754|2021-10-18T10:19:20.003Z|driver|ad55 $$ E:evaluate a partition",
     "2021-10-18T10:19:30.134Z $ local-test|local-1634552356754|2021-10-18T10:19:20.003Z|driver|f952 $$ S:evaluate a partition",
     "2021-10-18T10:19:30.140Z $ local-test|local-1634552356754|2021-10-18T10:19:20.003Z|driver|f952 $$ E:evaluate a partition",
-    "2021-10-17T14:30:31.272693000Z $ local-test|local-1634481005078|2021-10-17T14:30:05.198Z|driver|83f $$ S:Execution of Final:L556",
+    "2021-10-17T14:30:31.272693000Z $ local-test|local-1634481005078|2021-10-17T14:30:05.198Z|driver|483f $$ S:Execution of Final:L556",
     "2021-10-17T14:30:31.275208000Z $ local-test|local-1634481005078|2021-10-17T14:30:05.198Z|driver|483f $$ E:Execution of Final:L686"
   )
 
@@ -46,10 +46,12 @@ final class AnalyzeCheckSpec extends AnyFreeSpec {
       "[Count: 2, Median: PT0.134S,    Max: PT0.262S   ] evaluate a partition",
       "[Count: 1, Median: PT0.002515S, Max: PT0.002515S] Execution of Final",
       "--",
-      "[Count: 2, Median: PT0.134S,    Max: PT0.262S   ] driver | evaluate a partition"
+      "[Count: 2, Median: PT0.134S,    Max: PT0.262S   ] driver | evaluate a partition",
+      "[Count: 1, Median: PT0.002515S, Max: PT0.002515S] driver | Execution of Final"
     )
 
     val result = analyzeLines(sampleLines)
+
     expect(result == expectedOutput)
   }
   "Line is removed from position" in {
