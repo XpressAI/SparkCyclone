@@ -70,7 +70,7 @@ object Aurora4SparkExecutorPlugin {
           if (result == null) {
             sys.error(s"Could not fetch library: ${code}")
           } else {
-            val localPath = Files.createTempFile("ve_fn", ".lib")
+            val localPath = Files.createTempFile("ve_fn", ".so")
             Files.write(
               localPath,
               result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray

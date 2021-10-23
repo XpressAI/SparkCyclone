@@ -10,12 +10,18 @@
 #include <ctime>
 #include <algorithm>
 #include "words.hpp"
-#include "words.cc"
 #include "char_int_conv.hpp"
-#include "char_int_conv.cc"
 #include "parsefloat.hpp"
-#include "parsefloat.cc"
+#include "utility.hpp"
 
+// Seems to be missing from libfrovedis_core.a
+namespace frovedis {
+    bool is_bigendian() {
+      int i = 1;
+      if(*((char*)&i)) return false;
+      else return true;
+    }
+}
 
 #ifndef VE_TD_DEFS
 typedef struct

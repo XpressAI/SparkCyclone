@@ -1,6 +1,5 @@
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/dataframe/join.hpp"
-#include "frovedis/dataframe/join.cc"
 #include <iostream>
 #include <vector>
 #include <cmath>

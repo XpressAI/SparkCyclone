@@ -8,7 +8,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.DriverPlugin
 import org.apache.spark.api.plugin.PluginContext
 
-import java.nio.file.Files
+import java.nio.file.{Files, Path, Paths}
 import com.nec.ve.VeKernelCompiler
 import com.typesafe.scalalogging.LazyLogging
 import okio.ByteString
@@ -47,14 +47,9 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
 
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
-      "ve_so_name" -> VeKernelCompiler
-        .compile_c(
-          buildDir = tmpBuildDir,
-          config = VeKernelCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
-        )
-        .toAbsolutePath
-        .toString
+      //"ve_so_name" -> (tmpBuildDir.toAbsolutePath.toString + "/_spark.so")
     )
+
     testArgs.asJava
   }
 

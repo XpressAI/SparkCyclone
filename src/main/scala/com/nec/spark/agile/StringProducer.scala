@@ -27,9 +27,9 @@ object StringProducer {
 
     override def produceTo(tsn: String, iln: String): CodeLines = {
       CodeLines.from(
-        s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
-        s"${tsn}.append(sub_str);",
-        s"${iln} += sub_str.size();"
+        s"std::string ${inputName}_sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+        s"${tsn}.append(${inputName}_sub_str);",
+        s"${iln} += ${inputName}_sub_str.size();"
       )
     }
   }
@@ -111,10 +111,10 @@ object StringProducer {
           CodeLines
             .from(
               CodeLines.debugHere,
-              "int len = 0;",
-              imperative.produceTo(s"$tmpString", "len"),
+              s"int ${tmpString}_len = 0;",
+              imperative.produceTo(s"$tmpString", s"${tmpString}_len"),
               s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
-              s"""${tmpCurrentOffset} += len;""",
+              s"""${tmpCurrentOffset} += ${tmpString}_len;""",
               s"${tmpCount}++;"
             )
         case frovedisStringProducer: FrovedisStringProducer =>

@@ -4,7 +4,7 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.cmake.UdpDebug
 import com.nec.spark.agile.CppResource.CppResources
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeKernelCompiler.{DefaultIncludes, VeCompilerConfig}
 import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file._
@@ -12,9 +12,16 @@ import org.apache.spark.SparkConf
 
 object VeKernelCompiler {
 
-  lazy val DefaultIncludes = {
-    Set("cpp", "cpp/frovedis", "cpp/frovedis/dataframe", "")
-  }
+  lazy val DefaultIncludes = Set(
+    "sources/cpp",
+    "/opt/nec/frovedis/ve/include",
+    "/opt/nec/frovedis/ve/include/frovedis",
+    "/opt/nec/frovedis/ve/include/frovedis/core",
+    "/opt/nec/frovedis/ve/include/frovedis/text",
+    "/opt/nec/ve/mpi/2.18.0/include/",
+    "/opt/nec/frovedis/ve/opt/boost/include",
+    "."
+  )
 
   import VeCompilerConfig.ExtraArgumentPrefix
   final case class ProfileTarget(host: String, port: Int)
@@ -161,19 +168,14 @@ final case class VeKernelCompiler(
 
     val sourcesDir = buildDir.resolve("sources")
     CppResources.All.copyTo(sourcesDir)
-    val includes: List[String] = {
-      CppResources.All.all
-        .map(_.containingDir(sourcesDir))
-        .toList
-        .map(i => i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length))
-    }
+
     Files.write(cSource, sourceCode.getBytes())
     try {
       val oFile = buildDir.resolve(s"${compilationPrefix}.o")
       val soFile = buildDir.resolve(s"${compilationPrefix}.so")
       import scala.sys.process._
       import config._
-      val includesArgs = includes.map(i => s"-I${i}")
+      val includesArgs = DefaultIncludes.map(i => s"-I${i}")
       val command: Seq[String] =
         Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
           "-xc++",
@@ -185,11 +187,16 @@ final case class VeKernelCompiler(
       runHopeOk(Process(command = command, cwd = buildDir.toFile))
 
       val command2 =
-        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
-          "-o",
-          soFile.toString,
-          oFile.toString
-        )
+        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++
+          Seq(
+            "-o",
+            soFile.toString,
+            oFile.toString,
+            "-L/opt/nec/frovedis/ve/lib",
+            "-lfrovedis_core",
+            "-lfrovedis_text",
+          )
+
       runHopeOk(Process(command = command2, cwd = buildDir.toFile))
 
       soFile

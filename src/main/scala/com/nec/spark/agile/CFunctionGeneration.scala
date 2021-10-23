@@ -359,7 +359,6 @@ object CFunctionGeneration {
         "#include \"tuple_hash.hpp\"",
         """#include "frovedis/core/radix_sort.hpp"""",
         """#include "frovedis/dataframe/join.hpp"""",
-        """#include "frovedis/dataframe/join.cc"""",
         """#include "frovedis/core/set_operations.hpp"""",
         UdpDebug.conditional.headers,
         toCodeLinesNoHeader(functionName)
