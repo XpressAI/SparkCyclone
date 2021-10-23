@@ -15,6 +15,7 @@ import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -258,7 +259,8 @@ final case class NativeAggregationEvaluationPlan(
       .mapPartitions { rows =>
         Iterator
           .continually {
-            val mapped = launched.map(UUID.randomUUID().toString.take(4))
+            val executorId: String = SparkEnv.get.executorId
+            val mapped = launched.map(s"${executorId}|${UUID.randomUUID().toString.take(4)}")
             import mapped._
             udpDebug.span(uniqueId, "evaluate a partition") {
               implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
