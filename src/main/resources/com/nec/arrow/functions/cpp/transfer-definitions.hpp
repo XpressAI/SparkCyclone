@@ -135,7 +135,19 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
 
     return res;
 }
+
+void print_offset_vector(const char *data, const int32_t *offsets, const int32_t size, const int32_t count) {
+    std::cout << "print_offset_vector(data, offsets, " << size << ", " << count << ")" << std::endl;
+
+    for (int i = 0; i < count; i++) {
+        std::string str = std::string(data, offsets[i], offsets[i+1] - offsets[i]);
+        std::cout << "str[" << i << "] = '" << str << "'" << std::endl;
+    }
+}
+
 frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, const int32_t size, const int32_t count) {
+    //print_offset_vector(data, offsets, size, count);
+
     frovedis::words ret;
     if (count == 0 || size == 0) {
         return ret;
@@ -208,7 +220,7 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
     #endif
 
-    out->data = (char *)malloc(out->dataSize * sizeof(char));
+    out->data = (char *)malloc(in.chars.size() * sizeof(char));
     frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->data[0] " << out->data[0] << std::endl << std::flush;
