@@ -5,11 +5,8 @@ import com.nec.cmake.ScalaUdpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
-  PrePartitioned,
-  TwoStaged
-}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
 import com.nec.spark.planning.Tracer.DefineTracer
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -19,7 +16,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition, UnknownPartitioning}
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
@@ -45,7 +42,10 @@ final case class NativeAggregationEvaluationPlan(
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
-  override def outputPartitioning: Partitioning = SinglePartition
+  override def outputPartitioning: Partitioning = evaluationMode match {
+    case PrePartitioned(_, n) => UnknownPartitioning(n)
+    case TwoStaged(_, _) => SinglePartition
+  }
 
   def collectInputRows(
     rows: Iterator[InternalRow],
@@ -318,7 +318,7 @@ final case class NativeAggregationEvaluationPlan(
   override protected def doExecute(): RDD[InternalRow] = {
     evaluationMode match {
       case ts @ TwoStaged(_, _)      => executeRowWise(ts)
-      case PrePartitioned(cFunction) => executeOneGo(cFunction)
+      case PrePartitioned(cFunction, _) => executeOneGo(cFunction)
     }
   }
 }
@@ -327,7 +327,7 @@ object NativeAggregationEvaluationPlan {
 
   sealed trait EvaluationMode extends Serializable
   object EvaluationMode {
-    final case class PrePartitioned(cFunction: CFunction) extends EvaluationMode
+    final case class PrePartitioned(cFunction: CFunction, n: Int) extends EvaluationMode
     final case class TwoStaged(partialFunction: CFunction, finalFunction: CFunction)
       extends EvaluationMode
   }

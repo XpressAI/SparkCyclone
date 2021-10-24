@@ -197,7 +197,7 @@ final case class VERewriteStrategy(
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
-                  evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
+                  evaluationMode = EvaluationMode.PrePartitioned(fullFunction, n),
                   child = ShuffleExchangeExec(
                     outputPartitioning =
                       HashPartitioning(expressions = groupingExpressions, numPartitions = n),

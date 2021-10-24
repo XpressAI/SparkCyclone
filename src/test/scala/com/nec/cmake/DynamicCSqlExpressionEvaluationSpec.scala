@@ -28,6 +28,7 @@ object DynamicCSqlExpressionEvaluationSpec {
   val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
+      .config("spark.rpc.askTimeout", 600)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => {
           VERewriteStrategy.failFast = true
@@ -888,6 +889,31 @@ class DynamicCSqlExpressionEvaluationSpec
       "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[Long].collect().toList == List(2))
+    }
+  }
+
+  s"Simple group by produces the same results as CPU" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql = s"""
+      select
+        a, b, sum(c) as f
+      from
+        values ('zzz', 'a', 1), ('yy', 'b', 3), ('x', 'c', 2), ('yy', 'b', 2), ('zzz', 'a', 5), ('x', 'c', 2) as tab1(a, b, c)
+      group by
+        a,
+        b
+      order by
+        f desc
+    """
+    val res = sparkSession.sql(sql)
+    res.explain(true)
+
+    res.debugSqlHere { ds =>
+      val res = ds.as[(String, String, Long)].collect()
+      res.foreach(println)
+      assert(res.toList == List(("zzz", "a", 6), ("yy", "b", 5), ("x", "c", 4)))
+      //assert(res.toList == List(("x", "c", 4), ("yy", "b", 5), ("zzz", "a", 6)))
     }
   }
 

@@ -13,6 +13,7 @@ object DynamicVeSqlExpressionEvaluationSpec {
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
       .config("spark.sql.codegen.comments", value = true)
+      .config("spark.rpc.askTimeout", 600)
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession =>
