@@ -8,6 +8,7 @@ final case class TracingRecord(
   appName: String,
   appId: String,
   executionId: Instant,
+  executorId: Option[String],
   partId: Option[String],
   position: String
 ) {
@@ -26,12 +27,23 @@ object TracingRecord {
     PartialFunction
       .condOpt(str.trim.split(" \\$+ ", -1)) { case Array(a, b, c) =>
         PartialFunction.condOpt(b.split("\\|", -1)) {
+          case Array(appName, appId, exId, executorId, partId) =>
+            TracingRecord(
+              instant = Instant.parse(a),
+              appName = appName,
+              appId = appId,
+              executionId = Instant.parse(exId),
+              executorId = Some(executorId),
+              partId = Some(partId),
+              position = c
+            )
           case Array(appName, appId, exId, partId) =>
             TracingRecord(
               instant = Instant.parse(a),
               appName = appName,
               appId = appId,
               executionId = Instant.parse(exId),
+              executorId = None,
               partId = Some(partId),
               position = c
             )
@@ -41,6 +53,7 @@ object TracingRecord {
               appName = appName,
               appId = appId,
               executionId = Instant.parse(exId),
+              executorId = None,
               partId = None,
               position = c
             )

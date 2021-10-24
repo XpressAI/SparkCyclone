@@ -1,6 +1,6 @@
 package com.nec.spark.agile
 
-import com.nec.cmake.UdpDebug
+import com.nec.cmake.TcpDebug
 import com.nec.spark.planning.Tracer
 import com.nec.spark.planning.Tracer.{TracerDefName, TracerOutput}
 
@@ -144,12 +144,12 @@ object CExpressionEvaluation {
           "std::endl"
         )
       CodeLines.from(
-        UdpDebug
-          .Conditional(TracerDefName, UdpDebug.conditional)
+        TcpDebug
+          .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebug: _*),
         this,
-        UdpDebug
-          .Conditional(TracerDefName, UdpDebug.conditional)
+        TcpDebug
+          .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebugE: _*)
       )
     }
@@ -182,10 +182,10 @@ object CExpressionEvaluation {
 
       val debugInfo = startdebug ++ enddebug
       CodeLines.from(
-        UdpDebug
-          .Conditional(TracerDefName, UdpDebug.conditional)
+        TcpDebug
+          .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebug: _*),
-        UdpDebug.conditionOn("DEBUG")(
+        TcpDebug.conditionOn("DEBUG")(
           CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
         )
       )

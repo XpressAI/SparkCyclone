@@ -17,7 +17,6 @@ object SpanProcessor {
     val partitionSpans = spansFound
       .flatMap(span => span.start.partId.map(partId => span.start.positionName -> span.duration))
       .groupBy(_._1)
-      .view
       .mapValues(_.map(_._2))
       .toMap
       .toList
@@ -25,11 +24,31 @@ object SpanProcessor {
       .reverse
       .map { case (name, durations) =>
         List(
-          s"Total: ${durations.total}",
           s"Count: ${durations.size}",
-          s"Average: ${durations.average}",
+          s"Median: ${durations.median}",
           s"Max: ${durations.max}"
         ) -> name
+      }
+      .tabulate
+
+    val partitionExecutorSpans = spansFound
+      .filter(_.start.executorId.nonEmpty)
+      .flatMap(span =>
+        span.start.partId.map(partId =>
+          (span.start.positionName, span.start.executorId) -> span.duration
+        )
+      )
+      .groupBy(_._1)
+      .mapValues(_.map(_._2))
+      .toList
+      .sortBy { case ((n, exid), cts) => (exid, cts.max) }
+      .reverse
+      .map { case ((pn, exId), durations) =>
+        List(
+          s"Count: ${durations.size}",
+          s"Median: ${durations.median}",
+          s"Max: ${durations.max}"
+        ) -> s"${exId.getOrElse("")} | ${pn}"
       }
       .tabulate
 
@@ -39,7 +58,7 @@ object SpanProcessor {
       .reverse
       .map(span => s"[${span.duration}] ${span.start.positionName}")
 
-    nonPartition ++ partitionSpans
+    List(nonPartition, List("--"), partitionSpans, List("--"), partitionExecutorSpans).flatten
   }
 
   implicit class RichListStr(ls: List[(List[String], String)]) {
@@ -67,8 +86,14 @@ object SpanProcessor {
   }
 
   implicit class RichL(l: List[Duration]) {
-    def average: Duration = {
-      l.total.dividedBy(l.size.toLong)
+    def median: Duration = {
+      if (l.length == 1)
+        l(0)
+      else if (l.length == 2)
+        l(0).plus(l(1)).dividedBy(2)
+      if (l.length % 2 == 0) {
+        l(l.length / 2 - 1).plus(l(l.length / 2)).dividedBy(2)
+      } else l(l.length / 2)
     }
     def total: Duration = {
       l.reduce(_.plus(_))

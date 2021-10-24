@@ -29,10 +29,8 @@ object NativeEvaluator {
     }
   }
 
-  final class VectorEngineNativeEvaluator(
-    proc: veo_proc_handle,
-    nativeCompiler: NativeCompiler
-  ) extends NativeEvaluator
+  final class VectorEngineNativeEvaluator(proc: veo_proc_handle, nativeCompiler: NativeCompiler)
+    extends NativeEvaluator
     with LazyLogging {
     override def forCode(code: String): ArrowNativeInterface = {
       val localLib = nativeCompiler.forCode(code).toString
@@ -45,11 +43,10 @@ object NativeEvaluator {
     def forCode(code: String): ArrowNativeInterface = {
       // defer because we need the executors to initialize first
       logger.debug(s"For evaluation, will refer to the Executor Plugin")
+      val localLibraryPath =
+        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
       DeferredArrowInterface(() =>
-        new VeArrowNativeInterfaceLazyLib(
-          Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
-        )
+        new VeArrowNativeInterfaceLazyLib(Aurora4SparkExecutorPlugin._veo_proc, localLibraryPath)
       )
     }
   }

@@ -1,6 +1,6 @@
 package com.nec.spark.agile.groupby
 
-import com.nec.cmake.UdpDebug
+import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
 import com.nec.spark.agile.StringProducer
@@ -45,7 +45,7 @@ final case class GroupByPartialGenerator(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
-        UdpDebug.conditional.createSock,
+        TcpDebug.conditional.createSock,
         CodeLines
           .from(
             performGrouping(count = s"${inputs.head.name}->count")
@@ -59,7 +59,7 @@ final case class GroupByPartialGenerator(
             }
           )
           .time("Execution of Partial"),
-        UdpDebug.conditional.close
+        TcpDebug.conditional.close
       )
     )
 
