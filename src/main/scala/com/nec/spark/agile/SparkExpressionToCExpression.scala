@@ -4,7 +4,34 @@ import com.nec.spark.agile.CFunctionGeneration._
 
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Contains, Divide, EndsWith, EqualTo, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, SortDirection, SortOrder, Sqrt, StartsWith}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  BinaryOperator,
+  CaseWhen,
+  Cast,
+  Coalesce,
+  Contains,
+  Divide,
+  EndsWith,
+  EqualTo,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNaN,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Not,
+  SortDirection,
+  SortOrder,
+  Sqrt,
+  StartsWith
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.types._
@@ -461,7 +488,7 @@ object SparkExpressionToCExpression {
   }
   def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
     sortDirection match {
-      case expressions.Ascending => Ascending
+      case expressions.Ascending  => Ascending
       case expressions.Descending => Descending
     }
   }

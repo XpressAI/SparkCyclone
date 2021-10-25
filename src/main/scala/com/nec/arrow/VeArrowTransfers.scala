@@ -198,8 +198,8 @@ object VeArrowTransfers extends LazyLogging {
     }
   }
 
-  private def make_veo_double_vector(proc: veo_proc_handle, float8Vector: Float8Vector)(
-    implicit cleanup: Cleanup
+  private def make_veo_double_vector(proc: veo_proc_handle, float8Vector: Float8Vector)(implicit
+    cleanup: Cleanup
   ): nullable_double_vector = {
     val keyName = "double_" + float8Vector.getName + "_" + float8Vector.getDataBuffer.capacity()
     logger.debug(s"Copying Buffer to VE for $keyName")
@@ -259,8 +259,8 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_int_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(
-    implicit cleanup: Cleanup
+  private def make_veo_int_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(implicit
+    cleanup: Cleanup
   ): nullable_int_vector = {
     val keyName = "int2_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
     val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
@@ -304,8 +304,8 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_date_vector(proc: veo_proc_handle, dateDayVector: DateDayVector)(
-    implicit cleanup: Cleanup
+  private def make_veo_date_vector(proc: veo_proc_handle, dateDayVector: DateDayVector)(implicit
+    cleanup: Cleanup
   ): nullable_int_vector = {
     val keyName = "int2_" + dateDayVector.getName + "_" + dateDayVector.getDataBuffer.capacity()
 
@@ -319,8 +319,8 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_varchar_vector(proc: veo_proc_handle, varcharVector: VarCharVector)(
-    implicit cleanup: Cleanup
+  private def make_veo_varchar_vector(proc: veo_proc_handle, varcharVector: VarCharVector)(implicit
+    cleanup: Cleanup
   ): nullable_varchar_vector = {
     val keyName =
       "varchar_" + varcharVector.getName + "_" + varcharVector.getDataBuffer.capacity()
@@ -343,8 +343,8 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_bigint_vector(proc: veo_proc_handle, bigintVector: BigIntVector)(
-    implicit cleanup: Cleanup
+  private def make_veo_bigint_vector(proc: veo_proc_handle, bigintVector: BigIntVector)(implicit
+    cleanup: Cleanup
   ): nullable_bigint_vector = {
     val keyName = "biging_" + bigintVector.getName + "_" + bigintVector.getDataBuffer.capacity()
 
@@ -373,9 +373,7 @@ object VeArrowTransfers extends LazyLogging {
     }
     val dataSize = dataCount * 8
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    requireOk(
-      veo.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
-    )
+    requireOk(veo.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize))
     vec.count = dataCount
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(veoPtr, dataSize)
@@ -460,9 +458,7 @@ object VeArrowTransfers extends LazyLogging {
     }
     val dataSize = dataCount * 8
     val vhTarget = ByteBuffer.allocateDirect(dataSize)
-    requireOk(
-      veo.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize)
-    )
+    requireOk(veo.veo_read_mem(proc, new org.bytedeco.javacpp.Pointer(vhTarget), veoPtr, dataSize))
     vec.count = dataCount
     vec.data = vhTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(veoPtr, dataSize)

@@ -2,7 +2,12 @@ package com.nec.spark.agile
 
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
+  VeNullableDouble,
+  VeNullableFloat,
+  VeNullableInt,
+  VeNullableLong
+}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
@@ -430,9 +435,11 @@ object CFunctionGeneration {
       CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
     val sortingTypes = sort.sorts
-      .flatMap(sortExpression => List(
-        (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
-        ("int", sortExpression.sortOrdering))
+      .flatMap(sortExpression =>
+        List(
+          (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
+          ("int", sortExpression.sortOrdering)
+        )
       )
     val sortingTuple = sort.sorts
       .flatMap(veScalar => List(veScalar.typedExpression.veType.cScalarType, "int"))
@@ -453,32 +460,32 @@ object CFunctionGeneration {
         s"std::vector<${sortingTuple}> sorting_vec(input_0->count);",
         "for (size_t i = 0; i < input_0->count; i++) {",
         "idx[i] = i;",
-        s"sorting_vec[i] = ${sortingTuple}${sort
-          .sorts
-          .flatMap{
+        s"sorting_vec[i] = ${sortingTuple}${sort.sorts
+          .flatMap {
             case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, Some(notNullCode))), _) =>
               List(cCode, notNullCode)
             case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, None)), _) =>
               List(cCode, 1)
 
-          }.mkString("(", ",", ")")};",
+          }
+          .mkString("(", ",", ")")};",
         "}",
-
-        sortingTypes.zipWithIndex.reverse.map {
-          case ((dataType, order), idx) => CodeLines.from(
+        sortingTypes.zipWithIndex.reverse.map { case ((dataType, order), idx) =>
+          CodeLines.from(
             "{",
-            CodeLines.from(
-            s"std::vector<${dataType}> temp(input_0->count);",
-            "for(long i = 0; i < input_0->count; i++) {",
-            CodeLines.from(
-              s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);"
-            ).indented,
-            "}",
-              order match {
-                case Ascending => "frovedis::radix_sort(temp.data(), idx.data(), temp.size());"
-                case Descending => "frovedis::radix_sort_desc(temp.data(), idx.data(), temp.size());"
-              }
-            ).indented,
+            CodeLines
+              .from(
+                s"std::vector<${dataType}> temp(input_0->count);",
+                "for(long i = 0; i < input_0->count; i++) {",
+                CodeLines.from(s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);").indented,
+                "}",
+                order match {
+                  case Ascending => "frovedis::radix_sort(temp.data(), idx.data(), temp.size());"
+                  case Descending =>
+                    "frovedis::radix_sort_desc(temp.data(), idx.data(), temp.size());"
+                }
+              )
+              .indented,
             "}"
           )
         },
@@ -489,14 +496,14 @@ object CFunctionGeneration {
             CodeLines
               .from(
                 s"if(check_valid(${inName}->validityBuffer, idx[i])) {",
-                CodeLines.from(
-                  s"$outputName->data[i] = $inName->data[idx[i]];",
-                  s"set_validity($outputName->validityBuffer, i, 1);"
-                ).indented,
+                CodeLines
+                  .from(
+                    s"$outputName->data[i] = $inName->data[idx[i]];",
+                    s"set_validity($outputName->validityBuffer, i, 1);"
+                  )
+                  .indented,
                 "} else {",
-                CodeLines.from(
-                  s"set_validity($outputName->validityBuffer, i, 0);"
-                ).indented,
+                CodeLines.from(s"set_validity($outputName->validityBuffer, i, 0);").indented,
                 "}"
               )
               .indented
@@ -665,7 +672,7 @@ object CFunctionGeneration {
         "std::vector<size_t> left_out;",
         s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
         "long validityBuffSize = ceil(left_out.size() / 64.0);",
-          veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
+        veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
           joinExpression.fold(whenProj =
             _ =>
               CodeLines.from(

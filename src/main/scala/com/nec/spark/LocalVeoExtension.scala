@@ -15,13 +15,14 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       new VERewriteStrategy(
         ExecutorPluginManagedEvaluator,
-        VeRewriteStrategyOptions(preShufflePartitions =
-          sparkSession.sparkContext.getConf
+        VeRewriteStrategyOptions(
+          preShufflePartitions = sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.preshuffle-partitions")
             .map(_.toInt),
           sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.sort-on-ve")
-            .map(_.toBoolean).getOrElse(false)
+            .map(_.toBoolean)
+            .getOrElse(false)
         )
       )
     )

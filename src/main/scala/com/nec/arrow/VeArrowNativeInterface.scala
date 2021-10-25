@@ -13,8 +13,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import com.nec.util.LruVeoMemCache
 
-final class VeArrowNativeInterface(proc: veo_proc_handle, lib: Long)
-  extends ArrowNativeInterface {
+final class VeArrowNativeInterface(proc: veo_proc_handle, lib: Long) extends ArrowNativeInterface {
   override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
     VeArrowNativeInterface.executeVe(
       proc = proc,
@@ -81,11 +80,9 @@ object VeArrowNativeInterface extends LazyLogging {
     }
   }
 
-  def copyBufferToVe(
-    proc: veo_proc_handle,
-    byteBuffer: ByteBuffer,
-    len: Option[Long] = None
-  )(implicit cleanup: Cleanup): Long = {
+  def copyBufferToVe(proc: veo_proc_handle, byteBuffer: ByteBuffer, len: Option[Long] = None)(
+    implicit cleanup: Cleanup
+  ): Long = {
     val veInputPointer = new LongPointer(8)
 
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */

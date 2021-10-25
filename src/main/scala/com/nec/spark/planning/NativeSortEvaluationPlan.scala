@@ -10,8 +10,11 @@ import com.nec.cmake.ScalaUdpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
+  PrePartitioned,
+  TwoStaged
+}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
 import com.nec.spark.planning.Tracer.DefineTracer
@@ -38,11 +41,11 @@ object NativeSortEvaluationPlan {
 }
 //noinspection DuplicatedCode
 final case class NativeSortEvaluationPlan(
-                                           outputExpressions: Seq[NamedExpression],
-                                           functionPrefix: String,
-                                           sortingMode: SortingMode,
-                                           child: SparkPlan,
-                                           nativeEvaluator: NativeEvaluator
+  outputExpressions: Seq[NamedExpression],
+  functionPrefix: String,
+  sortingMode: SortingMode,
+  child: SparkPlan,
+  nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging {
@@ -117,9 +120,8 @@ final case class NativeSortEvaluationPlan(
 
           val outputArgs = inputVectors.toList.map(_ => None) ++
             outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-          val inputArgs = inputVectors.toList.map(iv =>
-            Some(SupportedVectorWrapper.wrapInput(iv))
-          ) ++ outputVectors.map(_ => None)
+          val inputArgs = inputVectors.toList
+            .map(iv => Some(SupportedVectorWrapper.wrapInput(iv))) ++ outputVectors.map(_ => None)
 
           evaluator.callFunction(
             name = functionPrefix,
@@ -171,5 +173,3 @@ final case class NativeSortEvaluationPlan(
     }
   }
 }
-
-
