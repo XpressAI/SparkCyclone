@@ -18,7 +18,10 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
         VeRewriteStrategyOptions(preShufflePartitions =
           sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.preshuffle-partitions")
-            .map(_.toInt)
+            .map(_.toInt),
+          sparkSession.sparkContext.getConf
+            .getOption(key = "spark.com.nec.spark.sort-on-ve")
+            .map(_.toBoolean).getOrElse(false)
         )
       )
     )

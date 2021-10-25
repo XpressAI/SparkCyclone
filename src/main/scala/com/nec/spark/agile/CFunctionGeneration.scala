@@ -19,7 +19,9 @@ object CFunctionGeneration {
         sys.error(s"unsupported dataType $x")
     }
   }
-
+  trait SortOrdering
+  final case object Descending extends SortOrdering
+  final case object Ascending extends SortOrdering
   sealed trait CVector {
     def replaceName(search: String, replacement: String): CVector
     def name: String
@@ -332,6 +334,7 @@ object CFunctionGeneration {
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
 
+  final case class VeSortExpression(typedExpression: TypedCExpression2, sortOrdering: SortOrdering)
   def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
     cVector.veType match {
       case VeString =>
@@ -421,10 +424,19 @@ object CFunctionGeneration {
     )
   }
 
-  def renderSort(sort: VeSort[CScalarVector, CExpression]): CFunction = {
+  def renderSort(sort: VeSort[CScalarVector, VeSortExpression]): CFunction = {
+
     val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
       CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
+    val sortingTypes = sort.sorts
+      .flatMap(sortExpression => List(
+        (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
+        ("int", sortExpression.sortOrdering))
+      )
+    val sortingTuple = sort.sorts
+      .flatMap(veScalar => List(veScalar.typedExpression.veType.cScalarType, "int"))
+      .mkString("std::tuple<", ", ", ">")
     CFunction(
       inputs = sort.data,
       outputs = sortOutput,
@@ -437,22 +449,55 @@ object CFunctionGeneration {
           )
         },
         "// create an array of indices, which by default are in order, but afterwards are out of order.",
-        s"std::vector<size_t> idx(input_0->count);",
+        "std::vector<size_t> idx(input_0->count);",
+        s"std::vector<${sortingTuple}> sorting_vec(input_0->count);",
         "for (size_t i = 0; i < input_0->count; i++) {",
-        "  idx[i] = i;",
+        "idx[i] = i;",
+        s"sorting_vec[i] = ${sortingTuple}${sort
+          .sorts
+          .flatMap{
+            case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, Some(notNullCode))), _) =>
+              List(cCode, notNullCode)
+            case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, None)), _) =>
+              List(cCode, 1)
+
+          }.mkString("(", ",", ")")};",
         "}",
-        "// create a 'grouping_vec', on which we will be able to do the radix sort",
-        "std::vector<double> grouping_vec(input_1->data, input_1->data + input_1->count);",
-        "frovedis::radix_sort(grouping_vec, idx, input_0->count);",
+
+        sortingTypes.zipWithIndex.reverse.map {
+          case ((dataType, order), idx) => CodeLines.from(
+            "{",
+            CodeLines.from(
+            s"std::vector<${dataType}> temp(input_0->count);",
+            "for(long i = 0; i < input_0->count; i++) {",
+            CodeLines.from(
+              s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);"
+            ).indented,
+            "}",
+              order match {
+                case Ascending => "frovedis::radix_sort(temp.data(), idx.data(), temp.size());"
+                case Descending => "frovedis::radix_sort_desc(temp.data(), idx.data(), temp.size());"
+              }
+            ).indented,
+            "}"
+          )
+        },
         "// prevent deallocation of input vector -- it is deallocated by the caller",
-        "new (&grouping_vec) std::vector<double>;",
         s"for(int i = 0; i < input_0->count; i++) {",
         sort.data.zip(sortOutput).map {
           case (CScalarVector(inName, veType), CScalarVector(outputName, _)) =>
             CodeLines
               .from(
-                s"$outputName->data[i] = $inName->data[idx[i]];",
-                s"set_validity($outputName->validityBuffer, i, 1);"
+                s"if(check_valid(${inName}->validityBuffer, idx[i])) {",
+                CodeLines.from(
+                  s"$outputName->data[i] = $inName->data[idx[i]];",
+                  s"set_validity($outputName->validityBuffer, i, 1);"
+                ).indented,
+                "} else {",
+                CodeLines.from(
+                  s"set_validity($outputName->validityBuffer, i, 0);"
+                ).indented,
+                "}"
               )
               .indented
         },

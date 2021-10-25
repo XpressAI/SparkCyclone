@@ -2,7 +2,7 @@ package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.agile.SparkExpressionToCExpression.{EvalFallback, sparkTypeToVeType}
+import com.nec.spark.agile.SparkExpressionToCExpression.{EvalFallback, eval, replaceReferences, sparkSortDirectionToSortOrdering, sparkTypeToScalarVeType, sparkTypeToVeType}
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection}
 import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
@@ -21,12 +21,18 @@ import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec
 import scala.collection.immutable
 import scala.util.Try
 
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, CScalarVector, TypedCExpression2, VeSort, VeSortExpression}
+import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
+
 object VERewriteStrategy {
   var _enabled: Boolean = true
   var failFast: Boolean = false
-  final case class VeRewriteStrategyOptions(preShufflePartitions: Option[Int])
+  final case class VeRewriteStrategyOptions(preShufflePartitions: Option[Int], enableVeSorting: Boolean)
   object VeRewriteStrategyOptions {
-    val default: VeRewriteStrategyOptions = VeRewriteStrategyOptions(preShufflePartitions = Some(8))
+    val default: VeRewriteStrategyOptions = VeRewriteStrategyOptions(
+      preShufflePartitions = Some(8),
+      enableVeSorting = false
+    )
   }
 
   implicit class SequenceList[A, B](l: List[Either[A, B]]) {
@@ -207,14 +213,31 @@ final case class VERewriteStrategy(
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
         case Sort(orders, global, child) => {
-          val code = CFunctionGeneration.renderSort()
-          new NativeSortEvaluationPlan(
+          val inputsList = child.output.zipWithIndex.map { case (att, id) =>
+            sparkTypeToScalarVeType(att.dataType).makeCVector(s"${InputPrefix}${id}").asInstanceOf[CScalarVector]
+          }.toList
+
+          implicit val fallback: EvalFallback = EvalFallback.noOp
+          val orderingExpressions = orders.map{
+            case SortOrder(child, direction, _, _) => eval(replaceReferences(InputPrefix, plan.inputSet.toList, child))
+              .map(elem =>
+                VeSortExpression(TypedCExpression2(sparkTypeToScalarVeType(child.dataType), elem), sparkSortDirectionToSortOrdering(direction))
+              )
+          }.toList
+            .sequence
+            .fold(expr => sys.error(s"Failed to match expression ${expr}, with inputs ${plan.inputSet}"), identity)
+
+
+          val veSort = VeSort(inputsList, orderingExpressions)
+          val code = CFunctionGeneration.renderSort(veSort)
+          val sortPlan = new NativeSortEvaluationPlan(
             outputExpressions = child.output,
             functionPrefix = functionPrefix,
-            NativeSortEvaluationPlan.SortingMode.Coalesced(),
-            child,
+            Coalesced(code),
+            planLater(child),
             nativeEvaluator = nativeEvaluator
           )
+          List(sortPlan)
         }
         case _ => Nil
       }

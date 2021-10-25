@@ -102,7 +102,7 @@ final case class NativeSortEvaluationPlan(
 
     child
       .execute()
-      .coalesce(1, shuffle = true)
+      .coalesce(1)
       .mapPartitions { rows =>
         implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
