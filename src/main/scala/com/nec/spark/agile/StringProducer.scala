@@ -19,7 +19,7 @@ object StringProducer {
 
   def copyString(inputName: String): StringProducer = FrovedisCopyStringProducer(inputName)
 
-//  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
+  //def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
 
   private final case class ImpCopyStringProducer(inputName: String)
     extends ImperativeStringProducer
@@ -58,6 +58,9 @@ object StringProducer {
     override def init(outputName: String, size: String): CodeLines =
       CodeLines.from(
         s"frovedis::words ${wordName(outputName)} = varchar_vector_to_words(${inputName});",
+        s"""//std::cout << "${wordName(outputName)}.print():" << std::endl;""",
+        s"""//${wordName(outputName)}.print();""",
+        s"""//std::cout << "end of ${wordName(outputName)}.print()" << std::endl;""",
         s"""std::vector<size_t> ${frovedisStarts(outputName)}(${size});""",
         s"""std::vector<size_t> ${frovedisLens(outputName)}(${size});"""
       )
@@ -67,9 +70,12 @@ object StringProducer {
       s"""std::vector<int> ${newChars(outputName)} = concat_words(${wordName(
         outputName
       )}, "", ${newStarts(outputName)});""",
-      s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
-      s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
-      s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
+      s"""//std::string ${newChars(outputName)}_s = frovedis::int_to_char(${newChars(outputName)});""",
+      s"""//std::cout << "int_to_char(newChars) = '" << ${newChars(outputName)}_s << "'" << std::endl;""",
+      s"""${wordName(outputName)}.chars = std::move(${newChars(outputName)});""",
+      s"""${wordName(outputName)}.starts = std::move(${newStarts(outputName)});""",
+      s"""${wordName(outputName)}.lens = std::move(${frovedisLens(outputName)});""",
+      s"//${wordName(outputName)}.print();",
       s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
     )
   }
@@ -128,6 +134,7 @@ object StringProducer {
         case _: ImperativeStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
+            s"""//std::cout << "${tmpString} = '" << ${tmpString} << "'" << std::endl;""",
             s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
             s"""${outputName}->count = ${tmpCount};""",
             s"""${outputName}->dataSize = ${tmpCurrentOffset};""",
