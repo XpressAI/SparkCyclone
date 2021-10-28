@@ -1,9 +1,9 @@
 package com.nec.arrow
 
-import com.nec.arrow.ArrowInterfaces.{nullable_bigint_vector_to_BigIntVector, nullable_double_vector_to_float8Vector, nullable_int_vector_to_BitVector, nullable_int_vector_to_IntVector, nullable_int_vector_to_SmallIntVector, nullable_varchar_vector_to_VarCharVector}
+import com.nec.arrow.ArrowInterfaces.{nullable_bigint_vector_to_BigIntVector, nullable_bigint_vector_to_TimeStampVector, nullable_double_vector_to_float8Vector, nullable_int_vector_to_BitVector, nullable_int_vector_to_IntVector, nullable_int_vector_to_SmallIntVector, nullable_varchar_vector_to_VarCharVector}
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.{VectorInputNativeArgument, VectorOutputNativeArgument}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, TimeStampVectorOutputWrapper, VarCharVectorOutputWrapper}
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.VeArrowNativeInterface.{Cleanup, copyBufferToVe, requireOk, requirePositive}
 import com.nec.aurora.Aurora
@@ -79,6 +79,15 @@ object VeArrowTransfers extends LazyLogging {
         (() => {
           veo_read_nullable_int_vector(proc, structVector, byteBuffer)
           nullable_int_vector_to_BitVector(structVector, bitVector)
+        })
+      case TimeStampVectorOutputWrapper(tsWrapper) =>
+        val structVector = new nullable_bigint_vector()
+        val byteBuffer = nullableBigintVectorToByteBuffer(structVector)
+        Aurora.veo_args_set_stack(our_args, 1, index, byteBuffer, byteBuffer.limit())
+
+        (() => {
+          veo_read_nullable_bigint_vector(proc, structVector, byteBuffer)
+          nullable_bigint_vector_to_TimeStampVector(structVector, tsWrapper)
         })
     }
   }
@@ -174,6 +183,18 @@ object VeArrowTransfers extends LazyLogging {
             0,
             index,
             nullableIntVectorToByteBuffer(bit_vector_raw),
+            20L
+          )
+        )
+      case TimeStampVectorInputWrapper(tsVector) =>
+        val long_vector_raw = make_veo_bigint_vector(proc, tsVector)
+
+        requireOk(
+          Aurora.veo_args_set_stack(
+            our_args,
+            0,
+            index,
+            nullableBigintVectorToByteBuffer(long_vector_raw),
             20L
           )
         )
@@ -321,7 +342,7 @@ object VeArrowTransfers extends LazyLogging {
   private def make_veo_bigint_vector(proc: Aurora.veo_proc_handle, bigintVector: BigIntVector)(
     implicit cleanup: Cleanup
   ): nullable_bigint_vector = {
-    val keyName = "biging_" + bigintVector.getName + "_" + bigintVector.getDataBuffer.capacity()
+    val keyName = "bigint_" + bigintVector.getName + "_" + bigintVector.getDataBuffer.capacity()
 
     logger.debug(s"Copying Buffer to VE for $keyName")
 
@@ -329,6 +350,21 @@ object VeArrowTransfers extends LazyLogging {
     vcvr.count = bigintVector.getValueCount
     vcvr.data = copyBufferToVe(proc, bigintVector.getDataBuffer.nioBuffer())(cleanup)
     vcvr.validityBuffer = copyBufferToVe(proc, bigintVector.getValidityBuffer.nioBuffer())(cleanup)
+
+    vcvr
+  }
+
+  private def make_veo_bigint_vector(proc: Aurora.veo_proc_handle, tsVector: TimeStampMicroTZVector)(
+    implicit cleanup: Cleanup
+  ): nullable_bigint_vector = {
+    val keyName = "timestamp_" + tsVector.getName + "_" + tsVector.getDataBuffer.capacity()
+
+    logger.debug(s"Copying Buffer to VE for $keyName")
+
+    val vcvr = new nullable_bigint_vector()
+    vcvr.count = tsVector.getValueCount
+    vcvr.data = copyBufferToVe(proc, tsVector.getDataBuffer.nioBuffer())(cleanup)
+    vcvr.validityBuffer = copyBufferToVe(proc, tsVector.getValidityBuffer.nioBuffer())(cleanup)
 
     vcvr
   }

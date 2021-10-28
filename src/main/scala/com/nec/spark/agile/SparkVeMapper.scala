@@ -511,21 +511,23 @@ object SparkVeMapper {
 
   def sparkTypeToScalarVeType(dataType: DataType): VeScalarType = {
     dataType match {
-      case DoubleType  => VeScalarType.veNullableDouble
-      case IntegerType => VeScalarType.veNullableInt
-      case LongType    => VeScalarType.veNullableLong
-      case ShortType   => VeScalarType.veNullableInt
-      case BooleanType => VeScalarType.veNullableInt
+      case DoubleType    => VeScalarType.veNullableDouble
+      case IntegerType   => VeScalarType.veNullableInt
+      case LongType      => VeScalarType.veNullableLong
+      case ShortType     => VeScalarType.veNullableInt
+      case BooleanType   => VeScalarType.veNullableInt
+      case TimestampType => VeScalarType.veNullableLong
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
     dataType match {
-      case DoubleType  => VeScalarType.veNullableDouble
-      case IntegerType => VeScalarType.veNullableInt
-      case LongType    => VeScalarType.veNullableLong
-      case ShortType   => VeScalarType.veNullableInt
-      case BooleanType => VeScalarType.veNullableInt
-      case StringType  => VeString
+      case DoubleType    => VeScalarType.veNullableDouble
+      case IntegerType   => VeScalarType.veNullableInt
+      case LongType      => VeScalarType.veNullableLong
+      case ShortType     => VeScalarType.veNullableInt
+      case BooleanType   => VeScalarType.veNullableInt
+      case StringType    => VeString
+      case TimestampType => VeScalarType.veNullableLong
     }
   }
 

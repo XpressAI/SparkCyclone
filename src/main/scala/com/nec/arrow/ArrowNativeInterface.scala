@@ -146,6 +146,11 @@ object ArrowNativeInterface {
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = bitVector
         }
+
+        final case class TimeStampVectorInputWrapper(tsVector: TimeStampMicroTZVector)
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = tsVector
+        }
       }
     }
     final case class VectorOutputNativeArgument(
@@ -179,6 +184,10 @@ object ArrowNativeInterface {
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = bitVector
         }
+        final case class TimeStampVectorOutputWrapper(tsVector: TimeStampMicroTZVector)
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = tsVector
+        }
       }
     }
 
@@ -211,6 +220,7 @@ object ArrowNativeInterface {
         case bigIntVector: BigIntVector => InputVectorWrapper.BigIntVectorInputWrapper(bigIntVector)
         case smallIntVector: SmallIntVector => InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
         case bitVector: BitVector => InputVectorWrapper.BitVectorInputWrapper(bitVector)
+        case tsVector: TimeStampMicroTZVector => InputVectorWrapper.TimeStampVectorInputWrapper(tsVector)
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {
