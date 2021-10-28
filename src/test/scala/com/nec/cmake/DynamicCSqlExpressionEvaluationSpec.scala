@@ -5,14 +5,7 @@ import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.{NativeAggregationEvaluationPlan, VERewriteStrategy}
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC,
-  SampleColD
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -21,7 +14,10 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.scalactic.{source, Prettifier}
+import org.scalactic.{Prettifier, source}
+
+import java.time.Instant
+import scala.math.Ordered.orderingToOrdered
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -889,6 +885,17 @@ class DynamicCSqlExpressionEvaluationSpec
       "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[Long].collect().toList == List(2))
+    }
+  }
+
+  s"Timestamps are supported" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val before = Instant.now();
+    val sql =
+      "select max(b) from values (1, NOW()), (2, NOW()), (3, NOW()) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Instant].collect().toList.head > before)
     }
   }
 
