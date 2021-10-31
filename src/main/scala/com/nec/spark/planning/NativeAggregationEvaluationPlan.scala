@@ -19,22 +19,26 @@
  */
 package com.nec.spark.planning
 
+import java.util.UUID
+
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.language.dynamics
+
+import com.nec.arrow.AccessibleArrowColumnVector
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
-  PrePartitioned,
-  TwoStaged
-}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
 import com.nec.spark.planning.Tracer.DefineTracer
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-import org.apache.spark.{SparkEnv, TaskContext}
+
+import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -43,12 +47,8 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartiti
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.UTF8String
-
-import java.util.UUID
-import scala.collection.JavaConverters.asJavaIterableConverter
-import scala.language.dynamics
 
 //noinspection DuplicatedCode
 final case class NativeAggregationEvaluationPlan(
@@ -64,6 +64,8 @@ final case class NativeAggregationEvaluationPlan(
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
+
+  override def supportsColumnar: Boolean = true
 
   override def outputPartitioning: Partitioning = SinglePartition
 
@@ -247,6 +249,114 @@ final case class NativeAggregationEvaluationPlan(
       }
   }
 
+  private def executeColumnWise(twoStaged: TwoStaged): RDD[ColumnarBatch] = {
+    import twoStaged._
+    val partialFunctionName = s"${functionPrefix}_partial"
+    val finalFunctionName = s"${functionPrefix}_final"
+
+    val evaluator = nativeEvaluator.forCode(
+      List(
+        partialFunction.toCodeLines(partialFunctionName),
+        finalFunction
+          .toCodeLinesNoHeader(finalFunctionName)
+      ).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
+    )
+
+    logger.debug(s"Will execute columnar NewCEvaluationPlan for child ${child}; ${child.output}")
+
+    child
+      .executeColumnar()
+      .mapPartitions { batches =>
+        batches.map { batch =>
+
+          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+
+          val inputVectors = child
+            .output
+            .indices
+            .map(batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
+
+          val partialOutputVectors: List[ValueVector] =
+            partialFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+
+          try {
+
+            val outputArgs = inputVectors.toList.map(_ => None) ++
+              partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+            val inputArgs = inputVectors.toList.map(iv =>
+              Some(SupportedVectorWrapper.wrapInput(iv))
+            ) ++ partialOutputVectors.map(_ => None)
+
+            evaluator.callFunction(
+              name = partialFunctionName,
+              inputArguments = inputArgs,
+              outputArguments = outputArgs
+            )
+            val vectors = partialOutputVectors
+              .map(vector => new AccessibleArrowColumnVector(vector))
+            new ColumnarBatch(vectors.toArray, vectors.head.getArrowValueVector.getValueCount)
+          } finally {
+            inputVectors.foreach(_.close())
+          }
+        }
+      }
+      .coalesce(1, shuffle = true)
+      .mapPartitions { iteratorColBatch => iteratorColBatch.map{batch =>
+
+            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+              .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
+
+            val partialInputVectors: List[ValueVector] =
+              finalFunction
+                .inputs
+                .indices
+                .map(idx => batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
+                .toList
+
+            val outputVectors = outputExpressions
+              .flatMap {
+                case Alias(child, _) =>
+                  child match {
+                    // disabled for group-by integration
+                    //                    case ae: AggregateExpression =>
+                    //                      ae.aggregateFunction.aggBufferAttributes
+                    case other => List(other)
+                  }
+                case a @ AttributeReference(_, _, _, _) =>
+                  List(a)
+              }
+              .zipWithIndex
+              .map { case (ne, idx) =>
+                CFunctionGeneration.allocateFrom(
+                  SparkExpressionToCExpression
+                    .sparkTypeToVeType(ne.dataType)
+                    .makeCVector(s"out_${idx}")
+                )(allocator)
+              }
+
+            try {
+              evaluator.callFunction(
+                name = finalFunctionName,
+                inputArguments = partialInputVectors.map(iv =>
+                  Some(SupportedVectorWrapper.wrapInput(iv))
+                ) ++ outputVectors.map(_ => None),
+                outputArguments = finalFunction.inputs.map(_ => None) ++
+                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+              )
+
+              val cnt = outputVectors.head.getValueCount
+              logger.info(s"Got ${cnt} results back; ${outputVectors}")
+
+              val outputColumnVectors = outputVectors.map(vector => new AccessibleArrowColumnVector(vector))
+              new ColumnarBatch(outputColumnVectors.toArray, cnt)
+            } finally {
+              partialInputVectors.foreach(_.close())
+            }
+          }
+      }
+  }
+
   private def executeOneGo(cFunctionNaked: CFunction): RDD[InternalRow] = {
     val cFunction = Tracer.includeInFunction(cFunctionNaked)
     val functionName = s"${functionPrefix}_full"
@@ -336,10 +446,99 @@ final case class NativeAggregationEvaluationPlan(
       .flatMap(identity)
   }
 
+  private def executeOneGoColumnar(cFunctionNaked: CFunction): RDD[ColumnarBatch] = {
+    val cFunction = Tracer.includeInFunction(cFunctionNaked)
+    val functionName = s"${functionPrefix}_full"
+
+    val compilerConfig = VeCompilerConfig.fromSparkConf(sparkContext.getConf)
+    val udpDebug = compilerConfig.maybeProfileTarget
+      .map(pt => ScalaTcpDebug.TcpTarget(pt))
+      .getOrElse(ScalaTcpDebug.NoOp)
+
+    val launched = Tracer.Launched(
+      s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
+    )
+
+    val evaluator = udpDebug.span(launched.launchId, "prepare evaluator") {
+      nativeEvaluator.forCode(
+        List(DefineTracer, cFunction.toCodeLines(functionName))
+          .reduce(_ ++ _)
+          .lines
+          .mkString("\n", "\n", "\n")
+      )
+    }
+
+    logger.debug(
+      s"[${launched.launchId}] Will execute NewCEvaluationPlan for child ${child}; ${child.output}"
+    )
+
+    child
+      .executeColumnar()
+      .mapPartitions { batches => batches.map { batch =>
+            val executorId: String = SparkEnv.get.executorId
+            val mapped = launched.map(s"${executorId}|${UUID.randomUUID().toString.take(4)}")
+            import mapped._
+            udpDebug.span(uniqueId, "evaluate a partition") {
+              implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+                .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+
+              val inputValueVectors = (0 until batch.numCols())
+                .map(idx => batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
+
+              val tracer = createVector()
+              logger.debug(s"[$uniqueId] preparing execution")
+              logger.info(s"Tracer ==> ${tracer}")
+              val inputVectors =
+                Tracer.includeInInputs(tracer, inputValueVectors.toList)
+              val outputVectors: List[FieldVector] =
+                cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+
+              try {
+                val outputArgs = inputVectors.map(_ => None) ++
+                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+                val inputArgs = inputVectors.map(iv =>
+                  Some(SupportedVectorWrapper.wrapInput(iv))
+                ) ++ outputVectors.map(_ => None)
+
+                val startTime = java.time.Instant.now()
+                udpDebug.span(uniqueId, "evaluate") {
+                  evaluator.callFunction(
+                    name = functionName,
+                    inputArguments = inputArgs,
+                    outputArguments = outputArgs
+                  )
+                }
+                val endTime = java.time.Instant.now()
+                val timeTaken = java.time.Duration.between(startTime, endTime)
+
+                val cnt = outputVectors.head.getValueCount
+                logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
+                val arrowOutputVectors = outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+
+                new ColumnarBatch(arrowOutputVectors.toArray, cnt)
+              } finally {
+                inputVectors.foreach(_.close())
+              }
+            }
+          }
+      }
+  }
+
   override protected def doExecute(): RDD[InternalRow] = {
+
     evaluationMode match {
-      case ts @ TwoStaged(_, _)      => executeRowWise(ts)
+      case ts @ TwoStaged(_, _)      =>  executeRowWise(ts)
+
       case PrePartitioned(cFunction) => executeOneGo(cFunction)
+
+    }
+  }
+
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    evaluationMode match {
+      case ts @ TwoStaged(_, _)      => executeColumnWise(ts)
+
+      case PrePartitioned(cFunction) => executeOneGoColumnar(cFunction)
     }
   }
 }

@@ -52,7 +52,7 @@ object VeKernelCompiler {
     nccPath: String = "/opt/nec/ve/bin/ncc",
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
-    maybeProfileTarget: Option[ProfileTarget] = Some(ProfileTarget.default),
+    maybeProfileTarget: Option[ProfileTarget] = None,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
