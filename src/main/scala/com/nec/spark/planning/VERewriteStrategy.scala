@@ -267,7 +267,7 @@ final case class VERewriteStrategy(
           val veSort = VeSort(inputsList, orderingExpressions)
           val code = CFunctionGeneration.renderSort(veSort)
           val sortPlan = new NativeSortEvaluationPlan(
-            outputExpressions = child.output,
+            outputExpressions = plan.output,
             functionPrefix = functionPrefix,
             Coalesced(code),
             planLater(child),
