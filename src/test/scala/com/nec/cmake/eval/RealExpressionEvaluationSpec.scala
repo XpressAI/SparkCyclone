@@ -137,19 +137,41 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   "We can sort" in {
     expect(
       evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
-        CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
+        VeSortExpression(
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble, CExpression(cCode = "input_1->data[i]", isNotNullCode = None
+            )
+          ),
+          Ascending
+        )
       ) ==
         List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
     )
   }
 
-  "We can sort (3 cols)" ignore {
+  "We can sort (3 cols)" in {
     val results =
       evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
-        CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+        VeSortExpression(
+        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression(cCode = "input_2->data[i]", isNotNullCode = None)),
+          Ascending
+        )
       )
     val expected =
       List[(Double, Double, Double)]((2.0, 2.0, 0.0), (90.0, 5.0, 1.0), (1.0, 4.0, 3.0))
+    expect(results == expected)
+  }
+
+  "We can sort (3 cols) desc" in {
+    val results =
+      evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
+        VeSortExpression(
+          TypedCExpression2(VeScalarType.VeNullableDouble, CExpression(cCode = "input_2->data[i]", isNotNullCode = None)),
+          Descending
+        )
+      )
+    val expected =
+      List[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))
     expect(results == expected)
   }
 
@@ -842,7 +864,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
   }
 
-  def evalSort[Data](input: Data*)(sorts: CExpression*)(implicit
+  def evalSort[Data](input: Data*)(sorts: VeSortExpression*)(implicit
     inputArguments: InputArgumentsScalar[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {

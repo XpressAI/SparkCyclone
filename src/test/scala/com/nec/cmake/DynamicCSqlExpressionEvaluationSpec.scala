@@ -3,25 +3,19 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.{NativeAggregationEvaluationPlan, VERewriteStrategy}
+import com.nec.spark.planning.{NativeAggregationEvaluationPlan, NativeSortEvaluationPlan, VERewriteStrategy}
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC,
-  SampleColD
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.scalactic.{source, Prettifier}
+import org.scalactic.{Prettifier, source}
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -164,13 +158,14 @@ class DynamicCSqlExpressionEvaluationSpec
 
   val sql_select_sort2 =
     s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select with addition" ignore withSparkSession2(configuration) {
+  "Support order by with select with addition" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._
-      sparkSession.sql(sql_select_sort2).ensureCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql_select_sort2).ensureSortEvaluating().debugSqlHere { ds =>
+        val a = ds.as[(Option[Double], Option[Double], Option[Double])]
         expectVertical(
-          ds.as[(Option[Double], Option[Double], Option[Double])].collect().toList.sorted,
+          a.collect().toList.sorted,
           List(
             (Some(4.0), None, None),
             (Some(2.0), None, None),
@@ -190,6 +185,34 @@ class DynamicCSqlExpressionEvaluationSpec
       }
   }
 
+  val sql_select_sort_desc =
+    s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB} DESC"
+  "Support order by DESC with select with addition" in withSparkSession2(configuration) {
+    sparkSession =>
+      makeCsvNumsMultiColumn(sparkSession)
+      import sparkSession.implicits._
+      sparkSession.sql(sql_select_sort_desc).debugSqlHere { ds =>
+        val a = ds.as[(Option[Double], Option[Double], Option[Double])]
+        expectVertical(
+          a.collect().toList,
+          List(
+            (Some(52.0), Some(6.0), Some(58.0)),
+            (Some(4.0), Some(5.0), Some(9.0)),
+            (None, Some(5.0), None),
+            (Some(3.0), Some(4.0), Some(7.0)),
+            (Some(2.0), Some(3.0), Some(5.0)),
+            (None, Some(3.0), None),
+            (Some(1.0), Some(2.0), Some(3.0)),
+            (Some(4.0), None, None),
+            (Some(2.0), None, None),
+            (None, None, None),
+            (Some(2.0), None, None),
+            (None, None, None),
+            (Some(20.0), None, None),
+          )
+        )
+      }
+  }
   "Support group by sum with multiple grouping columns" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
@@ -640,11 +663,11 @@ class DynamicCSqlExpressionEvaluationSpec
     }
 
     val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
-    s"Ordering with a group by: ${sql7}" ignore withSparkSession2(configuration) { sparkSession =>
+    s"Ordering with a group by: ${sql7}" in withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql7).ensureNewCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql7).ensureSortEvaluating().debugSqlHere { ds =>
         assert(
           ds.as[(Option[Double], Option[Double])].collect().toList == List(
             (Some(4.0), None),
@@ -671,7 +694,7 @@ class DynamicCSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql8).ensureNewCEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql8).ensureSortEvaluating().debugSqlHere { ds =>
         assert(
           ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])]
             .collect()
@@ -906,6 +929,17 @@ class DynamicCSqlExpressionEvaluationSpec
       dataSet
     }
 
+    def ensureSortEvaluating(): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(
+        thePlan
+          .toString()
+          .contains(
+            NativeSortEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
+          )
+      )
+      dataSet
+    }
     def ensureJoinPlanEvaluated(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
 //      expect(thePlan.toString().contains("GeneratedJoinPlan"))

@@ -158,3 +158,8 @@ more performant due to avoiding a coalesce/shuffle afterwards.
 --conf spark.com.nec.spark.preshuffle-partitions=8
 ```
 
+##Sorting on Ve
+By default all sorting is done on CPU, however there exists possibility to enable sorting on VE.
+```
+--conf spark.com.nec.spark.sort-on-ve=true
+```

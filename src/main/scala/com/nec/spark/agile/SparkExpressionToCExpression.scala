@@ -1,6 +1,8 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
+
+import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
@@ -25,10 +27,13 @@ import org.apache.spark.sql.catalyst.expressions.{
   Least,
   Literal,
   Not,
+  SortDirection,
+  SortOrder,
   Sqrt,
   StartsWith
 }
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
+import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -481,5 +486,10 @@ object SparkExpressionToCExpression {
       case StringType  => VeString
     }
   }
-
+  def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
+    sortDirection match {
+      case expressions.Ascending  => Ascending
+      case expressions.Descending => Descending
+    }
+  }
 }

@@ -43,7 +43,11 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
     pluginContext
       .conf()
-      .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(",") + "," + sc.getConf.get("spark.sql.extensions", ""))
+      .set(
+        "spark.sql.extensions",
+        allExtensions.map(_.getCanonicalName).mkString(",") + "," + sc.getConf
+          .get("spark.sql.extensions", "")
+      )
 
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
