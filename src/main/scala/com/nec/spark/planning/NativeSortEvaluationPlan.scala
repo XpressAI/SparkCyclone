@@ -19,25 +19,16 @@
  */
 package com.nec.spark.planning
 
-import java.util.UUID
-
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.language.dynamics
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
+import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CFunction
-import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
-  PrePartitioned,
-  TwoStaged
-}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
-import com.nec.spark.planning.Tracer.DefineTracer
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -67,7 +58,8 @@ final case class NativeSortEvaluationPlan(
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
-  with LazyLogging {
+  with LazyLogging
+  with SupportsArrowColumns {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 

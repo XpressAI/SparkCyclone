@@ -256,7 +256,7 @@ final case class VERewriteStrategy(
           }
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
-          List(evaluationPlan)
+          List(new ArrowColumnarToRowPlan(evaluationPlan))
         case Sort(orders, global, child) => {
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToScalarVeType(att.dataType)
@@ -289,10 +289,10 @@ final case class VERewriteStrategy(
             outputExpressions = plan.output,
             functionPrefix = functionPrefix,
             Coalesced(code),
-            planLater(child),
+            new RowToArrowColumnarPlan(planLater(child)),
             nativeEvaluator = nativeEvaluator
           )
-          List(sortPlan)
+          List(new ArrowColumnarToRowPlan(sortPlan))
         }
         case _ => Nil
       }
@@ -308,5 +308,4 @@ final case class VERewriteStrategy(
       }
     } else Nil
   }
-
 }

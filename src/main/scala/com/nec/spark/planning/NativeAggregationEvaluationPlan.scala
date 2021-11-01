@@ -59,7 +59,8 @@ final case class NativeAggregationEvaluationPlan(
   nativeEvaluator: NativeEvaluator
 ) extends SparkPlan
   with UnaryExecNode
-  with LazyLogging {
+  with LazyLogging
+  with SupportsArrowColumns {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
