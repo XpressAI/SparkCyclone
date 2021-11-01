@@ -38,14 +38,15 @@ object StringProducer {
     def inputName: String
   }
 
-  private final case class FrovedisCopyStringProducer(inputName: String)
+  final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
     with CopyStringProducer {
+
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
 
     def frovedisLens(outputName: String) = s"${outputName}_lens"
 
-    def wordName(outputName: String) = s"${outputName}_words"
+    def wordName(outputName: String) = s"${outputName}_input_words"
     def newChars(outputName: String) = s"${outputName}_new_chars"
     def newStarts(outputName: String) = s"${outputName}_new_starts"
 
@@ -64,14 +65,21 @@ object StringProducer {
 
     override def complete(outputName: String): CodeLines = CodeLines.from(
       s"""std::vector<size_t> ${newStarts(outputName)};""",
+      CodeLines.debugHere,
       s"""std::vector<int> ${newChars(outputName)} = concat_words(${wordName(
         outputName
       )}, "", ${newStarts(outputName)});""",
+      CodeLines.debugHere,
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
+      CodeLines.debugHere,
       s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
+      CodeLines.debugHere,
       s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
-      s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
+      CodeLines.debugHere,
+      s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});",
+      CodeLines.debugHere
     )
+
   }
 
   final case class StringChooser(condition: CExpression, ifTrue: String, otherwise: String)
