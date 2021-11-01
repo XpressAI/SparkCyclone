@@ -22,6 +22,7 @@ package com.nec.spark.planning
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.language.dynamics
 
+import com.nec.arrow.AccessibleArrowColumnVector
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
@@ -64,6 +65,8 @@ final case class NativeSortEvaluationPlan(
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
+
+  override def supportsColumnar: Boolean = true
 
   override def outputPartitioning: Partitioning = SinglePartition
 
@@ -176,6 +179,55 @@ final case class NativeSortEvaluationPlan(
           inputVectors.foreach(_.close())
         }
       }
+  }
+
+  private def coalesceAndExecuteColumnar(coalesced: Coalesced): RDD[ColumnarBatch] = {
+
+    val evaluator = nativeEvaluator.forCode(
+      coalesced.cFunction.toCodeLines(functionPrefix).lines.mkString("\n", "\n", "\n")
+    )
+
+    logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
+
+    child
+      .executeColumnar()
+      .coalesce(1)
+      .mapPartitions { batches => {
+        batches.map { batch =>
+          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+
+          val inputVectors = child.output.indices.map(batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
+          val outputVectors: List[ValueVector] =
+            coalesced.cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+
+          try {
+
+            val outputArgs = inputVectors.toList.map(_ => None) ++
+              outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+            val inputArgs = inputVectors.toList
+              .map(iv => Some(SupportedVectorWrapper.wrapInput(iv))) ++ outputVectors.map(_ => None)
+
+            evaluator.callFunction(
+              name = functionPrefix,
+              inputArguments = inputArgs,
+              outputArguments = outputArgs
+            )
+            val outArrowVectors = outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+
+            new ColumnarBatch(outArrowVectors.toArray, outputVectors.head.getValueCount)
+          } finally {
+            inputVectors.foreach(_.close())
+          }
+        }
+      }
+      }
+  }
+
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    sortingMode match {
+      case c @ Coalesced(cFunction) => coalesceAndExecuteColumnar(c)
+    }
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
