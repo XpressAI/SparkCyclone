@@ -21,7 +21,7 @@ object StringProducer {
 
 //  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
 
-  private final case class ImpCopyStringProducer(inputName: String)
+  final case class ImpCopyStringProducer(inputName: String)
     extends ImperativeStringProducer
     with CopyStringProducer {
 
