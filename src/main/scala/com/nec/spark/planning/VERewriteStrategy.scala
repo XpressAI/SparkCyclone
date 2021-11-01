@@ -236,12 +236,14 @@ final case class VERewriteStrategy(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
                   evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
-                  child = new RowToArrowColumnarPlan(ShuffleExchangeExec(
-                    outputPartitioning =
-                      HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                    child = planLater(child),
-                    shuffleOrigin = REPARTITION
-                  )),
+                  child = new RowToArrowColumnarPlan(
+                    ShuffleExchangeExec(
+                      outputPartitioning =
+                        HashPartitioning(expressions = groupingExpressions, numPartitions = n),
+                      child = planLater(child),
+                      shuffleOrigin = REPARTITION
+                    )
+                  ),
                   nativeEvaluator = nativeEvaluator
                 )
               case None =>

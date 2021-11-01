@@ -158,8 +158,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble, CExpression(cCode = "input_1->data[i]", isNotNullCode = None
-            )
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
           ),
           Ascending
         )
@@ -172,7 +172,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val results =
       evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
-        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression(cCode = "input_2->data[i]", isNotNullCode = None)),
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+          ),
           Ascending
         )
       )
@@ -185,7 +188,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val results =
       evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
-          TypedCExpression2(VeScalarType.VeNullableDouble, CExpression(cCode = "input_2->data[i]", isNotNullCode = None)),
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+          ),
           Descending
         )
       )

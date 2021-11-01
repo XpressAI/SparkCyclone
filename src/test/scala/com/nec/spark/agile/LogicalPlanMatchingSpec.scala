@@ -21,8 +21,14 @@ package com.nec.spark.agile
 
 import com.nec.arrow.ArrowNativeInterface
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, CScalarVector, NamedTypedCExpression, VeProjection, VeScalarType}
-import com.nec.spark.agile.LogicalPlanMatchingSpec.{NoopEvaluator, toVeTransformation}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CExpression,
+  CScalarVector,
+  NamedTypedCExpression,
+  VeProjection,
+  VeScalarType
+}
+import com.nec.spark.agile.LogicalPlanMatchingSpec.{toVeTransformation, NoopEvaluator}
 import com.nec.spark.planning.VERewriteStrategy
 
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
@@ -43,30 +49,31 @@ object LogicalPlanMatchingSpec {
    * This will replace VERewriteStrategy and that will contain all the Spark-related mappings, rather than the C code generator.
    * It will have some code generation, however it is strictly scoped to expression evaluation than anything else.
    */
-  def toVeTransformation(qr: LogicalPlan): VeProjection[CScalarVector, NamedTypedCExpression] = qr match {
-    case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
-          /** If it's just a rename, don't send to VE * */
-          case a: Alias if a.child.isInstanceOf[Attribute] => true
-          case a: AttributeReference                       => true
-          case _                                           => false
-        } =>
-      VeProjection(
-        inputs = child.output.toList.zipWithIndex.map { case (attr, idx) =>
-          CScalarVector(s"input_$idx", CFunctionGeneration.veType(attr.dataType))
-        },
-        outputs = resultExpressions.zipWithIndex.map { case (ne, idx) =>
-          NamedTypedCExpression(
-            s"output_$idx",
-            CFunctionGeneration.veType(ne.dataType),
-            CExpression(
-              CExpressionEvaluation.evaluateExpression(proj.references.toList, ne),
-              isNotNullCode = None
+  def toVeTransformation(qr: LogicalPlan): VeProjection[CScalarVector, NamedTypedCExpression] =
+    qr match {
+      case proj @ logical.Project(resultExpressions, child) if !resultExpressions.forall {
+            /** If it's just a rename, don't send to VE * */
+            case a: Alias if a.child.isInstanceOf[Attribute] => true
+            case a: AttributeReference                       => true
+            case _                                           => false
+          } =>
+        VeProjection(
+          inputs = child.output.toList.zipWithIndex.map { case (attr, idx) =>
+            CScalarVector(s"input_$idx", CFunctionGeneration.veType(attr.dataType))
+          },
+          outputs = resultExpressions.zipWithIndex.map { case (ne, idx) =>
+            NamedTypedCExpression(
+              s"output_$idx",
+              CFunctionGeneration.veType(ne.dataType),
+              CExpression(
+                CExpressionEvaluation.evaluateExpression(proj.references.toList, ne),
+                isNotNullCode = None
+              )
             )
-          )
-        }.toList
-      )
-    case _ => sys.error("Not matched")
-  }
+          }.toList
+        )
+      case _ => sys.error("Not matched")
+    }
 
   object NoopEvaluator extends NativeEvaluator {
     override def forCode(code: String): ArrowNativeInterface = throw new NotImplementedError(

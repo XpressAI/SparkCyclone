@@ -192,35 +192,39 @@ final case class NativeSortEvaluationPlan(
     child
       .executeColumnar()
       .coalesce(1)
-      .mapPartitions { batches => {
-        batches.map { batch =>
-          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+      .mapPartitions { batches =>
+        {
+          batches.map { batch =>
+            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+              .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-          val inputVectors = child.output.indices.map(batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
-          val outputVectors: List[ValueVector] =
-            coalesced.cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
-
-          try {
-
-            val outputArgs = inputVectors.toList.map(_ => None) ++
-              outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-            val inputArgs = inputVectors.toList
-              .map(iv => Some(SupportedVectorWrapper.wrapInput(iv))) ++ outputVectors.map(_ => None)
-
-            evaluator.callFunction(
-              name = functionPrefix,
-              inputArguments = inputArgs,
-              outputArguments = outputArgs
+            val inputVectors = child.output.indices.map(
+              batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
             )
-            val outArrowVectors = outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+            val outputVectors: List[ValueVector] =
+              coalesced.cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
 
-            new ColumnarBatch(outArrowVectors.toArray, outputVectors.head.getValueCount)
-          } finally {
-            inputVectors.foreach(_.close())
+            try {
+
+              val outputArgs = inputVectors.toList.map(_ => None) ++
+                outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+              val inputArgs = inputVectors.toList
+                .map(iv => Some(SupportedVectorWrapper.wrapInput(iv))) ++ outputVectors
+                .map(_ => None)
+
+              evaluator.callFunction(
+                name = functionPrefix,
+                inputArguments = inputArgs,
+                outputArguments = outputArgs
+              )
+              val outArrowVectors = outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+
+              new ColumnarBatch(outArrowVectors.toArray, outputVectors.head.getValueCount)
+            } finally {
+              inputVectors.foreach(_.close())
+            }
           }
         }
-      }
       }
   }
 

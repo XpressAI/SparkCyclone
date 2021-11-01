@@ -2,13 +2,26 @@ package com.nec.spark.planning
 
 import com.nec.arrow.AccessibleArrowColumnVector
 import com.nec.spark.planning.ArrowColumnarToRowPlan.mapBatchToRow
-import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, Float8Vector, IntVector, SmallIntVector, ValueVector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  ValueVector,
+  VarCharVector
+}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{
+  ColumnarToRowExec,
+  ColumnarToRowTransition,
+  SparkPlan,
+  UnaryExecNode
+}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 object ArrowColumnarToRowPlan {
   def mapBatchToRow(columnarBatch: ColumnarBatch) = {
@@ -48,21 +61,18 @@ object ArrowColumnarToRowPlan {
   }
 }
 
-case class ArrowColumnarToRowPlan(
-                                   override val child: SparkPlan
-                                 ) extends ColumnarToRowTransition {
-
+case class ArrowColumnarToRowPlan(override val child: SparkPlan) extends ColumnarToRowTransition {
 
   override def doExecute(): RDD[InternalRow] = {
 
-    child.executeColumnar()
-      .mapPartitions(batches =>{
+    child
+      .executeColumnar()
+      .mapPartitions(batches => {
         batches.flatMap(mapBatchToRow(_))
       })
 
   }
 
   override def output: Seq[Attribute] = child.output
-
 
 }

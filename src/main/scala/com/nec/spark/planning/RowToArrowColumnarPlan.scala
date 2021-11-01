@@ -16,9 +16,9 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 object RowToArrowColumnarPlan {
   def collectInputRows(
-                        rows: Iterator[InternalRow],
-                        arrowSchema: org.apache.arrow.vector.types.pojo.Schema
-                      )(implicit allocator: BufferAllocator): VectorSchemaRoot = {
+    rows: Iterator[InternalRow],
+    arrowSchema: org.apache.arrow.vector.types.pojo.Schema
+  )(implicit allocator: BufferAllocator): VectorSchemaRoot = {
     val root = VectorSchemaRoot.create(arrowSchema, allocator)
     val arrowWriter = ArrowWriter.create(root)
     rows.foreach { row =>
@@ -28,20 +28,25 @@ object RowToArrowColumnarPlan {
     root
   }
 }
-class RowToArrowColumnarPlan(
-                                   override val child: SparkPlan
-                                 ) extends RowToColumnarExec(child) {
+class RowToArrowColumnarPlan(override val child: SparkPlan) extends RowToColumnarExec(child) {
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
       .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
     val timeZoneId = conf.sessionLocalTimeZone
 
-    val rows = child.execute().mapPartitions(
-      rowIt => {
+    val rows = child
+      .execute()
+      .mapPartitions(rowIt => {
         Iterator {
-          val root = collectInputRows(rowIt, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
-          val size = new ColumnarBatch(root.getFieldVectors.asScala.map(vector => new AccessibleArrowColumnVector(vector)).toArray, root.getRowCount)
+          val root =
+            collectInputRows(rowIt, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
+          val size = new ColumnarBatch(
+            root.getFieldVectors.asScala
+              .map(vector => new AccessibleArrowColumnVector(vector))
+              .toArray,
+            root.getRowCount
+          )
           size
         }
       })

@@ -30,8 +30,11 @@ import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
+  PrePartitioned,
+  TwoStaged
+}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
 import com.nec.spark.planning.Tracer.DefineTracer
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -269,13 +272,10 @@ final case class NativeAggregationEvaluationPlan(
       .executeColumnar()
       .mapPartitions { batches =>
         batches.map { batch =>
-
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-          val inputVectors = child
-            .output
-            .indices
+          val inputVectors = child.output.indices
             .map(batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
 
           val partialOutputVectors: List[ValueVector] =
@@ -303,58 +303,59 @@ final case class NativeAggregationEvaluationPlan(
         }
       }
       .coalesce(1, shuffle = true)
-      .mapPartitions { iteratorColBatch => iteratorColBatch.map{batch =>
+      .mapPartitions { iteratorColBatch =>
+        iteratorColBatch.map { batch =>
+          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
 
-            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-              .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
-
-            val partialInputVectors: List[ValueVector] =
-              finalFunction
-                .inputs
-                .indices
-                .map(idx => batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
-                .toList
-
-            val outputVectors = outputExpressions
-              .flatMap {
-                case Alias(child, _) =>
-                  child match {
-                    // disabled for group-by integration
-                    //                    case ae: AggregateExpression =>
-                    //                      ae.aggregateFunction.aggBufferAttributes
-                    case other => List(other)
-                  }
-                case a @ AttributeReference(_, _, _, _) =>
-                  List(a)
-              }
-              .zipWithIndex
-              .map { case (ne, idx) =>
-                CFunctionGeneration.allocateFrom(
-                  SparkExpressionToCExpression
-                    .sparkTypeToVeType(ne.dataType)
-                    .makeCVector(s"out_${idx}")
-                )(allocator)
-              }
-
-            try {
-              evaluator.callFunction(
-                name = finalFunctionName,
-                inputArguments = partialInputVectors.map(iv =>
-                  Some(SupportedVectorWrapper.wrapInput(iv))
-                ) ++ outputVectors.map(_ => None),
-                outputArguments = finalFunction.inputs.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+          val partialInputVectors: List[ValueVector] =
+            finalFunction.inputs.indices
+              .map(idx =>
+                batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
               )
+              .toList
 
-              val cnt = outputVectors.head.getValueCount
-              logger.info(s"Got ${cnt} results back; ${outputVectors}")
-
-              val outputColumnVectors = outputVectors.map(vector => new AccessibleArrowColumnVector(vector))
-              new ColumnarBatch(outputColumnVectors.toArray, cnt)
-            } finally {
-              partialInputVectors.foreach(_.close())
+          val outputVectors = outputExpressions
+            .flatMap {
+              case Alias(child, _) =>
+                child match {
+                  // disabled for group-by integration
+                  //                    case ae: AggregateExpression =>
+                  //                      ae.aggregateFunction.aggBufferAttributes
+                  case other => List(other)
+                }
+              case a @ AttributeReference(_, _, _, _) =>
+                List(a)
             }
+            .zipWithIndex
+            .map { case (ne, idx) =>
+              CFunctionGeneration.allocateFrom(
+                SparkExpressionToCExpression
+                  .sparkTypeToVeType(ne.dataType)
+                  .makeCVector(s"out_${idx}")
+              )(allocator)
+            }
+
+          try {
+            evaluator.callFunction(
+              name = finalFunctionName,
+              inputArguments = partialInputVectors.map(iv =>
+                Some(SupportedVectorWrapper.wrapInput(iv))
+              ) ++ outputVectors.map(_ => None),
+              outputArguments = finalFunction.inputs.map(_ => None) ++
+                outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+            )
+
+            val cnt = outputVectors.head.getValueCount
+            logger.info(s"Got ${cnt} results back; ${outputVectors}")
+
+            val outputColumnVectors =
+              outputVectors.map(vector => new AccessibleArrowColumnVector(vector))
+            new ColumnarBatch(outputColumnVectors.toArray, cnt)
+          } finally {
+            partialInputVectors.foreach(_.close())
           }
+        }
       }
   }
 
@@ -475,60 +476,64 @@ final case class NativeAggregationEvaluationPlan(
 
     child
       .executeColumnar()
-      .mapPartitions { batches => batches.map { batch =>
-            val executorId: String = SparkEnv.get.executorId
-            val mapped = launched.map(s"${executorId}|${UUID.randomUUID().toString.take(4)}")
-            import mapped._
-            udpDebug.span(uniqueId, "evaluate a partition") {
-              implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-                .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+      .mapPartitions { batches =>
+        batches.map { batch =>
+          val executorId: String = SparkEnv.get.executorId
+          val mapped = launched.map(s"${executorId}|${UUID.randomUUID().toString.take(4)}")
+          import mapped._
+          udpDebug.span(uniqueId, "evaluate a partition") {
+            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+              .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-              val inputValueVectors = (0 until batch.numCols())
-                .map(idx => batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
+            val inputValueVectors = (0 until batch.numCols())
+              .map(idx =>
+                batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
+              )
 
-              val tracer = createVector()
-              logger.debug(s"[$uniqueId] preparing execution")
-              logger.info(s"Tracer ==> ${tracer}")
-              val inputVectors =
-                Tracer.includeInInputs(tracer, inputValueVectors.toList)
-              val outputVectors: List[FieldVector] =
-                cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+            val tracer = createVector()
+            logger.debug(s"[$uniqueId] preparing execution")
+            logger.info(s"Tracer ==> ${tracer}")
+            val inputVectors =
+              Tracer.includeInInputs(tracer, inputValueVectors.toList)
+            val outputVectors: List[FieldVector] =
+              cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
 
-              try {
-                val outputArgs = inputVectors.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-                val inputArgs = inputVectors.map(iv =>
-                  Some(SupportedVectorWrapper.wrapInput(iv))
-                ) ++ outputVectors.map(_ => None)
+            try {
+              val outputArgs = inputVectors.map(_ => None) ++
+                outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+              val inputArgs = inputVectors.map(iv =>
+                Some(SupportedVectorWrapper.wrapInput(iv))
+              ) ++ outputVectors.map(_ => None)
 
-                val startTime = java.time.Instant.now()
-                udpDebug.span(uniqueId, "evaluate") {
-                  evaluator.callFunction(
-                    name = functionName,
-                    inputArguments = inputArgs,
-                    outputArguments = outputArgs
-                  )
-                }
-                val endTime = java.time.Instant.now()
-                val timeTaken = java.time.Duration.between(startTime, endTime)
-
-                val cnt = outputVectors.head.getValueCount
-                logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
-                val arrowOutputVectors = outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
-
-                new ColumnarBatch(arrowOutputVectors.toArray, cnt)
-              } finally {
-                inputVectors.foreach(_.close())
+              val startTime = java.time.Instant.now()
+              udpDebug.span(uniqueId, "evaluate") {
+                evaluator.callFunction(
+                  name = functionName,
+                  inputArguments = inputArgs,
+                  outputArguments = outputArgs
+                )
               }
+              val endTime = java.time.Instant.now()
+              val timeTaken = java.time.Duration.between(startTime, endTime)
+
+              val cnt = outputVectors.head.getValueCount
+              logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
+              val arrowOutputVectors =
+                outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+
+              new ColumnarBatch(arrowOutputVectors.toArray, cnt)
+            } finally {
+              inputVectors.foreach(_.close())
             }
           }
+        }
       }
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
 
     evaluationMode match {
-      case ts @ TwoStaged(_, _)      =>  executeRowWise(ts)
+      case ts @ TwoStaged(_, _) => executeRowWise(ts)
 
       case PrePartitioned(cFunction) => executeOneGo(cFunction)
 
@@ -537,7 +542,7 @@ final case class NativeAggregationEvaluationPlan(
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     evaluationMode match {
-      case ts @ TwoStaged(_, _)      => executeColumnWise(ts)
+      case ts @ TwoStaged(_, _) => executeColumnWise(ts)
 
       case PrePartitioned(cFunction) => executeOneGoColumnar(cFunction)
     }
