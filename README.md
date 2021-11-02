@@ -7,6 +7,7 @@
 
 Assuming you've deployed the plugin jar file into `/opt/spark-cyclone/`:
 
+```
 $ $SPARK_HOME/bin/spark-submit \
     --name YourScript \
     --master yarn \
@@ -74,16 +75,20 @@ The Spark Cyclone plugin will translate your Spark SQL queries into a C++ kernel
 Compilation can take anywhere from a few seconds to a couple minutes.  While insignificant if your queries take hours
 you can optimize the compilation time by specifying a directory to cache kernels using the following config.
 
-```
---conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
-```
+### Specify a directory to compile and cache kernels
 
 If a suitable kernel exists in the directory, the Spark Cyclone plugin will use it and not compile a new one from
 scratch.
 
+```
+--conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
+```
+
 ### Use a precompiled directory
 
-You can also disable on-demand compilation by specifying a precompiled directory instead.
+You can also disable on-demand compilation by specifying a precompiled directory instead.  
+
+Note: If compilation is necessary to execute a query it will fail when used in this mode.
 
 ```
 --conf spark.com.nec.spark.kernel.precompiled=/path/to/precompiled/dir
@@ -111,7 +116,7 @@ more performant due to avoiding a coalesce/shuffle afterwards.
 --conf spark.com.nec.spark.preshuffle-partitions=8
 ```
 
-##Sorting on Ve
+## Sorting on Ve
 
 By default all sorting is done on CPU, however there exists possibility to enable sorting on VE.
 
