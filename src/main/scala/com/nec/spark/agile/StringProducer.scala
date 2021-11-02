@@ -65,7 +65,6 @@ object StringProducer {
 
     override def complete(outputName: String): CodeLines = CodeLines.from(
       s"""std::vector<size_t> ${newStarts(outputName)};""",
-      CodeLines.debugHere,
       s"""std::vector<int> ${newChars(outputName)} = frovedis::concat_words(
         ${wordName(outputName)}.chars,
         (const vector<size_t>&)(${frovedisStarts(outputName)}),
@@ -73,15 +72,10 @@ object StringProducer {
         "",
         (vector<size_t>&)(${newStarts(outputName)})
       );""",
-      CodeLines.debugHere,
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
-      CodeLines.debugHere,
       s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
-      CodeLines.debugHere,
       s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
-      CodeLines.debugHere,
-      s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});",
-      CodeLines.debugHere
+      s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
     )
 
   }
@@ -130,8 +124,7 @@ object StringProducer {
               s"${tmpCount}++;"
             )
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines
-            .from(CodeLines.debugHere, frovedisStringProducer.produce(outputName))
+          CodeLines.from(frovedisStringProducer.produce(outputName))
       }
     }
 
