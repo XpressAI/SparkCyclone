@@ -40,23 +40,31 @@ For safety, if an argument key is not recognized, it will fail to launch.
 
 ## Clustering / resource support
 
-A variety of options are available - not tested with YARN yet.
+A variety of options are available some are necessary for Spark.
+
+## Assinging resources
+
+You must specify vector engines to be used in executors.  There is no need to assign Vector Engines to the driver.
 
 ```
-# for Driver, a VE is not needed (at least not yet)
-# this is definitely needed
 --conf spark.executor.resource.ve.amount=1
+```
 
-# not clear if this is needed
---conf spark.task.resource.ve.amount=1
+If using cluster-local mode also specify:
 
-## This seems to be necessary for cluster-local mode
+```
 --conf spark.worker.resource.ve.amount=1
+```
 
-# detecting resources automatically
+Specify this discovery pluging for detecting resources automatically
+
+```
 --conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin
+```
 
-# specifying resources via file
+Alternatively you can use a script if you want/need more control over which VE is assigned.
+
+```
 --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh
 ```
 
@@ -104,7 +112,9 @@ more performant due to avoiding a coalesce/shuffle afterwards.
 ```
 
 ##Sorting on Ve
+
 By default all sorting is done on CPU, however there exists possibility to enable sorting on VE.
+
 ```
 --conf spark.com.nec.spark.sort-on-ve=true
 ```
