@@ -40,7 +40,7 @@ object StringProducer {
 
 //  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
 
-  private final case class ImpCopyStringProducer(inputName: String)
+  final case class ImpCopyStringProducer(inputName: String)
     extends ImperativeStringProducer
     with CopyStringProducer {
 
@@ -57,14 +57,15 @@ object StringProducer {
     def inputName: String
   }
 
-  private final case class FrovedisCopyStringProducer(inputName: String)
+  final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
     with CopyStringProducer {
+
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
 
     def frovedisLens(outputName: String) = s"${outputName}_lens"
 
-    def wordName(outputName: String) = s"${outputName}_words"
+    def wordName(outputName: String) = s"${outputName}_input_words"
     def newChars(outputName: String) = s"${outputName}_new_chars"
     def newStarts(outputName: String) = s"${outputName}_new_starts"
 
@@ -83,14 +84,19 @@ object StringProducer {
 
     override def complete(outputName: String): CodeLines = CodeLines.from(
       s"""std::vector<size_t> ${newStarts(outputName)};""",
-      s"""std::vector<int> ${newChars(outputName)} = concat_words(${wordName(
-        outputName
-      )}, "", ${newStarts(outputName)});""",
+      s"""std::vector<int> ${newChars(outputName)} = frovedis::concat_words(
+        ${wordName(outputName)}.chars,
+        (const vector<size_t>&)(${frovedisStarts(outputName)}),
+        (const vector<size_t>&)(${frovedisLens(outputName)}),
+        "",
+        (vector<size_t>&)(${newStarts(outputName)})
+      );""",
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
       s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
       s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
       s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
     )
+
   }
 
   final case class StringChooser(condition: CExpression, ifTrue: String, otherwise: String)
@@ -137,8 +143,7 @@ object StringProducer {
               s"${tmpCount}++;"
             )
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines
-            .from(CodeLines.debugHere, frovedisStringProducer.produce(outputName))
+          CodeLines.from(frovedisStringProducer.produce(outputName))
       }
     }
 
