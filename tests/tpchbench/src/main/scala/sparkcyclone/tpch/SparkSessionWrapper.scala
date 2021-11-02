@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package aurora4spark.tpch
+package sparkcyclone.tpch
 
 import org.apache.spark.sql.SparkSession
 

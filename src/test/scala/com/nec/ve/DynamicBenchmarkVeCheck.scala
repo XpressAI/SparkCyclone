@@ -21,7 +21,7 @@ package com.nec.ve
 
 import com.nec.spark.BenchTestingPossibilities
 import org.scalatest.freespec.AnyFreeSpec
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.ConfigMap
@@ -37,7 +37,7 @@ final class DynamicBenchmarkVeCheck
   override protected def beforeAll(): Unit = {
     val rootLogger = Logger.getRootLogger
     rootLogger.setLevel(Level.INFO)
-    Aurora4SparkExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
+    SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
     super.beforeAll()
   }
 
@@ -45,7 +45,7 @@ final class DynamicBenchmarkVeCheck
   BenchTestingPossibilities.possibilities.filter(_.testingTarget.isVE).foreach(runTestCase)
 
   override protected def afterAll(): Unit = {
-    Aurora4SparkExecutorPlugin.closeProcAndCtx()
+    SparkCycloneExecutorPlugin.closeProcAndCtx()
     super.afterAll()
   }
 }

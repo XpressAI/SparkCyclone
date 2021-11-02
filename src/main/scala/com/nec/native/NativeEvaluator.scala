@@ -24,7 +24,7 @@ import com.nec.arrow.ArrowNativeInterface.DeferredArrowInterface
 import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.VeArrowNativeInterface.VeArrowNativeInterfaceLazyLib
 import com.nec.native.NativeCompiler.{CNativeCompiler, CNativeCompilerDebug}
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin
 import org.bytedeco.veoffload.veo_proc_handle
 import com.typesafe.scalalogging.LazyLogging
 
@@ -63,9 +63,9 @@ object NativeEvaluator {
       // defer because we need the executors to initialize first
       logger.debug(s"For evaluation, will refer to the Executor Plugin")
       val localLibraryPath =
-        Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
+        SparkCycloneExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
       DeferredArrowInterface(() =>
-        new VeArrowNativeInterfaceLazyLib(Aurora4SparkExecutorPlugin._veo_proc, localLibraryPath)
+        new VeArrowNativeInterfaceLazyLib(SparkCycloneExecutorPlugin._veo_proc, localLibraryPath)
       )
     }
   }

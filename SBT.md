@@ -1,4 +1,4 @@
-# aurora4spark-sql-plugin
+# spark-cyclone-sql-plugin
 
 Requirements:
 
@@ -84,7 +84,7 @@ In order to automatically generate and invoke all currently supported benchmarks
 commands:
 
 ```
-export CUDF_PATH=/opt/aurora4spark/cudf-0.19.2-cuda10-1.jar
+export CUDF_PATH=/opt/cyclone/cudf-0.19.2-cuda10-1.jar
 ```
 
 ```
@@ -232,7 +232,7 @@ and is available through a default import of SBT. It includes both source and te
 
 ```
 sbt> show tracing / Rpm / packageBin
-# rpm --force -i /path/to/aurora4spark/tracing/target/rpm/RPMS/noarch/tracing-0.1.0-SNAPSHOT.noarch.rpm
+# rpm --force -i /path/to/spark-cyclone/tracing/target/rpm/RPMS/noarch/tracing-0.1.0-SNAPSHOT.noarch.rpm
 sbt> VectorEngine / testOnly *TPC* -- -z " 4"
 # journalctl -u tracing -f
 # echo 'LOG_DIR=/home/tracing' >> /etc/default/tracing

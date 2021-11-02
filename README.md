@@ -5,7 +5,7 @@
 
 ## Usage of the plugin
 
-Assuming you've deployed the plugin jar file into `/opt/spark-cyclone/`:
+Assuming you've deployed the plugin jar file into `/opt/cyclone//`:
 
 ```
 $ $SPARK_HOME/bin/spark-submit \
@@ -13,12 +13,12 @@ $ $SPARK_HOME/bin/spark-submit \
     --master yarn \
     --deploy-mode cluster \
     --num-executors=8 --executor-cores=1 --executor-memory=8G \ # specify 1 executor per VE core
-    --conf spark.executor.extraClassPath=/opt/spark-cyclone/spark-cyclone-sql-plugin.jar \
+    --conf spark.executor.extraClassPath=/opt/cyclone//spark-cyclone-sql-plugin.jar \
     --conf spark.plugins=com.nec.spark.CycloneSqlPlugin \
-    --jars /opt/spark-cyclone/spark-cyclone-sql-plugin.jar \
+    --jars /opt/cyclone//spark-cyclone-sql-plugin.jar \
     --conf spark.executor.resource.ve.amount=1 \                # specify the number of VEs to use.
     --conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin
-    --conf spark.com.nec.spark.kernel.directory=/opt/spark-cyclone/ccache \ # Place to cache compiled kernels.
+    --conf spark.com.nec.spark.kernel.directory=/opt/cyclone//ccache \ # Place to cache compiled kernels.
     your_script.py
 
 ```

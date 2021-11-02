@@ -32,12 +32,12 @@ import com.nec.ve.VeKernelCompiler
 import com.typesafe.scalalogging.LazyLogging
 import okio.ByteString
 
-object Aurora4SparkDriverPlugin {
+object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
 }
 
-class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
+class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
 
   private[spark] var nativeCompiler: NativeCompiler = _
   override def receive(message: Any): AnyRef = {
@@ -56,9 +56,9 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
     nativeCompiler = CachingNativeCompiler(NativeCompiler.fromConfig(sc.getConf))
-    logger.info(s"Aurora4Spark DriverPlugin is launched. Will use compiler: ${nativeCompiler}")
+    logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
-    Aurora4SparkDriverPlugin.launched = true
+    SparkCycloneDriverPlugin.launched = true
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
     pluginContext
       .conf()
@@ -82,6 +82,6 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
   }
 
   override def shutdown(): Unit = {
-    Aurora4SparkDriverPlugin.launched = false
+    SparkCycloneDriverPlugin.launched = false
   }
 }

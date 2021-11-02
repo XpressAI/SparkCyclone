@@ -12,7 +12,7 @@ def basic_df_example(spark):
         .read \
         .format("csv") \
         .schema(schema) \
-        .load("file:///opt/aurora4spark/examples/sampleMultiColumn.csv") \
+        .load("file:///opt/cyclone/examples/sampleMultiColumn.csv") \
         .selectExpr("_1 + _2")
     newDF.explain()
     newDF.printSchema()
