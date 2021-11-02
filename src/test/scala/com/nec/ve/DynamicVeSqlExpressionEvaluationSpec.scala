@@ -22,7 +22,7 @@ package com.nec.ve
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.VERewriteStrategy
-import com.nec.spark.{Aurora4SparkExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.{SparkCycloneExecutorPlugin, AuroraSqlPlugin}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.bytedeco.veoffload.global.veo
@@ -48,11 +48,11 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
 
   override protected def afterAll(): Unit = {
-    Aurora4SparkExecutorPlugin.closeProcAndCtx()
+    SparkCycloneExecutorPlugin.closeProcAndCtx()
   }
 
   override protected def beforeAll(): Unit = {
-    Aurora4SparkExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
+    SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
     super.beforeAll()
   }
 }

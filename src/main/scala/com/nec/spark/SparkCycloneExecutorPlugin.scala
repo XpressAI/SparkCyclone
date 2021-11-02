@@ -25,7 +25,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-import com.nec.spark.Aurora4SparkExecutorPlugin._
+import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.ExecutorPlugin
 import org.apache.spark.api.plugin.PluginContext
@@ -35,7 +35,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import scala.util.Try
 
-object Aurora4SparkExecutorPlugin {
+object SparkCycloneExecutorPlugin {
 
   /** For assumption testing purposes only for now */
   var params: Map[String, String] = Map.empty[String, String]
@@ -105,12 +105,12 @@ object Aurora4SparkExecutorPlugin {
   var libraryStorage: LibraryStorage = _
 }
 
-class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
+class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val resources = ctx.resources()
-    Aurora4SparkExecutorPlugin.synchronized {
-      Aurora4SparkExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
+    SparkCycloneExecutorPlugin.synchronized {
+      SparkCycloneExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
     }
 
     logInfo(s"Executor has the following resources available => ${resources}")
@@ -146,12 +146,12 @@ class Aurora4SparkExecutorPlugin extends ExecutorPlugin with Logging {
        * *
        */
       if (extraConf.containsKey("ve_so_name")) {
-        Aurora4SparkExecutorPlugin.lib =
+        SparkCycloneExecutorPlugin.lib =
           veo.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
       }
       veArrowNativeInterfaceNumeric = new VeArrowNativeInterface(_veo_proc, lib)
     }
-    logInfo("Initializing Aurora4SparkExecutorPlugin.")
+    logInfo("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
   }

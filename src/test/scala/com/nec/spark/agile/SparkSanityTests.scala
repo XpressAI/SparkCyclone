@@ -19,8 +19,8 @@
  */
 package com.nec.spark.agile
 
-import com.nec.spark.Aurora4SparkDriverPlugin
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.SparkCycloneDriverPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkAdditions
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec
@@ -36,9 +36,9 @@ final class SparkSanityTests
   with Matchers {
 
   "It is not launched by default" in withSpark(identity) { _ =>
-    assert(!Aurora4SparkDriverPlugin.launched, "Expect the driver to have not been launched")
+    assert(!SparkCycloneDriverPlugin.launched, "Expect the driver to have not been launched")
     assert(
-      !Aurora4SparkExecutorPlugin.launched && Aurora4SparkExecutorPlugin.params.isEmpty,
+      !SparkCycloneExecutorPlugin.launched && SparkCycloneExecutorPlugin.params.isEmpty,
       "Expect the executor plugin to have not been launched"
     )
   }

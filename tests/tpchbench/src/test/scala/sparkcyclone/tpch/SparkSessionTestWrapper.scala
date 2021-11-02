@@ -17,10 +17,16 @@
  * limitations under the License.
  *
  */
-package aurora4spark.tpch
+package sparkcyclone.tpch
 
 import org.apache.spark.sql.SparkSession
+import org.apache.log4j.{Logger, Level}
 
-trait SparkSessionWrapper extends Serializable {
-  implicit lazy val sparkSession: SparkSession = SparkSession.builder().getOrCreate()
+trait SparkSessionTestWrapper {
+
+  lazy val spark: SparkSession = {
+    Logger.getLogger("org").setLevel(Level.OFF)
+    SparkSession.builder().master("local").appName("spark session").getOrCreate()
+  }
+
 }

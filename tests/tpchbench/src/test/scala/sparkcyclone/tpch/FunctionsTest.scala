@@ -17,53 +17,40 @@
  * limitations under the License.
  *
  */
-package aurora4spark.tpch
+package sparkcyclone.tpch
 
 import org.scalatest.FunSpec
 import org.apache.spark.sql.functions._
-import com.github.mrpowers.spark.fast.tests.DataFrameComparer
+import com.github.mrpowers.spark.fast.tests.ColumnComparer
 import org.apache.spark.sql.types.{StructField, StructType, StringType}
 import org.apache.spark.sql.Row
 
-class TransformsSpec
+class FunctionsSpec
     extends FunSpec
     with SparkSessionTestWrapper
-    with DataFrameComparer {
+    with ColumnComparer {
 
   import spark.implicits._
 
-  describe(".happyData") {
+  describe("isEven") {
 
-    it("appends a happy column to a DataFrame") {
+    it("returns true if the number is even and false otherwise") {
 
-      val sourceDF = Seq(
-        ("jose"),
-        ("li"),
-        ("luisa")
-      ).toDF("name")
-
-      val actualDF = sourceDF.transform(transforms.happyData())
-
-      val expectedData = List(
-        Row("jose", "data is fun"),
-        Row("li", "data is fun"),
-        Row("luisa", "data is fun")
+      val data = Seq(
+        (1, false),
+        (2, true),
+        (3, false)
       )
 
-      val expectedSchema = List(
-        StructField("name", StringType, true),
-        StructField("happy", StringType, false)
-      )
+      val df = data
+        .toDF("some_num", "expected")
+        .withColumn("actual", functions.isEven(col("some_num")))
 
-      val expectedDF = spark.createDataFrame(
-        spark.sparkContext.parallelize(expectedData),
-        StructType(expectedSchema)
-      )
-
-      assertSmallDataFrameEquality(actualDF, expectedDF)
+      assertColumnEquality(df, "actual", "expected")
 
     }
 
   }
 
 }
+

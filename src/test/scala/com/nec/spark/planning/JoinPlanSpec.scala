@@ -24,7 +24,7 @@ import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.ArrowVectorBuilders
 import com.nec.arrow.VeArrowNativeInterface
 import com.nec.arrow.functions.Join
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.AuroraSqlPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.planning.JoinPlanSpec.OurSimpleJoin.JoinMethod
@@ -98,8 +98,8 @@ object JoinPlanSpec {
                                       case JoinMethod.ArrowBased.VEBased =>
                                         Join.runOn(
                                           new VeArrowNativeInterface(
-                                            Aurora4SparkExecutorPlugin._veo_proc,
-                                            Aurora4SparkExecutorPlugin.lib
+                                            SparkCycloneExecutorPlugin._veo_proc,
+                                            SparkCycloneExecutorPlugin.lib
                                           )
                                         )(
                                           firstColumnVec,

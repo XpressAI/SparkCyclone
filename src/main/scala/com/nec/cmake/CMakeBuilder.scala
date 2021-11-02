@@ -57,15 +57,15 @@ ${CppResources.All.all
         )
         .mkString("\n")}
 
-add_library(aurora4spark SHARED aurora4spark.cpp)
+add_library(sparkcyclone SHARED sparkcyclone.cpp)
 if(WIN32)
-  target_link_libraries(aurora4spark wsock32 ws2_32)
+  target_link_libraries(sparkcyclone wsock32 ws2_32)
 endif()
 """
 
     val tgtCl = targetDir.resolve("CMakeLists.txt")
     Files.write(tgtCl, CMakeListsTXT.getBytes("UTF-8"))
-    Files.write(targetDir.resolve("aurora4spark.cpp"), cSource.getBytes("UTF-8"))
+    Files.write(targetDir.resolve("sparkcyclone.cpp"), cSource.getBytes("UTF-8"))
     try Builder.default.buildAndLink(tgtCl)
     catch {
       case e: Throwable =>
@@ -136,7 +136,7 @@ object CMakeBuilder extends LazyLogging {
         val cmd2 =
           List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
         runHopeOk(cmd2)
-        targetPath.getParent.resolve("Debug").resolve("aurora4spark.dll")
+        targetPath.getParent.resolve("Debug").resolve("sparkcyclone.dll")
       }
     }
 
@@ -149,7 +149,7 @@ object CMakeBuilder extends LazyLogging {
       override def buildLibrary(targetPath: Path): Path = {
         val cmd2 = List("make", "-C", targetPath.getParent.toString)
         runHopeOk(cmd2)
-        targetPath.getParent.resolve("libaurora4spark.so")
+        targetPath.getParent.resolve("libsparkcyclone.so")
       }
     }
 
@@ -162,7 +162,7 @@ object CMakeBuilder extends LazyLogging {
       override def buildLibrary(targetPath: Path): Path = {
         val cmd2 = List("make", "-C", targetPath.getParent.toString)
         runHopeOk(cmd2)
-        targetPath.getParent.resolve("libaurora4spark.dylib")
+        targetPath.getParent.resolve("libsparkcyclone.dylib")
       }
     }
 
