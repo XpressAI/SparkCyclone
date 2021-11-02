@@ -197,9 +197,17 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
 
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "here  " << out->dataSize << std::endl << std::flush;
+        std::cout << utcnanotime().c_str() << " $$ " << "sze1  " << in.starts.size() << std::endl << std::flush;
+        std::cout << utcnanotime().c_str() << " $$ " << "sze2  " << in.lens.size() << std::endl << std::flush;
     #endif
 
-    int lastOffset = in.starts.size() ? (in.starts[in.starts.size() - 1] + in.lens[in.starts.size() - 1]) : 0;
+    int lastOffset;
+    if (in.starts.size() == 0) {
+        lastOffset = 0;
+    } else {
+        int lastEl = in.starts.size() - 1;
+        lastOffset = in.starts[lastEl] + in.lens[lastEl];
+    }
 
     #ifdef DEBUG
         std::cout << utcnanotime().c_str() << " $$ " << "here 2 " << out->dataSize << std::endl << std::flush;

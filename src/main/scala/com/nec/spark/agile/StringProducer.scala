@@ -66,9 +66,13 @@ object StringProducer {
     override def complete(outputName: String): CodeLines = CodeLines.from(
       s"""std::vector<size_t> ${newStarts(outputName)};""",
       CodeLines.debugHere,
-      s"""std::vector<int> ${newChars(outputName)} = concat_words(${wordName(
-        outputName
-      )}, "", ${newStarts(outputName)});""",
+      s"""std::vector<int> ${newChars(outputName)} = frovedis::concat_words(
+        &${wordName(outputName)}.chars,
+        &(const vector<size_t>)${frovedisStarts(outputName)},
+        &(const vector<size_t>)${frovedisLens(outputName)},
+        "",
+        &${newStarts(outputName)}
+      );""",
       CodeLines.debugHere,
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
       CodeLines.debugHere,
