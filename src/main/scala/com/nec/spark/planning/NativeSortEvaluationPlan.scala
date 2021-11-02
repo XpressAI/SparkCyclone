@@ -25,7 +25,7 @@ import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.language.dynamics
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.cmake.ScalaUdpDebug
+import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
