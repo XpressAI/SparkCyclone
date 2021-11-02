@@ -1,60 +1,24 @@
-# aurora4spark
+# Spark Cyclone
 
 - For the plug-in development: [SBT.md](SBT.md).
 - For the JavaCPP layer around AVEO, see: [https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload](https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload).
 
 ## Usage of the plugin
 
-```
+Assuming you've deployed the plugin jar file into `/opt/spark-cyclone/`:
 
-$ /opt/spark/bin/spark-submit \
-    --name PairwiseAddExample \
+$ $SPARK_HOME/bin/spark-submit \
+    --name YourScript \
     --master yarn \
     --deploy-mode cluster \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-add-pairwise.py
-
-$ /opt/spark/bin/spark-submit \
-    --name AveragingExample \
-    --master yarn \
-    --deploy-mode cluster \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-avg.py
-
-$ /opt/spark/bin/spark-submit \
-    --name SumExample \
-    --master yarn \
-    --deploy-mode cluster \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-sum.py
-
-$ /opt/spark/bin/spark-submit \
-    --name SumMultipleColumnsExample \
-    --master yarn \
-    --deploy-mode cluster \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-sum-multiple.py
-
-
-$ /opt/spark/bin/spark-submit \
-    --name AveragingMultipleColumns5Example \
-    --master yarn \
-    --deploy-mode cluster \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-avg-multiple.py
-
-$ /opt/spark/bin/spark-submit \
-    --name MultipleOperationsExample \
-    --master yarn \
-    --deploy-mode cluster \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    /opt/aurora4spark/examples/example-multiple-operations.py
+    --num-executors=8 --executor-cores=1 --executor-memory=8G \ # specify 1 executor per VE core
+    --conf spark.executor.extraClassPath=/opt/spark-cyclone/spark-cyclone-sql-plugin.jar \
+    --conf spark.plugins=com.nec.spark.CycloneSqlPlugin \
+    --jars /opt/spark-cyclone/spark-cyclone-sql-plugin.jar \
+    --conf spark.executor.resource.ve.amount=1 \                # specify the number of VEs to use.
+    --conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin
+    --conf spark.com.nec.spark.kernel.directory=/opt/spark-cyclone/ccache \ # Place to cache compiled kernels.
+    your_script.py
 
 ```
 
@@ -73,25 +37,6 @@ config:
 ```
 
 For safety, if an argument key is not recognized, it will fail to launch.
-
-To use the native CSV parser (default is 'off'):
-
-```
---conf spark.com.nec.native-csv=x86
---conf spark.com.nec.native-csv=VE
-```
-
-To skip using IPC for parsing CSV:
-
-```
---conf spark.com.nec.native-csv-ipc=false
-```
-
-To use String allocation as opposed to ByteArray optimization in `NativeCsvExec`, use:
-
-```
---conf spark.com.nec.native-csv-skip-strings=false
-```
 
 ## Clustering / resource support
 
@@ -117,7 +62,7 @@ A variety of options are available - not tested with YARN yet.
 
 ## Compilation lifecycle
 
-The aurora4spark plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.  
+The Spark Cyclone plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.  
 Compilation can take anywhere from a few seconds to a couple minutes.  While insignificant if your queries take hours
 you can optimize the compilation time by specifying a directory to cache kernels using the following config.
 
@@ -125,7 +70,7 @@ you can optimize the compilation time by specifying a directory to cache kernels
 --conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
 ```
 
-If a suitable kernel exists in the directory, the aurora4spark plugin will use it and not compile a new one from
+If a suitable kernel exists in the directory, the Spark Cyclone plugin will use it and not compile a new one from
 scratch.
 
 ### Use a precompiled directory
