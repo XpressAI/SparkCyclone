@@ -67,11 +67,11 @@ object StringProducer {
       s"""std::vector<size_t> ${newStarts(outputName)};""",
       CodeLines.debugHere,
       s"""std::vector<int> ${newChars(outputName)} = frovedis::concat_words(
-        &${wordName(outputName)}.chars,
-        &(const vector<size_t>)${frovedisStarts(outputName)},
-        &(const vector<size_t>)${frovedisLens(outputName)},
+        ${wordName(outputName)}.chars,
+        (const vector<size_t>&)(${frovedisStarts(outputName)}),
+        (const vector<size_t>&)(${frovedisLens(outputName)}),
         "",
-        &${newStarts(outputName)}
+        (vector<size_t>&)(${newStarts(outputName)})
       );""",
       CodeLines.debugHere,
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
