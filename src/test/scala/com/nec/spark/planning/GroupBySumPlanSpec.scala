@@ -190,7 +190,7 @@ final class GroupBySumPlanSpec
       .queryExecution
       .executedPlan
 
-    assert(plan.isInstanceOf[NativeAggregationEvaluationPlan])
+    assert(plan.isInstanceOf[ArrowColumnarToRowPlan] && plan.children.head.isInstanceOf[NativeAggregationEvaluationPlan])
   }
 
 }
