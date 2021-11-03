@@ -158,8 +158,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble, CExpression(cCode = "input_1->data[i]", isNotNullCode = None
-            )
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
           ),
           Ascending
         )
@@ -172,7 +172,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val results =
       evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
-        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression(cCode = "input_2->data[i]", isNotNullCode = None)),
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+          ),
           Ascending
         )
       )
@@ -185,7 +188,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     val results =
       evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
-          TypedCExpression2(VeScalarType.VeNullableDouble, CExpression(cCode = "input_2->data[i]", isNotNullCode = None)),
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+          ),
           Descending
         )
       )
@@ -578,6 +584,38 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       result ==
         List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
     )
+  }
+
+  "We can join by String & Long (JoinByString)" in {
+    /** SELECT X.A, X.C, Y.C FROM X LEFT JOIN Y ON X.A = Y.A AND X.B = Y.B
+     * X = [A: String, B: Long, C: Int]
+     * Y = [A: String, B: Long, C: Double]
+     * */
+
+    val left = List[(String, Long, Int)](
+      ("test", 123, 456),
+      ("test2", 123, 4567),
+      ("test2", 12, 45678),
+      ("test3", 12, 456789),
+      ("test3", 123, 4567890)
+    )
+
+    val right =
+      List[(String, Long, Double)](("test2", 123, 654), ("test2", 123, 761), ("test3", 12, 456))
+
+    val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
+      /** two inner join entries on RHS */
+      (("test2", 123, 4567), ("test2", 123, 654)),
+      (("test2", 123, 4567), ("test2", 123, 761)),
+      (("test3", 12, 456789), ("test3", 12, 456))
+    )
+
+    val joinSelectOnlyIntDouble = List[(String, Int, Double)](
+      ("test2", 4567, 654),
+      ("test2", 4567, 761),
+      ("test3", 456789, 456)
+    )
+
   }
 
 }
