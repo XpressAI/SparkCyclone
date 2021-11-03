@@ -11,9 +11,15 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.{RowToColumnarExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{
+  RowToColumnarExec,
+  RowToColumnarTransition,
+  SparkPlan,
+  UnaryExecNode
+}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+
 object RowToArrowColumnarPlan {
   def collectInputRows(
     rows: Iterator[InternalRow],
@@ -28,7 +34,8 @@ object RowToArrowColumnarPlan {
     root
   }
 }
-class RowToArrowColumnarPlan(override val child: SparkPlan) extends RowToColumnarExec(child) {
+
+case class RowToArrowColumnarPlan(override val child: SparkPlan) extends RowToColumnarTransition {
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator

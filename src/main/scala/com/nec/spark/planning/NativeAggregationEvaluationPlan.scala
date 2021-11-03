@@ -268,7 +268,7 @@ final case class NativeAggregationEvaluationPlan(
 
     logger.debug(s"Will execute columnar NewCEvaluationPlan for child ${child}; ${child.output}")
 
-    child
+    getChildSkipMappings()
       .executeColumnar()
       .mapPartitions { batches =>
         batches.map { batch =>
@@ -474,7 +474,7 @@ final case class NativeAggregationEvaluationPlan(
       s"[${launched.launchId}] Will execute NewCEvaluationPlan for child ${child}; ${child.output}"
     )
 
-    child
+    getChildSkipMappings()
       .executeColumnar()
       .mapPartitions { batches =>
         batches.map { batch =>

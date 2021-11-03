@@ -189,7 +189,7 @@ final case class NativeSortEvaluationPlan(
 
     logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
 
-    child
+    getChildSkipMappings()
       .executeColumnar()
       .coalesce(1)
       .mapPartitions { batches =>

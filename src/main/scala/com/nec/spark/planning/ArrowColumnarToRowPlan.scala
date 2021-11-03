@@ -64,13 +64,11 @@ object ArrowColumnarToRowPlan {
 case class ArrowColumnarToRowPlan(override val child: SparkPlan) extends ColumnarToRowTransition {
 
   override def doExecute(): RDD[InternalRow] = {
-
     child
       .executeColumnar()
       .mapPartitions(batches => {
         batches.flatMap(mapBatchToRow(_))
       })
-
   }
 
   override def output: Seq[Attribute] = child.output
