@@ -139,6 +139,15 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_bigint_vector(tzVector: TimeStampMicroTZVector): nullable_bigint_vector = {
+    val vc = new nullable_bigint_vector()
+    vc.data = tzVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer =
+      tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = tzVector.getValueCount
+    vc
+  }
+
   def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -310,5 +319,21 @@ object ArrowInterfaces {
     }
     intVector.clear()
     intVector.close()
+  }
+
+  def nullable_bigint_vector_to_TimeStampVector(
+    input: nullable_bigint_vector,
+    timeStampVector: TimeStampMicroTZVector
+  ): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
+    timeStampVector.setValueCount(input.count)
+    getUnsafe.copyMemory(
+      input.validityBuffer,
+      timeStampVector.getValidityBufferAddress,
+      Math.ceil(input.count / 64.0).toInt * 8
+    )
+    getUnsafe.copyMemory(input.data, timeStampVector.getDataBufferAddress, input.size())
   }
 }
