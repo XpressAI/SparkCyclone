@@ -39,8 +39,6 @@ object VeKernelCompiler {
   final case class ProfileTarget(host: String, port: Int)
 
   object ProfileTarget {
-    def default: ProfileTarget = ProfileTarget(host = "127.0.0.1", port = 45705)
-
     def parse(value: String): Option[ProfileTarget] = {
       PartialFunction.condOpt(value.split(':')) { case Array(h, p) =>
         ProfileTarget(h, p.toInt)
@@ -52,7 +50,7 @@ object VeKernelCompiler {
     nccPath: String = "/opt/nec/ve/bin/ncc",
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
-    maybeProfileTarget: Option[ProfileTarget] = Some(ProfileTarget.default),
+    maybeProfileTarget: Option[ProfileTarget] = None,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
