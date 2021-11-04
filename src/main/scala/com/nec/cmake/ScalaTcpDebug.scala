@@ -35,7 +35,7 @@ trait ScalaTcpDebug {
 }
 
 object ScalaTcpDebug {
-  object NoOp extends ScalaTcpDebug {
+  object NoOp extends ScalaTcpDebug with Serializable {
     override def span[T](context: String, name: String)(
       f: => T
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): T = f
