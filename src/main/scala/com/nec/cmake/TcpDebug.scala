@@ -59,27 +59,26 @@ object TcpDebug {
       "#include <unistd.h>"
     )
 
-    override def createSock: CodeLines = CodeLines.from("")
-      /*s"int ${sockName} = ::socket(AF_INET, SOCK_STREAM, 0);",
+    override def createSock: CodeLines = CodeLines.from(
+      s"int ${sockName} = ::socket(AF_INET, SOCK_STREAM, 0);",
       s"sockaddr_in ${destinationName};",
       s"${destinationName}.sin_family = AF_INET;",
       s"${destinationName}.sin_port = htons(${port});",
       s"""${destinationName}.sin_addr.s_addr = inet_addr(std::string(${hostName}).c_str());""",
       s"if (connect(${sockName}, (struct sockaddr*)&${destinationName}, sizeof(${destinationName})) != 0) {",
       s"""  std::cout << "error connecting..." << std::endl << std::flush;""",
-      "}"*
-    )*/
+      "}"
+    )
 
     override def close: CodeLines = CodeLines.from(s"") //::close(${sockName});")
 
-    override def send(what: String*): CodeLines = CodeLines.from("")
-    /*
+    override def send(what: String*): CodeLines = CodeLines.from(
         "std::ostringstream s;",
         "s " + Tracer.concatStr(what.toList) + ";",
         s"write(${sockName}, s.str().c_str(), s.str().length());"
       )
       .blockCommented("Send via TCP")
-     */
+
   }
 }
 
