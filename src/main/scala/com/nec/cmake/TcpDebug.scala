@@ -70,7 +70,7 @@ object TcpDebug {
       "}"
     )
 
-    override def close: CodeLines = CodeLines.from(s"") //::close(${sockName});")
+    override def close: CodeLines = CodeLines.from(s"::close(${sockName});")
 
     override def send(what: String*): CodeLines = CodeLines.from(
         "std::ostringstream s;",
