@@ -414,22 +414,19 @@ object SparkExpressionToCExpression {
           val oks = children.map(exp => eval(exp)).flatMap(_.right.toOption)
           FlatToNestedFunction.runWhenNotNull(items = oks.toList, function = "std::min")
         }
-      case Cast(child, dataType, _) =>
-        dataType match {
-          case IntegerType =>
-            eval(child).map { childExpression =>
-              childExpression.copy("((int)" + childExpression.cCode + ")")
-            }
+      case Cast(child, IntegerType, _) =>
+        eval(child).map { childExpression =>
+          childExpression.copy("((int)" + childExpression.cCode + ")")
+        }
 
-          case DoubleType =>
-            eval(child).map { childExpression =>
-              childExpression.copy("((int)" + childExpression.cCode + ")")
-            }
+      case Cast(child, DoubleType, _) =>
+        eval(child).map { childExpression =>
+          childExpression.copy("((int)" + childExpression.cCode + ")")
+        }
 
-          case LongType =>
-            eval(child).map { childExpression =>
-              childExpression.copy("((long long)" + childExpression.cCode + ")")
-            }
+      case Cast(child, LongType, _) =>
+        eval(child).map { childExpression =>
+          childExpression.copy("((long long)" + childExpression.cCode + ")")
         }
       case NoOp =>
         Right(CExpression("0", Some("false")))
@@ -488,21 +485,23 @@ object SparkExpressionToCExpression {
 
   def sparkTypeToScalarVeType(dataType: DataType): VeScalarType = {
     dataType match {
-      case DoubleType  => VeScalarType.veNullableDouble
-      case IntegerType => VeScalarType.veNullableInt
-      case LongType    => VeScalarType.veNullableLong
-      case ShortType   => VeScalarType.veNullableInt
-      case BooleanType => VeScalarType.veNullableInt
+      case DoubleType    => VeScalarType.veNullableDouble
+      case IntegerType   => VeScalarType.veNullableInt
+      case LongType      => VeScalarType.veNullableLong
+      case ShortType     => VeScalarType.veNullableInt
+      case BooleanType   => VeScalarType.veNullableInt
+      case TimestampType => VeScalarType.veNullableLong
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
     dataType match {
-      case DoubleType  => VeScalarType.veNullableDouble
-      case IntegerType => VeScalarType.veNullableInt
-      case LongType    => VeScalarType.veNullableLong
-      case ShortType   => VeScalarType.veNullableInt
-      case BooleanType => VeScalarType.veNullableInt
-      case StringType  => VeString
+      case DoubleType    => VeScalarType.veNullableDouble
+      case IntegerType   => VeScalarType.veNullableInt
+      case LongType      => VeScalarType.veNullableLong
+      case ShortType     => VeScalarType.veNullableInt
+      case BooleanType   => VeScalarType.veNullableInt
+      case StringType    => VeString
+      case TimestampType => VeScalarType.veNullableLong
     }
   }
   def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
