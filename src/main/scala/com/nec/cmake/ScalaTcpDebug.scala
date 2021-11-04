@@ -54,30 +54,30 @@ object ScalaTcpDebug {
     override def span[T](context: String, name: String)(
       f: => T
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): T = {
-      val suffix = s"${name}:${fullName.value}#${line.value}"
+      /*val suffix = s"${name}:${fullName.value}#${line.value}"
       val messageStart = s"${Instant.now()} $$ ${context} $$$$ S:${suffix}\n"
       val dsocket = new Socket(hostName, port)
       try {
         val bytesStart = messageStart.getBytes()
-        dsocket.getOutputStream.write(bytesStart)
+        dsocket.getOutputStream.write(bytesStart)*/
         val r = f
-        val messageEnd = s"${Instant.now()} $$ ${context} $$$$ E:${suffix}\n"
+        /*val messageEnd = s"${Instant.now()} $$ ${context} $$$$ E:${suffix}\n"
 
         val bytesEnd = messageEnd.getBytes()
         dsocket.getOutputStream.write(bytesEnd)
-        dsocket.getOutputStream.flush()
+        dsocket.getOutputStream.flush()*/
         r
-      } finally dsocket.close()
+      /*} finally dsocket.close()*/
     }
 
     override def spanIterator[T](context: String, name: String)(
       f: => Iterator[T]
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Iterator[T] = {
-      val dsocket = new Socket(hostName, port)
+      /*val dsocket = new Socket(hostName, port)
 
-      val suffix = s"${name}:${fullName.value}#${line.value}"
+      val suffix = s"${name}:${fullName.value}#${line.value}"*/
       List(
-        Iterator
+        /*Iterator
           .continually {
             val messageStart = s"${Instant.now()} $$ ${context} $$$$ S:$suffix\n"
             val bytesStart = messageStart.getBytes()
@@ -85,9 +85,9 @@ object ScalaTcpDebug {
             dsocket.getOutputStream.write(bytesStart)
             None
           }
-          .take(1),
+          .take(1),*/
         f.map(v => Some(v)),
-        Iterator
+        /*Iterator
           .continually {
             val messageEnd = s"${Instant.now()} $$ ${context} $$$$ E:${suffix}\n"
             val bytesEnd = messageEnd.getBytes()
@@ -97,7 +97,7 @@ object ScalaTcpDebug {
             None
           }
           .take(1)
-      ).toIterator.flatMap(_.flatten)
+      */).toIterator.flatMap(_.flatten)
     }
 
   }

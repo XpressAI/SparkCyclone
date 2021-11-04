@@ -44,7 +44,7 @@ final case class GroupByPartialToFinalGenerator(
           stagedAggregation.finalType.makeCVector(stagedAggregation.name)
       },
       body = CodeLines.from(
-        TcpDebug.conditional.createSock,
+        //TcpDebug.conditional.createSock,
         CodeLines
           .from(
             performGroupingOnKeys,
@@ -52,7 +52,7 @@ final case class GroupByPartialToFinalGenerator(
             passProjectionsPerGroup
           )
           .time("Execution of Final"),
-        TcpDebug.conditional.close
+        //TcpDebug.conditional.close
       )
     )
 

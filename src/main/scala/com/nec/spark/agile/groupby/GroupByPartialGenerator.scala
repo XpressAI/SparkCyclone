@@ -64,7 +64,7 @@ final case class GroupByPartialGenerator(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
-        TcpDebug.conditional.createSock,
+        //TcpDebug.conditional.createSock,
         CodeLines
           .from(
             performGrouping(count = s"${inputs.head.name}->count")
@@ -78,7 +78,7 @@ final case class GroupByPartialGenerator(
             }
           )
           .time("Execution of Partial"),
-        TcpDebug.conditional.close
+        //TcpDebug.conditional.close
       )
     )
 
