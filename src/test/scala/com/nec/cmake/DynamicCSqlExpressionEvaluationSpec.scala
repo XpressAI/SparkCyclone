@@ -36,6 +36,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.{Prettifier, source}
 
 import java.time.Instant
+import java.time.temporal.TemporalUnit
 import scala.math.Ordered.orderingToOrdered
 
 object DynamicCSqlExpressionEvaluationSpec {
@@ -939,10 +940,12 @@ class DynamicCSqlExpressionEvaluationSpec
     import sparkSession.implicits._
 
     val before = Instant.now();
+    val after = Instant.now().plusSeconds(3600)
     val sql =
       "select max(b) from values (1, NOW()), (2, NOW()), (3, NOW()) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[Instant].collect().toList.head > before)
+      assert(ds.as[Instant].collect().toList.head < after)
     }
   }
 
