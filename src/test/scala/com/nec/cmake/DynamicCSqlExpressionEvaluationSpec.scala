@@ -939,13 +939,14 @@ class DynamicCSqlExpressionEvaluationSpec
   s"Timestamps are supported" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
-    val before = Instant.now();
-    val after = Instant.now().plusSeconds(3600)
+    val a = Instant.now()
+    val b = a.plusSeconds(5)
+    val c = a.plusSeconds(10)
+
     val sql =
-      "select max(b) from values (1, NOW()), (2, NOW()), (3, NOW()) as tab1(a, b)"
+      s"select max(b) from values (1, timestamp '${a}'), (2, timestamp '${b}'), (3, timestamp '${c}') as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Instant].collect().toList.head > before)
-      assert(ds.as[Instant].collect().toList.head < after)
+      assert(ds.as[Instant].collect().toList == List(c))
     }
   }
 
