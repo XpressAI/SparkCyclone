@@ -72,13 +72,13 @@ object TcpDebug {
 
     override def close: CodeLines = CodeLines.from(s"::close(${sockName});")
 
-    override def send(what: String*): CodeLines = CodeLines
-      .from(
+    override def send(what: String*): CodeLines = CodeLines.from(
         "std::ostringstream s;",
         "s " + Tracer.concatStr(what.toList) + ";",
         s"write(${sockName}, s.str().c_str(), s.str().length());"
       )
       .blockCommented("Send via TCP")
+
   }
 }
 

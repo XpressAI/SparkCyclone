@@ -139,6 +139,15 @@ object ArrowInterfaces {
     vc
   }
 
+  def c_nullable_bigint_vector(tzVector: TimeStampMicroTZVector): nullable_bigint_vector = {
+    val vc = new nullable_bigint_vector()
+    vc.data = tzVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer =
+      tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.count = tzVector.getValueCount
+    vc
+  }
+
   def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
@@ -181,7 +190,7 @@ object ArrowInterfaces {
     }
     bigintVector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(bigintVector.getValidityBuffer, i))
-    getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
+    getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.dataSize())
   }
 
   def nullable_bigint_vector_to_BigIntVector(
@@ -197,7 +206,7 @@ object ArrowInterfaces {
       bigintVector.getValidityBufferAddress,
       Math.ceil(input.count / 64.0).toInt * 8
     )
-    getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.size())
+    getUnsafe.copyMemory(input.data, bigintVector.getDataBufferAddress, input.dataSize())
   }
 
   def non_null_double_vector_to_float8Vector(
@@ -212,7 +221,7 @@ object ArrowInterfaces {
     }
     float8Vector.setValueCount(input.count)
     (0 until input.count).foreach(i => BitVectorHelper.setBit(float8Vector.getValidityBuffer, i))
-    getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.size())
+    getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.dataSize())
   }
 
   def nullable_double_vector_to_float8Vector(
@@ -231,7 +240,7 @@ object ArrowInterfaces {
       float8Vector.getValidityBufferAddress,
       Math.ceil(input.count / 64.0).toInt * 8
     )
-    getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.size())
+    getUnsafe.copyMemory(input.data, float8Vector.getDataBufferAddress, input.dataSize())
   }
 
   def non_null_int2_vector_to_IntVector(input: non_null_int2_vector, intVector: IntVector): Unit = {
@@ -256,7 +265,7 @@ object ArrowInterfaces {
       intVector.getValidityBufferAddress,
       Math.ceil(input.count / 64.0).toInt * 8
     )
-    getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.size())
+    getUnsafe.copyMemory(input.data, intVector.getDataBufferAddress, input.dataSize())
   }
 
   def nullable_int_vector_to_SmallIntVector(
@@ -310,5 +319,21 @@ object ArrowInterfaces {
     }
     intVector.clear()
     intVector.close()
+  }
+
+  def nullable_bigint_vector_to_TimeStampVector(
+    input: nullable_bigint_vector,
+    timeStampVector: TimeStampMicroTZVector
+  ): Unit = {
+    if ( input.count < 1 ) {
+      return
+    }
+    timeStampVector.setValueCount(input.count)
+    getUnsafe.copyMemory(
+      input.validityBuffer,
+      timeStampVector.getValidityBufferAddress,
+      Math.ceil(input.count / 64.0).toInt * 8
+    )
+    getUnsafe.copyMemory(input.data, timeStampVector.getDataBufferAddress, input.dataSize())
   }
 }
