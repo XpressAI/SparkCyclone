@@ -116,136 +116,158 @@ final case class NativeAggregationEvaluationPlan(
     import twoStaged._
     val partialFunctionName = s"${functionPrefix}_partial"
     val finalFunctionName = s"${functionPrefix}_final"
+    val compilerConfig = VeCompilerConfig.fromSparkConf(sparkContext.getConf)
+    val udpDebug = compilerConfig.maybeProfileTarget
+      .map(pt => ScalaTcpDebug.TcpTarget(pt))
+      .getOrElse(ScalaTcpDebug.NoOp)
 
-    val evaluator = nativeEvaluator.forCode(
-      List(
-        partialFunction.toCodeLines(partialFunctionName),
-        finalFunction
-          .toCodeLinesNoHeader(finalFunctionName)
-      ).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
+    val launched = Tracer.Launched(
+      s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
     )
+
+    val evaluator = udpDebug.span(launched.launchId, "prepare partial evaluator") {
+      nativeEvaluator.forCode(
+        List(
+          partialFunction.toCodeLines(partialFunctionName),
+          finalFunction
+            .toCodeLinesNoHeader(finalFunctionName)
+        ).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
+      )
+    }
 
     logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
 
     child
       .execute()
       .mapPartitions { rows =>
-        implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-          .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
-        val timeZoneId = conf.sessionLocalTimeZone
-        val root =
-          collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
-        val inputVectors = child.output.indices.map(root.getVector)
-        val partialOutputVectors: List[ValueVector] =
-          partialFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+        udpDebug.span(launched.launchId, "evaluate partition partial") {
+          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+          val timeZoneId = conf.sessionLocalTimeZone
 
-        try {
+          val root = udpDebug.span(launched.launchId, "collect input rows partial") {
+            collectInputRows(rows, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
+          }
+          val inputVectors = child.output.indices.map(root.getVector)
+          val partialOutputVectors: List[ValueVector] =
+            partialFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
 
-          val outputArgs = inputVectors.toList.map(_ => None) ++
-            partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-          val inputArgs = inputVectors.toList.map(iv =>
-            Some(SupportedVectorWrapper.wrapInput(iv))
-          ) ++ partialOutputVectors.map(_ => None)
+          try {
 
-          evaluator.callFunction(
-            name = partialFunctionName,
-            inputArguments = inputArgs,
-            outputArguments = outputArgs
-          )
+            val outputArgs = inputVectors.toList.map(_ => None) ++
+              partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+            val inputArgs = inputVectors.toList.map(iv =>
+              Some(SupportedVectorWrapper.wrapInput(iv))
+            ) ++ partialOutputVectors.map(_ => None)
+            udpDebug.span(launched.launchId, "evaluate partial") {
+              evaluator.callFunction(
+                name = partialFunctionName,
+                inputArguments = inputArgs,
+                outputArguments = outputArgs
+              )
+            }
 
-          (0 until partialOutputVectors.head.getValueCount).iterator.map { v_idx =>
-            val writer = new UnsafeRowWriter(partialOutputVectors.size)
-            writer.reset()
-            partialOutputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-              if (v_idx < v.getValueCount) {
-                v match {
-                  case vector: Float8Vector =>
-                    val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if (isNull) writer.setNullAt(c_idx)
-                    else writer.write(c_idx, vector.get(v_idx))
-                  case vector: IntVector =>
-                    val isNull =
-                      BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if (isNull) writer.setNullAt(c_idx)
-                    else writer.write(c_idx, vector.get(v_idx))
-                  case vector: BigIntVector =>
-                    val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if (isNull) writer.setNullAt(c_idx)
-                    else writer.write(c_idx, vector.get(v_idx))
-                  case vector: SmallIntVector =>
-                    val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
-                    if (isNull) writer.setNullAt(c_idx)
-                    else writer.write(c_idx, vector.get(v_idx))
-                  case varChar: VarCharVector =>
-                    val isNull = BitVectorHelper.get(varChar.getValidityBuffer, v_idx) == 0
-                    if (isNull) writer.setNullAt(c_idx)
-                    else writer.write(c_idx, varChar.get(v_idx))
+            udpDebug.span(launched.launchId, "emit rows partial") {
+              (0 until partialOutputVectors.head.getValueCount).iterator.map { v_idx =>
+                val writer = new UnsafeRowWriter(partialOutputVectors.size)
+                writer.reset()
+                partialOutputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                  if (v_idx < v.getValueCount) {
+                    v match {
+                      case vector: Float8Vector =>
+                        val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case vector: IntVector =>
+                        val isNull =
+                          BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case vector: BigIntVector =>
+                        val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case vector: SmallIntVector =>
+                        val isNull = BitVectorHelper.get(vector.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, vector.get(v_idx))
+                      case varChar: VarCharVector =>
+                        val isNull = BitVectorHelper.get(varChar.getValidityBuffer, v_idx) == 0
+                        if (isNull) writer.setNullAt(c_idx)
+                        else writer.write(c_idx, varChar.get(v_idx))
+                    }
+                  }
                 }
+                writer.getRow
               }
             }
-            writer.getRow
+          } finally {
+            inputVectors.foreach(_.close())
           }
-        } finally {
-          inputVectors.foreach(_.close())
         }
       }
       .coalesce(1, shuffle = true)
       .mapPartitions { iteratorColBatch =>
         Iterator
           .continually {
-
-            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-              .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
-            val partialInputVectors: List[FieldVector] =
-              finalFunction.inputs.map(CFunctionGeneration.allocateFrom(_))
-
-            collectInputRows(iteratorColBatch, partialInputVectors)
-
-            val outputVectors = outputExpressions
-              .flatMap {
-                case Alias(child, _) =>
-                  child match {
-                    // disabled for group-by integration
-                    //                    case ae: AggregateExpression =>
-                    //                      ae.aggregateFunction.aggBufferAttributes
-                    case other => List(other)
-                  }
-                case a @ AttributeReference(_, _, _, _) =>
-                  List(a)
-              }
-              .zipWithIndex
-              .map { case (ne, idx) =>
-                CFunctionGeneration.allocateFrom(
-                  SparkExpressionToCExpression
-                    .sparkTypeToVeType(ne.dataType)
-                    .makeCVector(s"out_${idx}")
-                )(allocator)
+            udpDebug.span(launched.launchId, "evaluate partition final") {
+              implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+                .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
+              val partialInputVectors: List[FieldVector] =
+                finalFunction.inputs.map(CFunctionGeneration.allocateFrom(_))
+              udpDebug.span(launched.launchId, "collect rows final") {
+                collectInputRows(iteratorColBatch, partialInputVectors)
               }
 
-            try {
-              evaluator.callFunction(
-                name = finalFunctionName,
-                inputArguments = partialInputVectors.map(iv =>
-                  Some(SupportedVectorWrapper.wrapInput(iv))
-                ) ++ outputVectors.map(_ => None),
-                outputArguments = finalFunction.inputs.map(_ => None) ++
-                  outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-              )
-
-              val cnt = outputVectors.head.getValueCount
-              logger.info(s"Got ${cnt} results back; ${outputVectors}")
-              (0 until cnt).iterator.map { v_idx =>
-                val writer = new UnsafeRowWriter(outputVectors.size)
-                writer.reset()
-                outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
-                  if (v_idx < v.getValueCount) writeVector(v_idx, writer, v, c_idx)
+              val outputVectors = outputExpressions
+                .flatMap {
+                  case Alias(child, _) =>
+                    child match {
+                      // disabled for group-by integration
+                      //                    case ae: AggregateExpression =>
+                      //                      ae.aggregateFunction.aggBufferAttributes
+                      case other => List(other)
+                    }
+                  case a@AttributeReference(_, _, _, _) =>
+                    List(a)
                 }
-                writer.getRow
-              }
-            } finally {
-              partialInputVectors.foreach(_.close())
-            }
+                .zipWithIndex
+                .map { case (ne, idx) =>
+                  CFunctionGeneration.allocateFrom(
+                    SparkExpressionToCExpression
+                      .sparkTypeToVeType(ne.dataType)
+                      .makeCVector(s"out_${idx}")
+                  )(allocator)
+                }
 
+              try {
+                udpDebug.span(launched.launchId, "evaluate final") {
+                  evaluator.callFunction(
+                    name = finalFunctionName,
+                    inputArguments = partialInputVectors.map(iv =>
+                      Some(SupportedVectorWrapper.wrapInput(iv))
+                    ) ++ outputVectors.map(_ => None),
+                    outputArguments = finalFunction.inputs.map(_ => None) ++
+                      outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+                  )
+                }
+
+                val cnt = outputVectors.head.getValueCount
+                logger.info(s"Got ${cnt} results back; ${outputVectors}")
+                udpDebug.span(launched.launchId, "emit rows final") {
+                  (0 until cnt).iterator.map { v_idx =>
+                    val writer = new UnsafeRowWriter(outputVectors.size)
+                    writer.reset()
+                    outputVectors.zipWithIndex.foreach { case (v, c_idx) =>
+                      if (v_idx < v.getValueCount) writeVector(v_idx, writer, v, c_idx)
+                    }
+                    writer.getRow
+                  }
+                }
+              } finally {
+                partialInputVectors.foreach(_.close())
+              }
+            }
           }
           .take(1)
           .flatten
