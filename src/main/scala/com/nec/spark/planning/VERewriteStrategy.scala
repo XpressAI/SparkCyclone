@@ -147,7 +147,7 @@ final case class VERewriteStrategy(
             sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${id}")
           }.toList
 
-          val evaluationPlanE: Either[String, NativeAggregationEvaluationPlan] = for {
+          val evaluationPlanE: Either[String, SparkPlan] = for {
             projections <- aggregateExpressions.zipWithIndex
               .map { case (ne, i) =>
                 ConvertNamedExpression
@@ -232,33 +232,38 @@ final case class VERewriteStrategy(
           } yield {
             options.preShufflePartitions match {
               case Some(n) =>
-                NativeAggregationEvaluationPlan(
-                  outputExpressions = aggregateExpressions,
-                  functionPrefix = functionPrefix,
-                  evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
-                  child = new RowToArrowColumnarPlan(
-                    ShuffleExchangeExec(
-                      outputPartitioning =
-                        HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                      child = planLater(child),
-                      shuffleOrigin = REPARTITION
-                    )
-                  ),
-                  nativeEvaluator = nativeEvaluator
+                ArrowColumnarToRowPlan(
+                  NativeAggregationEvaluationPlan(
+                    outputExpressions = aggregateExpressions,
+                    functionPrefix = functionPrefix,
+                    evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
+                    child = new RowToArrowColumnarPlan(
+                      ShuffleExchangeExec(
+                        outputPartitioning =
+                          HashPartitioning(expressions = groupingExpressions, numPartitions = n),
+                        child = planLater(child),
+                        shuffleOrigin = REPARTITION
+                      )
+                    ),
+                    supportsColumnar = true,
+                    nativeEvaluator = nativeEvaluator
+                  )
                 )
               case None =>
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
                   evaluationMode = EvaluationMode.TwoStaged(partialCFunction, ff),
-                  child = new RowToArrowColumnarPlan(planLater(child)),
+                  child = planLater(child),
+                  supportsColumnar = false,
                   nativeEvaluator = nativeEvaluator
                 )
             }
           }
+
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
-          List(new ArrowColumnarToRowPlan(evaluationPlan))
+          List(evaluationPlan)
         case Sort(orders, global, child) => {
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToScalarVeType(att.dataType)

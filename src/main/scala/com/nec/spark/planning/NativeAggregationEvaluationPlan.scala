@@ -59,7 +59,8 @@ final case class NativeAggregationEvaluationPlan(
   functionPrefix: String,
   evaluationMode: EvaluationMode,
   child: SparkPlan,
-  nativeEvaluator: NativeEvaluator
+  nativeEvaluator: NativeEvaluator,
+  override val supportsColumnar: Boolean
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
@@ -69,7 +70,6 @@ final case class NativeAggregationEvaluationPlan(
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
-  override def supportsColumnar: Boolean = true
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
