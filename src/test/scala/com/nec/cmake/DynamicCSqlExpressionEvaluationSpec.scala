@@ -42,10 +42,13 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.{source, Prettifier}
+
+import java.time.Instant
+import java.time.temporal.TemporalUnit
+import scala.math.Ordered.orderingToOrdered
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -941,6 +944,20 @@ class DynamicCSqlExpressionEvaluationSpec
       "select approx_count_distinct(a, 0.05) as foo from values (1, 2), (3, 4), (1, 5) as tab1(a, b)"
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[Long].collect().toList == List(2))
+    }
+  }
+
+  s"Timestamps are supported" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val a = Instant.now()
+    val b = a.plusSeconds(5)
+    val c = a.plusSeconds(10)
+
+    val sql =
+      s"select max(b) from values (1, timestamp '${a}'), (2, timestamp '${b}'), (3, timestamp '${c}') as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Instant].collect().toList == List(c))
     }
   }
 

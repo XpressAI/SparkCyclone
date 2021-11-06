@@ -71,7 +71,7 @@ final case class NativeAggregationEvaluationPlan(
 
   override def supportsColumnar: Boolean = true
 
-  override def outputPartitioning: Partitioning = SinglePartition
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   def collectInputRows(
     rows: Iterator[InternalRow],

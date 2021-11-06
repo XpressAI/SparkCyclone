@@ -39,8 +39,6 @@ object VeKernelCompiler {
   final case class ProfileTarget(host: String, port: Int)
 
   object ProfileTarget {
-    def default: ProfileTarget = ProfileTarget(host = "127.0.0.1", port = 45705)
-
     def parse(value: String): Option[ProfileTarget] = {
       PartialFunction.condOpt(value.split(':')) { case Array(h, p) =>
         ProfileTarget(h, p.toInt)

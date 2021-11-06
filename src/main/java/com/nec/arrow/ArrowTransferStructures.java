@@ -55,7 +55,7 @@ public interface ArrowTransferStructures extends Library {
         public long validityBuffer;
         public Integer count;
 
-        public int size() {
+        public int dataSize() {
             return count * 4;
         }
 
@@ -107,7 +107,7 @@ public interface ArrowTransferStructures extends Library {
         public long data;
         public Integer count;
 
-        public int size() {
+        public int dataSize() {
             return count * 8;
         }
 
@@ -141,7 +141,7 @@ public interface ArrowTransferStructures extends Library {
         public long validityBuffer;
         public Integer count;
 
-        public int size() {
+        public int dataSize() {
             return count * 8;
         }
 
@@ -170,7 +170,7 @@ public interface ArrowTransferStructures extends Library {
         public long validityBuffer;
         public Integer count;
 
-        public int size() {
+        public int dataSize() {
             return count * 8;
         }
 
@@ -226,7 +226,7 @@ public interface ArrowTransferStructures extends Library {
         public long data;
         public Integer count;
 
-        public int size() {
+        public int dataSize() {
             return count * 8;
         }
 
