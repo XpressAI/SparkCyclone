@@ -65,7 +65,7 @@ final case class NativeAggregationEvaluationPlan(
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
-  override def outputPartitioning: Partitioning = SinglePartition
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   def collectInputRows(
     rows: Iterator[InternalRow],
