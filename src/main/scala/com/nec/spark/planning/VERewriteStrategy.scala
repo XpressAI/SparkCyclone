@@ -271,14 +271,16 @@ final case class VERewriteStrategy(
                     nativeEvaluator = nativeEvaluator
                   )
                 )
-              case _ =>
+              case None =>
+                ArrowColumnarToRowPlan(
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
                   evaluationMode = EvaluationMode.TwoStaged(partialCFunction, ff),
-                  child = planLater(child),
-                  supportsColumnar = false,
+                  child = RowToArrowColumnarPlan(planLater(child)),
+                  supportsColumnar = true,
                   nativeEvaluator = nativeEvaluator
+                )
                 )
             }
           }

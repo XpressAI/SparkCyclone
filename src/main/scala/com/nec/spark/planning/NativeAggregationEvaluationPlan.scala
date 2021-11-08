@@ -19,6 +19,7 @@
  */
 package com.nec.spark.planning
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util.UUID
 
 import scala.collection.JavaConverters.asJavaIterableConverter
@@ -30,12 +31,10 @@ import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
-  PrePartitioned,
-  TwoStaged
-}
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.{writeVector, EvaluationMode}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PrePartitioned, TwoStaged}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.{EvaluationMode, writeVector}
 import com.nec.spark.planning.Tracer.DefineTracer
+import com.nec.spark.serialization.ArrowColumnarBatchDeSerializer
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -189,7 +188,6 @@ final case class NativeAggregationEvaluationPlan(
           inputVectors.foreach(_.close())
         }
       }
-      .coalesce(1, shuffle = true)
       .mapPartitions { iteratorColBatch =>
         Iterator
           .continually {
@@ -257,6 +255,7 @@ final case class NativeAggregationEvaluationPlan(
     import twoStaged._
     val partialFunctionName = s"${functionPrefix}_partial"
     val finalFunctionName = s"${functionPrefix}_final"
+    val serializer = new ArrowColumnarBatchDeSerializer
 
     val evaluator = nativeEvaluator.forCode(
       List(
@@ -296,7 +295,8 @@ final case class NativeAggregationEvaluationPlan(
             )
             val vectors = partialOutputVectors
               .map(vector => new AccessibleArrowColumnVector(vector))
-            new ColumnarBatch(vectors.toArray, vectors.head.getArrowValueVector.getValueCount)
+            val batch = new ColumnarBatch(vectors.toArray, vectors.head.getArrowValueVector.getValueCount)
+            serializer.serialize(batch)
           } finally {
             inputVectors.foreach(_.close())
           }
@@ -305,13 +305,15 @@ final case class NativeAggregationEvaluationPlan(
       .coalesce(1, shuffle = true)
       .mapPartitions { iteratorColBatch =>
         iteratorColBatch.map { batch =>
+
+          val colBatch: ColumnarBatch = serializer.deserialize(batch)
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
 
           val partialInputVectors: List[ValueVector] =
             finalFunction.inputs.indices
               .map(idx =>
-                batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
+                colBatch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
               )
               .toList
 

@@ -23,33 +23,21 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
-import com.nec.arrow.ArrowVectorBuilders.{
-  withArrowStringVector,
-  withDirectBigIntVector,
-  withDirectFloat8Vector,
-  withDirectIntVector
-}
+import com.nec.arrow.ArrowVectorBuilders.{withArrowStringVector, withDirectBigIntVector, withDirectFloat8Vector, withDirectIntVector, withNullableArrowStringVector}
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.cmake.functions.ParseCSVSpec.{
-  RichBigIntVector,
-  RichFloat8,
-  RichIntVector,
-  RichVarCharVector
-}
+import com.nec.cmake.functions.ParseCSVSpec.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
-  GroupByAggregation,
-  GroupByProjection
-}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
 import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
@@ -966,7 +954,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         withArrowStringVector(partialInputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(partialInputData.map(_._2)) { f8v =>
             withDirectBigIntVector(partialInputData.map(_._3)) { iv =>
-              withArrowStringVector(Seq.empty) { vcv_out =>
+              withNullableArrowStringVector(Seq.empty) { vcv_out =>
                 withDirectFloat8Vector(Seq.empty) { f8v_out =>
                   nativeInterface.callFunctionWrapped(
                     functionName,
@@ -1005,7 +993,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       WithTestAllocator { implicit allocator =>
         withArrowStringVector(inputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(inputData.map(_._2)) { f8v =>
-            withArrowStringVector(Seq.empty) { vcv_out =>
+            withNullableArrowStringVector(Seq.empty) { vcv_out =>
               withDirectFloat8Vector(Seq.empty) { f8v_out =>
                 withDirectBigIntVector(Seq.empty) { iv_out =>
                   nativeInterface.callFunctionWrapped(
