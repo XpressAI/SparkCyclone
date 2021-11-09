@@ -258,6 +258,8 @@ object SparkExpressionToCExpression {
             isNotNullCode = None
           )
         }
+      case StringHole(_, evl) =>
+        Right(evl.fetchResult)
       case StartsWith(left: AttributeReference, right: Literal)
           if left.dataType == StringType && right.dataType == StringType =>
         Right {

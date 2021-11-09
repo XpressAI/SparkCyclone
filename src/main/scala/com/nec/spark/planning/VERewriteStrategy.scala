@@ -20,7 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.agile.SparkExpressionToCExpression.{
   eval,
   replaceReferences,
@@ -45,7 +45,6 @@ import com.nec.spark.planning.VERewriteStrategy.{
   VeRewriteStrategyOptions
 }
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
@@ -57,9 +56,9 @@ import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
+
 import scala.collection.immutable
 import scala.util.Try
-
 import com.nec.spark.agile.CFunctionGeneration.{
   CExpression,
   CScalarVector,
@@ -204,11 +203,19 @@ final case class VERewriteStrategy(
                 mapGroupingExpression(exp, referenceReplacer)
                   .map(e => gk -> e)
               }.sequence
+            stringHoles = projections.flatMap { case (sp, p) =>
+              StringHole.process(p.transform(referenceReplacer))
+            } ++ aggregates.flatMap { case (sa, exp) =>
+              StringHole.process(exp.transform(referenceReplacer))
+            }
+
             computedProjections <- projections.map { case (sp, p) =>
-              ConvertNamedExpression.doProj(p.transform(referenceReplacer)).map(r => sp -> r)
+              ConvertNamedExpression
+                .doProj(p.transform(referenceReplacer).transform(StringHole.transform))
+                .map(r => sp -> r)
             }.sequence
             computedAggregates <- aggregates.map { case (sa, exp) =>
-              computeAggregate(exp.transform(referenceReplacer))
+              computeAggregate(exp.transform(referenceReplacer).transform(StringHole.transform))
                 .map(r => sa -> r)
             }.sequence
             groupByPartialGenerator = GroupByPartialGenerator(
@@ -217,7 +224,8 @@ final case class VERewriteStrategy(
                 computedAggregates = computedAggregates
               ),
               computedGroupingKeys = computedGroupingKeys,
-              computedProjections = computedProjections
+              computedProjections = computedProjections,
+              stringVectorComputations = stringHoles.flatMap(_.stringParts)
             )
             partialCFunction = groupByPartialGenerator.createPartial(inputs = inputsList)
             _ <-
