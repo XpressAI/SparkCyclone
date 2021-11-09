@@ -604,8 +604,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       ("test3", 123, 4567890)
     )
 
-    val right =
-      List[(String, Long, Double)](("test2", 123, 654), ("test2", 123, 761), ("test3", 12, 456))
+    val right = List[(String, Long, Double)](
+      ("test2", 123, 654),
+      ("test2", 123, 761),
+      ("test3", 12, 456)
+    )
 
     val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
       /** two inner join entries on RHS */

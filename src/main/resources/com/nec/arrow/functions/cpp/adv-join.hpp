@@ -3,31 +3,13 @@
 #include "frovedis/dataframe/join.cc"
 #include "frovedis/text/words.hpp"
 #include "frovedis/text/words.cc"
+#include "frovedis/text/dict.hpp"
+#include "frovedis/text/dict.cc"
 
 #include <iostream>
 #include <vector>
 #include <cmath>
 
-/*
-NativeArgument.input(x_a),
-NativeArgument.input(x_b),
-NativeArgument.input(x_c),
-NativeArgument.input(y_a),
-NativeArgument.input(y_b),
-NativeArgument.input(y_c),
-NativeArgument.output(o_a),
-NativeArgument.output(o_b),
-NativeArgument.output(o_c)
-x_a <- vb.stringVector(left.map(_._1))
-x_b <- vb.longVector(left.map(_._2))
-x_c <- vb.intVector(left.map(_._3))
-y_a <- vb.stringVector(right.map(_._1))
-y_b <- vb.longVector(right.map(_._2))
-y_c <- vb.doubleVector(right.map(_._3))
-o_a <- vb.stringVector(Seq.empty)
-o_b <- vb.intVector(Seq.empty)
-o_c <- vb.doubleVector(Seq.empty)
-*/
 extern "C" long adv_join(
     nullable_varchar_vector *x_a,
     nullable_bigint_vector *x_b,
@@ -35,64 +17,54 @@ extern "C" long adv_join(
     nullable_varchar_vector *y_a,
     nullable_bigint_vector *y_b,
     nullable_double_vector *y_c,
-    nullable_varchar_vector *o_a
+    nullable_varchar_vector *o_a,
     nullable_int_vector *o_b,
     nullable_double_vector *o_c)
 {
+    frovedis::words left_words = varchar_vector_to_words(x_a);
+    frovedis::words right_words = varchar_vector_to_words(y_a);
 
-    long *left_data = left->data;
-    long *right_data = right->data;
+    frovedis::compressed_words left_cwords = frovedis::make_compressed_words(left_words);
+    frovedis::compressed_words right_cwords = frovedis::make_compressed_words(right_words);
 
-    long left_key_count = left_key->count;
-    long right_key_count = right_key->count;
+    frovedis::dict left_dict = frovedis::make_dict(left_words);
+    frovedis::dict right_dict = frovedis::make_dict(right_words);
 
-    std::vector<double> left_vec(left_key->data, left_key->data + left_key->count);
-    std::vector<double> right_vec(right_key->data, right_key->data + right_key->count);
-    std::vector<size_t> left_idx(left_key_count);
+    left_words.print();
+    std::cout << std::endl;
+    right_words.print();
+    std::cout << std::endl;
 
-    #pragma _NEC ivdep
-    for(size_t i = 0; i < left_key_count; i++) {
-        left_idx[i] = i;
-     }
+    std::vector<size_t> a = left_dict.lookup(right_cwords);
 
-    std::vector<size_t> right_idx(right_key_count);
+    std::cout << "keys: ";
+    for (int i = 0; i < a.size(); i++) {
+        std::cout << a[i] << ", ";
+    }
+    std::cout << std::endl << "Results: " << std::endl;
 
-    #pragma _NEC ivdep
-    for(size_t i = 0; i < right_key_count; i++) {
-        right_idx[i] = i;
+    frovedis::words result = left_dict.index_to_words(a);
+    result.print();
+
+    std::cout << std::endl;
+
+    words_to_varchar_vector(result, out_a);
+
+    out_b->count = a.size();
+    out_b->data = (int32_t *)malloc(out_b->count * sizeof(int32_t));
+    out_b->validityBuffer = (uint64_t *)malloc(ceil(out_b->count / 64.0) * sizeof(uint64_t));
+    for (int i = 0; i < a.size(); i++) {
+        out_b->data[i] = x_c->data[a[i]];
+        set_validity(out_b->validityBuffer, i, check_valid(x_c->validityBuffer, a[i]));
     }
 
-    std::vector<size_t> right_out;
-    std::vector<size_t> left_out;
-
-    frovedis::equi_join<double>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);
-
-    size_t left_out_size = left_out.size();
-    size_t right_out_size = right_out.size();
-
-    int total_elems = left_out_size + right_out_size;
-    double *out_data = (double *) malloc(total_elems * sizeof(double));
-    int counter = 0;
-    int validityBufferSize = ceil(total_elems / 64.0);
-    out->validityBuffer = (uint64_t *) malloc(validityBufferSize * sizeof(uint64_t));
-
-    #pragma _NEC ivdep
-    for(int i = 0; i < left_out_size; i++) {
-        out_data[i] = left_data[left_out[i]];
+    out_c->count = a.size();
+    out_c->data = (double *)malloc(out_c->count * sizeof(double));
+    out_c->validityBuffer = (uint64_t *)malloc(ceil(out_c->count / 64.0) * sizeof(uint64_t));
+    for (int i = 0; i < a.size(); i++) {
+        out_c->data[i] = y_c->data[a[i]];
+        set_validity(out_b->validityBuffer, i, check_valid(y_c->validityBuffer, a[i]));
     }
-
-    #pragma _NEC ivdep
-    for(int i = 0; i < validityBufferSize ; i++) {
-        out->validityBuffer[i] = 0xFFFFFFFFFFFFFFFF;
-    }
-
-    #pragma _NEC ivdep
-    for(int i = 0; i < right_out_size; i++) {
-        out_data[left_out_size + i] = right_data[right_out[i]];
-    }
-
-    out->data = out_data;
-    out->count = total_elems;
 
     return 0;
 }
