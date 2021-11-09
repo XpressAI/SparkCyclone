@@ -28,17 +28,11 @@ import org.scalatest.freespec.AnyFreeSpec
 
 final class StringHoleSpec extends AnyFreeSpec {
   "It detects a StartsWith in CASE WHEN" in {
-    val y: Option[StringHoleTransformation] = StringHole.process(
-      CaseWhen(
-        Seq(
-          StartsWith(
-            AttributeReference("test", StringType, nullable = false)(),
-            Literal("x")
-          ) -> Literal(1)
-        ),
-        None
-      )
-    )
+
+    val aref = AttributeReference("test", StringType, nullable = false)()
+
+    val y: Option[StringHoleTransformation] =
+      StringHole.process(CaseWhen(Seq(StartsWith(aref, Literal("x")) -> Literal(1)), None))
 
     val x = y.get
 
@@ -46,7 +40,7 @@ final class StringHoleSpec extends AnyFreeSpec {
       x.newExpression == CaseWhen(
         Seq(
           StringHole(
-            StartsWith(AttributeReference("test", StringType, nullable = false)(), Literal("x")),
+            StartsWith(aref, Literal("x")),
             StringHoleEvaluation.HoleStartsWith()
           ) -> Literal(1)
         ),

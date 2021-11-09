@@ -84,7 +84,7 @@ object StringHole {
     exprWithHoles: Expression,
     holes: Map[StringHole, StringHoleEvaluation]
   ) {
-    def stringParts: List[StringHoleEvaluation] = Nil
+    def stringParts: List[StringHoleEvaluation] = holes.values.toList
 
     def newExpression: Expression = exprWithHoles
   }
