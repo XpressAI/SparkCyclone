@@ -231,7 +231,7 @@ final case class VERewriteStrategy(
               groupByPartialGenerator.createFull(inputs = inputsList)
           } yield {
             options.preShufflePartitions match {
-              case Some(n) =>
+              case Some(n) if(groupingExpressions.size > 0)=>
                 ArrowColumnarToRowPlan(
                   NativeAggregationEvaluationPlan(
                     outputExpressions = aggregateExpressions,
@@ -249,7 +249,7 @@ final case class VERewriteStrategy(
                     nativeEvaluator = nativeEvaluator
                   )
                 )
-              case None =>
+              case _ =>
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
