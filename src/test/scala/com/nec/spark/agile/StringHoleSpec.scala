@@ -20,7 +20,7 @@
 package com.nec.spark.agile
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.HoleStartsWith
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator
 import com.nec.spark.agile.StringHole.{StringHoleEvaluation, StringHoleTransformation}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, CaseWhen, Literal, StartsWith}
 import org.apache.spark.sql.types.StringType
@@ -36,17 +36,14 @@ final class StringHoleSpec extends AnyFreeSpec {
 
     val x = y.get
 
+    val evaluation =
+      StringHoleEvaluation.SlowEvaluation("test", SlowEvaluator.StartsWithEvaluator("x"))
     expect(
       x.newExpression == CaseWhen(
-        Seq(
-          StringHole(
-            StartsWith(aref, Literal("x")),
-            StringHoleEvaluation.HoleStartsWith()
-          ) -> Literal(1)
-        ),
+        Seq(StringHole(StartsWith(aref, Literal("x")), evaluation) -> Literal(1)),
         None
       ),
-      x.stringParts == List(HoleStartsWith())
+      x.stringParts == List(evaluation)
     )
 
   }
