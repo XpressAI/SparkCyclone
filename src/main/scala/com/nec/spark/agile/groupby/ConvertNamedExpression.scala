@@ -102,7 +102,7 @@ object ConvertNamedExpression {
         ).map(r => Right(r))
     }
 
-  private def mapNamedStagedProjection(
+  def mapNamedStagedProjection(
     namedExpression: NamedExpression,
     idx: Int,
     childAttributes: Seq[Attribute]
@@ -124,7 +124,7 @@ object ConvertNamedExpression {
     }
   }
 
-  private def computeIndexedAggregate(
+  def computeIndexedAggregate(
     aggregateExpression: NamedExpression,
     index: Int,
     referenceReplacer: PartialFunction[Expression, Expression]

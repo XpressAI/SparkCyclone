@@ -21,18 +21,50 @@ package com.nec.spark.agile.groupby
 
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import org.scalatest.freespec.AnyFreeSpec
+import ConvertNamedExpression._
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType
+import com.nec.spark.agile.groupby.GroupByOutline.StagedProjection
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  ExprId,
+  PrettyAttribute
+}
+import org.apache.spark.sql.types.DoubleType
 
 final class ConvertNamedExpressionSpec extends AnyFreeSpec {
-  "It works" in {
-    assert(
-      ConvertNamedExpression
-        .mapNamedExp(
-          namedExpression = ???,
-          idx = ???,
-          referenceReplacer = ???,
-          childAttributes = ???
-        )(EvalFallback.noOp)
-        .isRight
-    )
+  private implicit val evalFallback: EvalFallback = EvalFallback.noOp
+  "For Staged projection" - {
+    "Matches AttributeReference" in {
+      val ar = AttributeReference("testx", DoubleType)(exprId = ExprId(5L), qualifier = Seq.empty)
+      val result = mapNamedStagedProjection(
+        namedExpression = ar,
+        idx = 9,
+        childAttributes = Seq[Attribute](ar)
+      )
+      assert(result.contains(StagedProjection("sp_9", VeScalarType.VeNullableDouble) -> ar))
+    }
+    "Matches Alias" in {
+      val ar = AttributeReference("testx", DoubleType)(exprId = ExprId(5L), qualifier = Seq.empty)
+      val result = mapNamedStagedProjection(
+        namedExpression = Alias(child = ar, name = "abcd")(),
+        idx = 9,
+        childAttributes = Seq[Attribute](ar)
+      )
+      assert(result.contains(StagedProjection("sp_9", VeScalarType.VeNullableDouble) -> ar))
+    }
+    "Fails to match when child attribute is not there for an attribute reference" in {
+      val result = mapNamedStagedProjection(
+        namedExpression =
+          AttributeReference("testx", DoubleType)(exprId = ExprId(5L), qualifier = Seq.empty),
+        idx = 9,
+        childAttributes = Seq[Attribute](
+          AttributeReference("testx", DoubleType)(exprId = ExprId(6L), qualifier = Seq.empty)
+        )
+      )
+      assert(result.isLeft)
+    }
   }
 }
