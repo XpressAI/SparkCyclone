@@ -65,7 +65,6 @@ object StringHole {
     object SlowEvaluator {
       final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
         override def evaluate(refName: String): CExpression = {
-
           val leftStringLength =
             s"(${refName}->offsets[i+1] - ${refName}->offsets[i])"
           val expectedLength = theString.length
@@ -76,6 +75,18 @@ object StringHole {
             s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
           CExpression(bool, None)
         }
+      }
+      final case class EndsWithEvaluator(theString: String) extends SlowEvaluator {
+        override def evaluate(refName: String): CExpression =
+          endsWithExp(refName, theString)
+      }
+      final case class ContainsEvaluator(theString: String) extends SlowEvaluator {
+        override def evaluate(refName: String): CExpression =
+          containsExp(refName, theString)
+      }
+      final case class EqualsEvaluator(theString: String) extends SlowEvaluator {
+        override def evaluate(refName: String): CExpression =
+          equalTo(refName, theString)
       }
     }
 
