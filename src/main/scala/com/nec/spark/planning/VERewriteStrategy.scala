@@ -148,7 +148,7 @@ final case class VERewriteStrategy(
           }.toList
 
           val stringHoledAggregateExpressions = aggregateExpressions.map(namedExpression =>
-            namedExpression.transformSelf(StringHole.transform)
+            namedExpression.transformSelf(referenceReplacer).transformSelf(StringHole.transform)
           )
 
           val evaluationPlanE: Either[String, NativeAggregationEvaluationPlan] = for {
@@ -223,8 +223,6 @@ final case class VERewriteStrategy(
             } ++ aggregates.flatMap { case (sa, exp) =>
               StringHole.process(exp.transform(referenceReplacer))
             }
-            _ = println(s"GOt holes ==> ${stringHoles}")
-
             computedProjections <- projections.map { case (sp, p) =>
               ConvertNamedExpression
                 .doProj(p.transform(referenceReplacer).transform(StringHole.transform))

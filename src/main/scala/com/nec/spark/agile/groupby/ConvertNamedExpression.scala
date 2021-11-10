@@ -106,7 +106,7 @@ object ConvertNamedExpression {
     namedExpression: NamedExpression,
     idx: Int,
     childAttributes: Seq[Attribute]
-  ): Either[String, (StagedProjection, Expression)] = {
+  ): Either[String, (StagedProjection, Expression)] =
     namedExpression match {
       case ar: AttributeReference if childAttributes.toList.exists(_.exprId == ar.exprId) =>
         Right(
@@ -122,7 +122,6 @@ object ConvertNamedExpression {
       case other =>
         Left(s"Unexpected aggregate expression: ${other}, type ${other.getClass}")
     }
-  }
 
   def computeIndexedAggregate(
     aggregateExpression: NamedExpression,

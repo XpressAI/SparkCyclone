@@ -66,13 +66,13 @@ object StringHole {
       final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
         override def evaluate(refName: String): CExpression = {
           val leftStringLength =
-            s"(${refName}->offsets[i+1] - ${refName}->offsets[i])"
+            s"($refName->offsets[i+1] - $refName->offsets[i])"
           val expectedLength = theString.length
           val leftStringSubstring =
-            s"""std::string(${refName}->data, ${refName}->offsets[i], ${expectedLength})"""
-          val rightString = s"""std::string("${theString}")"""
+            s"""std::string($refName->data, $refName->offsets[i], $expectedLength)"""
+          val rightString = s"""std::string("$theString")"""
           val bool =
-            s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+            s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
           CExpression(bool, None)
         }
       }
@@ -95,8 +95,8 @@ object StringHole {
       val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
       override def computeVector: CodeLines =
         CodeLines.from(
-          s"std::vector<int> $myId(${refName}->count);",
-          s"for ( int i = 0; i < ${refName}->count; i++) { ",
+          s"std::vector<int> $myId($refName->count);",
+          s"for ( int i = 0; i < $refName->count; i++) { ",
           CodeLines
             .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
             .indented,
@@ -108,6 +108,9 @@ object StringHole {
       override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
     }
   }
+
+  def processPF: PartialFunction[Expression, StringHoleTransformation] =
+    Function.unlift(process)
 
   def process(orig: Expression): Option[StringHoleTransformation] = {
     val exprWithHoles = orig.transform {
@@ -179,16 +182,16 @@ object StringHole {
         startsWithExp(left.name, right.toString())
     }
 
-  private def startsWithExp(leftRef: String, right: String) = {
+  private def startsWithExp(leftRef: String, right: String): CExpression = {
     CExpression(
       cCode = {
         val leftStringLength =
-          s"(${leftRef}->offsets[i+1] - ${leftRef}->offsets[i])"
+          s"($leftRef->offsets[i+1] - $leftRef->offsets[i])"
         val expectedLength = right.length
         val leftStringSubstring =
-          s"""std::string(${leftRef}->data, ${leftRef}->offsets[i], ${expectedLength})"""
-        val rightString = s"""std::string("${right}")"""
-        s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+          s"""std::string($leftRef->data, $leftRef->offsets[i], $expectedLength)"""
+        val rightString = s"""std::string("$right")"""
+        s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
       },
       isNotNullCode = None
     )
@@ -198,12 +201,12 @@ object StringHole {
     CExpression(
       cCode = {
         val leftStringLength =
-          s"(${leftRef}->offsets[i+1] - ${leftRef}->offsets[i])"
+          s"($leftRef->offsets[i+1] - $leftRef->offsets[i])"
         val expectedLength = right.length
         val leftStringSubstring =
-          s"""std::string(${leftRef}->data, ${leftRef}->offsets[i+1]-${expectedLength}, ${expectedLength})"""
-        val rightString = s"""std::string("${right}")"""
-        s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
+          s"""std::string($leftRef->data, $leftRef->offsets[i+1]-$expectedLength, $expectedLength)"""
+        val rightString = s"""std::string("$right")"""
+        s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
       },
       isNotNullCode = None
     )
@@ -213,9 +216,9 @@ object StringHole {
     CExpression(
       cCode = {
         val mainString =
-          s"std::string(${leftRef}->data, ${leftRef}->offsets[i], ${leftRef}->offsets[i+1]-${leftRef}->offsets[i])"
-        val rightString = s"""std::string("${right}")"""
-        s"${mainString}.find(${rightString}) != std::string::npos"
+          s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i+1]-$leftRef->offsets[i])"
+        val rightString = s"""std::string("$right")"""
+        s"$mainString.find($rightString) != std::string::npos"
       },
       isNotNullCode = None
     )
