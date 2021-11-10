@@ -23,7 +23,7 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeString}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, VarCharVector}
+import org.apache.arrow.vector.{FieldVector, ValueVector, VarCharVector}
 import org.apache.arrow.vector.util.Text
 
 object Tracer {
@@ -35,7 +35,7 @@ object Tracer {
     cFunctionNaked.copy(inputs = TracerVector :: cFunctionNaked.inputs)
   }
 
-  def includeInInputs(tracer: VarCharVector, l: List[FieldVector]): List[FieldVector] = {
+  def includeInInputs(tracer: VarCharVector, l: List[ValueVector]): List[ValueVector] = {
     tracer :: l
   }
 

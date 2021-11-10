@@ -89,8 +89,7 @@ final case class NativeCSVParserBenchmark(
     assert(inTolerance(theCell, expectedCell))
   }
 
-  override def cleanUp(state: State): Unit = {
-  }
+  override def cleanUp(state: State): Unit = {}
   override def testingTarget: Testing.TestingTarget = simpleTestType.testingTarget
   override def init(): State = {
     val minimum = dataSize.bytes
