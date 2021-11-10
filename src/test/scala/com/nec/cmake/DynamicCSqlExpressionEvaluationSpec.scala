@@ -22,9 +22,20 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.{NativeAggregationEvaluationPlan, NativeSortEvaluationPlan, VERewriteStrategy}
+import com.nec.spark.planning.{
+  NativeAggregationEvaluationPlan,
+  NativeSortEvaluationPlan,
+  VERewriteStrategy
+}
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
+import com.nec.testing.SampleSource.{
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin,
+  SampleColA,
+  SampleColB,
+  SampleColC,
+  SampleColD
+}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -33,7 +44,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.scalactic.{Prettifier, source}
+import org.scalactic.{source, Prettifier}
 
 import java.time.Instant
 import java.time.temporal.TemporalUnit
@@ -43,6 +54,7 @@ object DynamicCSqlExpressionEvaluationSpec {
 
   val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(CODEGEN_FALLBACK.key, value = false)
+      .config("spark.sql.codegen.comments", value = true)
       .config("spark.sql.codegen.comments", value = true)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => {
@@ -180,31 +192,30 @@ class DynamicCSqlExpressionEvaluationSpec
 
   val sql_select_sort2 =
     s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select with addition" in withSparkSession2(configuration) {
-    sparkSession =>
-      makeCsvNumsMultiColumn(sparkSession)
-      import sparkSession.implicits._
-      sparkSession.sql(sql_select_sort2).ensureSortEvaluating().debugSqlHere { ds =>
-        val a = ds.as[(Option[Double], Option[Double], Option[Double])]
-        expectVertical(
-          a.collect().toList.sorted,
-          List(
-            (Some(4.0), None, None),
-            (Some(2.0), None, None),
-            (None, None, None),
-            (Some(2.0), None, None),
-            (None, None, None),
-            (Some(20.0), None, None),
-            (Some(1.0), Some(2.0), Some(3.0)),
-            (Some(2.0), Some(3.0), Some(5.0)),
-            (None, Some(3.0), None),
-            (Some(3.0), Some(4.0), Some(7.0)),
-            (Some(4.0), Some(5.0), Some(9.0)),
-            (None, Some(5.0), None),
-            (Some(52.0), Some(6.0), Some(58.0))
-          ).sorted
-        )
-      }
+  "Support order by with select with addition" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_select_sort2).ensureSortEvaluating().debugSqlHere { ds =>
+      val a = ds.as[(Option[Double], Option[Double], Option[Double])]
+      expectVertical(
+        a.collect().toList.sorted,
+        List(
+          (Some(4.0), None, None),
+          (Some(2.0), None, None),
+          (None, None, None),
+          (Some(2.0), None, None),
+          (None, None, None),
+          (Some(20.0), None, None),
+          (Some(1.0), Some(2.0), Some(3.0)),
+          (Some(2.0), Some(3.0), Some(5.0)),
+          (None, Some(3.0), None),
+          (Some(3.0), Some(4.0), Some(7.0)),
+          (Some(4.0), Some(5.0), Some(9.0)),
+          (None, Some(5.0), None),
+          (Some(52.0), Some(6.0), Some(58.0))
+        ).sorted
+      )
+    }
   }
 
   val sql_select_sort_desc =
@@ -230,7 +241,7 @@ class DynamicCSqlExpressionEvaluationSpec
             (None, None, None),
             (Some(2.0), None, None),
             (None, None, None),
-            (Some(20.0), None, None),
+            (Some(20.0), None, None)
           )
         )
       }
@@ -970,9 +981,7 @@ class DynamicCSqlExpressionEvaluationSpec
       expect(
         thePlan
           .toString()
-          .contains(
-            NativeSortEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
-          )
+          .contains(NativeSortEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
       )
       dataSet
     }

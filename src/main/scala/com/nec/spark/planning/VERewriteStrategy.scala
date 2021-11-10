@@ -147,7 +147,7 @@ final case class VERewriteStrategy(
             sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${id}")
           }.toList
 
-          val evaluationPlanE: Either[String, NativeAggregationEvaluationPlan] = for {
+          val evaluationPlanE: Either[String, SparkPlan] = for {
             projections <- aggregateExpressions.zipWithIndex
               .map { case (ne, i) =>
                 ConvertNamedExpression
@@ -231,29 +231,36 @@ final case class VERewriteStrategy(
               groupByPartialGenerator.createFull(inputs = inputsList)
           } yield {
             options.preShufflePartitions match {
-              case Some(n) =>
-                NativeAggregationEvaluationPlan(
-                  outputExpressions = aggregateExpressions,
-                  functionPrefix = functionPrefix,
-                  evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
-                  child = ShuffleExchangeExec(
-                    outputPartitioning =
-                      HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                    child = planLater(child),
-                    shuffleOrigin = REPARTITION
-                  ),
-                  nativeEvaluator = nativeEvaluator
+              case Some(n) if(groupingExpressions.size > 0)=>
+                ArrowColumnarToRowPlan(
+                  NativeAggregationEvaluationPlan(
+                    outputExpressions = aggregateExpressions,
+                    functionPrefix = functionPrefix,
+                    evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
+                    child = new RowToArrowColumnarPlan(
+                      ShuffleExchangeExec(
+                        outputPartitioning =
+                          HashPartitioning(expressions = groupingExpressions, numPartitions = n),
+                        child = planLater(child),
+                        shuffleOrigin = REPARTITION
+                      )
+                    ),
+                    supportsColumnar = true,
+                    nativeEvaluator = nativeEvaluator
+                  )
                 )
-              case None =>
+              case _ =>
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
                   evaluationMode = EvaluationMode.TwoStaged(partialCFunction, ff),
                   child = planLater(child),
+                  supportsColumnar = false,
                   nativeEvaluator = nativeEvaluator
                 )
             }
           }
+
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
@@ -289,10 +296,10 @@ final case class VERewriteStrategy(
             outputExpressions = plan.output,
             functionPrefix = functionPrefix,
             Coalesced(code),
-            planLater(child),
+            new RowToArrowColumnarPlan(planLater(child)),
             nativeEvaluator = nativeEvaluator
           )
-          List(sortPlan)
+          List(new ArrowColumnarToRowPlan(sortPlan))
         }
         case _ => Nil
       }
@@ -308,5 +315,4 @@ final case class VERewriteStrategy(
       }
     } else Nil
   }
-
 }

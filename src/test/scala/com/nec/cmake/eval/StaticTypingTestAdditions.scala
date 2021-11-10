@@ -714,9 +714,7 @@ object StaticTypingTestAdditions {
     implicit val forTripletDouble
       : GeneralGroupExpressor[(StringGrouping, TypedGroupByExpression[Double])] = output =>
       List(
-        Left(
-          NamedStringProducer("output_0", StringProducer.copyString(output._1.name))
-        ),
+        Left(NamedStringProducer("output_0", StringProducer.copyString(output._1.name))),
         Right(
           NamedGroupByExpression(
             "output_1",
