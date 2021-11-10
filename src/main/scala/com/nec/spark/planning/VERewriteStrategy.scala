@@ -151,7 +151,7 @@ final case class VERewriteStrategy(
             namedExpression.transformSelf(referenceReplacer).transformSelf(StringHole.transform)
           )
 
-          val evaluationPlanE: Either[String, NativeAggregationEvaluationPlan] = for {
+          val evaluationPlanE: Either[String, SparkPlan] = for {
             projections <- stringHoledAggregateExpressions.zipWithIndex
               .map { case (ne, i) =>
                 ConvertNamedExpression
