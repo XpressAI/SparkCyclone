@@ -22,29 +22,30 @@ package com.nec.spark.agile
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator
 import com.nec.spark.agile.StringHole.{StringHoleEvaluation, StringHoleTransformation}
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, CaseWhen, Literal, StartsWith}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  AttributeReference,
+  CaseWhen,
+  Literal,
+  StartsWith
+}
 import org.apache.spark.sql.types.StringType
 import org.scalatest.freespec.AnyFreeSpec
 
 final class StringHoleSpec extends AnyFreeSpec {
-  "It detects a StartsWith in CASE WHEN" in {
-
+  "It detects a StartsWith in CASE WHEN that is inside an Alias" in {
+    info("We do an Alias to ensure that we can map something that is aliased or nested just fine")
     val aref = AttributeReference("test", StringType, nullable = false)()
-
     val y: Option[StringHoleTransformation] =
-      StringHole.process(CaseWhen(Seq(StartsWith(aref, Literal("x")) -> Literal(1)), None))
-
+      StringHole.process(
+        Alias(CaseWhen(Seq(StartsWith(aref, Literal("x")) -> Literal(1)), None), "someAlias")()
+      )
     val x = y.get
-
     val evaluation =
       StringHoleEvaluation.SlowEvaluation("test", SlowEvaluator.StartsWithEvaluator("x"))
-    expect(
-      x.newExpression == CaseWhen(
-        Seq(StringHole(StartsWith(aref, Literal("x")), evaluation) -> Literal(1)),
-        None
-      ),
-      x.stringParts == List(evaluation)
-    )
-
+    val expected =
+      CaseWhen(Seq(StringHole(StartsWith(aref, Literal("x")), evaluation) -> Literal(1)), None)
+    val aliasChild = x.newExpression.asInstanceOf[Alias].child
+    expect(aliasChild == expected, x.stringParts == List(evaluation))
   }
 }

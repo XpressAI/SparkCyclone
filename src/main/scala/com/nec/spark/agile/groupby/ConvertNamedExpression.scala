@@ -36,6 +36,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
 }
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
+  Attribute,
   AttributeReference,
   Expression,
   NamedExpression
@@ -87,35 +88,39 @@ object ConvertNamedExpression {
     namedExpression: NamedExpression,
     idx: Int,
     referenceReplacer: PartialFunction[Expression, Expression],
-    child: LogicalPlan
+    childAttributes: Seq[Attribute]
   )(implicit
     evalFallback: EvalFallback
-  ): Either[String, Either[(StagedAggregation, Expression), (StagedProjection, Expression)]] = {
+  ): Either[String, Either[(StagedAggregation, Expression), (StagedProjection, Expression)]] =
     computeIndexedAggregate(namedExpression, idx, referenceReplacer) match {
       case Some(c) => c.map(sae => Left(sae))
       case None =>
-        namedExpression match {
-          case ar: AttributeReference if child.output.toList.exists(_.exprId == ar.exprId) =>
-            Right(
-              Right(
-                StagedProjection(
-                  s"${StagedProjectionPrefix}${idx}",
-                  sparkTypeToVeType(ar.dataType)
-                ) -> ar
-              )
-            )
-          case Alias(exp, _) =>
-            Right(
-              Right(
-                StagedProjection(
-                  s"${StagedProjectionPrefix}${idx}",
-                  sparkTypeToVeType(exp.dataType)
-                ) -> exp
-              )
-            )
-          case other =>
-            Left(s"Unexpected aggregate expression: ${other}, type ${other.getClass}")
-        }
+        mapNamedStagedProjection(
+          namedExpression = namedExpression,
+          idx = idx,
+          childAttributes = childAttributes
+        ).map(r => Right(r))
+    }
+
+  private def mapNamedStagedProjection(
+    namedExpression: NamedExpression,
+    idx: Int,
+    childAttributes: Seq[Attribute]
+  ): Either[String, (StagedProjection, Expression)] = {
+    namedExpression match {
+      case ar: AttributeReference if childAttributes.toList.exists(_.exprId == ar.exprId) =>
+        Right(
+          StagedProjection(s"${StagedProjectionPrefix}${idx}", sparkTypeToVeType(ar.dataType)) -> ar
+        )
+      case Alias(exp, _) =>
+        Right(
+          StagedProjection(
+            s"${StagedProjectionPrefix}${idx}",
+            sparkTypeToVeType(exp.dataType)
+          ) -> exp
+        )
+      case other =>
+        Left(s"Unexpected aggregate expression: ${other}, type ${other.getClass}")
     }
   }
 

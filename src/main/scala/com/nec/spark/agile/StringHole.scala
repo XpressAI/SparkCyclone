@@ -92,37 +92,51 @@ object StringHole {
 
     final case class SlowEvaluation(refName: String, slowEvaluator: SlowEvaluator)
       extends StringHoleEvaluation {
+      val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
       override def computeVector: CodeLines =
         CodeLines.from(
-          s"std::vector<int> startsWith_${refName}(${refName}->count);",
+          s"std::vector<int> $myId(${refName}->count);",
           s"for ( int i = 0; i < ${refName}->count; i++) { ",
           CodeLines
-            .from(s"startsWith_${refName}[i] = ${slowEvaluator.evaluate(refName).cCode};")
+            .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
             .indented,
           "}"
         )
 
       override def deallocData: CodeLines = CodeLines.empty
 
-      override def fetchResult: CExpression = CExpression(s"startsWith_${refName}[i]", None)
+      override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
     }
   }
-  def process(orig: Expression): Option[StringHoleTransformation] = Option {
-    StringHoleTransformation(
-      exprWithHoles = orig.transform {
-        case exp if processSubExpression.isDefinedAt(exp) =>
-          StringHole(exp, processSubExpression.apply(exp))
-      },
-      holes = orig.collect {
-        case exp if processSubExpression.isDefinedAt(exp) =>
-          StringHole(exp, processSubExpression.apply(exp)) -> processSubExpression.apply(exp)
-      }.toMap
-    )
-  }.filter(_.exprWithHoles != orig)
+
+  def process(orig: Expression): Option[StringHoleTransformation] = {
+    val exprWithHoles = orig.transform {
+      case exp if processSubExpression.isDefinedAt(exp) =>
+        StringHole(exp, processSubExpression.apply(exp))
+    }
+
+    Option {
+      exprWithHoles.collect { case sh @ StringHole(_, _) =>
+        sh
+      }
+    }.filter(_.nonEmpty)
+      .map(map =>
+        StringHoleTransformation(
+          exprWithHoles = exprWithHoles,
+          holes = map.map(sh => sh -> sh.evaluation).toMap
+        )
+      )
+  }
 
   def processSubExpression: PartialFunction[Expression, StringHoleEvaluation] = {
     case StartsWith(left: AttributeReference, Literal(v, StringType)) =>
       SlowEvaluation(left.name, SlowEvaluator.StartsWithEvaluator(v.toString))
+    case EndsWith(left: AttributeReference, Literal(v, StringType)) =>
+      SlowEvaluation(left.name, SlowEvaluator.EndsWithEvaluator(v.toString))
+    case Contains(left: AttributeReference, Literal(v, StringType)) =>
+      SlowEvaluation(left.name, SlowEvaluator.ContainsEvaluator(v.toString))
+    case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
+      SlowEvaluation(left.name, SlowEvaluator.EqualsEvaluator(v.toString))
   }
 
   def transform: PartialFunction[Expression, Expression] = Function
@@ -141,8 +155,8 @@ object StringHole {
   def equalTo(leftRef: String, rightStr: String): CExpression = {
     CExpression(
       cCode = List(
-        s"std::string(${leftRef}->data, ${leftRef}->offsets[i], ${leftRef}->offsets[i+1]-${leftRef}->offsets[i])",
-        s"""std::string("${rightStr}")"""
+        s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i+1]-$leftRef->offsets[i])",
+        s"""std::string("$rightStr")"""
       ).mkString(" == "),
       isNotNullCode = None
     )

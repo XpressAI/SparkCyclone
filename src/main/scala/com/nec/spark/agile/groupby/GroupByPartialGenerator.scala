@@ -62,7 +62,10 @@ final case class GroupByPartialGenerator(
     )
   }
 
-  def createPartial(inputs: List[CVector]): CFunction =
+  def createPartial(inputs: List[CVector]): CFunction = {
+
+    println(stringVectorComputations)
+
     CFunction(
       inputs = inputs,
       outputs = partialOutputs,
@@ -86,6 +89,7 @@ final case class GroupByPartialGenerator(
         TcpDebug.conditional.close
       )
     )
+  }
 
   def computeProjectionsPerGroup(
     stagedProjection: StagedProjection,
