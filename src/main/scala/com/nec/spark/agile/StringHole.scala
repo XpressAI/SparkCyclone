@@ -22,6 +22,7 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.{SlowEvaluation, SlowEvaluator}
 import org.apache.spark.sql.catalyst.expressions.{
   AttributeReference,
@@ -58,11 +59,38 @@ object StringHole {
   }
 
   object StringHoleEvaluation {
-    sealed trait SlowEvaluator {
-      def evaluate(refName: String): CExpression
+
+    /** Vectorized evaluation */
+    final case class FastStartsWithEvaluation(theString: String) extends StringHoleEvaluation {
+      override def computeVector: CodeLines = ???
+
+      override def deallocData: CodeLines = ???
+
+      /** Fetch result per each item - most likely an int */
+      override def fetchResult: CExpression = ???
     }
 
+    final case class SlowEvaluation(refName: String, slowEvaluator: SlowEvaluator)
+      extends StringHoleEvaluation {
+      val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
+      override def computeVector: CodeLines =
+        CodeLines.from(
+          s"std::vector<int> $myId($refName->count);",
+          s"for ( int i = 0; i < $refName->count; i++) { ",
+          CodeLines
+            .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
+            .indented,
+          "}"
+        )
+
+      override def deallocData: CodeLines = CodeLines.empty
+
+      override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
+    }
     object SlowEvaluator {
+      sealed trait SlowEvaluator {
+        def evaluate(refName: String): CExpression
+      }
       final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
         override def evaluate(refName: String): CExpression = {
           val leftStringLength =
@@ -88,24 +116,6 @@ object StringHole {
         override def evaluate(refName: String): CExpression =
           equalTo(refName, theString)
       }
-    }
-
-    final case class SlowEvaluation(refName: String, slowEvaluator: SlowEvaluator)
-      extends StringHoleEvaluation {
-      val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
-      override def computeVector: CodeLines =
-        CodeLines.from(
-          s"std::vector<int> $myId($refName->count);",
-          s"for ( int i = 0; i < $refName->count; i++) { ",
-          CodeLines
-            .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
-            .indented,
-          "}"
-        )
-
-      override def deallocData: CodeLines = CodeLines.empty
-
-      override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
     }
   }
 
@@ -155,7 +165,7 @@ object StringHole {
     def newExpression: Expression = exprWithHoles
   }
 
-  def equalTo(leftRef: String, rightStr: String): CExpression = {
+  def equalTo(leftRef: String, rightStr: String): CExpression =
     CExpression(
       cCode = List(
         s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i+1]-$leftRef->offsets[i])",
@@ -163,8 +173,6 @@ object StringHole {
       ).mkString(" == "),
       isNotNullCode = None
     )
-
-  }
 
   def simpleStringExpressionMatcher(expression: Expression): Option[CExpression] =
     PartialFunction.condOpt(expression) {

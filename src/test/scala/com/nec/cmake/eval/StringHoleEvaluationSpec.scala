@@ -9,7 +9,9 @@ import com.nec.cmake.functions.ParseCSVSpec.RichIntVector
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
 import com.nec.spark.agile.StringHole
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator
+import com.nec.spark.agile.StringHole.StringHoleEvaluation
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{FastStartsWithEvaluation, SlowEvaluator}
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -61,15 +63,31 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "Fast evaluator filters strings as expected for StartsWith" in {
+    val testedList = list.map(str => if (str.startsWith("test")) 1 else 0)
+
+    expect(
+      StringHoleEvaluationSpec.executeHoleEvaluation(
+        input = list,
+        stringHoleEvaluation = FastStartsWithEvaluation("test")
+      ) == testedList
+    )
+  }
+
 }
 
 object StringHoleEvaluationSpec {
-  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] = {
-
-    val hole = StringHole.StringHoleEvaluation.SlowEvaluation(
-      refName = "strings",
-      slowEvaluator = slowEvaluator
+  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
+    executeHoleEvaluation(
+      input = input,
+      stringHoleEvaluation = StringHole.StringHoleEvaluation
+        .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
     )
+
+  def executeHoleEvaluation(
+    input: List[String],
+    stringHoleEvaluation: StringHoleEvaluation
+  ): List[Int] = {
 
     val cLib = CMakeBuilder.buildCLogging(
       List(
@@ -79,15 +97,15 @@ object StringHoleEvaluationSpec {
           inputs = List(CVector.varChar("strings")),
           outputs = List(CVector.int("bools")),
           body = CodeLines.from(
-            hole.computeVector,
+            stringHoleEvaluation.computeVector,
             GroupByOutline
               .initializeScalarVector(VeScalarType.veNullableInt, "bools", "strings->count"),
             CodeLines.from(
               "for ( int i = 0; i < strings->count; i++ ) { ",
-              GroupByOutline.storeTo("bools", hole.fetchResult, "i").indented,
+              GroupByOutline.storeTo("bools", stringHoleEvaluation.fetchResult, "i").indented,
               "}"
             ),
-            hole.deallocData,
+            stringHoleEvaluation.deallocData,
             "return 0;"
           )
         ).toCodeLines("test").cCode

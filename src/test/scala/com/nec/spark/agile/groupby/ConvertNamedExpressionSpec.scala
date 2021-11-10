@@ -24,7 +24,6 @@ import org.scalatest.freespec.AnyFreeSpec
 import ConvertNamedExpression._
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType
 import com.nec.spark.agile.groupby.GroupByOutline.StagedProjection
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   Attribute,
