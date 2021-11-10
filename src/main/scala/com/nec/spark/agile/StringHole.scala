@@ -75,6 +75,7 @@ object StringHole {
       val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
       override def computeVector: CodeLines =
         CodeLines.from(
+          CodeLines.debugHere,
           s"std::vector<int> $myId($refName->count);",
           s"for ( int i = 0; i < $refName->count; i++) { ",
           CodeLines
@@ -190,7 +191,7 @@ object StringHole {
         startsWithExp(left.name, right.toString())
     }
 
-  private def startsWithExp(leftRef: String, right: String): CExpression = {
+  private def startsWithExp(leftRef: String, right: String): CExpression =
     CExpression(
       cCode = {
         val leftStringLength =
@@ -203,9 +204,8 @@ object StringHole {
       },
       isNotNullCode = None
     )
-  }
 
-  private def endsWithExp(leftRef: String, right: String) = {
+  private def endsWithExp(leftRef: String, right: String): CExpression =
     CExpression(
       cCode = {
         val leftStringLength =
@@ -218,9 +218,8 @@ object StringHole {
       },
       isNotNullCode = None
     )
-  }
 
-  private def containsExp(leftRef: String, right: String) = {
+  private def containsExp(leftRef: String, right: String): CExpression =
     CExpression(
       cCode = {
         val mainString =
@@ -230,5 +229,4 @@ object StringHole {
       },
       isNotNullCode = None
     )
-  }
 }
