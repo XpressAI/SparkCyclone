@@ -67,4 +67,8 @@ final class ConvertNamedExpressionSpec extends AnyFreeSpec {
       assert(result.isLeft)
     }
   }
+
+  "For indexed aggregate" - {
+    // not worth testing this as there's little complexity in this method for indexedAggregate
+  }
 }
