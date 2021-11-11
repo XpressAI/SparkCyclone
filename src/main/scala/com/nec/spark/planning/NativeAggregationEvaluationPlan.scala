@@ -406,14 +406,13 @@ final case class NativeAggregationEvaluationPlan(
     logger.debug(
       s"[${launched.launchId}] Will execute NewCEvaluationPlan for child ${child}; ${child.output}"
     )
-
+    val executorId: String = SparkEnv.get.executorId
+    val mapped = launched.map(s"${executorId}|${UUID.randomUUID().toString.take(4)}")
     child
       .execute()
       .mapPartitions { rows =>
         Iterator
           .continually {
-            val executorId: String = SparkEnv.get.executorId
-            val mapped = launched.map(s"${executorId}|${UUID.randomUUID().toString.take(4)}")
             import mapped._
             udpDebug.span(uniqueId, "evaluate a partition") {
               implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
