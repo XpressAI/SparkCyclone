@@ -63,7 +63,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "Fast evaluator filters strings as expected for StartsWith" ignore {
+  "Fast evaluator filters strings as expected for StartsWith" in {
     val testedList = list.map(str => if (str.startsWith("test")) 1 else 0)
 
     expect(

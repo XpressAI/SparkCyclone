@@ -61,8 +61,25 @@ object StringHole {
   object StringHoleEvaluation {
 
     /** Vectorized evaluation */
-    final case class FastStartsWithEvaluation(theString: String) extends StringHoleEvaluation {
-      override def computeVector: CodeLines = ???
+    final case class FastStartsWithEvaluation(refName: String, theString: String) extends StringHoleEvaluation {
+      val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
+      val myIdWords = s"slowStringEvaluation_words_${Math.abs(hashCode())}"
+      override def computeVector: CodeLines =
+        CodeLines.from(
+          CodeLines.debugHere,
+          s"std::vector<int> $myId($refName->count);",
+          s"frovedis::words $myIdWords = varchar_vector_to_words($refName;",
+          s"std::vector<size_t> matching_ids = frovedis::like($refNameconst std::vector<int>& chars,
+            const std::vector<size_t>& starts,
+          const std::vector<size_t>& lens,
+          const std::string& to_search,
+          int wild_card = '%', int escape = '\\');"
+          s"for ( int i = 0; i < $refName->count; i++) { ",
+          CodeLines
+            .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
+            .indented,
+          "}"
+        )
 
       override def deallocData: CodeLines = ???
 
