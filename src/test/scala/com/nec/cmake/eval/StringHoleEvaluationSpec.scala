@@ -69,7 +69,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     expect(
       StringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        stringHoleEvaluation = FastStartsWithEvaluation("test")
+        stringHoleEvaluation = FastStartsWithEvaluation(refName = "strings", theString = "test")
       ) == testedList
     )
   }

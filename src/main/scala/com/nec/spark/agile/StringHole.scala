@@ -61,30 +61,35 @@ object StringHole {
   object StringHoleEvaluation {
 
     /** Vectorized evaluation */
-    final case class FastStartsWithEvaluation(refName: String, theString: String) extends StringHoleEvaluation {
+    final case class FastStartsWithEvaluation(refName: String, theString: String)
+      extends StringHoleEvaluation {
       val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
       val myIdWords = s"slowStringEvaluation_words_${Math.abs(hashCode())}"
+      val matchingIds = s"slowStringEvaluation_matching_ids_${Math.abs(hashCode())}"
       override def computeVector: CodeLines =
         CodeLines.from(
           CodeLines.debugHere,
           s"std::vector<int> $myId($refName->count);",
-          s"frovedis::words $myIdWords = varchar_vector_to_words($refName;",
-          s"std::vector<size_t> matching_ids = frovedis::like($refNameconst std::vector<int>& chars,
-            const std::vector<size_t>& starts,
-          const std::vector<size_t>& lens,
-          const std::string& to_search,
-          int wild_card = '%', int escape = '\\');"
+          s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
+          s"std::vector<size_t> $matchingIds = frovedis::like($myIdWords.chars," +
+            s"(const vector<size_t>&)($myIdWords.starts),",
+          s"(const vector<size_t>&)($myIdWords.lens),",
+          s""""${theString}%");""",
+          CodeLines.debugHere,
           s"for ( int i = 0; i < $refName->count; i++) { ",
           CodeLines
-            .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
+            .from(s"$myId[i] = 0;")
             .indented,
+          "}",
+          s"for(int i = 0; i < $matchingIds.size(); i++) {",
+          CodeLines.from(s"$myId[$matchingIds[i]] = 1;"),
           "}"
         )
 
-      override def deallocData: CodeLines = ???
+      override def deallocData: CodeLines = CodeLines.empty
 
       /** Fetch result per each item - most likely an int */
-      override def fetchResult: CExpression = ???
+      override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
     }
 
     final case class SlowEvaluation(refName: String, slowEvaluator: SlowEvaluator)
