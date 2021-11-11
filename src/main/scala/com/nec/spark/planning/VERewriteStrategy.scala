@@ -239,7 +239,7 @@ final case class VERewriteStrategy(
               ),
               computedGroupingKeys = computedGroupingKeys,
               computedProjections = computedProjections,
-              stringVectorComputations = stringHoles.flatMap(_.stringParts)
+              stringVectorComputations = stringHoles.flatMap(_.stringParts).distinct
             )
             partialCFunction = groupByPartialGenerator.createPartial(inputs = inputsList)
             _ <-
@@ -253,7 +253,7 @@ final case class VERewriteStrategy(
               groupByPartialGenerator.createFull(inputs = inputsList)
           } yield {
             options.preShufflePartitions match {
-              case Some(n) if(groupingExpressions.size > 0)=>
+              case Some(n) if groupingExpressions.nonEmpty =>
                 ArrowColumnarToRowPlan(
                   NativeAggregationEvaluationPlan(
                     outputExpressions = aggregateExpressions,

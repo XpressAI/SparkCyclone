@@ -11,7 +11,7 @@ import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType
 import com.nec.spark.agile.StringHole
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{FastStartsWithEvaluation, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{LikeStringHoleEvaluation, SlowEvaluator}
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -69,7 +69,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     expect(
       StringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        stringHoleEvaluation = FastStartsWithEvaluation(refName = "strings", theString = "test")
+        stringHoleEvaluation = LikeStringHoleEvaluation(refName = "strings", likeString = "test%")
       ) == testedList
     )
   }

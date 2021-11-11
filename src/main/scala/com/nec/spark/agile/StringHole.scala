@@ -23,7 +23,11 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{SlowEvaluation, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{
+  LikeStringHoleEvaluation,
+  SlowEvaluation,
+  SlowEvaluator
+}
 import org.apache.spark.sql.catalyst.expressions.{
   AttributeReference,
   Contains,
@@ -60,8 +64,17 @@ object StringHole {
 
   object StringHoleEvaluation {
 
+    object LikeStringHoleEvaluation {
+      final case class Like(refName: String, subject: String) {
+        def startsWith: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject%")
+        def endsWith: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject")
+        def contains: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject%")
+        def equalsTo: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject")
+      }
+    }
+
     /** Vectorized evaluation */
-    final case class FastStartsWithEvaluation(refName: String, theString: String)
+    final case class LikeStringHoleEvaluation(refName: String, likeString: String)
       extends StringHoleEvaluation {
       val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
       val myIdWords = s"slowStringEvaluation_words_${Math.abs(hashCode())}"
@@ -74,7 +87,7 @@ object StringHole {
           s"std::vector<size_t> $matchingIds = frovedis::like($myIdWords.chars," +
             s"(const vector<size_t>&)($myIdWords.starts),",
           s"(const vector<size_t>&)($myIdWords.lens),",
-          s""""${theString}%");""",
+          s""""$likeString");""",
           CodeLines.debugHere,
           s"for ( int i = 0; i < $refName->count; i++) { ",
           CodeLines
@@ -164,7 +177,7 @@ object StringHole {
       )
   }
 
-  def processSubExpression: PartialFunction[Expression, StringHoleEvaluation] = {
+  def processSubExpressionSlow: PartialFunction[Expression, StringHoleEvaluation] = {
     case StartsWith(left: AttributeReference, Literal(v, StringType)) =>
       SlowEvaluation(left.name, SlowEvaluator.StartsWithEvaluator(v.toString))
     case EndsWith(left: AttributeReference, Literal(v, StringType)) =>
@@ -173,6 +186,22 @@ object StringHole {
       SlowEvaluation(left.name, SlowEvaluator.ContainsEvaluator(v.toString))
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       SlowEvaluation(left.name, SlowEvaluator.EqualsEvaluator(v.toString))
+  }
+
+  private val UseFastMethod: Boolean = true
+
+  def processSubExpression: PartialFunction[Expression, StringHoleEvaluation] =
+    if (UseFastMethod) processSubExpressionFast else processSubExpressionSlow
+
+  def processSubExpressionFast: PartialFunction[Expression, StringHoleEvaluation] = {
+    case StartsWith(left: AttributeReference, Literal(v, StringType)) =>
+      LikeStringHoleEvaluation.Like(left.name, v.toString).startsWith
+    case EndsWith(left: AttributeReference, Literal(v, StringType)) =>
+      LikeStringHoleEvaluation.Like(left.name, v.toString).endsWith
+    case Contains(left: AttributeReference, Literal(v, StringType)) =>
+      LikeStringHoleEvaluation.Like(left.name, v.toString).contains
+    case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
+      LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
   }
 
   def transform: PartialFunction[Expression, Expression] = Function
