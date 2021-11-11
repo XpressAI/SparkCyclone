@@ -1,14 +1,53 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.arrow
 
 import com.nec.arrow.ArrowInterfaces.c_bounded_data
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.ArrowInterfaces._
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{BigIntVectorInputWrapper, BitVectorInputWrapper, ByteBufferInputWrapper, DateDayVectorInputWrapper, Float8VectorInputWrapper, IntVectorInputWrapper, SmallIntVectorInputWrapper, StringInputWrapper, VarCharVectorInputWrapper}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, VarCharVectorOutputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{
+  BigIntVectorInputWrapper,
+  BitVectorInputWrapper,
+  ByteBufferInputWrapper,
+  DateDayVectorInputWrapper,
+  Float8VectorInputWrapper,
+  IntVectorInputWrapper,
+  SmallIntVectorInputWrapper,
+  StringInputWrapper,
+  TimeStampVectorInputWrapper,
+  VarCharVectorInputWrapper
+}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{
+  BigIntVectorOutputWrapper,
+  BitVectorOutputWrapper,
+  Float8VectorOutputWrapper,
+  IntVectorOutputWrapper,
+  SmallIntVectorOutputWrapper,
+  TimeStampVectorOutputWrapper,
+  VarCharVectorOutputWrapper
+}
 import com.sun.jna.Library
 import com.nec.arrow.ArrowNativeInterface._
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper._
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.arrow.vector.TimeStampMicroTZVector
 
 final class CArrowNativeInterface(libPath: String) extends ArrowNativeInterface {
   override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit =
@@ -56,13 +95,18 @@ object CArrowNativeInterface extends LazyLogging {
         struct
       case NativeArgument.VectorInputNativeArgument(BitVectorInputWrapper(bitVector)) =>
         c_nullable_bit_vector(bitVector)
+      case NativeArgument.VectorInputNativeArgument(TimeStampVectorInputWrapper(tsVector)) =>
+        c_nullable_bigint_vector(tsVector)
+
       case NativeArgument.VectorOutputNativeArgument(IntVectorOutputWrapper(intVector)) =>
         val struct = new nullable_int_vector()
         vectorExtractions.append(() => nullable_int_vector_to_IntVector(struct, intVector))
         struct
       case NativeArgument.VectorOutputNativeArgument(SmallIntVectorOutputWrapper(smallIntVector)) =>
         val struct = new nullable_int_vector()
-        vectorExtractions.append(() => nullable_int_vector_to_SmallIntVector(struct, smallIntVector))
+        vectorExtractions.append(() =>
+          nullable_int_vector_to_SmallIntVector(struct, smallIntVector)
+        )
         struct
       case NativeArgument.VectorOutputNativeArgument(BigIntVectorOutputWrapper(bigIntVector)) =>
         val struct = new nullable_bigint_vector()
@@ -75,6 +119,10 @@ object CArrowNativeInterface extends LazyLogging {
       case NativeArgument.VectorOutputNativeArgument(BitVectorOutputWrapper(bitVector)) =>
         val struct = new nullable_int_vector()
         vectorExtractions.append(() => nullable_int_vector_to_BitVector(struct, bitVector))
+        struct
+      case NativeArgument.VectorOutputNativeArgument(TimeStampVectorOutputWrapper(tsVector)) =>
+        val struct = new nullable_bigint_vector()
+        vectorExtractions.append(() => nullable_bigint_vector_to_TimeStampVector(struct, tsVector))
         struct
     }.toArray
 

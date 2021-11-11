@@ -7,8 +7,8 @@ $SPARK_HOME/bin/spark-submit \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --conf spark.sql.inMemoryColumnarStorage.batchSize=174592 \
     --conf spark.sql.files.minPartitionNum=8 \
-    --jars /opt/aurora4spark/aurora4spark-sql-plugin.jar \
-    --conf spark.executor.extraClassPath=/opt/aurora4spark/aurora4spark-sql-plugin.jar \
+    --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
+    --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.com.nec.native-csv=false \

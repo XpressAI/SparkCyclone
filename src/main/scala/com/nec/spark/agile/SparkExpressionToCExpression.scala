@@ -1,6 +1,27 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
+
+import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
@@ -25,10 +46,13 @@ import org.apache.spark.sql.catalyst.expressions.{
   Least,
   Literal,
   Not,
+  SortDirection,
+  SortOrder,
   Sqrt,
   StartsWith
 }
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
+import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -390,22 +414,19 @@ object SparkExpressionToCExpression {
           val oks = children.map(exp => eval(exp)).flatMap(_.right.toOption)
           FlatToNestedFunction.runWhenNotNull(items = oks.toList, function = "std::min")
         }
-      case Cast(child, dataType, _) =>
-        dataType match {
-          case IntegerType =>
-            eval(child).map { childExpression =>
-              childExpression.copy("((int)" + childExpression.cCode + ")")
-            }
+      case Cast(child, IntegerType, _) =>
+        eval(child).map { childExpression =>
+          childExpression.copy("((int)" + childExpression.cCode + ")")
+        }
 
-          case DoubleType =>
-            eval(child).map { childExpression =>
-              childExpression.copy("((int)" + childExpression.cCode + ")")
-            }
+      case Cast(child, DoubleType, _) =>
+        eval(child).map { childExpression =>
+          childExpression.copy("((int)" + childExpression.cCode + ")")
+        }
 
-          case LongType =>
-            eval(child).map { childExpression =>
-              childExpression.copy("((long long)" + childExpression.cCode + ")")
-            }
+      case Cast(child, LongType, _) =>
+        eval(child).map { childExpression =>
+          childExpression.copy("((long long)" + childExpression.cCode + ")")
         }
       case NoOp =>
         Right(CExpression("0", Some("false")))
@@ -464,22 +485,29 @@ object SparkExpressionToCExpression {
 
   def sparkTypeToScalarVeType(dataType: DataType): VeScalarType = {
     dataType match {
-      case DoubleType  => VeScalarType.veNullableDouble
-      case IntegerType => VeScalarType.veNullableInt
-      case LongType    => VeScalarType.veNullableLong
-      case ShortType   => VeScalarType.veNullableInt
-      case BooleanType => VeScalarType.veNullableInt
+      case DoubleType    => VeScalarType.veNullableDouble
+      case IntegerType   => VeScalarType.veNullableInt
+      case LongType      => VeScalarType.veNullableLong
+      case ShortType     => VeScalarType.veNullableInt
+      case BooleanType   => VeScalarType.veNullableInt
+      case TimestampType => VeScalarType.veNullableLong
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
     dataType match {
-      case DoubleType  => VeScalarType.veNullableDouble
-      case IntegerType => VeScalarType.veNullableInt
-      case LongType    => VeScalarType.veNullableLong
-      case ShortType   => VeScalarType.veNullableInt
-      case BooleanType => VeScalarType.veNullableInt
-      case StringType  => VeString
+      case DoubleType    => VeScalarType.veNullableDouble
+      case IntegerType   => VeScalarType.veNullableInt
+      case LongType      => VeScalarType.veNullableLong
+      case ShortType     => VeScalarType.veNullableInt
+      case BooleanType   => VeScalarType.veNullableInt
+      case StringType    => VeString
+      case TimestampType => VeScalarType.veNullableLong
     }
   }
-
+  def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
+    sortDirection match {
+      case expressions.Ascending  => Ascending
+      case expressions.Descending => Descending
+    }
+  }
 }

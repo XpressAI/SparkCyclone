@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
@@ -19,17 +38,17 @@ object StringProducer {
 
   def copyString(inputName: String): StringProducer = FrovedisCopyStringProducer(inputName)
 
-  //def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
+//  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
 
-  private final case class ImpCopyStringProducer(inputName: String)
+  final case class ImpCopyStringProducer(inputName: String)
     extends ImperativeStringProducer
     with CopyStringProducer {
 
     override def produceTo(tsn: String, iln: String): CodeLines = {
       CodeLines.from(
-        s"std::string ${inputName}_sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
-        s"${tsn}.append(${inputName}_sub_str);",
-        s"${iln} += ${inputName}_sub_str.size();"
+        s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
+        s"${tsn}.append(sub_str);",
+        s"${iln} += sub_str.size();"
       )
     }
   }
@@ -38,14 +57,15 @@ object StringProducer {
     def inputName: String
   }
 
-  private final case class FrovedisCopyStringProducer(inputName: String)
+  final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
     with CopyStringProducer {
+
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
 
     def frovedisLens(outputName: String) = s"${outputName}_lens"
 
-    def wordName(outputName: String) = s"${outputName}_words"
+    def wordName(outputName: String) = s"${outputName}_input_words"
     def newChars(outputName: String) = s"${outputName}_new_chars"
     def newStarts(outputName: String) = s"${outputName}_new_starts"
 
@@ -58,26 +78,25 @@ object StringProducer {
     override def init(outputName: String, size: String): CodeLines =
       CodeLines.from(
         s"frovedis::words ${wordName(outputName)} = varchar_vector_to_words(${inputName});",
-        s"""//std::cout << "${wordName(outputName)}.print():" << std::endl;""",
-        s"""//${wordName(outputName)}.print();""",
-        s"""//std::cout << "end of ${wordName(outputName)}.print()" << std::endl;""",
         s"""std::vector<size_t> ${frovedisStarts(outputName)}(${size});""",
         s"""std::vector<size_t> ${frovedisLens(outputName)}(${size});"""
       )
 
     override def complete(outputName: String): CodeLines = CodeLines.from(
       s"""std::vector<size_t> ${newStarts(outputName)};""",
-      s"""std::vector<int> ${newChars(outputName)} = concat_words(${wordName(
-        outputName
-      )}, "", ${newStarts(outputName)});""",
-      s"""//std::string ${newChars(outputName)}_s = frovedis::int_to_char(${newChars(outputName)});""",
-      s"""//std::cout << "int_to_char(newChars) = '" << ${newChars(outputName)}_s << "'" << std::endl;""",
-      s"""${wordName(outputName)}.chars = std::move(${newChars(outputName)});""",
-      s"""${wordName(outputName)}.starts = std::move(${newStarts(outputName)});""",
-      s"""${wordName(outputName)}.lens = std::move(${frovedisLens(outputName)});""",
-      s"//${wordName(outputName)}.print();",
+      s"""std::vector<int> ${newChars(outputName)} = frovedis::concat_words(
+        ${wordName(outputName)}.chars,
+        (const vector<size_t>&)(${frovedisStarts(outputName)}),
+        (const vector<size_t>&)(${frovedisLens(outputName)}),
+        "",
+        (vector<size_t>&)(${newStarts(outputName)})
+      );""",
+      s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
+      s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
+      s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
       s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
     )
+
   }
 
   final case class StringChooser(condition: CExpression, ifTrue: String, otherwise: String)
@@ -117,15 +136,14 @@ object StringProducer {
           CodeLines
             .from(
               CodeLines.debugHere,
-              s"int ${tmpString}_len = 0;",
-              imperative.produceTo(s"$tmpString", s"${tmpString}_len"),
+              "int len = 0;",
+              imperative.produceTo(s"$tmpString", "len"),
               s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
-              s"""${tmpCurrentOffset} += ${tmpString}_len;""",
+              s"""${tmpCurrentOffset} += len;""",
               s"${tmpCount}++;"
             )
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines
-            .from(CodeLines.debugHere, frovedisStringProducer.produce(outputName))
+          CodeLines.from(frovedisStringProducer.produce(outputName))
       }
     }
 
@@ -134,7 +152,6 @@ object StringProducer {
         case _: ImperativeStringProducer =>
           CodeLines.from(
             CodeLines.debugHere,
-            s"""//std::cout << "${tmpString} = '" << ${tmpString} << "'" << std::endl;""",
             s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
             s"""${outputName}->count = ${tmpCount};""",
             s"""${outputName}->dataSize = ${tmpCurrentOffset};""",

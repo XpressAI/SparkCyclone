@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.tracing
 
 import com.nec.tracing.SpanProcessor.SpanFound
@@ -17,7 +36,6 @@ object SpanProcessor {
     val partitionSpans = spansFound
       .flatMap(span => span.start.partId.map(partId => span.start.positionName -> span.duration))
       .groupBy(_._1)
-      .view
       .mapValues(_.map(_._2))
       .toMap
       .toList
@@ -25,11 +43,31 @@ object SpanProcessor {
       .reverse
       .map { case (name, durations) =>
         List(
-          s"Total: ${durations.total}",
           s"Count: ${durations.size}",
-          s"Average: ${durations.average}",
+          s"Median: ${durations.median}",
           s"Max: ${durations.max}"
         ) -> name
+      }
+      .tabulate
+
+    val partitionExecutorSpans = spansFound
+      .filter(_.start.executorId.nonEmpty)
+      .flatMap(span =>
+        span.start.partId.map(partId =>
+          (span.start.positionName, span.start.executorId) -> span.duration
+        )
+      )
+      .groupBy(_._1)
+      .mapValues(_.map(_._2))
+      .toList
+      .sortBy { case ((n, exid), cts) => (exid, cts.max) }
+      .reverse
+      .map { case ((pn, exId), durations) =>
+        List(
+          s"Count: ${durations.size}",
+          s"Median: ${durations.median}",
+          s"Max: ${durations.max}"
+        ) -> s"${exId.getOrElse("")} | ${pn}"
       }
       .tabulate
 
@@ -39,7 +77,7 @@ object SpanProcessor {
       .reverse
       .map(span => s"[${span.duration}] ${span.start.positionName}")
 
-    nonPartition ++ partitionSpans
+    List(nonPartition, List("--"), partitionSpans, List("--"), partitionExecutorSpans).flatten
   }
 
   implicit class RichListStr(ls: List[(List[String], String)]) {
@@ -67,8 +105,14 @@ object SpanProcessor {
   }
 
   implicit class RichL(l: List[Duration]) {
-    def average: Duration = {
-      l.total.dividedBy(l.size.toLong)
+    def median: Duration = {
+      if (l.length == 1)
+        l(0)
+      else if (l.length == 2)
+        l(0).plus(l(1)).dividedBy(2)
+      if (l.length % 2 == 0) {
+        l(l.length / 2 - 1).plus(l(l.length / 2)).dividedBy(2)
+      } else l(l.length / 2)
     }
     def total: Duration = {
       l.reduce(_.plus(_))

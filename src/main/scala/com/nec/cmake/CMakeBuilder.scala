@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.cmake
 
 import java.time.Instant
@@ -38,15 +57,15 @@ ${CppResources.All.all
         )
         .mkString("\n")}
 
-add_library(aurora4spark SHARED aurora4spark.cpp)
+add_library(sparkcyclone SHARED sparkcyclone.cpp)
 if(WIN32)
-  target_link_libraries(aurora4spark wsock32 ws2_32)
+  target_link_libraries(sparkcyclone wsock32 ws2_32)
 endif()
 """
 
     val tgtCl = targetDir.resolve("CMakeLists.txt")
     Files.write(tgtCl, CMakeListsTXT.getBytes("UTF-8"))
-    Files.write(targetDir.resolve("aurora4spark.cpp"), cSource.getBytes("UTF-8"))
+    Files.write(targetDir.resolve("sparkcyclone.cpp"), cSource.getBytes("UTF-8"))
     try Builder.default.buildAndLink(tgtCl)
     catch {
       case e: Throwable =>
@@ -117,7 +136,7 @@ object CMakeBuilder extends LazyLogging {
         val cmd2 =
           List("C:\\Program Files\\CMake\\bin\\cmake", "--build", targetPath.getParent.toString)
         runHopeOk(cmd2)
-        targetPath.getParent.resolve("Debug").resolve("aurora4spark.dll")
+        targetPath.getParent.resolve("Debug").resolve("sparkcyclone.dll")
       }
     }
 
@@ -130,7 +149,7 @@ object CMakeBuilder extends LazyLogging {
       override def buildLibrary(targetPath: Path): Path = {
         val cmd2 = List("make", "-C", targetPath.getParent.toString)
         runHopeOk(cmd2)
-        targetPath.getParent.resolve("libaurora4spark.so")
+        targetPath.getParent.resolve("libsparkcyclone.so")
       }
     }
 
@@ -143,7 +162,7 @@ object CMakeBuilder extends LazyLogging {
       override def buildLibrary(targetPath: Path): Path = {
         val cmd2 = List("make", "-C", targetPath.getParent.toString)
         runHopeOk(cmd2)
-        targetPath.getParent.resolve("libaurora4spark.dylib")
+        targetPath.getParent.resolve("libsparkcyclone.dylib")
       }
     }
 

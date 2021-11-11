@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.spark
 
 import com.nec.native.NativeCompiler
@@ -13,12 +32,12 @@ import com.nec.ve.VeKernelCompiler
 import com.typesafe.scalalogging.LazyLogging
 import okio.ByteString
 
-object Aurora4SparkDriverPlugin {
+object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
 }
 
-class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
+class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
 
   private[spark] var nativeCompiler: NativeCompiler = _
   override def receive(message: Any): AnyRef = {
@@ -37,13 +56,17 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
     nativeCompiler = CachingNativeCompiler(NativeCompiler.fromConfig(sc.getConf))
-    logger.info(s"Aurora4Spark DriverPlugin is launched. Will use compiler: ${nativeCompiler}")
+    logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
-    Aurora4SparkDriverPlugin.launched = true
+    SparkCycloneDriverPlugin.launched = true
     val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
     pluginContext
       .conf()
-      .set("spark.sql.extensions", allExtensions.map(_.getCanonicalName).mkString(",") + "," + sc.getConf.get("spark.sql.extensions", ""))
+      .set(
+        "spark.sql.extensions",
+        allExtensions.map(_.getCanonicalName).mkString(",") + "," + sc.getConf
+          .get("spark.sql.extensions", "")
+      )
 
     val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
     val testArgs: Map[String, String] = Map(
@@ -54,6 +77,6 @@ class Aurora4SparkDriverPlugin extends DriverPlugin with LazyLogging {
   }
 
   override def shutdown(): Unit = {
-    Aurora4SparkDriverPlugin.launched = false
+    SparkCycloneDriverPlugin.launched = false
   }
 }

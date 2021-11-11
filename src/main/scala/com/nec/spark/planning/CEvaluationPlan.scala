@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.spark.planning
 
 import com.nec.arrow.ArrowNativeInterface
@@ -6,7 +25,14 @@ import com.nec.spark.ColumnarBatchToArrow
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.planning.CEvaluationPlan.batchColumnarBatches
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, Float8Vector, IntVector, SmallIntVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  VectorSchemaRoot
+}
 import org.apache.commons.lang3.reflect.FieldUtils
 
 import org.apache.spark.rdd.RDD
@@ -124,7 +150,7 @@ final case class CEvaluationPlan(
                   case DoubleType  => new Float8Vector(s"out_$idx", allocator)
                   case LongType    => new BigIntVector(s"out_$idx", allocator)
                   case IntegerType => new IntVector(s"out_$idx", allocator)
-                  case ShortType => new SmallIntVector(s"out_$idx", allocator)
+                  case ShortType   => new SmallIntVector(s"out_$idx", allocator)
                   case _           => new Float8Vector(s"out_$idx", allocator)
                 }
               }

@@ -17,7 +17,7 @@ ThisBuild / scalaVersion := "2.12.10"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
-lazy val root = Project(id = "aurora4spark-sql-plugin", base = file("."))
+lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
   .configs(TPC)
@@ -27,8 +27,8 @@ lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
   .enablePlugins(SystemdPlugin)
   .enablePlugins(RpmPlugin)
+  .dependsOn(root % "test->test")
   .settings(
-    scalaVersion := "2.13.6",
     rpmLicense := Some("Proprietary"),
     rpmVendor := "nec",
     libraryDependencies ++= Seq(
@@ -271,16 +271,16 @@ deploy := {
   logger.info(s"Assembled file: ${generatedFile}")
 
   if (targetBox == "local") {
-    logger.info(s"Copying JAR locally to /opt/aurora4spark/aurora4spark-sql-plugin.jar:")
-    Seq("cp", generatedFile.toString, "/opt/aurora4spark/aurora4spark-sql-plugin.jar") ! logger
+    logger.info(s"Copying JAR locally to /opt/cyclone/spark-cyclone-sql-plugin.jar:")
+    Seq("cp", generatedFile.toString, "/opt/cyclone/spark-cyclone-sql-plugin.jar") ! logger
     logger.info(s"Copied.")
   } else {
     logger.info(s"Uploading JAR to ${targetBox}")
-    Seq("ssh", targetBox, "mkdir", "-p", "/opt/aurora4spark/") ! logger
+    Seq("ssh", targetBox, "mkdir", "-p", "/opt/cyclone/") ! logger
     Seq(
       "scp",
       generatedFile.toString,
-      s"${targetBox}:/opt/aurora4spark/aurora4spark-sql-plugin.jar"
+      s"${targetBox}:/opt/cyclone/spark-cyclone-sql-plugin.jar"
     ) ! logger
     logger.info(s"Uploaded JAR")
   }
@@ -293,18 +293,18 @@ deployExamples := {
   import scala.sys.process._
 
   logger.info(s"Preparing deployment of examples to ${targetBox}...")
-  Seq("ssh", targetBox, "mkdir", "-p", "/opt/aurora4spark/", "/opt/aurora4spark/examples/") ! logger
+  Seq("ssh", targetBox, "mkdir", "-p", "/opt/cyclone/", "/opt/cyclone/examples/") ! logger
   logger.info("Created dir.")
   Seq(
     "scp",
     "-r",
     (baseDirectory.value / "examples").getAbsolutePath,
-    s"${targetBox}:/opt/aurora4spark/"
+    s"${targetBox}:/opt/cyclone/"
   ) ! logger
   Seq(
     "scp",
     (baseDirectory.value / "README.md").getAbsolutePath,
-    s"${targetBox}:/opt/aurora4spark/"
+    s"${targetBox}:/opt/cyclone/"
   ) ! logger
   logger.info("Uploaded examples.")
 }

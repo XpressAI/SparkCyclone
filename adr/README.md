@@ -1,4 +1,4 @@
-ADRs for the Aurora4Spark project
+ADRs for the Spark Cyclone project
 
 Architecture Decision Records are documents that justify the architectural decisions of a project.
 

@@ -1,6 +1,25 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.spark.agile
 
-import com.nec.cmake.UdpDebug
+import com.nec.cmake.TcpDebug
 import com.nec.spark.planning.Tracer
 import com.nec.spark.planning.Tracer.{TracerDefName, TracerOutput}
 
@@ -144,12 +163,12 @@ object CExpressionEvaluation {
           "std::endl"
         )
       CodeLines.from(
-        UdpDebug
-          .Conditional(TracerDefName, UdpDebug.conditional)
+        TcpDebug
+          .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebug: _*),
         this,
-        UdpDebug
-          .Conditional(TracerDefName, UdpDebug.conditional)
+        TcpDebug
+          .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebugE: _*)
       )
     }
@@ -173,6 +192,10 @@ object CExpressionEvaluation {
 
   object CodeLines {
 
+    def debugValue(names: String*): CodeLines = {
+      CodeLines.from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
+    }
+
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
       val startdebug: List[String] = List("utcnanotime().c_str()", """" $ """")
       val enddebug: List[String] =
@@ -182,10 +205,10 @@ object CExpressionEvaluation {
 
       val debugInfo = startdebug ++ enddebug
       CodeLines.from(
-        UdpDebug
-          .Conditional(TracerDefName, UdpDebug.conditional)
+        TcpDebug
+          .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebug: _*),
-        UdpDebug.conditionOn("DEBUG")(
+        TcpDebug.conditionOn("DEBUG")(
           CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
         )
       )

@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.native
 
 import com.nec.arrow.ArrowNativeInterface
@@ -5,7 +24,7 @@ import com.nec.arrow.ArrowNativeInterface.DeferredArrowInterface
 import com.nec.arrow.CArrowNativeInterface
 import com.nec.arrow.VeArrowNativeInterface.VeArrowNativeInterfaceLazyLib
 import com.nec.native.NativeCompiler.{CNativeCompiler, CNativeCompilerDebug}
-import com.nec.spark.Aurora4SparkExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin
 import org.bytedeco.veoffload.veo_proc_handle
 import com.typesafe.scalalogging.LazyLogging
 
@@ -29,10 +48,8 @@ object NativeEvaluator {
     }
   }
 
-  final class VectorEngineNativeEvaluator(
-    proc: veo_proc_handle,
-    nativeCompiler: NativeCompiler
-  ) extends NativeEvaluator
+  final class VectorEngineNativeEvaluator(proc: veo_proc_handle, nativeCompiler: NativeCompiler)
+    extends NativeEvaluator
     with LazyLogging {
     override def forCode(code: String): ArrowNativeInterface = {
       val localLib = nativeCompiler.forCode(code).toString
@@ -47,8 +64,8 @@ object NativeEvaluator {
       logger.debug(s"For evaluation, will refer to the Executor Plugin")
       DeferredArrowInterface(() =>
         new VeArrowNativeInterfaceLazyLib(
-          Aurora4SparkExecutorPlugin._veo_proc,
-          Aurora4SparkExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
+          SparkCycloneExecutorPlugin._veo_proc,
+          SparkCycloneExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
         )
       )
     }

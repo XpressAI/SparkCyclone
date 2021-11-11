@@ -1,14 +1,33 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.tracing
 
 import cats.effect.{ExitCode, IO, IOApp}
 import com.comcast.ip4s.{Host, Port}
 import cats._
 import cats.implicits._
-import fs2.io.net.Network
+import fs2.io.net.{Network, Socket}
 import fs2.text
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
-import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.collection.JavaConverters._
 
 object TracingListenerApp extends IOApp {
   val serverHost = Host.fromString(sys.env.getOrElse("TRACING_HOST", "0.0.0.0"))
@@ -36,6 +55,14 @@ object TracingListenerApp extends IOApp {
       }
     }
 
+  def socketToLines(socket: Socket[IO]): IO[List[String]] =
+    socket.reads
+      .through(text.utf8.decode)
+      .through(text.lines[IO])
+      .filter(_.nonEmpty)
+      .compile
+      .toList
+
   override def run(args: List[String]): IO[ExitCode] = {
     val fileToAnalyze =
       if (args.contains("analyze"))
@@ -45,15 +72,11 @@ object TracingListenerApp extends IOApp {
     fileToAnalyze match {
       case None =>
         fs2.Stream
-          .resource(Network[IO].openDatagramSocket(serverHost, serverPort))
-          .flatMap(_.reads)
-          .evalMap(chunkBytes =>
-            fs2.Stream
-              .chunk[IO, Byte](chunkBytes.bytes)
-              .through(text.utf8.decode)
-              .compile
-              .string
-          )
+          .resource(Network[IO].serverResource(address = serverHost, port = serverPort))
+          .flatMap { case (socketAddress, socketStream) =>
+            socketStream.evalMap(socketToLines)
+          }
+          .flatMap(l => fs2.Stream.emits(l))
           .through(savingStream.getOrElse(fs2.io.stdoutLines[IO, String]()))
           .compile
           .drain

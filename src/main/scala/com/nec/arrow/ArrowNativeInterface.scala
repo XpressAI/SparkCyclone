@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021 Xpress AI.
+ *
+ * This file is part of Spark Cyclone.
+ * See https://github.com/XpressAI/SparkCyclone for further info.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.nec.arrow
 
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.ScalarInputNativeArgument
@@ -130,6 +149,10 @@ object ArrowNativeInterface {
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = intVector
         }
+        final case class TimeStampVectorInputWrapper(tsVector: TimeStampMicroTZVector)
+          extends InputArrowVectorWrapper {
+          override def valueVector: ValueVector = tsVector
+        }
         final case class DateDayVectorInputWrapper(dateDayVector: DateDayVector)
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = dateDayVector
@@ -163,6 +186,10 @@ object ArrowNativeInterface {
         final case class IntVectorOutputWrapper(intVector: IntVector) extends OutputVectorWrapper {
           override def valueVector: ValueVector = intVector
         }
+        final case class TimeStampVectorOutputWrapper(tsVector: TimeStampMicroTZVector)
+          extends OutputVectorWrapper {
+          override def valueVector: ValueVector = tsVector
+        }
         final case class BigIntVectorOutputWrapper(bigIntVector: BigIntVector)
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = bigIntVector
@@ -175,8 +202,7 @@ object ArrowNativeInterface {
           extends OutputVectorWrapper {
           override def valueVector: ValueVector = smallIntVector
         }
-        final case class BitVectorOutputWrapper(bitVector: BitVector)
-          extends OutputVectorWrapper {
+        final case class BitVectorOutputWrapper(bitVector: BitVector) extends OutputVectorWrapper {
           override def valueVector: ValueVector = bitVector
         }
       }
@@ -209,8 +235,10 @@ object ArrowNativeInterface {
         case varCharVector: VarCharVector =>
           InputVectorWrapper.VarCharVectorInputWrapper(varCharVector)
         case bigIntVector: BigIntVector => InputVectorWrapper.BigIntVectorInputWrapper(bigIntVector)
-        case smallIntVector: SmallIntVector => InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
+        case smallIntVector: SmallIntVector =>
+          InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
         case bitVector: BitVector => InputVectorWrapper.BitVectorInputWrapper(bitVector)
+        case tsVector: TimeStampMicroTZVector => InputVectorWrapper.TimeStampVectorInputWrapper(tsVector)
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {
