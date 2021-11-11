@@ -34,7 +34,6 @@ final class IncludeTCPDebugSpec extends AnyFreeSpec {
         "}"
       )
 
-      println(code.cCode)
       CMakeBuilder.buildC(code.cCode, debug = true)
     }
   }

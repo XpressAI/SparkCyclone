@@ -107,9 +107,6 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
         val expected = list.zipWithIndex.collect { case (s, idx) if idx % 2 == 0 => s }.toList
         val r = ArrowVectorBuilders.withArrowStringVector(list) { inVec =>
           ArrowVectorBuilders.withArrowStringVector(Seq.empty) { outVec =>
-            println(inVec.toList)
-            println(inVec.toList.size)
-            println(inVec)
             nativeInterface.callFunction(
               name = "test",
               inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),

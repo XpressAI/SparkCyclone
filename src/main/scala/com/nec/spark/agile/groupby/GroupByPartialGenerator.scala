@@ -22,6 +22,7 @@ package com.nec.spark.agile.groupby
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer
 import com.nec.spark.agile.StringProducer.FilteringProducer
 import com.nec.spark.agile.groupby.GroupByOutline.{
@@ -35,7 +36,8 @@ import com.nec.spark.agile.groupby.GroupByOutline.{
 final case class GroupByPartialGenerator(
   finalGenerator: GroupByPartialToFinalGenerator,
   computedGroupingKeys: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
-  computedProjections: List[(StagedProjection, Either[StringReference, TypedCExpression2])]
+  computedProjections: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
+  stringVectorComputations: List[StringHoleEvaluation]
 ) {
   import finalGenerator._
   import stagedGroupBy._
@@ -59,6 +61,7 @@ final case class GroupByPartialGenerator(
       )
     )
   }
+
   def createPartial(inputs: List[CVector]): CFunction =
     CFunction(
       inputs = inputs,
@@ -69,13 +72,15 @@ final case class GroupByPartialGenerator(
           .from(
             performGrouping(count = s"${inputs.head.name}->count")
               .time("Grouping"),
+            stringVectorComputations.map(_.computeVector).time("Compute String vectors"),
             computeGroupingKeysPerGroup.block.time("Compute grouping keys per group"),
             computedProjections.map { case (sp, e) =>
               computeProjectionsPerGroup(sp, e).time(s"Compute projection ${sp.name}")
             },
             computedAggregates.map { case (a, ag) =>
               computeAggregatePartialsPerGroup(a, ag).time(s"Compute aggregate ${a.name}")
-            }
+            },
+            stringVectorComputations.map(_.deallocData).time("Compute String vectors")
           )
           .time("Execution of Partial"),
         TcpDebug.conditional.close

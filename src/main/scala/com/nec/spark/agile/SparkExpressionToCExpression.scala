@@ -218,62 +218,8 @@ object SparkExpressionToCExpression {
 
   def eval(expression: Expression)(implicit fallback: EvalFallback): EvaluationAttempt = {
     expression match {
-      case EqualTo(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        Right {
-          CExpression(
-            cCode = List(
-              s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])",
-              s"""std::string("${right.toString()}")"""
-            ).mkString(" == "),
-            isNotNullCode = None
-          )
-        }
-      case Contains(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        Right {
-          CExpression(
-            cCode = {
-              val mainString =
-                s"std::string(${left.name}->data, ${left.name}->offsets[i], ${left.name}->offsets[i+1]-${left.name}->offsets[i])"
-              val rightString = s"""std::string("${right.toString()}")"""
-              s"${mainString}.find(${rightString}) != std::string::npos"
-            },
-            isNotNullCode = None
-          )
-        }
-      case EndsWith(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        Right {
-          CExpression(
-            cCode = {
-              val leftStringLength =
-                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
-              val expectedLength = right.toString().length
-              val leftStringSubstring =
-                s"""std::string(${left.name}->data, ${left.name}->offsets[i+1]-${expectedLength}, ${expectedLength})"""
-              val rightString = s"""std::string("${right.toString()}")"""
-              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
-            },
-            isNotNullCode = None
-          )
-        }
-      case StartsWith(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        Right {
-          CExpression(
-            cCode = {
-              val leftStringLength =
-                s"(${left.name}->offsets[i+1] - ${left.name}->offsets[i])"
-              val expectedLength = right.toString().length
-              val leftStringSubstring =
-                s"""std::string(${left.name}->data, ${left.name}->offsets[i], ${expectedLength})"""
-              val rightString = s"""std::string("${right.toString()}")"""
-              s"${leftStringLength} >= ${expectedLength} && ${leftStringSubstring} == ${rightString}"
-            },
-            isNotNullCode = None
-          )
-        }
+      case StringHole(_, evl) =>
+        Right(evl.fetchResult)
       case b @ Divide(_, _, false) =>
         for {
           leftEx <- eval(b.left)
