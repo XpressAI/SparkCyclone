@@ -119,7 +119,12 @@ final case class OldUnifiedGroupByFunctionGeneration(
           )
           .sequence
         ca <- stagedGroupBy.aggregations.map(sa => computeAggregate(sa).map(c => sa -> c)).sequence
-      } yield GroupByPartialGenerator(GroupByPartialToFinalGenerator(stagedGroupBy, ca), gks, cpr)
+      } yield GroupByPartialGenerator(
+        finalGenerator = GroupByPartialToFinalGenerator(stagedGroupBy, ca),
+        computedGroupingKeys = gks,
+        computedProjections = cpr,
+        stringVectorComputations = Nil
+      )
         .createPartial(inputs = veDataTransformation.inputs)
     }
       .fold(sys.error, identity)

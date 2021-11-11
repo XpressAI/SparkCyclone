@@ -43,9 +43,11 @@ object CFunctionGeneration {
         sys.error(s"unsupported dataType $x")
     }
   }
+
   trait SortOrdering
   final case object Descending extends SortOrdering
   final case object Ascending extends SortOrdering
+
   sealed trait CVector {
     def replaceName(search: String, replacement: String): CVector
     def name: String
@@ -54,19 +56,48 @@ object CFunctionGeneration {
   object CVector {
     def varChar(name: String): CVector = CVarChar(name)
     def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
+    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableInt)
   }
+
   final case class CVarChar(name: String) extends CVector {
     override def veType: VeType = VeString
 
     override def replaceName(search: String, replacement: String): CVector =
       copy(name = name.replaceAllLiterally(search, replacement))
   }
+
   final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
     override def replaceName(search: String, replacement: String): CVector =
       copy(name = name.replaceAllLiterally(search, replacement))
   }
 
-  final case class CExpression(cCode: String, isNotNullCode: Option[String])
+  final case class CExpression(cCode: String, isNotNullCode: Option[String]) {
+    def storeTo(outputName: String): CodeLines = isNotNullCode match {
+      case None =>
+        CodeLines
+          .from(
+            s"${outputName}->data[i] = ${cCode};",
+            s"set_validity($outputName->validityBuffer, i, 1);"
+          )
+          .indented
+      case Some(nullCheck) =>
+        CodeLines
+          .from(
+            s"if( ${nullCheck} ) {",
+            CodeLines
+              .from(
+                s"${outputName}->data[i] = ${cCode};",
+                s"set_validity($outputName->validityBuffer, i, 1);"
+              )
+              .indented,
+            "} else {",
+            CodeLines.from(s"set_validity($outputName->validityBuffer, i, 0);").indented,
+            "}"
+          )
+          .indented
+    }
+
+  }
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
 
   final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)

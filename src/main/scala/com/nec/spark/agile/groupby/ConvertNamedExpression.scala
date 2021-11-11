@@ -36,6 +36,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
 }
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
+  Attribute,
   AttributeReference,
   Expression,
   NamedExpression
@@ -87,82 +88,114 @@ object ConvertNamedExpression {
     namedExpression: NamedExpression,
     idx: Int,
     referenceReplacer: PartialFunction[Expression, Expression],
-    child: LogicalPlan
+    childAttributes: Seq[Attribute]
   )(implicit
     evalFallback: EvalFallback
-  ): Either[String, Either[(StagedAggregation, Expression), (StagedProjection, Expression)]] = {
+  ): Either[String, Either[(StagedAggregation, Expression), (StagedProjection, Expression)]] =
     computeIndexedAggregate(namedExpression, idx, referenceReplacer) match {
       case Some(c) => c.map(sae => Left(sae))
       case None =>
-        namedExpression match {
-          case ar: AttributeReference if child.output.toList.exists(_.exprId == ar.exprId) =>
-            Right(
-              Right(
-                StagedProjection(
-                  s"${StagedProjectionPrefix}${idx}",
-                  sparkTypeToVeType(ar.dataType)
-                ) -> ar
-              )
-            )
-          case Alias(exp, _) =>
-            Right(
-              Right(
-                StagedProjection(
-                  s"${StagedProjectionPrefix}${idx}",
-                  sparkTypeToVeType(exp.dataType)
-                ) -> exp
-              )
-            )
-          case other =>
-            Left(s"Unexpected aggregate expression: ${other}, type ${other.getClass}")
-        }
+        mapNamedStagedProjection(
+          namedExpression = namedExpression,
+          idx = idx,
+          childAttributes = childAttributes
+        ).map(r => Right(r))
     }
-  }
 
-  private def computeIndexedAggregate(
+  def mapNamedStagedProjection(
+    namedExpression: NamedExpression,
+    idx: Int,
+    childAttributes: Seq[Attribute]
+  ): Either[String, (StagedProjection, Expression)] =
+    namedExpression match {
+      case ar: AttributeReference if childAttributes.toList.exists(_.exprId == ar.exprId) =>
+        Right(
+          StagedProjection(s"${StagedProjectionPrefix}${idx}", sparkTypeToVeType(ar.dataType)) -> ar
+        )
+      case Alias(exp, _) =>
+        Right(
+          StagedProjection(
+            s"${StagedProjectionPrefix}${idx}",
+            sparkTypeToVeType(exp.dataType)
+          ) -> exp
+        )
+      case other =>
+        Left(s"Unexpected aggregate expression: ${other}, type ${other.getClass}")
+    }
+
+  def computeIndexedAggregate(
     aggregateExpression: NamedExpression,
     index: Int,
     referenceReplacer: PartialFunction[Expression, Expression]
-  )(implicit
-    evalFallback: EvalFallback
-  ): Option[Either[String, (StagedAggregation, Expression)]] = {
-    PartialFunction
-      .condOpt(aggregateExpression) {
-        case o @ Alias(AggregateExpression(d: DeclarativeAggregate, _, _, _, _), _) =>
-          Right {
-            (
-              GroupByExpression.GroupByAggregation(
-                DeclarativeAggregationConverter(
-                  d.transform(referenceReplacer).asInstanceOf[DeclarativeAggregate]
-                )
-              ),
-              o
-            )
-          }
-        case Alias(other, _) if other.collectFirst { case _: DeclarativeAggregate =>
-              ()
-            }.nonEmpty =>
-          DeclarativeAggregationConverter
-            .transformingFetch(other.transform(referenceReplacer))
-            .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
-            .map(ag => (GroupByExpression.GroupByAggregation(ag), other))
-        case other if other.collectFirst { case _: DeclarativeAggregate =>
-              ()
-            }.nonEmpty =>
-          DeclarativeAggregationConverter
-            .transformingFetch(other.transform(referenceReplacer))
-            .toRight(s"Cannot figure out how to replace: ${other} (${other.getClass})")
-            .map(ag => (GroupByExpression.GroupByAggregation(ag), other))
-      }
+  )(implicit evalFallback: EvalFallback): Option[Either[String, (StagedAggregation, Expression)]] =
+    extractAggregates(aggregateExpression, referenceReplacer)
       .map(_.map { case (groupByExpression, expr) =>
         StagedAggregation(
           s"${AggPrefix}${index}",
           sparkTypeToVeType(expr.dataType),
-          groupByExpression.aggregation.partialValues(s"${AggPrefix}${index}").map { case (cs, _) =>
-            StagedAggregationAttribute(name = cs.name, veScalarType = cs.veType)
+          groupByExpression.aggregation.partialValues(s"$AggPrefix$index").map {
+            case (cScalarVector, _) =>
+              StagedAggregationAttribute(
+                name = cScalarVector.name,
+                veScalarType = cScalarVector.veType
+              )
           }
         ) -> expr
       })
+
+  private def extractAggregates(
+    aggregateExpression: NamedExpression,
+    referenceReplacer: PartialFunction[Expression, Expression]
+  )(implicit
+    evalFallback: EvalFallback
+  ): Option[Either[String, (GroupByExpression.GroupByAggregation, Expression)]] =
+    PartialFunction
+      .condOpt(aggregateExpression) {
+        case aliasOfAggregateExpression @ Alias(
+              AggregateExpression(declarativeAggregate: DeclarativeAggregate, _, _, _, _),
+              _
+            ) =>
+          Right {
+            (
+              GroupByExpression.GroupByAggregation(
+                DeclarativeAggregationConverter(
+                  declarativeAggregate
+                    .transform(referenceReplacer)
+                    .asInstanceOf[DeclarativeAggregate]
+                )
+              ),
+              aliasOfAggregateExpression
+            )
+          }
+        case HasDeclarativeAggregate(expressionWithDeclarativeAggregate) =>
+          DeclarativeAggregationConverter
+            .transformingFetch(expressionWithDeclarativeAggregate.transform(referenceReplacer))
+            .toRight(
+              s"Cannot figure out how to replace: ${expressionWithDeclarativeAggregate} (${expressionWithDeclarativeAggregate.getClass})"
+            )
+            .map(aggregation =>
+              (
+                GroupByExpression.GroupByAggregation(aggregation),
+                expressionWithDeclarativeAggregate
+              )
+            )
+      }
+
+  object HasDeclarativeAggregate {
+    def unapply(namedExpression: NamedExpression): Option[Expression] =
+      PartialFunction.condOpt(namedExpression) {
+        case Alias(expressionWithDeclarativeAggregate, _)
+            if expressionWithDeclarativeAggregate.collectFirst { case _: DeclarativeAggregate =>
+              ()
+            }.nonEmpty =>
+          expressionWithDeclarativeAggregate
+
+        case expressionWithDeclarativeAggregate if expressionWithDeclarativeAggregate.collectFirst {
+              case _: DeclarativeAggregate =>
+                ()
+            }.nonEmpty =>
+          expressionWithDeclarativeAggregate
+      }
   }
 
   def computeAggregate(
