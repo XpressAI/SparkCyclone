@@ -271,7 +271,7 @@ final case class VERewriteStrategy(
                     nativeEvaluator = nativeEvaluator
                   )
                 )
-              case None =>
+              case _ =>
                 ArrowColumnarToRowPlan(
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
