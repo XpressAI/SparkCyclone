@@ -46,22 +46,22 @@ object ArrowColumnarBatchDeSerializerSpec {
 
       override def values: List[Option[Int]] = ints.toList
     }
-    final case class StringStorage(ints: Option[String]*) extends ValueInfo[String] {
+    final case class StringStorage(strings: Option[String]*) extends ValueInfo[String] {
       override type Vector = VarCharVector
       override def create(
         name: String
       )(implicit bufferAllocator: BufferAllocator): VarCharVector = {
         val iv = new VarCharVector(name, bufferAllocator)
-        iv.setValueCount(ints.size)
+        iv.setValueCount(strings.size)
         values.zipWithIndex.foreach {
           case (None, idx)        => iv.setNull(idx)
-          case (Some(value), idx) => iv.set(idx, value.getBytes())
+          case (Some(value), idx) => iv.setSafe(idx, value.getBytes())
         }
         iv
       }
       override def parse(vector: VarCharVector): List[Option[String]] = vector.toListSafe
 
-      override def values: List[Option[String]] = ints.toList
+      override def values: List[Option[String]] = strings.toList
     }
     final case class FloatStorage(ints: Option[Double]*) extends ValueInfo[Double] {
       override type Vector = Float8Vector
@@ -120,7 +120,7 @@ object ArrowColumnarBatchDeSerializerSpec {
       .map(list => FloatStorage(list: _*))
   def varCharVectorGen(valuesCount: Int): Gen[StringStorage] =
     Gen
-      .listOfN(valuesCount, Gen.option(Arbitrary.arbString.arbitrary))
+      .listOfN(valuesCount, Gen.option(Gen.alphaNumStr))
       .map(list => StringStorage(list: _*))
 
   def someFieldVectorGen(valuesCount: Int): Gen[ValueInfo[_]] =
@@ -145,11 +145,16 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
         val cb = clz.columnarBatch
         try {
           val byteArray = ArrowColumnarBatchDeSerializer.serialize(cb)
-          val otherCb = ArrowColumnarBatchDeSerializer.deserialize(byteArray)
-          val gotCols: List[FieldVector] = extractFieldVectors(otherCb)
-          println(gotCols)
-          println(clz.arrowVectors)
-          gotCols.toString() == clz.arrowVectors.toString()
+          val colBatchWithReader = ArrowColumnarBatchDeSerializer.deserialize(byteArray)
+          val gotCols: List[FieldVector] = extractFieldVectors(colBatchWithReader.columnarBatch)
+          try {
+            val gotColsStr = gotCols.toString()
+            val avsStr = clz.arrowVectors.toString()
+            gotColsStr == avsStr
+          } finally {
+            colBatchWithReader.columnarBatch.close()
+            colBatchWithReader.arrowStreamReader.close(true)
+          }
         } finally clz.arrowVectors.foreach(_.close())
       }
       check(p)
@@ -158,78 +163,28 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
 
   "Check one reduced case" in {
     val icb = ImmutableColBatch(
-      17,
-      List(
-        StringStorage(
-          None,
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          None,
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some("")
-        ),
-        StringStorage(
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          None,
-          Some("")
-        ),
-        StringStorage(
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          None,
-          Some(""),
-          Some(""),
-          None,
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some(""),
-          Some("")
-        )
+      rowsCount = 1,
+      columns = List(
+        StringStorage(None),
+        StringStorage(None),
+        StringStorage(Some("hVh")),
+        StringStorage(None)
       )
     )
-
     WithTestAllocator { implicit alloc =>
       val clz = icb.toColumnarBatch
       val cb = clz.columnarBatch
       val ba = ArrowColumnarBatchDeSerializer.serialize(cb)
       val otherDb = ArrowColumnarBatchDeSerializer.deserialize(ba)
 
-      val gotCols = extractFieldVectors(otherDb).toString()
+      val gotCols = extractFieldVectors(otherDb.columnarBatch).toString()
       val expt = clz.arrowVectors.toString()
 
-      expect(gotCols == expt)
+      try expect(gotCols == expt)
+      finally {
+        otherDb.columnarBatch.close()
+        otherDb.arrowStreamReader.close(true)
+      }
     }
   }
 

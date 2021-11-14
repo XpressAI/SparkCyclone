@@ -310,12 +310,17 @@ final case class NativeAggregationEvaluationPlan(
         iteratorColBatch.map { batch =>
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for final collector", 0, Long.MaxValue)
-          val colBatch: ColumnarBatch = serializer.deserialize(batch)
+          val colBatchWithReader: ArrowColumnarBatchDeSerializer.ColBatchWithReader =
+            serializer.deserialize(batch)
+          val columnarBatch = colBatchWithReader.columnarBatch
 
           val partialInputVectors: List[ValueVector] =
             finalFunction.inputs.indices
               .map(idx =>
-                colBatch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
+                columnarBatch
+                  .column(idx)
+                  .asInstanceOf[AccessibleArrowColumnVector]
+                  .getArrowValueVector
               )
               .toList
 
@@ -349,6 +354,7 @@ final case class NativeAggregationEvaluationPlan(
               outputArguments = finalFunction.inputs.map(_ => None) ++
                 outputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
             )
+            colBatchWithReader.arrowStreamReader.close(true)
 
             val cnt = outputVectors.head.getValueCount
             logger.info(s"Got ${cnt} results back; ${outputVectors}")
