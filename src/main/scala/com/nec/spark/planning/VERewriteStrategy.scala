@@ -20,7 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.agile.SparkExpressionToCExpression.{
   eval,
   replaceReferences,
@@ -45,7 +45,6 @@ import com.nec.spark.planning.VERewriteStrategy.{
   VeRewriteStrategyOptions
 }
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
@@ -57,9 +56,9 @@ import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
+
 import scala.collection.immutable
 import scala.util.Try
-
 import com.nec.spark.agile.CFunctionGeneration.{
   CExpression,
   CScalarVector,
@@ -68,6 +67,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
   VeSortExpression
 }
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
+import com.nec.spark.planning.TransformUtil.RichTreeNode
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -147,21 +147,35 @@ final case class VERewriteStrategy(
             sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${id}")
           }.toList
 
+          val stringHoledAggregateExpressions = aggregateExpressions.map(namedExpression =>
+            namedExpression.transformSelf(referenceReplacer).transformSelf(StringHole.transform)
+          )
+
           val evaluationPlanE: Either[String, SparkPlan] = for {
-            projections <- aggregateExpressions.zipWithIndex
+            projections <- stringHoledAggregateExpressions.zipWithIndex
               .map { case (ne, i) =>
                 ConvertNamedExpression
-                  .mapNamedExp(ne, i, referenceReplacer, child)
+                  .mapNamedExp(
+                    namedExpression = ne,
+                    idx = i,
+                    referenceReplacer = referenceReplacer,
+                    childAttributes = child.output
+                  )
                   .map(_.right.toSeq)
               }
               .toList
               .sequence
               .map(_.flatten)
             aggregates <-
-              aggregateExpressions.zipWithIndex
+              stringHoledAggregateExpressions.zipWithIndex
                 .map { case (ne, i) =>
                   ConvertNamedExpression
-                    .mapNamedExp(ne, i, referenceReplacer, child)
+                    .mapNamedExp(
+                      namedExpression = ne,
+                      idx = i,
+                      referenceReplacer = referenceReplacer,
+                      childAttributes = child.output
+                    )
                     .map(_.left.toSeq)
                 }
                 .toList
@@ -190,7 +204,7 @@ final case class VERewriteStrategy(
                     .mkString(",")}"
                 )
             }
-            finalOutputs <- aggregateExpressions
+            finalOutputs <- stringHoledAggregateExpressions
               .map(validateNamedOutput)
               .toList
               .sequence
@@ -204,8 +218,15 @@ final case class VERewriteStrategy(
                 mapGroupingExpression(exp, referenceReplacer)
                   .map(e => gk -> e)
               }.sequence
+            stringHoles = projections.flatMap { case (sp, p) =>
+              StringHole.process(p.transform(referenceReplacer))
+            } ++ aggregates.flatMap { case (sa, exp) =>
+              StringHole.process(exp.transform(referenceReplacer))
+            }
             computedProjections <- projections.map { case (sp, p) =>
-              ConvertNamedExpression.doProj(p.transform(referenceReplacer)).map(r => sp -> r)
+              ConvertNamedExpression
+                .doProj(p.transform(referenceReplacer).transform(StringHole.transform))
+                .map(r => sp -> r)
             }.sequence
             computedAggregates <- aggregates.map { case (sa, exp) =>
               computeAggregate(exp.transform(referenceReplacer))
@@ -217,7 +238,8 @@ final case class VERewriteStrategy(
                 computedAggregates = computedAggregates
               ),
               computedGroupingKeys = computedGroupingKeys,
-              computedProjections = computedProjections
+              computedProjections = computedProjections,
+              stringVectorComputations = stringHoles.flatMap(_.stringParts).distinct
             )
             partialCFunction = groupByPartialGenerator.createPartial(inputs = inputsList)
             _ <-
@@ -231,7 +253,7 @@ final case class VERewriteStrategy(
               groupByPartialGenerator.createFull(inputs = inputsList)
           } yield {
             options.preShufflePartitions match {
-              case Some(n) if(groupingExpressions.size > 0)=>
+              case Some(n) if groupingExpressions.nonEmpty =>
                 ArrowColumnarToRowPlan(
                   NativeAggregationEvaluationPlan(
                     outputExpressions = aggregateExpressions,
@@ -264,7 +286,7 @@ final case class VERewriteStrategy(
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
-        case Sort(orders, global, child) => {
+        case Sort(orders, global, child) if(options.enableVeSorting) => {
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToScalarVeType(att.dataType)
               .makeCVector(s"${InputPrefix}${id}")

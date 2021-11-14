@@ -1,14 +1,14 @@
-# Implementation of Tracing/Monitoring 
+# Implementation of Tracing/Monitoring
 
 ## Status
-PROPOSED
+IMPLEMENTED
 
 Proposed by: Dominik Wosinski
 
-Discussed with: Eduardo Gonzalez, William Gipfeli
+Discussed with: Eduardo Gonzalez
 
 ## Context
-We need a way to be able to track and profile execution on JVM, but more importantly on VE side. There are some tools for profiling spark, but those are user oriented not developer oriented and they definetely won't allow us to profile and monitor execution on VE. 
+We need a way to be able to track and profile execution on JVM, but more importantly on VE side. There are some tools for profiling spark, but those are user oriented not developer oriented and they definetely won't allow us to profile and monitor execution on VE.
 
 ## Proposal
 It seems that just as RAPIDS we need to implement custom profiling tool to allow tracking execution and gathering statistics about that.
@@ -21,7 +21,7 @@ described [here](https://zipkin.io/zipkin-api/).
 
 For Scala side we should be able to incorporate `Zipkin` library for publishing of messages.
 
-## Consequences 
+## Consequences
 
 ### Advantages
 
