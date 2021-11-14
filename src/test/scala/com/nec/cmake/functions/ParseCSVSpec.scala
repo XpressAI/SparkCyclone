@@ -76,6 +76,14 @@ object ParseCSVSpec {
       .map(varCharVector.get)
       .map(bytes => new String(bytes, "UTF-8"))
       .toList
+
+    def toListSafe: List[Option[String]] =
+      (0 until varCharVector.getValueCount)
+        .map(idx =>
+          if (varCharVector.isNull(idx)) None
+          else Option(new String(varCharVector.get(idx), "UTF-8"))
+        )
+        .toList
   }
 
   implicit class RichBigIntVector(bigIntVector: BigIntVector) {
@@ -84,6 +92,9 @@ object ParseCSVSpec {
 
   implicit class RichIntVector(IntVector: IntVector) {
     def toList: List[Int] = (0 until IntVector.getValueCount).map(IntVector.get).toList
+    def toListSafe: List[Option[Int]] = (0 until IntVector.getValueCount)
+      .map(idx => if (IntVector.isNull(idx)) None else Some(IntVector.get(idx)))
+      .toList
   }
 
   def verifyOn(arrowInterfaceNumeric: ArrowNativeInterface): Unit = {
