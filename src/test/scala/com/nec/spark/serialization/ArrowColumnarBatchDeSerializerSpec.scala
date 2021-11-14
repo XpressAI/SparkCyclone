@@ -191,7 +191,7 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
 //
 //  it should "correctly serialize ColumnarBatchWithIntVector" in {
 //    withDirectIntVector(Seq(1, 2, 3, 4, 10)) { vec =>
-//      val batch = new ColumnarBatch(Array(new AccessibleArrowColumnVector(vec)), 5)
+//      val batch = new ColumnarBatch(Array(new ArrowColumnVector(vec)), 5)
 //      val serializer = ArrowColumnarBatchDeSerializer
 //      val arr = serializer.serialize(batch)
 //      val deserializedBatch = serializer.deserialize(arr)
@@ -209,7 +209,7 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
 //
 //  it should "correctly serialize IntVector with null values" in {
 //    withNullableIntVector(Seq(Some(1), Some(2), Some(3), None, Some(5), None)) { vec =>
-//      val batch = new ColumnarBatch(Array(new AccessibleArrowColumnVector(vec)), 5)
+//      val batch = new ColumnarBatch(Array(new ArrowColumnVector(vec)), 5)
 //      val serializer = ArrowColumnarBatchDeSerializer
 //      val arr = serializer.serialize(batch)
 //      val deserializedBatch = serializer.deserialize(arr)
@@ -228,7 +228,7 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
 //  it should "correctly serialize multiple Columns with null values" in {
 //    withNullableIntVector(Seq(Some(1), Some(2), Some(3), None, Some(5), None)) { vec =>
 //      val batch = new ColumnarBatch(
-//        Array(new AccessibleArrowColumnVector(vec), new AccessibleArrowColumnVector(vec)),
+//        Array(new ArrowColumnVector(vec), new ArrowColumnVector(vec)),
 //        5
 //      )
 //      val serializer = ArrowColumnarBatchDeSerializer
@@ -257,7 +257,7 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
 //  it should "correctly serialize VarCharVector" in {
 //    val inputSeq = Seq("First", "Second", "Third", "Fourth")
 //    withArrowStringVector(inputSeq) { vec =>
-//      val batch = new ColumnarBatch(Array(new AccessibleArrowColumnVector(vec)), 5)
+//      val batch = new ColumnarBatch(Array(new ArrowColumnVector(vec)), 5)
 //      val serializer = ArrowColumnarBatchDeSerializer
 //      val arr = serializer.serialize(batch)
 //      val deserializedBatch = serializer.deserialize(arr)
@@ -277,7 +277,7 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
 //  it should "correctly serialize VarCharVector with null values" in {
 //    val inputSeq = Seq(Some("First"), Some("Second"), None, None, Some("End"))
 //    withNullableArrowStringVector(inputSeq) { vec =>
-//      val batch = new ColumnarBatch(Array(new AccessibleArrowColumnVector(vec)), 5)
+//      val batch = new ColumnarBatch(Array(new ArrowColumnVector(vec)), 5)
 //      val serializer = ArrowColumnarBatchDeSerializer
 //      val arr = serializer.serialize(batch)
 //      val deserializedBatch = serializer.deserialize(arr)

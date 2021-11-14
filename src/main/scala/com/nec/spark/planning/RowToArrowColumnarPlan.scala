@@ -1,24 +1,17 @@
 package com.nec.spark.planning
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-
-import com.nec.arrow.AccessibleArrowColumnVector
 import com.nec.spark.planning.RowToArrowColumnarPlan.collectInputRows
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.execution.{
-  RowToColumnarExec,
-  RowToColumnarTransition,
-  SparkPlan,
-  UnaryExecNode
-}
+import org.apache.spark.sql.execution.{RowToColumnarTransition, SparkPlan}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+
+import scala.collection.JavaConverters.asScalaBufferConverter
 
 object RowToArrowColumnarPlan {
   def collectInputRows(
@@ -50,7 +43,7 @@ case class RowToArrowColumnarPlan(override val child: SparkPlan) extends RowToCo
             collectInputRows(rowIt, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
           val size = new ColumnarBatch(
             root.getFieldVectors.asScala
-              .map(vector => new AccessibleArrowColumnVector(vector))
+              .map(vector => new ArrowColumnVector(vector))
               .toArray,
             root.getRowCount
           )

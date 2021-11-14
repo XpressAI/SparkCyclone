@@ -19,18 +19,16 @@
  */
 package com.nec.spark.planning
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util.UUID
-
 import scala.collection.JavaConverters.asJavaIterableConverter
 import scala.language.dynamics
-
-import com.nec.arrow.AccessibleArrowColumnVector
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
   PrePartitioned,
   TwoStaged
@@ -42,7 +40,6 @@ import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -52,7 +49,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartiti
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
 
 //noinspection DuplicatedCode
@@ -277,7 +274,11 @@ final case class NativeAggregationEvaluationPlan(
             .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
           val inputVectors = child.output.indices
-            .map(batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector)
+            .map(n =>
+              batch
+                .column(n)
+                .getArrowValueVector
+            )
 
           val partialOutputVectors: List[ValueVector] =
             partialFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
@@ -296,10 +297,13 @@ final case class NativeAggregationEvaluationPlan(
               outputArguments = outputArgs
             )
             val vectors = partialOutputVectors
-              .map(vector => new AccessibleArrowColumnVector(vector))
-            val batch =
-              new ColumnarBatch(vectors.toArray, vectors.head.getArrowValueVector.getValueCount)
-            serializer.serialize(batch)
+              .map(vector => new ArrowColumnVector(vector))
+            val columnarBatch =
+              new ColumnarBatch(vectors.toArray)
+            vectors.headOption
+              .map(_.getArrowValueVector.getValueCount)
+              .foreach(columnarBatch.setNumRows)
+            serializer.serialize(columnarBatch)
           } finally {
             inputVectors.foreach(_.close())
           }
@@ -319,8 +323,8 @@ final case class NativeAggregationEvaluationPlan(
               .map(idx =>
                 columnarBatch
                   .column(idx)
-                  .asInstanceOf[AccessibleArrowColumnVector]
                   .getArrowValueVector
+                  .asInstanceOf[FieldVector]
               )
               .toList
 
@@ -360,7 +364,7 @@ final case class NativeAggregationEvaluationPlan(
             logger.info(s"Got ${cnt} results back; ${outputVectors}")
 
             val outputColumnVectors =
-              outputVectors.map(vector => new AccessibleArrowColumnVector(vector))
+              outputVectors.map(vector => new ArrowColumnVector(vector))
             new ColumnarBatch(outputColumnVectors.toArray, cnt)
           } finally {
             partialInputVectors.foreach(_.close())
@@ -497,7 +501,9 @@ final case class NativeAggregationEvaluationPlan(
 
             val inputValueVectors = (0 until batch.numCols())
               .map(idx =>
-                batch.column(idx).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
+                batch
+                  .column(idx)
+                  .getArrowValueVector
               )
 
             val tracer = createVector()
@@ -529,7 +535,7 @@ final case class NativeAggregationEvaluationPlan(
               val cnt = outputVectors.head.getValueCount
               logger.info(s"[$uniqueId] Got ${cnt} results back in ${timeTaken}")
               val arrowOutputVectors =
-                outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+                outputVectors.map(vec => new ArrowColumnVector(vec))
 
               new ColumnarBatch(arrowOutputVectors.toArray, cnt)
             } finally {
