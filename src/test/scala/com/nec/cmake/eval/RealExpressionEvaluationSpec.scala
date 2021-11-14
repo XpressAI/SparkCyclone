@@ -23,14 +23,28 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
-import com.nec.arrow.ArrowVectorBuilders.{withArrowStringVector, withDirectBigIntVector, withDirectFloat8Vector, withDirectIntVector, withNullableArrowStringVector}
+import com.nec.arrow.ArrowVectorBuilders.{
+  withArrowStringVector,
+  withDirectBigIntVector,
+  withDirectFloat8Vector,
+  withDirectIntVector,
+  withNullableArrowStringVector
+}
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.cmake.functions.ParseCSVSpec.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
+import com.nec.cmake.functions.ParseCSVSpec.{
+  RichBigIntVector,
+  RichFloat8,
+  RichIntVector,
+  RichVarCharVector
+}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
 import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
@@ -184,7 +198,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
     val expected =
-      List[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))
+      List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
     expect(results == expected)
   }
 
@@ -782,10 +796,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
-    val cLib = CMakeBuilder.buildCLogging(
-      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n"),
-      debug = true
+    val cLib = CMakeBuilder.buildCLogging(cSource =
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
     )
 
     val nativeInterface = new CArrowNativeInterface(cLib.toString)
