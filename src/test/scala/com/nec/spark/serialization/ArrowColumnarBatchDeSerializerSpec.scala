@@ -124,8 +124,7 @@ object ArrowColumnarBatchDeSerializerSpec {
       .map(list => StringStorage(list: _*))
 
   def someFieldVectorGen(valuesCount: Int): Gen[ValueInfo[_]] =
-    varCharVectorGen(valuesCount)
-//    Gen.oneOf(intVectorGen(valuesCount), floatVectorGen(valuesCount), varCharVectorGen(valuesCount))
+    Gen.oneOf(intVectorGen(valuesCount), floatVectorGen(valuesCount), varCharVectorGen(valuesCount))
 
   val genColB: Gen[ImmutableColBatch] = {
     for {
