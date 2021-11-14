@@ -1,9 +1,11 @@
 package com.nec.spark.serialization
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.arrow.ArrowVectorBuilders.withDirectIntVector
 import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.functions.ParseCSVSpec.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
+import com.nec.spark.serialization.ArrowColumnarBatchDeSerializer.RichFieldVector
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.ValueInfo.{
   FloatStorage,
   IntStorage,
@@ -24,9 +26,12 @@ import org.scalatestplus.scalacheck.Checkers
 object ArrowColumnarBatchDeSerializerSpec {
 
   sealed trait ValueInfo[Value] {
+    def take(n: Int): ValueInfo[Value]
+    def drop(n: Int): ValueInfo[Value]
     type Vector <: FieldVector
     def create(name: String)(implicit bufferAllocator: BufferAllocator): Vector
     def parse(vector: Vector): List[Option[Value]]
+    def parseFV(vector: FieldVector): List[Option[Value]] = parse(vector.asInstanceOf[Vector])
     def values: List[Option[Value]]
   }
 
@@ -45,8 +50,14 @@ object ArrowColumnarBatchDeSerializerSpec {
       override def parse(vector: IntVector): List[Option[Int]] = vector.toListSafe
 
       override def values: List[Option[Int]] = ints.toList
+
+      override def take(n: Int): ValueInfo[Int] = IntStorage(ints.take(n): _*)
+
+      override def drop(n: Int): ValueInfo[Int] = IntStorage(ints.drop(n): _*)
     }
     final case class StringStorage(strings: Option[String]*) extends ValueInfo[String] {
+      override def take(n: Int): ValueInfo[String] = StringStorage(strings.take(n): _*)
+      override def drop(n: Int): ValueInfo[String] = StringStorage(strings.drop(n): _*)
       override type Vector = VarCharVector
       override def create(
         name: String
@@ -64,6 +75,8 @@ object ArrowColumnarBatchDeSerializerSpec {
       override def values: List[Option[String]] = strings.toList
     }
     final case class FloatStorage(ints: Option[Double]*) extends ValueInfo[Double] {
+      override def take(n: Int): ValueInfo[Double] = FloatStorage(ints.take(n): _*)
+      override def drop(n: Int): ValueInfo[Double] = FloatStorage(ints.drop(n): _*)
       override type Vector = Float8Vector
       override def create(name: String)(implicit bufferAllocator: BufferAllocator): Float8Vector = {
         val iv = new Float8Vector(name, bufferAllocator)
@@ -93,6 +106,12 @@ object ArrowColumnarBatchDeSerializerSpec {
         arrowCols
       )
     }
+
+    def splitAt(n: Int): (ImmutableColBatch, ImmutableColBatch) =
+      (
+        ImmutableColBatch(rowsCount = Math.min(n, rowsCount), columns = columns.map(_.take(n))),
+        ImmutableColBatch(rowsCount = Math.max(0, rowsCount - n), columns = columns.map(_.drop(n)))
+      )
   }
 
   def extractFieldVectors(columnarBatch: ColumnarBatch): List[FieldVector] = {
@@ -136,6 +155,55 @@ object ArrowColumnarBatchDeSerializerSpec {
 
 }
 final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers {
+  "Vectors can be merged" in {
+    WithTestAllocator { implicit alloc =>
+      withDirectIntVector(Seq(1, 2, 3)) { iv =>
+        withDirectIntVector(Seq(4, 5, 6)) { iv2 =>
+          iv.append(iv2)
+          expect(iv.toList == List(1, 2, 3, 4, 5, 6))
+        }
+      }
+    }
+  }
+  "Iterator Vectors can be merged" in {
+    WithTestAllocator { implicit allocator =>
+      val p: Prop = Prop.forAll(genColB.filter(_.rowsCount > 5)) { immutableColBatch =>
+        try {
+          val (splittedL, splittedR) = immutableColBatch.splitAt(immutableColBatch.rowsCount / 2)
+          val cbvL = splittedL.toColumnarBatch
+          val cbvR = splittedR.toColumnarBatch
+          val byteArrayL = ArrowColumnarBatchDeSerializer.serialize(cbvL.columnarBatch)
+          val byteArrayR = ArrowColumnarBatchDeSerializer.serialize(cbvR.columnarBatch)
+
+          try {
+            val colBatchWithReader =
+              ArrowColumnarBatchDeSerializer
+                .deserializeIterator(Iterator(byteArrayL, byteArrayR))
+                .get
+            val gotCols: List[FieldVector] = extractFieldVectors(colBatchWithReader.columnarBatch)
+            try {
+              val results = gotCols.zip(immutableColBatch.columns).map { case (fv, vi) =>
+                vi.parseFV(fv)
+              }
+
+              results == immutableColBatch.columns.map(_.values)
+            } finally {
+              colBatchWithReader.columnarBatch.close()
+              colBatchWithReader.arrowStreamReader.close(true)
+            }
+          } finally {
+            List(cbvL, cbvR).flatMap(_.arrowVectors).foreach(_.close())
+          }
+        } catch {
+          case e: Throwable =>
+//            e.printStackTrace()
+            throw e
+        }
+      }
+      check(p)
+    }
+
+  }
 
   "It works" in {
     WithTestAllocator { implicit allocator =>

@@ -1,9 +1,10 @@
 package com.nec.spark.serialization
 
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
-import org.apache.arrow.vector.{FieldVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{FieldVector, Float8Vector, VectorSchemaRoot}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, OutputStream}
@@ -11,10 +12,50 @@ import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqA
 
 object ArrowColumnarBatchDeSerializer extends Serializable {
 
+  implicit class RichFieldVector(subject: FieldVector) {
+    def append(other: FieldVector): Unit = {
+      val initialValueCount = subject.getValueCount
+      val newValueCount = initialValueCount + other.getValueCount
+      subject.setValueCount(newValueCount)
+      (0 until other.getValueCount).foreach { otherI =>
+        subject.copyFromSafe(otherI, initialValueCount + otherI, other)
+      }
+    }
+  }
+
+  def deserializeIterator(
+    iterator: Iterator[Array[Byte]]
+  )(implicit bufferAllocator: BufferAllocator): Option[ColBatchWithReader] = {
+    if (!iterator.hasNext) {
+      Option.empty
+    } else {
+      val first = iterator.next()
+      val initial = deserialize(first)
+
+      while (iterator.hasNext) {
+        val other = iterator.next()
+        val otherAr = deserialize(other)
+        if (otherAr.columnarBatch.numRows() > 0) {
+          (0 until initial.columnarBatch.numCols()).foreach { colNo =>
+            val initialFv = initial.columnarBatch.column(colNo).getArrowValueVector
+            val currentFv = otherAr.columnarBatch.column(colNo).getArrowValueVector
+            initialFv.append(currentFv)
+            initial.columnarBatch.setNumRows(
+              initial.columnarBatch.numRows() + otherAr.columnarBatch.numRows()
+            )
+          }
+        }
+        otherAr.arrowStreamReader.close(true)
+      }
+      Some(initial)
+    }
+  }
+
   final class ColBatchWithReader(
     val columnarBatch: ColumnarBatch,
     val arrowStreamReader: ArrowStreamReader
   )
+
   def deserialize(
     arr: Array[Byte]
   )(implicit bufferAllocator: BufferAllocator): ColBatchWithReader = {

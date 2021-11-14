@@ -276,7 +276,7 @@ final case class VERewriteStrategy(
                 NativeAggregationEvaluationPlan(
                   outputExpressions = aggregateExpressions,
                   functionPrefix = functionPrefix,
-                  evaluationMode = EvaluationMode.TwoStaged(partialCFunction, ff),
+                  evaluationMode = EvaluationMode.PartialThenCoalesce(partialCFunction, ff),
                   child = RowToArrowColumnarPlan(planLater(child)),
                   supportsColumnar = true,
                   nativeEvaluator = nativeEvaluator

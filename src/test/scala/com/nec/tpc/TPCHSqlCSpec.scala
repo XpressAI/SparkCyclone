@@ -196,6 +196,7 @@ class TPCHSqlCSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
+      logger.info(s"Plan is: ${dataSet.queryExecution}")
       try f(dataSet)
       catch {
         case e: Throwable =>
