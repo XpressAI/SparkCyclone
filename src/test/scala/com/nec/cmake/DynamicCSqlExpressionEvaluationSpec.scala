@@ -947,6 +947,16 @@ class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
+  s"Count distinct works correctly" in withSparkSession2(configuration) { sparkSession =>
+    import sparkSession.implicits._
+
+    val sql =
+      "select count(distinct b) as foo from values (1, 2), (3, 4), (5, 8), (1, 4), (2, 8) as tab1(a, b)"
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      assert(ds.as[Long].collect().toList == List(3))
+    }
+  }
+
   s"Timestamps are supported" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
