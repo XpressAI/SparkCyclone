@@ -33,8 +33,28 @@ object ArrowVectorBuilders {
       vcv.allocateNew()
       try {
         val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
-        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
-          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+        stringBatch.view.zipWithIndex.foreach {
+          case (str, idx) => vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+
+        }
+        vcv.setValueCount(stringBatch.length)
+        root.setRowCount(stringBatch.length)
+        f(vcv)
+      } finally vcv.close()
+    }
+  }
+
+  def withNullableArrowStringVector[T](stringBatch: Seq[Option[String]])(f: VarCharVector => T): T = {
+    import org.apache.arrow.vector.VectorSchemaRoot
+    WithTestAllocator { alloc =>
+      val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
+      vcv.allocateNew()
+      try {
+        val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
+        stringBatch.view.zipWithIndex.foreach {
+          case (Some(str), idx) => vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+          case (None, idx) => vcv.setNull(idx
+          )
         }
         vcv.setValueCount(stringBatch.length)
         root.setRowCount(stringBatch.length)
@@ -91,6 +111,24 @@ object ArrowVectorBuilders {
       } finally vcv.close()
     }
   }
+
+  def withNullableIntVector[T](data: Seq[Option[Int]])(f: IntVector => T): T = {
+    WithTestAllocator { alloc =>
+      val vcv = new IntVector(s"value$vectorCount", alloc)
+      vectorCount += 1
+      vcv.allocateNew()
+      try {
+        data.zipWithIndex.foreach {
+          case (None, idx) => vcv.setNull(idx)
+          case (Some(str), idx) => vcv.setSafe(idx, str)
+        }
+        vcv.setValueCount(data.size)
+
+        f(vcv)
+      } finally vcv.close()
+    }
+  }
+
   def withDirectBigIntVector[T](data: Seq[Long])(f: BigIntVector => T): T = {
     WithTestAllocator { alloc =>
       val vcv = new BigIntVector(s"value$vectorCount", alloc)

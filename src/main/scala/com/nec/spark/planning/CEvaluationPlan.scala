@@ -28,13 +28,13 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.{
   BigIntVector,
   BitVectorHelper,
+  FieldVector,
   Float8Vector,
   IntVector,
   SmallIntVector,
   VectorSchemaRoot
 }
 import org.apache.commons.lang3.reflect.FieldUtils
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -55,15 +55,15 @@ import org.apache.spark.sql.execution.UnaryExecNode
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, ShortType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.ArrowColumnVector
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
+
 import scala.collection.immutable
 import scala.language.dynamics
-
 import org.apache.spark.sql.catalyst.expressions.aggregate.Corr
 import org.apache.spark.sql.catalyst.expressions.aggregate.Min
 import org.apache.spark.sql.catalyst.expressions.aggregate.Max
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
+import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 object CEvaluationPlan {
 
   object HasFloat8Vector {
@@ -86,6 +86,24 @@ object CEvaluationPlan {
       PartialFunction.condOpt(arrowColumnVector.readPrivate.accessor.vector.obj) {
         case fv: Float8Vector => fv
       }
+    }
+  }
+
+  object HasFieldVector {
+    def unapply(columnVector: ColumnVector): Option[FieldVector] = {
+      PartialFunction.condOpt(columnVector.readPrivate.accessor.vector.obj) {
+        case fv: FieldVector => fv
+      }
+    }
+
+    implicit class RichColumnVector(columnVector: ColumnVector) {
+      def getArrowValueVector: FieldVector = columnVector
+        .asInstanceOf[ArrowColumnVector]
+        .readPrivate
+        .accessor
+        .vector
+        .obj
+        .asInstanceOf[FieldVector]
     }
   }
 
