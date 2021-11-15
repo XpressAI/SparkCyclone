@@ -29,7 +29,8 @@ import com.nec.arrow.ArrowVectorBuilders.{
   withArrowStringVector,
   withDirectBigIntVector,
   withDirectFloat8Vector,
-  withDirectIntVector
+  withDirectIntVector,
+  withNullableArrowStringVector
 }
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
@@ -52,6 +53,7 @@ import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, String
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
@@ -198,7 +200,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
     val expected =
-      List[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))
+      List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
     expect(results == expected)
   }
 
@@ -887,10 +889,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
-    val cLib = CMakeBuilder.buildCLogging(
-      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n"),
-      debug = true
+    val cLib = CMakeBuilder.buildCLogging(cSource =
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
     )
 
     val nativeInterface = new CArrowNativeInterface(cLib.toString)
@@ -1059,7 +1060,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         withArrowStringVector(partialInputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(partialInputData.map(_._2)) { f8v =>
             withDirectBigIntVector(partialInputData.map(_._3)) { iv =>
-              withArrowStringVector(Seq.empty) { vcv_out =>
+              withNullableArrowStringVector(Seq.empty) { vcv_out =>
                 withDirectFloat8Vector(Seq.empty) { f8v_out =>
                   nativeInterface.callFunctionWrapped(
                     functionName,
@@ -1098,7 +1099,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       WithTestAllocator { implicit allocator =>
         withArrowStringVector(inputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(inputData.map(_._2)) { f8v =>
-            withArrowStringVector(Seq.empty) { vcv_out =>
+            withNullableArrowStringVector(Seq.empty) { vcv_out =>
               withDirectFloat8Vector(Seq.empty) { f8v_out =>
                 withDirectBigIntVector(Seq.empty) { iv_out =>
                   nativeInterface.callFunctionWrapped(

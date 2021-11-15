@@ -196,6 +196,7 @@ class TPCHSqlCSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
+      logger.info(s"Plan is: ${dataSet.queryExecution}")
       try f(dataSet)
       catch {
         case e: Throwable =>
@@ -1169,8 +1170,7 @@ class TPCHSqlCSpec
       assert(
         ds.as[(String, Long, Long, String, Double, Double)]
           .collect()
-          .toList
-          .sorted == result
+          .toList == result
       ) // Customer#000128120 128120 4722021 1994-04-07 544089.09 323.0.sorted0
     }
   }

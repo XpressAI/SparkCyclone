@@ -19,21 +19,16 @@
  */
 package com.nec.spark.planning
 
-import scala.collection.JavaConverters.asJavaIterableConverter
-import scala.language.dynamics
-
-import com.nec.arrow.AccessibleArrowColumnVector
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CFunction
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -42,7 +37,10 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartiti
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.language.dynamics
 object NativeSortEvaluationPlan {
 
   sealed trait SortingMode extends Serializable
@@ -198,9 +196,8 @@ final case class NativeSortEvaluationPlan(
             implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-            val inputVectors = child.output.indices.map(
-              batch.column(_).asInstanceOf[AccessibleArrowColumnVector].getArrowValueVector
-            )
+            val inputVectors =
+              child.output.indices.map(col => batch.column(col).getArrowValueVector)
             val outputVectors: List[ValueVector] =
               coalesced.cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
 
@@ -217,7 +214,7 @@ final case class NativeSortEvaluationPlan(
                 inputArguments = inputArgs,
                 outputArguments = outputArgs
               )
-              val outArrowVectors = outputVectors.map(vec => new AccessibleArrowColumnVector(vec))
+              val outArrowVectors = outputVectors.map(vec => new ArrowColumnVector(vec))
 
               new ColumnarBatch(outArrowVectors.toArray, outputVectors.head.getValueCount)
             } finally {
