@@ -25,6 +25,7 @@ import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.{
   NativeAggregationEvaluationPlan,
   NativeSortEvaluationPlan,
+  OneStageEvaluationPlan,
   VERewriteStrategy
 }
 import com.nec.testing.SampleSource
@@ -42,15 +43,13 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.{source, Prettifier}
+
 import java.time.Instant
 import java.time.temporal.TemporalUnit
-
 import scala.math.Ordered.orderingToOrdered
-
 import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
 
 object DynamicCSqlExpressionEvaluationSpec {
@@ -108,10 +107,10 @@ class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
-  "Support pairwise addition" ignore withSparkSession2(configuration) { sparkSession =>
+  "Support pairwise addition" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise).ensurePlan(classOf[OneStageEvaluationPlan]).debugSqlHere { ds =>
       assert(
         ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
           None,
@@ -156,6 +155,44 @@ class DynamicCSqlExpressionEvaluationSpec
       )
     }
   }
+
+  val sql_filterer = s"SELECT * FROM nums where COALESCE(${SampleColC} + ${SampleColD}, 25) > 24"
+  "Support filtering" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_filterer).debugSqlHere { ds =>
+      val res =
+        ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])]
+          .collect()
+          .toList
+          .sorted
+      val expected_ = List[(Option[Double], Option[Double], Option[Double], Option[Double])](
+        (None, None, Some(4.0), None),
+        (None, Some(3.0), Some(1.0), Some(50)),
+        (Some(1.0), Some(2.0), Some(8.0), None),
+        (Some(2.0), None, None, Some(12)),
+        (Some(4.0), None, Some(2.0), Some(42)),
+        (Some(4.0), Some(5.0), None, Some(4)),
+        (Some(20.0), None, None, Some(3)),
+        (Some(52.0), Some(6.0), None, Some(23))
+      ).sorted
+
+      val expected = List[(Option[Double], Option[Double], Option[Double], Option[Double])](
+        (Some(0.0), Some(0.0), Some(4.0), Some(0.0)),
+        (Some(0.0), Some(3.0), Some(1.0), Some(50.0)),
+        (Some(1.0), Some(2.0), Some(8.0), Some(0.0)),
+        (Some(2.0), Some(0.0), Some(0.0), Some(12.0)),
+        (Some(4.0), Some(0.0), Some(2.0), Some(42.0)),
+        (Some(4.0), Some(5.0), Some(0.0), Some(4.0)),
+        (Some(20.0), Some(0.0), Some(0.0), Some(3.0)),
+        (Some(52.0), Some(6.0), Some(0.0), Some(23.0))
+      ).sorted
+
+      expect(res == expected)
+
+    }
+  }
+
   val sum_multiplication = s"SELECT (SUM(${SampleColA} + ${SampleColB}) * 2) as ddz FROM nums"
   "Support multiplication of sum" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
@@ -993,6 +1030,15 @@ class DynamicCSqlExpressionEvaluationSpec
       )
       dataSet
     }
+    def ensurePlan(clz: Class[_]): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(
+        thePlan
+          .toString()
+          .contains(clz.getSimpleName.replaceAllLiterally("$", ""))
+      )
+      dataSet
+    }
 
     def ensureSortEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
@@ -1010,6 +1056,7 @@ class DynamicCSqlExpressionEvaluationSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
+      println(dataSet.queryExecution)
       try f(dataSet)
       catch {
         case e: Throwable =>
