@@ -4,7 +4,7 @@ import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.functions.ParseCSVSpec.RichVarCharVector
+import com.nec.util.RichVectors._
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector}
 import com.nec.spark.agile.StringProducer.FrovedisCopyStringProducer
