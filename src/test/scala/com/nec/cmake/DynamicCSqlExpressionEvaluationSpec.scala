@@ -166,26 +166,16 @@ class DynamicCSqlExpressionEvaluationSpec
           .collect()
           .toList
           .sorted
-      val expected_ = List[(Option[Double], Option[Double], Option[Double], Option[Double])](
-        (None, None, Some(4.0), None),
-        (None, Some(3.0), Some(1.0), Some(50)),
-        (Some(1.0), Some(2.0), Some(8.0), None),
-        (Some(2.0), None, None, Some(12)),
-        (Some(4.0), None, Some(2.0), Some(42)),
-        (Some(4.0), Some(5.0), None, Some(4)),
-        (Some(20.0), None, None, Some(3)),
-        (Some(52.0), Some(6.0), None, Some(23))
-      ).sorted
 
       val expected = List[(Option[Double], Option[Double], Option[Double], Option[Double])](
-        (Some(0.0), Some(0.0), Some(4.0), Some(0.0)),
-        (Some(0.0), Some(3.0), Some(1.0), Some(50.0)),
-        (Some(1.0), Some(2.0), Some(8.0), Some(0.0)),
-        (Some(2.0), Some(0.0), Some(0.0), Some(12.0)),
-        (Some(4.0), Some(0.0), Some(2.0), Some(42.0)),
-        (Some(4.0), Some(5.0), Some(0.0), Some(4.0)),
-        (Some(20.0), Some(0.0), Some(0.0), Some(3.0)),
-        (Some(52.0), Some(6.0), Some(0.0), Some(23.0))
+        (None, None, Some(4.0), None),
+        (None, Some(3.0), Some(1.0), Some(50.0)),
+        (Some(1.0), Some(2.0), Some(8.0), None),
+        (Some(2.0), None, None, Some(12.0)),
+        (Some(4.0), None, Some(2.0), Some(42.0)),
+        (Some(4.0), Some(5.0), None, Some(4.0)),
+        (Some(20.0), None, None, Some(3.0)),
+        (Some(52.0), Some(6.0), None, Some(23.0))
       ).sorted
 
       expect(res == expected)

@@ -27,33 +27,26 @@ import com.nec.arrow.ArrowVectorBuilders.{
   withArrowStringVector,
   withDirectBigIntVector,
   withDirectFloat8Vector,
-  withDirectIntVector,
   withNullableArrowStringVector
 }
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.cmake.functions.ParseCSVSpec.{
-  RichBigIntVector,
-  RichFloat8,
-  RichIntVector,
-  RichVarCharVector
-}
+import com.nec.cmake.functions.ParseCSVSpec.{RichBigIntVector, RichFloat8, RichVarCharVector}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
-import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.planning.StringCExpressionEvaluation
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -102,12 +95,20 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
-  "We can transform a null-column" in {
+  "We can project a null-column (ProjectNull)" in {
     expect(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
         TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
-        TypedCExpression[Option[Double]](CExpression("2 + input_0->data[i]", Some("0")))
-      ) == List[(Double, Option[Double])]((180, None), (2, None), (4, None), (38, None), (28, None))
+        TypedCExpression[Option[Double]](
+          CExpression("2 + input_0->data[i]", Some("input_0->data[i] == 2"))
+        )
+      ) == List[(Double, Option[Double])](
+        (180, None),
+        (2, None),
+        (4, Some(4)),
+        (38, None),
+        (28, None)
+      )
     )
   }
 
@@ -119,6 +120,13 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can transform a null-column (FilterNull)" in {
+    expect(
+      evalFilter[Option[Double]](Some(90), None, Some(123))(
+        CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
+      ) == List[Option[Double]](None, Some(123))
+    )
+  }
   "We can filter a column by a String (FilterByString)" ignore {
 
     /** Ignored because we are likely not going to support filtering * */

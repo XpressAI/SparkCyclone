@@ -57,8 +57,6 @@ final case class OneStageEvaluationPlan(
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   private def executeColumnWise: RDD[ColumnarBatch] = {
-    val serializer = ArrowColumnarBatchDeSerializer
-
     val evaluator = nativeEvaluator.forCode(
       List(cFunction.toCodeLines(functionName)).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
     )
@@ -67,44 +65,44 @@ final case class OneStageEvaluationPlan(
 
     getChildSkipMappings()
       .executeColumnar()
-      .mapPartitions { batches =>
-        batches.map { batch =>
-          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
+      .map { batch =>
+        implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+          .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-          val inputVectors = child.output.indices
-            .map(n =>
-              batch
-                .column(n)
-                .getArrowValueVector
-            )
+        val inputVectors = child.output.indices
+          .map(n =>
+            batch
+              .column(n)
+              .getArrowValueVector
+          )
 
-          val partialOutputVectors: List[ValueVector] =
-            cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
-          try {
-            val outputArgs = inputVectors.toList.map(_ => None) ++
-              partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-            val inputArgs = inputVectors.toList.map(iv =>
-              Some(SupportedVectorWrapper.wrapInput(iv))
-            ) ++ partialOutputVectors.map(_ => None)
+        println(inputVectors)
 
-            evaluator.callFunction(
-              name = functionName,
-              inputArguments = inputArgs,
-              outputArguments = outputArgs
-            )
-            val vectors = partialOutputVectors
-              .map(vector => new ArrowColumnVector(vector))
-            val columnarBatch =
-              new ColumnarBatch(vectors.toArray)
-            vectors.headOption
-              .map(_.getArrowValueVector.getValueCount)
-              .foreach(columnarBatch.setNumRows)
+        val partialOutputVectors: List[ValueVector] =
+          cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
+        try {
+          val outputArgs = inputVectors.toList.map(_ => None) ++
+            partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
+          val inputArgs = inputVectors.toList.map(iv =>
+            Some(SupportedVectorWrapper.wrapInput(iv))
+          ) ++ partialOutputVectors.map(_ => None)
 
-            columnarBatch
-          } finally {
-            inputVectors.foreach(_.close())
-          }
+          evaluator.callFunction(
+            name = functionName,
+            inputArguments = inputArgs,
+            outputArguments = outputArgs
+          )
+          val vectors = partialOutputVectors
+            .map(vector => new ArrowColumnVector(vector))
+          val columnarBatch =
+            new ColumnarBatch(vectors.toArray)
+          vectors.headOption
+            .map(_.getArrowValueVector.getValueCount)
+            .foreach(columnarBatch.setNumRows)
+
+          columnarBatch
+        } finally {
+          inputVectors.foreach(_.close())
         }
       }
   }

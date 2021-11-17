@@ -27,6 +27,7 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableInt,
   VeNullableLong
 }
+import com.nec.spark.agile.groupby.GroupByOutline
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
@@ -575,58 +576,52 @@ object CFunctionGeneration {
       inputs = filter.data,
       outputs = filterOutput,
       body = CodeLines.from(
-        filterOutput.collect { case CVarChar(nom) =>
-          val fp = StringProducer
-            .FilteringProducer(
-              nom,
-              StringProducer.copyString(nom.replaceAllLiterally("output", "input"))
-            )
-
+        s"std::vector<size_t> matching_ids();",
+        s"for ( long i = 0; i < input_0->count; i++) {",
+        CodeLines
+          .from(filter.condition.isNotNullCode match {
+            case None =>
+              CodeLines.from(
+                s"if ( ${filter.condition.cCode} ) {",
+                CodeLines.from("matching_ids.push_back(i);").indented,
+                "}"
+              )
+            case Some(notNullCondition) =>
+              CodeLines.from(
+                s"if ( (${notNullCondition} && ${filter.condition.cCode}) ) {",
+                CodeLines.from("matching_ids.push_back(i);").indented,
+                "}"
+              )
+          })
+          .indented,
+        "}",
+        filter.data.zipWithIndex.map { case (cVector, idx) =>
+          val varName = cVector.replaceName("input", "output").name
           CodeLines.from(
-            fp.setup,
-            "long o = 0;",
-            "for ( long i = 0; i < input_0->count; i++ ) {",
-            CodeLines
-              .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "o++;", "}")
-              .indented,
-            "}",
-            fp.complete,
-            "o = 0;",
-            "for ( long i = 0; i < input_0->count; i++ ) {",
+            CodeLines.debugHere,
+            GroupByOutline.initializeScalarVector(
+              cVector.veType.asInstanceOf[VeScalarType],
+              varName,
+              s"matching_ids.size()"
+            ),
+            "for ( int o = 0; o < matching_ids.size(); o++ ) {",
             CodeLines
               .from(
-                s"if ( ${filter.condition.cCode} ) {",
-                CodeLines.from(fp.validityForEach("o").indented, "o++;").indented,
+                s"if(check_valid(${cVector.name}->validityBuffer, i)) {",
+                CodeLines
+                  .from(
+                    s"${varName}->data[o] = ${cVector.name}->data[i];",
+                    s"set_validity($varName->validityBuffer, i, 1);"
+                  )
+                  .indented,
+                "} else {",
+                CodeLines.from(s"set_validity($varName->validityBuffer, o, 0);").indented,
                 "}"
               )
               .indented,
             "}"
           )
-        },
-        generateFilter(filter),
-        filterOutput.collect { case CScalarVector(outputName, outputVeType) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
-          )
-        },
-        "for ( long i = 0; i < input_0->count; i++ ) {",
-        filter.data
-          .zip(filterOutput)
-          .map {
-            case (CScalarVector(inputName, inputVeType), output) =>
-              val outputName = output.name
-              CodeLines
-                .from(
-                  s"""$outputName->data[i] = $inputName->data[i];""",
-                  s"""set_validity($outputName->validityBuffer, i, 1);"""
-                )
-            case (CVarChar(_), output) =>
-              CodeLines.empty
-          }
-          .map(_.indented),
-        "}"
+        }
       )
     )
   }
