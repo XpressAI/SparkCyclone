@@ -442,44 +442,6 @@ object CFunctionGeneration {
     }
   }
 
-  def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
-    CodeLines.from(
-      filter.data.map {
-        case CScalarVector(name, veType) =>
-          CodeLines.from(s"std::vector<${veType.cScalarType}> filtered_$name = {};")
-        case CVarChar(name) =>
-          CodeLines.empty
-      },
-      "for ( long i = 0; i < input_0->count; i++ ) {",
-      CodeLines
-        .from(
-          s"if ( ${filter.condition.cCode} ) {",
-          filter.data
-            .map {
-              case CScalarVector(name, _) =>
-                CodeLines.from(s"filtered_$name.push_back($name->data[i]);")
-              case CVarChar(name) => CodeLines.empty
-            }
-            .map(_.indented),
-          "}"
-        )
-        .indented,
-      "}",
-      filter.data.map {
-        case CScalarVector(name, veType) =>
-          CodeLines.empty
-            .append(
-              s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * sizeof(${veType.cScalarType}));",
-              s"$name->count = filtered_$name.size();",
-              // this causes a crash - what are we doing wrong here?
-              //          s"realloc(input_$i->data, input_$i->count * 8);",
-              s"filtered_$name.clear();"
-            )
-        case CVarChar(name) => CodeLines.empty
-      }
-    )
-  }
-
   def renderSort(sort: VeSort[CScalarVector, VeSortExpression]): CFunction = {
 
     val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
@@ -576,7 +538,7 @@ object CFunctionGeneration {
       inputs = filter.data,
       outputs = filterOutput,
       body = CodeLines.from(
-        s"std::vector<size_t> matching_ids();",
+        s"std::vector<size_t> matching_ids;",
         s"for ( long i = 0; i < input_0->count; i++) {",
         CodeLines
           .from(filter.condition.isNotNullCode match {
@@ -607,11 +569,12 @@ object CFunctionGeneration {
             "for ( int o = 0; o < matching_ids.size(); o++ ) {",
             CodeLines
               .from(
+                "int i = matching_ids[o];",
                 s"if(check_valid(${cVector.name}->validityBuffer, i)) {",
                 CodeLines
                   .from(
                     s"${varName}->data[o] = ${cVector.name}->data[i];",
-                    s"set_validity($varName->validityBuffer, i, 1);"
+                    s"set_validity($varName->validityBuffer, o, 1);"
                   )
                   .indented,
                 "} else {",

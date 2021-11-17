@@ -24,7 +24,6 @@ import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.serialization.ArrowColumnarBatchDeSerializer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -75,8 +74,6 @@ final case class OneStageEvaluationPlan(
               .column(n)
               .getArrowValueVector
           )
-
-        println(inputVectors)
 
         val partialOutputVectors: List[ValueVector] =
           cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
