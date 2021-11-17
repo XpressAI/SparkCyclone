@@ -59,7 +59,7 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
     logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
     SparkCycloneDriverPlugin.launched = true
-    val allExtensions = List(classOf[LocalVeoExtension], classOf[NativeCsvExtension])
+    val allExtensions = List(classOf[LocalVeoExtension])
     pluginContext
       .conf()
       .set(
