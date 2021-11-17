@@ -1046,7 +1046,6 @@ class DynamicCSqlExpressionEvaluationSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
-      println(dataSet.queryExecution)
       try f(dataSet)
       catch {
         case e: Throwable =>
