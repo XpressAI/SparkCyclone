@@ -654,11 +654,11 @@ std::vector<size_t> dict::lookup(const compressed_words& cw) const {
   std::vector<size_t> ret(num_words_lookup);
   auto retp = ret.data();
 
-  ssize_t left[DICT_VLEN]; // need to be signed?
+  size_t left[DICT_VLEN]; // need to be signed?
 #pragma _NEC vreg(left)
-  ssize_t right[DICT_VLEN];
+  size_t right[DICT_VLEN];
 #pragma _NEC vreg(right)
-  ssize_t mid[DICT_VLEN];
+  size_t mid[DICT_VLEN];
 #pragma _NEC vreg(mid)
   int is_valid[DICT_VLEN];
 #pragma _NEC vreg(is_valid)
@@ -772,9 +772,9 @@ std::vector<size_t> dict::lookup(const compressed_words& cw) const {
       crnt_cwords_lookupp += len * DICT_VLEN;
     }
     // remain; use different variable to avoid error (2.4.1)
-    ssize_t left2[DICT_VLEN];
-    ssize_t right2[DICT_VLEN];
-    ssize_t mid2[DICT_VLEN];
+    size_t left2[DICT_VLEN];
+    size_t right2[DICT_VLEN];
+    size_t mid2[DICT_VLEN];
     int is_valid2[DICT_VLEN];
     int is_eq2[DICT_VLEN];
     int is_lt2[DICT_VLEN];
