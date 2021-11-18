@@ -25,7 +25,8 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
           inputs = List(CVector.varChar("input_0")),
           outputs = List(CVector.varChar("output_0")),
           body = CodeLines.from(
-            "words_to_varchar_vector(varchar_vector_to_words(input_0), output_0);",
+            "frovedis::words w = varchar_vector_to_words(input_0);",
+            "words_to_varchar_vector(w, output_0);",
             "return 0;"
           )
         ).toCodeLines("test").cCode
