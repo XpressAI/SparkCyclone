@@ -4,7 +4,7 @@ import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.functions.ParseCSVSpec.RichVarCharVector
+import com.nec.util.RichVectors._
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector}
 import com.nec.spark.agile.StringProducer.FrovedisCopyStringProducer
@@ -25,7 +25,8 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
           inputs = List(CVector.varChar("input_0")),
           outputs = List(CVector.varChar("output_0")),
           body = CodeLines.from(
-            "words_to_varchar_vector(varchar_vector_to_words(input_0), output_0);",
+            "frovedis::words w = varchar_vector_to_words(input_0);",
+            "words_to_varchar_vector(w, output_0);",
             "return 0;"
           )
         ).toCodeLines("test").cCode
