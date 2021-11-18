@@ -27,6 +27,11 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableInt,
   VeNullableLong
 }
+import com.nec.spark.agile.StringProducer.{
+  FilteringProducer,
+  FrovedisCopyStringProducer,
+  FrovedisStringProducer
+}
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
@@ -557,33 +562,45 @@ object CFunctionGeneration {
           })
           .indented,
         "}",
-        filter.data.zipWithIndex.map { case (cVector, idx) =>
-          val varName = cVector.replaceName("input", "output").name
-          CodeLines.from(
-            CodeLines.debugHere,
-            GroupByOutline.initializeScalarVector(
-              cVector.veType.asInstanceOf[VeScalarType],
-              varName,
-              s"matching_ids.size()"
-            ),
-            "for ( int o = 0; o < matching_ids.size(); o++ ) {",
-            CodeLines
-              .from(
-                "int i = matching_ids[o];",
-                s"if(check_valid(${cVector.name}->validityBuffer, i)) {",
-                CodeLines
-                  .from(
-                    s"${varName}->data[o] = ${cVector.name}->data[i];",
-                    s"set_validity($varName->validityBuffer, o, 1);"
-                  )
-                  .indented,
-                "} else {",
-                CodeLines.from(s"set_validity($varName->validityBuffer, o, 0);").indented,
-                "}"
-              )
-              .indented,
-            "}"
-          )
+        filter.data.zipWithIndex.map {
+          case (cv @ CVarChar(name), idx) =>
+            val varName = cv.replaceName("input", "output").name
+            val fp: FrovedisStringProducer =
+              FrovedisCopyStringProducer(name)
+            CodeLines.from(
+              fp.init(varName, "matching_ids.size()"),
+              "for ( int g = 0; g < matching_ids.size(); g++ ) {",
+              CodeLines.from("int i = matching_ids[g];", fp.produce(varName)).indented,
+              "}",
+              fp.complete(varName)
+            )
+          case (cVector @ CScalarVector(_, tpe), idx) =>
+            val varName = cVector.replaceName("input", "output").name
+            CodeLines.from(
+              CodeLines.debugHere,
+              GroupByOutline.initializeScalarVector(
+                veScalarType = tpe,
+                variableName = varName,
+                countExpression = s"matching_ids.size()"
+              ),
+              "for ( int o = 0; o < matching_ids.size(); o++ ) {",
+              CodeLines
+                .from(
+                  "int i = matching_ids[o];",
+                  s"if(check_valid(${cVector.name}->validityBuffer, i)) {",
+                  CodeLines
+                    .from(
+                      s"${varName}->data[o] = ${cVector.name}->data[i];",
+                      s"set_validity($varName->validityBuffer, o, 1);"
+                    )
+                    .indented,
+                  "} else {",
+                  CodeLines.from(s"set_validity($varName->validityBuffer, o, 0);").indented,
+                  "}"
+                )
+                .indented,
+              "}"
+            )
         }
       )
     )

@@ -127,7 +127,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       ) == List[Option[Double]](None, Some(123))
     )
   }
-  "We can filter a column by a String (FilterByString)" ignore {
+  "We can filter a column by a String (FilterByString)" in {
 
     /** Ignored because we are likely not going to support filtering * */
     val result = evalFilter[(String, Double)](
@@ -147,7 +147,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
     expect(result == expected)
   }
-  "We can filter a column with a String" ignore {
+  "We can filter a column with a String" in {
 
     /** Ignored because we are likely not going to support filtering * */
 
