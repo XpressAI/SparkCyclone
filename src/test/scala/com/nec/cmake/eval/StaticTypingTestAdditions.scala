@@ -24,7 +24,7 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
   VectorInputNativeArgument,
   VectorOutputNativeArgument
 }
-import com.nec.cmake.functions.ParseCSVSpec.{RichFloat8, RichVarCharVector}
+import com.nec.util.RichVectors._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer
 import org.apache.arrow.memory.RootAllocator

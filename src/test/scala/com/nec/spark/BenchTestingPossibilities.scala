@@ -21,24 +21,17 @@ package com.nec.spark
 
 import com.nec.native.NativeEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.planning.NativeCsvExec.NativeCsvStrategy
-import com.nec.spark.planning.GroupBySumPlanSpec
-import com.nec.spark.planning.JoinPlanSpec
-import com.nec.spark.planning.VERewriteStrategy
-import org.apache.spark.sql.SparkSession
-import org.scalatest.freespec.AnyFreeSpec
-import com.nec.testing.SampleSource
+import com.nec.spark.planning.{GroupBySumPlanSpec, JoinPlanSpec, VERewriteStrategy}
 import com.nec.testing.SampleSource.{SampleColA, SampleColB, SharedName}
-import com.nec.testing.Testing
-import com.nec.testing.Testing.DataSize
-import com.nec.testing.Testing.TestingTarget
+import com.nec.testing.{SampleSource, Testing}
+import com.nec.testing.Testing.{DataSize, TestingTarget}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
+import org.scalatest.freespec.AnyFreeSpec
 
 object BenchTestingPossibilities extends LazyLogging {
 
@@ -172,12 +165,6 @@ object BenchTestingPossibilities extends LazyLogging {
           }
 
           builder
-            .withExtensions(sse =>
-              if (csvStrategy.exists(_.isNative))
-                sse.injectPlannerStrategy(sparkSession =>
-                  NativeCsvStrategy(NativeEvaluator.CNativeEvaluator)
-                )
-            )
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.PlainSpark =>
@@ -195,11 +182,7 @@ object BenchTestingPossibilities extends LazyLogging {
             .master(MasterName)
             .appName(name.value)
             .withExtensions(sse =>
-              if (csvStrategy.exists(_.isNative))
-                sse.injectPlannerStrategy(sparkSession => NativeCsvStrategy(CNativeEvaluator))
-            )
-            .withExtensions(sse =>
-              sse.injectPlannerStrategy(sparkSession => VERewriteStrategy(CNativeEvaluator))
+              sse.injectPlannerStrategy(_ => VERewriteStrategy(CNativeEvaluator))
             )
             .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)

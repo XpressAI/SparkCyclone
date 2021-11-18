@@ -33,7 +33,12 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.cmake.functions.ParseCSVSpec.{RichBigIntVector, RichFloat8, RichVarCharVector}
+import com.nec.util.RichVectors.{
+  RichBigIntVector,
+  RichFloat8,
+  RichIntVector,
+  RichVarCharVector
+}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,

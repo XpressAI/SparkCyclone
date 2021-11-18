@@ -131,7 +131,6 @@ libraryDependencies ++= Seq(
   "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve,cmake",
   "commons-io" % "commons-io" % "2.10.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-  "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.4.0",
   /** Log with logback in our scopes but not in production runs */
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
