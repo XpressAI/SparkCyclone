@@ -22,7 +22,7 @@ package com.nec.ve
 import com.nec.cmake.TracerTest
 import com.nec.native.{NativeCompiler, NativeEvaluator}
 import com.nec.native.NativeEvaluator.VectorEngineNativeEvaluator
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeKernelCompiler.{ProfileTarget, VeCompilerConfig}
 import org.bytedeco.veoffload.global.veo
 import org.scalatest.BeforeAndAfterAll
 
@@ -30,7 +30,9 @@ final class VeTracerTest extends TracerTest with BeforeAndAfterAll {
 
   override def includeUdp: Boolean = true
 
-  private val (_, compiler) = NativeCompiler.fromTemporaryDirectory(VeCompilerConfig.testConfig)
+  private val profileTarget = ProfileTarget(host = "127.0.0.1", port = 45705)
+  private val config = VeCompilerConfig.testConfig.copy(maybeProfileTarget = Some(profileTarget))
+  private val (_, compiler) = NativeCompiler.fromTemporaryDirectory(config)
 
   private var initialized = false
   private lazy val proc = {
