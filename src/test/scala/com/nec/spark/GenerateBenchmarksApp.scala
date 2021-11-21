@@ -18,7 +18,6 @@
  *
  */
 package com.nec.spark
-import com.nec.testing.GenericTesting
 
 import java.io.File
 import java.nio.file.Files
@@ -63,36 +62,6 @@ class State_${name} {
       """
       }
       .toList
-  } ++ {
-    GenericTesting.possibilitiesMap.keysIterator.map { name =>
-      val benchPath = s"nec.DynamicBenchmark.${name}-SingleShotTime"
-      s"""
-@State(Scope.Benchmark)
-class State_${name} {
-  val testing = {
-    System.setProperty("BENCH_NAME", "${name}")
-    System.setProperty("BENCH_FULL_NAME", "${benchPath}")
-    System.setProperty("logback.configurationFile", "./logback-bench.xml")
-    com.nec.testing.GenericTesting.possibilitiesMap("${name}")
-  }
-  var state: testing.State = _
-
-  def executeTest(): Unit = {
-    testing.benchmark(state)
-  }
-
-  @Setup
-  def prepare(): Unit = {
-    this.state = testing.init()
-  }
-
-  @TearDown
-  def tearDown(): Unit = {
-    testing.cleanUp(state)
-  }
-}
-      """
-    }
   }
 
   val methods: List[String] = {
@@ -109,15 +78,7 @@ class State_${name} {
       }
       """
       }
-      .toList ++ GenericTesting.possibilitiesMap.keysIterator.map { name =>
-      s"""
-      @Benchmark
-      @BenchmarkMode(Array(Mode.SingleShotTime))
-      def ${name}(state: DynamicBenchmark.State_${name}): Unit = {
-        state.executeTest()
-      }
-      """
-    }
+      .toList
   }
   Files.write(
     expectedTarget.toPath,

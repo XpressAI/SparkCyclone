@@ -1,7 +1,9 @@
 name: CI
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -21,6 +23,9 @@ jobs:
 
       - name: Branch Ref
         run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Run unit tests
+        run: sbt "Test / test"
 
       - name: Run Vector Engine Tests
         run: sbt "VectorEngine / test"

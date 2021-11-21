@@ -36,7 +36,7 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.cmake.functions.ParseCSVSpec.{
+import com.nec.util.RichVectors.{
   RichBigIntVector,
   RichFloat8,
   RichIntVector,

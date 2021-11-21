@@ -5,7 +5,7 @@ import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
-import com.nec.cmake.functions.ParseCSVSpec.RichIntVector
+import com.nec.util.RichVectors.RichIntVector
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
 import com.nec.spark.agile.StringHole
