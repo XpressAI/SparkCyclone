@@ -112,6 +112,7 @@ val silencerVersion = "1.6.0"
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 libraryDependencies ++= Seq(
+  "com.vladsch.flexmark" % "flexmark-all" % "0.36.8" % "test,tpc",
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
   "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
@@ -188,8 +189,17 @@ TPC / run / javaOptions ++= {
     List("-agentlib:hprof=cpu=samples")
   else Nil
 }
+
 TPC / sourceDirectory := baseDirectory.value / "src" / "test"
-TPC / testOptions := Seq(Tests.Filter(tpcFilter))
+
+val debugToHtml = SettingKey[Boolean]("debugToHtml")
+debugToHtml := false
+
+TPC / testOptions := {
+  if ((TPC / debugToHtml).value)
+    Seq(Tests.Filter(tpcFilter), Tests.Argument("-h", "target/tpc-html"))
+  else Seq(Tests.Filter(tpcFilter))
+}
 
 /** CMake specific configuration */
 inConfig(CMake)(Defaults.testTasks)
@@ -201,7 +211,12 @@ Global / cancelable := true
 
 def otherFilter(name: String): Boolean =
   !accFilter(name) && !veFilter(name) && !cmakeFilter(name) && !tpcFilter(name)
-Test / testOptions := Seq(Tests.Filter(otherFilter))
+
+Test / testOptions := {
+  if ((Test / debugToHtml).value)
+    Seq(Tests.Filter(otherFilter), Tests.Argument("-h", "target/test-html"))
+  else Seq(Tests.Filter(otherFilter))
+}
 
 /** Acceptance Testing configuration */
 AcceptanceTest / parallelExecution := false

@@ -1,0 +1,26 @@
+name: TPC (VE)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Check User
+        run: whoami
+        
+      - name: Check Path
+        run: pwd
+        
+      - name: Check Access to VE
+        run: /opt/nec/ve/bin/vecmd info
+
+      - name: Branch Ref
+        run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Run Vector Engine Tests
+        run: sbt "set debugToHtml := true" "Tpc / testOnly *TPCHVESqlSpec"
