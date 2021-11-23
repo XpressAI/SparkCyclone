@@ -25,9 +25,14 @@ jobs:
       - name: Generate TPC-H Data
         run: pushd src/test/resources/dbgen/ && make && ./dbgen && popd
 
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y%m%d%H%M%S')"
+
       - name: Run Vector Engine Tests
-        run: SBT_OPTS="-Xmx16g" sbt "set debugToHtml := true" "Tpc / testOnly *TPCHVESqlSpec"
+        #run: SBT_OPTS="-Xmx16g" sbt "set debugToHtml := true" "Tpc / testOnly *TPCHVESqlSpec"
+        run: mkdir -p target/tpc-html && touch target/tpc-html/index.html
 
       - name: Copying to sparkcyclone.io
         if: always()
-        run: rsync -r -v target/tpc-html egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/`date +"%Y%m%d%H%M%S"`
+        run: rsync -r -v target/tpc-html egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/${{ steps.date.outputs.date }}
