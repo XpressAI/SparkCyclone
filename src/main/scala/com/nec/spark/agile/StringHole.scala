@@ -213,7 +213,7 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).contains
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
-    case IsNotNull(item: AttributeReference) =>
+    case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
   }
 
