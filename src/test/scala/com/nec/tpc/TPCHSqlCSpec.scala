@@ -101,7 +101,7 @@ class TPCHSqlCSpec
             l_tax = p(7).trim.toDouble,
             l_returnflag = p(8).trim,
             l_linestatus = p(9).trim,
-            l_shipdate = p(10).trim,
+            l_shipdate = LocalDate.parse(p(10).trim),
             l_commitdate = LocalDate.parse(p(11).trim),
             l_receiptdate = LocalDate.parse(p(12).trim),
             l_shipinstruct = p(13).trim,

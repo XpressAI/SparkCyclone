@@ -32,7 +32,7 @@ case class Lineitem(
   l_tax: Double,
   l_returnflag: String,
   l_linestatus: String,
-  l_shipdate: String,
+  l_shipdate: LocalDate,
   l_commitdate: LocalDate,
   l_receiptdate: LocalDate,
   l_shipinstruct: String,
