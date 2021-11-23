@@ -1,0 +1,32 @@
+name: TPC (VE)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Check User
+        run: whoami
+        
+      - name: Check Path
+        run: pwd
+        
+      - name: Check Access to VE
+        run: /opt/nec/ve/bin/vecmd info
+
+      - name: Branch Ref
+        run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Generate TPC-H Data
+        run: pushd src/test/resources/dbgen/ && make && ./dbgen && popd
+
+      - name: Run Vector Engine Tests
+        run: sbt "set debugToHtml := true" "Tpc / testOnly *TPCHVESqlSpec"
+
+      - name: Copying to sparkcyclone.io
+        run: rsync -r -v target/tpc-html egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/`date +"%Y%m%d%H%M%S"`

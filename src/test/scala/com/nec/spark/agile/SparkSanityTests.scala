@@ -36,6 +36,7 @@ final class SparkSanityTests
   with Matchers {
 
   "It is not launched by default" in withSpark(identity) { _ =>
+    markup("<b>yes</b>")
     assert(!SparkCycloneDriverPlugin.launched, "Expect the driver to have not been launched")
     assert(
       !SparkCycloneExecutorPlugin.launched && SparkCycloneExecutorPlugin.params.isEmpty,
