@@ -26,10 +26,9 @@ import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
-class TPCHSqlSpecJVM
+final class TPCHSqlSpecJVM
   extends TPCHSqlCSpec
   with BeforeAndAfter
-  with BeforeAndAfterAll
   with SparkAdditions
   with Matchers
   with LazyLogging {

@@ -197,7 +197,11 @@ debugToHtml := false
 
 TPC / testOptions := {
   if ((TPC / debugToHtml).value)
-    Seq(Tests.Filter(tpcFilter), Tests.Argument("-h", "target/tpc-html"))
+    Seq(
+      Tests.Filter(tpcFilter),
+      Tests.Argument("-h", "target/tpc-html"),
+      Tests.Argument("-Dmarkup=true")
+    )
   else Seq(Tests.Filter(tpcFilter))
 }
 
@@ -214,7 +218,11 @@ def otherFilter(name: String): Boolean =
 
 Test / testOptions := {
   if ((Test / debugToHtml).value)
-    Seq(Tests.Filter(otherFilter), Tests.Argument("-h", "target/test-html"))
+    Seq(
+      Tests.Filter(otherFilter),
+      Tests.Argument("-h", "target/test-html"),
+      Tests.Argument("-Dmarkup=true")
+    )
   else Seq(Tests.Filter(otherFilter))
 }
 

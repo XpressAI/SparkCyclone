@@ -35,3 +35,4 @@ jobs:
       - name: Copying to sparkcyclone.io
         if: always()
         run: rsync -r -v target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/${{ steps.date.outputs.date }}
+
