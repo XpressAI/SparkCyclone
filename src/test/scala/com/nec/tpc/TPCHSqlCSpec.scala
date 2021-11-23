@@ -215,7 +215,7 @@ class TPCHSqlCSpec
       logger.info(s"Plan is: ${dataSet.queryExecution}")
       import _root_.scalatags.Text.all._
       condMarkup(pre(dataSet.queryExecution.toString()).render)
-      condMarkup("<hr>")
+      condMarkup("<hr/>")
       condMarkup("All the C Functions:")
       dataSet.queryExecution.executedPlan
         .collect { case plan =>
@@ -229,7 +229,7 @@ class TPCHSqlCSpec
         .flatten
         .foreach(cFunction => {
           condMarkup(pre(cFunction.toCodeLines("f").cCode).render)
-          condMarkup("<hr>")
+          condMarkup("<hr/>")
         })
 
       try f(dataSet)
