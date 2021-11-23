@@ -199,7 +199,7 @@ TPC / testOptions := {
   if ((TPC / debugToHtml).value)
     Seq(
       Tests.Filter(tpcFilter),
-      Tests.Argument("-h", "target/tpc-html"),
+      Tests.Argument("C", "org.scalatest.tools.TrueHtmlReporter"),
       Tests.Argument("-Dmarkup=true")
     )
   else Seq(Tests.Filter(tpcFilter))
