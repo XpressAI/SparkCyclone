@@ -34,7 +34,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.source.Position
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
@@ -213,10 +213,9 @@ class TPCHSqlCSpec
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       logger.info(s"Plan is: ${dataSet.queryExecution}")
-      condMarkup(dataSet.queryExecution.toString())
-      condMarkup("")
-      condMarkup("--")
-      condMarkup("")
+      import _root_.scalatags.Text.all._
+      condMarkup(pre(dataSet.queryExecution.toString()).render)
+      condMarkup("<hr>")
       condMarkup("All the C Functions:")
       dataSet.queryExecution.executedPlan
         .collect { case plan =>
@@ -229,8 +228,8 @@ class TPCHSqlCSpec
         .flatten
         .flatten
         .foreach(cFunction => {
-          condMarkup(cFunction.toCodeLines("f").cCode)
-          condMarkup("")
+          condMarkup(pre(cFunction.toCodeLines("f").cCode).render)
+          condMarkup("<hr>")
         })
 
       try f(dataSet)
