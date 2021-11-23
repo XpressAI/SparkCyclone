@@ -22,21 +22,37 @@ package com.nec.tpc
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.spark.SparkAdditions
+import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.NativeAggregationEvaluationPlan
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
+  PartialThenCoalesce,
+  PrePartitioned
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalactic.source.Position
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
   with BeforeAndAfter
-  with BeforeAndAfterAll
   with SparkAdditions
   with Matchers
-  with LazyLogging {
+  with LazyLogging
+  with BeforeAndAfterAllConfigMap {
+
+  private def condMarkup(mkp: String)(implicit pos: Position): Unit = {
+    if (printMarkup) markup(mkp)
+  }
+
+  private var printMarkup = false
+
+  protected override def beforeAll(configMap: ConfigMap): Unit = {
+    printMarkup = configMap.getOptional[String]("markup").contains("true")
+  }
 
   private var initialized = false
 
@@ -197,6 +213,25 @@ class TPCHSqlCSpec
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       logger.info(s"Plan is: ${dataSet.queryExecution}")
+      import _root_.scalatags.Text.all._
+      condMarkup(pre(dataSet.queryExecution.toString()).render)
+      condMarkup("<hr/>")
+      condMarkup("All the C Functions:")
+      dataSet.queryExecution.executedPlan
+        .collect { case plan =>
+          plan.productIterator.collect {
+            case cFunction: CFunction        => List(cFunction)
+            case PrePartitioned(cf)          => List(cf)
+            case PartialThenCoalesce(cf, ff) => List(cf, ff)
+          }
+        }
+        .flatten
+        .flatten
+        .foreach(cFunction => {
+          condMarkup(pre(cFunction.toCodeLines("f").cCode).render)
+          condMarkup("<hr/>")
+        })
+
       try f(dataSet)
       catch {
         case e: Throwable =>

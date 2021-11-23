@@ -21,11 +21,12 @@ package com.nec.tpc
 
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.VERewriteStrategy
-import com.nec.spark.{SparkCycloneExecutorPlugin, AuroraSqlPlugin}
+import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.bytedeco.veoffload.global.veo
+import org.scalatest.ConfigMap
 
 import java.io.File
 
@@ -52,11 +53,11 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
   override def configuration: SparkSession.Builder => SparkSession.Builder =
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
 
-  override protected def afterAll(): Unit = {
+  override protected def afterAll(configMap: ConfigMap): Unit = {
     SparkCycloneExecutorPlugin.closeProcAndCtx()
   }
 
-  override protected def beforeAll(): Unit = {
+  override protected def beforeAll(configMap: ConfigMap): Unit = {
 
     //SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
 
@@ -70,7 +71,7 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
       //s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
     }
 
-    super.beforeAll()
+    super.beforeAll(configMap)
   }
 
 }
