@@ -113,6 +113,7 @@ resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repos
 
 libraryDependencies ++= Seq(
   "com.vladsch.flexmark" % "flexmark-all" % "0.36.8" % "test,tpc",
+  "com.lihaoyi" %% "scalatags" % "0.10.0" % "test,tpc",
   compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
   "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
@@ -199,7 +200,7 @@ TPC / testOptions := {
   if ((TPC / debugToHtml).value)
     Seq(
       Tests.Filter(tpcFilter),
-      Tests.Argument("-h", "target/tpc-html"),
+      Tests.Argument("-C", "org.scalatest.tools.TrueHtmlReporter"),
       Tests.Argument("-Dmarkup=true")
     )
   else Seq(Tests.Filter(tpcFilter))
@@ -232,7 +233,7 @@ lazy val AcceptanceTest = config("acc") extend Test
 inConfig(AcceptanceTest)(Defaults.testTasks)
 def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
 AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter))
-AcceptanceTest / testOptions += Tests.Argument("-C", "com.nec.acceptance.MarkdownReporter")
+AcceptanceTest / testOptions += Tests.Argument("-Ccom.nec.acceptance.MarkdownReporter")
 AcceptanceTest / testOptions += Tests.Argument("-o")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
