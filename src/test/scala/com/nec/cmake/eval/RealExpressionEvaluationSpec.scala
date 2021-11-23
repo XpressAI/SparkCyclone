@@ -68,6 +68,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can transform a null-column (FilterNull)" in {
+    expect(
+      evalFilter[Option[Double]](Some(90), None, Some(123))(
+        CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
+      ) == List[Option[Double]](None, Some(123))
+    )
+  }
+
   "We can transform a column to a String and a Double" in {
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
@@ -876,7 +884,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "filter_f"
 
     val generatedSource =
-      renderFilter(VeFilter(data = inputArguments.inputs, condition = condition))
+      renderFilter(
+        VeFilter(
+          data = inputArguments.inputs,
+          condition = condition,
+          stringVectorComputations = Nil
+        )
+      )
         .toCodeLines(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(

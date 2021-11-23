@@ -27,7 +27,13 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableInt,
   VeNullableLong
 }
-import com.nec.spark.agile.StringProducer.{FrovedisStringProducer, ImperativeStringProducer}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation
+import com.nec.spark.agile.StringProducer.{
+  FrovedisCopyStringProducer,
+  FrovedisStringProducer,
+  ImperativeStringProducer
+}
+import com.nec.spark.agile.groupby.GroupByOutline
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
@@ -386,7 +392,11 @@ object CFunctionGeneration {
     }
   }
 
-  final case class VeFilter[Data, Condition](data: List[Data], condition: Condition)
+  final case class VeFilter[Data, Condition](
+    stringVectorComputations: List[StringHoleEvaluation],
+    data: List[Data],
+    condition: Condition
+  )
 
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
 
@@ -440,44 +450,6 @@ object CFunctionGeneration {
         "};"
       )
     }
-  }
-
-  def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
-    CodeLines.from(
-      filter.data.map {
-        case CScalarVector(name, veType) =>
-          CodeLines.from(s"std::vector<${veType.cScalarType}> filtered_$name = {};")
-        case CVarChar(name) =>
-          CodeLines.empty
-      },
-      "for ( long i = 0; i < input_0->count; i++ ) {",
-      CodeLines
-        .from(
-          s"if ( ${filter.condition.cCode} ) {",
-          filter.data
-            .map {
-              case CScalarVector(name, _) =>
-                CodeLines.from(s"filtered_$name.push_back($name->data[i]);")
-              case CVarChar(name) => CodeLines.empty
-            }
-            .map(_.indented),
-          "}"
-        )
-        .indented,
-      "}",
-      filter.data.map {
-        case CScalarVector(name, veType) =>
-          CodeLines.empty
-            .append(
-              s"memcpy($name->data, filtered_$name.data(), filtered_$name.size() * sizeof(${veType.cScalarType}));",
-              s"$name->count = filtered_$name.size();",
-              // this causes a crash - what are we doing wrong here?
-              //          s"realloc(input_$i->data, input_$i->count * 8);",
-              s"filtered_$name.clear();"
-            )
-        case CVarChar(name) => CodeLines.empty
-      }
-    )
   }
 
   def renderSort(sort: VeSort[CScalarVector, VeSortExpression]): CFunction = {
@@ -576,58 +548,67 @@ object CFunctionGeneration {
       inputs = filter.data,
       outputs = filterOutput,
       body = CodeLines.from(
-        filterOutput.collect { case CVarChar(nom) =>
-          val fp = StringProducer
-            .FilteringProducer(
-              nom,
-              StringProducer.copyString(nom.replaceAllLiterally("output", "input"))
-            )
-
-          CodeLines.from(
-            fp.setup,
-            "long o = 0;",
-            "for ( long i = 0; i < input_0->count; i++ ) {",
-            CodeLines
-              .from(s"if ( ${filter.condition.cCode} ) {", fp.forEach.indented, "o++;", "}")
-              .indented,
-            "}",
-            fp.complete,
-            "o = 0;",
-            "for ( long i = 0; i < input_0->count; i++ ) {",
-            CodeLines
-              .from(
+        filter.stringVectorComputations.distinct.map(_.computeVector),
+        s"std::vector<size_t> matching_ids;",
+        s"for ( long i = 0; i < input_0->count; i++) {",
+        CodeLines
+          .from(filter.condition.isNotNullCode match {
+            case None =>
+              CodeLines.from(
                 s"if ( ${filter.condition.cCode} ) {",
-                CodeLines.from(fp.validityForEach("o").indented, "o++;").indented,
+                CodeLines.from("matching_ids.push_back(i);").indented,
                 "}"
               )
-              .indented,
-            "}"
-          )
-        },
-        generateFilter(filter),
-        filterOutput.collect { case CScalarVector(outputName, outputVeType) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
-          )
-        },
-        "for ( long i = 0; i < input_0->count; i++ ) {",
-        filter.data
-          .zip(filterOutput)
-          .map {
-            case (CScalarVector(inputName, inputVeType), output) =>
-              val outputName = output.name
+            case Some(notNullCondition) =>
+              CodeLines.from(
+                s"if ( (${notNullCondition} && ${filter.condition.cCode}) ) {",
+                CodeLines.from("matching_ids.push_back(i);").indented,
+                "}"
+              )
+          })
+          .indented,
+        "}",
+        filter.stringVectorComputations.distinct.map(_.deallocData),
+        filter.data.zipWithIndex.map {
+          case (cv @ CVarChar(name), idx) =>
+            val varName = cv.replaceName("input", "output").name
+            val fp: FrovedisStringProducer =
+              FrovedisCopyStringProducer(name)
+            CodeLines.from(
+              fp.init(varName, "matching_ids.size()"),
+              "for ( int g = 0; g < matching_ids.size(); g++ ) {",
+              CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g")).indented,
+              "}",
+              fp.complete(varName)
+            )
+          case (cVector @ CScalarVector(_, tpe), idx) =>
+            val varName = cVector.replaceName("input", "output").name
+            CodeLines.from(
+              CodeLines.debugHere,
+              GroupByOutline.initializeScalarVector(
+                veScalarType = tpe,
+                variableName = varName,
+                countExpression = s"matching_ids.size()"
+              ),
+              "for ( int o = 0; o < matching_ids.size(); o++ ) {",
               CodeLines
                 .from(
-                  s"""$outputName->data[i] = $inputName->data[i];""",
-                  s"""set_validity($outputName->validityBuffer, i, 1);"""
+                  "int i = matching_ids[o];",
+                  s"if(check_valid(${cVector.name}->validityBuffer, i)) {",
+                  CodeLines
+                    .from(
+                      s"${varName}->data[o] = ${cVector.name}->data[i];",
+                      s"set_validity($varName->validityBuffer, o, 1);"
+                    )
+                    .indented,
+                  "} else {",
+                  CodeLines.from(s"set_validity($varName->validityBuffer, o, 0);").indented,
+                  "}"
                 )
-            case (CVarChar(_), output) =>
-              CodeLines.empty
-          }
-          .map(_.indented),
-        "}"
+                .indented,
+              "}"
+            )
+        }
       )
     )
   }
