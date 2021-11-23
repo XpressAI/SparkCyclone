@@ -72,7 +72,7 @@ object DynamicCSqlExpressionEvaluationSpec {
 
 }
 
-final class DynamicCSqlExpressionEvaluationSpec
+class DynamicCSqlExpressionEvaluationSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with BeforeAndAfterAll
