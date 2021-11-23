@@ -32,17 +32,17 @@ object StringProducer {
 
   trait FrovedisStringProducer extends StringProducer {
     def init(outputName: String, size: String): CodeLines
-    def produce(outputName: String): CodeLines
+    def produce(outputName: String, outputIdx: String): CodeLines
     def complete(outputName: String): CodeLines
   }
 
   def copyString(inputName: String): StringProducer = FrovedisCopyStringProducer(inputName)
 
-//  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
+  //  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
 
   final case class ImpCopyStringProducer(inputName: String)
     extends ImperativeStringProducer
-    with CopyStringProducer {
+      with CopyStringProducer {
 
     override def produceTo(tsn: String, iln: String): CodeLines = {
       CodeLines.from(
@@ -59,7 +59,7 @@ object StringProducer {
 
   final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
-    with CopyStringProducer {
+      with CopyStringProducer {
 
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
 
@@ -69,10 +69,10 @@ object StringProducer {
     def newChars(outputName: String) = s"${outputName}_new_chars"
     def newStarts(outputName: String) = s"${outputName}_new_starts"
 
-    def produce(outputName: String): CodeLines =
+    def produce(outputName: String, outputIdx: String): CodeLines =
       CodeLines.from(
-        s"${frovedisStarts(outputName)}[g] = ${wordName(outputName)}.starts[i];",
-        s"${frovedisLens(outputName)}[g] = ${wordName(outputName)}.lens[i];"
+        s"${frovedisStarts(outputName)}[$outputIdx] = ${wordName(outputName)}.starts[i];",
+        s"${frovedisLens(outputName)}[$outputIdx] = ${wordName(outputName)}.lens[i];"
       )
 
     override def init(outputName: String, size: String): CodeLines =
@@ -111,10 +111,10 @@ object StringProducer {
   }
 
   final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
-    val tmpString = s"${outputName}_tmp";
-    val tmpOffsets = s"${outputName}_tmp_offsets";
-    val tmpCurrentOffset = s"${outputName}_tmp_current_offset";
-    val tmpCount = s"${outputName}_tmp_count";
+    val tmpString = s"${outputName}_tmp"
+    val tmpOffsets = s"${outputName}_tmp_offsets"
+    val tmpCurrentOffset = s"${outputName}_tmp_current_offset"
+    val tmpCount = s"${outputName}_tmp_count"
 
     def setup: CodeLines =
       stringProducer match {
@@ -143,7 +143,7 @@ object StringProducer {
               s"${tmpCount}++;"
             )
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines.from(frovedisStringProducer.produce(outputName))
+          CodeLines.from(frovedisStringProducer.produce(outputName, "g"))
       }
     }
 
@@ -172,20 +172,36 @@ object StringProducer {
   }
 
   def produceVarChar(
-    count: String,
-    outputName: String,
-    stringProducer: StringProducer
-  ): CodeLines = {
+                      inputCount: String,
+                      outputName: String,
+                      stringProducer: ImperativeStringProducer
+                    ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
-      s"""for ( int32_t i = 0; i < $count; i++ ) {""",
+      s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",
       fp.forEach.indented,
       "}",
       fp.complete,
-      s"for( int32_t i = 0; i < $count; i++ ) {",
+      s"for( int32_t i = 0; i < $inputCount; i++ ) {",
       CodeLines.from(fp.validityForEach("i")).indented,
       "}"
+    )
+  }
+
+  def produceVarChar(
+                      inputCount: String,
+                      outputName: String,
+                      stringProducer: FrovedisStringProducer,
+                      outputCount: String,
+                      outputIdx: String
+                    ): CodeLines = {
+    CodeLines.from(
+      stringProducer.init(outputName, outputCount),
+      s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",
+      stringProducer.produce(outputName, outputIdx).indented,
+      "}",
+      stringProducer.complete(outputName)
     )
   }
 }
