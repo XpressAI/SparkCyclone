@@ -22,7 +22,10 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{
+  NotNullEvaluator,
+  SlowEvaluator
+}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.{
   LikeStringHoleEvaluation,
   SlowEvaluation,
@@ -34,6 +37,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   EndsWith,
   EqualTo,
   Expression,
+  IsNotNull,
   LeafExpression,
   Literal,
   StartsWith,
@@ -127,6 +131,13 @@ object StringHole {
       sealed trait SlowEvaluator {
         def evaluate(refName: String): CExpression
       }
+      case object NotNullEvaluator extends SlowEvaluator {
+        override def evaluate(refName: String): CExpression =
+          CExpression(
+            cCode = s"check_validity(${refName}->validityBuffer, i)",
+            isNotNullCode = None
+          )
+      }
       final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
         override def evaluate(refName: String): CExpression = {
           val leftStringLength =
@@ -202,6 +213,8 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).contains
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
+    case IsNotNull(item: AttributeReference) =>
+      SlowEvaluation(item.name, NotNullEvaluator)
   }
 
   def transform: PartialFunction[Expression, Expression] = Function
