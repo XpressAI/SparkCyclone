@@ -61,12 +61,14 @@ import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec
 import scala.collection.immutable
 import scala.util.Try
 import com.nec.spark.agile.CFunctionGeneration.{
+  renderFilter,
   renderProjection,
   CExpression,
   CScalarVector,
   NamedStringExpression,
   NamedTypedCExpression,
   TypedCExpression2,
+  VeFilter,
   VeProjection,
   VeSort,
   VeSortExpression
@@ -81,14 +83,16 @@ object VERewriteStrategy {
   final case class VeRewriteStrategyOptions(
     preShufflePartitions: Option[Int],
     enableVeSorting: Boolean,
-    projectOnVe: Boolean
+    projectOnVe: Boolean,
+    filterOnVe: Boolean
   )
   object VeRewriteStrategyOptions {
     val default: VeRewriteStrategyOptions =
       VeRewriteStrategyOptions(
         preShufflePartitions = Some(8),
         enableVeSorting = false,
-        projectOnVe = true
+        projectOnVe = true,
+        filterOnVe = true
       )
   }
 
@@ -124,6 +128,40 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
+        case f @ logical.Filter(condition, child) if options.filterOnVe =>
+          implicit val fallback: EvalFallback = EvalFallback.noOp
+
+          val replacer =
+            SparkExpressionToCExpression.referenceReplacer(InputPrefix, plan.inputSet.toList)
+          val planE = for {
+            cond <- eval(condition.transform(replacer).transform(StringHole.transform))
+            data = child.output.toList.zipWithIndex.map { case (att, idx) =>
+              sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}$idx")
+            }
+          } yield List(
+            ArrowColumnarToRowPlan(
+              OneStageEvaluationPlan(
+                outputExpressions = f.output,
+                functionName = s"flt_${functionPrefix}",
+                cFunction = renderFilter(
+                  VeFilter(
+                    stringVectorComputations = StringHole
+                      .process(condition.transform(replacer))
+                      .toList
+                      .flatMap(_.stringParts)
+                      .distinct,
+                    data = data,
+                    condition = cond
+                  )
+                ),
+                child = RowToArrowColumnarPlan(planLater(child)),
+                nativeEvaluator = nativeEvaluator
+              )
+            )
+          )
+
+          planE.fold(e => sys.error(s"Could not map ${e}"), identity)
+
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
