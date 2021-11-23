@@ -38,10 +38,14 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
           preShufflePartitions = sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.preshuffle-partitions")
             .map(_.toInt),
-          sparkSession.sparkContext.getConf
+          enableVeSorting = sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.sort-on-ve")
             .map(_.toBoolean)
-            .getOrElse(false)
+            .getOrElse(false),
+          projectOnVe = sparkSession.sparkContext.getConf
+            .getOption(key = "spark.com.nec.spark.project-on-ve")
+            .map(_.toBoolean)
+            .getOrElse(true)
         )
       )
     )
