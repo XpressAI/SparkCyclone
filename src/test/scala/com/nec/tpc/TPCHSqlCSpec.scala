@@ -29,7 +29,6 @@ import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
   PrePartitioned
 }
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.source.Position
@@ -38,7 +37,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
 import scalatags.Text.tags2.{details, summary}
 
-import java.sql.Date
 import java.time.LocalDate
 
 class TPCHSqlCSpec
