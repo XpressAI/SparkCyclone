@@ -25,6 +25,7 @@ import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.{
   NativeAggregationEvaluationPlan,
   NativeSortEvaluationPlan,
+  OneStageEvaluationPlan,
   VERewriteStrategy
 }
 import com.nec.testing.SampleSource
@@ -42,15 +43,13 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.{source, Prettifier}
+
 import java.time.Instant
 import java.time.temporal.TemporalUnit
-
 import scala.math.Ordered.orderingToOrdered
-
 import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
 
 object DynamicCSqlExpressionEvaluationSpec {
@@ -108,10 +107,10 @@ class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_pairwise = s"SELECT ${SampleColA} + ${SampleColB} FROM nums"
-  "Support pairwise addition" ignore withSparkSession2(configuration) { sparkSession =>
+  "Support pairwise addition/projection" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).ensureCEvaluating().debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise).ensurePlan(classOf[OneStageEvaluationPlan]).debugSqlHere { ds =>
       assert(
         ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
           None,
@@ -981,6 +980,15 @@ class DynamicCSqlExpressionEvaluationSpec
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
     def ensureCEvaluating(): Dataset[T] = ensureNewCEvaluating()
+    def ensurePlan(clz: Class[_]): Dataset[T] = {
+      val thePlan = dataSet.queryExecution.executedPlan
+      expect(
+        thePlan
+          .toString()
+          .contains(clz.getSimpleName.replaceAllLiterally("$", ""))
+      )
+      dataSet
+    }
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan

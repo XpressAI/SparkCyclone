@@ -81,7 +81,11 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
                 CodeLines.debugValue(""""sz"""", "output_0_input_words.starts.size()"),
                 CodeLines.debugValue(""""lsz"""", "output_0_input_words.lens.size()"),
                 CodeLines
-                  .from(CodeLines.debugValue("g"), CodeLines.debugHere, prod.produce("output_0"))
+                  .from(
+                    CodeLines.debugValue("g"),
+                    CodeLines.debugHere,
+                    prod.produce("output_0", "g")
+                  )
                   .indented,
                 "}",
                 CodeLines.debugHere,
