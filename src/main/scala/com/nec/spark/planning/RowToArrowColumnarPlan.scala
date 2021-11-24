@@ -71,6 +71,7 @@ case class RowToArrowColumnarPlan(child: SparkPlan) extends RowToColumnarTransit
           }
 
           override def next(): ColumnarBatch = {
+            arrowWriter.reset()
             cb.setNumRows(0)
             root.getFieldVectors.asScala.foreach(_.reset())
             var rowCount = 0
