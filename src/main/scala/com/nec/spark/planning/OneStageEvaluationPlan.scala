@@ -58,7 +58,7 @@ final case class OneStageEvaluationPlan(
 
   private def executeColumnWise: RDD[ColumnarBatch] = {
     val evaluator = nativeEvaluator.forCode(
-      List(cFunction.toCodeLines(functionName)).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
+      List(cFunction.toCodeLinesPF(functionName)).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
     )
 
     logger.debug(s"Will execute columnar NewCEvaluationPlan for child ${child}; ${child.output}")

@@ -416,9 +416,34 @@ object CFunctionGeneration {
     }
 
   final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
+    def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
+      "#include <cmath>",
+      "#include <bitset>",
+      "#include <string>",
+      "#include <iostream>",
+      "#include <tuple>",
+      "#include \"tuple_hash.hpp\"",
+      """#include "frovedis/core/radix_sort.hpp"""",
+      """#include "frovedis/dataframe/join.hpp"""",
+      """#include "frovedis/dataframe/join.cc"""",
+      """#include "frovedis/core/set_operations.hpp"""",
+      TcpDebug.conditional.headers,
+      toCodeLinesNoHeader(functionName)
+    )
+
     def arguments: List[CVector] = inputs ++ outputs
 
-    def toCodeLines(functionName: String): CodeLines = {
+    def toCodeLinesPF(functionName: String): CodeLines = {
+      CodeLines.from(
+        "#include <cmath>",
+        "#include <bitset>",
+        "#include <string>",
+        "#include <iostream>",
+        TcpDebug.conditional.headers,
+        toCodeLinesNoHeader(functionName)
+      )
+    }
+    def toCodeLinesG(functionName: String): CodeLines = {
       CodeLines.from(
         "#include <cmath>",
         "#include <bitset>",
@@ -426,7 +451,16 @@ object CFunctionGeneration {
         "#include <iostream>",
         "#include <tuple>",
         "#include \"tuple_hash.hpp\"",
-        """#include "frovedis/core/radix_sort.hpp"""",
+        TcpDebug.conditional.headers,
+        toCodeLinesNoHeader(functionName)
+      )
+    }
+    def toCodeLinesJ(functionName: String): CodeLines = {
+      CodeLines.from(
+        "#include <cmath>",
+        "#include <bitset>",
+        "#include <string>",
+        "#include <iostream>",
         """#include "frovedis/dataframe/join.hpp"""",
         """#include "frovedis/dataframe/join.cc"""",
         """#include "frovedis/core/set_operations.hpp"""",

@@ -108,7 +108,7 @@ object StringHoleEvaluationSpec {
             stringHoleEvaluation.deallocData,
             "return 0;"
           )
-        ).toCodeLines("test").cCode
+        ).toCodeLinesG("test").cCode
       )
         .mkString("\n\n")
     )

@@ -236,7 +236,7 @@ class TPCHSqlCSpec
             condMarkup(
               details(
                 summary(s"Code block #${idx + 1}"),
-                pre(cFunction.toCodeLines("f").cCode)
+                pre(cFunction.toCodeLinesS("f").cCode)
               ).render
             )
             condMarkup("<hr/>")

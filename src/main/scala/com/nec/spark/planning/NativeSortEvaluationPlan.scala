@@ -110,7 +110,7 @@ final case class NativeSortEvaluationPlan(
   private def coalesceAndExecute(coalesced: Coalesced): RDD[InternalRow] = {
 
     val evaluator = nativeEvaluator.forCode(
-      coalesced.cFunction.toCodeLines(functionPrefix).lines.mkString("\n", "\n", "\n")
+      coalesced.cFunction.toCodeLinesG(functionPrefix).lines.mkString("\n", "\n", "\n")
     )
 
     logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")
@@ -182,7 +182,7 @@ final case class NativeSortEvaluationPlan(
   private def coalesceAndExecuteColumnar(coalesced: Coalesced): RDD[ColumnarBatch] = {
 
     val evaluator = nativeEvaluator.forCode(
-      coalesced.cFunction.toCodeLines(functionPrefix).lines.mkString("\n", "\n", "\n")
+      coalesced.cFunction.toCodeLinesS(functionPrefix).lines.mkString("\n", "\n", "\n")
     )
 
     logger.debug(s"Will execute NewCEvaluationPlan for child ${child}; ${child.output}")

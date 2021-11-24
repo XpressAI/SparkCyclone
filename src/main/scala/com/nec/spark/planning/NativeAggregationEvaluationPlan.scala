@@ -19,16 +19,12 @@
  */
 package com.nec.spark.planning
 
-import java.util.UUID
-import scala.collection.JavaConverters.asJavaIterableConverter
-import scala.language.dynamics
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
   PartialThenCoalesce,
   PrePartitioned
@@ -45,12 +41,16 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.unsafe.types.UTF8String
+
+import java.util.UUID
+import scala.collection.JavaConverters.asJavaIterableConverter
+import scala.language.dynamics
 
 //noinspection DuplicatedCode
 final case class NativeAggregationEvaluationPlan(
@@ -117,7 +117,7 @@ final case class NativeAggregationEvaluationPlan(
 
     val evaluator = nativeEvaluator.forCode(
       List(
-        partialFunction.toCodeLines(partialFunctionName),
+        partialFunction.toCodeLinesG(partialFunctionName),
         finalFunction
           .toCodeLinesNoHeader(finalFunctionName)
       ).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
@@ -271,7 +271,7 @@ final case class NativeAggregationEvaluationPlan(
 
     val evaluator = nativeEvaluator.forCode(
       List(
-        partialFunction.toCodeLines(partialFunctionName),
+        partialFunction.toCodeLinesG(partialFunctionName),
         finalFunction
           .toCodeLinesNoHeader(finalFunctionName)
       ).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
@@ -405,7 +405,7 @@ final case class NativeAggregationEvaluationPlan(
 
     val evaluator = udpDebug.span(launched.launchId, "prepare evaluator") {
       nativeEvaluator.forCode(
-        List(DefineTracer, cFunction.toCodeLines(functionName))
+        List(DefineTracer, cFunction.toCodeLinesG(functionName))
           .reduce(_ ++ _)
           .lines
           .mkString("\n", "\n", "\n")
@@ -494,7 +494,7 @@ final case class NativeAggregationEvaluationPlan(
 
     val evaluator = udpDebug.span(launched.launchId, "prepare evaluator") {
       nativeEvaluator.forCode(
-        List(DefineTracer, cFunction.toCodeLines(functionName))
+        List(DefineTracer, cFunction.toCodeLinesG(functionName))
           .reduce(_ ++ _)
           .lines
           .mkString("\n", "\n", "\n")
