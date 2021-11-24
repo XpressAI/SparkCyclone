@@ -27,6 +27,7 @@ import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -96,7 +97,9 @@ final case class OneStageEvaluationPlan(
           vectors.headOption
             .map(_.getArrowValueVector.getValueCount)
             .foreach(columnarBatch.setNumRows)
-
+          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            columnarBatch.close()
+          }
           columnarBatch
         } finally {
           inputVectors.foreach(_.close())
