@@ -95,7 +95,7 @@ object VERewriteStrategy {
   object VeRewriteStrategyOptions {
     val default: VeRewriteStrategyOptions =
       VeRewriteStrategyOptions(
-        preShufflePartitions = Some(8),
+        preShufflePartitions = None,
         enableVeSorting = false,
         projectOnVe = true,
         filterOnVe = true
