@@ -77,6 +77,7 @@ case class RowToArrowColumnarPlan(child: SparkPlan) extends RowToColumnarTransit
             while (rowCount < numRows && rowIterator.hasNext) {
               val row = rowIterator.next()
               arrowWriter.write(row)
+              arrowWriter.finish()
               rowCount += 1
             }
             cb.setNumRows(rowCount)
