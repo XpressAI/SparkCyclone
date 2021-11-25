@@ -116,6 +116,14 @@ typedef struct
     int32_t length;
 } non_null_c_bounded_string;
 
+void *allocate(size_t count, size_t type_size, std::string name) {
+    void *ret = malloc(count * type_size);
+    if (!ret) {
+        std::cout << name << ": Failed to allocate " << count << " * " << type_size << " bytes" << std::endl;
+    }
+    return ret;
+}
+
 static std::string utcnanotime() {
     auto now = std::chrono::system_clock::now();
     auto seconds = std::chrono::system_clock::to_time_t(now);
@@ -209,7 +217,11 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->dataSize " << out->dataSize << std::endl << std::flush;
     #endif
 
-    out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
+    out->offsets = (int32_t *)allocate((in.starts.size() + 1), sizeof(int32_t), "wtvv::offsets");
+    if (!out->offsets) {
+        std::cout << "Failed to malloc " << in.starts.size() + 1 << " * sizeof(int32_t)." << std::endl;
+        return;
+    }
     for (int i = 0; i < in.starts.size(); i++) {
         out->offsets[i] = in.starts[i];
     }
@@ -237,13 +249,21 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
     #endif
 
-    out->data = (char *)malloc(out->dataSize * sizeof(char));
+    out->data = (char *)allocate(out->dataSize, sizeof(char), "wtvv::data");
+    if (out->data == NULL) {
+        std::cout << "Failed to malloc " << out->dataSize << " * sizeof(char)." << std::endl;
+        return;
+    }
     frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
     #ifdef DEBUG
     #endif
 
     size_t validity_count = ceil(out->count / 64.0);
-    out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
+    out->validityBuffer = (uint64_t *)allocate(validity_count, sizeof(uint64_t), "wtvv:validityBuffer");
+    if (!out->validityBuffer) {
+        std::cout << "Failed to malloc " << validity_count << " * sizeof(uint64_t)" << std::endl;
+        return;
+    }
     for (int i = 0; i < validity_count; i++) {
         out->validityBuffer[i] = 0xffffffffffffffff;
     }

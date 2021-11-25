@@ -501,8 +501,8 @@ object CFunctionGeneration {
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
+            s"""$outputName->validityBuffer = (uint64_t *) allocate(ceil($outputName->count / 64.0), sizeof(uint64_t), "sortOutput::$outputName->validityBuffer");""",
+            s"""$outputName->data = (${outputVeType.cScalarType}*) allocate($outputName->count, sizeof(${outputVeType.cScalarType}), "sortOutput::$outputName->data");"""
           )
         },
         "// create an array of indices, which by default are in order, but afterwards are out of order.",
@@ -607,8 +607,8 @@ object CFunctionGeneration {
         filterOutput.collect { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
+            s"""$outputName->validityBuffer = (uint64_t *) allocate(ceil($outputName->count / 64.0), sizeof(uint64_t), "filterOutput::$outputName->validityBuffer");""",
+            s"""$outputName->data = (${outputVeType.cScalarType}*) allocate($outputName->count, sizeof(${outputVeType.cScalarType}), "filterOutput::$outputName->data");"""
           )
         },
         "for ( long i = 0; i < input_0->count; i++ ) {",
@@ -649,8 +649,8 @@ object CFunctionGeneration {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
+            s"""$outputName->data = (${veType.cScalarType}*) allocate($outputName->count, sizeof(${veType.cScalarType}), "vedt::$outputName->data");""",
+            s"""$outputName->validityBuffer = (uint64_t *) allocate(ceil($outputName->count / 64.0), sizeof(uint64_t), "vedt::$outputName->validityBuffer");"""
           )
         case (Left(NamedStringExpression(name, stringProducer)), idx) =>
           StringProducer.produceVarChar("input_0->count", name, stringProducer).block
@@ -726,8 +726,8 @@ object CFunctionGeneration {
           joinExpression.fold(whenProj =
             _ =>
               CodeLines.from(
-                s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cScalarType}));",
-                s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
+                s"""${outputName}->data = (${veType.cScalarType}*) allocate(left_out.size(), sizeof(${veType.cScalarType}), "veInnerJoin::$outputName->data");""",
+                s"""${outputName}->validityBuffer = (uint64_t *) allocate(validityBuffSize, sizeof(uint64_t), "veInnerJoin::$outputName->validityBuffer");"""
               )
           )
         },
@@ -885,8 +885,8 @@ object CFunctionGeneration {
             joinExpression.fold(whenProj =
               _ =>
                 CodeLines.from(
-                  s"${outputName}->data = (${veType.cScalarType}*) malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType}));",
-                  s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
+                  s"""${outputName}->data = (${veType.cScalarType}*) allocate((left_out.size() + outer_idx.size()), sizeof(${veType.cScalarType}), "outerJoin::$outputName->data");""",
+                  s"""${outputName}->validityBuffer = (uint64_t *) allocate(validityBuffSize, sizeof(uint64_t), "outerJoin::$outputName->validityBuffer");"""
                 )
             )
         },

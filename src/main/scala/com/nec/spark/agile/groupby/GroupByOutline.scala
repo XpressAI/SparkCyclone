@@ -162,7 +162,7 @@ object GroupByOutline {
   def dealloc(cv: CVector): CodeLines = CodeLines.empty
 
   def declare(cv: CVector): CodeLines = CodeLines.from(
-    s"${cv.veType.cVectorType} *${cv.name} = (${cv.veType.cVectorType}*)malloc(sizeof(${cv.veType.cVectorType}));"
+    s"""${cv.veType.cVectorType} *${cv.name} = (${cv.veType.cVectorType}*)allocate(1, sizeof(${cv.veType.cVectorType}), "declare::${cv.name}");"""
   )
 
   final case class StringReference(name: String)
@@ -205,8 +205,8 @@ object GroupByOutline {
   ): CodeLines =
     CodeLines.from(
       s"$variableName->count = ${countExpression};",
-      s"$variableName->data = (${veScalarType.cScalarType}*) malloc($variableName->count * sizeof(${veScalarType.cScalarType}));",
-      s"$variableName->validityBuffer = (uint64_t *) malloc(ceil(${countExpression} / 64.0) * sizeof(uint64_t));"
+      s"""$variableName->data = (${veScalarType.cScalarType}*) allocate($variableName->count, sizeof(${veScalarType.cScalarType}), "gbo::$variableName->data");""",
+      s"""$variableName->validityBuffer = (uint64_t *) allocate(ceil(${countExpression} / 64.0), sizeof(uint64_t), "gbo::$variableName->validityBuffer");"""
     )
 
 }

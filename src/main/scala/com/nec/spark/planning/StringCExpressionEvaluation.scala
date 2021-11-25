@@ -89,8 +89,8 @@ object StringCExpressionEvaluation {
   private def select_lengths: CodeLines = {
     CodeLines.from(
       "// second output",
-      s"lengths->data = (int32_t*) malloc(input_0->count * 4);",
-      s"lengths->validityBuffer = (unsigned char *) malloc(input_0->count);",
+      s"""lengths->data = (int32_t*) allocate(input_0->count, sizeof(int32_t), "lengths->data");""",
+      s"""lengths->validityBuffer = (uint64_t *) allocate(ceil(input_0->count / 64), sizeof(uint64_t), "lengths->validityBuffer");""",
       s"lengths->count = input_0->count;",
       s"for( int32_t i = 0; i < input_0->count; i++ ) {",
       CodeLines

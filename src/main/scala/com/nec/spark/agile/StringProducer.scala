@@ -155,11 +155,11 @@ object StringProducer {
             s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
             s"""${outputName}->count = ${tmpCount};""",
             s"""${outputName}->dataSize = ${tmpCurrentOffset};""",
-            s"""${outputName}->data = (char*)malloc(${outputName}->dataSize);""",
+            s"""${outputName}->data = (char*)allocate(${outputName}->dataSize, sizeof(char), "isp::$outputName->dataSize");""",
             s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->dataSize);""",
-            s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
+            s"""${outputName}->offsets = (int32_t*)allocate((${outputName}->count + 1), sizeof(int32_t), "isp::$outputName->offsets");""",
             s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
-            s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(${outputName}->count / 64.0) * sizeof(uint64_t));",
+            s"""${outputName}->validityBuffer = (uint64_t *) allocate(ceil(${outputName}->count / 64.0), sizeof(uint64_t), "isp::$outputName->validityBuffer");""",
             CodeLines.debugHere
           )
 
