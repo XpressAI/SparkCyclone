@@ -1,0 +1,35 @@
+name: TPC (VE)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Check User
+        run: whoami
+        
+      - name: Check Path
+        run: pwd
+        
+      - name: Check Access to VE
+        run: /opt/nec/ve/bin/vecmd info
+
+      - name: Branch Ref
+        run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Deploy Spark Cyclone Jar
+        run: sbt "clean" "deploy local"
+
+      - name: Run TPC-H@1
+        run: cd tests/tpcbench && sh run_ve.sh dbgen1 0 && sh run_ve.sh dbgen1 0
+
+      - name: Run TPC-H@10
+        run: cd tests/tpcbench && sh run_ve.sh dbgen10 0 && sh run_ve.sh dbgen10 0
+
+      - name: Run TPC-H@20
+        run: cd tests/tpcbench && sh run_ve.sh dbgen20 0 && sh run_ve.sh dbgen20 0
