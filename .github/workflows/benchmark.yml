@@ -24,12 +24,15 @@ jobs:
 
       - name: Deploy Spark Cyclone Jar
         run: sbt "clean" "deploy local"
+      
+      - name: Compile TPC-H Benchmark
+        run: cd tests/tpchbench && sbt package
 
       - name: Run TPC-H@1
-        run: cd tests/tpcbench && sh run_ve.sh dbgen1 0 && sh run_ve.sh dbgen1 0
+        run: cd tests/tpchbench && sh run_ve.sh dbgen1 0 && sh run_ve.sh dbgen1 0
 
       - name: Run TPC-H@10
-        run: cd tests/tpcbench && sh run_ve.sh dbgen10 0 && sh run_ve.sh dbgen10 0
+        run: cd tests/tpchbench && sh run_ve.sh dbgen10 0 && sh run_ve.sh dbgen10 0
 
       - name: Run TPC-H@20
-        run: cd tests/tpcbench && sh run_ve.sh dbgen20 0 && sh run_ve.sh dbgen20 0
+        run: cd tests/tpchbench && sh run_ve.sh dbgen20 0 && sh run_ve.sh dbgen20 0
