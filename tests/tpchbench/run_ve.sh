@@ -5,7 +5,7 @@ export SPARK_HOME=/opt/spark
 time $SPARK_HOME/bin/spark-submit \
     --master yarn \
     --num-executors=8 --executor-cores=1 --executor-memory=8G \
-    --deploy-mode cluster \
+    --deploy-mode client \
     --name TPC-H_VE_$1 \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
