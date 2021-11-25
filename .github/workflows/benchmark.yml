@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: gpu,ve
+    runs-on: gpu
 
     steps:
       - uses: actions/checkout@v2
