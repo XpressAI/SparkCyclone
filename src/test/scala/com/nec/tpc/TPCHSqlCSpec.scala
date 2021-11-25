@@ -34,7 +34,8 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.source.Position
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalactic.{Equality, TolerantNumerics}
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
@@ -53,6 +54,8 @@ class TPCHSqlCSpec
   protected override def beforeAll(configMap: ConfigMap): Unit = {
     printMarkup = configMap.getOptional[String]("markup").contains("true")
   }
+
+  implicit val doubleEq: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(1e-2)
 
   private var initialized = false
 
@@ -281,7 +284,7 @@ class TPCHSqlCSpec
         ds.as[(String, String, Double, Double, Double, Double, Double, Double, Double, Long)]
           .collect()
           .toList
-          .sortBy(v => (v._1, v._2)) == List[Tpe](
+          .sortBy(v => (v._1, v._2)) === List[Tpe](
           (
             "A",
             "F",
@@ -409,7 +412,7 @@ class TPCHSqlCSpec
         ds.as[(Double, String, String, Long, String, String, String, String)]
           .collect()
           .toList
-          .sorted == result.sorted
+          .sorted === result.sorted
       )
     }
   }
@@ -461,7 +464,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double, String, Long)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(Long, Double, String, Long)].collect().toList.sorted === result.sorted)
     }
   }
 
@@ -494,7 +497,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Long)].collect().toList.sorted == List(
+        ds.as[(String, Long)].collect().toList.sorted === List(
           ("1-URGENT", 10594),
           ("2-HIGH", 10476),
           ("3-MEDIUM", 10410),
@@ -538,7 +541,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Double)].collect().toList.sorted == List(
+        ds.as[(String, Double)].collect().toList.sorted === List(
           ("INDONESIA", 5.5502041169699915e7),
           ("VIETNAM", 5.529508699669991e7),
           ("CHINA", 5.372449425660001e7),
@@ -619,7 +622,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, String, Int, Double)].collect().toList.sorted == List(
+        ds.as[(String, String, Int, Double)].collect().toList.sorted === List(
           ("FRANCE", "GERMANY", 1995, 5.463973273360003e7),
           ("FRANCE", "GERMANY", 1996, 5.463308330760005e7),
           ("GERMANY", "FRANCE", 1995, 5.253174666970001e7),
@@ -678,7 +681,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, Double)].collect.toList.sorted == List(
+        ds.as[(Long, Double)].collect.toList.sorted === List(
           (1995, 0.03443589040665487),
           (1996, 0.041485521293530316)
         ).sorted
@@ -739,7 +742,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Int, Double)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(String, Int, Double)].collect().toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 10", configuration) { sparkSession =>
@@ -803,7 +806,7 @@ class TPCHSqlCSpec
         ds.as[(Long, String, Double, Double, String, String, String, String)]
           .collect()
           .toList
-          .sorted == result.sorted
+          .sorted === result.sorted
       )
     }
   }
@@ -851,7 +854,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(Long, Double)].collect().toList.sorted === result.sorted)
     }
   }
   //This doesn't work.
@@ -893,7 +896,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, BigInt, BigInt)].collect.toList.sorted == List(
+        ds.as[(String, BigInt, BigInt)].collect.toList.sorted === List(
           ("MAIL", 6202, 9324),
           ("SHIP", 6200, 9262)
         ).sorted
@@ -929,7 +932,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, Long)].collect.toList.sorted == List(
+        ds.as[(Long, Long)].collect.toList.sorted === List(
           (0, 50005),
           (9, 6641),
           (10, 6532),
@@ -1000,7 +1003,7 @@ class TPCHSqlCSpec
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect.toList.sorted == List(16.38077862639553)) //  16.3.sorted8
+      assert(ds.as[Double].collect.toList.sorted === List(16.38077862639553)) //  16.3.sorted8
     }
   }
   withTpchViews("Query 15", configuration) { sparkSession =>
@@ -1048,7 +1051,7 @@ class TPCHSqlCSpec
     sparkSession.sql(sql1).show()
     sparkSession.sql(sql2).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, String, String, String, Double)].collect.toList.sorted == List(
+        ds.as[(Long, String, String, String, Double)].collect.toList.sorted === List(
           (8449, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003)
         ).sorted
       )
@@ -1112,7 +1115,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, String, Long, Long)].collect.toList.sorted == result.sorted)
+      assert(ds.as[(String, String, Long, Long)].collect.toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 17", configuration) { sparkSession =>
@@ -1140,7 +1143,7 @@ class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect().toList.sorted == List(348406.05428571434)) //  348406.0.sorted5
+      assert(ds.as[Double].collect().toList.sorted === List(348406.05428571434)) //  348406.0.sorted5
     }
   }
   withTpchViews("Query 18", configuration) { sparkSession =>
@@ -1205,7 +1208,7 @@ class TPCHSqlCSpec
       assert(
         ds.as[(String, Long, Long, String, Double, Double)]
           .collect()
-          .toList == result
+          .toList === result
       ) // Customer#000128120 128120 4722021 1994-04-07 544089.09 323.0.sorted0
     }
   }
@@ -1259,7 +1262,7 @@ class TPCHSqlCSpec
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect.toList.sorted == List(3083843.057799999)) // 3083843.0.sorted5
+      assert(ds.as[Double].collect.toList.sorted === List(3083843.057799999)) // 3083843.0.sorted5
     }
   }
   withTpchViews("Query 20", configuration) { sparkSession =>
@@ -1317,7 +1320,7 @@ class TPCHSqlCSpec
       .collect()
       .toList
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, String)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(String, String)].collect().toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 21", configuration) { sparkSession =>
@@ -1374,7 +1377,7 @@ class TPCHSqlCSpec
       .collect()
       .toList
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Long)].collect.toList.sorted == result.sorted)
+      assert(ds.as[(String, Long)].collect.toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 22", configuration) { sparkSession =>
@@ -1418,7 +1421,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Long, Double)].collect.toList.sorted == List(
+        ds.as[(String, Long, Double)].collect.toList.sorted === List(
           ("13", 888, 6737713.989999999),
           ("17", 861, 6460573.719999993),
           ("18", 964, 7236687.399999998),
