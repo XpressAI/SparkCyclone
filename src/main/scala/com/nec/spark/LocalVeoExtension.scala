@@ -20,8 +20,9 @@
 package com.nec.spark
 
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
 import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 
@@ -53,5 +54,6 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
         )
       )
     )
+    sparkSessionExtensions.injectColumnar(_ => new VeColumnarRule)
   }
 }

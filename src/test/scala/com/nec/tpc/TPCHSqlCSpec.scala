@@ -324,6 +324,7 @@ class TPCHSqlCSpec
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (String, String, Double, Double, Double, Double, Double, Double, Double, Long)
+      println(ds.queryExecution.executedPlan)
       assert(
         ds.as[(String, String, Double, Double, Double, Double, Double, Double, Double, Long)]
           .collect()

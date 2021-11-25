@@ -22,34 +22,24 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.{
-  NativeAggregationEvaluationPlan,
-  NativeSortEvaluationPlan,
-  OneStageEvaluationPlan,
-  VERewriteStrategy
-}
+import com.nec.spark.planning.{NativeAggregationEvaluationPlan, NativeSortEvaluationPlan, OneStageEvaluationPlan, VERewriteStrategy, VeColumnarRule}
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC,
-  SampleColD
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.scalactic.{source, Prettifier}
-
+import org.scalactic.{Prettifier, source}
 import java.time.Instant
 import java.time.temporal.TemporalUnit
+
 import scala.math.Ordered.orderingToOrdered
+
 import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
 
 object DynamicCSqlExpressionEvaluationSpec {
@@ -68,6 +58,7 @@ object DynamicCSqlExpressionEvaluationSpec {
           )
         })
       )
+      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
   }
 
 }
