@@ -4,13 +4,41 @@ import com.nec.spark.SparkAdditions
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.BigIntVector
 import org.apache.spark.TaskContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.scalatest.freespec.AnyFreeSpec
 
+object RDDSpec {
+  final case class VeColVector(dataType: DataType, veLocation: Long)
+  final case class VeColBatch(numRows: Int, cols: List[VeColVector])
+
+  implicit class RichColBatchRDD(rdd: RDD[VeColBatch]) {
+    /**
+     * @param f function that takes '<partition index>, <number of partitions>, <input_columns>, <output_columns>'
+     * @return repartitioned set of VeColBatch
+     */
+    def exchange(f: Long): RDD[VeColBatch] = {
+      ???
+    }
+
+    /**
+     *
+     * @param f function that takes '<input_columns>', '<output_columns>'
+     * @return newly mapped batches
+     */
+    def mapBatch(f: Long): RDD[VeColBatch] = {
+      ???
+    }
+
+    def reduce()
+  }
+}
+
 final class RDDSpec extends AnyFreeSpec with SparkAdditions {
-  "it works" in withSparkSession2(identity) { sparkSession =>
+  "We can pass around some Arrow things" in withSparkSession2(identity) { sparkSession =>
     sparkSession.sparkContext
-      .range(1, 500)
+      .range(start = 1, end = 500, step = 1, numSlices = 4)
       .mapPartitions(iteratorLong =>
         Iterator
           .continually {
@@ -32,4 +60,6 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions {
       )
       .foreach(println)
   }
+
+  "We can perform a VE call" in {}
 }
