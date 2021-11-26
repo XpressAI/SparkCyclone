@@ -14,6 +14,7 @@ object RDDSpec {
   final case class VeColBatch(numRows: Int, cols: List[VeColVector])
 
   implicit class RichColBatchRDD(rdd: RDD[VeColBatch]) {
+
     /**
      * @param f function that takes '<partition index>, <number of partitions>, <input_columns>, <output_columns>'
      * @return repartitioned set of VeColBatch
@@ -23,7 +24,6 @@ object RDDSpec {
     }
 
     /**
-     *
      * @param f function that takes '<input_columns>', '<output_columns>'
      * @return newly mapped batches
      */
@@ -31,7 +31,13 @@ object RDDSpec {
       ???
     }
 
-    def reduce()
+    /**
+     * @param f function that takes '<input_columns>', '<input_columns>', '<output_columns>'
+     * @return newly mapped batches
+     */
+    def reduce(f: Long): RDD[VeColBatch] = {
+      ???
+    }
   }
 }
 
