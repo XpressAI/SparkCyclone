@@ -24,10 +24,7 @@ import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.NativeAggregationEvaluationPlan
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
-  PartialThenCoalesce,
-  PrePartitioned
-}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PartialThenCoalesce, PrePartitioned}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -35,7 +32,9 @@ import org.scalactic.source.Position
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, BeforeAndAfterAllConfigMap, ConfigMap}
-import org.scalactic.{Equality, TolerantNumerics}
+import org.scalactic.{Equality, Equivalence, TolerantNumerics}
+
+import scala.annotation.tailrec
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
@@ -56,6 +55,31 @@ class TPCHSqlCSpec
   }
 
   implicit val doubleEq: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(1e-2)
+  implicit val listEq: Equivalence[List[Product]] = (a: List[Product], b: List[Product]) => {
+    val aLength = a.productArity
+    val bLength = b.productArity
+
+    if (aLength != bLength) {
+      false
+    } else {
+      var equal = true
+      for (i <- 0 until aLength) {
+        val aItem = a.productElement(i)
+        val bItem = b.productElement(i)
+        if (aItem.getClass != bItem.getClass) {
+          equal = false
+        } else {
+          (aItem, bItem) match {
+            case (a: Double, b: Double) =>
+              equal = equal && a === b
+            case (a, b) =>
+              equal = equal && a == b
+          }
+        }
+      }
+      equal
+    }
+  }
 
   private var initialized = false
 
