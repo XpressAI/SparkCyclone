@@ -76,7 +76,7 @@ final case class OneStageEvaluationPlan(
           )
 
           VeColBatch(numRows = cols.head.numItems, cols = cols)
-        } finally veColBatch.cols.foreach(_.free())
+        } finally {} //veColBatch.cols.foreach(_.free())
       }
   }
 }
