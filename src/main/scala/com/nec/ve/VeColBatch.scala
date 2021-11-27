@@ -1,16 +1,20 @@
 package com.nec.ve
 
+import com.nec.arrow.ArrowTransferStructures.{non_null_c_bounded_string, nullable_double_vector, nullable_varchar_vector}
+import com.nec.arrow.VeArrowTransfers.{nullableDoubleVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
+import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
 import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
 import com.nec.arrow.VeArrowTransfers.nullableDoubleVectorToByteBuffer
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, Float8Vector}
+import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
+
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
-
 import java.nio.ByteBuffer
 
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
@@ -77,6 +81,41 @@ object VeColBatch {
           )
         }
         float8Vector
+      case VeString =>
+        val vcvr = new VarCharVector("output", bufferAllocator)
+        if (numItems > 0) {
+          val offsetsSize = (numItems + 1) * 4
+          val lastOffsetIndex = numItems * 4
+          val offTarget = ByteBuffer.allocateDirect(offsetsSize)
+          val validityTarget = ByteBuffer.allocateDirect(numItems)
+
+          veProcess.get(bufferLocations(1), offTarget, offTarget.limit())
+          veProcess.get(bufferLocations(2), validityTarget, validityTarget.limit())
+          val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
+          val vhTarget = ByteBuffer.allocateDirect(dataSize)
+
+          offTarget.rewind()
+          veProcess.get(bufferLocations.head, vhTarget, vhTarget.limit())
+          vcvr.allocateNew(dataSize, numItems)
+          vcvr.setValueCount(numItems)
+
+          getUnsafe.copyMemory(
+            validityTarget.asInstanceOf[DirectBuffer].address(),
+            vcvr.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(
+            offTarget.asInstanceOf[DirectBuffer].address(),
+            vcvr.getOffsetBufferAddress,
+            offsetsSize
+          )
+          getUnsafe.copyMemory(
+            vhTarget.asInstanceOf[DirectBuffer].address(),
+            vcvr.getDataBufferAddress,
+            dataSize
+          )
+        }
+        vcvr
       case _ => ???
     }
 
@@ -106,6 +145,23 @@ object VeColBatch {
         veType = VeScalarType.VeNullableDouble,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+      )
+    }
+
+    def fromVarcharVector(varcharVector: VarCharVector)(implicit veProcess: VeProcess): VeColVector = {
+      val vcvr = new nullable_varchar_vector()
+      vcvr.count = varcharVector.getValueCount
+      vcvr.data = veProcess.putBuffer(varcharVector.getDataBuffer.nioBuffer())
+      vcvr.validityBuffer = veProcess.putBuffer(varcharVector.getValidityBuffer.nioBuffer())
+      vcvr.offsets = veProcess.putBuffer(varcharVector.getOffsetBuffer.nioBuffer())
+      vcvr.dataSize = varcharVector.sizeOfValueBuffer()
+      val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
+      val containerLocation = veProcess.putBuffer(byteBuffer)
+      VeColVector(
+        numItems = varcharVector.getValueCount,
+        veType = VeString,
+        containerLocation = containerLocation,
+        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer)
       )
     }
   }
