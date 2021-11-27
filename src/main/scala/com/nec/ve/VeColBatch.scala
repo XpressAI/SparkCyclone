@@ -211,9 +211,10 @@ object VeColBatch {
       veProcess: VeProcess
     ): VeColVector = {
       source.getArrowValueVector match {
-        case float8Vector: Float8Vector => fromFloat8Vector(float8Vector)
-        case bigIntVector: BigIntVector => fromBigIntVector(bigIntVector)
-        case other                      => sys.error(s"Not supported to convert from ${other}")
+        case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
+        case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
+        case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
+        case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
       }
     }
 
