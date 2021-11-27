@@ -213,7 +213,7 @@ final case class VERewriteStrategy(
                 }
             }.sequence
           } yield {
-            val fName = s"prj_${functionPrefix}"
+            val fName = s"project_${functionPrefix}"
             val cF = renderProjection(
               VeProjection(
                 inputs = child.output.toList.zipWithIndex.map { case (att, idx) =>

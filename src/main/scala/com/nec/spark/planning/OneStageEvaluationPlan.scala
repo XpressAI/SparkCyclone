@@ -20,6 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.ve.{VeColBatch, VeProcess}
@@ -62,21 +63,22 @@ final case class OneStageEvaluationPlan(
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      .map { veColBatch =>
-        import SparkCycloneExecutorPlugin.veProcess
-
+      .mapPartitions { veColBatches =>
         val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
+        veColBatches.map { veColBatch =>
+          import SparkCycloneExecutorPlugin.veProcess
+          try {
+            val cols = veProcess.execute(
+              libraryReference = libRef,
+              functionName = veFunction.functionName,
+              cols = veColBatch.cols,
+              results = veFunction.results
+            )
 
-        try {
-          val cols = veProcess.execute(
-            libraryReference = libRef,
-            functionName = veFunction.functionName,
-            cols = veColBatch.cols,
-            results = veFunction.results
-          )
+            VeColBatch(numRows = cols.head.numItems, cols = cols)
+          } finally {} //veColBatch.cols.foreach(_.free())
 
-          VeColBatch(numRows = cols.head.numItems, cols = cols)
-        } finally {} //veColBatch.cols.foreach(_.free())
+        }
       }
   }
 }
