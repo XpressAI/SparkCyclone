@@ -67,27 +67,20 @@ object VeProcess {
     ): List[VeColVector] = {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
-        val lp = new LongPointer(Array[Long](vcv.containerLocation))
-        veo.veo_args_set_stack(
-          our_args,
-          0,
-          index,
-          new BytePointer(lp),
-          8
-        )
+        val lp = new LongPointer()
+        lp.capacity(8)
+        lp.put(vcv.containerLocation)
+        veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
-        new LongPointer(Array[Long](-1))
+        val lp = new LongPointer()
+        lp.capacity(8)
+        lp.put(-1)
+        lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
         val index = reIdx + cols.size
-        veo.veo_args_set_stack(
-          our_args,
-          1,
-          index,
-          new BytePointer(outPointers(reIdx)),
-          8
-        )
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
       }
       val fnCallResult = new LongPointer(8)
 
