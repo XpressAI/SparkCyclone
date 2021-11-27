@@ -126,7 +126,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
           .sorted
     }
 
-    val expected = List.range(1, 500).map(_.toDouble)
+    val expected = List.range(1, 500).map(_.toDouble).map(_ * 2)
     expect(result == expected)
   }
 }
