@@ -179,13 +179,7 @@ object VeProcess {
       veo.veo_args_set_stack(our_args, 1, cols.size, new BytePointer(countsP), 4)
       results.zipWithIndex.zip(outPointers).foreach { case ((vet, reIdx), outPointer) =>
         val index = cols.size + 1 + reIdx
-        veo.veo_args_set_stack(
-          our_args,
-          1,
-          index,
-          new BytePointer(outPointer),
-          MaxSetsCount * 8
-        )
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointer), MaxSetsCount * 8)
       }
       val fnCallResult = new LongPointer(8)
 

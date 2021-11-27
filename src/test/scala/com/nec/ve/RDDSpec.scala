@@ -14,6 +14,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.scalatest.freespec.AnyFreeSpec
+import com.nec.spark.agile.CFunctionGeneration
 
 object RDDSpec {
 
@@ -91,11 +92,18 @@ object RDDSpec {
 
   def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
     rdd
-      .map { case (partition, veColVector) =>
-        (partition, (veColVector, veColVector.serialize()))
-      }
+      .mapPartitions(
+        f = iter =>
+          iter.map { case (p, v) =>
+            (p, (v, v.serialize()))
+          },
+        preservesPartitioning = true
+      )
       .sortByKey()
-      .map { case (_, (vec, ba)) => vec.deserialize(ba) }
+      .mapPartitions(
+        f = iter => iter.map { case (_, (v, ba)) => v.deserialize(ba) },
+        preservesPartitioning = true
+      )
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
     def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
@@ -154,32 +162,51 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
           val ref = veProc.loadLibrary(path)
           doubleBatches {
             sparkSession.sparkContext
-              .range(start = 1, end = 500, step = 1, numSlices = 4)
+              .range(start = 1, end = 501, step = 1, numSlices = 4)
               .map(_.toDouble)
-          }.map(arrowVec => VeColVector.fromFloat8Vector(arrowVec))
-            .flatMap(ve =>
-              veProc
-                .executeMulti(
-                  ref,
-                  MultiFunctionName,
-                  List(ve),
-                  PartitioningFunction.outputs.map(_.veType)
-                )
-                .map { case (k, vs) => (k, vs.head) }
+          }
+            .mapPartitions(
+              f = veIterator =>
+                veIterator
+                  .map(arrowVec => {
+                    try VeColVector.fromFloat8Vector(arrowVec)
+                    finally arrowVec.close()
+                  })
+                  .flatMap(vecv => {
+                    try {
+                      veProc
+                        .executeMulti(
+                          ref,
+                          MultiFunctionName,
+                          List(vecv),
+                          List(CFunctionGeneration.VeScalarType.veNullableDouble)
+                        )
+                        .map { case (k, vs) => (k, vs.head) }
+                    } finally vecv.free()
+                  }),
+              preservesPartitioning = true
             )
             .exchangeBetweenVEs()
-            .map(vector => {
-              WithTestAllocator { implicit alloc =>
-                val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
-                try vec.toList.max
-                finally vec.close()
-              }
-            })
+            .mapPartitions(vectorIter =>
+              Iterator
+                .continually {
+                  vectorIter.flatMap { vector =>
+                    WithTestAllocator { implicit alloc =>
+                      val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
+                      val vl = vec.toList
+                      println(vl)
+                      try if (vl.isEmpty) None else Some(vl.max)
+                      finally vec.close()
+                    }
+                  }.max
+                }
+                .take(1)
+            )
             .collect()
             .toList
       }
 
-    val expected = List[Double](99, 199, 299, 399, 499, 500)
+    val expected = List[Double](199, 299, 399, 500)
     expect(result == expected)
   }
 
