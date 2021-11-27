@@ -5,6 +5,7 @@ import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
 import com.nec.arrow.VeArrowNativeInterface.copyBufferToVe
 import com.nec.arrow.VeArrowTransfers.nullableDoubleVectorToByteBuffer
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
+import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector}
@@ -28,7 +29,21 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
 object VeColBatch {
 
   def fromColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
-    ???
+    VeColBatch(
+      numRows = columnarBatch.numRows(),
+      cols = (0 until columnarBatch.numCols()).map { colNo =>
+        val col = columnarBatch.column(colNo)
+        val sparkType = col.dataType()
+        val veType = sparkTypeToVeType(sparkType)
+        VeColVector(
+          numItems = columnarBatch.numRows(),
+          veType = veType,
+          containerLocation = ???,
+          containerSize = ???,
+          bufferLocations = ???
+        )
+      }.toList
+    )
   }
 
   private def getUnsafe: Unsafe = {
@@ -38,7 +53,7 @@ object VeColBatch {
   }
 
   final case class VeColVector(
-    numItems: Long,
+    numItems: Int,
     veType: VeType,
     containerLocation: Long,
     containerSize: Int,
@@ -51,21 +66,17 @@ object VeColBatch {
     ): FieldVector = veType match {
       case VeScalarType.VeNullableDouble =>
         val float8Vector = new Float8Vector("output", bufferAllocator)
-        val byteBuffer = veProcess.readAsBuffer(containerLocation, containerSize)
-        val veoPtr = byteBuffer.getLong(0)
-        val validityPtr = byteBuffer.getLong(8)
-        val dataCount = byteBuffer.getInt(16)
-        if (dataCount > 0) {
-          val dataSize = dataCount * 8
-          float8Vector.setValueCount(dataCount)
+        if (numItems > 0) {
+          val dataSize = numItems * 8
+          float8Vector.setValueCount(numItems)
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
-          val validityTarget = ByteBuffer.allocateDirect(dataCount)
-          veProcess.get(veoPtr, vhTarget, vhTarget.limit())
-          veProcess.get(validityPtr, validityTarget, validityTarget.limit())
+          val validityTarget = ByteBuffer.allocateDirect(numItems)
+          veProcess.get(bufferLocations.head, vhTarget, vhTarget.limit())
+          veProcess.get(bufferLocations(1), validityTarget, validityTarget.limit())
           getUnsafe.copyMemory(
             validityTarget.asInstanceOf[DirectBuffer].address(),
             float8Vector.getValidityBufferAddress,
-            Math.ceil(dataCount / 64.0).toInt * 8
+            Math.ceil(numItems / 64.0).toInt * 8
           )
           getUnsafe.copyMemory(
             vhTarget.asInstanceOf[DirectBuffer].address(),
@@ -82,6 +93,7 @@ object VeColBatch {
 
   }
 
+  //noinspection ScalaUnusedSymbol
   object VeColVector {
     def fromFloat8Vector(float8Vector: Float8Vector)(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_double_vector()
