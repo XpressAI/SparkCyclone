@@ -162,7 +162,7 @@ object VeProcess {
       results: List[VeType]
     ): List[(Int, List[VeColVector])] = {
 
-      val MaxSetsCount = 1024
+      val MaxSetsCount = 64
 
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
@@ -172,14 +172,20 @@ object VeProcess {
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(8 * MaxSetsCount)
-        lp.put(-1)
+        lp.put(-99)
         lp
       }
       val countsP = new IntPointer(4.toLong)
       veo.veo_args_set_stack(our_args, 1, cols.size, new BytePointer(countsP), 4)
-      results.zipWithIndex.foreach { case (vet, reIdx) =>
-        val index = reIdx + cols.size + 1
-        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+      results.zipWithIndex.zip(outPointers).foreach { case ((vet, reIdx), outPointer) =>
+        val index = cols.size + 1 + reIdx
+        veo.veo_args_set_stack(
+          our_args,
+          1,
+          index,
+          new BytePointer(outPointer),
+          MaxSetsCount * 8
+        )
       }
       val fnCallResult = new LongPointer(8)
 
@@ -203,9 +209,13 @@ object VeProcess {
         s"Expected 0 to $MaxSetsCount counts, got $gotCounts"
       )
 
-      (0 to gotCounts).toList.map { set =>
+      (0 until gotCounts).toList.map { set =>
         set -> outPointers.zip(results).map { case (outPointer, r) =>
           val outContainerLocation = outPointer.get(set)
+          require(
+            outContainerLocation > 0,
+            s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
+          )
           val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 

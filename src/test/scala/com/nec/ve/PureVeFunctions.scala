@@ -34,11 +34,12 @@ object PureVeFunctions {
       .from(
         "int SETS_TO_DO = 5;",
         "int MAX_SET_ID = SETS_TO_DO - 1;",
+        "*o_p = (nullable_double_vector*)malloc(sizeof (void *) * SETS_TO_DO);",
         "for ( int s = 0; s < SETS_TO_DO; s++ ) {",
         CodeLines
           .from(
-            "sets = s + 1;",
-            "std::vector<double> nums();",
+            "sets[0] = s + 1;",
+            "std::vector<double> nums;",
             "for ( int i = 0; i < input[0]->count; i++ ) {",
             CodeLines
               .from(
@@ -53,7 +54,7 @@ object PureVeFunctions {
               .scalarVectorFromStdVector(VeScalarType.VeNullableDouble, "o_p[s]", "nums")
           )
           .indented,
-        "}"
+        "}",
       )
   )
 }

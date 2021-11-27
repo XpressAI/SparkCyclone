@@ -210,9 +210,21 @@ object GroupByOutline {
     )
 
   def scalarVectorFromStdVector(
-                              veScalarType: VeScalarType,
-                              targetName: String,
-                              sourceName: String,
-                            ): CodeLines = ???
+    veScalarType: VeScalarType,
+    targetName: String,
+    sourceName: String
+  ): CodeLines =
+    CodeLines.from(
+      s"$targetName = (${veScalarType.cVectorType}*)malloc(sizeof(${veScalarType.cVectorType}));",
+      initializeScalarVector(veScalarType, targetName, s"$sourceName.size()"),
+      s"for ( int x = 0; x < $sourceName.size(); x++ ) {",
+      CodeLines
+        .from(
+          s"$targetName->data[x] = $sourceName[x];",
+          s"set_validity($targetName->validityBuffer, x, 1);"
+        )
+        .indented,
+      "}"
+    )
 
 }
