@@ -126,7 +126,7 @@ object VeProcess {
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
-      
+
       val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
 
       require(
@@ -153,7 +153,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            numItems = byteBuffer.getInt(24),
+            numItems = byteBuffer.getInt(28),
             veType = VeString,
             containerLocation = outContainerLocation,
             bufferLocations =
