@@ -21,6 +21,7 @@ import org.apache.arrow.vector.{
   DateDayVector,
   FieldVector,
   Float8Vector,
+  IntVector,
   VarCharVector
 }
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
@@ -221,6 +222,7 @@ object VeColBatch {
       source.getArrowValueVector match {
         case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
         case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
+        case intVector: IntVector         => fromIntVector(intVector)
         case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
         case dateDayVector: DateDayVector => fromDateDayVector(dateDayVector)
         case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
@@ -239,6 +241,21 @@ object VeColBatch {
       VeColVector(
         numItems = bigIntVector.getValueCount,
         veType = VeScalarType.VeNullableLong,
+        containerLocation = containerLocation,
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+      )
+    }
+
+    def fromIntVector(dirInt: IntVector)(implicit veProcess: VeProcess): VeColVector = {
+      val vcvr = new nullable_int_vector()
+      vcvr.count = dirInt.getValueCount
+      vcvr.data = veProcess.putBuffer(dirInt.getDataBuffer.nioBuffer())
+      vcvr.validityBuffer = veProcess.putBuffer(dirInt.getValidityBuffer.nioBuffer())
+      val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+      val containerLocation = veProcess.putBuffer(byteBuffer)
+      VeColVector(
+        numItems = dirInt.getValueCount,
+        veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer)
       )

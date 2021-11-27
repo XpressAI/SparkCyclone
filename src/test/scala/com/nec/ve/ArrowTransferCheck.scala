@@ -4,6 +4,8 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders.{
   withArrowFloat8VectorI,
   withArrowStringVector,
+  withDirectBigIntVector,
+  withDirectIntVector,
   withNullableArrowStringVector
 }
 import com.nec.arrow.WithTestAllocator
@@ -41,6 +43,32 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           try {
             colVec.free()
             expect(arrowVec.toString == f8v.toString)
+          } finally arrowVec.close()
+        }
+      }
+    }
+    "for BigInt" in {
+      WithTestAllocator { implicit alloc =>
+        withDirectBigIntVector(List(1, -1, 1238)) { biv =>
+          val colVec: VeColVector = VeColVector.fromBigIntVector(biv)
+          val arrowVec = colVec.toArrowVector()
+
+          try {
+            colVec.free()
+            expect(arrowVec.toString == biv.toString)
+          } finally arrowVec.close()
+        }
+      }
+    }
+    "for Int" in {
+      WithTestAllocator { implicit alloc =>
+        withDirectIntVector(List(1, 2, 3, -5)) { dirInt =>
+          val colVec: VeColVector = VeColVector.fromIntVector(dirInt)
+          val arrowVec = colVec.toArrowVector()
+
+          try {
+            colVec.free()
+            expect(arrowVec.toString == dirInt.toString)
           } finally arrowVec.close()
         }
       }
