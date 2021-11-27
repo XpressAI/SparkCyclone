@@ -253,6 +253,34 @@ class DynamicCSqlExpressionEvaluationSpec
         )
       }
   }
+
+  val sql_filterer = s"SELECT * FROM nums where COALESCE(${SampleColC} + ${SampleColD}, 25) > 24"
+  "Support filtering" in withSparkSession2(configuration) { sparkSession =>
+    makeCsvNumsMultiColumn(sparkSession)
+    import sparkSession.implicits._
+    sparkSession.sql(sql_filterer).debugSqlHere { ds =>
+      val res =
+        ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])]
+          .collect()
+          .toList
+          .sorted
+
+      val expected = List[(Option[Double], Option[Double], Option[Double], Option[Double])](
+        (None, None, Some(4.0), None),
+        (None, Some(3.0), Some(1.0), Some(50.0)),
+        (Some(1.0), Some(2.0), Some(8.0), None),
+        (Some(2.0), None, None, Some(12.0)),
+        (Some(4.0), None, Some(2.0), Some(42.0)),
+        (Some(4.0), Some(5.0), None, Some(4.0)),
+        (Some(20.0), None, None, Some(3.0)),
+        (Some(52.0), Some(6.0), None, Some(23.0))
+      ).sorted
+
+      expect(res == expected)
+
+    }
+  }
+
   "Support group by sum with multiple grouping columns" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)

@@ -210,6 +210,10 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     #endif
 
     out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
+    if (!out->offsets) {
+        std::cout << "Failed to malloc " << in.starts.size() + 1 << " * sizeof(int32_t)." << std::endl;
+        return;
+    }
     for (int i = 0; i < in.starts.size(); i++) {
         out->offsets[i] = in.starts[i];
     }
@@ -238,16 +242,25 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     #endif
 
     out->data = (char *)malloc(out->dataSize * sizeof(char));
+    if (out->data == NULL) {
+        std::cout << "Failed to malloc " << out->dataSize << " * sizeof(char)." << std::endl;
+        return;
+    }
     frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
     #ifdef DEBUG
     #endif
 
     size_t validity_count = ceil(out->count / 64.0);
     out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
+    if (!out->validityBuffer) {
+        std::cout << "Failed to malloc " << validity_count << " * sizeof(uint64_t)" << std::endl;
+        return;
+    }
     for (int i = 0; i < validity_count; i++) {
         out->validityBuffer[i] = 0xffffffffffffffff;
     }
 }
+
 
 void debug_words(frovedis::words &in) {
     std::cout << "words char count: " << in.chars.size() << std::endl;
