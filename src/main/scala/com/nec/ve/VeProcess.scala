@@ -4,7 +4,7 @@ import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeType}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.LibraryReference
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -23,12 +23,22 @@ trait VeProcess {
   def putBuffer(byteBuffer: ByteBuffer): Long
   def get(from: Long, to: ByteBuffer, size: Long): Unit
   def free(memoryLocation: Long): Unit
+
+  /** Return a single dataset */
   def execute(
     libraryReference: LibraryReference,
     functionName: String,
     cols: List[VeColVector],
     results: List[VeType]
   ): List[VeColVector]
+
+  /** Return multiple datasets - eg for sorting/exchanges */
+  def executeMulti(
+    libraryReference: LibraryReference,
+    functionName: String,
+    cols: List[VeColVector],
+    results: List[VeType]
+  ): List[(Int, List[VeColVector])]
 }
 
 object VeProcess {
@@ -51,6 +61,15 @@ object VeProcess {
       results: List[VeType]
     ): List[VeColVector] =
       f().execute(libraryReference, functionName, cols, results)
+
+    /** Return multiple datasets - eg for sorting/exchanges */
+    override def executeMulti(
+      libraryReference: LibraryReference,
+      functionName: String,
+      cols: List[VeColVector],
+      results: List[VeType]
+    ): List[(Int, List[VeColVector])] =
+      f().executeMulti(libraryReference, functionName, cols, results)
   }
   final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
     override def allocate(size: Long): Long = {
@@ -134,5 +153,71 @@ object VeProcess {
       require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
       LibraryReference(libRe)
     }
+
+    /** Return multiple datasets - eg for sorting/exchanges */
+    override def executeMulti(
+      libraryReference: LibraryReference,
+      functionName: String,
+      cols: List[VeColVector],
+      results: List[VeType]
+    ): List[(Int, List[VeColVector])] = {
+
+      val MaxSetsCount = 1024
+
+      val our_args = veo.veo_args_alloc()
+      cols.zipWithIndex.foreach { case (vcv, index) =>
+        val lp = new LongPointer(8)
+        lp.put(vcv.containerLocation)
+        veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
+      }
+      val outPointers = results.map { veType =>
+        val lp = new LongPointer(8 * MaxSetsCount)
+        lp.put(-1)
+        lp
+      }
+      val countsP = new IntPointer(4.toLong)
+      veo.veo_args_set_stack(our_args, 1, cols.size, new BytePointer(countsP), 4)
+      results.zipWithIndex.foreach { case (vet, reIdx) =>
+        val index = reIdx + cols.size + 1
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+      }
+      val fnCallResult = new LongPointer(8)
+
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
+
+      require(
+        functionAddr > 0,
+        s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
+      )
+      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+
+      require(
+        callRes == 0,
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr; args: $cols"
+      )
+      require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
+
+      val gotCounts = countsP.get()
+      require(
+        gotCounts >= 0 && gotCounts < MaxSetsCount,
+        s"Expected 0 to $MaxSetsCount counts, got $gotCounts"
+      )
+
+      (0 to gotCounts).toList.map { set =>
+        set -> outPointers.zip(results).map { case (outPointer, r) =>
+          val outContainerLocation = outPointer.get(set)
+          val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+          VeColVector(
+            numItems = byteBuffer.getInt(16),
+            veType = r,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+          )
+        }
+      }
+    }
+
   }
 }

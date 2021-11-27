@@ -411,7 +411,12 @@ object CFunctionGeneration {
         new BigIntVector(cVector.name, bufferAllocator)
     }
 
-  final case class CFunction(inputs: List[CVector], outputs: List[CVector], body: CodeLines) {
+  final case class CFunction(
+    inputs: List[CVector],
+    outputs: List[CVector],
+    body: CodeLines,
+    hasSets: Boolean = false
+  ) {
     def arguments: List[CVector] = inputs ++ outputs
 
     def toCodeLines(functionName: String): CodeLines = {
@@ -453,7 +458,7 @@ object CFunctionGeneration {
           inputs
             .map { cVector =>
               s"${cVector.veType.cVectorType} **${cVector.name}"
-            } ++
+            } ++ { if (hasSets) List("int *sets") else Nil } ++
             outputs
               .map { cVector =>
                 s"${cVector.veType.cVectorType} **${cVector.name}"

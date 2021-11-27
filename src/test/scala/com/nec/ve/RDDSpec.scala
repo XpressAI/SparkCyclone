@@ -4,8 +4,8 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
-import com.nec.ve.PureVeFunctions.DoublingFunction
-import com.nec.ve.RDDSpec.{doubleBatches, longBatches}
+import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
+import com.nec.ve.RDDSpec.{doubleBatches, longBatches, RichKeyedRDD}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import org.apache.arrow.memory.BufferAllocator
@@ -97,6 +97,9 @@ object RDDSpec {
       .sortByKey()
       .map { case (_, (vec, ba)) => vec.deserialize(ba) }
 
+  implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
+    def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
+  }
 }
 
 final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
@@ -144,29 +147,39 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   ) { sparkSession =>
     implicit val veProc: VeProcess =
       DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
-    val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
-      path =>
-        val ref = veProc.loadLibrary(path)
-        doubleBatches {
-          sparkSession.sparkContext
-            .range(start = 1, end = 500, step = 1, numSlices = 4)
-            .map(_.toDouble)
-        }.map(arrowVec => VeColVector.fromFloat8Vector(arrowVec))
-          .map(ve => veProc.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
-          .map(vectors => {
-            WithTestAllocator { implicit alloc =>
-              val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
-              try vec.toList
-              finally vec.close()
-            }
-          })
-          .collect()
-          .toList
-          .flatten
-          .sorted
-    }
+    val MultiFunctionName = "f_multi"
+    val result =
+      compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr(MultiFunctionName).cCode) {
+        path =>
+          val ref = veProc.loadLibrary(path)
+          doubleBatches {
+            sparkSession.sparkContext
+              .range(start = 1, end = 500, step = 1, numSlices = 4)
+              .map(_.toDouble)
+          }.map(arrowVec => VeColVector.fromFloat8Vector(arrowVec))
+            .flatMap(ve =>
+              veProc
+                .executeMulti(
+                  ref,
+                  MultiFunctionName,
+                  List(ve),
+                  PartitioningFunction.outputs.map(_.veType)
+                )
+                .map { case (k, vs) => (k, vs.head) }
+            )
+            .exchangeBetweenVEs()
+            .map(vector => {
+              WithTestAllocator { implicit alloc =>
+                val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
+                try vec.toList.max
+                finally vec.close()
+              }
+            })
+            .collect()
+            .toList
+      }
 
-    val expected = List.range(1, 500).map(_.toDouble).map(_ * 2)
+    val expected = List[Double](99, 199, 299, 399, 499, 500)
     expect(result == expected)
   }
 

@@ -209,4 +209,10 @@ object GroupByOutline {
       s"$variableName->validityBuffer = (uint64_t *) malloc(ceil(${countExpression} / 64.0) * sizeof(uint64_t));"
     )
 
+  def scalarVectorFromStdVector(
+                              veScalarType: VeScalarType,
+                              targetName: String,
+                              sourceName: String,
+                            ): CodeLines = ???
+
 }
