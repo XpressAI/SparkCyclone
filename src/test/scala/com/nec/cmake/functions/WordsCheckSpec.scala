@@ -29,7 +29,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
             "words_to_varchar_vector(w, output_0);",
             "return 0;"
           )
-        ).toCodeLines("test").cCode
+        ).toCodeLinesS("test").cCode
       )
         .mkString("\n\n")
     )
@@ -100,7 +100,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
             CodeLines.debugHere,
             "return 0;"
           )
-        ).toCodeLines("test").cCode
+        ).toCodeLinesS("test").cCode
       )
         .mkString("\n\n"),
       debug = true

@@ -24,6 +24,9 @@ import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector._
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
