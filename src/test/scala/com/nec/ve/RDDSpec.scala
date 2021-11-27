@@ -115,7 +115,9 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
           .map(ve => veProc.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
           .map(vectors => {
             WithTestAllocator { implicit alloc =>
-              vectors.head.toArrowVector().asInstanceOf[Float8Vector].toList
+              val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
+              try vec.toList
+              finally vec.close()
             }
           })
           .collect()
