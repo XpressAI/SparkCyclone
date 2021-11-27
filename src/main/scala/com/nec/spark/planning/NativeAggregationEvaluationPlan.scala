@@ -99,32 +99,4 @@ final case class NativeAggregationEvaluationPlan(
 
 }
 
-object NativeAggregationEvaluationPlan {
-
-  def writeVector(v_idx: Int, writer: UnsafeRowWriter, v: FieldVector, c_idx: Int): Unit = {
-    v match {
-      case vector: VarCharVector =>
-        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-        else {
-          val bytes = vector.get(v_idx)
-          writer.write(c_idx, UTF8String.fromBytes(bytes))
-        }
-      case vector: Float8Vector =>
-        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-        else writer.write(c_idx, vector.get(v_idx))
-      case vector: IntVector =>
-        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-        else writer.write(c_idx, vector.get(v_idx))
-      case vector: BigIntVector =>
-        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-        else writer.write(c_idx, vector.get(v_idx))
-      case vector: SmallIntVector =>
-        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-        else writer.write(c_idx, vector.get(v_idx))
-      case vector: BitVector =>
-        if (vector.isNull(v_idx)) writer.setNullAt(c_idx)
-        else writer.write(c_idx, vector.get(v_idx))
-    }
-  }
-
-}
+object NativeAggregationEvaluationPlan {}
