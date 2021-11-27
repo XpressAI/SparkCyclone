@@ -52,12 +52,8 @@ object VeColBatch {
           val dataSize = dataCount * 8
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
           val validityTarget = ByteBuffer.allocateDirect(dataCount)
-          veProcess.get(veoPtr, vhTarget.asInstanceOf[DirectBuffer].address(), vhTarget.limit())
-          veProcess.get(
-            validityPtr,
-            validityTarget.asInstanceOf[DirectBuffer].address(),
-            validityTarget.limit()
-          )
+          veProcess.get(veoPtr, vhTarget, vhTarget.limit())
+          veProcess.get(validityPtr, validityTarget, validityTarget.limit())
         }
         float8Vector
       case _ => ???
@@ -75,12 +71,7 @@ object VeColBatch {
       vcvr.data = veProcess.putBuffer(float8Vector.getDataBuffer.nioBuffer())
       vcvr.validityBuffer = veProcess.putBuffer(float8Vector.getValidityBuffer.nioBuffer())
       val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
-      val containerLocation = veProcess.allocate(byteBuffer.limit())
-      veProcess.put(
-        byteBuffer.asInstanceOf[DirectBuffer].address(),
-        containerLocation,
-        byteBuffer.limit()
-      )
+      val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = float8Vector.getValueCount,
         veType = VeScalarType.VeNullableDouble,
