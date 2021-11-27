@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType, VeString, VeType}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.LibraryReference
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, Pointer}
@@ -135,17 +135,30 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      outPointers.zip(results).map { case (outPointer, r) =>
-        val outContainerLocation = outPointer.get()
-        val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+      outPointers.zip(results).map {
+        case (outPointer, scalar: VeScalarType) =>
+          val outContainerLocation = outPointer.get()
+          val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-        VeColVector(
-          numItems = byteBuffer.getInt(16),
-          veType = r,
-          containerLocation = outContainerLocation,
-          bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
-        )
+          VeColVector(
+            numItems = byteBuffer.getInt(16),
+            veType = scalar,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+          )
+        case (outPointer, VeString) =>
+          val outContainerLocation = outPointer.get()
+          val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+          VeColVector(
+            numItems = byteBuffer.getInt(24),
+            veType = VeString,
+            containerLocation = outContainerLocation,
+            bufferLocations =
+              List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+          )
       }
     }
 
