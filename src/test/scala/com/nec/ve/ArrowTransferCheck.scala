@@ -1,7 +1,11 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableArrowStringVector}
+import com.nec.arrow.ArrowVectorBuilders.{
+  withArrowFloat8VectorI,
+  withArrowStringVector,
+  withNullableArrowStringVector
+}
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType}
@@ -60,6 +64,25 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           val result = vec.toList
           try expect(result == List[Double](2, 4, 6))
           finally vec.close()
+        }
+      }
+    }
+  }
+
+  "We can serialize/deserialize VeColVector" - {
+    "for Float8Vector" in {
+      WithTestAllocator { implicit alloc =>
+        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
+          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+          val newColVec = colVec.deserialize(colVec.serialize())
+          val newColVecArrow = colVec.toArrowVector()
+
+          try {
+            colVec.free()
+            newColVec.free()
+            colVec.free()
+            expect(newColVecArrow.toString == f8v.toString)
+          } finally newColVecArrow.close()
         }
       }
     }

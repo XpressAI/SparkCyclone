@@ -1,7 +1,14 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowTransferStructures.{non_null_c_bounded_string, nullable_double_vector, nullable_varchar_vector}
-import com.nec.arrow.VeArrowTransfers.{nullableDoubleVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
+import com.nec.arrow.ArrowTransferStructures.{
+  non_null_c_bounded_string,
+  nullable_double_vector,
+  nullable_varchar_vector
+}
+import com.nec.arrow.VeArrowTransfers.{
+  nullableDoubleVectorToByteBuffer,
+  nullableVarCharVectorVectorToByteBuffer
+}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
 import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
@@ -53,8 +60,23 @@ object VeColBatch {
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
-    def serialize(): Array[Byte] = ???
 
+    /**
+     * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
+     */
+    def bufferSizes: List[Long] = ???
+
+    /**
+     * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
+     */
+    def serialize()(implicit veProcess: VeProcess): Array[Byte] = ???
+
+    /**
+     * Decompose the Byte Array and allocate into VeProcess. Uses bufferSizes.
+     *
+     * The parent ColVector is a description of the original source vector from another VE that
+     * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
+     */
     def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector = ???
 
     def containerSize: Int = veType.containerSize
@@ -151,7 +173,9 @@ object VeColBatch {
       )
     }
 
-    def fromVarcharVector(varcharVector: VarCharVector)(implicit veProcess: VeProcess): VeColVector = {
+    def fromVarcharVector(
+      varcharVector: VarCharVector
+    )(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_varchar_vector()
       vcvr.count = varcharVector.getValueCount
       vcvr.data = veProcess.putBuffer(varcharVector.getDataBuffer.nioBuffer())
