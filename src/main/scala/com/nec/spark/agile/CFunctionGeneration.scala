@@ -452,7 +452,7 @@ object CFunctionGeneration {
         s"""extern "C" long $functionName(""", {
           inputs
             .map { cVector =>
-              s"${cVector.veType.cVectorType} *${cVector.name}"
+              s"${cVector.veType.cVectorType} **${cVector.name}"
             } ++
             outputs
               .map { cVector =>

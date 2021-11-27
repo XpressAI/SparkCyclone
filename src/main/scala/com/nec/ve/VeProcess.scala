@@ -11,6 +11,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
+import java.nio.ByteOrder
 
 trait VeProcess {
   def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
@@ -67,14 +68,12 @@ object VeProcess {
     ): List[VeColVector] = {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
-        val lp = new LongPointer()
-        lp.capacity(8)
+        val lp = new LongPointer(8)
         lp.put(vcv.containerLocation)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
-        val lp = new LongPointer()
-        lp.capacity(8)
+        val lp = new LongPointer(8)
         lp.put(-1)
         lp
       }
@@ -101,12 +100,13 @@ object VeProcess {
       outPointers.zip(results).map { case (outPointer, r) =>
         val outContainerLocation = outPointer.get()
         val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
         VeColVector(
-          numItems = byteBuffer.getInt(byteBuffer.getInt(8)),
+          numItems = byteBuffer.getInt(16),
           veType = r,
           containerLocation = outContainerLocation,
-          bufferLocations = List(byteBuffer.getInt(16), byteBuffer.getInt(8))
+          bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
         )
       }
     }
