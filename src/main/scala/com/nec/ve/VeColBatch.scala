@@ -3,18 +3,26 @@ package com.nec.ve
 import com.nec.arrow.ArrowTransferStructures.{
   nullable_bigint_vector,
   nullable_double_vector,
+  nullable_int_vector,
   nullable_varchar_vector
 }
 import com.nec.arrow.VeArrowTransfers.{
   nullableBigintVectorToByteBuffer,
   nullableDoubleVectorToByteBuffer,
+  nullableIntVectorToByteBuffer,
   nullableVarCharVectorVectorToByteBuffer
 }
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  DateDayVector,
+  FieldVector,
+  Float8Vector,
+  VarCharVector
+}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
@@ -214,6 +222,7 @@ object VeColBatch {
         case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
         case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
         case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
+        case dateDayVector: DateDayVector => fromDateDayVector(dateDayVector)
         case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
       }
     }
@@ -228,6 +237,23 @@ object VeColBatch {
       VeColVector(
         numItems = bigIntVector.getValueCount,
         veType = VeScalarType.VeNullableLong,
+        containerLocation = containerLocation,
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+      )
+    }
+
+    def fromDateDayVector(
+      dateDayVector: DateDayVector
+    )(implicit veProcess: VeProcess): VeColVector = {
+      val vcvr = new nullable_int_vector()
+      vcvr.count = dateDayVector.getValueCount
+      vcvr.data = veProcess.putBuffer(dateDayVector.getDataBuffer.nioBuffer())
+      vcvr.validityBuffer = veProcess.putBuffer(dateDayVector.getValidityBuffer.nioBuffer())
+      val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+      val containerLocation = veProcess.putBuffer(byteBuffer)
+      VeColVector(
+        numItems = dateDayVector.getValueCount,
+        veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer)
       )
