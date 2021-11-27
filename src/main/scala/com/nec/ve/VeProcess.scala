@@ -91,6 +91,11 @@ object VeProcess {
       val fnCallResult = new LongPointer(8)
 
       val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
+
+      require(
+        functionAddr > 0,
+        s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
+      )
       val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
 
       require(
