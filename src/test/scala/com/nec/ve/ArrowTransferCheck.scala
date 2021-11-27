@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8VectorI
+import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableArrowStringVector}
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType}
@@ -17,6 +17,20 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
           val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+          val arrowVec = colVec.toArrowVector()
+
+          try {
+            colVec.free()
+            expect(arrowVec.toString == f8v.toString)
+          } finally arrowVec.close()
+        }
+      }
+    }
+
+    "for VarCharVector" in {
+      WithTestAllocator { implicit alloc =>
+        withArrowStringVector(List("Quick", "brown", "fox", "smth smth", "lazy dog")) { f8v =>
+          val colVec: VeColVector = VeColVector.fromVarcharVector(f8v)
           val arrowVec = colVec.toArrowVector()
 
           try {
