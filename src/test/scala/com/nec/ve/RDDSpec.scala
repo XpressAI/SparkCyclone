@@ -1,21 +1,18 @@
-package com.nec.cmake
+package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
-import com.nec.cmake.RDDSpec.{doubleBatches, longBatches}
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.PureVeFunctions.DoublingFunction
-import com.nec.ve.{DynamicVeSqlExpressionEvaluationSpec, VeColBatch, VeKernelInfra, VeProcess}
+import com.nec.ve.RDDSpec.{doubleBatches, longBatches}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector}
+import org.apache.arrow.vector.{BigIntVector, Float8Vector}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.scalatest.freespec.AnyFreeSpec
 
 object RDDSpec {
