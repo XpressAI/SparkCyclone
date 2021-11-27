@@ -1,28 +1,24 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowTransferStructures.{
-  non_null_c_bounded_string,
-  nullable_double_vector,
-  nullable_varchar_vector
-}
-import com.nec.arrow.VeArrowTransfers.{
-  nullableDoubleVectorToByteBuffer,
-  nullableVarCharVectorVectorToByteBuffer
-}
+import java.io.ByteArrayInputStream
+
+import com.nec.arrow.ArrowTransferStructures.{non_null_c_bounded_string, nullable_double_vector, nullable_varchar_vector}
+import com.nec.arrow.VeArrowTransfers.{nonNullDoubleVectorToByteBuffer, nullableDoubleVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
+import com.nec.spark.agile.SparkExpressionToCExpression.{eval, sparkTypeToVeType}
 import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
-import com.nec.arrow.VeArrowTransfers.nullableDoubleVectorToByteBuffer
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
+import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector, VectorSchemaRoot}
 
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 import java.nio.ByteBuffer
+
+import org.apache.spark.sql.execution.arrow.ArrowWriter
 
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit
@@ -64,12 +60,37 @@ object VeColBatch {
     /**
      * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
      */
-    def bufferSizes: List[Long] = ???
+    def bufferSizes: List[Long] = veType match {
+      case VeScalarType.VeNullableDouble => List(numItems * 8, Math.ceil(numItems / 64.0).toInt * 8)
+      case VeString => {
+        val dataSize = getUnsafe.getInt(numItems * 4)
+        val offsetBuffSize = (numItems + 1 ) * 4
+        val validitySize =  Math.ceil(numItems / 64.0).toInt * 8
+
+        List(dataSize, offsetBuffSize, validitySize)
+      }
+      case _ => ???
+    }
 
     /**
      * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
      */
-    def serialize()(implicit veProcess: VeProcess): Array[Byte] = ???
+    def serialize()(implicit veProcess: VeProcess): Array[Byte] = veType match {
+      case VeScalarType.VeNullableDouble => {
+        val dataBuffer = ByteBuffer.allocateDirect(bufferSizes.head.toInt)
+        val validityBuffer = ByteBuffer.allocateDirect(bufferSizes.last.toInt)
+
+        veProcess.get(bufferLocations.head, dataBuffer, dataBuffer.limit())
+        veProcess.get(bufferLocations.last, validityBuffer, dataBuffer.limit())
+        val outputBuffer = ByteBuffer.allocate(dataBuffer.limit() + validityBuffer.limit())
+
+        outputBuffer.put(dataBuffer)
+        outputBuffer.put(validityBuffer)
+
+        outputBuffer.array()
+      }
+      case _ => ???
+    }
 
     /**
      * Decompose the Byte Array and allocate into VeProcess. Uses bufferSizes.
@@ -77,7 +98,27 @@ object VeColBatch {
      * The parent ColVector is a description of the original source vector from another VE that
      * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
      */
-    def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector = ???
+    def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector = veType match {
+      case VeScalarType.VeNullableDouble => {
+        val (dataArr, validityArr) = ba.splitAt(numItems * 8)
+        val dataBuff = ByteBuffer.wrap(dataArr)
+        val validityBuff = ByteBuffer.wrap(validityArr)
+        val doubleVec = new nullable_double_vector()
+        doubleVec.count = numItems
+        doubleVec.data = veProcess.putBuffer(dataBuff)
+        doubleVec.validityBuffer = veProcess.putBuffer(validityBuff)
+        val byteBuff = nullableDoubleVectorToByteBuffer(doubleVec)
+        val containerLocation = veProcess.putBuffer(byteBuff)
+        VeColVector(
+          numItems,
+          veType,
+          containerLocation,
+          List(doubleVec.data, doubleVec.validityBuffer)
+        )
+      }
+      case _ => ???
+
+    }
 
     def containerSize: Int = veType.containerSize
 
