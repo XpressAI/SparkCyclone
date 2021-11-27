@@ -1,17 +1,19 @@
 package com.nec.cmake
 
 import com.nec.spark.SparkAdditions
+import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.BigIntVector
+import org.apache.arrow.vector.{BigIntVector, FieldVector}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.scalatest.freespec.AnyFreeSpec
 
 object RDDSpec {
-  final case class VeColVector(dataType: DataType, veLocation: Long)
-  final case class VeColBatch(numRows: Int, cols: List[VeColVector])
+
+  final case class NativeFunction(name: String)
 
   implicit class RichColBatchRDD(rdd: RDD[VeColBatch]) {
 

@@ -19,6 +19,7 @@
  */
 package com.nec.arrow
 import com.nec.arrow.CountArrowStringsSpec.schema
+import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 
 import java.util
@@ -33,8 +34,8 @@ object ArrowVectorBuilders {
       vcv.allocateNew()
       try {
         val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
-        stringBatch.view.zipWithIndex.foreach {
-          case (str, idx) => vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
+        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
 
         }
         vcv.setValueCount(stringBatch.length)
@@ -44,7 +45,9 @@ object ArrowVectorBuilders {
     }
   }
 
-  def withNullableArrowStringVector[T](stringBatch: Seq[Option[String]])(f: VarCharVector => T): T = {
+  def withNullableArrowStringVector[T](
+    stringBatch: Seq[Option[String]]
+  )(f: VarCharVector => T): T = {
     import org.apache.arrow.vector.VectorSchemaRoot
     WithTestAllocator { alloc =>
       val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
@@ -53,8 +56,7 @@ object ArrowVectorBuilders {
         val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
         stringBatch.view.zipWithIndex.foreach {
           case (Some(str), idx) => vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
-          case (None, idx) => vcv.setNull(idx
-          )
+          case (None, idx)      => vcv.setNull(idx)
         }
         vcv.setValueCount(stringBatch.length)
         root.setRowCount(stringBatch.length)
@@ -79,6 +81,24 @@ object ArrowVectorBuilders {
         f(vcv)
       } finally vcv.close()
     }
+  }
+  def withArrowFloat8VectorI[T](
+    data: Seq[Double]
+  )(f: Float8Vector => T)(implicit alloc: BufferAllocator): T = {
+    val vcv = new Float8Vector(s"value$vectorCount", alloc)
+    vectorCount += 1
+    vcv.allocateNew()
+    try {
+      data.zipWithIndex.foreach { case (str, idx) =>
+        vcv.setSafe(idx, str)
+      }
+
+      if (data.nonEmpty) {
+        vcv.setValueCount(data.size)
+      }
+
+      f(vcv)
+    } finally vcv.close()
   }
 
   def withDirectFloat8Vector[T](data: Seq[Double])(f: Float8Vector => T): T =
@@ -119,7 +139,7 @@ object ArrowVectorBuilders {
       vcv.allocateNew()
       try {
         data.zipWithIndex.foreach {
-          case (None, idx) => vcv.setNull(idx)
+          case (None, idx)      => vcv.setNull(idx)
           case (Some(str), idx) => vcv.setSafe(idx, str)
         }
         vcv.setValueCount(data.size)
