@@ -32,21 +32,22 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     compiledWithHeaders(
       CFunction(
         inputs = List(VeScalarType.VeNullableDouble.makeCVector("input")),
-        outputs = List(VeScalarType.VeNullableDouble.makeCVector("o")),
+        outputs = List(VeScalarType.VeNullableDouble.makeCVector("o_p")),
         body = CodeLines
           .from(
             CodeLines
               .from(
+                "nullable_double_vector* o = (nullable_double_vector *)malloc(sizeof(nullable_double_vector));",
+                "*o_p = o;",
                 GroupByOutline
-                  .initializeScalarVector(VeScalarType.VeNullableDouble, "o", "i->count"),
+                  .initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input->count"),
                 "for ( int i = 0; i < input->count; i++ ) {",
                 CodeLines.from("o->data[i] = input->data[i] * 2;").indented,
                 "}"
               )
-              .indented,
-            "}"
+              .indented
           )
-      ).toCodeLinesNoHeader("f").cCode
+      ).toCodeLinesNoHeaderOutPtr("f").cCode
     ) { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
@@ -58,6 +59,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             cols = List(colVec),
             results = List(VeScalarType.veNullableDouble)
           )
+          sys.error("Hier")
 
           expect(results.size == 1)
           val result = results.head.toArrowVector().asInstanceOf[Float8Vector].toList

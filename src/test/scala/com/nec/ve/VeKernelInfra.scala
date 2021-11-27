@@ -9,7 +9,7 @@ import java.time.Instant
 trait VeKernelInfra { this: Suite =>
 
   def compiledWithHeaders[T](cCode: String)(f: Path => T): T = {
-    withCompiled(s"${TransferDefinitions.TransferDefinitionsSourceCode}\n\n${cCode}")(f)
+    withCompiled(s"${TransferDefinitions.TransferDefinitionsSourceCode}\n\n${cCode}\n")(f)
   }
 
   def withCompiled[T](cCode: String)(f: Path => T): T = {

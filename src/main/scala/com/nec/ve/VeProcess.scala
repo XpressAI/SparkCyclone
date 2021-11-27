@@ -67,16 +67,17 @@ object VeProcess {
     ): List[VeColVector] = {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
+        val lp = new LongPointer(Array[Long](vcv.containerLocation))
         veo.veo_args_set_stack(
           our_args,
           0,
           index,
-          new BytePointer(new LocationPointer(vcv.containerLocation, 8)),
-          vcv.containerSize
+          new BytePointer(lp),
+          8
         )
       }
-      val outContainers = results.map { veType =>
-        allocate(veType.containerSize)
+      val outPointers = results.map { veType =>
+        new LongPointer(Array[Long](-1))
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
         val index = reIdx + cols.size
@@ -84,8 +85,8 @@ object VeProcess {
           our_args,
           1,
           index,
-          new BytePointer(new LocationPointer(outContainers(reIdx), 8)),
-          vet.containerSize
+          new BytePointer(outPointers(reIdx)),
+          8
         )
       }
       val fnCallResult = new LongPointer(8)
@@ -104,7 +105,8 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      outContainers.zip(results).map { case (outContainerLocation, r) =>
+      outPointers.zip(results).map { case (outPointer, r) =>
+        val outContainerLocation = outPointer.get()
         val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
 
         VeColVector(

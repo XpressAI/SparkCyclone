@@ -446,6 +446,27 @@ object CFunctionGeneration {
         "};"
       )
     }
+
+    def toCodeLinesNoHeaderOutPtr(functionName: String): CodeLines = {
+      CodeLines.from(
+        s"""extern "C" long $functionName(""", {
+          inputs
+            .map { cVector =>
+              s"${cVector.veType.cVectorType} *${cVector.name}"
+            } ++
+            outputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}"
+              }
+        }
+          .mkString(",\n"),
+        ") {",
+        body.indented,
+        "  ",
+        "  return 0;",
+        "};"
+      )
+    }
   }
 
   def generateFilter(filter: VeFilter[CVector, CExpression]): CodeLines = {
