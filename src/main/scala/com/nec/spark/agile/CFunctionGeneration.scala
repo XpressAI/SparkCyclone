@@ -550,17 +550,20 @@ object CFunctionGeneration {
         ") {",
         CodeLines
           .from(
+            CodeLines.debugHere,
             inputs.map { cVector =>
               CodeLines.from(
                 s"${cVector.veType.cVectorType}* ${cVector.name} = ${cVector.name}_m[0];"
               )
             },
+            CodeLines.debugHere,
             outputs.map { cVector =>
               CodeLines.from(
                 s"${cVector.veType.cVectorType}* ${cVector.name} = (${cVector.veType.cVectorType} *)malloc(sizeof(${cVector.veType.cVectorType}));",
                 s"*${cVector.name}_mo = ${cVector.name};"
               )
             },
+            CodeLines.debugHere,
             body
           )
           .indented,
