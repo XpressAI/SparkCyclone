@@ -8,6 +8,12 @@ import org.bytedeco.veoffload.veo_proc_handle
 import java.nio.ByteBuffer
 
 trait VeProcess {
+  def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
+    val bb = ByteBuffer.allocateDirect(containerSize)
+    get(containerLocation, bb, containerSize)
+    bb
+  }
+
   def allocate(size: Long): Long
   def putBuffer(byteBuffer: ByteBuffer): Long
   def put(from: Long, to: Long, size: Long): Unit

@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.arrow.ArrowInterfaces.nullable_double_vector_to_float8Vector
 import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
 import com.nec.arrow.VeArrowNativeInterface.copyBufferToVe
 import com.nec.arrow.VeArrowTransfers.nullableDoubleVectorToByteBuffer
@@ -8,6 +9,7 @@ import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
@@ -29,6 +31,12 @@ object VeColBatch {
     ???
   }
 
+  private def getUnsafe: Unsafe = {
+    val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+    theUnsafe.setAccessible(true)
+    theUnsafe.get(null).asInstanceOf[Unsafe]
+  }
+
   final case class VeColVector(
     numItems: Long,
     veType: VeType,
@@ -43,17 +51,27 @@ object VeColBatch {
     ): FieldVector = veType match {
       case VeScalarType.VeNullableDouble =>
         val float8Vector = new Float8Vector("output", bufferAllocator)
-        val structVector = new nullable_double_vector()
-        val byteBuffer = nullableDoubleVectorToByteBuffer(structVector)
+        val byteBuffer = veProcess.readAsBuffer(containerLocation, containerSize)
         val veoPtr = byteBuffer.getLong(0)
         val validityPtr = byteBuffer.getLong(8)
         val dataCount = byteBuffer.getInt(16)
         if (dataCount > 0) {
           val dataSize = dataCount * 8
+          float8Vector.setValueCount(dataCount)
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
           val validityTarget = ByteBuffer.allocateDirect(dataCount)
           veProcess.get(veoPtr, vhTarget, vhTarget.limit())
           veProcess.get(validityPtr, validityTarget, validityTarget.limit())
+          getUnsafe.copyMemory(
+            validityTarget.asInstanceOf[DirectBuffer].address(),
+            float8Vector.getValidityBufferAddress,
+            Math.ceil(dataCount / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(
+            vhTarget.asInstanceOf[DirectBuffer].address(),
+            float8Vector.getDataBufferAddress,
+            dataSize
+          )
         }
         float8Vector
       case _ => ???
