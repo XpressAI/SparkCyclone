@@ -19,11 +19,11 @@
  */
 package com.nec.spark.planning
 
-import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.native.NativeEvaluator
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.CFunction
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -33,22 +33,25 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.nio.file.Paths
 import scala.language.dynamics
 
-//noinspection DuplicatedCode
+object OneStageEvaluationPlan {
+  final case class VeFunction(libraryPath: String, functionName: String, results: List[VeType])
+}
+
 final case class OneStageEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
-  functionName: String,
-  cFunction: CFunction,
-  child: SparkPlan,
-  nativeEvaluator: NativeEvaluator
+  veFunction: VeFunction,
+  child: SparkPlan
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
-  with SupportsArrowColumns {
+  with SupportsVeColBatch {
+
+  override def supportsColumnar: Boolean = true
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
@@ -56,61 +59,26 @@ final case class OneStageEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  private def executeColumnWise: RDD[ColumnarBatch] = {
-    val evaluator = nativeEvaluator.forCode(
-      List(cFunction.toCodeLinesPF(functionName)).reduce(_ ++ _).lines.mkString("\n", "\n", "\n")
-    )
+  override def executeVeColumnar(): RDD[VeColBatch] = {
+    child
+      .asInstanceOf[SupportsVeColBatch]
+      .executeVeColumnar()
+      .mapPartitions { veColBatches =>
+        val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
+        veColBatches.map { veColBatch =>
+          import SparkCycloneExecutorPlugin.veProcess
+          try {
+            val cols = veProcess.execute(
+              libraryReference = libRef,
+              functionName = veFunction.functionName,
+              cols = veColBatch.cols,
+              results = veFunction.results
+            )
 
-    logger.debug(s"Will execute columnar NewCEvaluationPlan for child ${child}; ${child.output}")
+            VeColBatch(numRows = cols.head.numItems, cols = cols)
+          } finally {} //veColBatch.cols.foreach(_.free())
 
-    getChildSkipMappings()
-      .executeColumnar()
-      .map { batch =>
-        implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-          .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
-
-        val inputVectors = child.output.indices
-          .map(n =>
-            batch
-              .column(n)
-              .getArrowValueVector
-          )
-
-        val partialOutputVectors: List[ValueVector] =
-          cFunction.outputs.map(CFunctionGeneration.allocateFrom(_))
-        try {
-          val outputArgs = inputVectors.toList.map(_ => None) ++
-            partialOutputVectors.map(v => Some(SupportedVectorWrapper.wrapOutput(v)))
-          val inputArgs = inputVectors.toList.map(iv =>
-            Some(SupportedVectorWrapper.wrapInput(iv))
-          ) ++ partialOutputVectors.map(_ => None)
-
-          evaluator.callFunction(
-            name = functionName,
-            inputArguments = inputArgs,
-            outputArguments = outputArgs
-          )
-          val vectors = partialOutputVectors
-            .map(vector => new ArrowColumnVector(vector))
-          val columnarBatch =
-            new ColumnarBatch(vectors.toArray)
-          vectors.headOption
-            .map(_.getArrowValueVector.getValueCount)
-            .foreach(columnarBatch.setNumRows)
-          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-            columnarBatch.close()
-          }
-          columnarBatch
-        } finally {
-          inputVectors.foreach(_.close())
         }
       }
   }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    sys.error("Not supported row evaluation")
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
-    executeColumnWise
 }

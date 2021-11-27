@@ -24,7 +24,10 @@ import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.NativeAggregationEvaluationPlan
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PartialThenCoalesce, PrePartitioned}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
+  PartialThenCoalesce,
+  PrePartitioned
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -280,18 +283,23 @@ class TPCHSqlCSpec
     }
   }
 
-  def withTpchViews[T](appName: String, configure: SparkSession.Builder => SparkSession.Builder)(
-    f: SparkSession => T
-  ): Unit =
-    appName in {
-      withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
-        sparkSession =>
-          createViews(sparkSession)
-          f(sparkSession)
+  def withTpchViews[T](
+    appName: String,
+    configure: SparkSession.Builder => SparkSession.Builder,
+    ignore: Boolean = true
+  )(f: SparkSession => T): Unit =
+    if (ignore) { appName ignore {} }
+    else {
+      appName in {
+        withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
+          sparkSession =>
+            createViews(sparkSession)
+            f(sparkSession)
+        }
       }
     }
 
-  withTpchViews("Query 1", configuration) { sparkSession =>
+  withTpchViews("Query 1", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
     val sql = s"""
@@ -1179,7 +1187,9 @@ class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect().toList.sorted === List(348406.05428571434)) //  348406.0.sorted5
+      assert(
+        ds.as[Double].collect().toList.sorted === List(348406.05428571434)
+      ) //  348406.0.sorted5
     }
   }
   withTpchViews("Query 18", configuration) { sparkSession =>

@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType, VeString, VeType}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.LibraryReference
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, Pointer}
@@ -111,7 +111,7 @@ object VeProcess {
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(8)
-        lp.put(-1)
+        lp.put(-118)
         lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
@@ -126,25 +126,39 @@ object VeProcess {
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
+
       val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
 
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function $functionAddr; args: $cols"
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $cols; returns $results"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      outPointers.zip(results).map { case (outPointer, r) =>
-        val outContainerLocation = outPointer.get()
-        val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+      outPointers.zip(results).map {
+        case (outPointer, scalar: VeScalarType) =>
+          val outContainerLocation = outPointer.get()
+          val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-        VeColVector(
-          numItems = byteBuffer.getInt(16),
-          veType = r,
-          containerLocation = outContainerLocation,
-          bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
-        )
+          VeColVector(
+            numItems = byteBuffer.getInt(16),
+            veType = scalar,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+          )
+        case (outPointer, VeString) =>
+          val outContainerLocation = outPointer.get()
+          val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+          VeColVector(
+            numItems = byteBuffer.getInt(28),
+            veType = VeString,
+            containerLocation = outContainerLocation,
+            bufferLocations =
+              List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+          )
       }
     }
 
@@ -193,7 +207,7 @@ object VeProcess {
 
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function $functionAddr; args: $cols"
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $cols"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 

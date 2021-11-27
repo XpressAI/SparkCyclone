@@ -21,6 +21,7 @@ package com.nec.spark
 
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeCompiler.CachingNativeCompiler
+import com.nec.spark.SparkCycloneDriverPlugin.currentCompiler
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import org.apache.spark.SparkContext
@@ -35,6 +36,7 @@ import okio.ByteString
 object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
+  private[spark] var currentCompiler: NativeCompiler = _
 }
 
 class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
@@ -56,6 +58,7 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
     pluginContext: PluginContext
   ): java.util.Map[String, String] = {
     nativeCompiler = CachingNativeCompiler(NativeCompiler.fromConfig(sc.getConf))
+    currentCompiler = nativeCompiler
     logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
     SparkCycloneDriverPlugin.launched = true

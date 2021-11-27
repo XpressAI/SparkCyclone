@@ -129,7 +129,7 @@ object CFunctionGeneration {
 
     override def isString: Boolean = true
 
-    override def containerSize: Int = ???
+    override def containerSize: Int = 32
   }
 
   sealed trait VeScalarType extends VeType {
@@ -427,6 +427,20 @@ object CFunctionGeneration {
     body: CodeLines,
     hasSets: Boolean = false
   ) {
+    def toCodeLinesSPtr(functionName: String): CodeLines = CodeLines.from(
+      "#include <cmath>",
+      "#include <bitset>",
+      "#include <string>",
+      "#include <iostream>",
+      "#include <tuple>",
+      "#include \"tuple_hash.hpp\"",
+      """#include "frovedis/core/radix_sort.hpp"""",
+      """#include "frovedis/dataframe/join.hpp"""",
+      """#include "frovedis/dataframe/join.cc"""",
+      """#include "frovedis/core/set_operations.hpp"""",
+      TcpDebug.conditional.headers,
+      toCodeLinesNoHeaderOutPtr2(functionName)
+    )
     def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
       "#include <cmath>",
       "#include <bitset>",
@@ -511,6 +525,48 @@ object CFunctionGeneration {
           .mkString(",\n"),
         ") {",
         body.indented,
+        "  ",
+        "  return 0;",
+        "};"
+      )
+    }
+
+    def toCodeLinesNoHeaderOutPtr2(functionName: String): CodeLines = {
+      CodeLines.from(
+        s"""extern "C" long $functionName(""", {
+          List(
+            inputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}_m"
+              },
+            if (hasSets) List("int *sets") else Nil,
+            outputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}_mo"
+              }
+          ).flatten
+        }
+          .mkString(",\n"),
+        ") {",
+        CodeLines
+          .from(
+            CodeLines.debugHere,
+            inputs.map { cVector =>
+              CodeLines.from(
+                s"${cVector.veType.cVectorType}* ${cVector.name} = ${cVector.name}_m[0];"
+              )
+            },
+            CodeLines.debugHere,
+            outputs.map { cVector =>
+              CodeLines.from(
+                s"${cVector.veType.cVectorType}* ${cVector.name} = (${cVector.veType.cVectorType} *)malloc(sizeof(${cVector.veType.cVectorType}));",
+                s"*${cVector.name}_mo = ${cVector.name};"
+              )
+            },
+            CodeLines.debugHere,
+            body
+          )
+          .indented,
         "  ",
         "  return 0;",
         "};"
@@ -693,6 +749,22 @@ object CFunctionGeneration {
         CVarChar(name)
     },
     body = CodeLines.from(
+      CodeLines.debugHere,
+      CodeLines.from(
+        (0 until 14)
+          .map(n =>
+            CodeLines.from(
+              CodeLines.debugValue(
+                s"(long)(input_${n})",
+                s"(long)(input_${n}->data)",
+                s"(long)(input_${n}->validityBuffer)",
+                s"input_${n}->data[0]",
+                s"input_${n}->count"
+              )
+            )
+          )
+          .toList
+      ),
       veDataTransformation.outputs.zipWithIndex.map {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
@@ -719,6 +791,7 @@ object CFunctionGeneration {
             )
             .block
       },
+      CodeLines.debugHere,
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex
         .map {
