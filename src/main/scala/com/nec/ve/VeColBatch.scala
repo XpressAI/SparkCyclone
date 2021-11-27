@@ -1,7 +1,12 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowTransferStructures.{nullable_double_vector, nullable_varchar_vector}
+import com.nec.arrow.ArrowTransferStructures.{
+  nullable_bigint_vector,
+  nullable_double_vector,
+  nullable_varchar_vector
+}
 import com.nec.arrow.VeArrowTransfers.{
+  nullableBigintVectorToByteBuffer,
   nullableDoubleVectorToByteBuffer,
   nullableVarCharVectorVectorToByteBuffer
 }
@@ -9,7 +14,7 @@ import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
+import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, VarCharVector}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
@@ -201,11 +206,30 @@ object VeColBatch {
 
   //noinspection ScalaUnusedSymbol
   object VeColVector {
+
     def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
       veProcess: VeProcess
     ): VeColVector = {
-      // todo support more than Arrow
-      fromFloat8Vector(source.getArrowValueVector.asInstanceOf[Float8Vector])
+      source.getArrowValueVector match {
+        case float8Vector: Float8Vector => fromFloat8Vector(float8Vector)
+        case bigIntVector: BigIntVector => fromBigIntVector(bigIntVector)
+        case other                      => sys.error(s"Not supported to convert from ${other}")
+      }
+    }
+
+    def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
+      val vcvr = new nullable_bigint_vector()
+      vcvr.count = bigIntVector.getValueCount
+      vcvr.data = veProcess.putBuffer(bigIntVector.getDataBuffer.nioBuffer())
+      vcvr.validityBuffer = veProcess.putBuffer(bigIntVector.getValidityBuffer.nioBuffer())
+      val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
+      val containerLocation = veProcess.putBuffer(byteBuffer)
+      VeColVector(
+        numItems = bigIntVector.getValueCount,
+        veType = VeScalarType.VeNullableLong,
+        containerLocation = containerLocation,
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+      )
     }
 
     def fromFloat8Vector(float8Vector: Float8Vector)(implicit veProcess: VeProcess): VeColVector = {
