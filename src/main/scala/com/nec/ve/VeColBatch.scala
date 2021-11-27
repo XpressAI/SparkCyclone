@@ -80,23 +80,21 @@ object VeColBatch {
       case _ => ???
     }
 
+    def injectBuffers(newBuffers: List[Array[Byte]])(implicit veProcess: VeProcess): VeColVector =
+      copy(bufferLocations = newBuffers.map { ba =>
+        val byteBuffer = ByteBuffer.allocateDirect(ba.length)
+        byteBuffer.put(ba, 0, ba.length)
+        byteBuffer.position(0)
+        veProcess.putBuffer(byteBuffer)
+      })
+
     /**
      * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
      */
     def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
       val totalSize = bufferSizes.sum
 
-      val resultingArray = bufferLocations
-        .zip(bufferSizes)
-        .map { case (veBufferLocation, veBufferSize) =>
-          val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
-          veProcess.get(veBufferLocation, targetBuf, veBufferSize)
-          val dst = Array.fill[Byte](veBufferSize)(-1)
-          targetBuf.get(dst)
-          dst
-        }
-        .toArray
-        .flatten
+      val resultingArray = extractBuffers().toArray.flatten
 
       assert(
         resultingArray.length == totalSize,
@@ -106,20 +104,30 @@ object VeColBatch {
       resultingArray
     }
 
+    def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
+      bufferLocations
+        .zip(bufferSizes)
+        .map { case (veBufferLocation, veBufferSize) =>
+          val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
+          veProcess.get(veBufferLocation, targetBuf, veBufferSize)
+          val dst = Array.fill[Byte](veBufferSize)(-1)
+          targetBuf.get(dst, 0, veBufferSize)
+          dst
+        }
+    }
+
     /**
      * Decompose the Byte Array and allocate into VeProcess. Uses bufferSizes.
      *
      * The parent ColVector is a description of the original source vector from another VE that
      * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
      */
-    def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector = {
-      copy(bufferLocations = bufferSizes.scanLeft(0)(_ + _).dropRight(1).zip(bufferSizes).map {
-        case (bufferStart, bufferSize) =>
-          val byteBuffer = ByteBuffer.allocateDirect(bufferSize)
-          byteBuffer.put(ba, bufferStart, bufferSize)
-          veProcess.putBuffer(byteBuffer)
-      }).newContainer()
-    }
+    def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector =
+      injectBuffers(newBuffers =
+        bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map { case (bufferStart, bufferSize) =>
+          ba.slice(bufferStart, bufferStart + bufferSize)
+        }
+      ).newContainer()
 
     private def newContainer()(implicit veProcess: VeProcess): VeColVector = veType match {
       case VeScalarType.VeNullableDouble =>

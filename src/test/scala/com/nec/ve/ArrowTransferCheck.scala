@@ -106,20 +106,23 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
           val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
-          println("HERE")
-          val serialized =
-            colVec.serialize()
-          println("HERE")
-
+          val serialized = colVec.serialize()
+          val serList = serialized.toList
           val newColVec = colVec.deserialize(serialized)
-          println("HERE")
-          val newColVecArrow = colVec.toArrowVector()
-          println("HERE")
-
+          expect(
+            newColVec.containerLocation != colVec.containerLocation,
+            newColVec.bufferLocations != colVec.bufferLocations
+          )
+          val newSerialized = newColVec.serialize().toList
+          val newSerList = newSerialized.toList
+          assert(
+            newSerList == serList,
+            "Serializing a deserialized one should yield the same result"
+          )
+          val newColVecArrow = newColVec.toArrowVector()
           try {
             colVec.free()
             newColVec.free()
-            colVec.free()
             expect(newColVecArrow.toString == f8v.toString)
           } finally newColVecArrow.close()
         }
