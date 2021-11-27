@@ -1,15 +1,14 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowInterfaces.nullable_double_vector_to_float8Vector
 import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
-import com.nec.arrow.VeArrowNativeInterface.copyBufferToVe
 import com.nec.arrow.VeArrowTransfers.nullableDoubleVectorToByteBuffer
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector}
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
@@ -34,14 +33,7 @@ object VeColBatch {
       cols = (0 until columnarBatch.numCols()).map { colNo =>
         val col = columnarBatch.column(colNo)
         val sparkType = col.dataType()
-        val veType = sparkTypeToVeType(sparkType)
-        VeColVector(
-          numItems = columnarBatch.numRows(),
-          veType = veType,
-          containerLocation = ???,
-          containerSize = ???,
-          bufferLocations = ???
-        )
+        VeColVector.fromVectorColumn(numRows = columnarBatch.numRows(), source = col)
       }.toList
     )
   }
@@ -95,6 +87,13 @@ object VeColBatch {
 
   //noinspection ScalaUnusedSymbol
   object VeColVector {
+    def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
+      veProcess: VeProcess
+    ): VeColVector = {
+      // todo support more than Arrow
+      fromFloat8Vector(source.getArrowValueVector.asInstanceOf[Float8Vector])
+    }
+
     def fromFloat8Vector(float8Vector: Float8Vector)(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_double_vector()
       vcvr.count = float8Vector.getValueCount
