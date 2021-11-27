@@ -88,6 +88,15 @@ object RDDSpec {
         .take(1)
     )
   }
+
+  def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
+    rdd
+      .map { case (partition, veColVector) =>
+        (partition, (veColVector, veColVector.serialize()))
+      }
+      .sortByKey()
+      .map { case (_, (vec, ba)) => vec.deserialize(ba) }
+
 }
 
 final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
@@ -129,4 +138,36 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     val expected = List.range(1, 500).map(_.toDouble).map(_ * 2)
     expect(result == expected)
   }
+
+  "Exchange data across partitions" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+  ) { sparkSession =>
+    implicit val veProc: VeProcess =
+      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
+    val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
+      path =>
+        val ref = veProc.loadLibrary(path)
+        doubleBatches {
+          sparkSession.sparkContext
+            .range(start = 1, end = 500, step = 1, numSlices = 4)
+            .map(_.toDouble)
+        }.map(arrowVec => VeColVector.fromFloat8Vector(arrowVec))
+          .map(ve => veProc.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
+          .map(vectors => {
+            WithTestAllocator { implicit alloc =>
+              val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
+              try vec.toList
+              finally vec.close()
+            }
+          })
+          .collect()
+          .toList
+          .flatten
+          .sorted
+    }
+
+    val expected = List.range(1, 500).map(_.toDouble).map(_ * 2)
+    expect(result == expected)
+  }
+
 }

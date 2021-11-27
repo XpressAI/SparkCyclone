@@ -53,6 +53,9 @@ object VeColBatch {
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
+    def serialize(): Array[Byte] = ???
+
+    def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector = ???
 
     def containerSize: Int = veType.containerSize
 
