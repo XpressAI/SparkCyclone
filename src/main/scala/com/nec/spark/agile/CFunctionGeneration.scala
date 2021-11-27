@@ -746,6 +746,7 @@ object CFunctionGeneration {
         CVarChar(name)
     },
     body = CodeLines.from(
+      CodeLines.debugHere,
       veDataTransformation.outputs.zipWithIndex.map {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
@@ -772,6 +773,7 @@ object CFunctionGeneration {
             )
             .block
       },
+      CodeLines.debugHere,
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex
         .map {
