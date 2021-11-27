@@ -48,6 +48,7 @@ object VeProcess {
     override def get(from: Long, to: ByteBuffer, size: Long): Unit =
       veo.veo_read_mem(veo_proc_handle, new org.bytedeco.javacpp.Pointer(to), from, size)
 
-    override def free(memoryLocation: Long): Unit = ???
+    override def free(memoryLocation: Long): Unit =
+      veo.veo_free_mem(veo_proc_handle, memoryLocation)
   }
 }
