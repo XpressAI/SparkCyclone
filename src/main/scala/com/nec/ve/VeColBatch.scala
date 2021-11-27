@@ -204,7 +204,7 @@ object VeColBatch {
           )
         }
         vcvr
-      case _ => ???
+      case other => sys.error(s"Not supported for conversion to arrow vector: $other")
     }
 
     def free()(implicit veProcess: VeProcess): Unit =
@@ -227,9 +227,7 @@ object VeColBatch {
       }
     }
 
-    def fromBigIntVector(
-      bigIntVector: BigIntVector
-    )(implicit veProcess: VeProcess): VeColVector = {
+    def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_bigint_vector()
       vcvr.count = bigIntVector.getValueCount
       vcvr.data = veProcess.putBuffer(bigIntVector.getDataBuffer.nioBuffer())

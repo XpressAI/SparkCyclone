@@ -137,7 +137,7 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case f @ logical.Filter(condition, child) if options.filterOnVe && false =>
+        case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val replacer =
@@ -163,7 +163,7 @@ final case class VERewriteStrategy(
 
             val libPath =
               SparkCycloneDriverPlugin.currentCompiler.forCode(
-                cFunction.toCodeLinesS(functionName).cCode
+                cFunction.toCodeLinesSPtr(functionName).cCode
               )
             List(
               VectorEngineToSpark(
