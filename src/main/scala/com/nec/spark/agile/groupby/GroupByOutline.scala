@@ -209,4 +209,22 @@ object GroupByOutline {
       s"$variableName->validityBuffer = (uint64_t *) malloc(ceil(${countExpression} / 64.0) * sizeof(uint64_t));"
     )
 
+  def scalarVectorFromStdVector(
+    veScalarType: VeScalarType,
+    targetName: String,
+    sourceName: String
+  ): CodeLines =
+    CodeLines.from(
+      s"$targetName = (${veScalarType.cVectorType}*)malloc(sizeof(${veScalarType.cVectorType}));",
+      initializeScalarVector(veScalarType, targetName, s"$sourceName.size()"),
+      s"for ( int x = 0; x < $sourceName.size(); x++ ) {",
+      CodeLines
+        .from(
+          s"$targetName->data[x] = $sourceName[x];",
+          s"set_validity($targetName->validityBuffer, x, 1);"
+        )
+        .indented,
+      "}"
+    )
+
 }
