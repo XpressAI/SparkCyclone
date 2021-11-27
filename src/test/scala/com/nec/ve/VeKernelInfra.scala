@@ -14,7 +14,9 @@ trait VeKernelInfra { this: Suite =>
 
   def withCompiled[T](cCode: String)(f: Path => T): T = {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    val oPath = VeKernelCompiler("avg", veBuildPath).compile_c(cCode)
+    val oPath =
+      VeKernelCompiler(s"${getClass.getSimpleName.replaceAllLiterally("$", "")}", veBuildPath)
+        .compile_c(cCode)
     f(oPath)
   }
 }
