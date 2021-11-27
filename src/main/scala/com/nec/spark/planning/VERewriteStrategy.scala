@@ -75,6 +75,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.TransformUtil.RichTreeNode
+import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
 import org.apache.spark.sql.types.StringType
 
 object VERewriteStrategy {
@@ -162,7 +163,7 @@ final case class VERewriteStrategy(
             val libPath =
               SparkCycloneDriverPlugin.currentCompiler.forCode(cF.toCodeLines(fName).cCode)
             List(
-              ArrowColumnarToRowPlan(
+              VectorEngineToSpark(
                 OneStageEvaluationPlan(
                   outputExpressions = projectList,
                   veFunction = VeFunction(
@@ -170,7 +171,7 @@ final case class VERewriteStrategy(
                     functionName = fName,
                     results = cF.outputs.map(_.veType)
                   ),
-                  child = RowToArrowColumnarPlan(planLater(child))
+                  child = SparkToVectorEngine(planLater(child))
                 )
               )
             )
