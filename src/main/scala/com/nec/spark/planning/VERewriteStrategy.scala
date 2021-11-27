@@ -20,6 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
+import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.agile.SparkExpressionToCExpression.{
   eval,
@@ -72,6 +73,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
   VeSortExpression
 }
 import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import org.apache.spark.sql.types.StringType
 
@@ -147,24 +149,32 @@ final case class VERewriteStrategy(
                   )
                 }
             }.sequence
-          } yield List(
-            ArrowColumnarToRowPlan(
-              OneStageEvaluationPlan(
-                outputExpressions = projectList,
-                functionName = s"prj_${functionPrefix}",
-                cFunction = renderProjection(
-                  VeProjection(
-                    inputs = child.output.toList.zipWithIndex.map { case (att, idx) =>
-                      sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${idx}")
-                    },
-                    outputs = outputs
-                  )
-                ),
-                child = RowToArrowColumnarPlan(planLater(child)),
-                nativeEvaluator = nativeEvaluator
+          } yield {
+            val fName = s"prj_${functionPrefix}"
+            val cF = renderProjection(
+              VeProjection(
+                inputs = child.output.toList.zipWithIndex.map { case (att, idx) =>
+                  sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}${idx}")
+                },
+                outputs = outputs
               )
             )
-          )
+            val libPath =
+              SparkCycloneDriverPlugin.currentCompiler.forCode(cF.toCodeLines(fName).cCode)
+            List(
+              ArrowColumnarToRowPlan(
+                OneStageEvaluationPlan(
+                  outputExpressions = projectList,
+                  veFunction = VeFunction(
+                    libraryPath = libPath.toString,
+                    functionName = fName,
+                    results = cF.outputs.map(_.veType)
+                  ),
+                  child = RowToArrowColumnarPlan(planLater(child))
+                )
+              )
+            )
+          }
 
           planE.fold(e => sys.error(s"Could not map ${e}"), identity)
 
@@ -178,7 +188,7 @@ final case class VERewriteStrategy(
                   .asInstanceOf[AggregateExpression]
                   .aggregateFunction
                   .isInstanceOf[HyperLogLogPlusPlus]
-              ).getOrElse(false) =>
+              ).getOrElse(false) && false =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
