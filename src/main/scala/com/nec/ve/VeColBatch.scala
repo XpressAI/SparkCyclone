@@ -86,7 +86,7 @@ object VeColBatch {
     def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
       val totalSize = bufferSizes.sum
 
-      bufferLocations
+      val resultingArray = bufferLocations
         .zip(bufferSizes)
         .map { case (veBufferLocation, veBufferSize) =>
           val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
@@ -97,6 +97,13 @@ object VeColBatch {
         }
         .toArray
         .flatten
+
+      assert(
+        resultingArray.length == totalSize,
+        "Resulting array should be same size as sum of all buffer sizes"
+      )
+
+      resultingArray
     }
 
     /**
