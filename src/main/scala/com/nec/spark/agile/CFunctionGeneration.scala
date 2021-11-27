@@ -427,6 +427,20 @@ object CFunctionGeneration {
     body: CodeLines,
     hasSets: Boolean = false
   ) {
+    def toCodeLinesSPtr(functionName: String): CodeLines = CodeLines.from(
+      "#include <cmath>",
+      "#include <bitset>",
+      "#include <string>",
+      "#include <iostream>",
+      "#include <tuple>",
+      "#include \"tuple_hash.hpp\"",
+      """#include "frovedis/core/radix_sort.hpp"""",
+      """#include "frovedis/dataframe/join.hpp"""",
+      """#include "frovedis/dataframe/join.cc"""",
+      """#include "frovedis/core/set_operations.hpp"""",
+      TcpDebug.conditional.headers,
+      toCodeLinesNoHeaderOutPtr2(functionName)
+    )
     def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
       "#include <cmath>",
       "#include <bitset>",
@@ -511,6 +525,45 @@ object CFunctionGeneration {
           .mkString(",\n"),
         ") {",
         body.indented,
+        "  ",
+        "  return 0;",
+        "};"
+      )
+    }
+
+    def toCodeLinesNoHeaderOutPtr2(functionName: String): CodeLines = {
+      CodeLines.from(
+        s"""extern "C" long $functionName(""", {
+          List(
+            inputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}_m"
+              },
+            if (hasSets) List("int *sets") else Nil,
+            outputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}_mo"
+              }
+          ).flatten
+        }
+          .mkString(",\n"),
+        ") {",
+        CodeLines
+          .from(
+            inputs.map { cVector =>
+              CodeLines.from(
+                s"${cVector.veType.cVectorType}* ${cVector.name} = ${cVector.name}_m[0];"
+              )
+            },
+            outputs.map { cVector =>
+              CodeLines.from(
+                s"${cVector.veType.cVectorType}* ${cVector.name} = (${cVector.veType.cVectorType} *)malloc(sizeof(${cVector.veType.cVectorType}));",
+                s"*${cVector.name}_mo = ${cVector.name};"
+              )
+            },
+            body
+          )
+          .indented,
         "  ",
         "  return 0;",
         "};"
