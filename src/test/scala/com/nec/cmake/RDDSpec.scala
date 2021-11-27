@@ -1,5 +1,6 @@
 package com.nec.cmake
 
+import com.nec.cmake.RDDSpec.longBatches
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve.VeColBatch
@@ -41,31 +42,37 @@ object RDDSpec {
       ???
     }
   }
+
+  def longBatches(rdd: RDD[Long]): RDD[BigIntVector] = {
+    rdd.mapPartitions(iteratorLong =>
+      Iterator
+        .continually {
+          val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"allocator for longs", 0, Long.MaxValue)
+          val theList = iteratorLong.toList
+          val vec = new BigIntVector("input", allocator)
+          theList.iterator.zipWithIndex.foreach { case (v, i) =>
+            vec.setSafe(i, v)
+          }
+          vec.setValueCount(theList.size)
+          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            vec.close()
+            allocator.close()
+          }
+          vec
+        }
+        .take(1)
+    )
+  }
 }
 
 final class RDDSpec extends AnyFreeSpec with SparkAdditions {
   "We can pass around some Arrow things" in withSparkSession2(identity) { sparkSession =>
-    sparkSession.sparkContext
-      .range(start = 1, end = 500, step = 1, numSlices = 4)
-      .mapPartitions(iteratorLong =>
-        Iterator
-          .continually {
-            val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-              .newChildAllocator(s"allocator for longs", 0, Long.MaxValue)
-            val theList = iteratorLong.toList
-            val vec = new BigIntVector("input", allocator)
-            theList.iterator.zipWithIndex.foreach { case (v, i) =>
-              vec.setSafe(i, v)
-            }
-            vec.setValueCount(theList.size)
-            TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-              vec.close()
-              allocator.close()
-            }
-            vec
-          }
-          .take(1)
-      )
+    longBatches {
+      sparkSession.sparkContext
+        .range(start = 1, end = 500, step = 1, numSlices = 4)
+
+    }
       .foreach(println)
   }
 

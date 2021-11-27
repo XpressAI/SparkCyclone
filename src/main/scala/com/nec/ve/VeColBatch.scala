@@ -3,7 +3,6 @@ package com.nec.ve
 import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
 import com.nec.arrow.VeArrowTransfers.nullableDoubleVectorToByteBuffer
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
-import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
@@ -48,9 +47,10 @@ object VeColBatch {
     numItems: Int,
     veType: VeType,
     containerLocation: Long,
-    containerSize: Int,
     bufferLocations: List[Long]
   ) {
+
+    def containerSize: Int = veType.containerSize
 
     def toArrowVector()(implicit
       veProcess: VeProcess,
@@ -105,7 +105,6 @@ object VeColBatch {
         numItems = float8Vector.getValueCount,
         veType = VeScalarType.VeNullableDouble,
         containerLocation = containerLocation,
-        containerSize = byteBuffer.limit(),
         bufferLocations = List(vcvr.data, vcvr.validityBuffer)
       )
     }

@@ -110,6 +110,7 @@ object CFunctionGeneration {
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
   sealed trait VeType {
+    def containerSize: Int
     def isString: Boolean
     def cVectorType: String
     def makeCVector(name: String): CVector
@@ -121,9 +122,13 @@ object CFunctionGeneration {
     override def makeCVector(name: String): CVector = CVector.varChar(name)
 
     override def isString: Boolean = true
+
+    override def containerSize: Int = ???
   }
 
   sealed trait VeScalarType extends VeType {
+    override def containerSize: Int = 20
+
     def cScalarType: String
 
     def cSize: Int
@@ -135,6 +140,7 @@ object CFunctionGeneration {
 
   object VeScalarType {
     case object VeNullableDouble extends VeScalarType {
+
       def cScalarType: String = "double"
 
       def cVectorType: String = "nullable_double_vector"
