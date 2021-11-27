@@ -91,7 +91,9 @@ object VeColBatch {
         .map { case (veBufferLocation, veBufferSize) =>
           val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
           veProcess.get(veBufferLocation, targetBuf, veBufferSize)
-          targetBuf.array()
+          val dst = Array.fill[Byte](veBufferSize)(-1)
+          targetBuf.get(dst)
+          dst
         }
         .toArray
         .flatten
