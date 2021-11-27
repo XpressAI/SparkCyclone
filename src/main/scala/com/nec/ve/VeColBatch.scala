@@ -1,32 +1,20 @@
 package com.nec.ve
 
-import java.io.ByteArrayInputStream
-
-import com.nec.arrow.ArrowTransferStructures.{
-  non_null_c_bounded_string,
-  nullable_double_vector,
-  nullable_varchar_vector
-}
+import com.nec.arrow.ArrowTransferStructures.{nullable_double_vector, nullable_varchar_vector}
 import com.nec.arrow.VeArrowTransfers.{
-  nonNullDoubleVectorToByteBuffer,
   nullableDoubleVectorToByteBuffer,
   nullableVarCharVectorVectorToByteBuffer
 }
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.SparkExpressionToCExpression.{eval, sparkTypeToVeType}
-import com.nec.arrow.ArrowTransferStructures.nullable_double_vector
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector, VectorSchemaRoot}
-
+import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
-import java.nio.ByteBuffer
 
-import org.apache.spark.sql.execution.arrow.ArrowWriter
+import java.nio.ByteBuffer
 
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit

@@ -2,86 +2,20 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.RDDSpec.{doubleBatches, longBatches, RichKeyedRDD}
+import com.nec.ve.RDDSpec.{doubleBatches, longBatches}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
+import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, Float8Vector}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.scalatest.freespec.AnyFreeSpec
-import com.nec.spark.agile.CFunctionGeneration
-
-object RDDSpec {
-
-  final case class NativeFunction(name: String)
-
-  def longBatches(rdd: RDD[Long]): RDD[BigIntVector] = {
-    rdd.mapPartitions(iteratorLong =>
-      Iterator
-        .continually {
-          val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"allocator for longs", 0, Long.MaxValue)
-          val theList = iteratorLong.toList
-          val vec = new BigIntVector("input", allocator)
-          theList.iterator.zipWithIndex.foreach { case (v, i) =>
-            vec.setSafe(i, v)
-          }
-          vec.setValueCount(theList.size)
-          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-            vec.close()
-            allocator.close()
-          }
-          vec
-        }
-        .take(1)
-    )
-  }
-  def doubleBatches(rdd: RDD[Double]): RDD[Float8Vector] = {
-    rdd.mapPartitions(iteratorDouble =>
-      Iterator
-        .continually {
-          val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"allocator for floats", 0, Long.MaxValue)
-          val theList = iteratorDouble.toList
-          val vec = new Float8Vector("input", allocator)
-          theList.iterator.zipWithIndex.foreach { case (v, i) =>
-            vec.setSafe(i, v)
-          }
-          vec.setValueCount(theList.size)
-          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-            vec.close()
-            allocator.close()
-          }
-          vec
-        }
-        .take(1)
-    )
-  }
-
-  def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
-    rdd
-      .mapPartitions(
-        f = iter =>
-          iter.map { case (p, v) =>
-            (p, (v, v.serialize()))
-          },
-        preservesPartitioning = true
-      )
-      .sortByKey()
-      .mapPartitions(
-        f = iter => iter.map { case (_, (v, ba)) => v.deserialize(ba) },
-        preservesPartitioning = true
-      )
-
-  implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
-    def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
-  }
-}
 
 final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "We can pass around some Arrow things" in withSparkSession2(identity) { sparkSession =>
@@ -181,6 +115,55 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
 
     val expected = List[Double](199, 299, 399, 500)
     expect(result == expected)
+  }
+
+}
+
+object RDDSpec {
+
+  final case class NativeFunction(name: String)
+
+  def longBatches(rdd: RDD[Long]): RDD[BigIntVector] = {
+    rdd.mapPartitions(iteratorLong =>
+      Iterator
+        .continually {
+          val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"allocator for longs", 0, Long.MaxValue)
+          val theList = iteratorLong.toList
+          val vec = new BigIntVector("input", allocator)
+          theList.iterator.zipWithIndex.foreach { case (v, i) =>
+            vec.setSafe(i, v)
+          }
+          vec.setValueCount(theList.size)
+          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            vec.close()
+            allocator.close()
+          }
+          vec
+        }
+        .take(1)
+    )
+  }
+  def doubleBatches(rdd: RDD[Double]): RDD[Float8Vector] = {
+    rdd.mapPartitions(iteratorDouble =>
+      Iterator
+        .continually {
+          val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"allocator for floats", 0, Long.MaxValue)
+          val theList = iteratorDouble.toList
+          val vec = new Float8Vector("input", allocator)
+          theList.iterator.zipWithIndex.foreach { case (v, i) =>
+            vec.setSafe(i, v)
+          }
+          vec.setValueCount(theList.size)
+          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            vec.close()
+            allocator.close()
+          }
+          vec
+        }
+        .take(1)
+    )
   }
 
 }
