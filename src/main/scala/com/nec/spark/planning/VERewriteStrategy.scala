@@ -39,7 +39,6 @@ import com.nec.spark.agile.groupby.{
   GroupByPartialGenerator,
   GroupByPartialToFinalGenerator
 }
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
 import com.nec.spark.planning.VERewriteStrategy.{
   GroupPrefix,
   InputPrefix,
@@ -251,7 +250,7 @@ final case class VERewriteStrategy(
                   .asInstanceOf[AggregateExpression]
                   .aggregateFunction
                   .isInstanceOf[HyperLogLogPlusPlus]
-              ).getOrElse(false) && false =>
+              ).getOrElse(false) =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =

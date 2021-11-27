@@ -13,6 +13,14 @@ import java.nio.file.Path
 import java.nio.ByteOrder
 
 trait VeProcess {
+
+  def executeMultiIn(
+    libraryReference: LibraryReference,
+    functionName: String,
+    cols: List[List[VeColVector]],
+    results: List[VeType]
+  ): List[VeColVector] = ???
+
   final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
     val bb = ByteBuffer.allocateDirect(containerSize)
     get(containerLocation, bb, containerSize)
