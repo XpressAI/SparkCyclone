@@ -235,10 +235,10 @@ sbt> show tracing / Rpm / packageBin
 # rpm --force -i /path/to/spark-cyclone/tracing/target/rpm/RPMS/noarch/tracing-0.1.0-SNAPSHOT.noarch.rpm
 sbt> VectorEngine / testOnly *TPC* -- -z " 4"
 # journalctl -u tracing -f
-# echo 'LOG_DIR=/home/tracing' >> /etc/default/tracing
-# mkdir -p /home/tracing
-# chown -R tracing:tracing /home/tracing
-# chmod -R 777 /home/tracing
+# echo 'LOG_DIR=/opt/cyclone/tracing' >> /etc/default/tracing
+# mkdir -p /opt/cyclone/tracing
+# chown -R tracing:tracing /opt/cyclone/tracing
+# chmod -R 777 /opt/cyclone/tracing
 # systemctl daemon-reload
 # systemctl restart tracing
 ```

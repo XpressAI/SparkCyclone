@@ -27,6 +27,7 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableInt,
   VeNullableLong
 }
+import com.nec.spark.agile.StringProducer.{FrovedisStringProducer, ImperativeStringProducer}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
@@ -652,8 +653,24 @@ object CFunctionGeneration {
             s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
             s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
           )
-        case (Left(NamedStringExpression(name, stringProducer)), idx) =>
-          StringProducer.produceVarChar("input_0->count", name, stringProducer).block
+        case (Left(NamedStringExpression(name, stringProducer: ImperativeStringProducer)), idx) =>
+          StringProducer
+            .produceVarChar(
+              inputCount = "input_0->count",
+              outputName = name,
+              stringProducer = stringProducer
+            )
+            .block
+        case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
+          StringProducer
+            .produceVarChar(
+              inputCount = "input_0->count",
+              outputName = name,
+              stringProducer = stringProducer,
+              outputCount = "input_0->count",
+              outputIdx = "i"
+            )
+            .block
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex

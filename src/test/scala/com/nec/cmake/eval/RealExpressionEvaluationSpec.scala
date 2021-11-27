@@ -36,12 +36,7 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.util.RichVectors.{
-  RichBigIntVector,
-  RichFloat8,
-  RichIntVector,
-  RichVarCharVector
-}
+import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
@@ -87,6 +82,23 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         ("4.000000", 4.0),
         ("38.000000", 21.0),
         ("28.000000", 16.0)
+      )
+    )
+  }
+
+  "We can project a null-column (ProjectNull)" in {
+    expect(
+      evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
+        TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
+        TypedCExpression[Option[Double]](
+          CExpression("2 + input_0->data[i]", Some("input_0->data[i] == 2"))
+        )
+      ) == List[(Double, Option[Double])](
+        (180, None),
+        (2, None),
+        (4, Some(4)),
+        (38, None),
+        (28, None)
       )
     )
   }
