@@ -170,6 +170,48 @@ object VeColBatch {
           )
         }
         float8Vector
+      case VeScalarType.VeNullableLong =>
+        val bigIntVector = new BigIntVector("output", bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 8
+          bigIntVector.setValueCount(numItems)
+          val vhTarget = ByteBuffer.allocateDirect(dataSize)
+          val validityTarget = ByteBuffer.allocateDirect(numItems)
+          veProcess.get(bufferLocations.head, vhTarget, vhTarget.limit())
+          veProcess.get(bufferLocations(1), validityTarget, validityTarget.limit())
+          getUnsafe.copyMemory(
+            validityTarget.asInstanceOf[DirectBuffer].address(),
+            bigIntVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(
+            vhTarget.asInstanceOf[DirectBuffer].address(),
+            bigIntVector.getDataBufferAddress,
+            dataSize
+          )
+        }
+        bigIntVector
+      case VeScalarType.VeNullableInt =>
+        val intVector = new IntVector("output", bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 4
+          intVector.setValueCount(numItems)
+          val vhTarget = ByteBuffer.allocateDirect(dataSize)
+          val validityTarget = ByteBuffer.allocateDirect(numItems)
+          veProcess.get(bufferLocations.head, vhTarget, vhTarget.limit())
+          veProcess.get(bufferLocations(1), validityTarget, validityTarget.limit())
+          getUnsafe.copyMemory(
+            validityTarget.asInstanceOf[DirectBuffer].address(),
+            intVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(
+            vhTarget.asInstanceOf[DirectBuffer].address(),
+            intVector.getDataBufferAddress,
+            dataSize
+          )
+        }
+        intVector
       case VeString =>
         val vcvr = new VarCharVector("output", bufferAllocator)
         if (numItems > 0) {
