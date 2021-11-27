@@ -111,7 +111,7 @@ object VeProcess {
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(8)
-        lp.put(-1)
+        lp.put(-118)
         lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
@@ -126,11 +126,12 @@ object VeProcess {
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
+      
       val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
 
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $cols"
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $cols; returns $results"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 

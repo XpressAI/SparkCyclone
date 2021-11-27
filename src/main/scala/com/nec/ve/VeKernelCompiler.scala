@@ -199,6 +199,7 @@ final case class VeKernelCompiler(
           "-o",
           oFile.toString
         )
+      logger.info(s"Compilation command = ${command}")
       runHopeOk(Process(command = command, cwd = buildDir.toFile))
 
       val command2 =

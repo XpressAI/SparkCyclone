@@ -14,6 +14,7 @@ object PureVeFunctions {
           .from(
             "nullable_double_vector* o = (nullable_double_vector *)malloc(sizeof(nullable_double_vector));",
             "*o_p = o;",
+            CodeLines.debugValue("input[0]->count"),
             GroupByOutline
               .initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input[0]->count"),
             "for ( int i = 0; i < input[0]->count; i++ ) {",
@@ -54,7 +55,7 @@ object PureVeFunctions {
               .scalarVectorFromStdVector(VeScalarType.VeNullableDouble, "o_p[s]", "nums")
           )
           .indented,
-        "}",
+        "}"
       )
   )
 }

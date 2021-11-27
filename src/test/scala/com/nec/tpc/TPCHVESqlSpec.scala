@@ -35,7 +35,8 @@ object TPCHVESqlSpec {
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
-      .config(key = "spark.com.nec.spark.ncc.debug=true", value = true)
+      .config(key = "com.nec.spark.ncc.debug", value = "true")
+      .config(key = "spark.com.nec.spark.ncc.debug", value = "true")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(_ => {

@@ -208,9 +208,9 @@ object CExpressionEvaluation {
         TcpDebug
           .Conditional(TracerDefName, TcpDebug.conditional)
           .send(udpdebug: _*),
-        TcpDebug.conditionOn("DEBUG")(
+        // TcpDebug.conditionOn("DEBUG")(
           CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
-        )
+        // )
       )
     }
 

@@ -54,12 +54,6 @@ typedef struct
 typedef struct
 {
     int32_t *data;
-    int32_t count;
-} non_null_int_vector;
-
-typedef struct
-{
-    int32_t *data;
     uint64_t *validityBuffer;
     int32_t count;
 } nullable_int_vector;
@@ -67,31 +61,17 @@ typedef struct
 typedef struct
 {
     double *data;
-    int64_t count;
-} non_null_double_vector;
-
-typedef struct
-{
-    double *data;
     uint64_t *validityBuffer;
-    int64_t count;
-
+    int32_t count;
 } nullable_double_vector;
 
 typedef struct
 {
     int64_t *data;
     uint64_t *validityBuffer;
-    int64_t count;
-
+    int32_t count;
 } nullable_bigint_vector;
 
-
-typedef struct
-{
-    int64_t *data;
-    int32_t count;
-} non_null_bigint_vector;
 
 typedef struct
 {

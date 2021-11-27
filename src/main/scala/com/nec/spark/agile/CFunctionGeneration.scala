@@ -129,7 +129,7 @@ object CFunctionGeneration {
 
     override def isString: Boolean = true
 
-    override def containerSize: Int = ???
+    override def containerSize: Int = 24
   }
 
   sealed trait VeScalarType extends VeType {
@@ -750,6 +750,21 @@ object CFunctionGeneration {
     },
     body = CodeLines.from(
       CodeLines.debugHere,
+      CodeLines.from(
+        (0 until 14)
+          .map(n =>
+            CodeLines.from(
+              CodeLines.debugValue(
+                s"(long)(input_${n})",
+                s"(long)(input_${n}->data)",
+                s"(long)(input_${n}->validityBuffer)",
+                s"input_${n}->data[0]",
+                s"input_${n}->count"
+              )
+            )
+          )
+          .toList
+      ),
       veDataTransformation.outputs.zipWithIndex.map {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(

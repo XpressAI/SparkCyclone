@@ -28,6 +28,7 @@ import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit
@@ -47,7 +48,6 @@ object VeColBatch {
       numRows = columnarBatch.numRows(),
       cols = (0 until columnarBatch.numCols()).map { colNo =>
         val col = columnarBatch.column(colNo)
-        val sparkType = col.dataType()
         VeColVector.fromVectorColumn(numRows = columnarBatch.numRows(), source = col)
       }.toList
     )
@@ -227,7 +227,9 @@ object VeColBatch {
       }
     }
 
-    def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
+    def fromBigIntVector(
+      bigIntVector: BigIntVector
+    )(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_bigint_vector()
       vcvr.count = bigIntVector.getValueCount
       vcvr.data = veProcess.putBuffer(bigIntVector.getDataBuffer.nioBuffer())
