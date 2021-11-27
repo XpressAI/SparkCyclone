@@ -116,7 +116,10 @@ object VeProcess {
       }
     }
 
-    override def loadLibrary(path: Path): LibraryReference =
-      LibraryReference(veo.veo_load_library(veo_proc_handle, path.toString))
+    override def loadLibrary(path: Path): LibraryReference = {
+      val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
+      require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
+      LibraryReference(libRe)
+    }
   }
 }
