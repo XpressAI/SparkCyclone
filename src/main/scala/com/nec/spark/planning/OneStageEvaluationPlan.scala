@@ -47,6 +47,8 @@ final case class OneStageEvaluationPlan(
   with LazyLogging
   with SupportsVeColBatch {
 
+  override def supportsColumnar: Boolean = true
+
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
@@ -58,8 +60,7 @@ final case class OneStageEvaluationPlan(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .map { veColBatch =>
-        implicit val veProcess: VeProcess =
-          VeProcess.WrappingVeo(SparkCycloneExecutorPlugin._veo_proc)
+        import SparkCycloneExecutorPlugin.veProcess
 
         val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
 
@@ -75,11 +76,4 @@ final case class OneStageEvaluationPlan(
         } finally veColBatch.cols.foreach(_.free())
       }
   }
-
-  override protected def doExecute(): RDD[InternalRow] =
-    sys.error("Cannot execute plan without a VE wrapper")
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
-    sys.error("Cannot execute plan without a VE wrapper")
-
 }

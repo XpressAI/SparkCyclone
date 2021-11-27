@@ -26,6 +26,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.spark.SparkCycloneExecutorPlugin._
+import com.nec.ve.VeProcess
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.ExecutorPlugin
 import org.apache.spark.api.plugin.PluginContext
@@ -43,6 +44,10 @@ object SparkCycloneExecutorPlugin {
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
+
+  implicit def veProcess: VeProcess =
+    VeProcess.WrappingVeo(_veo_proc)
+
   var lib: Long = -1
   var veArrowNativeInterfaceNumeric: VeArrowNativeInterface = _
 
