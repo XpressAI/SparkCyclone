@@ -54,7 +54,12 @@ object VeColBatchConverters {
   case class VectorEngineToSpark(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = true
 
-    override def doExecute(): RDD[InternalRow] = {
+    override def doExecute(): RDD[InternalRow] =
+      doExecuteColumnar().mapPartitions(columnarBatchIterator =>
+        columnarBatchIterator.flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
+      )
+
+    override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
       child
         .asInstanceOf[SupportsVeColBatch]
         .executeVeColumnar()
@@ -62,19 +67,12 @@ object VeColBatchConverters {
           import SparkCycloneExecutorPlugin.veProcess
           lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
-//          val timeZoneId = conf.sessionLocalTimeZone
-//          val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
 
           iterator
             .map { veColBatch =>
               veColBatch.toArrowColumnarBatch()
             }
-            .flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
         }
-    }
-
-    override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-      child.executeColumnar()
     }
 
     override def output: Seq[Attribute] = child.output
