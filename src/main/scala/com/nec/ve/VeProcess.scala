@@ -137,7 +137,7 @@ object VeProcess {
       outPointers.zip(results).map {
         case (outPointer, scalar: VeScalarType) =>
           val outContainerLocation = outPointer.get()
-          val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
+          val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
@@ -148,7 +148,7 @@ object VeProcess {
           )
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
-          val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
+          val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
