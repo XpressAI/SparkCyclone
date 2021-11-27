@@ -147,27 +147,38 @@ final case class VERewriteStrategy(
             data = child.output.toList.zipWithIndex.map { case (att, idx) =>
               sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}$idx")
             }
-          } yield List(
-            ArrowColumnarToRowPlan(
-              OneStageEvaluationPlan(
-                outputExpressions = f.output,
-                functionName = s"flt_${functionPrefix}",
-                cFunction = renderFilter(
-                  VeFilter(
-                    stringVectorComputations = StringHole
-                      .process(condition.transform(replacer))
-                      .toList
-                      .flatMap(_.stringParts)
-                      .distinct,
-                    data = data,
-                    condition = cond
-                  )
-                ),
-                child = RowToArrowColumnarPlan(planLater(child)),
-                nativeEvaluator = nativeEvaluator
+          } yield {
+            val functionName = s"flt_${functionPrefix}"
+            val cFunction = renderFilter(
+              VeFilter(
+                stringVectorComputations = StringHole
+                  .process(condition.transform(replacer))
+                  .toList
+                  .flatMap(_.stringParts)
+                  .distinct,
+                data = data,
+                condition = cond
               )
             )
-          )
+
+            val libPath =
+              SparkCycloneDriverPlugin.currentCompiler.forCode(
+                cFunction.toCodeLinesS(functionName).cCode
+              )
+            List(
+              VectorEngineToSpark(
+                OneStageEvaluationPlan(
+                  outputExpressions = f.output,
+                  veFunction = VeFunction(
+                    libraryPath = libPath.toString,
+                    functionName = functionName,
+                    results = cFunction.outputs.map(_.veType)
+                  ),
+                  child = SparkToVectorEngine(planLater(child))
+                )
+              )
+            )
+          }
 
           planE.fold(
             e =>
@@ -212,7 +223,7 @@ final case class VERewriteStrategy(
               )
             )
             val libPath =
-              SparkCycloneDriverPlugin.currentCompiler.forCode(cF.toCodeLines(fName).cCode)
+              SparkCycloneDriverPlugin.currentCompiler.forCode(cF.toCodeLinesS(fName).cCode)
             List(
               VectorEngineToSpark(
                 OneStageEvaluationPlan(

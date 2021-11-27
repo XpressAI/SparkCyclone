@@ -1,14 +1,15 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.planning.ArrowColumnarToRowPlan.mapBatchToRow
-import com.nec.spark.planning.RowToArrowColumnarPlan.collectInputRows
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.arrow.ArrowWriter
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -22,29 +23,63 @@ object VeColBatchConverters {
     override def supportsColumnar: Boolean = true
 
     override def executeVeColumnar(): RDD[VeColBatch] = {
+      val numInputRows = longMetric("numInputRows")
+      val numOutputBatches = longMetric("numOutputBatches")
+      // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
+      // combine with some of the Arrow conversion tools we will need to unify some of the configs.
+      val numRows: Int = sparkContext.getConf
+        .getOption("com.nec.spark.ve.columnBatchSize")
+        .map(_.toInt)
+        .getOrElse(conf.columnBatchSize)
       val timeZoneId = conf.sessionLocalTimeZone
-
-      child
-        .execute()
-        .mapPartitions(rowIt => {
+      child.execute().mapPartitions { rowIterator =>
+        if (rowIterator.hasNext) {
           lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
-          Iterator
-            .continually {
-              val root =
-                collectInputRows(rowIt, ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId))
+            .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
+          new Iterator[VeColBatch] {
+            private val timeZoneId = conf.sessionLocalTimeZone
 
+            private val arrowSchema = ArrowUtilsExposed.toArrowSchema(child.schema, timeZoneId)
+            private val root = VectorSchemaRoot.create(arrowSchema, allocator)
+            private val cb = new ColumnarBatch(
+              root.getFieldVectors.asScala
+                .map(vector => new ArrowColumnVector(vector))
+                .toArray,
+              root.getRowCount
+            )
+
+            private val arrowWriter = ArrowWriter.create(root)
+            arrowWriter.finish()
+            TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+              cb.close()
+            }
+
+            override def hasNext: Boolean = {
+              rowIterator.hasNext
+            }
+
+            override def next(): VeColBatch = {
+              arrowWriter.reset()
+              cb.setNumRows(0)
+              root.getFieldVectors.asScala.foreach(_.reset())
+              var rowCount = 0
+              while (rowCount < numRows && rowIterator.hasNext) {
+                val row = rowIterator.next()
+                arrowWriter.write(row)
+                arrowWriter.finish()
+                rowCount += 1
+              }
+              cb.setNumRows(rowCount)
+              numInputRows += rowCount
+              numOutputBatches += 1
               import SparkCycloneExecutorPlugin.veProcess
-              val cb = new ColumnarBatch(
-                root.getFieldVectors.asScala
-                  .map(vector => new ArrowColumnVector(vector))
-                  .toArray,
-                root.getRowCount
-              )
               VeColBatch.fromColumnarBatch(cb)
             }
-            .take(1)
-        })
+          }
+        } else {
+          Iterator.empty
+        }
+      }
 
     }
 
@@ -70,7 +105,8 @@ object VeColBatchConverters {
 
           iterator
             .map { veColBatch =>
-              veColBatch.toArrowColumnarBatch()
+              try veColBatch.toArrowColumnarBatch()
+              finally veColBatch.cols.foreach(_.free())
             }
         }
     }
