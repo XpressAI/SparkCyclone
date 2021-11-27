@@ -55,7 +55,7 @@ object VeColBatchConverters {
     override def supportsColumnar: Boolean = true
 
     override def doExecute(): RDD[InternalRow] =
-      doExecuteColumnar.mapPartitions(columnarBatchIterator =>
+      doExecuteColumnar().mapPartitions(columnarBatchIterator =>
         columnarBatchIterator.flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
       )
 
