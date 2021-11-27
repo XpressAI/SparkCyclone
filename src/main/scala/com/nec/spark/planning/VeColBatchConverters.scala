@@ -23,8 +23,8 @@ object VeColBatchConverters {
     override def supportsColumnar: Boolean = true
 
     override def executeVeColumnar(): RDD[VeColBatch] = {
-      val numInputRows = longMetric("numInputRows")
-      val numOutputBatches = longMetric("numOutputBatches")
+//      val numInputRows = longMetric("numInputRows")
+//      val numOutputBatches = longMetric("numOutputBatches")
       // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
       // combine with some of the Arrow conversion tools we will need to unify some of the configs.
       val numRows: Int = sparkContext.getConf
@@ -70,8 +70,8 @@ object VeColBatchConverters {
                 rowCount += 1
               }
               cb.setNumRows(rowCount)
-              numInputRows += rowCount
-              numOutputBatches += 1
+//              numInputRows += rowCount
+//              numOutputBatches += 1
               import SparkCycloneExecutorPlugin.veProcess
               VeColBatch.fromColumnarBatch(cb)
             }
