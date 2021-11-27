@@ -7,6 +7,7 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.util.RichVectors.RichFloat8
+import com.nec.ve.PureVeFunctions.DoublingFunction
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
@@ -29,31 +30,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   }
 
   "Execute our function" in {
-    compiledWithHeaders(
-      CFunction(
-        inputs = List(VeScalarType.VeNullableDouble.makeCVector("input")),
-        outputs = List(VeScalarType.VeNullableDouble.makeCVector("o_p")),
-        body = CodeLines
-          .from(
-            CodeLines
-              .from(
-                "nullable_double_vector* o = (nullable_double_vector *)malloc(sizeof(nullable_double_vector));",
-                "*o_p = o;",
-                GroupByOutline
-                  .initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input[0]->count"),
-                "for ( int i = 0; i < input[0]->count; i++ ) {",
-                CodeLines
-                  .from(
-                    "o->data[i] = input[0]->data[i] * 2;",
-                    "set_validity(o->validityBuffer, i, 1);"
-                  )
-                  .indented,
-                "}",
-              )
-              .indented
-          )
-      ).toCodeLinesNoHeaderOutPtr("f").cCode
-    ) { path =>
+    compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>

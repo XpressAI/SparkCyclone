@@ -1,6 +1,5 @@
 package com.nec.ve
 
-import com.nec.LocationPointer
 import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve.VeColBatch.VeColVector
@@ -34,6 +33,25 @@ trait VeProcess {
 
 object VeProcess {
   final case class LibraryReference(value: Long)
+  final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess {
+    override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
+
+    override def allocate(size: Long): Long = f().allocate(size)
+
+    override def putBuffer(byteBuffer: ByteBuffer): Long = f().putBuffer(byteBuffer)
+
+    override def get(from: Long, to: ByteBuffer, size: Long): Unit = f().get(from, to, size)
+
+    override def free(memoryLocation: Long): Unit = f().free(memoryLocation)
+
+    override def execute(
+      libraryReference: LibraryReference,
+      functionName: String,
+      cols: List[VeColVector],
+      results: List[VeType]
+    ): List[VeColVector] =
+      f().execute(libraryReference, functionName, cols, results)
+  }
   final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
     override def allocate(size: Long): Long = {
       val veInputPointer = new LongPointer(8)
