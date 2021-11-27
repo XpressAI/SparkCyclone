@@ -1,9 +1,13 @@
 package com.nec.cmake
 
+import com.eed3si9n.expecty.Expecty.expect
+import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.RDDSpec.{doubleBatches, longBatches}
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.spark.agile.CFunctionGeneration.VeType
-import com.nec.ve.{DynamicVeSqlExpressionEvaluationSpec, VeColBatch}
+import com.nec.util.RichVectors.RichFloat8
+import com.nec.ve.PureVeFunctions.DoublingFunction
+import com.nec.ve.{DynamicVeSqlExpressionEvaluationSpec, VeColBatch, VeKernelInfra, VeProcess}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import org.apache.arrow.memory.BufferAllocator
@@ -89,7 +93,7 @@ object RDDSpec {
   }
 }
 
-final class RDDSpec extends AnyFreeSpec with SparkAdditions {
+final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "We can pass around some Arrow things" in withSparkSession2(identity) { sparkSession =>
     longBatches {
       sparkSession.sparkContext
@@ -101,15 +105,29 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions {
   "We can perform a VE call on Arrow things" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
-    doubleBatches {
-      sparkSession.sparkContext
-        .range(start = 1, end = 500, step = 1, numSlices = 4)
-        .map(_.toDouble)
-    }.map(arrowVec =>
-      VeColVector.fromFloat8Vector(arrowVec)(
-        DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
-      )
-    ).map(ve => )
+    implicit val veProc: VeProcess =
+      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
+    val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
+      path =>
+        val ref = veProc.loadLibrary(path)
+        doubleBatches {
+          sparkSession.sparkContext
+            .range(start = 1, end = 500, step = 1, numSlices = 4)
+            .map(_.toDouble)
+        }.map(arrowVec => VeColVector.fromFloat8Vector(arrowVec))
+          .map(ve => veProc.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
+          .map(vectors => {
+            WithTestAllocator { implicit alloc =>
+              vectors.head.toArrowVector().asInstanceOf[Float8Vector].toList
+            }
+          })
+          .collect()
+          .toList
+          .flatten
+          .sorted
+    }
 
+    val expected = List.range(1, 500).map(_.toDouble)
+    expect(result == expected)
   }
 }

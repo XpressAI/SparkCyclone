@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
-import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeType}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.LibraryReference
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
@@ -13,7 +13,7 @@ import java.nio.file.Path
 import java.nio.ByteOrder
 
 trait VeProcess {
-  def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
+  final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
     val bb = ByteBuffer.allocateDirect(containerSize)
     get(containerLocation, bb, containerSize)
     bb
