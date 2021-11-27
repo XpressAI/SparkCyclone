@@ -92,7 +92,7 @@ object GroupBySumPlanSpec {
         assert(
           ds.queryExecution.executedPlan
             .toString()
-            .contains(classOf[NativeAggregationEvaluationPlan].getSimpleName),
+            .contains(classOf[VeAggregationPlan].getSimpleName),
           "Native execution should have C code from the group-by generator"
         )
       }
@@ -190,7 +190,7 @@ final class GroupBySumPlanSpec
       .queryExecution
       .executedPlan
 
-    assert(plan.isInstanceOf[ArrowColumnarToRowPlan] && plan.children.head.isInstanceOf[NativeAggregationEvaluationPlan])
+    assert(plan.isInstanceOf[ArrowColumnarToRowPlan] && plan.children.head.isInstanceOf[VeAggregationPlan])
   }
 
 }

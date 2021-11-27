@@ -23,10 +23,10 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
 import com.nec.spark.planning.{
-  NativeAggregationEvaluationPlan,
   NativeSortEvaluationPlan,
   OneStageEvaluationPlan,
-  VERewriteStrategy
+  VERewriteStrategy,
+  VeAggregationPlan
 }
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
@@ -62,10 +62,7 @@ object DynamicCSqlExpressionEvaluationSpec {
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => {
           VERewriteStrategy.failFast = true
-          new VERewriteStrategy(
-            CNativeEvaluator(debug = false),
-            VeRewriteStrategyOptions.default.copy(preShufflePartitions = None)
-          )
+          new VERewriteStrategy(CNativeEvaluator(debug = false), VeRewriteStrategyOptions.default)
         })
       )
   }
@@ -1023,9 +1020,7 @@ class DynamicCSqlExpressionEvaluationSpec
       expect(
         thePlan
           .toString()
-          .contains(
-            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
-          )
+          .contains(VeAggregationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
       )
       dataSet
     }

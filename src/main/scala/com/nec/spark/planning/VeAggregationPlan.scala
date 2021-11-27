@@ -25,19 +25,15 @@ import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.vector._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.unsafe.types.UTF8String
 
 import java.nio.file.Paths
 import scala.language.dynamics
 
-//noinspection DuplicatedCode
-final case class NativeAggregationEvaluationPlan(
+final case class VeAggregationPlan(
   outputExpressions: Seq[NamedExpression],
   partialFunction: VeFunction,
   exchangeFunction: VeFunction,
@@ -99,4 +95,4 @@ final case class NativeAggregationEvaluationPlan(
 
 }
 
-object NativeAggregationEvaluationPlan {}
+object VeAggregationPlan {}

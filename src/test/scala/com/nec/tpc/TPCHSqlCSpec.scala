@@ -23,11 +23,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CFunctionGeneration.CFunction
-import com.nec.spark.planning.NativeAggregationEvaluationPlan
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
-  PartialThenCoalesce,
-  PrePartitioned
-}
+import com.nec.spark.planning.VeAggregationPlan
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -232,9 +228,7 @@ class TPCHSqlCSpec
       expect(
         thePlan
           .toString()
-          .contains(
-            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
-          )
+          .contains(VeAggregationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
       )
       dataSet
     }
@@ -252,14 +246,7 @@ class TPCHSqlCSpec
       condMarkup("<hr/>")
       condMarkup("All the C Functions:")
       dataSet.queryExecution.executedPlan
-        .collect { case plan =>
-          plan.productIterator.collect {
-            case cFunction: CFunction        => List(cFunction)
-            case PrePartitioned(cf)          => List(cf)
-            case PartialThenCoalesce(cf, ff) => List(cf, ff)
-          }
-        }
-        .flatten
+        .collect { case plan => List.empty[CFunction] }
         .flatten
         .zipWithIndex
         .foreach {

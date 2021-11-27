@@ -21,30 +21,28 @@ package com.nec.spark.planning
 
 import com.nec.native.NativeEvaluator
 import com.nec.spark.SparkCycloneDriverPlugin
-import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
-import com.nec.spark.agile.SparkExpressionToCExpression.{
-  eval,
-  evalString,
-  replaceReferences,
-  sparkSortDirectionToSortOrdering,
-  sparkTypeToScalarVeType,
-  sparkTypeToVeType,
-  EvalFallback
-}
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
-import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection}
+import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
 import com.nec.spark.agile.groupby.{
   ConvertNamedExpression,
   GroupByOutline,
   GroupByPartialGenerator,
   GroupByPartialToFinalGenerator
 }
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
+import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{
   GroupPrefix,
   InputPrefix,
   SequenceList,
   VeRewriteStrategyOptions
 }
+import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -60,36 +58,17 @@ import org.apache.spark.sql.catalyst.expressions.{
 }
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
+import org.apache.spark.sql.types.StringType
 
 import scala.collection.immutable
 import scala.util.Try
-import com.nec.spark.agile.CFunctionGeneration.{
-  renderFilter,
-  renderProjection,
-  CExpression,
-  CScalarVector,
-  NamedStringExpression,
-  NamedTypedCExpression,
-  TypedCExpression2,
-  VeFilter,
-  VeProjection,
-  VeSort,
-  VeSortExpression
-}
-import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
-import org.apache.spark.sql.types.StringType
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
   var failFast: Boolean = false
   final case class VeRewriteStrategyOptions(
-    preShufflePartitions: Option[Int],
+    aggregateOnVe: Boolean,
     enableVeSorting: Boolean,
     projectOnVe: Boolean,
     filterOnVe: Boolean
@@ -97,10 +76,10 @@ object VERewriteStrategy {
   object VeRewriteStrategyOptions {
     val default: VeRewriteStrategyOptions =
       VeRewriteStrategyOptions(
-        preShufflePartitions = None,
         enableVeSorting = false,
         projectOnVe = true,
-        filterOnVe = true
+        filterOnVe = true,
+        aggregateOnVe = true
       )
   }
 
@@ -376,40 +355,34 @@ final case class VERewriteStrategy(
                   s"Expected to have distinct outputs from a PF, got: ${partialCFunction.outputs}"
                 )
             ff = groupByPartialGenerator.finalGenerator.createFinal
-            fullFunction =
-              groupByPartialGenerator.createFull(inputs = inputsList)
+            partialName = s"partial_$functionPrefix"
+            finalName = s"final_$functionPrefix"
+            libPath =
+              SparkCycloneDriverPlugin.currentCompiler.forCode(
+                CodeLines
+                  .from(
+                    partialCFunction.toCodeLinesSPtr(partialName),
+                    ff.toCodeLinesSPtr(finalName)
+                  )
+              )
           } yield {
-            options.preShufflePartitions match {
-              case Some(n) if groupingExpressions.nonEmpty =>
-                ArrowColumnarToRowPlan(
-                  NativeAggregationEvaluationPlan(
-                    outputExpressions = aggregateExpressions,
-                    functionPrefix = functionPrefix,
-                    evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
-                    child = new RowToArrowColumnarPlan(
-                      ShuffleExchangeExec(
-                        outputPartitioning =
-                          HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                        child = planLater(child),
-                        shuffleOrigin = REPARTITION
-                      )
-                    ),
-                    supportsColumnar = true,
-                    nativeEvaluator = nativeEvaluator
-                  )
-                )
-              case _ =>
-                ArrowColumnarToRowPlan(
-                  NativeAggregationEvaluationPlan(
-                    outputExpressions = aggregateExpressions,
-                    functionPrefix = functionPrefix,
-                    evaluationMode = EvaluationMode.PartialThenCoalesce(partialCFunction, ff),
-                    child = RowToArrowColumnarPlan(planLater(child)),
-                    supportsColumnar = true,
-                    nativeEvaluator = nativeEvaluator
-                  )
-                )
-            }
+            VectorEngineToSpark(
+              VeAggregationPlan(
+                outputExpressions = aggregateExpressions,
+                partialFunction = VeFunction(
+                  libraryPath = libPath.toString,
+                  functionName = partialName,
+                  results = partialCFunction.outputs.map(_.veType)
+                ),
+                exchangeFunction = ???,
+                finalFunction = VeFunction(
+                  libraryPath = libPath.toString,
+                  functionName = finalName,
+                  results = partialCFunction.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEngine(planLater(child))
+              )
+            )
           }
 
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
@@ -447,7 +420,7 @@ final case class VERewriteStrategy(
             outputExpressions = plan.output,
             functionPrefix = functionPrefix,
             Coalesced(code),
-            new RowToArrowColumnarPlan(planLater(child)),
+            RowToArrowColumnarPlan(planLater(child)),
             nativeEvaluator = nativeEvaluator
           )
           List(new ArrowColumnarToRowPlan(sortPlan))

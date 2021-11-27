@@ -35,9 +35,10 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
       new VERewriteStrategy(
         ExecutorPluginManagedEvaluator,
         VeRewriteStrategyOptions(
-          preShufflePartitions = sparkSession.sparkContext.getConf
-            .getOption(key = "spark.com.nec.spark.preshuffle-partitions")
-            .map(_.toInt),
+          aggregateOnVe = sparkSession.sparkContext.getConf
+            .getOption(key = "spark.com.nec.spark.aggregate-on-ve")
+            .map(_.toBoolean)
+            .getOrElse(true),
           enableVeSorting = sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.sort-on-ve")
             .map(_.toBoolean)
