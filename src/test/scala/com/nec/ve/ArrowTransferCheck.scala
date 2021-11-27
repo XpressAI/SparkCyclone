@@ -11,7 +11,7 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.util.RichVectors.RichFloat8
-import com.nec.ve.PureVeFunctions.DoublingFunction
+import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
@@ -64,6 +64,38 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           val result = vec.toList
           try expect(result == List[Double](2, 4, 6))
           finally vec.close()
+        }
+      }
+    }
+  }
+
+  "Execute multi-function" in {
+    compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr("f").cCode) { path =>
+      val lib = veProcess.loadLibrary(path)
+      WithTestAllocator { implicit alloc =>
+        withArrowFloat8VectorI(List(95, 99, 105, 500, 501)) { f8v =>
+          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+          val results = veProcess.executeMulti(
+            libraryReference = lib,
+            functionName = "f",
+            cols = List(colVec),
+            results = List(VeScalarType.veNullableDouble)
+          )
+
+          val plainResults: List[(Int, Option[Double])] = results.map { case (index, vecs) =>
+            val vec = vecs.head
+            index -> {
+              val av = vec.toArrowVector().asInstanceOf[Float8Vector]
+              val avl = av.toList
+              try if (avl.isEmpty) None else Some(avl.max)
+              finally av.close()
+            }
+          }
+
+          val expectedResult: List[(Int, Option[Double])] =
+            List((0, Some(99)), (1, Some(105)), (2, None), (3, None), (4, Some(501)))
+
+          expect(plainResults == expectedResult)
         }
       }
     }
