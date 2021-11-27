@@ -20,33 +20,6 @@ object RDDSpec {
 
   final case class NativeFunction(name: String)
 
-  implicit class RichColBatchRDD(rdd: RDD[VeColBatch]) {
-
-    /**
-     * @param f function that takes '<partition index>, <number of partitions>, <input_columns>, <output_columns>'
-     * @return repartitioned set of VeColBatch
-     */
-    def exchange(f: Long): RDD[VeColBatch] = {
-      ???
-    }
-
-    /**
-     * @param f function that takes '<input_columns>', '<output_columns>'
-     * @return newly mapped batches
-     */
-    def mapBatch(f: Long): RDD[VeColBatch] = {
-      ???
-    }
-
-    /**
-     * @param f function that takes '<input_columns>', '<input_columns>', '<output_columns>'
-     * @return newly mapped batches
-     */
-    def reduce(f: Long): RDD[VeColBatch] = {
-      ???
-    }
-  }
-
   def longBatches(rdd: RDD[Long]): RDD[BigIntVector] = {
     rdd.mapPartitions(iteratorLong =>
       Iterator
