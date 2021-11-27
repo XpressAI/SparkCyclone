@@ -106,7 +106,7 @@ object VeColBatchConverters {
           iterator
             .map { veColBatch =>
               try veColBatch.toArrowColumnarBatch()
-              finally veColBatch.cols.foreach(_.free())
+              finally {} //veColBatch.cols.foreach(_.free())
             }
         }
     }
