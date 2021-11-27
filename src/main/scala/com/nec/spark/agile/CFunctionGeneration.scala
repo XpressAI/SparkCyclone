@@ -129,7 +129,7 @@ object CFunctionGeneration {
 
     override def isString: Boolean = true
 
-    override def containerSize: Int = 24
+    override def containerSize: Int = 32
   }
 
   sealed trait VeScalarType extends VeType {
