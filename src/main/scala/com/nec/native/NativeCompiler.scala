@@ -92,6 +92,7 @@ object NativeCompiler extends LazyLogging {
         sourcePath
       } else {
         logger.debug(s"Compiling for the VE...: $code")
+        logger.info(s"Compiler config ==> ${veCompilerConfig}")
         val startTime = System.currentTimeMillis()
         val soName =
           VeKernelCompiler(
