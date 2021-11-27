@@ -130,7 +130,7 @@ object VeProcess {
 
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function $functionAddr; args: $cols"
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $cols"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
@@ -193,7 +193,7 @@ object VeProcess {
 
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function $functionAddr; args: $cols"
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $cols"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
