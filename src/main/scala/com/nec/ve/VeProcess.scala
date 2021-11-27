@@ -1,10 +1,11 @@
 package com.nec.ve
 
+import com.nec.LocationPointer
 import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.LibraryReference
-import org.bytedeco.javacpp.{BytePointer, LongPointer}
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -70,7 +71,7 @@ object VeProcess {
           our_args,
           0,
           index,
-          new BytePointer(vcv.containerLocation),
+          new BytePointer(new LocationPointer(vcv.containerLocation, 8)),
           vcv.containerSize
         )
       }
@@ -83,7 +84,7 @@ object VeProcess {
           our_args,
           1,
           index,
-          new BytePointer(outContainers(reIdx)),
+          new BytePointer(new LocationPointer(outContainers(reIdx), 8)),
           vet.containerSize
         )
       }
