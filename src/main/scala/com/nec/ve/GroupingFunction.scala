@@ -30,14 +30,18 @@ object GroupingFunction {
     }
   }
 
-  def computeBuckets(cVectors: List[CVector], groupingIdentifiers: String): CodeLines =
+  def computeBuckets(
+    cVectors: List[CVector],
+    groupingIdentifiers: String,
+    totalBuckets: Int
+  ): CodeLines =
     CodeLines.from(
       s"std::vector<int> $groupingIdentifiers;",
-      CodeLines.forLoop("i", s"${cVectors.head.name}->count") {
+      CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
         CodeLines.from(
           s"int hash = 1;",
-          cVectors.map(cVector => CodeLines.from(s"hash = 31 * ${cVector.name}->data[i];")),
-          s"$groupingIdentifiers.push(hash);"
+          cVectors.map(cVector => CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")),
+          s"$groupingIdentifiers.push_back(hash % ${totalBuckets});"
         )
       }
     )
@@ -47,9 +51,15 @@ object GroupingFunction {
     bucketToCount: String,
     totalBuckets: Int
   ): CodeLines = CodeLines.from(
-    s"std::vector $bucketToCount($totalBuckets);",
-    CodeLines.forLoop("i", s"${groupingIdentifiers}.size()")(
-      CodeLines.from(s"int group = ${groupingIdentifiers}[i];", s"$bucketToCount[group]++;")
+    s"std::vector<int> $bucketToCount;",
+    CodeLines.forLoop("g", s"$totalBuckets")(
+      CodeLines.from(
+        s"int cnt = 0;",
+        CodeLines.forLoop("i", s"${groupingIdentifiers}.size()")(
+          CodeLines.ifStatement(s"${groupingIdentifiers}[i] == g")(CodeLines.from("cnt++;"))
+        ),
+        s"$bucketToCount.push_back(cnt);"
+      )
     )
   )
 
@@ -71,10 +81,13 @@ object GroupingFunction {
       ).flatten,
       body = CodeLines
         .from(
+          CodeLines.printLabel("HereA1"),
           computeBuckets(
             cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
-            groupingIdentifiers = "idToBucket"
+            groupingIdentifiers = "idToBucket",
+            totalBuckets = totalBuckets
           ),
+          CodeLines.printLabel("HereA2"),
           computeBucketSizes(
             groupingIdentifiers = "idToBucket",
             bucketToCount = "bucketToCount",
@@ -82,31 +95,41 @@ object GroupingFunction {
           ),
           /** For each bucket, initialize each output vector */
           s"sets[0] = ${totalBuckets};",
+          CodeLines.printLabel("HereA"),
           data.zip(inputs).zip(outputs).map { case ((dataDesc, input), output) =>
             CodeLines.from(
-              s"*${output.name} = (${output.veType.cVectorType})malloc(sizeof(void *) * ${totalBuckets});",
+              CodeLines.printLabel(s"HereA3 ${dataDesc}"),
+              s"*${output.name} = (${output.veType.cVectorType}*)malloc(sizeof(void *) * ${totalBuckets});",
+              CodeLines.printLabel("HereA4"),
               CodeLines.forLoop("b", s"${totalBuckets}") {
                 CodeLines.from(
+                  CodeLines.printValue("HereA5")("b"),
                   s"${output.name}[b] = (${output.veType.cVectorType}*)malloc(sizeof(${output.veType.cVectorType}));",
+                  CodeLines.printLabel("HereA6"),
                   initializeScalarVector(
                     veScalarType = output.veType.asInstanceOf[VeScalarType],
                     variableName = s"${output.name}[b]",
                     countExpression = s"bucketToCount[b]"
                   ),
+                  CodeLines.printValue("Size of bucket")("b", "bucketToCount[b]"),
                   "int o = 0;",
                   CodeLines.forLoop("i", s"idToBucket.size()") {
-                    CodeLines.ifStatement("b == idToBucket[i]")(
-                      CodeLines.from(
-                        s"${output.name}[b]->data[o] = ${input.name}->data[i];",
-                        s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
-                        "o++;"
+                    CodeLines.from(
+                      CodeLines.printValue("HereA7")("i", "o", "b"),
+                      CodeLines.ifStatement("b == idToBucket[i]")(
+                        CodeLines.from(
+                          s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
+                          s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
+                          "o++;"
+                        )
                       )
                     )
                   }
                 )
               }
             )
-          }
+          },
+          CodeLines.printLabel("Here")
         )
     )
   }

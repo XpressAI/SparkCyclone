@@ -153,18 +153,21 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
             withNullableArrowStringVector(List("a", "b", "c").map(Some.apply)) { sv =>
               val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+              val colVec2: VeColVector = VeColVector.fromFloat8Vector(f8v2)
               val colVecS: VeColVector = VeColVector.fromVarcharVector(sv)
               val results = veProcess.executeMulti(
                 libraryReference = lib,
                 functionName = "f",
-                cols = List(colVec, colVecS),
-                results = List(VeScalarType.veNullableDouble)
+                cols = List(colVec, colVec2),
+                results = List(VeScalarType.veNullableDouble, VeScalarType.veNullableDouble)
               )
 
-              def plainResultsD: List[(Int, List[(Double, Double)])] = results.map {
+              val plainResultsD: List[(Int, List[(Double, Double)])] = results.map {
                 case (index, vecs) =>
                   val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
                   val vecFl2 = vecs(1).toArrowVector().asInstanceOf[Float8Vector]
+                  println(vecFloat.toList)
+                  println(vecFl2.toList)
                   try {
                     index -> vecFloat.toList.zip(vecFl2.toList)
                   } finally {
@@ -173,14 +176,16 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                   }
               }
 
-              //            val expectedResult: List[(Int, List[(Double, String)])] =
-              //              List(0 -> List((1, "a"), (3, "c")), 1 -> List((2, "b")))
+              val allSets = plainResultsD.flatMap(_._2).toSet
 
-              val expectedResultD: List[(Int, List[(Double, Double)])] =
-                List(0 -> List((1, 9), (3, 8)), 1 -> List((2, 7)))
+              val expectedGroups: Set[(Double, Double)] =
+                Set((1, 9), (2, 8), (3, 7))
 
-              //            expect(plainResults == expectedResult)
-              expect(plainResultsD == expectedResultD)
+              assert(
+                plainResultsD.map(_._2.size).toSet == Set(1, 2),
+                "We expect the groups to have exactly size 2 and 1 each because of the split"
+              )
+              assert(allSets == expectedGroups, "we verify that we get back the data we had put in")
             }
           }
         }
