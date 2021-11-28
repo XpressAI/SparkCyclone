@@ -4,6 +4,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.ve.VeColBatch
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
@@ -15,7 +16,8 @@ case class VePartialAggregate(
   partialFunction: VeFunction,
   child: SparkPlan
 ) extends UnaryExecNode
-  with SupportsVeColBatch {
+  with SupportsVeColBatch
+  with Logging {
 
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]

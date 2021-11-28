@@ -1,9 +1,10 @@
 package com.nec.ve
 
 import com.nec.ve.VeColBatch.VeColVector
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 
-object VeRDD {
+object VeRDD extends Logging {
   def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
     rdd
       .mapPartitions(
@@ -26,14 +27,24 @@ object VeRDD {
       .mapPartitions(
         f = iter =>
           iter.map { case (p, v) =>
-            (p, (v, v.map(_.serialize())))
+            logInfo(s"Preparing to serialize batch ${v}")
+            val r = (p, (v, v.map(_.serialize())))
+            logInfo(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
+            r
           },
         preservesPartitioning = true
       )
       .sortByKey()
       .mapPartitions(
         f = iter =>
-          iter.map { case (_, (v, ba)) => v.zip(ba).map { case (vv, bb) => vv.deserialize(bb) } },
+          iter.map { case (_, (v, ba)) =>
+            v.zip(ba).map { case (vv, bb) =>
+              logInfo(s"Preparing to deserialize batch ${vv}")
+              val res = vv.deserialize(bb)
+              logInfo(s"Completed deserializing batch ${vv} --> ${res}")
+              res
+            }
+          },
         preservesPartitioning = true
       )
 
