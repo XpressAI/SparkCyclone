@@ -152,7 +152,8 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
           withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
-            withNullableArrowStringVector(List("a", "b", "c").map(Some.apply)) { sv =>
+            val lastString = "cccc"
+            withNullableArrowStringVector(List("a", "b", lastString).map(Some.apply)) { sv =>
               val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
               val colVec2: VeColVector = VeColVector.fromFloat8Vector(f8v2)
               val colVecS: VeColVector = VeColVector.fromVarcharVector(sv)
@@ -163,8 +164,6 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                 results =
                   List(VeScalarType.veNullableDouble, VeString, VeScalarType.veNullableDouble)
               )
-
-              println(results)
 
               val plainResultsD: List[(Int, List[(Double, String, Double)])] = results.map {
                 case (index, vecs) =>
@@ -187,7 +186,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
               val allSets = plainResultsD.flatMap(_._2).toSet
 
               val expectedGroups: Set[(Double, String, Double)] =
-                Set((1, "a", 9), (2, "b", 8), (3, "c", 7))
+                Set((1, "a", 9), (2, "b", 8), (3, lastString, 7))
 
               assert(
                 plainResultsD.map(_._2.size).toSet == Set(1, 2),

@@ -97,13 +97,11 @@ object GroupingFunction {
       ).flatten,
       body = CodeLines
         .from(
-          CodeLines.printLabel("HereA1"),
           computeBuckets(
             cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
             groupingIdentifiers = "idToBucket",
             totalBuckets = totalBuckets
           ),
-          CodeLines.printLabel("HereA2"),
           computeBucketSizes(
             groupingIdentifiers = "idToBucket",
             bucketToCount = "bucketToCount",
@@ -111,17 +109,12 @@ object GroupingFunction {
           ),
           /** For each bucket, initialize each output vector */
           s"sets[0] = ${totalBuckets};",
-          CodeLines.printLabel("HereA"),
           data.zip(inputs).zip(outputs).map { case ((dataDesc, input), output) =>
             CodeLines.from(
-              CodeLines.printLabel(s"HereA3 ${dataDesc}"),
               s"*${output.name} = (${output.veType.cVectorType}*)malloc(sizeof(void *) * ${totalBuckets});",
-              CodeLines.printLabel("HereA4"),
               CodeLines.forLoop("b", s"${totalBuckets}") {
                 CodeLines.from(
-                  CodeLines.printValue("HereA5")("b"),
                   s"${output.name}[b] = (${output.veType.cVectorType}*)malloc(sizeof(${output.veType.cVectorType}));",
-                  CodeLines.printLabel("HereA6"),
                   output.veType match {
                     case CFunctionGeneration.VeString =>
                       val outName = s"${output.name}_current"
@@ -141,7 +134,6 @@ object GroupingFunction {
                           "int o = 0;",
                           CodeLines.forLoop("i", s"idToBucket.size()") {
                             CodeLines.from(
-                              CodeLines.printValue("HereA7")("i", "o", "b"),
                               CodeLines.ifStatement("b == idToBucket[i]")(
                                 CodeLines.from(fp.forEach, "o++;")
                               )
@@ -151,11 +143,9 @@ object GroupingFunction {
                           "o = 0;",
                           CodeLines.forLoop("i", s"idToBucket.size()") {
                             CodeLines.from(
-                              CodeLines.printValue("HereA7x")("i", "o", "b"),
                               CodeLines.ifStatement("b == idToBucket[i]")(
                                 CodeLines.from(fp.validityForEach("o"), "o++;")
                               ),
-                              CodeLines.printValue("HereA7y")("i", "o", "b")
                             )
                           }
                         )
@@ -168,11 +158,9 @@ object GroupingFunction {
                           variableName = s"${output.name}[b]",
                           countExpression = s"bucketToCount[b]"
                         ),
-                        CodeLines.printValue("Size of bucket")("b", "bucketToCount[b]"),
                         "int o = 0;",
                         CodeLines.forLoop("i", s"idToBucket.size()") {
                           CodeLines.from(
-                            CodeLines.printValue("HereA7")("i", "o", "b"),
                             CodeLines.ifStatement("b == idToBucket[i]")(
                               CodeLines.from(
                                 s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
@@ -188,7 +176,6 @@ object GroupingFunction {
               }
             )
           },
-          CodeLines.printLabel("Here")
         )
     )
   }
