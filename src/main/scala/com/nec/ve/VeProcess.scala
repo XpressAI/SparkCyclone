@@ -205,6 +205,7 @@ object VeProcess {
         lp
       }
       val countsP = new IntPointer(4.toLong)
+      countsP.put(-919)
       veo.veo_args_set_stack(our_args, 1, cols.size, new BytePointer(countsP), 4)
       results.zipWithIndex.zip(outPointers).foreach { case ((vet, reIdx), outPointer) =>
         val index = cols.size + 1 + reIdx
