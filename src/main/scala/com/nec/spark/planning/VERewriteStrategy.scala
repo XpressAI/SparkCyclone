@@ -368,21 +368,16 @@ final case class VERewriteStrategy(
             finalName = s"final_$functionPrefix"
             exchangeName = s"exchange_$functionPrefix"
             exchangeFunction = {
-
-              println(s"G$groupingExpressions")
-              println(s"Agg$aggregateExpressions")
-              GroupingFunction.groupData(
-                data = aggregateExpressions.map { namedExpression =>
-                  val contained = groupingExpressions.contains(namedExpression)
-                  DataDescription(
-                    veType = sparkTypeToVeType(namedExpression.dataType),
-                    keyOrValue =
-                      if (contained) DataDescription.KeyOrValue.Key
-                      else DataDescription.KeyOrValue.Value
-                  )
-                }.toList,
-                totalBuckets = 16
-              )
+              val gd = aggregateExpressions.map { namedExpression =>
+                val contained = groupingExpressions.contains(namedExpression)
+                DataDescription(
+                  veType = sparkTypeToVeType(namedExpression.dataType),
+                  keyOrValue =
+                    if (contained) DataDescription.KeyOrValue.Key
+                    else DataDescription.KeyOrValue.Value
+                )
+              }.toList
+              GroupingFunction.groupData(data = gd, totalBuckets = 16)
             }
             mergeFunction = s"merge_$functionPrefix"
             libPath =
@@ -390,7 +385,7 @@ final case class VERewriteStrategy(
                 CodeLines
                   .from(
                     partialCFunction.toCodeLinesSPtr(partialName),
-                    ff.toCodeLinesSPtr(finalName),
+                    ff.toCodeLinesNoHeaderOutPtr2(finalName),
                     exchangeFunction.toCodeLines(exchangeName),
                     MergerFunction
                       .merge(types = List(VeNullableDouble, VeString))
