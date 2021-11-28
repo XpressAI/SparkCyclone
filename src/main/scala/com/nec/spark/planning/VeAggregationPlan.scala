@@ -23,6 +23,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -84,7 +85,10 @@ final case class VeAggregationPlan(
             veProcess.executeMultiIn(
               libraryReference = libRefFinal,
               functionName = exchangeFunction.functionName,
-              cols = iteratorBatches.toList,
+              batches = VeBatchOfBatches
+                .fromVeColBatches(
+                  iteratorBatches.map(l => VeColBatch(numRows = l.head.numItems, cols = l)).toList
+                ),
               results = exchangeFunction.results
             )
           }

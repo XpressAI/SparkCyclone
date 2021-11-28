@@ -29,7 +29,6 @@ import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit
@@ -43,6 +42,35 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
 }
 
 object VeColBatch {
+
+  final case class ColumnGroup(veType: VeType, relatedColumns: List[VeColVector]) {
+  }
+
+  final case class VeBatchOfBatches(cols: Int, rows: Int, batches: List[VeColBatch]) {
+    def isEmpty: Boolean = !nonEmpty
+    def nonEmpty: Boolean = rows > 0
+
+    /** Transpose to get the columns from each batch aligned, ie [[1st col of 1st batch, 1st col of 2nd batch, ...], [2nd col of 1st batch, ...] */
+    def groupedColumns: List[ColumnGroup] = {
+      if (batches.isEmpty) Nil
+      else {
+        batches.head.cols.zipWithIndex.map { case (vcv, idx) =>
+          ColumnGroup(
+            veType = vcv.veType,
+            relatedColumns = batches
+              .map(_.cols.apply(idx))
+              .ensuring(cond = _.forall(_.veType == vcv.veType), msg = "All types should match up")
+          )
+        }
+      }
+    }
+  }
+
+  object VeBatchOfBatches {
+    def fromVeColBatches(list: List[VeColBatch]): VeBatchOfBatches = {
+      VeBatchOfBatches(cols = list.head.cols.size, rows = list.map(_.numRows).sum, batches = list)
+    }
+  }
 
   def fromColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
     VeColBatch(

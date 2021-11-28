@@ -1,25 +1,24 @@
 package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType, VeString, VeType}
-import com.nec.ve.VeColBatch.VeColVector
+import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
 import com.nec.ve.VeProcess.LibraryReference
-import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, Pointer}
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
-import java.nio.ByteBuffer
+import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
-import java.nio.ByteOrder
 
 trait VeProcess {
 
   def executeMultiIn(
     libraryReference: LibraryReference,
     functionName: String,
-    cols: List[List[VeColVector]],
+    batches: VeBatchOfBatches,
     results: List[VeType]
-  ): List[VeColVector] = ???
+  ): List[VeColVector]
 
   final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
     val bb = ByteBuffer.allocateDirect(containerSize)
@@ -78,7 +77,15 @@ object VeProcess {
       results: List[VeType]
     ): List[(Int, List[VeColVector])] =
       f().executeMulti(libraryReference, functionName, cols, results)
+
+    override def executeMultiIn(
+      libraryReference: LibraryReference,
+      functionName: String,
+      batches: VeBatchOfBatches,
+      results: List[VeType]
+    ): List[VeColVector] = f().executeMultiIn(libraryReference, functionName, batches, results)
   }
+
   final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
     override def allocate(size: Long): Long = {
       val veInputPointer = new LongPointer(8)
@@ -242,6 +249,80 @@ object VeProcess {
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
           )
         }
+      }
+    }
+
+    override def executeMultiIn(
+      libraryReference: LibraryReference,
+      functionName: String,
+      batches: VeBatchOfBatches,
+      results: List[VeType]
+    ): List[VeColVector] = {
+      val our_args = veo.veo_args_alloc()
+
+      /** Total batches count for input pointers */
+      veo.veo_args_set_i32(our_args, 0, batches.batches.size)
+
+      /** Output count of rows - better to know this in advance */
+      veo.veo_args_set_i32(our_args, 1, batches.rows)
+
+      batches.groupedColumns.zipWithIndex.foreach { case (colGroup, index) =>
+        val lp = new LongPointer(8 * batches.batches.size)
+        colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
+          lp.put(idx, col.containerLocation)
+        }
+        veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), 8)
+      }
+      val outPointers = results.map { veType =>
+        val lp = new LongPointer(8)
+        lp.put(-118)
+        lp
+      }
+      results.zipWithIndex.foreach { case (vet, reIdx) =>
+        val index = 2 + batches.cols + reIdx
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+      }
+      val fnCallResult = new LongPointer(8)
+
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
+
+      require(
+        functionAddr > 0,
+        s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
+      )
+
+      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+
+      require(
+        callRes == 0,
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $batches; returns $results"
+      )
+      require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
+
+      outPointers.zip(results).map {
+        case (outPointer, scalar: VeScalarType) =>
+          val outContainerLocation = outPointer.get()
+          val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+          VeColVector(
+            numItems = byteBuffer.getInt(16),
+            veType = scalar,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+          )
+        case (outPointer, VeString) =>
+          val outContainerLocation = outPointer.get()
+          val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+          VeColVector(
+            numItems = byteBuffer.getInt(28),
+            veType = VeString,
+            containerLocation = outContainerLocation,
+            bufferLocations =
+              List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+          )
       }
     }
 

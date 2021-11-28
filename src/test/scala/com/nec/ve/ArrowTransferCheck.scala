@@ -10,12 +10,15 @@ import com.nec.arrow.ArrowVectorBuilders.{
 }
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType}
+import com.nec.spark.agile.CFunction2
+import com.nec.spark.agile.CFunction2.CFunctionArgument
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
+import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType, VeString, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline
-import com.nec.util.RichVectors.RichFloat8
+import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.VeColBatch.VeColVector
-import org.apache.arrow.vector.Float8Vector
+import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
+import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
 
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
@@ -179,6 +182,69 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             newColVec.free()
             expect(newColVecArrow.toString == f8v.toString)
           } finally newColVecArrow.close()
+        }
+      }
+    }
+  }
+
+  /**
+   * Let's first take the data, as it is,
+   * perform partial aggregation,
+   * then bucket it,
+   * then exchange it,
+   * re-merge according to buckets
+   * then finalize
+   */
+
+  "We can merge multiple VeColBatches" in {
+    val fName = "merger"
+
+    def merge(types: List[VeType]): CFunction2 = CFunction2(
+      arguments = List(
+        List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")),
+        types.zipWithIndex.map { case (veType, idx) =>
+          CFunctionArgument.PointerPointer(veType.makeCVector(s"input_${idx}_g"))
+        },
+        types.zipWithIndex.map { case (veType, idx) =>
+          CFunctionArgument.PointerPointer(veType.makeCVector(s"output_${idx}"))
+        }
+      ).flatten,
+      body = CodeLines.from()
+    )
+
+    val MergingFunction: CFunction2 = merge(types = List(VeNullableDouble, VeString))
+
+    compiledWithHeaders(MergingFunction.toCodeLines(fName).cCode) { path =>
+      val lib = veProcess.loadLibrary(path)
+      WithTestAllocator { implicit alloc =>
+        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
+          withArrowStringVector(Seq("a", "b", "c")) { sv =>
+            withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
+              withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
+                val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+                val colVec2: VeColVector = VeColVector.fromFloat8Vector(f8v2)
+                val sVec: VeColVector = VeColVector.fromVarcharVector(sv)
+                val sVec2: VeColVector = VeColVector.fromVarcharVector(sv2)
+                val colBatch1: VeColBatch = VeColBatch(3, List(colVec, sVec))
+                val colBatch2: VeColBatch = VeColBatch(3, List(colVec2, sVec2))
+                val r: List[VeColVector] = veProcess.executeMultiIn(
+                  libraryReference = lib,
+                  functionName = fName,
+                  batches = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2)),
+                  results = colBatch1.cols.map(_.veType)
+                )
+
+                val resultVecs: List[FieldVector] = r.map(_.toArrowVector())
+
+                try {
+                  val nums = resultVecs(0).asInstanceOf[Float8Vector].toList
+                  val strs = resultVecs(1).asInstanceOf[VarCharVector].toList
+
+                  expect(nums == List(1, 2, 3, 2, 3, 4), strs == List("a", "b", "c", "d", "e", "f"))
+                } finally resultVecs.foreach(_.close())
+              }
+            }
+          }
         }
       }
     }
