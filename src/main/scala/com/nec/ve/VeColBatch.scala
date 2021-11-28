@@ -108,7 +108,7 @@ object VeColBatch {
         val offsetBuffSize = (numItems + 1) * 4
         val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
-        variableSize.tolist ++ List(offsetBuffSize, validitySize)
+        variableSize.toList ++ List(offsetBuffSize, validitySize)
       }
       case _ => ???
     }
@@ -313,7 +313,8 @@ object VeColBatch {
         numItems = bigIntVector.getValueCount,
         veType = VeScalarType.VeNullableLong,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -328,7 +329,8 @@ object VeColBatch {
         numItems = dirInt.getValueCount,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -345,7 +347,8 @@ object VeColBatch {
         numItems = dateDayVector.getValueCount,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -360,7 +363,8 @@ object VeColBatch {
         numItems = float8Vector.getValueCount,
         veType = VeScalarType.VeNullableDouble,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -379,7 +383,8 @@ object VeColBatch {
         numItems = varcharVector.getValueCount,
         veType = VeString,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer),
+        variableSize = Some(varcharVector.getDataBuffer.nioBuffer().capacity())
       )
     }
   }
