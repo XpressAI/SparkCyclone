@@ -22,6 +22,7 @@ import org.apache.arrow.vector.{
   FieldVector,
   Float8Vector,
   IntVector,
+  ValueVector,
   VarCharVector
 }
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
@@ -103,14 +104,13 @@ object VeColBatch {
      * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
      */
     def bufferSizes: List[Int] = veType match {
-      case VeScalarType.VeNullableDouble => List(numItems * 8, Math.ceil(numItems / 64.0).toInt * 8)
+      case v: VeScalarType => List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
       case VeString => {
         val offsetBuffSize = (numItems + 1) * 4
         val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
         variableSize.toList ++ List(offsetBuffSize, validitySize)
       }
-      case _ => ???
     }
 
     def injectBuffers(newBuffers: List[Array[Byte]])(implicit veProcess: VeProcess): VeColVector =
@@ -166,12 +166,12 @@ object VeColBatch {
       case VeScalarType.VeNullableDouble =>
         val vcvr = new nullable_double_vector()
         vcvr.count = numItems
-        vcvr.data = bufferLocations.head
+        vcvr.data = bufferLocations(0)
         vcvr.validityBuffer = bufferLocations(1)
         val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
 
         copy(containerLocation = veProcess.putBuffer(byteBuffer))
-      case _ => ???
+      case other => sys.error(s"Other $other not supported.")
     }
 
     def containerSize: Int = veType.containerSize
@@ -291,8 +291,10 @@ object VeColBatch {
 
     def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
       veProcess: VeProcess
-    ): VeColVector = {
-      source.getArrowValueVector match {
+    ): VeColVector = fromArrowVector(source.getArrowValueVector)
+
+    def fromArrowVector(valueVector: ValueVector)(implicit veProcess: VeProcess): VeColVector =
+      valueVector match {
         case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
         case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
         case intVector: IntVector         => fromIntVector(intVector)
@@ -300,7 +302,6 @@ object VeColBatch {
         case dateDayVector: DateDayVector => fromDateDayVector(dateDayVector)
         case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
       }
-    }
 
     def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_bigint_vector()

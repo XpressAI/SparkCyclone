@@ -20,7 +20,8 @@ import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
-import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.{FieldVector, Float8Vector, ValueVector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
 
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
@@ -201,55 +202,69 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   }
 
   "We can serialize/deserialize VeColVector" - {
+
+    def checkVector(
+      valueVector: ValueVector
+    )(implicit veProcess: VeProcess, bufferAllocator: BufferAllocator): Unit = {
+      val colVec: VeColVector = VeColVector.fromArrowVector(valueVector)
+      val serialized = colVec.serialize()
+      val serList = serialized.toList
+      val newColVec = colVec.deserialize(serialized)
+      expect(
+        newColVec.containerLocation != colVec.containerLocation,
+        newColVec.bufferLocations != colVec.bufferLocations
+      )
+      val newSerialized = newColVec.serialize().toList
+      val newSerList = newSerialized.toList
+      assert(newSerList == serList, "Serializing a deserialized one should yield the same result")
+      val newColVecArrow = newColVec.toArrowVector()
+      try {
+        colVec.free()
+        newColVec.free()
+        expect(newColVecArrow.toString == valueVector.toString)
+      } finally newColVecArrow.close()
+
+    }
+
     "for Float8Vector" in {
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
-          val serialized = colVec.serialize()
-          val serList = serialized.toList
-          val newColVec = colVec.deserialize(serialized)
-          expect(
-            newColVec.containerLocation != colVec.containerLocation,
-            newColVec.bufferLocations != colVec.bufferLocations
-          )
-          val newSerialized = newColVec.serialize().toList
-          val newSerList = newSerialized.toList
-          assert(
-            newSerList == serList,
-            "Serializing a deserialized one should yield the same result"
-          )
-          val newColVecArrow = newColVec.toArrowVector()
-          try {
-            colVec.free()
-            newColVec.free()
-            expect(newColVecArrow.toString == f8v.toString)
-          } finally newColVecArrow.close()
+          checkVector(f8v)
+        }
+      }
+    }
+    "for IntVector" in {
+      WithTestAllocator { implicit alloc =>
+        withDirectIntVector(List(1, 2, 3)) { f8v =>
+          checkVector(f8v)
+        }
+      }
+    }
+    "for BigIntVector" in {
+      WithTestAllocator { implicit alloc =>
+        withDirectBigIntVector(List(1, 2, 3)) { f8v =>
+          checkVector(f8v)
+        }
+      }
+    }
+    "for VarCharVector" in {
+      WithTestAllocator { implicit alloc =>
+        withArrowStringVector(List("1", "2", "3x")) { sv =>
+          checkVector(sv)
+        }
+      }
+    }
+    "for empty VarCharVector" in {
+      WithTestAllocator { implicit alloc =>
+        withArrowStringVector(List.empty) { sv =>
+          checkVector(sv)
         }
       }
     }
     "for an empty Float8Vector" in {
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List.empty) { f8v =>
-          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
-          val serialized = colVec.serialize()
-          val serList = serialized.toList
-          val newColVec = colVec.deserialize(serialized)
-          expect(
-            newColVec.containerLocation != colVec.containerLocation,
-            newColVec.bufferLocations != colVec.bufferLocations
-          )
-          val newSerialized = newColVec.serialize().toList
-          val newSerList = newSerialized.toList
-          assert(
-            newSerList == serList,
-            "Serializing a deserialized one should yield the same result"
-          )
-          val newColVecArrow = newColVec.toArrowVector()
-          try {
-            colVec.free()
-            newColVec.free()
-            expect(newColVecArrow.toString == f8v.toString)
-          } finally newColVecArrow.close()
+          checkVector(f8v)
         }
       }
     }
