@@ -67,7 +67,9 @@ import org.apache.spark.sql.catalyst.expressions.{
 }
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.types.StringType
 
 import scala.collection.immutable
@@ -422,13 +424,13 @@ final case class VERewriteStrategy(
                       functionName = partialName,
                       results = partialCFunction.outputs.map(_.veType)
                     ),
-                    child = VeHashExchange(
-                      exchangeFunction = VeFunction(
-                        libraryPath = libPath.toString,
-                        functionName = exchangeName,
-                        results = child.output.map(a => sparkTypeToVeType(a.dataType)).toList
-                      ),
-                      child = SparkToVectorEngine(planLater(child))
+                    child = SparkToVectorEngine(
+                      ShuffleExchangeExec(
+                        outputPartitioning =
+                          HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                        child = planLater(child),
+                        shuffleOrigin = REPARTITION
+                      )
                     ),
                     expectedOutputs = aggregateExpressions
                   )
