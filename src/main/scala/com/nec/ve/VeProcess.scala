@@ -230,7 +230,7 @@ object VeProcess {
       val gotCounts = countsP.get()
       require(
         gotCounts >= 0 && gotCounts < MaxSetsCount,
-        s"Expected 0 to $MaxSetsCount counts, got $gotCounts"
+        s"Expected 0 to $MaxSetsCount counts, got $gotCounts. Input args are ${cols}, results are $results"
       )
 
       (0 until gotCounts).toList.map { set =>
