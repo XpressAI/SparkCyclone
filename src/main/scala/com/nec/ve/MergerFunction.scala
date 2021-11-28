@@ -27,15 +27,12 @@ object MergerFunction {
         GroupByOutline.declare(veT.makeCVector(outputVarName)),
         CodeLines.debugHere,
         s"${outputVarName}_g[0] = ${outputVarName};",
-        // s"${outputVarName}_g[0] = (nullable_double_vector*)malloc(sizeof(void *));",
-        // s"${outputVarName}_g[0][0] = &$outputVarName;",
         veT match {
           case VeString =>
             val fp_0 = FilteringProducer(outputVarName, ImpCopyStringProducer("???"))
             CodeLines
               .from(
                 CodeLines.debugHere,
-                CodeLines.debugValue(s""""${veT}""""),
                 GroupByOutline.initializeStringVector(outputVarName),
                 CodeLines.debugHere,
                 fp_0.setup,
@@ -44,8 +41,8 @@ object MergerFunction {
                   val fp =
                     FilteringProducer(outputVarName, ImpCopyStringProducer(s"input_${idx}_g[b]"))
 
-                  CodeLines.from(CodeLines.forLoop("i", s"input_${idx}_g[b]->count") {
-                    CodeLines.from(CodeLines.debugHere, fp.forEach)
+                  CodeLines.from(CodeLines.forLoop("i", s"(input_${idx}_g[b]->count)") {
+                    CodeLines.from(fp.forEach)
                   })
                 }),
                 fp_0.complete,
@@ -58,13 +55,11 @@ object MergerFunction {
               .from(
                 GroupByOutline.initializeScalarVector(veScalarType, outputVarName, "rows"),
                 "int o = 0;",
-                CodeLines.debugHere,
                 CodeLines.forLoop("b", "batches") {
                   val inputInBatch = s"input_${idx}_g[b]"
                   val countInBatch = s"$inputInBatch->count"
                   CodeLines.from(
                     CodeLines.debugHere,
-                    CodeLines.debugValue(""""cib"""", countInBatch, "o", s"$inputInBatch->data[0]", s"$inputInBatch->data[1]"),
                     CodeLines.forLoop("i", countInBatch) {
                       CodeLines.from(
                         s"$outputVarName->data[o] = $inputInBatch->data[i];",
@@ -73,7 +68,7 @@ object MergerFunction {
                       )
                     }
                   )
-                },
+                }
               )
               .blockCommented(s"$idx")
         }
