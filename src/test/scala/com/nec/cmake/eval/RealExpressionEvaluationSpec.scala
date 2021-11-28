@@ -19,6 +19,8 @@
  */
 package com.nec.cmake.eval
 
+import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Resource}
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
@@ -31,7 +33,7 @@ import com.nec.arrow.ArrowVectorBuilders.{
   withNullableArrowStringVector
 }
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
+import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
@@ -42,7 +44,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
 import com.typesafe.scalalogging.LazyLogging
@@ -606,6 +608,97 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       result ==
         List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
     )
+  }
+
+  "We can join by String & Long (JoinByString)" in {
+
+    /**
+     * SELECT X.A, X.C, Y.C FROM X LEFT JOIN Y ON X.A = Y.A AND X.B = Y.B
+     * X = [A: String, B: Long, C: Int]
+     * Y = [A: String, B: Long, C: Double]
+     */
+
+    val left = List[(String, Long, Int)](
+      ("test", 123, 456),
+      ("test2", 123, 4567),
+      ("test2", 12, 45678),
+      ("test3", 12, 456789),
+      ("test3", 123, 4567890)
+    )
+
+    val right = List[(String, Long, Double)](
+      ("test2", 123, 654),
+      ("test2", 123, 761),
+      ("test3", 12, 456)
+    )
+
+    val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
+      /** two inner join entries on RHS */
+      (("test2", 123, 4567), ("test2", 123, 654)),
+      (("test2", 123, 4567), ("test2", 123, 761)),
+      (("test3", 12, 456789), ("test3", 12, 456))
+    )
+
+    val joinSelectOnlyIntDouble = List[(String, Int, Double)](
+      ("test2", 4567, 654),
+      ("test2", 4567, 761),
+      ("test3", 456789, 456)
+    )
+
+    val evaluationResource = for {
+      allocator <- WithTestAllocator.resource
+      vb = CatsArrowVectorBuilders(cats.effect.Ref.unsafe[IO, Int](0))(allocator)
+      x_a <- vb.stringVector(left.map(_._1))
+      x_b <- vb.longVector(left.map(_._2))
+      x_c <- vb.intVector(left.map(_._3))
+      y_a <- vb.stringVector(right.map(_._1))
+      y_b <- vb.longVector(right.map(_._2))
+      y_c <- vb.doubleVector(right.map(_._3))
+      o_a <- vb.stringVector(Seq.empty)
+      o_b <- vb.intVector(Seq.empty)
+      o_c <- vb.doubleVector(Seq.empty)
+
+      cLib <- Resource.eval {
+        IO.delay {
+          CMakeBuilder.buildCLogging(
+            List(TransferDefinitionsSourceCode, "\n\n", CppResource("cpp/adv-join.hpp").readString)
+              .mkString("\n\n")
+          )
+        }
+      }
+
+      nativeInterface = new CArrowNativeInterface(cLib.toString)
+      _ <- Resource.eval {
+        IO.delay {
+          nativeInterface.callFunctionWrapped(
+            name = "adv_join",
+            arguments = List(
+              NativeArgument.input(x_a),
+              NativeArgument.input(x_b),
+              NativeArgument.input(x_c),
+              NativeArgument.input(y_a),
+              NativeArgument.input(y_b),
+              NativeArgument.input(y_c),
+              NativeArgument.output(o_a),
+              NativeArgument.output(o_b),
+              NativeArgument.output(o_c)
+            )
+          )
+        }
+      }
+    } yield (o_a.toList, o_b.toList, o_c.toList)
+
+    val evaluation = evaluationResource.use { case (output_a, output_b, output_c) =>
+      IO.delay {
+        val expected_a = joinSelectOnlyIntDouble.map(_._1)
+        val expected_b = joinSelectOnlyIntDouble.map(_._2)
+        val expected_c = joinSelectOnlyIntDouble.map(_._3)
+        expect(output_a == expected_a, output_b == expected_b, output_c == expected_c)
+      }
+    }
+
+    evaluation.unsafeRunSync()
+
   }
 
 }
