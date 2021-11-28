@@ -50,6 +50,7 @@ import com.nec.spark.planning.aggregation.{
   VeHashExchange,
   VePartialAggregate
 }
+import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
@@ -366,7 +367,24 @@ final case class VERewriteStrategy(
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
             exchangeName = s"exchange_$functionPrefix"
-            exchangeFunction = GroupingFunction.groupData(data = ???, totalBuckets = 16)
+            exchangeFunction = {
+
+              println(s"G$groupingExpressions")
+              println(s"Agg$aggregateExpressions")
+              GroupingFunction.groupData(
+                data = aggregateExpressions.map { namedExpression =>
+                  val contained = groupingExpressions.contains(namedExpression)
+                  DataDescription(
+                    veType = sparkTypeToVeType(namedExpression.dataType),
+                    keyOrValue =
+                      if (contained) DataDescription.KeyOrValue.Key
+                      else DataDescription.KeyOrValue.Value
+                  )
+
+                },
+                totalBuckets = 16
+              )
+            }
             mergeFunction = s"merge_$functionPrefix"
             libPath =
               SparkCycloneDriverPlugin.currentCompiler.forCode(
