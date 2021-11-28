@@ -24,12 +24,12 @@ case class VeFinalAggregate(
       veColBatches.map { veColBatch =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         VeColBatch.fromList {
-          veProcess.execute(
+          try veProcess.execute(
             libraryReference = libRef,
             functionName = finalFunction.functionName,
             cols = veColBatch.cols,
             results = finalFunction.results
-          )
+          ) finally veColBatch.cols.foreach(_.free())
         }
       }
     }

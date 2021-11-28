@@ -22,13 +22,15 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
       Iterator
         .continually {
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+          val inputBatches = veColBatches.toList
           VeColBatch.fromList(
-            veProcess.executeMultiIn(
+            try veProcess.executeMultiIn(
               libraryReference = libRefExchange,
               functionName = flattenFunction.functionName,
-              batches = VeBatchOfBatches.fromVeColBatches(veColBatches.toList),
+              batches = VeBatchOfBatches.fromVeColBatches(inputBatches),
               results = flattenFunction.results
             )
+            finally inputBatches.flatMap(_.cols).foreach(_.free())
           )
         }
         .take(1)
