@@ -38,8 +38,8 @@ object OneStageEvaluationPlan {
 }
 
 final case class OneStageEvaluationPlan(
-  outputExpressions: Seq[NamedExpression],
   veFunction: VeFunction,
+  outputExpressions: Seq[NamedExpression],
   child: SparkPlan
 ) extends SparkPlan
   with UnaryExecNode
