@@ -160,7 +160,8 @@ object VeProcess {
             numItems = byteBuffer.getInt(16),
             veType = scalar,
             containerLocation = outContainerLocation,
-            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
+            variableSize = None
           )
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
@@ -169,6 +170,7 @@ object VeProcess {
 
           VeColVector(
             numItems = byteBuffer.getInt(28),
+            variableSize = Some(byteBuffer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,
             bufferLocations =
@@ -249,7 +251,8 @@ object VeProcess {
               veType = VeString,
               containerLocation = outContainerLocation,
               bufferLocations =
-                List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+                List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16)),
+              variableSize = Some(byteBuffer.getInt(24))
             )
           case (outPointer, r: VeScalarType) =>
             val outContainerLocation = outPointer.get(set)
@@ -264,7 +267,8 @@ object VeProcess {
               numItems = byteBuffer.getInt(16),
               veType = r,
               containerLocation = outContainerLocation,
-              bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+              bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
+              variableSize = None
             )
         }
       }
@@ -328,7 +332,8 @@ object VeProcess {
             numItems = byteBuffer.getInt(16),
             veType = scalar,
             containerLocation = outContainerLocation,
-            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
+            variableSize = None
           )
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
@@ -337,6 +342,7 @@ object VeProcess {
 
           VeColVector(
             numItems = byteBuffer.getInt(28),
+            variableSize = Some(byteBuffer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,
             bufferLocations =
