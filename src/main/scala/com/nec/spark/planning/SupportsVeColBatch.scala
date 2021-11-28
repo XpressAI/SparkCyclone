@@ -7,6 +7,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait SupportsVeColBatch { this: SparkPlan =>
+  override def supportsColumnar: Boolean = true
   def executeVeColumnar(): RDD[VeColBatch]
   override protected def doExecute(): RDD[InternalRow] =
     sys.error("Cannot execute plan without a VE wrapper")

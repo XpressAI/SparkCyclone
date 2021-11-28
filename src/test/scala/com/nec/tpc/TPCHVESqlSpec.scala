@@ -29,6 +29,7 @@ import org.bytedeco.veoffload.global.veo
 import org.scalatest.ConfigMap
 
 import java.io.File
+import com.nec.spark.planning.VeColumnarRule
 
 object TPCHVESqlSpec {
 
@@ -36,6 +37,8 @@ object TPCHVESqlSpec {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(key = "com.nec.spark.ncc.debug", value = "true")
+      .config(key = "spark.ui.enabled", value = true)
+      .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")
       .config(key = "spark.com.nec.spark.ncc.debug", value = "true")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
@@ -44,6 +47,7 @@ object TPCHVESqlSpec {
           new VERewriteStrategy(ExecutorPluginManagedEvaluator)
         })
       )
+      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
   }
 
 }

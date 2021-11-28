@@ -214,7 +214,7 @@ final case class VeKernelCompiler(
     } catch {
       case e: Throwable =>
         throw new RuntimeException(
-          s"Failed to compile: ${e}; source was ${cSource}; ${sourceCode}",
+          s"Failed to compile: ${e}; source was in: ${cSource}",
           e
         )
     }

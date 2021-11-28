@@ -23,17 +23,12 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector._
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.nio.file.Paths
 import scala.language.dynamics
@@ -59,7 +54,7 @@ final case class OneStageEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override def executeVeColumnar(): RDD[VeColBatch] = {
+  override def executeVeColumnar(): RDD[VeColBatch] =
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -75,10 +70,11 @@ final case class OneStageEvaluationPlan(
               results = veFunction.results
             )
 
-            VeColBatch(numRows = cols.head.numItems, cols = cols)
-          } finally {} //veColBatch.cols.foreach(_.free())
-
+            val outBatch = VeColBatch.fromList(cols)
+            if (veColBatch.numRows < outBatch.numRows)
+              println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+            outBatch
+          } finally veColBatch.cols.foreach(_.free())
         }
       }
-  }
 }

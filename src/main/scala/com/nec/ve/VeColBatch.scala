@@ -22,6 +22,7 @@ import org.apache.arrow.vector.{
   FieldVector,
   Float8Vector,
   IntVector,
+  ValueVector,
   VarCharVector
 }
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
@@ -29,7 +30,6 @@ import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit
@@ -43,6 +43,36 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
 }
 
 object VeColBatch {
+  def fromList(lv: List[VeColVector]): VeColBatch =
+    VeColBatch(numRows = lv.head.numItems, lv)
+
+  final case class ColumnGroup(veType: VeType, relatedColumns: List[VeColVector]) {}
+
+  final case class VeBatchOfBatches(cols: Int, rows: Int, batches: List[VeColBatch]) {
+    def isEmpty: Boolean = !nonEmpty
+    def nonEmpty: Boolean = rows > 0
+
+    /** Transpose to get the columns from each batch aligned, ie [[1st col of 1st batch, 1st col of 2nd batch, ...], [2nd col of 1st batch, ...] */
+    def groupedColumns: List[ColumnGroup] = {
+      if (batches.isEmpty) Nil
+      else {
+        batches.head.cols.zipWithIndex.map { case (vcv, idx) =>
+          ColumnGroup(
+            veType = vcv.veType,
+            relatedColumns = batches
+              .map(_.cols.apply(idx))
+              .ensuring(cond = _.forall(_.veType == vcv.veType), msg = "All types should match up")
+          )
+        }
+      }
+    }
+  }
+
+  object VeBatchOfBatches {
+    def fromVeColBatches(list: List[VeColBatch]): VeBatchOfBatches = {
+      VeBatchOfBatches(cols = list.head.cols.size, rows = list.map(_.numRows).sum, batches = list)
+    }
+  }
 
   def fromColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
     VeColBatch(
@@ -62,24 +92,26 @@ object VeColBatch {
 
   final case class VeColVector(
     numItems: Int,
+    variableSize: Option[Int],
     veType: VeType,
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
+    def nonEmpty: Boolean = numItems > 0
+    def isEmpty: Boolean = !nonEmpty
+
+    if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
 
     /**
      * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
      */
     def bufferSizes: List[Int] = veType match {
-      case VeScalarType.VeNullableDouble => List(numItems * 8, Math.ceil(numItems / 64.0).toInt * 8)
-      case VeString => {
-        val dataSize = getUnsafe.getInt(numItems * 4)
+      case v: VeScalarType => List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
+      case VeString =>
         val offsetBuffSize = (numItems + 1) * 4
         val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
-        List(dataSize, offsetBuffSize, validitySize)
-      }
-      case _ => ???
+        variableSize.toList ++ List(offsetBuffSize, validitySize)
     }
 
     def injectBuffers(newBuffers: List[Array[Byte]])(implicit veProcess: VeProcess): VeColVector =
@@ -135,12 +167,39 @@ object VeColBatch {
       case VeScalarType.VeNullableDouble =>
         val vcvr = new nullable_double_vector()
         vcvr.count = numItems
-        vcvr.data = bufferLocations.head
+        vcvr.data = bufferLocations(0)
         vcvr.validityBuffer = bufferLocations(1)
         val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
 
         copy(containerLocation = veProcess.putBuffer(byteBuffer))
-      case _ => ???
+      case VeScalarType.VeNullableInt =>
+        val vcvr = new nullable_int_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+
+        copy(containerLocation = veProcess.putBuffer(byteBuffer))
+      case VeScalarType.VeNullableLong =>
+        val vcvr = new nullable_bigint_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
+
+        copy(containerLocation = veProcess.putBuffer(byteBuffer))
+      case VeString =>
+        val vcvr = new nullable_varchar_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.offsets = bufferLocations(1)
+        vcvr.validityBuffer = bufferLocations(2)
+        vcvr.dataSize =
+          variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
+        val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
+
+        copy(containerLocation = veProcess.putBuffer(byteBuffer))
+      case other => sys.error(s"Other $other not supported.")
     }
 
     def containerSize: Int = veType.containerSize
@@ -260,8 +319,10 @@ object VeColBatch {
 
     def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
       veProcess: VeProcess
-    ): VeColVector = {
-      source.getArrowValueVector match {
+    ): VeColVector = fromArrowVector(source.getArrowValueVector)
+
+    def fromArrowVector(valueVector: ValueVector)(implicit veProcess: VeProcess): VeColVector =
+      valueVector match {
         case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
         case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
         case intVector: IntVector         => fromIntVector(intVector)
@@ -269,7 +330,6 @@ object VeColBatch {
         case dateDayVector: DateDayVector => fromDateDayVector(dateDayVector)
         case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
       }
-    }
 
     def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_bigint_vector()
@@ -282,7 +342,8 @@ object VeColBatch {
         numItems = bigIntVector.getValueCount,
         veType = VeScalarType.VeNullableLong,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -297,7 +358,8 @@ object VeColBatch {
         numItems = dirInt.getValueCount,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -314,7 +376,8 @@ object VeColBatch {
         numItems = dateDayVector.getValueCount,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -329,7 +392,8 @@ object VeColBatch {
         numItems = float8Vector.getValueCount,
         veType = VeScalarType.VeNullableDouble,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
       )
     }
 
@@ -348,7 +412,8 @@ object VeColBatch {
         numItems = varcharVector.getValueCount,
         veType = VeString,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer)
+        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer),
+        variableSize = Some(varcharVector.getDataBuffer.nioBuffer().capacity())
       )
     }
   }

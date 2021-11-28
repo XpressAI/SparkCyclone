@@ -46,7 +46,7 @@ object SparkCycloneExecutorPlugin {
   var _veo_proc: veo_proc_handle = _
 
   implicit def veProcess: VeProcess =
-    VeProcess.WrappingVeo(_veo_proc)
+    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc))
 
   var lib: Long = -1
   var veArrowNativeInterfaceNumeric: VeArrowNativeInterface = _

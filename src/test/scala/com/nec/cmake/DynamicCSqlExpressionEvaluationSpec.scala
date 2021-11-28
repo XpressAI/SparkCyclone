@@ -22,25 +22,35 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.{NativeAggregationEvaluationPlan, NativeSortEvaluationPlan, OneStageEvaluationPlan, VERewriteStrategy, VeColumnarRule}
+import com.nec.spark.planning.{
+  NativeSortEvaluationPlan,
+  OneStageEvaluationPlan,
+  VERewriteStrategy,
+}
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
+import com.nec.testing.SampleSource.{
+  makeCsvNumsMultiColumn,
+  makeCsvNumsMultiColumnJoin,
+  SampleColA,
+  SampleColB,
+  SampleColC,
+  SampleColD
+}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.scalactic.{Prettifier, source}
+import org.scalactic.{source, Prettifier}
+
 import java.time.Instant
 import java.time.temporal.TemporalUnit
-
 import scala.math.Ordered.orderingToOrdered
-
 import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
+import com.nec.spark.planning.VeColumnarRule
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -52,10 +62,7 @@ object DynamicCSqlExpressionEvaluationSpec {
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => {
           VERewriteStrategy.failFast = true
-          new VERewriteStrategy(
-            CNativeEvaluator(debug = false),
-            VeRewriteStrategyOptions.default.copy(preShufflePartitions = None)
-          )
+          new VERewriteStrategy(CNativeEvaluator(debug = false), VeRewriteStrategyOptions.default)
         })
       )
       .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
@@ -1011,13 +1018,11 @@ class DynamicCSqlExpressionEvaluationSpec
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(
-        thePlan
-          .toString()
-          .contains(
-            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
-          )
-      )
+//      expect(
+//        thePlan
+//          .toString()
+//          .contains(VeAggregationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
+//      )
       dataSet
     }
 

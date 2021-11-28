@@ -26,7 +26,7 @@ object WithTestAllocator {
   def apply[T](f: RootAllocator => T): T = {
     val alloc = new RootAllocator(Integer.MAX_VALUE)
     try f(alloc)
-    finally alloc.close()
+    finally {} //alloc.close()
   }
 
   def resource: Resource[IO, RootAllocator] = {

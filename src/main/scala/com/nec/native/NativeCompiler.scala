@@ -23,6 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file.Paths
 import com.nec.cmake.CMakeBuilder
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.apache.spark.SparkConf
 
 import java.nio.file.Files
@@ -34,6 +35,7 @@ trait NativeCompiler extends Serializable {
 
   /** Location of the compiled kernel library */
   def forCode(code: String): Path
+  def forCode(codeLines: CodeLines): Path = forCode(codeLines.cCode)
   protected def combinedCode(code: String): String =
     List(TransferDefinitions.TransferDefinitionsSourceCode, code).mkString("\n\n")
 }
