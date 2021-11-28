@@ -50,15 +50,23 @@ object VeRDD extends Logging {
           },
         preservesPartitioning = true
       )
+  def exchangeLS(rdd: RDD[(Int, List[VeColVector])])(implicit
+    veProcess: VeProcess
+  ): RDD[List[VeColVector]] =
+    rdd.repartitionByKey().mapPartitions(f = _.map(_._2), preservesPartitioning = true)
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
     def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
   }
+
   implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
     def repartitionByKey(): RDD[(Int, V)] =
       new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
     def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[List[VeColVector]] = exchangeL(rdd)
+    // for single-machine case!
+    def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
+      exchangeLS(rdd)
   }
 }

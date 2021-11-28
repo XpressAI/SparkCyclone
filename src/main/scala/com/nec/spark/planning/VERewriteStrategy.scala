@@ -126,7 +126,7 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case f @ logical.Filter(condition, child) if options.filterOnVe && false =>
+        case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val replacer =
@@ -178,8 +178,7 @@ final case class VERewriteStrategy(
             identity
           )
 
-        case logical.Project(projectList, child)
-            if projectList.nonEmpty && options.projectOnVe && false =>
+        case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val planE = for {
@@ -399,12 +398,61 @@ final case class VERewriteStrategy(
                     ff.toCodeLinesNoHeaderOutPtr2(finalName),
                     exchangeFunction.toCodeLines(exchangeName),
                     MergerFunction
-                      .merge(types = List(VeNullableDouble, VeString))
+                      .merge(types = partialCFunction.outputs.map(_.veType))
                       .toCodeLines(mergeFunction)
                       .cCode
                   )
               )
           } yield {
+
+            val useVeExchange = false
+            val exchangePlan =
+              if (useVeExchange)
+                VeHashExchange(
+                  exchangeFunction = VeFunction(
+                    libraryPath = libPath.toString,
+                    functionName = exchangeName,
+                    results = partialCFunction.inputs.map(_.veType)
+                  ),
+                  child = SparkToVectorEngine(planLater(child))
+                )
+              else
+                SparkToVectorEngine(
+                  ShuffleExchangeExec(
+                    outputPartitioning =
+                      HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                    child = planLater(child),
+                    shuffleOrigin = REPARTITION
+                  )
+                )
+            val pag = VePartialAggregate(
+              partialFunction = VeFunction(
+                libraryPath = libPath.toString,
+                functionName = partialName,
+                results = partialCFunction.outputs.map(_.veType)
+              ),
+              child = exchangePlan,
+              expectedOutputs = partialCFunction.outputs
+                .map(_.veType)
+                .zipWithIndex
+                .map { case (veType, i) =>
+                  import org.apache.spark.sql.catalyst.expressions._
+                  // quick hack before doing something more proper
+                  PrettyAttribute(
+                    s"${veType}_${i}",
+                    SparkExpressionToCExpression.likelySparkType(veType)
+                  )
+                }
+                .toList
+            )
+            val flt = VeFlattenPartition(
+              flattenFunction = VeFunction(
+                libraryPath = libPath.toString,
+                functionName = mergeFunction,
+                results = partialCFunction.outputs.map(_.veType)
+              ),
+              child = pag
+            )
             VectorEngineToSpark(
               VeFinalAggregate(
                 expectedOutputs = aggregateExpressions,
@@ -413,29 +461,7 @@ final case class VERewriteStrategy(
                   functionName = finalName,
                   results = ff.outputs.map(_.veType)
                 ),
-                child = VeFlattenPartition(
-                  flattenFunction = VeFunction(
-                    libraryPath = libPath.toString,
-                    functionName = mergeFunction,
-                    results = partialCFunction.outputs.map(_.veType)
-                  ),
-                  child = VePartialAggregate(
-                    partialFunction = VeFunction(
-                      libraryPath = libPath.toString,
-                      functionName = partialName,
-                      results = partialCFunction.outputs.map(_.veType)
-                    ),
-                    child = SparkToVectorEngine(
-                      ShuffleExchangeExec(
-                        outputPartitioning =
-                          HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-                        child = planLater(child),
-                        shuffleOrigin = REPARTITION
-                      )
-                    ),
-                    expectedOutputs = aggregateExpressions
-                  )
-                )
+                child = flt
               )
             )
           }
