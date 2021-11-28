@@ -380,8 +380,7 @@ final case class VERewriteStrategy(
                       if (contained) DataDescription.KeyOrValue.Key
                       else DataDescription.KeyOrValue.Value
                   )
-
-                },
+                }.toList,
                 totalBuckets = 16
               )
             }
