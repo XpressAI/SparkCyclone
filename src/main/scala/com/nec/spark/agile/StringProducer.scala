@@ -62,7 +62,6 @@ object StringProducer {
       with CopyStringProducer {
 
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
-
     def frovedisLens(outputName: String) = s"${outputName}_lens"
 
     def wordName(outputName: String) = s"${outputName}_input_words"

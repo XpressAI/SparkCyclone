@@ -199,22 +199,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   "We can merge multiple VeColBatches" in {
     val fName = "merger"
 
-    def merge(types: List[VeType]): CFunction2 = CFunction2(
-      arguments = List(
-        List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")),
-        types.zipWithIndex.map { case (veType, idx) =>
-          CFunctionArgument.PointerPointer(veType.makeCVector(s"input_${idx}_g"))
-        },
-        types.zipWithIndex.map { case (veType, idx) =>
-          CFunctionArgument.PointerPointer(veType.makeCVector(s"output_${idx}"))
-        }
-      ).flatten,
-      body = CodeLines.from()
-    )
-
-    val MergingFunction: CFunction2 = merge(types = List(VeNullableDouble, VeString))
-
-    compiledWithHeaders(MergingFunction.toCodeLines(fName).cCode) { path =>
+    compiledWithHeaders(
+      MergerFunction.merge(types = List(VeNullableDouble, VeString)).toCodeLines(fName).cCode
+    ) { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
