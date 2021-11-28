@@ -267,11 +267,12 @@ object VeProcess {
       veo.veo_args_set_i32(our_args, 1, batches.rows)
 
       batches.groupedColumns.zipWithIndex.foreach { case (colGroup, index) =>
-        val lp = new LongPointer(8 * batches.batches.size)
+        val byteSize = 8 * batches.batches.size
+        val lp = new LongPointer(byteSize)
         colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
           lp.put(idx, col.containerLocation)
         }
-        veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), 8)
+        veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(8)

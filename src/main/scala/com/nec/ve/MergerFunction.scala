@@ -20,38 +20,62 @@ object MergerFunction {
       }
     ).flatten,
     body = CodeLines.from(types.zipWithIndex.map { case (veT, idx) =>
-      val varName = s"output_${idx}"
+      val outputVarName = s"output_${idx}"
       CodeLines.from(
-        CodeLines.debugValue(s"$idx"),
-        GroupByOutline.declare(veT.makeCVector(varName)),
-        s"${varName} = ${varName}_g[0];",
+        CodeLines.debugValue(s"$idx", "batches", "rows"),
+        CodeLines.debugHere,
+        GroupByOutline.declare(veT.makeCVector(outputVarName)),
+        CodeLines.debugHere,
+        s"${outputVarName}_g[0] = ${outputVarName};",
+        // s"${outputVarName}_g[0] = (nullable_double_vector*)malloc(sizeof(void *));",
+        // s"${outputVarName}_g[0][0] = &$outputVarName;",
         veT match {
           case VeString =>
-            val fp_0 = FilteringProducer(varName, null)
-            CodeLines.from(
-              GroupByOutline.initializeStringVector(varName),
-              fp_0.setup,
-              CodeLines.forLoop("b", "batches")({
-                val fp = FilteringProducer(varName, ImpCopyStringProducer(s"input_${idx}_g[b]"))
-                CodeLines.from(fp.forEach)
-              }),
-              fp_0.complete,
-              CodeLines.forLoop("i", "rows")(fp_0.validityForEach("i"))
-            )
+            val fp_0 = FilteringProducer(outputVarName, ImpCopyStringProducer("???"))
+            CodeLines
+              .from(
+                CodeLines.debugHere,
+                CodeLines.debugValue(s""""${veT}""""),
+                GroupByOutline.initializeStringVector(outputVarName),
+                CodeLines.debugHere,
+                fp_0.setup,
+                CodeLines.debugHere,
+                CodeLines.forLoop("b", "batches")({
+                  val fp =
+                    FilteringProducer(outputVarName, ImpCopyStringProducer(s"input_${idx}_g[b]"))
+
+                  CodeLines.from(CodeLines.forLoop("i", s"input_${idx}_g[b]->count") {
+                    CodeLines.from(CodeLines.debugHere, fp.forEach)
+                  })
+                }),
+                fp_0.complete,
+                CodeLines.forLoop("i", "rows")(fp_0.validityForEach("i"))
+              )
+              .blockCommented(s"$idx")
+
           case veScalarType: VeScalarType =>
-            CodeLines.from(
-              GroupByOutline.initializeScalarVector(veScalarType, varName, "rows"),
-              "int o = 0;",
-              CodeLines.forLoop("b", "batches") {
-                CodeLines.from(CodeLines.forLoop("i", s"input_${idx}_g[b]->count") {
+            CodeLines
+              .from(
+                GroupByOutline.initializeScalarVector(veScalarType, outputVarName, "rows"),
+                "int o = 0;",
+                CodeLines.debugHere,
+                CodeLines.forLoop("b", "batches") {
+                  val inputInBatch = s"input_${idx}_g[b]"
+                  val countInBatch = s"$inputInBatch->count"
                   CodeLines.from(
-                    s"$varName->data[o] = input_${idx}_g[b]->data[i];",
-                    s"set_validity($varName->data, o, check_valid(input_${idx}_g[b]->validityBuffer, i));",
-                    "o++;"
+                    CodeLines.debugHere,
+                    CodeLines.debugValue(""""cib"""", countInBatch, "o", s"$inputInBatch->data[0]", s"$inputInBatch->data[1]"),
+                    CodeLines.forLoop("i", countInBatch) {
+                      CodeLines.from(
+                        s"$outputVarName->data[o] = $inputInBatch->data[i];",
+                        s"set_validity($outputVarName->validityBuffer, o, check_valid($inputInBatch->validityBuffer, i));",
+                        "o++;"
+                      )
+                    }
                   )
-                })
-              }
-            )
+                },
+              )
+              .blockCommented(s"$idx")
         }
       )
     })
