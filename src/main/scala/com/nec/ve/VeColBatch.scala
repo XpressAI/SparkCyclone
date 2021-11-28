@@ -97,6 +97,8 @@ object VeColBatch {
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
+    def nonEmpty: Boolean = numItems > 0
+    def isEmpty: Boolean = !nonEmpty
 
     if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
 

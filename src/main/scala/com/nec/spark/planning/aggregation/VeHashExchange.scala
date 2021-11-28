@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 import java.nio.file.Paths
+import java.time.{Duration, Instant}
 
 case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
@@ -25,14 +26,23 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
       veColBatches.flatMap { veColBatch =>
         logInfo("Preparing to hash a batch...")
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        try veProcess.executeMulti(
-          libraryReference = libRefExchange,
-          functionName = exchangeFunction.functionName,
-          cols = veColBatch.cols,
-          results = exchangeFunction.results
-        )
-        finally {
-          logInfo("Completed hashing a batch...")
+        try {
+          val startTime = Instant.now()
+          val multiBatches = veProcess.executeMulti(
+            libraryReference = libRefExchange,
+            functionName = exchangeFunction.functionName,
+            cols = veColBatch.cols,
+            results = exchangeFunction.results
+          )
+
+          multiBatches.flatMap(_._2).filter(_.isEmpty).foreach(_.free())
+          val filledOnes = multiBatches.filter(_._2.head.nonEmpty)
+          val timeTaken = Duration.between(startTime, Instant.now())
+          logInfo(
+            s"Completed hashing a batch. Got ${filledOnes.size} filled of ${multiBatches.size}. Took ${timeTaken}"
+          )
+          filledOnes
+        } finally {
           veColBatch.cols.foreach(_.free())
         }
       }
