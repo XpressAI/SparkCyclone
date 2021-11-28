@@ -30,9 +30,9 @@ object VeRDD extends Logging {
       .mapPartitions(
         f = iter =>
           iter.map { case (p, v) =>
-            logInfo(s"Preparing to serialize batch ${v}")
+//            logInfo(s"Preparing to serialize batch ${v}")
             val r = (p, (v, v.map(_.serialize())))
-            logInfo(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
+//            logInfo(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
             r
           },
         preservesPartitioning = true
@@ -42,9 +42,9 @@ object VeRDD extends Logging {
         f = iter =>
           iter.map { case (_, (v, ba)) =>
             v.zip(ba).map { case (vv, bb) =>
-              logInfo(s"Preparing to deserialize batch ${vv}")
+//              logInfo(s"Preparing to deserialize batch ${vv}")
               val res = vv.deserialize(bb)
-              logInfo(s"Completed deserializing batch ${vv} --> ${res}")
+//              logInfo(s"Completed deserializing batch ${vv} --> ${res}")
               res
             }
           },
