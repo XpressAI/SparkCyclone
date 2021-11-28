@@ -21,19 +21,22 @@ object VeRDD {
 
   def exchangeL(
     rdd: RDD[(Int, List[VeColVector])]
-  )(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
+  ): RDD[List[VeColVector]] =
     rdd
       .mapPartitions(
         f = iter =>
           iter.map { case (p, v) =>
+            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             (p, (v, v.map(_.serialize())))
           },
         preservesPartitioning = true
       )
       .sortByKey()
       .mapPartitions(
-        f = iter =>
-          iter.map { case (_, (v, ba)) => v.zip(ba).map { case (vv, bb) => vv.deserialize(bb) } },
+        f = iter => {
+          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+          iter.map { case (_, (v, ba)) => v.zip(ba).map { case (vv, bb) => vv.deserialize(bb) } }
+        },
         preservesPartitioning = true
       )
 
@@ -41,6 +44,6 @@ object VeRDD {
     def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
-    def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[List[VeColVector]] = exchangeL(rdd)
+    def exchangeBetweenVEs(): RDD[List[VeColVector]] = exchangeL(rdd)
   }
 }
