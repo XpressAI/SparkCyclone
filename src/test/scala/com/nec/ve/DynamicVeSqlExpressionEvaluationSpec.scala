@@ -42,6 +42,7 @@ object DynamicVeSqlExpressionEvaluationSpec {
 
 }
 
+@org.scalatest.Ignore
 final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEvaluationSpec {
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =

@@ -101,7 +101,6 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
                     WithTestAllocator { implicit alloc =>
                       val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
                       val vl = vec.toList
-                      println(vl)
                       try if (vl.isEmpty) None else Some(vl.max)
                       finally vec.close()
                     }
@@ -111,9 +110,10 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
             )
             .collect()
             .toList
+            .toSet
       }
 
-    val expected = List[Double](199, 299, 399, 500)
+    val expected = List[Double](199, 299, 399, 500).toSet
     expect(result == expected)
   }
 
