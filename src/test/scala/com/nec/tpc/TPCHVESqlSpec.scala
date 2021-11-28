@@ -36,11 +36,10 @@ object TPCHVESqlSpec {
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
-      .config(key = "com.nec.spark.ncc.debug", value = "false")
       .config(key = "spark.ui.enabled", value = true)
       .config(key = "spark.sql.codegen.wholeStage", value = false)
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")
-      .config(key = "spark.com.nec.spark.ncc.debug", value = "true")
+      .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(_ => {

@@ -126,7 +126,7 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case f @ logical.Filter(condition, child) if options.filterOnVe && false =>
+        case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val replacer =
@@ -178,8 +178,7 @@ final case class VERewriteStrategy(
             identity
           )
 
-        case logical.Project(projectList, child)
-            if projectList.nonEmpty && options.projectOnVe && false =>
+        case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val planE = for {
@@ -406,20 +405,33 @@ final case class VERewriteStrategy(
               )
           } yield {
 
+            val useVeExchange = false
+            val exchangePlan =
+              if (useVeExchange)
+                VeHashExchange(
+                  exchangeFunction = VeFunction(
+                    libraryPath = libPath.toString,
+                    functionName = exchangeName,
+                    results = partialCFunction.inputs.map(_.veType)
+                  ),
+                  child = SparkToVectorEngine(planLater(child))
+                )
+              else
+                SparkToVectorEngine(
+                  ShuffleExchangeExec(
+                    outputPartitioning =
+                      HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                    child = planLater(child),
+                    shuffleOrigin = REPARTITION
+                  )
+                )
             val pag = VePartialAggregate(
               partialFunction = VeFunction(
                 libraryPath = libPath.toString,
                 functionName = partialName,
                 results = partialCFunction.outputs.map(_.veType)
               ),
-              child = SparkToVectorEngine(
-                ShuffleExchangeExec(
-                  outputPartitioning =
-                    HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-                  child = planLater(child),
-                  shuffleOrigin = REPARTITION
-                )
-              ),
+              child = exchangePlan,
               expectedOutputs = partialCFunction.outputs
                 .map(_.veType)
                 .zipWithIndex
