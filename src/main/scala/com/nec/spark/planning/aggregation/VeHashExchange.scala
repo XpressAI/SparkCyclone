@@ -24,7 +24,6 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
     .mapPartitions { veColBatches =>
       val libRefExchange = veProcess.loadLibrary(Paths.get(exchangeFunction.libraryPath))
       veColBatches.flatMap { veColBatch =>
-        logInfo("Preparing to hash a batch...")
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         try {
           val startTime = Instant.now()
@@ -38,9 +37,6 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
           multiBatches.flatMap(_._2).filter(_.isEmpty).foreach(_.free())
           val filledOnes = multiBatches.filter(_._2.head.nonEmpty)
           val timeTaken = Duration.between(startTime, Instant.now())
-          logInfo(
-            s"Completed hashing a batch. Got ${filledOnes.size} filled of ${multiBatches.size}. Took ${timeTaken}"
-          )
           filledOnes
         } finally {
           veColBatch.cols.foreach(_.free())
