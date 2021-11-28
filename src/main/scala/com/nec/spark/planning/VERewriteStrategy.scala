@@ -124,7 +124,7 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case f @ logical.Filter(condition, child) if options.filterOnVe =>
+        case f @ logical.Filter(condition, child) if options.filterOnVe && false =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val replacer =
@@ -176,7 +176,8 @@ final case class VERewriteStrategy(
             identity
           )
 
-        case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
+        case logical.Project(projectList, child)
+            if projectList.nonEmpty && options.projectOnVe && false =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val planE = for {

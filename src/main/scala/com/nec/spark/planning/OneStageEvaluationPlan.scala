@@ -70,8 +70,11 @@ final case class OneStageEvaluationPlan(
               results = veFunction.results
             )
 
-            VeColBatch(numRows = cols.head.numItems, cols = cols)
-          } finally {} //veColBatch.cols.foreach(_.free())
+            val outBatch = VeColBatch.fromList(cols)
+            if (veColBatch.numRows < outBatch.numRows)
+              println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+            outBatch
+          } finally veColBatch.cols.foreach(_.free())
         }
       }
 }
