@@ -22,6 +22,7 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
@@ -43,6 +44,13 @@ import com.nec.spark.planning.VERewriteStrategy.{
   VeRewriteStrategyOptions
 }
 import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
+import com.nec.spark.planning.aggregation.{
+  VeFinalAggregate,
+  VeFlattenPartition,
+  VeHashExchange,
+  VePartialAggregate
+}
+import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -357,30 +365,52 @@ final case class VERewriteStrategy(
             ff = groupByPartialGenerator.finalGenerator.createFinal
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
+            exchangeName = s"exchange_$functionPrefix"
+            exchangeFunction = GroupingFunction.groupData(data = ???, totalBuckets = 16)
+            mergeFunction = s"merge_$functionPrefix"
             libPath =
               SparkCycloneDriverPlugin.currentCompiler.forCode(
                 CodeLines
                   .from(
                     partialCFunction.toCodeLinesSPtr(partialName),
-                    ff.toCodeLinesSPtr(finalName)
+                    ff.toCodeLinesSPtr(finalName),
+                    exchangeFunction.toCodeLines(exchangeName),
+                    MergerFunction
+                      .merge(types = List(VeNullableDouble, VeString))
+                      .toCodeLines(mergeFunction)
+                      .cCode
                   )
               )
           } yield {
             VectorEngineToSpark(
-              VeAggregationPlan(
-                outputExpressions = aggregateExpressions,
-                partialFunction = VeFunction(
-                  libraryPath = libPath.toString,
-                  functionName = partialName,
-                  results = partialCFunction.outputs.map(_.veType)
-                ),
-                exchangeFunction = ???,
+              VeFinalAggregate(
                 finalFunction = VeFunction(
                   libraryPath = libPath.toString,
                   functionName = finalName,
                   results = partialCFunction.outputs.map(_.veType)
                 ),
-                child = SparkToVectorEngine(planLater(child))
+                child = VeFlattenPartition(
+                  flattenFunction = VeFunction(
+                    libraryPath = libPath.toString,
+                    functionName = mergeFunction,
+                    results = partialCFunction.outputs.map(_.veType)
+                  ),
+                  child = VeHashExchange(
+                    exchangeFunction = VeFunction(
+                      libraryPath = libPath.toString,
+                      functionName = exchangeName,
+                      results = partialCFunction.outputs.map(_.veType)
+                    ),
+                    child = VePartialAggregate(
+                      partialFunction = VeFunction(
+                        libraryPath = libPath.toString,
+                        functionName = partialName,
+                        results = partialCFunction.outputs.map(_.veType)
+                      ),
+                      child = SparkToVectorEngine(planLater(child))
+                    )
+                  )
+                )
               )
             )
           }

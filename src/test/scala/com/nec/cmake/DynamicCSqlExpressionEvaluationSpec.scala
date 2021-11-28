@@ -26,7 +26,6 @@ import com.nec.spark.planning.{
   NativeSortEvaluationPlan,
   OneStageEvaluationPlan,
   VERewriteStrategy,
-  VeAggregationPlan
 }
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
@@ -1017,11 +1016,11 @@ class DynamicCSqlExpressionEvaluationSpec
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(
-        thePlan
-          .toString()
-          .contains(VeAggregationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
-      )
+//      expect(
+//        thePlan
+//          .toString()
+//          .contains(VeAggregationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
+//      )
       dataSet
     }
 
