@@ -45,6 +45,7 @@ object TPCHVESqlSpec {
           new VERewriteStrategy(ExecutorPluginManagedEvaluator)
         })
       )
+      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
   }
 
 }

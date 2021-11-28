@@ -50,6 +50,7 @@ import java.time.Instant
 import java.time.temporal.TemporalUnit
 import scala.math.Ordered.orderingToOrdered
 import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
+import com.nec.spark.planning.VeColumnarRule
 
 object DynamicCSqlExpressionEvaluationSpec {
 
@@ -64,6 +65,7 @@ object DynamicCSqlExpressionEvaluationSpec {
           new VERewriteStrategy(CNativeEvaluator(debug = false), VeRewriteStrategyOptions.default)
         })
       )
+      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
   }
 
 }

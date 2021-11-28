@@ -59,7 +59,7 @@ trait SparkAdditions {
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
-    conf.set("spark.ui.enabled", "false")
+    // conf.set("spark.ui.enabled", "false")
     val sparkSession = configure(SparkSession.builder().config(conf)).getOrCreate()
     try f(sparkSession)
     finally sparkSession.stop()
