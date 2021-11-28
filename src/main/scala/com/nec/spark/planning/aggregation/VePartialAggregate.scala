@@ -25,12 +25,13 @@ case class VePartialAggregate(
       veColBatches.map { veColBatch =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         VeColBatch.fromList {
-          veProcess.execute(
+          try veProcess.execute(
             libraryReference = libRef,
             functionName = partialFunction.functionName,
             cols = veColBatch.cols,
             results = partialFunction.results
           )
+          finally veColBatch.cols.foreach(_.free())
         }
       }
     }

@@ -73,7 +73,8 @@ object VeColBatchConverters {
 //              numInputRows += rowCount
 //              numOutputBatches += 1
               import SparkCycloneExecutorPlugin.veProcess
-              VeColBatch.fromColumnarBatch(cb)
+              try VeColBatch.fromColumnarBatch(cb)
+              finally cb.close()
             }
           }
         } else {
@@ -106,7 +107,7 @@ object VeColBatchConverters {
           iterator
             .map { veColBatch =>
               try veColBatch.toArrowColumnarBatch()
-              finally {} //veColBatch.cols.foreach(_.free())
+              finally veColBatch.cols.foreach(_.free())
             }
         }
     }

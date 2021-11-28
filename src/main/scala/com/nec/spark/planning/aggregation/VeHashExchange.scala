@@ -22,12 +22,12 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
       val libRefExchange = veProcess.loadLibrary(Paths.get(exchangeFunction.libraryPath))
       veColBatches.flatMap { veColBatch =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        veProcess.executeMulti(
+        try veProcess.executeMulti(
           libraryReference = libRefExchange,
           functionName = exchangeFunction.functionName,
           cols = veColBatch.cols,
           results = exchangeFunction.results
-        )
+        ) finally veColBatch.cols.foreach(_.free())
       }
     }
     .exchangeBetweenVEs()
