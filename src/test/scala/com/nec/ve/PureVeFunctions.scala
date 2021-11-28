@@ -33,28 +33,17 @@ object PureVeFunctions {
     outputs = List(VeScalarType.VeNullableDouble.makeCVector("o_p")),
     body = CodeLines
       .from(
-        "int SETS_TO_DO = 5;",
-        "int MAX_SET_ID = SETS_TO_DO - 1;",
-        "*o_p = (nullable_double_vector*)malloc(sizeof (void *) * SETS_TO_DO);",
-        "for ( int s = 0; s < SETS_TO_DO; s++ ) {",
-        CodeLines
-          .from(
-            "sets[0] = s + 1;",
-            "std::vector<double> nums;",
-            "for ( int i = 0; i < input[0]->count; i++ ) {",
-            CodeLines
-              .from(
-                "double v = input[0]->data[i];",
-                "if ( (v >= s * 100 && v < (s + 1) * 100) || s == MAX_SET_ID ) {",
-                CodeLines.from("nums.push_back(v);").indented,
-                "}"
-              )
-              .indented,
-            "}",
-            GroupByOutline
-              .scalarVectorFromStdVector(VeScalarType.VeNullableDouble, "o_p[s]", "nums")
-          )
-          .indented,
+        "std::vector<std::vector<double>> partitions = {};",
+        "radix_partition(input[0]->data, input[0]->count, partitions);",
+        "*o_p = (nullable_double_vector*)malloc(sizeof(void *) * partitions.size());",
+        "*sets = partitions.size();",
+        "for ( int s = 0; s < partitions.size(); s++) {",
+          CodeLines.from(
+            GroupByOutline.scalarVectorFromStdVector(
+              VeScalarType.VeNullableDouble,
+              "o_p[s]", "partitions[s]"
+            )
+          ).indented,
         "}"
       )
   )
