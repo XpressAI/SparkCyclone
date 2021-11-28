@@ -17,7 +17,7 @@ object VeRDD extends Logging {
           },
         preservesPartitioning = true
       )
-      .sortByKey()
+      .repartitionByKey()
       .mapPartitions(
         f = iter => iter.map { case (_, (v, ba)) => v.deserialize(ba) },
         preservesPartitioning = true
