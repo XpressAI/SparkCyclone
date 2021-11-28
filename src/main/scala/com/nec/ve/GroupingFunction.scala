@@ -13,7 +13,16 @@ import com.nec.spark.agile.StringProducer
 
 object GroupingFunction {
 
+  def addStringHashing(source: String, index: String, toHash: String): CodeLines = {
+    val stringStart = s"$source->offsets[$index]"
+    val stringLength = s"$source->offsets[$index + 1] - $stringStart"
+    CodeLines.from(CodeLines.forLoop("x", stringLength) {
+      CodeLines.from(s"hash = 31 * hash + ${source}->data[x + $stringStart];")
+    })
+  }
+
   final case class DataDescription(veType: VeType, keyOrValue: KeyOrValue)
+
   object DataDescription {
     sealed trait KeyOrValue {
       def renderValue: String
@@ -42,8 +51,12 @@ object GroupingFunction {
       CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
         CodeLines.from(
           s"int hash = 1;",
-          // todo string here too. . .
-          cVectors.map(cVector => CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")),
+          cVectors.map(cVector =>
+            CodeLines.from(
+              if (cVector.veType.isString) addStringHashing(s"${cVector.name}[0]", "i", "hash")
+              else CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")
+            )
+          ),
           s"$groupingIdentifiers.push_back(hash % ${totalBuckets});"
         )
       }
