@@ -103,7 +103,7 @@ object VeColBatch {
      * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
      */
     def bufferSizes: List[Int] = veType match {
-      case VeScalarType.VeNullableDouble => List(numItems * 8, Math.ceil(numItems / 64.0).toInt * 8)
+      case vs: VeScalarType => List(numItems * vs.cSize, Math.ceil(numItems / 64.0).toInt * 8)
       case VeString => {
         val offsetBuffSize = (numItems + 1) * 4
         val validitySize = Math.ceil(numItems / 64.0).toInt * 8
