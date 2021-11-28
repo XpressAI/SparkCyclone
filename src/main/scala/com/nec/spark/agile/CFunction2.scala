@@ -13,10 +13,10 @@ object CFunction2 {
       override def renderValue: String = value
     }
     final case class Pointer(cVector: CVector) extends CFunctionArgument {
-      override def renderValue: String = s"${cVector}* ${cVector.veType.cVectorType}"
+      override def renderValue: String = s"${cVector.veType.cVectorType}* ${cVector.name}"
     }
     final case class PointerPointer(cVector: CVector) extends CFunctionArgument {
-      override def renderValue: String = s"${cVector}** ${cVector.veType.cVectorType}"
+      override def renderValue: String = s"${cVector.veType.cVectorType}** ${cVector.name}"
     }
   }
 }
