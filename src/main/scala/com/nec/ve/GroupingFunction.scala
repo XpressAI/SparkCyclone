@@ -45,7 +45,8 @@ object GroupingFunction {
     cVectors: List[CVector],
     groupingIdentifiers: String,
     totalBuckets: Int
-  ): CodeLines =
+  ): CodeLines = {
+    require(cVectors.nonEmpty, "cVectors is empty - perhaps an issue in checking the groups?")
     CodeLines.from(
       s"std::vector<int> $groupingIdentifiers;",
       CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
@@ -61,6 +62,7 @@ object GroupingFunction {
         )
       }
     )
+  }
 
   def computeBucketSizes(
     groupingIdentifiers: String,
@@ -145,7 +147,7 @@ object GroupingFunction {
                             CodeLines.from(
                               CodeLines.ifStatement("b == idToBucket[i]")(
                                 CodeLines.from(fp.validityForEach("o"), "o++;")
-                              ),
+                              )
                             )
                           }
                         )
@@ -175,7 +177,7 @@ object GroupingFunction {
                 )
               }
             )
-          },
+          }
         )
     )
   }

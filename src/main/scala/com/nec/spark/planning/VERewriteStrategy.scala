@@ -369,7 +369,8 @@ final case class VERewriteStrategy(
             exchangeName = s"exchange_$functionPrefix"
             exchangeFunction = {
               val gd = child.output.map { exp =>
-                val contained = groupingExpressions.contains(exp)
+                val contained =
+                  groupingExpressions.exists(exp => exp.collect { case `exp` => exp }.nonEmpty)
                 DataDescription(
                   veType = sparkTypeToVeType(exp.dataType),
                   keyOrValue =
