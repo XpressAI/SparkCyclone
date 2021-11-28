@@ -5,6 +5,7 @@ import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.spark.TaskContext
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -19,6 +20,7 @@ object VeColBatchConverters {
 
   case class SparkToVectorEngine(override val child: SparkPlan)
     extends UnaryExecNode
+    with Logging
     with SupportsVeColBatch {
     override def supportsColumnar: Boolean = true
 
@@ -31,6 +33,7 @@ object VeColBatchConverters {
         .getOption("com.nec.spark.ve.columnBatchSize")
         .map(_.toInt)
         .getOrElse(conf.columnBatchSize)
+      logInfo(s"Will make batches of ${numRows} rows...")
       val timeZoneId = conf.sessionLocalTimeZone
       child.execute().mapPartitions { rowIterator =>
         if (rowIterator.hasNext) {

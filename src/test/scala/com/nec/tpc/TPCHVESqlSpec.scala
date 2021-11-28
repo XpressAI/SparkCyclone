@@ -38,6 +38,7 @@ object TPCHVESqlSpec {
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(key = "com.nec.spark.ncc.debug", value = "true")
       .config(key = "spark.ui.enabled", value = true)
+      .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")
       .config(key = "spark.com.nec.spark.ncc.debug", value = "true")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
