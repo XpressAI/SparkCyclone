@@ -24,19 +24,23 @@ case class VeFinalAggregate(
     .mapPartitions { veColBatches =>
       val libRef = veProcess.loadLibrary(Paths.get(finalFunction.libraryPath))
       veColBatches.map { veColBatch =>
-        logInfo("Preparing to final-aggregate a batch...")
+        logInfo(s"Preparing to final-aggregate a batch... ${veColBatch}")
 
-        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        VeColBatch.fromList {
-          try veProcess.execute(
-            libraryReference = libRef,
-            functionName = finalFunction.functionName,
-            cols = veColBatch.cols,
-            results = finalFunction.results
-          )
-          finally {
-            logInfo("Completed a final-aggregate of  a batch...")
-            veColBatch.cols.foreach(_.free())
+        if (veColBatch.numRows == 1)
+          veColBatch
+        else {
+          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+          VeColBatch.fromList {
+            try veProcess.execute(
+              libraryReference = libRef,
+              functionName = finalFunction.functionName,
+              cols = veColBatch.cols,
+              results = finalFunction.results
+            )
+            finally {
+              logInfo("Completed a final-aggregate of  a batch...")
+              veColBatch.cols.foreach(_.free())
+            }
           }
         }
       }

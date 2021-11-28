@@ -23,10 +23,9 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
       val libRefExchange = veProcess.loadLibrary(Paths.get(flattenFunction.libraryPath))
       Iterator
         .continually {
-          logInfo("Preparing to flatten a partition...")
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           val inputBatches = veColBatches.toList
-          logInfo("Fetched all the data.")
+          logInfo(s"Fetched all the data: ${inputBatches}")
           VeColBatch.fromList(
             try veProcess.executeMultiIn(
               libraryReference = libRefExchange,

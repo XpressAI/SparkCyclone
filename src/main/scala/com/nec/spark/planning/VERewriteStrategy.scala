@@ -405,6 +405,31 @@ final case class VERewriteStrategy(
                   )
               )
           } yield {
+
+            val pag = VePartialAggregate(
+              partialFunction = VeFunction(
+                libraryPath = libPath.toString,
+                functionName = partialName,
+                results = partialCFunction.outputs.map(_.veType)
+              ),
+              child = SparkToVectorEngine(
+                ShuffleExchangeExec(
+                  outputPartitioning =
+                    HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                  child = planLater(child),
+                  shuffleOrigin = REPARTITION
+                )
+              ),
+              expectedOutputs = aggregateExpressions
+            )
+            val flt = VeFlattenPartition(
+              flattenFunction = VeFunction(
+                libraryPath = libPath.toString,
+                functionName = mergeFunction,
+                results = partialCFunction.outputs.map(_.veType)
+              ),
+              child = pag
+            )
             VectorEngineToSpark(
               VeFinalAggregate(
                 expectedOutputs = aggregateExpressions,
@@ -413,29 +438,7 @@ final case class VERewriteStrategy(
                   functionName = finalName,
                   results = ff.outputs.map(_.veType)
                 ),
-                child = VeFlattenPartition(
-                  flattenFunction = VeFunction(
-                    libraryPath = libPath.toString,
-                    functionName = mergeFunction,
-                    results = partialCFunction.outputs.map(_.veType)
-                  ),
-                  child = VePartialAggregate(
-                    partialFunction = VeFunction(
-                      libraryPath = libPath.toString,
-                      functionName = partialName,
-                      results = partialCFunction.outputs.map(_.veType)
-                    ),
-                    child = SparkToVectorEngine(
-                      ShuffleExchangeExec(
-                        outputPartitioning =
-                          HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-                        child = planLater(child),
-                        shuffleOrigin = REPARTITION
-                      )
-                    ),
-                    expectedOutputs = aggregateExpressions
-                  )
-                )
+                child = pag
               )
             )
           }
