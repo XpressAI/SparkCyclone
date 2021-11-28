@@ -448,6 +448,7 @@ object SparkExpressionToCExpression {
       case BooleanType   => VeScalarType.veNullableInt
       case StringType    => VeString
       case TimestampType => VeScalarType.veNullableLong
+      case DateType      => VeScalarType.veNullableLong
     }
   }
   def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
