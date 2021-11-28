@@ -132,7 +132,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     }
   }
 
-  "Partition data by some means (simple Int partitioning in this case)" in {
+  "Partition data by some means (simple Int partitioning in this case) (PIN)" in {
     compiledWithHeaders(
       GroupingFunction
         .groupData(
@@ -261,7 +261,6 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                 val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
                 val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
                 val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
-                println(bg)
                 val r: List[VeColVector] = veProcess.executeMultiIn(
                   libraryReference = lib,
                   functionName = fName,
