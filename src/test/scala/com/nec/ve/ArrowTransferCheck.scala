@@ -132,6 +132,52 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     }
   }
 
+  "Partition data by some means (simple Int partitioning in this case)" in {
+    compiledWithHeaders(
+      GroupingFunction
+        .groupData(
+          groupingKeys = List(VeScalarType.VeNullableInt),
+          otherValues = List(VeString),
+          totalBuckets = 2
+        )
+        .toCodeLines("f")
+        .cCode
+    ) { path =>
+      val lib = veProcess.loadLibrary(path)
+      WithTestAllocator { implicit alloc =>
+        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
+          withNullableArrowStringVector(List("a", "b", "c").map(Some.apply)) { sv =>
+            val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+            val colVecS: VeColVector = VeColVector.fromVarcharVector(sv)
+            val results = veProcess.executeMulti(
+              libraryReference = lib,
+              functionName = "f",
+              cols = List(colVec, colVecS),
+              results = List(VeScalarType.veNullableDouble)
+            )
+
+            val plainResults: List[(Int, List[(Double, String)])] = results.map {
+              case (index, vecs) =>
+                val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
+                val vecStr = vecs(1).toArrowVector().asInstanceOf[VarCharVector]
+                try {
+                  index -> vecFloat.toList.zip(vecStr.toList)
+                } finally {
+                  vecFloat.close()
+                  vecStr.close()
+                }
+            }
+
+            val expectedResult: List[(Int, List[(Double, String)])] =
+              List(0 -> List((1, "a"), (3, "c")), 1 -> List((2, "b")))
+
+            expect(plainResults == expectedResult)
+          }
+        }
+      }
+    }
+  }
+
   "We can serialize/deserialize VeColVector" - {
     "for Float8Vector" in {
       WithTestAllocator { implicit alloc =>
