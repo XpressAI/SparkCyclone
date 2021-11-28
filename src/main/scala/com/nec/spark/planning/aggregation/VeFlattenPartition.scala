@@ -16,6 +16,12 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
   with SupportsVeColBatch
   with Logging {
+
+  require(
+    output.size == flattenFunction.results.size,
+    s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.results.size}"
+  )
+  
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]
     .executeVeColumnar()

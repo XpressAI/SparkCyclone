@@ -17,6 +17,12 @@ case class VeFinalAggregate(
 ) extends UnaryExecNode
   with SupportsVeColBatch
   with Logging {
+
+  require(
+    expectedOutputs.size == finalFunction.results.size,
+    s"Expected outputs ${expectedOutputs.size} to match final function results size, but got ${finalFunction.results.size}"
+  )
+
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]

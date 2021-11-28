@@ -37,7 +37,7 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
     veProcess: VeProcess
   ): ColumnarBatch = {
     val vecs = cols.map(_.toArrowVector())
-    println(vecs)
+    new RuntimeException(s"$this, $vecs").printStackTrace()
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(numRows)
     cb

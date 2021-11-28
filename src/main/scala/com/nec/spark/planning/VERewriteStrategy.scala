@@ -367,6 +367,10 @@ final case class VERewriteStrategy(
                   s"Expected to have distinct outputs from a PF, got: ${partialCFunction.outputs}"
                 )
             ff = groupByPartialGenerator.finalGenerator.createFinal
+            _ = println(ff.outputs.size)
+            _ = println(aggregateExpressions.size)
+            _ = println(ff.outputs)
+            _ = println(aggregateExpressions)
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
             exchangeName = s"exchange_$functionPrefix"
@@ -399,7 +403,7 @@ final case class VERewriteStrategy(
                     ff.toCodeLinesNoHeaderOutPtr2(finalName),
                     exchangeFunction.toCodeLines(exchangeName),
                     MergerFunction
-                      .merge(types = List(VeNullableDouble, VeString))
+                      .merge(types = partialCFunction.outputs.map(_.veType))
                       .toCodeLines(mergeFunction)
                       .cCode
                   )
@@ -420,7 +424,18 @@ final case class VERewriteStrategy(
                   shuffleOrigin = REPARTITION
                 )
               ),
-              expectedOutputs = aggregateExpressions
+              expectedOutputs = partialCFunction.outputs
+                .map(_.veType)
+                .zipWithIndex
+                .map { case (veType, i) =>
+                  import org.apache.spark.sql.catalyst.expressions._
+                  // quick hack before doing something more proper
+                  PrettyAttribute(
+                    s"${veType}_${i}",
+                    SparkExpressionToCExpression.likelySparkType(veType)
+                  )
+                }
+                .toList
             )
             val flt = VeFlattenPartition(
               flattenFunction = VeFunction(

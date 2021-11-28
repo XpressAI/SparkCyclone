@@ -19,6 +19,11 @@ case class VePartialAggregate(
   with SupportsVeColBatch
   with Logging {
 
+  require(
+    expectedOutputs.size == partialFunction.results.size,
+    s"Expected outputs ${expectedOutputs.size} to match final function results size, but got ${partialFunction.results.size}"
+  )
+
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]
     .executeVeColumnar()
