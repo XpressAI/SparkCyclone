@@ -368,17 +368,23 @@ final case class VERewriteStrategy(
             finalName = s"final_$functionPrefix"
             exchangeName = s"exchange_$functionPrefix"
             exchangeFunction = {
-              val gd = child.output.map { exp =>
+              val gd = child.output.map { expx =>
                 val contained =
-                  groupingExpressions.exists(exp => exp.collect { case `exp` => exp }.nonEmpty)
+                  groupingExpressions.exists(exp =>
+                    exp == expx || exp.collect { case `expx` => exp }.nonEmpty
+                  ) ||
+                    groupingExpressions
+                      .collect { case ar: AttributeReference => ar.exprId }
+                      .toSet
+                      .contains(expx.exprId)
+
                 DataDescription(
-                  veType = sparkTypeToVeType(exp.dataType),
+                  veType = sparkTypeToVeType(expx.dataType),
                   keyOrValue =
                     if (contained) DataDescription.KeyOrValue.Key
                     else DataDescription.KeyOrValue.Value
                 )
               }.toList
-              println(s"Exchange description: $gd")
               GroupingFunction.groupData(data = gd, totalBuckets = 16)
             }
             mergeFunction = s"merge_$functionPrefix"

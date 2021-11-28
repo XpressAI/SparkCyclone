@@ -91,10 +91,13 @@ object VeColBatch {
 
   final case class VeColVector(
     numItems: Int,
+    variableSize: Option[Int],
     veType: VeType,
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
+
+    if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
 
     /**
      * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
@@ -102,11 +105,10 @@ object VeColBatch {
     def bufferSizes: List[Int] = veType match {
       case VeScalarType.VeNullableDouble => List(numItems * 8, Math.ceil(numItems / 64.0).toInt * 8)
       case VeString => {
-        val dataSize = getUnsafe.getInt(numItems * 4)
         val offsetBuffSize = (numItems + 1) * 4
         val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
-        List(dataSize, offsetBuffSize, validitySize)
+        variableSize.tolist ++ List(offsetBuffSize, validitySize)
       }
       case _ => ???
     }
