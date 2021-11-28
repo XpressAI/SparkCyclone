@@ -32,21 +32,17 @@ case class VeFinalAggregate(
       veColBatches.map { veColBatch =>
         logInfo(s"Preparing to final-aggregate a batch... ${veColBatch}")
 
-        if (veColBatch.numRows == 1)
-          veColBatch
-        else {
-          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          VeColBatch.fromList {
-            try veProcess.execute(
-              libraryReference = libRef,
-              functionName = finalFunction.functionName,
-              cols = veColBatch.cols,
-              results = finalFunction.results
-            )
-            finally {
-              logInfo("Completed a final-aggregate of  a batch...")
-              veColBatch.cols.foreach(_.free())
-            }
+        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        VeColBatch.fromList {
+          try veProcess.execute(
+            libraryReference = libRef,
+            functionName = finalFunction.functionName,
+            cols = veColBatch.cols,
+            results = finalFunction.results
+          )
+          finally {
+            logInfo("Completed a final-aggregate of  a batch...")
+            veColBatch.cols.foreach(_.free())
           }
         }
       }

@@ -21,7 +21,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
     output.size == flattenFunction.results.size,
     s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.results.size}"
   )
-  
+
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]
     .executeVeColumnar()
@@ -32,20 +32,28 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           val inputBatches = veColBatches.toList
           logInfo(s"Fetched all the data: ${inputBatches}")
-          VeColBatch.fromList(
-            try veProcess.executeMultiIn(
-              libraryReference = libRefExchange,
-              functionName = flattenFunction.functionName,
-              batches = VeBatchOfBatches.fromVeColBatches(inputBatches),
-              results = flattenFunction.results
-            )
-            finally {
-              logInfo("Transformed input.")
-              inputBatches.flatMap(_.cols).foreach(_.free())
-            }
-          )
+          inputBatches match {
+            case one :: Nil => Iterator(one)
+            case Nil        => Iterator.empty
+            case _ =>
+              Iterator {
+                VeColBatch.fromList(
+                  try veProcess.executeMultiIn(
+                    libraryReference = libRefExchange,
+                    functionName = flattenFunction.functionName,
+                    batches = VeBatchOfBatches.fromVeColBatches(inputBatches),
+                    results = flattenFunction.results
+                  )
+                  finally {
+                    logInfo("Transformed input.")
+                    inputBatches.flatMap(_.cols).foreach(_.free())
+                  }
+                )
+              }
+          }
         }
         .take(1)
+        .flatten
     }
 
   override def output: Seq[Attribute] = child.output

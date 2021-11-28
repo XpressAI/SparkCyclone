@@ -367,10 +367,6 @@ final case class VERewriteStrategy(
                   s"Expected to have distinct outputs from a PF, got: ${partialCFunction.outputs}"
                 )
             ff = groupByPartialGenerator.finalGenerator.createFinal
-            _ = println(ff.outputs.size)
-            _ = println(aggregateExpressions.size)
-            _ = println(ff.outputs)
-            _ = println(aggregateExpressions)
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
             exchangeName = s"exchange_$functionPrefix"
@@ -453,7 +449,7 @@ final case class VERewriteStrategy(
                   functionName = finalName,
                   results = ff.outputs.map(_.veType)
                 ),
-                child = pag
+                child = flt
               )
             )
           }
