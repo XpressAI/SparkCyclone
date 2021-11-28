@@ -16,6 +16,8 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType, VeString, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
+import com.nec.ve.GroupingFunction.DataDescription
+import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
 import org.apache.arrow.vector.{FieldVector, Float8Vector, VarCharVector}
@@ -136,8 +138,10 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     compiledWithHeaders(
       GroupingFunction
         .groupData(
-          groupingKeys = List(VeScalarType.VeNullableInt),
-          otherValues = List(VeString),
+          data = List(
+            DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Key),
+            DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Value)
+          ),
           totalBuckets = 2
         )
         .toCodeLines("f")
@@ -146,32 +150,38 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          withNullableArrowStringVector(List("a", "b", "c").map(Some.apply)) { sv =>
-            val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
-            val colVecS: VeColVector = VeColVector.fromVarcharVector(sv)
-            val results = veProcess.executeMulti(
-              libraryReference = lib,
-              functionName = "f",
-              cols = List(colVec, colVecS),
-              results = List(VeScalarType.veNullableDouble)
-            )
+          withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
+            withNullableArrowStringVector(List("a", "b", "c").map(Some.apply)) { sv =>
+              val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+              val colVecS: VeColVector = VeColVector.fromVarcharVector(sv)
+              val results = veProcess.executeMulti(
+                libraryReference = lib,
+                functionName = "f",
+                cols = List(colVec, colVecS),
+                results = List(VeScalarType.veNullableDouble)
+              )
 
-            val plainResults: List[(Int, List[(Double, String)])] = results.map {
-              case (index, vecs) =>
-                val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
-                val vecStr = vecs(1).toArrowVector().asInstanceOf[VarCharVector]
-                try {
-                  index -> vecFloat.toList.zip(vecStr.toList)
-                } finally {
-                  vecFloat.close()
-                  vecStr.close()
-                }
+              def plainResultsD: List[(Int, List[(Double, Double)])] = results.map {
+                case (index, vecs) =>
+                  val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
+                  val vecFl2 = vecs(1).toArrowVector().asInstanceOf[Float8Vector]
+                  try {
+                    index -> vecFloat.toList.zip(vecFl2.toList)
+                  } finally {
+                    vecFloat.close()
+                    vecFl2.close()
+                  }
+              }
+
+              //            val expectedResult: List[(Int, List[(Double, String)])] =
+              //              List(0 -> List((1, "a"), (3, "c")), 1 -> List((2, "b")))
+
+              val expectedResultD: List[(Int, List[(Double, Double)])] =
+                List(0 -> List((1, 9), (3, 8)), 1 -> List((2, 7)))
+
+              //            expect(plainResults == expectedResult)
+              expect(plainResultsD == expectedResultD)
             }
-
-            val expectedResult: List[(Int, List[(Double, String)])] =
-              List(0 -> List((1, "a"), (3, "c")), 1 -> List((2, "b")))
-
-            expect(plainResults == expectedResult)
           }
         }
       }
