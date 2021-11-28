@@ -233,21 +233,38 @@ object VeProcess {
       )
 
       (0 until gotCounts).toList.map { set =>
-        set -> outPointers.zip(results).map { case (outPointer, r) =>
-          val outContainerLocation = outPointer.get(set)
-          require(
-            outContainerLocation > 0,
-            s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-          )
-          val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        set -> outPointers.zip(results).map {
+          case (outPointer, VeString) =>
+            val outContainerLocation = outPointer.get(set)
+            require(
+              outContainerLocation > 0,
+              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
+            )
+            val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+            byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
-          VeColVector(
-            numItems = byteBuffer.getInt(16),
-            veType = r,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
-          )
+            VeColVector(
+              numItems = byteBuffer.getInt(28),
+              veType = VeString,
+              containerLocation = outContainerLocation,
+              bufferLocations =
+                List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+            )
+          case (outPointer, r: VeScalarType) =>
+            val outContainerLocation = outPointer.get(set)
+            require(
+              outContainerLocation > 0,
+              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
+            )
+            val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
+            byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+            VeColVector(
+              numItems = byteBuffer.getInt(16),
+              veType = r,
+              containerLocation = outContainerLocation,
+              bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8))
+            )
         }
       }
     }

@@ -164,11 +164,13 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                   List(VeScalarType.veNullableDouble, VeString, VeScalarType.veNullableDouble)
               )
 
+              println(results)
+
               val plainResultsD: List[(Int, List[(Double, String, Double)])] = results.map {
                 case (index, vecs) =>
                   val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
-                  val vecFl2 = vecs(1).toArrowVector().asInstanceOf[Float8Vector]
-                  val vecStr = vecs(2).toArrowVector().asInstanceOf[VarCharVector]
+                  val vecStr = vecs(1).toArrowVector().asInstanceOf[VarCharVector]
+                  val vecFl2 = vecs(2).toArrowVector().asInstanceOf[Float8Vector]
                   println(vecFloat.toList)
                   println(vecFl2.toList)
                   try {
@@ -176,6 +178,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                       case ((a, b), c) => (a, c, b)
                     }
                   } finally {
+                    vecStr.close()
                     vecFloat.close()
                     vecFl2.close()
                   }

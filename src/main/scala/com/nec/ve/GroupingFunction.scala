@@ -134,6 +134,7 @@ object GroupingFunction {
                               )
                             )
                           },
+                          fp.complete,
                           "o = 0;",
                           CodeLines.forLoop("i", s"idToBucket.size()") {
                             CodeLines.from(
@@ -143,8 +144,7 @@ object GroupingFunction {
                               ),
                               CodeLines.printValue("HereA7y")("i", "o", "b")
                             )
-                          },
-                          fp.complete
+                          }
                         )
                         .blockCommented("String")
 
