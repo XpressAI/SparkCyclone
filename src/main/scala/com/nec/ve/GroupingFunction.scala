@@ -8,6 +8,8 @@ import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
+import com.nec.spark.agile.CFunctionGeneration
+import com.nec.spark.agile.StringProducer
 
 object GroupingFunction {
 
@@ -40,6 +42,7 @@ object GroupingFunction {
       CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
         CodeLines.from(
           s"int hash = 1;",
+          // todo string here too. . .
           cVectors.map(cVector => CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")),
           s"$groupingIdentifiers.push_back(hash % ${totalBuckets});"
         )
@@ -106,24 +109,67 @@ object GroupingFunction {
                   CodeLines.printValue("HereA5")("b"),
                   s"${output.name}[b] = (${output.veType.cVectorType}*)malloc(sizeof(${output.veType.cVectorType}));",
                   CodeLines.printLabel("HereA6"),
-                  initializeScalarVector(
-                    veScalarType = output.veType.asInstanceOf[VeScalarType],
-                    variableName = s"${output.name}[b]",
-                    countExpression = s"bucketToCount[b]"
-                  ),
-                  CodeLines.printValue("Size of bucket")("b", "bucketToCount[b]"),
-                  "int o = 0;",
-                  CodeLines.forLoop("i", s"idToBucket.size()") {
-                    CodeLines.from(
-                      CodeLines.printValue("HereA7")("i", "o", "b"),
-                      CodeLines.ifStatement("b == idToBucket[i]")(
-                        CodeLines.from(
-                          s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
-                          s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
-                          "o++;"
+                  output.veType match {
+                    case CFunctionGeneration.VeString =>
+                      val outName = s"${output.name}_current"
+                      val fp =
+                        StringProducer.FilteringProducer(
+                          outName,
+                          StringProducer.ImpCopyStringProducer(s"${input.name}[0]")
                         )
+                      CodeLines
+                        .from(
+                          s"${output.veType.cVectorType} * $outName = ${output.name}[b];",
+                          CodeLines.debugHere,
+                          GroupByOutline.initializeStringVector(outName),
+                          CodeLines.debugHere,
+                          fp.setup,
+                          CodeLines.debugHere,
+                          "int o = 0;",
+                          CodeLines.forLoop("i", s"idToBucket.size()") {
+                            CodeLines.from(
+                              CodeLines.printValue("HereA7")("i", "o", "b"),
+                              CodeLines.ifStatement("b == idToBucket[i]")(
+                                CodeLines.from(fp.forEach, "o++;")
+                              )
+                            )
+                          },
+                          "o = 0;",
+                          CodeLines.forLoop("i", s"idToBucket.size()") {
+                            CodeLines.from(
+                              CodeLines.printValue("HereA7x")("i", "o", "b"),
+                              CodeLines.ifStatement("b == idToBucket[i]")(
+                                CodeLines.from(fp.validityForEach("o"), "o++;")
+                              ),
+                              CodeLines.printValue("HereA7y")("i", "o", "b")
+                            )
+                          },
+                          fp.complete
+                        )
+                        .blockCommented("String")
+
+                    case other: VeScalarType =>
+                      CodeLines.from(
+                        initializeScalarVector(
+                          veScalarType = other,
+                          variableName = s"${output.name}[b]",
+                          countExpression = s"bucketToCount[b]"
+                        ),
+                        CodeLines.printValue("Size of bucket")("b", "bucketToCount[b]"),
+                        "int o = 0;",
+                        CodeLines.forLoop("i", s"idToBucket.size()") {
+                          CodeLines.from(
+                            CodeLines.printValue("HereA7")("i", "o", "b"),
+                            CodeLines.ifStatement("b == idToBucket[i]")(
+                              CodeLines.from(
+                                s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
+                                s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
+                                "o++;"
+                              )
+                            )
+                          )
+                        }
                       )
-                    )
                   }
                 )
               }

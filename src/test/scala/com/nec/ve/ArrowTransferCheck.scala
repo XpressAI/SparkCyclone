@@ -140,6 +140,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
         .groupData(
           data = List(
             DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Key),
+            DataDescription(VeString, KeyOrValue.Key),
             DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Value)
           ),
           totalBuckets = 2
@@ -158,18 +159,22 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
               val results = veProcess.executeMulti(
                 libraryReference = lib,
                 functionName = "f",
-                cols = List(colVec, colVec2),
-                results = List(VeScalarType.veNullableDouble, VeScalarType.veNullableDouble)
+                cols = List(colVec, colVecS, colVec2),
+                results =
+                  List(VeScalarType.veNullableDouble, VeString, VeScalarType.veNullableDouble)
               )
 
-              val plainResultsD: List[(Int, List[(Double, Double)])] = results.map {
+              val plainResultsD: List[(Int, List[(Double, String, Double)])] = results.map {
                 case (index, vecs) =>
                   val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
                   val vecFl2 = vecs(1).toArrowVector().asInstanceOf[Float8Vector]
+                  val vecStr = vecs(2).toArrowVector().asInstanceOf[VarCharVector]
                   println(vecFloat.toList)
                   println(vecFl2.toList)
                   try {
-                    index -> vecFloat.toList.zip(vecFl2.toList)
+                    index -> vecFloat.toList.zip(vecFl2.toList).zip(vecStr.toList).map {
+                      case ((a, b), c) => (a, c, b)
+                    }
                   } finally {
                     vecFloat.close()
                     vecFl2.close()
@@ -178,8 +183,8 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
               val allSets = plainResultsD.flatMap(_._2).toSet
 
-              val expectedGroups: Set[(Double, Double)] =
-                Set((1, 9), (2, 8), (3, 7))
+              val expectedGroups: Set[(Double, String, Double)] =
+                Set((1, "a", 9), (2, "b", 8), (3, "c", 7))
 
               assert(
                 plainResultsD.map(_._2.size).toSet == Set(1, 2),
