@@ -199,6 +199,7 @@ final case class VeKernelCompiler(
           "-o",
           oFile.toString
         )
+      logger.info(s"Compilation command = ${command}")
       runHopeOk(Process(command = command, cwd = buildDir.toFile))
 
       val command2 =
@@ -212,7 +213,10 @@ final case class VeKernelCompiler(
       soFile
     } catch {
       case e: Throwable =>
-        throw new RuntimeException(s"Failed to compile: ${e}; source was ${cSource}", e)
+        throw new RuntimeException(
+          s"Failed to compile: ${e}; source was ${cSource}; ${sourceCode}",
+          e
+        )
     }
   }
 }

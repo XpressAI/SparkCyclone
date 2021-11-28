@@ -192,9 +192,11 @@ object CExpressionEvaluation {
 
   object CodeLines {
 
-    def debugValue(names: String*): CodeLines = {
-      CodeLines.from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
-    }
+    def debugValue(names: String*): CodeLines =
+      TcpDebug.conditionOn("DEBUG")(
+        CodeLines
+          .from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
+      )
 
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
       val startdebug: List[String] = List("utcnanotime().c_str()", """" $ """")

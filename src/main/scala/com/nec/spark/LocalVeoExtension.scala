@@ -45,6 +45,10 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
           projectOnVe = sparkSession.sparkContext.getConf
             .getOption(key = "spark.com.nec.spark.project-on-ve")
             .map(_.toBoolean)
+            .getOrElse(true),
+          filterOnVe = sparkSession.sparkContext.getConf
+            .getOption(key = "spark.com.nec.spark.filter-on-ve")
+            .map(_.toBoolean)
             .getOrElse(true)
         )
       )

@@ -70,6 +70,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can transform a null-column (FilterNull)" in {
+    expect(
+      evalFilter[Option[Double]](Some(90), None, Some(123))(
+        CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
+      ) == List[Option[Double]](None, Some(123))
+    )
+  }
+
   "We can transform a column to a String and a Double" in {
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
@@ -711,7 +719,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           groups = Nil,
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).renderGroupBy.toCodeLines(functionName)
+      ).renderGroupBy.toCodeLinesG(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -757,7 +765,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           rightKey = rightKey,
           outputs = joinExpressor.express(output)
         )
-      ).toCodeLines(functionName)
+      ).toCodeLinesS(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -812,7 +820,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           outputs = outputs,
           joinType
         )
-      ).toCodeLines(functionName)
+      ).toCodeLinesS(functionName)
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
@@ -854,7 +862,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           groups = List(Right(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).renderGroupBy.toCodeLines(functionName)
+      ).renderGroupBy.toCodeLinesG(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -897,7 +905,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           groups = List(Left(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions)
         )
-      ).renderGroupBy.toCodeLines(functionName)
+      ).renderGroupBy.toCodeLinesG(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -937,7 +945,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           inputs = inputArguments.inputs,
           outputs = projectExpression.outputs(expressions)
         )
-      ).toCodeLines(functionName)
+      ).toCodeLinesPF(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -969,8 +977,14 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "filter_f"
 
     val generatedSource =
-      renderFilter(VeFilter(data = inputArguments.inputs, condition = condition))
-        .toCodeLines(functionName)
+      renderFilter(
+        VeFilter(
+          data = inputArguments.inputs,
+          condition = condition,
+          stringVectorComputations = Nil
+        )
+      )
+        .toCodeLinesPF(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -1003,7 +1017,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
     val generatedSource =
       renderSort(sort = VeSort(data = inputArguments.inputs, sorts = sorts.toList))
-        .toCodeLines(functionName)
+        .toCodeLinesS(functionName)
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)

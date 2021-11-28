@@ -24,7 +24,10 @@ import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.spark.SparkAdditions
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.NativeAggregationEvaluationPlan
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{PartialThenCoalesce, PrePartitioned}
+import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode.{
+  PartialThenCoalesce,
+  PrePartitioned
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -35,6 +38,10 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, BeforeAndAfterAllConfig
 import org.scalactic.{Equality, Equivalence, TolerantNumerics}
 
 import scala.annotation.tailrec
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
+import scalatags.Text.tags2.{details, summary}
+
+import java.time.LocalDate
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
@@ -115,22 +122,22 @@ class TPCHSqlCSpec
         .map(_.split('|'))
         .map(p =>
           Lineitem(
-            p(0).trim.toLong,
-            p(1).trim.toLong,
-            p(2).trim.toLong,
-            p(3).trim.toLong,
-            p(4).trim.toDouble,
-            p(5).trim.toDouble,
-            p(6).trim.toDouble,
-            p(7).trim.toDouble,
-            p(8).trim,
-            p(9).trim,
-            p(10).trim,
-            p(11).trim,
-            p(12).trim,
-            p(13).trim,
-            p(14).trim,
-            p(15).trim
+            l_orderkey = p(0).trim.toLong,
+            l_partkey = p(1).trim.toLong,
+            l_suppkey = p(2).trim.toLong,
+            l_linenumber = p(3).trim.toLong,
+            l_quantity = p(4).trim.toDouble,
+            l_extendedprice = p(5).trim.toDouble,
+            l_discount = p(6).trim.toDouble,
+            l_tax = p(7).trim.toDouble,
+            l_returnflag = p(8).trim,
+            l_linestatus = p(9).trim,
+            l_shipdate = LocalDate.parse(p(10).trim),
+            l_commitdate = LocalDate.parse(p(11).trim),
+            l_receiptdate = LocalDate.parse(p(12).trim),
+            l_shipinstruct = p(13).trim,
+            l_shipmode = p(14).trim,
+            l_comment = p(15).trim
           )
         )
         .toDF(),
@@ -149,15 +156,15 @@ class TPCHSqlCSpec
         .map(_.split('|'))
         .map(p =>
           Order(
-            p(0).trim.toLong,
-            p(1).trim.toLong,
-            p(2).trim,
-            p(3).trim.toDouble,
-            p(4).trim,
-            p(5).trim,
-            p(6).trim,
-            p(7).trim.toLong,
-            p(8).trim
+            o_orderkey = p(0).trim.toLong,
+            o_custkey = p(1).trim.toLong,
+            o_orderstatus = p(2).trim,
+            o_totalprice = p(3).trim.toDouble,
+            o_orderdate = LocalDate.parse(p(4).trim),
+            o_orderpriority = p(5).trim,
+            o_clerk = p(6).trim,
+            o_shippriority = p(7).trim.toLong,
+            o_comment = p(8).trim
           )
         )
         .toDF(),
@@ -241,7 +248,7 @@ class TPCHSqlCSpec
     def debugSqlHere[V](f: Dataset[T] => V): V = {
       logger.info(s"Plan is: ${dataSet.queryExecution}")
       import _root_.scalatags.Text.all._
-      condMarkup(pre(dataSet.queryExecution.toString()).render)
+      condMarkup(details(summary("Plan"), pre(dataSet.queryExecution.toString())).render)
       condMarkup("<hr/>")
       condMarkup("All the C Functions:")
       dataSet.queryExecution.executedPlan
@@ -254,10 +261,18 @@ class TPCHSqlCSpec
         }
         .flatten
         .flatten
-        .foreach(cFunction => {
-          condMarkup(pre(cFunction.toCodeLines("f").cCode).render)
-          condMarkup("<hr/>")
-        })
+        .zipWithIndex
+        .foreach {
+          case (cFunction, idx) => {
+            condMarkup(
+              details(
+                summary(s"Code block #${idx + 1}"),
+                pre(cFunction.toCodeLinesS("f").cCode)
+              ).render
+            )
+            condMarkup("<hr/>")
+          }
+        }
 
       try f(dataSet)
       catch {
@@ -268,18 +283,23 @@ class TPCHSqlCSpec
     }
   }
 
-  def withTpchViews[T](appName: String, configure: SparkSession.Builder => SparkSession.Builder)(
-    f: SparkSession => T
-  ): Unit =
-    appName in {
-      withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
-        sparkSession =>
-          createViews(sparkSession)
-          f(sparkSession)
+  def withTpchViews[T](
+    appName: String,
+    configure: SparkSession.Builder => SparkSession.Builder,
+    ignore: Boolean = true
+  )(f: SparkSession => T): Unit =
+    if (ignore) { appName ignore {} }
+    else {
+      appName in {
+        withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
+          sparkSession =>
+            createViews(sparkSession)
+            f(sparkSession)
+        }
       }
     }
 
-  withTpchViews("Query 1", configuration) { sparkSession =>
+  withTpchViews("Query 1", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
     val sql = s"""
@@ -361,7 +381,7 @@ class TPCHSqlCSpec
       )
     }
   }
-  withTpchViews("Query 2", configuration) { sparkSession =>
+  withTpchViews("Query 2. ", configuration) { sparkSession =>
     import sparkSession.implicits._
     val size = 15
     val pType = "BRASS"
@@ -1167,7 +1187,9 @@ class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect().toList.sorted === List(348406.05428571434)) //  348406.0.sorted5
+      assert(
+        ds.as[Double].collect().toList.sorted === List(348406.05428571434)
+      ) //  348406.0.sorted5
     }
   }
   withTpchViews("Query 18", configuration) { sparkSession =>
