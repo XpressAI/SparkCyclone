@@ -1,8 +1,11 @@
 package com.nec.ve
 
 import com.nec.ve.VeColBatch.VeColVector
+import org.apache.spark.HashPartitioner
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.{RDD, ShuffledRDD}
+
+import scala.reflect.ClassTag
 
 object VeRDD extends Logging {
   def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
@@ -34,7 +37,7 @@ object VeRDD extends Logging {
           },
         preservesPartitioning = true
       )
-      .sortByKey()
+      .repartitionByKey()
       .mapPartitions(
         f = iter =>
           iter.map { case (_, (v, ba)) =>
@@ -50,6 +53,10 @@ object VeRDD extends Logging {
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
     def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
+  }
+  implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
+    def repartitionByKey(): RDD[(Int, V)] =
+      new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
     def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[List[VeColVector]] = exchangeL(rdd)
