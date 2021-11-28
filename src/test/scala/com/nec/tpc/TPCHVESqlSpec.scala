@@ -29,6 +29,7 @@ import org.bytedeco.veoffload.global.veo
 import org.scalatest.ConfigMap
 
 import java.io.File
+import com.nec.spark.planning.VeColumnarRule
 
 object TPCHVESqlSpec {
 
