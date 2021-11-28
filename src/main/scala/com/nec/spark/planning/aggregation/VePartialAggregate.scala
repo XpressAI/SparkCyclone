@@ -5,13 +5,16 @@ import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.ve.VeColBatch
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 import java.nio.file.Paths
 
-case class VePartialAggregate(partialFunction: VeFunction, child: SparkPlan)
-  extends UnaryExecNode
+case class VePartialAggregate(
+  expectedOutputs: Seq[NamedExpression],
+  partialFunction: VeFunction,
+  child: SparkPlan
+) extends UnaryExecNode
   with SupportsVeColBatch {
 
   override def executeVeColumnar(): RDD[VeColBatch] = child
@@ -32,5 +35,6 @@ case class VePartialAggregate(partialFunction: VeFunction, child: SparkPlan)
       }
     }
 
-  override def output: Seq[Attribute] = ???
+  // this is wrong, but just to please spark
+  override def output: Seq[Attribute] = expectedOutputs.map(_.toAttribute)
 }

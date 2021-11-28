@@ -34,5 +34,5 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
         .take(1)
     }
 
-  override def output: Seq[Attribute] = ???
+  override def output: Seq[Attribute] = child.output
 }

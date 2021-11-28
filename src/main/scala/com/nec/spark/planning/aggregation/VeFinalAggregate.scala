@@ -4,13 +4,16 @@ import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.ve.VeColBatch
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 import java.nio.file.Paths
 
-case class VeFinalAggregate(finalFunction: VeFunction, child: SparkPlan)
-  extends UnaryExecNode
+case class VeFinalAggregate(
+  expectedOutputs: Seq[NamedExpression],
+  finalFunction: VeFunction,
+  child: SparkPlan
+) extends UnaryExecNode
   with SupportsVeColBatch {
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = child
@@ -31,5 +34,5 @@ case class VeFinalAggregate(finalFunction: VeFunction, child: SparkPlan)
       }
     }
 
-  override def output: Seq[Attribute] = ???
+  override def output: Seq[Attribute] = expectedOutputs.map(_.toAttribute)
 }

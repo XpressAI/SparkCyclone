@@ -384,6 +384,7 @@ final case class VERewriteStrategy(
           } yield {
             VectorEngineToSpark(
               VeFinalAggregate(
+                expectedOutputs = aggregateExpressions,
                 finalFunction = VeFunction(
                   libraryPath = libPath.toString,
                   functionName = finalName,
@@ -407,7 +408,8 @@ final case class VERewriteStrategy(
                         functionName = partialName,
                         results = partialCFunction.outputs.map(_.veType)
                       ),
-                      child = SparkToVectorEngine(planLater(child))
+                      child = SparkToVectorEngine(planLater(child)),
+                      expectedOutputs = aggregateExpressions
                     )
                   )
                 )
