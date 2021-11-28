@@ -377,6 +377,7 @@ final case class VERewriteStrategy(
                     else DataDescription.KeyOrValue.Value
                 )
               }.toList
+              println(s"Exchange description: $gd")
               GroupingFunction.groupData(data = gd, totalBuckets = 16)
             }
             mergeFunction = s"merge_$functionPrefix"
