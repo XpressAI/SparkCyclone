@@ -172,6 +172,33 @@ object VeColBatch {
         val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
 
         copy(containerLocation = veProcess.putBuffer(byteBuffer))
+      case VeScalarType.VeNullableInt =>
+        val vcvr = new nullable_int_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+
+        copy(containerLocation = veProcess.putBuffer(byteBuffer))
+      case VeScalarType.VeNullableLong =>
+        val vcvr = new nullable_bigint_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
+
+        copy(containerLocation = veProcess.putBuffer(byteBuffer))
+      case VeString =>
+        val vcvr = new nullable_varchar_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.offsets = bufferLocations(1)
+        vcvr.validityBuffer = bufferLocations(2)
+        vcvr.dataSize =
+          variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
+        val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
+
+        copy(containerLocation = veProcess.putBuffer(byteBuffer))
       case other => sys.error(s"Other $other not supported.")
     }
 
