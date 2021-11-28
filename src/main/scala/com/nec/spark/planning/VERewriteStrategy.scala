@@ -368,10 +368,10 @@ final case class VERewriteStrategy(
             finalName = s"final_$functionPrefix"
             exchangeName = s"exchange_$functionPrefix"
             exchangeFunction = {
-              val gd = aggregateExpressions.map { namedExpression =>
-                val contained = groupingExpressions.contains(namedExpression)
+              val gd = child.output.map { exp =>
+                val contained = groupingExpressions.contains(exp)
                 DataDescription(
-                  veType = sparkTypeToVeType(namedExpression.dataType),
+                  veType = sparkTypeToVeType(exp.dataType),
                   keyOrValue =
                     if (contained) DataDescription.KeyOrValue.Key
                     else DataDescription.KeyOrValue.Value
@@ -400,7 +400,7 @@ final case class VERewriteStrategy(
                 finalFunction = VeFunction(
                   libraryPath = libPath.toString,
                   functionName = finalName,
-                  results = partialCFunction.outputs.map(_.veType)
+                  results = ff.outputs.map(_.veType)
                 ),
                 child = VeFlattenPartition(
                   flattenFunction = VeFunction(
@@ -408,21 +408,21 @@ final case class VERewriteStrategy(
                     functionName = mergeFunction,
                     results = partialCFunction.outputs.map(_.veType)
                   ),
-                  child = VeHashExchange(
-                    exchangeFunction = VeFunction(
+                  child = VePartialAggregate(
+                    partialFunction = VeFunction(
                       libraryPath = libPath.toString,
-                      functionName = exchangeName,
+                      functionName = partialName,
                       results = partialCFunction.outputs.map(_.veType)
                     ),
-                    child = VePartialAggregate(
-                      partialFunction = VeFunction(
+                    child = VeHashExchange(
+                      exchangeFunction = VeFunction(
                         libraryPath = libPath.toString,
-                        functionName = partialName,
-                        results = partialCFunction.outputs.map(_.veType)
+                        functionName = exchangeName,
+                        results = child.output.map(a => sparkTypeToVeType(a.dataType)).toList
                       ),
-                      child = SparkToVectorEngine(planLater(child)),
-                      expectedOutputs = aggregateExpressions
-                    )
+                      child = SparkToVectorEngine(planLater(child))
+                    ),
+                    expectedOutputs = aggregateExpressions
                   )
                 )
               )
