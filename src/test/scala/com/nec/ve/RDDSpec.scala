@@ -113,8 +113,8 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
             .toList
       }
 
-    val expected = List[Double](199, 299, 399, 500)
-    expect(result == expected)
+    val expected = Set[Double](199, 299, 399, 500)
+    expect(result.toSet == expected)
   }
 
 }
