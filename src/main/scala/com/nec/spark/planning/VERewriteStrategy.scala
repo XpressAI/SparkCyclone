@@ -405,7 +405,7 @@ final case class VERewriteStrategy(
               )
           } yield {
 
-            val useVeExchange = false
+            val useVeExchange = true
             val exchangePlan =
               if (useVeExchange)
                 VeHashExchange(

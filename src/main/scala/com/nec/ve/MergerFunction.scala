@@ -31,9 +31,9 @@ object MergerFunction {
           case VeString =>
             CodeLines.from(
               CodeLines.debugHere,
-              CodeLines.from(s"std::vector<frovedis::words> ${outputVarName}_multi_words(batches)"),
+              CodeLines.from(s"std::vector<frovedis::words> ${outputVarName}_multi_words(batches);"),
               CodeLines.forLoop("b", "batches")({
-                s"${outputVarName}_multi_words[b] = varchar_vector_to_words(input_${idx}_g[b])"
+                s"${outputVarName}_multi_words[b] = varchar_vector_to_words(input_${idx}_g[b]);"
               }),
               CodeLines.debugHere,
               s"frovedis::words ${outputVarName}_merged = frovedis::merge_multi_words(${outputVarName}_multi_words);",
