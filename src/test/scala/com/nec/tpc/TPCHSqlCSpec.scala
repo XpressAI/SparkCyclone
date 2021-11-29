@@ -269,7 +269,7 @@ class TPCHSqlCSpec
   def withTpchViews[T](
     appName: String,
     configure: SparkSession.Builder => SparkSession.Builder,
-    ignore: Boolean = false
+    ignore: Boolean = true
   )(f: SparkSession => T): Unit =
     if (ignore) { appName ignore {} }
     else {
@@ -282,7 +282,7 @@ class TPCHSqlCSpec
       }
     }
 
-  withTpchViews("Query 1", configuration) { sparkSession =>
+  withTpchViews("Query 1", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
     val sql = s"""
