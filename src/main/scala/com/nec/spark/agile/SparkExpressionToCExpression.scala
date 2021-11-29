@@ -457,4 +457,14 @@ object SparkExpressionToCExpression {
       case expressions.Descending => Descending
     }
   }
+
+  def likelySparkType(veType: VeType): DataType = {
+    veType match {
+      case VeScalarType.VeNullableDouble => DoubleType
+      case VeScalarType.VeNullableFloat  => FloatType
+      case VeScalarType.VeNullableInt    => IntegerType
+      case VeScalarType.VeNullableLong   => LongType
+      case VeString                      => StringType
+    }
+  }
 }

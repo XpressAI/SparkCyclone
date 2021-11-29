@@ -1,15 +1,13 @@
 package com.nec.ve
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.{CExpressionEvaluation, CFunction2}
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeType}
+import com.nec.spark.agile.{CFunction2, CFunctionGeneration, StringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.StringProducer
 
 object GroupingFunction {
 
