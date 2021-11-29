@@ -4,7 +4,7 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.StringProducer.{FilteringProducer, ImpCopyStringProducer}
+import com.nec.spark.agile.StringProducer.{FilteringProducer, FrovedisCopyStringProducer, ImpCopyStringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
 
 object MergerFunction {
@@ -29,26 +29,17 @@ object MergerFunction {
         s"${outputVarName}_g[0] = ${outputVarName};",
         veT match {
           case VeString =>
-            val fp_0 = FilteringProducer(outputVarName, ImpCopyStringProducer("???"))
-            CodeLines
-              .from(
-                CodeLines.debugHere,
-                GroupByOutline.initializeStringVector(outputVarName),
-                CodeLines.debugHere,
-                fp_0.setup,
-                CodeLines.debugHere,
-                CodeLines.forLoop("b", "batches")({
-                  val fp =
-                    FilteringProducer(outputVarName, ImpCopyStringProducer(s"input_${idx}_g[b]"))
-
-                  CodeLines.from(CodeLines.forLoop("i", s"(input_${idx}_g[b]->count)") {
-                    CodeLines.from(fp.forEach)
-                  })
-                }),
-                fp_0.complete,
-                CodeLines.forLoop("i", "rows")(fp_0.validityForEach("i"))
-              )
-              .blockCommented(s"$idx")
+            CodeLines.from(
+              CodeLines.debugHere,
+              CodeLines.from(s"std::vector<frovedis::words> ${outputVarName}_multi_words(batches)"),
+              CodeLines.forLoop("b", "batches")({
+                s"${outputVarName}_multi_words[b] = varchar_vector_to_words(input_${idx}_g[b])"
+              }),
+              CodeLines.debugHere,
+              s"frovedis::words ${outputVarName}_merged = frovedis::merge_multi_words(${outputVarName}_multi_words);",
+              s"words_to_varchar_vector(${outputVarName}_merged, ${outputVarName});"
+            )
+            .blockCommented(s"$idx")
 
           case veScalarType: VeScalarType =>
             CodeLines
