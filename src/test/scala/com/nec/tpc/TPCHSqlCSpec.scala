@@ -308,7 +308,7 @@ class TPCHSqlCSpec
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
       assert(
-        ds.as[Tpe]
+        ds.as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
           .collect()
           .toList
           .sortBy(v => (v._1, v._2)) === List[Tpe](
