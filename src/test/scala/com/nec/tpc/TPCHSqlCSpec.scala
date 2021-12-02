@@ -122,8 +122,8 @@ class TPCHSqlCSpec
             l_extendedprice = p(5).trim.toDouble,
             l_discount = p(6).trim.toDouble,
             l_tax = p(7).trim.toDouble,
-            l_returnflag = p(8).trim,
-            l_linestatus = p(9).trim,
+            l_returnflag = p(8).trim.toCharArray.apply(0),
+            l_linestatus = p(9).trim.toCharArray.apply(0),
             l_shipdate = LocalDate.parse(p(10).trim),
             l_commitdate = LocalDate.parse(p(11).trim),
             l_receiptdate = LocalDate.parse(p(12).trim),
@@ -306,15 +306,15 @@ class TPCHSqlCSpec
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      type Tpe = (String, String, Double, Double, Double, Double, Double, Double, Double, Long)
+      type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
       assert(
-        ds.as[(String, String, Double, Double, Double, Double, Double, Double, Double, Long)]
+        ds.as[Tpe]
           .collect()
           .toList
           .sortBy(v => (v._1, v._2)) === List[Tpe](
           (
-            "A",
-            "F",
+            "A".charAt(0).toLong,
+            "F".charAt(0).toLong,
             3.7734107e7,
             5.658655440073002e10,
             5.3758257134869965e10,
@@ -325,8 +325,8 @@ class TPCHSqlCSpec
             1478493
           ),
           (
-            "N",
-            "F",
+            "N".charAt(0).toLong,
+            "F".charAt(0).toLong,
             991417.0,
             1.4875047103799999e9,
             1.4130821680541e9,
@@ -337,8 +337,8 @@ class TPCHSqlCSpec
             38854
           ),
           (
-            "N",
-            "O",
+            "N".charAt(0).toLong,
+            "O".charAt(0).toLong,
             7.447604e7,
             1.1170172969773961e11,
             1.0611823030760545e11,
@@ -349,8 +349,8 @@ class TPCHSqlCSpec
             2920374
           ),
           (
-            "R",
-            "F",
+            "R".charAt(0).toLong,
+            "F".charAt(0).toLong,
             3.7719753e7,
             5.656804138090005e10,
             5.3741292684604004e10,
