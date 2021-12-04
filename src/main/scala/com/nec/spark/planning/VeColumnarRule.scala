@@ -8,13 +8,17 @@ import org.apache.spark.sql.execution.command.{CacheTableCommand, ExecutedComman
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
 class VeColumnarRule extends ColumnarRule {
-  override def preColumnarTransitions: Rule[SparkPlan] = sparkPlan => sparkPlan match {
-    case cache @ ExecutedCommandExec(CacheTableCommand(multipartIdentifier, plan, originalText, isLazy, options)) =>
+  override def preColumnarTransitions: Rule[SparkPlan] = {
+    case cache @ ExecutedCommandExec(
+          CacheTableCommand(multipartIdentifier, plan, originalText, isLazy, options)
+        ) =>
+      println("Here")
       VeCachePlan(multipartIdentifier.mkString("."), originalText)
-    case plan => plan.transform {
-      case RowToArrowColumnarPlan(ArrowColumnarToRowPlan(child)) => child
-      case SparkToVectorEngine(VectorEngineToSpark(child)) => child
-    }
+    case plan =>
+      plan.transform {
+        case RowToArrowColumnarPlan(ArrowColumnarToRowPlan(child)) => child
+        case SparkToVectorEngine(VectorEngineToSpark(child))       => child
+      }
   }
 
 }
