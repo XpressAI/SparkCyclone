@@ -15,6 +15,7 @@ final case class CacheTableToVeCommand(
     val veColBatchRDD: DataFrame = SparkToVectorEngine(
       sparkSession.table(tableName).queryExecution.executedPlan
     ).executeVeColumnar().toDF()
+    veColBatchRDD.foreach(v => println(v))
     sparkSession.sharedState.cacheManager.cacheQuery(veColBatchRDD, Some(tableName))
     Seq.empty
   }

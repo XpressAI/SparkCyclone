@@ -13,7 +13,6 @@ final class VeColumnarRule extends ColumnarRule {
           CacheTableCommand(multipartIdentifier, None, originalText, isLazy, options)
         ) =>
       ExecutedCommandExec(CacheTableToVeCommand(multipartIdentifier, originalText))
-      VeCachePlan(multipartIdentifier.mkString("."), originalText)
     case plan =>
       plan.transform {
         case RowToArrowColumnarPlan(ArrowColumnarToRowPlan(child)) => child
