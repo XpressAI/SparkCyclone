@@ -54,29 +54,13 @@ class TPCHSqlCSpec
   }
 
   implicit val doubleEq: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(1e-2)
-  implicit val listEq: Equivalence[List[Product]] = (a: List[Product], b: List[Product]) => {
-    val aLength = a.productArity
-    val bLength = b.productArity
-
-    if (aLength != bLength) {
-      false
-    } else {
-      var equal = true
-      for (i <- 0 until aLength) {
-        val aItem = a.productElement(i)
-        val bItem = b.productElement(i)
-        if (aItem.getClass != bItem.getClass) {
-          equal = false
-        } else {
-          (aItem, bItem) match {
-            case (a: Double, b: Double) =>
-              equal = equal && a === b
-            case (a, b) =>
-              equal = equal && a == b
-          }
-        }
-      }
-      equal
+  implicit val listEq: Equality[List[Product]] = (a: List[Product], _b: Any) => {
+    val b = _b.asInstanceOf[List[Product]]
+    a.productArity == b.productArity && a.productIterator.zip(b.productIterator).forall {
+      case (a: Double, b: Double) =>
+        doubleEq.areEquivalent(a, b)
+      case (a, b) =>
+        a == b
     }
   }
 
