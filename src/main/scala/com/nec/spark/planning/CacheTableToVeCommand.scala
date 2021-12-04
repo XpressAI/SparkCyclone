@@ -17,6 +17,7 @@ final case class CacheTableToVeCommand(
     ).executeVeColumnar().toDF()
     veColBatchRDD.foreach(v => println(v))
     sparkSession.sharedState.cacheManager.cacheQuery(veColBatchRDD, Some(tableName))
+    println(s"Cached: ${veColBatchRDD}")
     Seq.empty
   }
 }
