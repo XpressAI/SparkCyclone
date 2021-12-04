@@ -69,6 +69,7 @@ import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.types.StringType
 
@@ -126,6 +127,10 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
+        case imr @ InMemoryRelation(output, cb, oo)
+            if cb.serializer
+              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
+          List(VeShortCircuitPlan(planLater(imr)))
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
