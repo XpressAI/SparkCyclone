@@ -127,14 +127,6 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case imr @ InMemoryRelation(output, cb, oo)
-            if {
-              println(cb.serializer)
-              println(VeCachedBatchSerializer.ShortCircuit)
-              true
-            } && cb.serializer
-              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
-          List(VeShortCircuitPlan(planLater(imr)))
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
