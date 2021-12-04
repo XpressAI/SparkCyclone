@@ -37,6 +37,10 @@ object TPCHVESqlSpec {
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
+      .config(
+        key = "spark.sql.cache.serializer",
+        value = "com.nec.spark.planning.VeCachedBatchSerializer"
+      )
       .config(key = "spark.ui.enabled", value = true)
       .config(key = "spark.sql.codegen.wholeStage", value = false)
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")
