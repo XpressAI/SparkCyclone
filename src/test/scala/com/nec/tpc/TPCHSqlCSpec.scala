@@ -184,7 +184,7 @@ class TPCHSqlCSpec
       value.createOrReplaceTempView(key)
     }
 
-    dfMap.keys.foreach(n => sparkSession.sql(s"cache ${n}"))
+    dfMap.keys.foreach(n => sparkSession.sql(s"cache table ${n}"))
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
