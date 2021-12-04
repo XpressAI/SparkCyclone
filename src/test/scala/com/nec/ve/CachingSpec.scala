@@ -36,12 +36,14 @@ final class CachingSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
       sparkSession.sql("cache table sample")
 
       val query = sparkSession.sql("select * from sample where num = 5").as[SampleStructure]
+      val plan = query.queryExecution.executedPlan.toString()
+      info(plan)
+      val rddInfo = query.queryExecution.executedPlan.execute()
+      info(s"$rddInfo")
       val result = query.collect().toList
       val expectedResult = CachingSpec.SampleItems.filter(_.num == 5)
       assert(result == expectedResult, "results should be the same")
 
-      val plan = query.queryExecution.executedPlan.toString()
-      assert(plan.contains("cacheee"), "cache should be there")
       assert(plan.contains("veblahblah"), "ve stuff should be there too")
   }
 
