@@ -34,7 +34,6 @@ import com.nec.spark.agile.StringProducer.{
   ImperativeStringProducer
 }
 import com.nec.spark.agile.groupby.GroupByOutline
-import com.nec.spark.planning.UDTVeType
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.UserDefinedVeType
@@ -117,7 +116,7 @@ object CFunctionGeneration {
   )
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
-  @SQLUserDefinedType(classOf[UserDefinedVeType])
+  @SQLUserDefinedType(udt = classOf[UserDefinedVeType])
   sealed trait VeType {
     def containerSize: Int
     def isString: Boolean
