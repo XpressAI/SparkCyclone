@@ -26,7 +26,7 @@ object VeCachedBatchSerializer {
     VeColBatch(
       numRows = columnarBatch.numRows(),
       cols = (0 until columnarBatch.numCols())
-        .map(col => col.asInstanceOf[VeColColumnarVector].veColVector)
+        .map(colIdx => columnarBatch.column(colIdx).asInstanceOf[VeColColumnarVector].veColVector)
         .toList
     )
 }
