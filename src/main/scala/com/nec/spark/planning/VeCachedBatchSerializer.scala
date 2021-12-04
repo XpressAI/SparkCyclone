@@ -66,7 +66,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
       .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
-
+    println(s"Converting back ${cachedBatch}")
     cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toArrowColumnarBatch()
   })
 
