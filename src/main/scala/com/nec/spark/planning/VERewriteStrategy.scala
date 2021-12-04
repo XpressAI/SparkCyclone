@@ -53,7 +53,8 @@ import com.nec.spark.planning.aggregation.{
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.Strategy
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   HyperLogLogPlusPlus
@@ -131,7 +132,10 @@ final case class VERewriteStrategy(
         case imr @ InMemoryRelation(output, cb, oo)
             if cb.serializer
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
-          val r = List(VeShortCircuitPlan(planLater(imr)))
+          val r = SparkSession.active.sessionState.planner.InMemoryScans
+            .apply(imr)
+            .flatMap(sp => List(VeShortCircuitPlan(sp)))
+            .toList
           println(s"Will short circuitl; result = $r")
           r
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
