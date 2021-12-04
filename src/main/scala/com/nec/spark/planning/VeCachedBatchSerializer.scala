@@ -89,9 +89,25 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     selectedAttributes: Seq[Attribute],
     conf: SQLConf
   ): RDD[InternalRow] =
-    convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
-      .mapPartitions(columnarBatchIterator =>
-        columnarBatchIterator.flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
-      )
+    if (ShortCircuit)
+      input.flatMap { cachedBatch =>
+        Iterator
+          .continually {
+            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+
+            lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+              .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
+            ArrowColumnarToRowPlan.mapBatchToRow(
+              cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toArrowColumnarBatch()
+            )
+          }
+          .take(1)
+          .flatten
+      }
+    else
+      convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
+        .mapPartitions(columnarBatchIterator =>
+          columnarBatchIterator.flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
+        )
 
 }
