@@ -255,6 +255,90 @@ class TPCHSqlCSpec
       }
     }
 
+  withTpchViews("Query 1. ", configuration, ignore = false) { sparkSession =>
+    import sparkSession.implicits._
+    val delta = 90
+    val sql = s"""
+      select
+        l_returnflag,
+        l_linestatus,
+        sum(l_quantity) as sum_qty,
+        sum(l_extendedprice) as sum_base_price,
+        sum(l_extendedprice*(1-l_discount)) as sum_disc_price,
+        sum(l_extendedprice*(1-l_discount)*(1+l_tax)) as sum_charge,
+        avg(l_quantity) as avg_qty,
+        avg(l_extendedprice) as avg_price,
+        avg(l_discount) as avg_disc,
+        count(*) as count_order
+      from
+        lineitem
+      where
+        l_shipdate <= date '1998-12-01' - interval '$delta' day
+      group by l_returnflag, l_linestatus
+      order by l_returnflag, l_linestatus
+    """
+
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
+      val result = ds
+        .as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
+        .collect()
+        .toList
+        .sortBy(v => (v._1, v._2))
+      val expected = List[Tpe](
+        (
+          "A".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          3.7734107e7,
+          5.658655440073002e10,
+          5.3758257134869965e10,
+          5.590906522282772e10,
+          25.522005853257337,
+          38273.12973462168,
+          0.04998529583840328,
+          1478493
+        ),
+        (
+          "N".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          991417.0,
+          1.4875047103799999e9,
+          1.4130821680541e9,
+          1.4696492231943748e9,
+          25.516471920522985,
+          38284.4677608483,
+          0.050093426674216374,
+          38854
+        ),
+        (
+          "N".charAt(0).toLong,
+          "O".charAt(0).toLong,
+          7.447604e7,
+          1.1170172969773961e11,
+          1.0611823030760545e11,
+          1.1036704387249672e11,
+          25.50222676958499,
+          38249.11798890814,
+          0.049996586053750215,
+          2920374
+        ),
+        (
+          "R".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          3.7719753e7,
+          5.656804138090005e10,
+          5.3741292684604004e10,
+          5.588961911983193e10,
+          25.50579361269077,
+          38250.85462609969,
+          0.05000940583013268,
+          1478870
+        )
+      ).sortBy(v => (v._1, v._2))
+      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(result, expected))
+    }
+  }
+
   withTpchViews("Query 2. ", configuration) { sparkSession =>
     import sparkSession.implicits._
     val size = 15

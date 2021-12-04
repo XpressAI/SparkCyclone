@@ -132,12 +132,10 @@ final case class VERewriteStrategy(
         case imr @ InMemoryRelation(output, cb, oo)
             if cb.serializer
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
-          val r = SparkSession.active.sessionState.planner.InMemoryScans
+          SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
             .flatMap(sp => List(VeFetchFromCachePlan(sp)))
             .toList
-          println(s"Will short circuitl; result = $r")
-          r
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
