@@ -18,13 +18,26 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 
 object VeColBatchConverters {
 
-  case class SparkToVectorEngine(override val child: SparkPlan)
+  case class SparkToVectorEngine(childPlan: SparkPlan)
     extends UnaryExecNode
     with Logging
     with SupportsVeColBatch {
     override def supportsColumnar: Boolean = true
-
+    override def child = {
+      if(CacheManager.isCached(childPlan)){
+        CachedVeRelation(childPlan.outputSet.toList, sparkContext.getExecutorMemoryStatus.size)
+      } else {
+        childPlan
+      }
+    }
     override def executeVeColumnar(): RDD[VeColBatch] = {
+      if(childPlan.isInstanceOf[CachedVeRelation]) {
+        childPlan.asInstanceOf[CachedVeRelation].executeVe()
+      } else {
+        executeNotCached()
+      }
+    }
+      def executeNotCached(): RDD[VeColBatch] = {
 //      val numInputRows = longMetric("numInputRows")
 //      val numOutputBatches = longMetric("numOutputBatches")
       // Instead of creating a new config we are reusing columnBatchSize. In the future if we do

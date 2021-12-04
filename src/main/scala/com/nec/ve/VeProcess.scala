@@ -158,6 +158,7 @@ object VeProcess {
 
           VeColVector(
             numItems = byteBuffer.getInt(16),
+            name = "output",
             veType = scalar,
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
@@ -170,6 +171,7 @@ object VeProcess {
 
           VeColVector(
             numItems = byteBuffer.getInt(28),
+            name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,
@@ -248,6 +250,7 @@ object VeProcess {
 
             VeColVector(
               numItems = byteBuffer.getInt(28),
+              name = "output",
               veType = VeString,
               containerLocation = outContainerLocation,
               bufferLocations =
@@ -265,6 +268,7 @@ object VeProcess {
 
             VeColVector(
               numItems = byteBuffer.getInt(16),
+              name = "output",
               veType = r,
               containerLocation = outContainerLocation,
               bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
@@ -330,6 +334,7 @@ object VeProcess {
 
           VeColVector(
             numItems = byteBuffer.getInt(16),
+            name = "output",
             veType = scalar,
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
@@ -342,6 +347,7 @@ object VeProcess {
 
           VeColVector(
             numItems = byteBuffer.getInt(28),
+            name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,

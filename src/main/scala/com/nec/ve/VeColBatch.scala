@@ -93,6 +93,7 @@ object VeColBatch {
 
   final case class VeColVector(
     numItems: Int,
+    name: String,
     variableSize: Option[Int],
     veType: VeType,
     containerLocation: Long,
@@ -341,6 +342,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = bigIntVector.getValueCount,
+        name = bigIntVector.getName,
         veType = VeScalarType.VeNullableLong,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -357,6 +359,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = dirInt.getValueCount,
+        name = dirInt.getName,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -375,6 +378,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = dateDayVector.getValueCount,
+        name = dateDayVector.getName,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -391,6 +395,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = float8Vector.getValueCount,
+        name = float8Vector.getName,
         veType = VeScalarType.VeNullableDouble,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -411,6 +416,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = varcharVector.getValueCount,
+        name = varcharVector.getName,
         veType = VeString,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer),
