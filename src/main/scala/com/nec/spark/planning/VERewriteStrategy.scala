@@ -134,7 +134,7 @@ final case class VERewriteStrategy(
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
           val r = SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
-            .flatMap(sp => List(VeShortCircuitPlan(sp)))
+            .flatMap(sp => List(VeFetchFromCachePlan(sp)))
             .toList
           println(s"Will short circuitl; result = $r")
           r
