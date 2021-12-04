@@ -285,6 +285,7 @@ class TPCHSqlCSpec
   withTpchViews("Query 1", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
+    sparkSession.sql("CACHE lineitem")
     val sql = s"""
       select
         l_returnflag,
