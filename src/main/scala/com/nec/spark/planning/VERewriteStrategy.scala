@@ -127,6 +127,7 @@ final case class VERewriteStrategy(
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
+        // case x if { println(s"${x.getClass}; ${x}"); false}  => ???
         case imr @ InMemoryRelation(output, cb, oo)
             if cb.serializer
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>

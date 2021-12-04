@@ -40,8 +40,8 @@ final class CachingSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
       info(plan)
       val rddInfo = query.queryExecution.executedPlan.execute()
       info(s"$rddInfo")
-      val result = query.collect().toList
-      val expectedResult = CachingSpec.SampleItems.filter(_.num == 5)
+      val result = query.collect().toList.toSet
+      val expectedResult = CachingSpec.SampleItems.filter(_.num == 5).toSet
       assert(result == expectedResult, "results should be the same")
 
       assert(plan.contains("veblahblah"), "ve stuff should be there too")

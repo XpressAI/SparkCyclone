@@ -93,21 +93,13 @@ object VeColBatchConverters {
 
     override def supportsColumnar: Boolean = true
     override def child = {
-      if (CacheManager.isCached(childPlan)) {
-        CachedVeRelation(childPlan.outputSet.toList, sparkContext.getExecutorMemoryStatus.size)
-      } else {
-        childPlan
-      }
+      // if (CacheManager.isCached(childPlan)) {
+      // CachedVeRelation(childPlan.outputSet.toList, sparkContext.getExecutorMemoryStatus.size)
+      // } else {
+      childPlan
+      // }
     }
     override def executeVeColumnar(): RDD[VeColBatch] = {
-      if (childPlan.isInstanceOf[CachedVeRelation]) {
-        childPlan.asInstanceOf[CachedVeRelation].executeVe()
-      } else {
-        executeNotCached()
-      }
-    }
-
-    def executeNotCached(): RDD[VeColBatch] = {
 //      val numInputRows = longMetric("numInputRows")
 //      val numOutputBatches = longMetric("numOutputBatches")
       // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
@@ -116,7 +108,11 @@ object VeColBatchConverters {
       logInfo(s"Will make batches of ${numRows} rows...")
       val timeZoneId = conf.sessionLocalTimeZone
 
-      internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
+      child match {
+        case v: SupportsVeColBatch => v.executeVeColumnar()
+        case _ =>
+          internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
+      }
     }
 
     override def output: Seq[Attribute] = child.output
