@@ -13,7 +13,9 @@ import com.nec.arrow.VeArrowTransfers.{
   nullableVarCharVectorVectorToByteBuffer
 }
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{
@@ -31,6 +33,7 @@ import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
+//noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit
     bufferAllocator: BufferAllocator,
@@ -38,6 +41,13 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   ): ColumnarBatch = {
     val vecs = cols.map(_.toArrowVector())
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
+    cb.setNumRows(numRows)
+    cb
+  }
+
+  def toInternalColumnarBatch(): ColumnarBatch = {
+    val vecs = cols.map(_.toInternalVector())
+    val cb = new ColumnarBatch(vecs.toArray)
     cb.setNumRows(numRows)
     cb
   }
@@ -99,6 +109,8 @@ object VeColBatch {
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
+    def toInternalVector(): ColumnVector = new VeColColumnarVector(this, likelySparkType(veType))
+
     def nonEmpty: Boolean = numItems > 0
     def isEmpty: Boolean = !nonEmpty
 
