@@ -14,8 +14,7 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 
 case class VeCachePlan(tableName: String,
-                       originalText: Option[String],
-                       arrowNativeInterface: ArrowNativeInterface) extends SparkPlan {
+                       originalText: Option[String]) extends SparkPlan {
 
   override protected def doExecute(): RDD[InternalRow] = {
     val sparkSession = sqlContext.sparkSession
