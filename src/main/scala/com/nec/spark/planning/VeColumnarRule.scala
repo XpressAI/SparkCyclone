@@ -10,9 +10,9 @@ import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 final class VeColumnarRule extends ColumnarRule {
   override def preColumnarTransitions: Rule[SparkPlan] = {
     case cache @ ExecutedCommandExec(
-          CacheTableCommand(multipartIdentifier, plan, originalText, isLazy, options)
-        ) if false =>
-      println("Here")
+          CacheTableCommand(multipartIdentifier, None, originalText, isLazy, options)
+        ) =>
+      ExecutedCommandExec(CacheTableToVeCommand(multipartIdentifier, originalText))
       VeCachePlan(multipartIdentifier.mkString("."), originalText)
     case plan =>
       plan.transform {
