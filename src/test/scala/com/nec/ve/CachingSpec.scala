@@ -31,8 +31,9 @@ final class CachingSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
       sparkSession
         .createDataset(CachingSpec.SampleItems)
         .repartition(2)
-        .cache()
         .createTempView("sample")
+
+      sparkSession.sql("cache table sample").collect()
 
       val query = sparkSession.sql("select * from sample where num = 5").as[SampleStructure]
       val plan = query.queryExecution.executedPlan.toString()
