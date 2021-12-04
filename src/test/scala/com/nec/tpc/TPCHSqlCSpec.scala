@@ -53,33 +53,6 @@ class TPCHSqlCSpec
     printMarkup = configMap.getOptional[String]("markup").contains("true")
   }
 
-  implicit val doubleEq: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(1e-2)
-  implicit val listEq: Equivalence[List[Product]] = (a: List[Product], b: List[Product]) => {
-    val aLength = a.productArity
-    val bLength = b.productArity
-
-    if (aLength != bLength) {
-      false
-    } else {
-      var equal = true
-      for (i <- 0 until aLength) {
-        val aItem = a.productElement(i)
-        val bItem = b.productElement(i)
-        if (aItem.getClass != bItem.getClass) {
-          equal = false
-        } else {
-          (aItem, bItem) match {
-            case (a: Double, b: Double) =>
-              equal = equal && a === b
-            case (a, b) =>
-              equal = equal && a == b
-          }
-        }
-      }
-      equal
-    }
-  }
-
   private var initialized = false
 
   def configuration: SparkSession.Builder => SparkSession.Builder =
@@ -307,61 +280,62 @@ class TPCHSqlCSpec
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
-      assert(
-        ds.as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
-          .collect()
-          .toList
-          .sortBy(v => (v._1, v._2)) === List[Tpe](
-          (
-            "A".charAt(0).toLong,
-            "F".charAt(0).toLong,
-            3.7734107e7,
-            5.658655440073002e10,
-            5.3758257134869965e10,
-            5.590906522282772e10,
-            25.522005853257337,
-            38273.12973462168,
-            0.04998529583840328,
-            1478493
-          ),
-          (
-            "N".charAt(0).toLong,
-            "F".charAt(0).toLong,
-            991417.0,
-            1.4875047103799999e9,
-            1.4130821680541e9,
-            1.4696492231943748e9,
-            25.516471920522985,
-            38284.4677608483,
-            0.050093426674216374,
-            38854
-          ),
-          (
-            "N".charAt(0).toLong,
-            "O".charAt(0).toLong,
-            7.447604e7,
-            1.1170172969773961e11,
-            1.0611823030760545e11,
-            1.1036704387249672e11,
-            25.50222676958499,
-            38249.11798890814,
-            0.049996586053750215,
-            2920374
-          ),
-          (
-            "R".charAt(0).toLong,
-            "F".charAt(0).toLong,
-            3.7719753e7,
-            5.656804138090005e10,
-            5.3741292684604004e10,
-            5.588961911983193e10,
-            25.50579361269077,
-            38250.85462609969,
-            0.05000940583013268,
-            1478870
-          )
-        ).sortBy(v => (v._1, v._2))
-      )
+      val result = ds
+        .as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
+        .collect()
+        .toList
+        .sortBy(v => (v._1, v._2))
+      val expected = List[Tpe](
+        (
+          "A".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          3.7734107e7,
+          5.658655440073002e10,
+          5.3758257134869965e10,
+          5.590906522282772e10,
+          25.522005853257337,
+          38273.12973462168,
+          0.04998529583840328,
+          1478493
+        ),
+        (
+          "N".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          991417.0,
+          1.4875047103799999e9,
+          1.4130821680541e9,
+          1.4696492231943748e9,
+          25.516471920522985,
+          38284.4677608483,
+          0.050093426674216374,
+          38854
+        ),
+        (
+          "N".charAt(0).toLong,
+          "O".charAt(0).toLong,
+          7.447604e7,
+          1.1170172969773961e11,
+          1.0611823030760545e11,
+          1.1036704387249672e11,
+          25.50222676958499,
+          38249.11798890814,
+          0.049996586053750215,
+          2920374
+        ),
+        (
+          "R".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          3.7719753e7,
+          5.656804138090005e10,
+          5.3741292684604004e10,
+          5.588961911983193e10,
+          25.50579361269077,
+          38250.85462609969,
+          0.05000940583013268,
+          1478870
+        )
+      ).sortBy(v => (v._1, v._2))
+      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(result, expected))
     }
   }
   withTpchViews("Query 2. ", configuration) { sparkSession =>
