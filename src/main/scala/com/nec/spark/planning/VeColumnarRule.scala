@@ -7,11 +7,11 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.command.{CacheTableCommand, ExecutedCommandExec}
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
-class VeColumnarRule extends ColumnarRule {
+final class VeColumnarRule extends ColumnarRule {
   override def preColumnarTransitions: Rule[SparkPlan] = {
     case cache @ ExecutedCommandExec(
           CacheTableCommand(multipartIdentifier, plan, originalText, isLazy, options)
-        ) =>
+        ) if false =>
       println("Here")
       VeCachePlan(multipartIdentifier.mkString("."), originalText)
     case plan =>

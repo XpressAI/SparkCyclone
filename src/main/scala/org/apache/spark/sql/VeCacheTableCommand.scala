@@ -20,6 +20,7 @@ case class VeCachePlan(tableName: String,
     val sparkSession = sqlContext.sparkSession
     val tablePlan = sparkSession.table(tableName).queryExecution.sparkPlan
 
+    println("Executing CachePlan")
     val colBatches = SparkToVectorEngine(tablePlan)
       .executeVeColumnar()
       .collect()
