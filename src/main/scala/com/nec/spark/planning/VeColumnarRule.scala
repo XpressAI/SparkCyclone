@@ -11,7 +11,7 @@ final class VeColumnarRule extends ColumnarRule {
   override def preColumnarTransitions: Rule[SparkPlan] = {
     case cache @ ExecutedCommandExec(
           CacheTableCommand(multipartIdentifier, None, originalText, isLazy, options)
-        ) =>
+        ) if false =>
       ExecutedCommandExec(CacheTableToVeCommand(multipartIdentifier, originalText))
       VeCachePlan(multipartIdentifier.mkString("."), originalText)
     case plan =>
