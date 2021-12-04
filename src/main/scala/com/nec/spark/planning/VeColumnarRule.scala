@@ -9,10 +9,7 @@ import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
 final class VeColumnarRule extends ColumnarRule {
   override def preColumnarTransitions: Rule[SparkPlan] = {
-    case imr @ InMemoryTableScanExec(attributes, predicates, InMemoryRelation(output, cb, oo))
-        if cb.serializer
-          .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
-      VeShortCircuitPlan(imr)
+
     case plan =>
       plan.transform {
         case RowToArrowColumnarPlan(ArrowColumnarToRowPlan(child)) => child
