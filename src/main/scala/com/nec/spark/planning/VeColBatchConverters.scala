@@ -20,7 +20,7 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 
 object VeColBatchConverters {
 
-  def getNumRows(sparkContext: SparkContext, conf: SQLConf) = {
+  def getNumRows(sparkContext: SparkContext, conf: SQLConf): Int = {
     sparkContext.getConf
       .getOption("com.nec.spark.ve.columnBatchSize")
       .map(_.toInt)

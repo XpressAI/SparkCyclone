@@ -27,7 +27,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.source.Position
-import org.scalactic.{Equality, Equivalence, TolerantNumerics}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
