@@ -122,13 +122,11 @@ object VeProcess {
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
         lp.put(vcv.containerLocation)
-        lp.position(0)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(1)
         lp.put(-118)
-        lp.position(0)
         lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
@@ -203,18 +201,15 @@ object VeProcess {
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
         lp.put(vcv.containerLocation)
-        lp.position(0)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(MaxSetsCount)
         lp.put(-99)
-        lp.position(0)
         lp
       }
       val countsP = new IntPointer(4.toLong)
       countsP.put(-919)
-      countsP.position(0)
       veo.veo_args_set_stack(our_args, 1, cols.size, new BytePointer(countsP), 8)
       results.zipWithIndex.zip(outPointers).foreach { case ((vet, reIdx), outPointer) =>
         val index = cols.size + 1 + reIdx
@@ -303,13 +298,11 @@ object VeProcess {
         colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
           lp.put(idx, col.containerLocation)
         }
-        lp.position(0)
         veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
       }
       val outPointers = results.map { veType =>
         val lp = new LongPointer(1)
         lp.put(-118)
-        lp.position(0)
         lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
