@@ -19,21 +19,15 @@
  */
 package com.nec.arrow
 
-import java.nio.ByteBuffer
-
-import org.bytedeco.javacpp.LongPointer
-import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.veo_args
-import org.bytedeco.veoffload.veo_proc_handle
 import com.nec.arrow.ArrowNativeInterface._
 import com.typesafe.scalalogging.LazyLogging
-import java.io.FileNotFoundException
-import java.nio.file.Files
-import java.nio.file.Paths
+import org.bytedeco.javacpp.LongPointer
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.veo_proc_handle
 
-import com.nec.spark.planning.CacheManager
-import com.nec.util.LruVeoMemCache
-import com.nec.ve.VeColBatch
+import java.io.FileNotFoundException
+import java.nio.ByteBuffer
+import java.nio.file.{Files, Paths}
 
 final class VeArrowNativeInterface(proc: veo_proc_handle, lib: Long) extends ArrowNativeInterface {
   override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
