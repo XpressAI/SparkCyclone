@@ -22,7 +22,6 @@ package com.nec.spark.planning
 import com.nec.native.NativeEvaluator
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
@@ -34,7 +33,6 @@ import com.nec.spark.agile.groupby.{
   GroupByPartialToFinalGenerator
 }
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
-import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{
@@ -53,8 +51,6 @@ import com.nec.spark.planning.aggregation.{
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   HyperLogLogPlusPlus
@@ -70,9 +66,10 @@ import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.columnar.{InMemoryRelation, InMemoryTableScanExec}
+import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.{SparkSession, Strategy}
 
 import scala.collection.immutable
 import scala.util.Try
@@ -89,7 +86,7 @@ object VERewriteStrategy {
   object VeRewriteStrategyOptions {
     val default: VeRewriteStrategyOptions =
       VeRewriteStrategyOptions(
-        enableVeSorting = false,
+        enableVeSorting = true,
         projectOnVe = true,
         filterOnVe = true,
         aggregateOnVe = true
@@ -453,7 +450,6 @@ final case class VERewriteStrategy(
                     SparkExpressionToCExpression.likelySparkType(veType)
                   )
                 }
-                .toList
             )
             val flt = VeFlattenPartition(
               flattenFunction = VeFunction(
@@ -479,7 +475,7 @@ final case class VERewriteStrategy(
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
-        case Sort(orders, global, child) if options.enableVeSorting => {
+        case s @ Sort(orders, global, child) if options.enableVeSorting => {
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToScalarVeType(att.dataType)
               .makeCVector(s"${InputPrefix}${id}")
@@ -507,14 +503,27 @@ final case class VERewriteStrategy(
 
           val veSort = VeSort(inputsList, orderingExpressions)
           val code = CFunctionGeneration.renderSort(veSort)
-          val sortPlan = new NativeSortEvaluationPlan(
-            outputExpressions = plan.output,
-            functionPrefix = functionPrefix,
-            Coalesced(code),
-            RowToArrowColumnarPlan(planLater(child)),
-            nativeEvaluator = nativeEvaluator
+
+          val sortFName = s"sort_${functionPrefix}"
+          val libPath =
+            SparkCycloneDriverPlugin.currentCompiler.forCode(
+              CodeLines
+                .from(code.toCodeLinesSPtr(sortFName))
+            )
+
+          List(
+            VectorEngineToSpark(
+              OneStageEvaluationPlan(
+                outputExpressions = s.output,
+                veFunction = VeFunction(
+                  libraryPath = libPath.toString,
+                  functionName = sortFName,
+                  results = code.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEngine(planLater(child))
+              )
+            )
           )
-          List(new ArrowColumnarToRowPlan(sortPlan))
         }
         case _ => Nil
       }

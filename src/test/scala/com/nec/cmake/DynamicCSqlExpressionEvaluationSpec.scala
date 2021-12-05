@@ -22,11 +22,7 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.{
-  NativeSortEvaluationPlan,
-  OneStageEvaluationPlan,
-  VERewriteStrategy,
-}
+import com.nec.spark.planning.{OneStageEvaluationPlan, VERewriteStrategy}
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource.{
   makeCsvNumsMultiColumn,
@@ -1028,11 +1024,7 @@ class DynamicCSqlExpressionEvaluationSpec
 
     def ensureSortEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(
-        thePlan
-          .toString()
-          .contains(NativeSortEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
-      )
+      assert(thePlan.toString().contains("sort_"))
       dataSet
     }
     def ensureJoinPlanEvaluated(): Dataset[T] = {
