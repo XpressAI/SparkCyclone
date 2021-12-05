@@ -441,10 +441,10 @@ object CFunctionGeneration {
       "#include <string>",
       "#include <iostream>",
       "#include <tuple>",
+      "#include <vector>",
       "#include \"tuple_hash.hpp\"",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/dataframe/join.cc"""",
       """#include "frovedis/core/set_operations.hpp"""",
       TcpDebug.conditional.headers,
       toCodeLinesNoHeaderOutPtr2(functionName)
@@ -455,10 +455,10 @@ object CFunctionGeneration {
       "#include <string>",
       "#include <iostream>",
       "#include <tuple>",
+      "#include <vector>",
       "#include \"tuple_hash.hpp\"",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/dataframe/join.cc"""",
       """#include "frovedis/core/set_operations.hpp"""",
       TcpDebug.conditional.headers,
       toCodeLinesNoHeader(functionName)
@@ -471,6 +471,7 @@ object CFunctionGeneration {
         "#include <cmath>",
         "#include <bitset>",
         "#include <string>",
+        "#include <vector>",
         "#include <iostream>",
         TcpDebug.conditional.headers,
         toCodeLinesNoHeader(functionName)
@@ -492,6 +493,7 @@ object CFunctionGeneration {
       CodeLines.from(
         "#include <cmath>",
         "#include <bitset>",
+        "#include <vector>",
         "#include <string>",
         "#include <iostream>",
         """#include "frovedis/dataframe/join.hpp"""",

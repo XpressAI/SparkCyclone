@@ -85,10 +85,10 @@ object StringProducer {
       s"""std::vector<size_t> ${newStarts(outputName)};""",
       s"""std::vector<int> ${newChars(outputName)} = frovedis::concat_words(
         ${wordName(outputName)}.chars,
-        (const vector<size_t>&)(${frovedisStarts(outputName)}),
-        (const vector<size_t>&)(${frovedisLens(outputName)}),
+        (const std::vector<size_t>&)(${frovedisStarts(outputName)}),
+        (const std::vector<size_t>&)(${frovedisLens(outputName)}),
         "",
-        (vector<size_t>&)(${newStarts(outputName)})
+        (std::vector<size_t>&)(${newStarts(outputName)})
       );""",
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
       s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
