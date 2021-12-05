@@ -36,7 +36,8 @@ import com.nec.spark.agile.StringProducer.{
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
-import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType}
+import org.apache.spark.sql.UserDefinedVeType
+import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType, SQLUserDefinedType}
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
@@ -115,11 +116,16 @@ object CFunctionGeneration {
   )
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
+  @SQLUserDefinedType(udt = classOf[UserDefinedVeType])
   sealed trait VeType {
     def containerSize: Int
     def isString: Boolean
     def cVectorType: String
     def makeCVector(name: String): CVector
+  }
+
+  object VeType {
+    val All: Set[VeType] = Set(VeString) ++ VeScalarType.All
   }
 
   case object VeString extends VeType {
@@ -145,6 +151,8 @@ object CFunctionGeneration {
   }
 
   object VeScalarType {
+    val All: Set[VeScalarType] =
+      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong)
     case object VeNullableDouble extends VeScalarType {
 
       def cScalarType: String = "double"

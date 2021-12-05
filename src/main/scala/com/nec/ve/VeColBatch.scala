@@ -13,7 +13,9 @@ import com.nec.arrow.VeArrowTransfers.{
   nullableVarCharVectorVectorToByteBuffer
 }
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{
@@ -31,6 +33,7 @@ import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
+//noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   def toArrowColumnarBatch()(implicit
     bufferAllocator: BufferAllocator,
@@ -38,6 +41,13 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
   ): ColumnarBatch = {
     val vecs = cols.map(_.toArrowVector())
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
+    cb.setNumRows(numRows)
+    cb
+  }
+
+  def toInternalColumnarBatch(): ColumnarBatch = {
+    val vecs = cols.map(_.toInternalVector())
+    val cb = new ColumnarBatch(vecs.toArray)
     cb.setNumRows(numRows)
     cb
   }
@@ -93,11 +103,14 @@ object VeColBatch {
 
   final case class VeColVector(
     numItems: Int,
+    name: String,
     variableSize: Option[Int],
     veType: VeType,
     containerLocation: Long,
     bufferLocations: List[Long]
   ) {
+    def toInternalVector(): ColumnVector = new VeColColumnarVector(this, likelySparkType(veType))
+
     def nonEmpty: Boolean = numItems > 0
     def isEmpty: Boolean = !nonEmpty
 
@@ -341,6 +354,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = bigIntVector.getValueCount,
+        name = bigIntVector.getName,
         veType = VeScalarType.VeNullableLong,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -357,6 +371,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = dirInt.getValueCount,
+        name = dirInt.getName,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -375,6 +390,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = dateDayVector.getValueCount,
+        name = dateDayVector.getName,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -391,6 +407,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = float8Vector.getValueCount,
+        name = float8Vector.getName,
         veType = VeScalarType.VeNullableDouble,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),
@@ -411,6 +428,7 @@ object VeColBatch {
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
         numItems = varcharVector.getValueCount,
+        name = varcharVector.getName,
         veType = VeString,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer),

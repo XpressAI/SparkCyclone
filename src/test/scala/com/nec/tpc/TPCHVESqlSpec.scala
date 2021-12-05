@@ -20,22 +20,27 @@
 package com.nec.tpc
 
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.VERewriteStrategy
+import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.bytedeco.veoffload.global.veo
 import org.scalatest.ConfigMap
-
 import java.io.File
-import com.nec.spark.planning.VeColumnarRule
+
+import com.nec.arrow.VeArrowNativeInterface
 
 object TPCHVESqlSpec {
 
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
+      .config(
+        key = "spark.sql.cache.serializer",
+        value = "com.nec.spark.planning.VeCachedBatchSerializer"
+      )
       .config(key = "spark.ui.enabled", value = true)
       .config(key = "spark.sql.codegen.wholeStage", value = false)
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")

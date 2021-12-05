@@ -19,18 +19,15 @@
  */
 package com.nec.arrow
 
-import java.nio.ByteBuffer
-import org.bytedeco.javacpp.LongPointer
-import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.veo_args
-import org.bytedeco.veoffload.veo_proc_handle
 import com.nec.arrow.ArrowNativeInterface._
 import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.javacpp.LongPointer
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.veo_proc_handle
 
 import java.io.FileNotFoundException
-import java.nio.file.Files
-import java.nio.file.Paths
-import com.nec.util.LruVeoMemCache
+import java.nio.ByteBuffer
+import java.nio.file.{Files, Paths}
 
 final class VeArrowNativeInterface(proc: veo_proc_handle, lib: Long) extends ArrowNativeInterface {
   override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
@@ -57,6 +54,7 @@ object VeArrowNativeInterface extends LazyLogging {
 
   final class VeArrowNativeInterfaceLazyLib(proc: veo_proc_handle, libPath: String)
     extends ArrowNativeInterface {
+
     override def callFunctionWrapped(name: String, arguments: List[NativeArgument]): Unit = {
       val lib = if (!libs.contains(libPath)) {
         // XXX: Can probably cache more than just 1 library but can't know how much space we have with

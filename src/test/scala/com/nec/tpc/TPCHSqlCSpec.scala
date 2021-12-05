@@ -183,6 +183,8 @@ class TPCHSqlCSpec
     dfMap.foreach { case (key, value) =>
       value.createOrReplaceTempView(key)
     }
+
+    dfMap.keys.foreach(n => sparkSession.sql(s"cache table ${n}"))
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
@@ -255,7 +257,7 @@ class TPCHSqlCSpec
       }
     }
 
-  withTpchViews("Query 1", configuration, ignore = false) { sparkSession =>
+  withTpchViews("Query 1. ", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
     val sql = s"""
@@ -338,6 +340,7 @@ class TPCHSqlCSpec
       assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(result, expected))
     }
   }
+
   withTpchViews("Query 2. ", configuration) { sparkSession =>
     import sparkSession.implicits._
     val size = 15
