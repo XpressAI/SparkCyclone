@@ -42,7 +42,7 @@ final class StringHoleSpec extends AnyFreeSpec {
       )
     val x = y.get
     val evaluation =
-      StringHoleEvaluation.SlowEvaluation("test", SlowEvaluator.StartsWithEvaluator("x"))
+      StringHoleEvaluation.LikeStringHoleEvaluation("test", "x%")
     val expected =
       CaseWhen(Seq(StringHole(StartsWith(aref, Literal("x")), evaluation) -> Literal(1)), None)
     val aliasChild = x.newExpression.asInstanceOf[Alias].child

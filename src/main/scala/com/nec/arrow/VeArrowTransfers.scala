@@ -436,7 +436,7 @@ object VeArrowTransfers extends LazyLogging {
     cleanup.add(veoPtr, dataSize)
   }
 
-  private def veo_read_nullable_double_vector(
+  def veo_read_nullable_double_vector(
     proc: veo_proc_handle,
     vec: nullable_double_vector,
     byteBuffer: ByteBuffer

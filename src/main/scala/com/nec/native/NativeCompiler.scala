@@ -23,6 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file.Paths
 import com.nec.cmake.CMakeBuilder
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.apache.spark.SparkConf
 
 import java.nio.file.Files
@@ -34,13 +35,15 @@ trait NativeCompiler extends Serializable {
 
   /** Location of the compiled kernel library */
   def forCode(code: String): Path
+  def forCode(codeLines: CodeLines): Path = forCode(codeLines.cCode)
   protected def combinedCode(code: String): String =
     List(TransferDefinitions.TransferDefinitionsSourceCode, code).mkString("\n\n")
 }
 
-object NativeCompiler {
+object NativeCompiler extends LazyLogging {
   def fromConfig(sparkConf: SparkConf): NativeCompiler = {
     val compilerConfig = VeKernelCompiler.VeCompilerConfig.fromSparkConf(sparkConf)
+    logger.info(s"Compiler configuration: ${compilerConfig}")
     sparkConf.getOption("spark.com.nec.spark.kernel.precompiled") match {
       case Some(directory) => PreCompiled(directory)
       case None =>
@@ -91,6 +94,7 @@ object NativeCompiler {
         sourcePath
       } else {
         logger.debug(s"Compiling for the VE...: $code")
+        logger.info(s"Compiler config ==> ${veCompilerConfig}")
         val startTime = System.currentTimeMillis()
         val soName =
           VeKernelCompiler(

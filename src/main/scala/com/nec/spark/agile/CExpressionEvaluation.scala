@@ -192,8 +192,22 @@ object CExpressionEvaluation {
 
   object CodeLines {
 
-    def debugValue(names: String*): CodeLines = {
-      CodeLines.from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
+    def debugValue(names: String*): CodeLines =
+      TcpDebug.conditionOn("DEBUG")(
+        CodeLines
+          .from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
+      )
+
+    def printLabel(label: String): CodeLines = {
+      val parts = s""""$label"""" :: Nil
+      CodeLines
+        .from(s"std::cout << ${parts.mkString(" << \" \" << ")} << std::endl << std::flush;")
+    }
+
+    def printValue(label: String)(names: String*): CodeLines = {
+      val parts = s""""$label"""" :: names.toList
+      CodeLines
+        .from(s"std::cout << ${parts.mkString(" << \" \" << ")} << std::endl << std::flush;")
     }
 
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
@@ -223,6 +237,17 @@ object CExpressionEvaluation {
       )
 
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)
+
+    def ifStatement(condition: String)(sub: => CodeLines): CodeLines =
+      CodeLines.from(s"if ($condition) { ", sub.indented, "}")
+    def ifElseStatement(condition: String)(sub: => CodeLines)(other: CodeLines): CodeLines =
+      CodeLines.from(s"if ($condition) { ", sub.indented, "} else {", other.indented, "}")
+    def forLoop(counterName: String, until: String)(sub: => CodeLines): CodeLines =
+      CodeLines.from(
+        s"for ( int $counterName = 0; $counterName < $until; $counterName++ ) {",
+        sub.indented,
+        s"}"
+      )
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))
 

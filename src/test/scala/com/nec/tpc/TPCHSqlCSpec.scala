@@ -22,21 +22,35 @@ package com.nec.tpc
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.NativeAggregationEvaluationPlan
+import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalactic.source.Position
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
+import scalatags.Text.tags2.{details, summary}
+
+import java.time.LocalDate
 
 class TPCHSqlCSpec
   extends AnyFreeSpec
   with BeforeAndAfter
-  with BeforeAndAfterAll
   with SparkAdditions
   with Matchers
-  with LazyLogging {
+  with LazyLogging
+  with BeforeAndAfterAllConfigMap {
+
+  private def condMarkup(mkp: String)(implicit pos: Position): Unit = {
+    if (printMarkup) markup(mkp)
+  }
+
+  private var printMarkup = false
+
+  protected override def beforeAll(configMap: ConfigMap): Unit = {
+    printMarkup = configMap.getOptional[String]("markup").contains("true")
+  }
 
   private var initialized = false
 
@@ -72,22 +86,22 @@ class TPCHSqlCSpec
         .map(_.split('|'))
         .map(p =>
           Lineitem(
-            p(0).trim.toLong,
-            p(1).trim.toLong,
-            p(2).trim.toLong,
-            p(3).trim.toLong,
-            p(4).trim.toDouble,
-            p(5).trim.toDouble,
-            p(6).trim.toDouble,
-            p(7).trim.toDouble,
-            p(8).trim,
-            p(9).trim,
-            p(10).trim,
-            p(11).trim,
-            p(12).trim,
-            p(13).trim,
-            p(14).trim,
-            p(15).trim
+            l_orderkey = p(0).trim.toLong,
+            l_partkey = p(1).trim.toLong,
+            l_suppkey = p(2).trim.toLong,
+            l_linenumber = p(3).trim.toLong,
+            l_quantity = p(4).trim.toDouble,
+            l_extendedprice = p(5).trim.toDouble,
+            l_discount = p(6).trim.toDouble,
+            l_tax = p(7).trim.toDouble,
+            l_returnflag = p(8).trim.toCharArray.apply(0),
+            l_linestatus = p(9).trim.toCharArray.apply(0),
+            l_shipdate = LocalDate.parse(p(10).trim),
+            l_commitdate = LocalDate.parse(p(11).trim),
+            l_receiptdate = LocalDate.parse(p(12).trim),
+            l_shipinstruct = p(13).trim,
+            l_shipmode = p(14).trim,
+            l_comment = p(15).trim
           )
         )
         .toDF(),
@@ -106,15 +120,15 @@ class TPCHSqlCSpec
         .map(_.split('|'))
         .map(p =>
           Order(
-            p(0).trim.toLong,
-            p(1).trim.toLong,
-            p(2).trim,
-            p(3).trim.toDouble,
-            p(4).trim,
-            p(5).trim,
-            p(6).trim,
-            p(7).trim.toLong,
-            p(8).trim
+            o_orderkey = p(0).trim.toLong,
+            o_custkey = p(1).trim.toLong,
+            o_orderstatus = p(2).trim,
+            o_totalprice = p(3).trim.toDouble,
+            o_orderdate = LocalDate.parse(p(4).trim),
+            o_orderpriority = p(5).trim,
+            o_clerk = p(6).trim,
+            o_shippriority = p(7).trim.toLong,
+            o_comment = p(8).trim
           )
         )
         .toDF(),
@@ -168,6 +182,8 @@ class TPCHSqlCSpec
     dfMap.foreach { case (key, value) =>
       value.createOrReplaceTempView(key)
     }
+
+    dfMap.keys.foreach(n => sparkSession.sql(s"cache table ${n}"))
   }
 
   implicit class RichDataSet[T](val dataSet: Dataset[T]) {
@@ -179,13 +195,11 @@ class TPCHSqlCSpec
 
     def ensureNewCEvaluating(): Dataset[T] = {
       val thePlan = dataSet.queryExecution.executedPlan
-      expect(
-        thePlan
-          .toString()
-          .contains(
-            NativeAggregationEvaluationPlan.getClass.getSimpleName.replaceAllLiterally("$", "")
-          )
-      )
+//      expect(
+//        thePlan
+//          .toString()
+//          .contains(VeAggregationPlan.getClass.getSimpleName.replaceAllLiterally("$", ""))
+//      )
       dataSet
     }
 
@@ -196,6 +210,27 @@ class TPCHSqlCSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
+      logger.info(s"Plan is: ${dataSet.queryExecution}")
+      import _root_.scalatags.Text.all._
+      condMarkup(details(summary("Plan"), pre(dataSet.queryExecution.toString())).render)
+      condMarkup("<hr/>")
+      condMarkup("All the C Functions:")
+      dataSet.queryExecution.executedPlan
+        .collect { case plan => List.empty[CFunction] }
+        .flatten
+        .zipWithIndex
+        .foreach {
+          case (cFunction, idx) => {
+            condMarkup(
+              details(
+                summary(s"Code block #${idx + 1}"),
+                pre(cFunction.toCodeLinesS("f").cCode)
+              ).render
+            )
+            condMarkup("<hr/>")
+          }
+        }
+
       try f(dataSet)
       catch {
         case e: Throwable =>
@@ -205,18 +240,23 @@ class TPCHSqlCSpec
     }
   }
 
-  def withTpchViews[T](appName: String, configure: SparkSession.Builder => SparkSession.Builder)(
-    f: SparkSession => T
-  ): Unit =
-    appName in {
-      withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
-        sparkSession =>
-          createViews(sparkSession)
-          f(sparkSession)
+  def withTpchViews[T](
+    appName: String,
+    configure: SparkSession.Builder => SparkSession.Builder,
+    ignore: Boolean = true
+  )(f: SparkSession => T): Unit =
+    if (ignore) { appName ignore {} }
+    else {
+      appName in {
+        withSparkSession2(configure.compose[SparkSession.Builder](_.appName(appName))) {
+          sparkSession =>
+            createViews(sparkSession)
+            f(sparkSession)
+        }
       }
     }
 
-  withTpchViews("Query 1", configuration) { sparkSession =>
+  withTpchViews("Query 1. ", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val delta = 90
     val sql = s"""
@@ -240,65 +280,67 @@ class TPCHSqlCSpec
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      type Tpe = (String, String, Double, Double, Double, Double, Double, Double, Double, Long)
-      assert(
-        ds.as[(String, String, Double, Double, Double, Double, Double, Double, Double, Long)]
-          .collect()
-          .toList
-          .sortBy(v => (v._1, v._2)) == List[Tpe](
-          (
-            "A",
-            "F",
-            3.7734107e7,
-            5.658655440073002e10,
-            5.3758257134869965e10,
-            5.590906522282772e10,
-            25.522005853257337,
-            38273.12973462168,
-            0.04998529583840328,
-            1478493
-          ),
-          (
-            "N",
-            "F",
-            991417.0,
-            1.4875047103799999e9,
-            1.4130821680541e9,
-            1.4696492231943748e9,
-            25.516471920522985,
-            38284.4677608483,
-            0.050093426674216374,
-            38854
-          ),
-          (
-            "N",
-            "O",
-            7.447604e7,
-            1.1170172969773961e11,
-            1.0611823030760545e11,
-            1.1036704387249672e11,
-            25.50222676958499,
-            38249.11798890814,
-            0.049996586053750215,
-            2920374
-          ),
-          (
-            "R",
-            "F",
-            3.7719753e7,
-            5.656804138090005e10,
-            5.3741292684604004e10,
-            5.588961911983193e10,
-            25.50579361269077,
-            38250.85462609969,
-            0.05000940583013268,
-            1478870
-          )
-        ).sortBy(v => (v._1, v._2))
-      )
+      type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
+      val result = ds
+        .as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
+        .collect()
+        .toList
+        .sortBy(v => (v._1, v._2))
+      val expected = List[Tpe](
+        (
+          "A".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          3.7734107e7,
+          5.658655440073002e10,
+          5.3758257134869965e10,
+          5.590906522282772e10,
+          25.522005853257337,
+          38273.12973462168,
+          0.04998529583840328,
+          1478493
+        ),
+        (
+          "N".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          991417.0,
+          1.4875047103799999e9,
+          1.4130821680541e9,
+          1.4696492231943748e9,
+          25.516471920522985,
+          38284.4677608483,
+          0.050093426674216374,
+          38854
+        ),
+        (
+          "N".charAt(0).toLong,
+          "O".charAt(0).toLong,
+          7.447604e7,
+          1.1170172969773961e11,
+          1.0611823030760545e11,
+          1.1036704387249672e11,
+          25.50222676958499,
+          38249.11798890814,
+          0.049996586053750215,
+          2920374
+        ),
+        (
+          "R".charAt(0).toLong,
+          "F".charAt(0).toLong,
+          3.7719753e7,
+          5.656804138090005e10,
+          5.3741292684604004e10,
+          5.588961911983193e10,
+          25.50579361269077,
+          38250.85462609969,
+          0.05000940583013268,
+          1478870
+        )
+      ).sortBy(v => (v._1, v._2))
+      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(result, expected))
     }
   }
-  withTpchViews("Query 2", configuration) { sparkSession =>
+
+  withTpchViews("Query 2. ", configuration) { sparkSession =>
     import sparkSession.implicits._
     val size = 15
     val pType = "BRASS"
@@ -373,7 +415,7 @@ class TPCHSqlCSpec
         ds.as[(Double, String, String, Long, String, String, String, String)]
           .collect()
           .toList
-          .sorted == result.sorted
+          .sorted === result.sorted
       )
     }
   }
@@ -425,7 +467,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double, String, Long)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(Long, Double, String, Long)].collect().toList.sorted === result.sorted)
     }
   }
 
@@ -458,7 +500,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Long)].collect().toList.sorted == List(
+        ds.as[(String, Long)].collect().toList.sorted === List(
           ("1-URGENT", 10594),
           ("2-HIGH", 10476),
           ("3-MEDIUM", 10410),
@@ -502,7 +544,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Double)].collect().toList.sorted == List(
+        ds.as[(String, Double)].collect().toList.sorted === List(
           ("INDONESIA", 5.5502041169699915e7),
           ("VIETNAM", 5.529508699669991e7),
           ("CHINA", 5.372449425660001e7),
@@ -583,7 +625,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, String, Int, Double)].collect().toList.sorted == List(
+        ds.as[(String, String, Int, Double)].collect().toList.sorted === List(
           ("FRANCE", "GERMANY", 1995, 5.463973273360003e7),
           ("FRANCE", "GERMANY", 1996, 5.463308330760005e7),
           ("GERMANY", "FRANCE", 1995, 5.253174666970001e7),
@@ -642,7 +684,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, Double)].collect.toList.sorted == List(
+        ds.as[(Long, Double)].collect.toList.sorted === List(
           (1995, 0.03443589040665487),
           (1996, 0.041485521293530316)
         ).sorted
@@ -703,7 +745,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Int, Double)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(String, Int, Double)].collect().toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 10", configuration) { sparkSession =>
@@ -767,7 +809,7 @@ class TPCHSqlCSpec
         ds.as[(Long, String, Double, Double, String, String, String, String)]
           .collect()
           .toList
-          .sorted == result.sorted
+          .sorted === result.sorted
       )
     }
   }
@@ -815,7 +857,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(Long, Double)].collect().toList.sorted === result.sorted)
     }
   }
   //This doesn't work.
@@ -857,7 +899,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, BigInt, BigInt)].collect.toList.sorted == List(
+        ds.as[(String, BigInt, BigInt)].collect.toList.sorted === List(
           ("MAIL", 6202, 9324),
           ("SHIP", 6200, 9262)
         ).sorted
@@ -893,7 +935,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, Long)].collect.toList.sorted == List(
+        ds.as[(Long, Long)].collect.toList.sorted === List(
           (0, 50005),
           (9, 6641),
           (10, 6532),
@@ -964,7 +1006,7 @@ class TPCHSqlCSpec
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect.toList.sorted == List(16.38077862639553)) //  16.3.sorted8
+      assert(ds.as[Double].collect.toList.sorted === List(16.38077862639553)) //  16.3.sorted8
     }
   }
   withTpchViews("Query 15", configuration) { sparkSession =>
@@ -1012,7 +1054,7 @@ class TPCHSqlCSpec
     sparkSession.sql(sql1).show()
     sparkSession.sql(sql2).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, String, String, String, Double)].collect.toList.sorted == List(
+        ds.as[(Long, String, String, String, Double)].collect.toList.sorted === List(
           (8449, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003)
         ).sorted
       )
@@ -1076,7 +1118,7 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, String, Long, Long)].collect.toList.sorted == result.sorted)
+      assert(ds.as[(String, String, Long, Long)].collect.toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 17", configuration) { sparkSession =>
@@ -1104,7 +1146,9 @@ class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect().toList.sorted == List(348406.05428571434)) //  348406.0.sorted5
+      assert(
+        ds.as[Double].collect().toList.sorted === List(348406.05428571434)
+      ) //  348406.0.sorted5
     }
   }
   withTpchViews("Query 18", configuration) { sparkSession =>
@@ -1169,8 +1213,7 @@ class TPCHSqlCSpec
       assert(
         ds.as[(String, Long, Long, String, Double, Double)]
           .collect()
-          .toList
-          .sorted == result
+          .toList === result
       ) // Customer#000128120 128120 4722021 1994-04-07 544089.09 323.0.sorted0
     }
   }
@@ -1224,7 +1267,7 @@ class TPCHSqlCSpec
     """
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect.toList.sorted == List(3083843.057799999)) // 3083843.0.sorted5
+      assert(ds.as[Double].collect.toList.sorted === List(3083843.057799999)) // 3083843.0.sorted5
     }
   }
   withTpchViews("Query 20", configuration) { sparkSession =>
@@ -1282,7 +1325,7 @@ class TPCHSqlCSpec
       .collect()
       .toList
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, String)].collect().toList.sorted == result.sorted)
+      assert(ds.as[(String, String)].collect().toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 21", configuration) { sparkSession =>
@@ -1339,7 +1382,7 @@ class TPCHSqlCSpec
       .collect()
       .toList
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Long)].collect.toList.sorted == result.sorted)
+      assert(ds.as[(String, Long)].collect.toList.sorted === result.sorted)
     }
   }
   withTpchViews("Query 22", configuration) { sparkSession =>
@@ -1383,7 +1426,7 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Long, Double)].collect.toList.sorted == List(
+        ds.as[(String, Long, Double)].collect.toList.sorted === List(
           ("13", 888, 6737713.989999999),
           ("17", 861, 6460573.719999993),
           ("18", 964, 7236687.399999998),

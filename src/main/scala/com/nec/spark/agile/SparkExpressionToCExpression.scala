@@ -68,11 +68,10 @@ object SparkExpressionToCExpression {
     inputs.indexWhere(_.exprId == ar.exprId) match {
       case -1 =>
         sys.error(s"Could not find a reference for ${ar} from set of: ${inputs}")
+      case idx if ar.dataType == StringType =>
+        ar.withName(s"${prefix}${idx}")
       case idx =>
-        if (ar.dataType == StringType)
-          ar.withName(s"${prefix}${idx}")
-        else
-          ar.withName(s"${prefix}${idx}->data[i]")
+        ar.withName(s"${prefix}${idx}->data[i]")
     }
   }
 
@@ -435,6 +434,7 @@ object SparkExpressionToCExpression {
       case IntegerType   => VeScalarType.veNullableInt
       case LongType      => VeScalarType.veNullableLong
       case ShortType     => VeScalarType.veNullableInt
+      case DateType      => VeScalarType.veNullableInt
       case BooleanType   => VeScalarType.veNullableInt
       case TimestampType => VeScalarType.veNullableLong
     }
@@ -443,6 +443,7 @@ object SparkExpressionToCExpression {
     dataType match {
       case DoubleType    => VeScalarType.veNullableDouble
       case IntegerType   => VeScalarType.veNullableInt
+      case DateType      => VeScalarType.veNullableInt
       case LongType      => VeScalarType.veNullableLong
       case ShortType     => VeScalarType.veNullableInt
       case BooleanType   => VeScalarType.veNullableInt
@@ -454,6 +455,16 @@ object SparkExpressionToCExpression {
     sortDirection match {
       case expressions.Ascending  => Ascending
       case expressions.Descending => Descending
+    }
+  }
+
+  def likelySparkType(veType: VeType): DataType = {
+    veType match {
+      case VeScalarType.VeNullableDouble => DoubleType
+      case VeScalarType.VeNullableFloat  => FloatType
+      case VeScalarType.VeNullableInt    => IntegerType
+      case VeScalarType.VeNullableLong   => LongType
+      case VeString                      => StringType
     }
   }
 }

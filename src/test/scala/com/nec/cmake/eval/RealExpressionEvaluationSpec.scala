@@ -19,6 +19,8 @@
  */
 package com.nec.cmake.eval
 
+import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Resource}
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
@@ -27,18 +29,14 @@ import com.nec.arrow.ArrowVectorBuilders.{
   withArrowStringVector,
   withDirectBigIntVector,
   withDirectFloat8Vector,
-  withDirectIntVector
+  withDirectIntVector,
+  withNullableArrowStringVector
 }
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
+import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.cmake.functions.ParseCSVSpec.{
-  RichBigIntVector,
-  RichFloat8,
-  RichIntVector,
-  RichVarCharVector
-}
+import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
@@ -46,10 +44,11 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
@@ -71,6 +70,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can transform a null-column (FilterNull)" in {
+    expect(
+      evalFilter[Option[Double]](Some(90), None, Some(123))(
+        CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
+      ) == List[Option[Double]](None, Some(123))
+    )
+  }
+
   "We can transform a column to a String and a Double" in {
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
@@ -83,6 +90,23 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         ("4.000000", 4.0),
         ("38.000000", 21.0),
         ("28.000000", 16.0)
+      )
+    )
+  }
+
+  "We can project a null-column (ProjectNull)" in {
+    expect(
+      evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
+        TypedCExpression[Double](CExpression("2 * input_0->data[i]", None)),
+        TypedCExpression[Option[Double]](
+          CExpression("2 + input_0->data[i]", Some("input_0->data[i] == 2"))
+        )
+      ) == List[(Double, Option[Double])](
+        (180, None),
+        (2, None),
+        (4, Some(4)),
+        (38, None),
+        (28, None)
       )
     )
   }
@@ -196,7 +220,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
     val expected =
-      List[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))
+      List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
     expect(results == expected)
   }
 
@@ -586,6 +610,97 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  "We can join by String & Long (JoinByString)" in {
+
+    /**
+     * SELECT X.A, X.C, Y.C FROM X LEFT JOIN Y ON X.A = Y.A AND X.B = Y.B
+     * X = [A: String, B: Long, C: Int]
+     * Y = [A: String, B: Long, C: Double]
+     */
+
+    val left = List[(String, Long, Int)](
+      ("test", 123, 456),
+      ("test2", 123, 4567),
+      ("test2", 12, 45678),
+      ("test3", 12, 456789),
+      ("test3", 123, 4567890)
+    )
+
+    val right = List[(String, Long, Double)](
+      ("test2", 123, 654),
+      ("test2", 123, 761),
+      ("test3", 12, 456)
+    )
+
+    val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
+      /** two inner join entries on RHS */
+      (("test2", 123, 4567), ("test2", 123, 654)),
+      (("test2", 123, 4567), ("test2", 123, 761)),
+      (("test3", 12, 456789), ("test3", 12, 456))
+    )
+
+    val joinSelectOnlyIntDouble = List[(String, Int, Double)](
+      ("test2", 4567, 654),
+      ("test2", 4567, 761),
+      ("test3", 456789, 456)
+    )
+
+    val evaluationResource = for {
+      allocator <- WithTestAllocator.resource
+      vb = CatsArrowVectorBuilders(cats.effect.Ref.unsafe[IO, Int](0))(allocator)
+      x_a <- vb.stringVector(left.map(_._1))
+      x_b <- vb.longVector(left.map(_._2))
+      x_c <- vb.intVector(left.map(_._3))
+      y_a <- vb.stringVector(right.map(_._1))
+      y_b <- vb.longVector(right.map(_._2))
+      y_c <- vb.doubleVector(right.map(_._3))
+      o_a <- vb.stringVector(Seq.empty)
+      o_b <- vb.intVector(Seq.empty)
+      o_c <- vb.doubleVector(Seq.empty)
+
+      cLib <- Resource.eval {
+        IO.delay {
+          CMakeBuilder.buildCLogging(
+            List(TransferDefinitionsSourceCode, "\n\n", CppResource("cpp/adv-join.hpp").readString)
+              .mkString("\n\n")
+          )
+        }
+      }
+
+      nativeInterface = new CArrowNativeInterface(cLib.toString)
+      _ <- Resource.eval {
+        IO.delay {
+          nativeInterface.callFunctionWrapped(
+            name = "adv_join",
+            arguments = List(
+              NativeArgument.input(x_a),
+              NativeArgument.input(x_b),
+              NativeArgument.input(x_c),
+              NativeArgument.input(y_a),
+              NativeArgument.input(y_b),
+              NativeArgument.input(y_c),
+              NativeArgument.output(o_a),
+              NativeArgument.output(o_b),
+              NativeArgument.output(o_c)
+            )
+          )
+        }
+      }
+    } yield (o_a.toList, o_b.toList, o_c.toList)
+
+    val evaluation = evaluationResource.use { case (output_a, output_b, output_c) =>
+      IO.delay {
+        val expected_a = joinSelectOnlyIntDouble.map(_._1)
+        val expected_b = joinSelectOnlyIntDouble.map(_._2)
+        val expected_c = joinSelectOnlyIntDouble.map(_._3)
+        expect(output_a == expected_a, output_b == expected_b, output_c == expected_c)
+      }
+    }
+
+    evaluation.unsafeRunSync()
+
+  }
+
 }
 
 object RealExpressionEvaluationSpec extends LazyLogging {
@@ -604,7 +719,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           groups = Nil,
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).renderGroupBy.toCodeLines(functionName)
+      ).renderGroupBy.toCodeLinesG(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -650,7 +765,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           rightKey = rightKey,
           outputs = joinExpressor.express(output)
         )
-      ).toCodeLines(functionName)
+      ).toCodeLinesS(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -705,7 +820,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           outputs = outputs,
           joinType
         )
-      ).toCodeLines(functionName)
+      ).toCodeLinesS(functionName)
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
@@ -747,7 +862,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           groups = List(Right(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).renderGroupBy.toCodeLines(functionName)
+      ).renderGroupBy.toCodeLinesG(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
@@ -790,14 +905,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           groups = List(Left(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions)
         )
-      ).renderGroupBy.toCodeLines(functionName)
+      ).renderGroupBy.toCodeLinesG(functionName)
 
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
-    val cLib = CMakeBuilder.buildCLogging(
-      cSource = List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
-        .mkString("\n\n"),
-      debug = true
+    val cLib = CMakeBuilder.buildCLogging(cSource =
+      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        .mkString("\n\n")
     )
 
     val nativeInterface = new CArrowNativeInterface(cLib.toString)
@@ -831,7 +945,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
           inputs = inputArguments.inputs,
           outputs = projectExpression.outputs(expressions)
         )
-      ).toCodeLines(functionName)
+      ).toCodeLinesPF(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -863,8 +977,14 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "filter_f"
 
     val generatedSource =
-      renderFilter(VeFilter(data = inputArguments.inputs, condition = condition))
-        .toCodeLines(functionName)
+      renderFilter(
+        VeFilter(
+          data = inputArguments.inputs,
+          condition = condition,
+          stringVectorComputations = Nil
+        )
+      )
+        .toCodeLinesPF(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -897,7 +1017,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
     val generatedSource =
       renderSort(sort = VeSort(data = inputArguments.inputs, sorts = sorts.toList))
-        .toCodeLines(functionName)
+        .toCodeLinesS(functionName)
 
     val cLib = CMakeBuilder.buildC(
       List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
@@ -966,7 +1086,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         withArrowStringVector(partialInputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(partialInputData.map(_._2)) { f8v =>
             withDirectBigIntVector(partialInputData.map(_._3)) { iv =>
-              withArrowStringVector(Seq.empty) { vcv_out =>
+              withNullableArrowStringVector(Seq.empty) { vcv_out =>
                 withDirectFloat8Vector(Seq.empty) { f8v_out =>
                   nativeInterface.callFunctionWrapped(
                     functionName,
@@ -1005,7 +1125,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       WithTestAllocator { implicit allocator =>
         withArrowStringVector(inputData.map(_._1)) { vcv =>
           withDirectFloat8Vector(inputData.map(_._2)) { f8v =>
-            withArrowStringVector(Seq.empty) { vcv_out =>
+            withNullableArrowStringVector(Seq.empty) { vcv_out =>
               withDirectFloat8Vector(Seq.empty) { f8v_out =>
                 withDirectBigIntVector(Seq.empty) { iv_out =>
                   nativeInterface.callFunctionWrapped(

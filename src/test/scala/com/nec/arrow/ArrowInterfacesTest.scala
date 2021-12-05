@@ -20,7 +20,7 @@
 package com.nec.arrow
 import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
 import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
-import com.nec.cmake.functions.ParseCSVSpec.RichFloat8
+import com.nec.util.RichVectors._
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec

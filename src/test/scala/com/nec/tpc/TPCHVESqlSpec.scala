@@ -20,27 +20,35 @@
 package com.nec.tpc
 
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.VERewriteStrategy
-import com.nec.spark.{SparkCycloneExecutorPlugin, AuroraSqlPlugin}
-import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
+import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
+import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.bytedeco.veoffload.global.veo
+import org.scalatest.ConfigMap
 
 import java.io.File
 
 object TPCHVESqlSpec {
 
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
-    _.config(CODEGEN_FALLBACK.key, value = false)
-      .config("spark.sql.codegen.comments", value = true)
-      .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
+    _.config(key = CODEGEN_FALLBACK.key, value = false)
+      .config(key = "spark.sql.codegen.comments", value = true)
+      .config(
+        key = "spark.sql.cache.serializer",
+        value = "com.nec.spark.planning.VeCachedBatchSerializer"
+      )
+      .config(key = "spark.ui.enabled", value = true)
+      .config(key = "spark.sql.codegen.wholeStage", value = false)
+      .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
+      .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
+      .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(_ => {
           VERewriteStrategy.failFast = true
           new VERewriteStrategy(ExecutorPluginManagedEvaluator)
         })
       )
+      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
   }
 
 }
@@ -50,13 +58,13 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
   private var initialized = false
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
-    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+    TPCHVESqlSpec.VeConfiguration
 
-  override protected def afterAll(): Unit = {
+  override protected def afterAll(configMap: ConfigMap): Unit = {
     SparkCycloneExecutorPlugin.closeProcAndCtx()
   }
 
-  override protected def beforeAll(): Unit = {
+  override protected def beforeAll(configMap: ConfigMap): Unit = {
 
     //SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
 
@@ -70,7 +78,7 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
       //s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
     }
 
-    super.beforeAll()
+    super.beforeAll(configMap)
   }
 
 }

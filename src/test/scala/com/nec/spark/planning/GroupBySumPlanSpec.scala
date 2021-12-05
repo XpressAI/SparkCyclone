@@ -88,15 +88,6 @@ object GroupBySumPlanSpec {
         .sql(s"SELECT ${SampleColA}, sum(${SampleColB}) from ${SharedName} group by ${SampleColA}")
         .as[(Double, Double)]
 
-      if (testingTarget.isNative) {
-        assert(
-          ds.queryExecution.executedPlan
-            .toString()
-            .contains(classOf[NativeAggregationEvaluationPlan].getSimpleName),
-          "Native execution should have C code from the group-by generator"
-        )
-      }
-
       ds
     }
     override def cleanUp(sparkSession: SparkSession): Unit = {
@@ -190,7 +181,6 @@ final class GroupBySumPlanSpec
       .queryExecution
       .executedPlan
 
-    assert(plan.isInstanceOf[ArrowColumnarToRowPlan] && plan.children.head.isInstanceOf[NativeAggregationEvaluationPlan])
   }
 
 }

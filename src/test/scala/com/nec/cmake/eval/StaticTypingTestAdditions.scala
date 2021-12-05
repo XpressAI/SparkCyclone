@@ -24,7 +24,7 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
   VectorInputNativeArgument,
   VectorOutputNativeArgument
 }
-import com.nec.cmake.functions.ParseCSVSpec.{RichFloat8, RichVarCharVector}
+import com.nec.util.RichVectors._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer
 import org.apache.arrow.memory.RootAllocator
@@ -114,6 +114,30 @@ object StaticTypingTestAdditions {
     def inputs: List[CScalarVector]
   }
   object InputArgumentsScalar {
+
+    implicit val forDoubleOpt: InputArgumentsScalar[Option[Double]] =
+      new InputArgumentsScalar[Option[Double]] {
+        override def allocateVectors(
+          data: Option[Double]*
+        )(implicit rootAllocator: RootAllocator): List[VectorInputNativeArgument] = {
+          inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx) =>
+            val vcv = new Float8Vector(name, rootAllocator)
+            vcv.allocateNew()
+            vcv.setValueCount(data.size)
+            data.zipWithIndex.foreach { case (str, idx) =>
+              str match {
+                case None    => vcv.setNull(idx)
+                case Some(v) => vcv.setSafe(idx, v)
+              }
+            }
+            NativeArgument.input(vcv)
+          }
+        }
+
+        override def inputs: List[CScalarVector] = List(
+          CScalarVector("input_0", VeScalarType.veNullableDouble)
+        )
+      }
 
     implicit val forDouble: InputArgumentsScalar[Double] = new InputArgumentsScalar[Double] {
       override def allocateVectors(
@@ -245,6 +269,17 @@ object StaticTypingTestAdditions {
   }
 
   object OutputArguments {
+    implicit val forOptionDouble: OutputArguments[Option[Double]] =
+      new OutputArguments[Option[Double]] {
+        override type Result = (Option[Double])
+        override def allocateVectors()(implicit
+                                       rootAllocator: RootAllocator
+        ): (List[VectorOutputNativeArgument], () => List[Result]) = {
+          val outVector_0 = new Float8Vector("output_0", rootAllocator)
+          (List(NativeArgument.output(outVector_0)), () => outVector_0.toListNullable)
+        }
+      }
+
     implicit val forDouble: OutputArguments[Double] =
       new OutputArguments[Double] {
         override type Result = Double

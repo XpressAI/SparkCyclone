@@ -60,12 +60,6 @@ typedef struct
 typedef struct
 {
     int32_t *data;
-    int32_t count;
-} non_null_int_vector;
-
-typedef struct
-{
-    int32_t *data;
     uint64_t *validityBuffer;
     int32_t count;
 } nullable_int_vector;
@@ -73,31 +67,17 @@ typedef struct
 typedef struct
 {
     double *data;
-    int64_t count;
-} non_null_double_vector;
-
-typedef struct
-{
-    double *data;
     uint64_t *validityBuffer;
-    int64_t count;
-
+    int32_t count;
 } nullable_double_vector;
 
 typedef struct
 {
     int64_t *data;
     uint64_t *validityBuffer;
-    int64_t count;
-
+    int32_t count;
 } nullable_bigint_vector;
 
-
-typedef struct
-{
-    int64_t *data;
-    int32_t count;
-} non_null_bigint_vector;
 
 typedef struct
 {
@@ -216,53 +196,74 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     #endif
 
     out->count = in.lens.size();
+
     #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->count " << out->count << std::endl << std::flush;
+    std::cout << "out->count = " << out->count << std::endl;
     #endif
-    out->dataSize = in.chars.size();
+
+    int32_t totalChars = 0;
+    for (size_t i = 0; i < in.lens.size(); i++) {
+        totalChars += in.lens[i];
+    }
+    out->dataSize = totalChars;
+
     #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->dataSize " << out->dataSize << std::endl << std::flush;
+    std::cout << "out->dataSize = " << out->dataSize << std::endl;
     #endif
+
+    out->data = (char *)malloc(totalChars * sizeof(char));
+    if (out->data == NULL) {
+        std::cout << "Failed to malloc " << out->dataSize << " * sizeof(char)." << std::endl;
+        return;
+    }
+    std::vector<size_t> lastChars(in.lens.size() + 1);
+    size_t sum = 0;
+    for (int i = 0; i < in.lens.size(); i++) {
+        lastChars[i] = sum;
+        sum += in.lens[i];
+    }
+
+    for (int i = 0; i < out->count; i++) {
+        size_t lastChar = lastChars[i];
+        size_t wordStart = in.starts[i];
+        size_t wordEnd = wordStart + in.lens[i];
+        for (int j = wordStart; j < wordEnd; j++) {
+            out->data[lastChar++] = (char)in.chars[j];
+        }
+    }
 
     out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
-    for (int i = 0; i < in.starts.size(); i++) {
-        out->offsets[i] = in.starts[i];
+    out->offsets[0] = 0;
+    for (int i = 1; i < in.starts.size() + 1; i++) {
+        out->offsets[i] = lastChars[i];
     }
+    out->offsets[in.starts.size()] = totalChars;
 
     #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "here  " << out->dataSize << std::endl << std::flush;
-        std::cout << utcnanotime().c_str() << " $$ " << "sze1  " << in.starts.size() << std::endl << std::flush;
-        std::cout << utcnanotime().c_str() << " $$ " << "sze2  " << in.lens.size() << std::endl << std::flush;
-    #endif
+        std::cout << "data: '";
+        for (int i = 0; i < totalChars; i++) {
+            std::cout << out->data[i];
+        }
+        std::cout << "'" << std::endl;
 
-    int lastOffset;
-    if (in.starts.size() == 0) {
-        lastOffset = 0;
-    } else {
-        int lastEl = in.starts.size() - 1;
-        lastOffset = in.starts[lastEl] + in.lens[lastEl];
-    }
-
-    #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "here 2 " << out->dataSize << std::endl << std::flush;
-    #endif
-
-    out->offsets[in.starts.size()] = lastOffset;
-    #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
-    #endif
-
-    out->data = (char *)malloc(in.chars.size() * sizeof(char));
-    frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
-    #ifdef DEBUG
+        std::cout << "offsets: ";
+        for (int i = 0; i < out->count + 1; i++) {
+            std::cout << out->offsets[i] << ", ";
+        }
+        std::cout << std::endl;
     #endif
 
     size_t validity_count = ceil(out->count / 64.0);
     out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
+    if (!out->validityBuffer) {
+        std::cout << "Failed to malloc " << validity_count << " * sizeof(uint64_t)" << std::endl;
+        return;
+    }
     for (int i = 0; i < validity_count; i++) {
         out->validityBuffer[i] = 0xffffffffffffffff;
     }
 }
+
 
 void debug_words(frovedis::words &in) {
     std::cout << "words char count: " << in.chars.size() << std::endl;
