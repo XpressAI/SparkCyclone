@@ -42,8 +42,7 @@ object TPCHVESqlSpec {
         value = "com.nec.spark.planning.VeCachedBatchSerializer"
       )
       .config(key = "spark.ui.enabled", value = true)
-      .config(key = "spark.sql.codegen.wholeStage", value = false)
-      .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")
+      .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
       .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
