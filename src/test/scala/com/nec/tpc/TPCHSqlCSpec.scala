@@ -27,7 +27,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalactic.source.Position
-import org.scalactic.{Equality, Equivalence, TolerantNumerics}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
@@ -244,7 +243,7 @@ class TPCHSqlCSpec
   def withTpchViews[T](
     appName: String,
     configure: SparkSession.Builder => SparkSession.Builder,
-    ignore: Boolean = true
+    ignore: Boolean = false
   )(f: SparkSession => T): Unit =
     if (ignore) { appName ignore {} }
     else {
@@ -341,7 +340,7 @@ class TPCHSqlCSpec
     }
   }
 
-  withTpchViews("Query 2. ", configuration) { sparkSession =>
+  withTpchViews("Query 2. ", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val size = 15
     val pType = "BRASS"

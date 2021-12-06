@@ -5,6 +5,12 @@ import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarArray, ColumnarMap}
 import org.apache.spark.unsafe.types.UTF8String
 
+/**
+ * Placeholder class for a ColumnVector backed by VeColVector.
+ *
+ * The get* methods are *not* supposed to be accessed by Spark, but rather be a carrier of
+ * [[veColVector]] which we extract. Specifically used by the caching/serialization mechanism here.
+ */
 final class VeColColumnarVector(val veColVector: VeColVector, dataType: DataType)
   extends ColumnVector(dataType) {
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess

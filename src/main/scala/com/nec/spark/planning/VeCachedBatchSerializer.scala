@@ -46,7 +46,14 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
       input,
       conf.sessionLocalTimeZone,
       StructType(
-        schema.map(att => StructField(att.name, att.dataType, att.nullable, att.metadata))
+        schema.map(att =>
+          StructField(
+            name = att.name,
+            dataType = att.dataType,
+            nullable = att.nullable,
+            metadata = att.metadata
+          )
+        )
       ),
       VeColBatchConverters.getNumRows(input.sparkContext, conf)
     )

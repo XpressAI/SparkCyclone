@@ -46,7 +46,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                   )
                   finally {
                     logInfo("Transformed input.")
-                    inputBatches.flatMap(_.cols).foreach(_.free())
+                    inputBatches.foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
                   }
                 )
               }

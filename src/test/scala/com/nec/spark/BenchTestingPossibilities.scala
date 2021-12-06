@@ -22,7 +22,7 @@ package com.nec.spark
 import com.nec.native.NativeEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.planning.{GroupBySumPlanSpec, JoinPlanSpec, VERewriteStrategy}
+import com.nec.spark.planning.{JoinPlanSpec, VERewriteStrategy}
 import com.nec.testing.SampleSource.{SampleColA, SampleColB, SharedName}
 import com.nec.testing.{SampleSource, Testing}
 import com.nec.testing.Testing.{DataSize, TestingTarget}
@@ -207,7 +207,6 @@ object BenchTestingPossibilities extends LazyLogging {
         )
       ),
       JoinPlanSpec.OurTesting,
-      GroupBySumPlanSpec.OurTesting,
       /** Ignored: because emitting Strings is not currently supported. */
       /* List(StringGroupByTesting(isVe = true), StringGroupByTesting(isVe = false)) */
       List(DateTesting(isVe = false)),

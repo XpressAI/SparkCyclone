@@ -38,7 +38,7 @@ case class VePartialAggregate(
             cols = veColBatch.cols,
             results = partialFunction.results
           )
-          finally veColBatch.cols.foreach(_.free())
+          finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
         }
       }
     }
