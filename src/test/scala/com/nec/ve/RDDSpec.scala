@@ -12,13 +12,13 @@ import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.{BigIntVector, Float8Vector}
+import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import org.scalatest.freespec.AnyFreeSpec
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
@@ -31,10 +31,27 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     implicit val veProc: VeProcess =
       DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
 
-    val vec1 = OnHeapColumnVector.allocateColumns(5, Array(StructField("test", IntegerType)))
-    val vec2 = OnHeapColumnVector.allocateColumns(5, Array(StructField("test", IntegerType)))
-    val columnarBatch1 = new ColumnarBatch(vec1.map(x => x: ColumnVector))
-    val columnarBatch2 = new ColumnarBatch(vec2.map(x => x: ColumnVector))
+    val vec1 = {
+      implicit val rootAllocator: RootAllocator = new RootAllocator()
+      new IntVector("test", rootAllocator)
+    }
+    val vec2 = {
+      implicit val rootAllocator: RootAllocator = new RootAllocator()
+      new IntVector("test", rootAllocator)
+    }
+
+    vec1.setSafe(0, 10)
+    vec1.setSafe(0, 20)
+    vec1.setSafe(0, 30)
+    vec1.setSafe(0, 40)
+    vec1.setSafe(0, 50)
+    vec2.setSafe(0, 60)
+    vec2.setSafe(0, 70)
+    vec2.setSafe(0, 80)
+    vec2.setSafe(0, 90)
+    vec2.setSafe(0, 100)
+    val columnarBatch1 = new ColumnarBatch(Array(new ArrowColumnVector(vec1)), 5)
+    val columnarBatch2 = new ColumnarBatch(Array(new ArrowColumnVector(vec2)), 5)
     val veBatch1 = VeColBatch.fromColumnarBatch(columnarBatch1)
     val veBatch2 = VeColBatch.fromColumnarBatch(columnarBatch2)
     val result = internalRowToVeColBatch(
@@ -46,7 +63,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       numRows = 100
     ).mapPartitions(vcbi => {
       implicit val rootAllocator: RootAllocator = new RootAllocator()
-      vcbi.flatMap(_.toArrowColumnarBatch().rowIterator().asScala)
+      vcbi.flatMap(_.toInternalColumnarBatch().rowIterator().asScala)
     }).map(_.getDouble(0))
       .collect()
       .toList
