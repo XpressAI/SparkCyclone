@@ -4,7 +4,6 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -15,6 +14,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.apache.spark.{SparkContext, TaskContext}
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 
@@ -87,17 +87,14 @@ object VeColBatchConverters {
     with Logging
     with SupportsVeColBatch {
 
+    require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
+
     override protected def doCanonicalize(): SparkPlan = {
       super.doCanonicalize()
     }
 
-    override def supportsColumnar: Boolean = true
     override def child = {
-      // if (CacheManager.isCached(childPlan)) {
-      // CachedVeRelation(childPlan.outputSet.toList, sparkContext.getExecutorMemoryStatus.size)
-      // } else {
       childPlan
-      // }
     }
     override def executeVeColumnar(): RDD[VeColBatch] = {
 //      val numInputRows = longMetric("numInputRows")
@@ -107,12 +104,7 @@ object VeColBatchConverters {
       val numRows: Int = getNumRows(sparkContext, conf)
       logInfo(s"Will make batches of ${numRows} rows...")
       val timeZoneId = conf.sessionLocalTimeZone
-
-      child match {
-        case v: SupportsVeColBatch => v.executeVeColumnar()
-        case _ =>
-          internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
-      }
+      internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
     }
 
     override def output: Seq[Attribute] = child.output

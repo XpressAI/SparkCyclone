@@ -39,7 +39,7 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
           val timeTaken = Duration.between(startTime, Instant.now())
           filledOnes
         } finally {
-          veColBatch.cols.foreach(_.free())
+          child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
         }
       }
     }
