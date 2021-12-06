@@ -30,33 +30,40 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   ) { sparkSession =>
     implicit val veProc: VeProcess =
       DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
-
-    val vec1 = {
-      implicit val rootAllocator: RootAllocator = new RootAllocator()
-      new IntVector("test", rootAllocator)
+    def makeColumnarBatch1() = {
+      val vec1 = {
+        implicit val rootAllocator: RootAllocator = new RootAllocator()
+        new IntVector("test", rootAllocator)
+      }
+      vec1.setSafe(0, 10)
+      vec1.setSafe(0, 20)
+      vec1.setSafe(0, 30)
+      vec1.setSafe(0, 40)
+      vec1.setSafe(0, 50)
+      new ColumnarBatch(Array(new ArrowColumnVector(vec1)), 5)
     }
-    val vec2 = {
-      implicit val rootAllocator: RootAllocator = new RootAllocator()
-      new IntVector("test", rootAllocator)
-    }
 
-    vec1.setSafe(0, 10)
-    vec1.setSafe(0, 20)
-    vec1.setSafe(0, 30)
-    vec1.setSafe(0, 40)
-    vec1.setSafe(0, 50)
-    vec2.setSafe(0, 60)
-    vec2.setSafe(0, 70)
-    vec2.setSafe(0, 80)
-    vec2.setSafe(0, 90)
-    vec2.setSafe(0, 100)
-    val columnarBatch1 = new ColumnarBatch(Array(new ArrowColumnVector(vec1)), 5)
-    val columnarBatch2 = new ColumnarBatch(Array(new ArrowColumnVector(vec2)), 5)
-    val veBatch1 = VeColBatch.fromColumnarBatch(columnarBatch1)
-    val veBatch2 = VeColBatch.fromColumnarBatch(columnarBatch2)
+    def makeColumnarBatch2() = {
+      val vec2 = {
+        implicit val rootAllocator: RootAllocator = new RootAllocator()
+        new IntVector("test", rootAllocator)
+      }
+      vec2.setSafe(0, 60)
+      vec2.setSafe(0, 70)
+      vec2.setSafe(0, 80)
+      vec2.setSafe(0, 90)
+      new ColumnarBatch(Array(new ArrowColumnVector(vec2)), 4)
+    }
     val result = internalRowToVeColBatch(
       input = sparkSession.sparkContext
-        .makeRDD(Seq(veBatch1, veBatch2))
+        .makeRDD(Seq(1, 2))
+        .repartition(1)
+        .map(int =>
+          VeColBatch.fromColumnarBatch(
+            if (int == 1) makeColumnarBatch1()
+            else makeColumnarBatch2()
+          )
+        )
         .mapPartitions(it => it.flatMap(_.toInternalColumnarBatch().rowIterator().asScala)),
       timeZoneId = "UTC",
       schema = StructType(Array(StructField("test", IntegerType))),
@@ -69,7 +76,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       .toList
       .sorted
 
-    assert(result == List(10, 20, 30, 40, 50, 60, 70, 80, 90, 100))
+    assert(result == List(10, 20, 30, 40, 50, 60, 70, 80, 90))
   }
   "We can pass around some Arrow things" in withSparkSession2(identity) { sparkSession =>
     longBatches {
