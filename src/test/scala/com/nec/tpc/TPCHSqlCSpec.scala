@@ -340,7 +340,7 @@ class TPCHSqlCSpec
     }
   }
 
-  withTpchViews("Query 2. ", configuration) { sparkSession =>
+  withTpchViews("Query 2. ", configuration, ignore = false) { sparkSession =>
     import sparkSession.implicits._
     val size = 15
     val pType = "BRASS"
