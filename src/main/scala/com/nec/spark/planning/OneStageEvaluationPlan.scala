@@ -46,8 +46,6 @@ final case class OneStageEvaluationPlan(
   with LazyLogging
   with SupportsVeColBatch {
 
-  override def supportsColumnar: Boolean = true
-
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
@@ -74,7 +72,7 @@ final case class OneStageEvaluationPlan(
             if (veColBatch.numRows < outBatch.numRows)
               println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
             outBatch
-          } finally veColBatch.cols.foreach(_.free())
+          } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
         }
       }
 }

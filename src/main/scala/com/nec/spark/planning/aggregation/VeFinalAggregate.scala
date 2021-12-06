@@ -42,7 +42,7 @@ case class VeFinalAggregate(
           )
           finally {
             logInfo("Completed a final-aggregate of  a batch...")
-            veColBatch.cols.foreach(_.free())
+            child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
           }
         }
       }

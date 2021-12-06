@@ -475,7 +475,11 @@ final case class VERewriteStrategy(
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
           logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
-        case s @ Sort(orders, global, child) if options.enableVeSorting => {
+        case s @ Sort(orders, global, child)
+            if options.enableVeSorting && !child.output
+              .map(_.dataType)
+              .toSet
+              .contains(StringType) /* String is not supported by Sort yet */ => {
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToScalarVeType(att.dataType)
               .makeCVector(s"${InputPrefix}${id}")
