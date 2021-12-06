@@ -26,7 +26,7 @@ import scala.collection.JavaConverters.asScalaIteratorConverter
 final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
 
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
-    identity
+    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
     implicit val veProc: VeProcess =
       DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
