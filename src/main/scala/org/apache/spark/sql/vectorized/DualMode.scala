@@ -22,10 +22,6 @@ object DualMode {
     }
   }
 
-  def readBatches(first: VeColBatch, rest: Iterator[InternalRow]): Iterator[VeColBatch] = {
-    ???
-  }
-
   def handleIterator(
     iterator: Iterator[InternalRow]
   ): Either[Iterator[VeColBatch], Iterator[InternalRow]] = {
