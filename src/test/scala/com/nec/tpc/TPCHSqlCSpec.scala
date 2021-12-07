@@ -411,12 +411,14 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
+      val resultQuery =
         ds.as[(Double, String, String, Long, String, String, String, String)]
           .collect()
           .toList
-          .sorted === result.sorted
-      )
+          .sorted
+
+      val expected = result.sorted
+      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultQuery, expected))
     }
   }
   withTpchViews("Query 3", configuration) { sparkSession =>
@@ -467,7 +469,9 @@ class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double, String, Long)].collect().toList.sorted === result.sorted)
+      val resultCompute = ds.as[(Long, Double, String, Long)].collect().toList.sorted
+      val expected = result.toList.sorted
+      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultCompute, expected))
     }
   }
 
@@ -500,13 +504,16 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Long)].collect().toList.sorted === List(
-          ("1-URGENT", 10594),
-          ("2-HIGH", 10476),
-          ("3-MEDIUM", 10410),
-          ("4-NOT SPECIFIED", 10556),
-          ("5-LOW", 10487)
-        ).sorted
+        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
+          ds.as[(String, Long)].collect().toList.sorted,
+          List(
+            ("1-URGENT", 10594),
+            ("2-HIGH", 10476),
+            ("3-MEDIUM", 10410),
+            ("4-NOT SPECIFIED", 10556),
+            ("5-LOW", 10487)
+          ).sorted
+        )
       )
     }
   }
@@ -544,13 +551,16 @@ class TPCHSqlCSpec
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(String, Double)].collect().toList.sorted === List(
-          ("INDONESIA", 5.5502041169699915e7),
-          ("VIETNAM", 5.529508699669991e7),
-          ("CHINA", 5.372449425660001e7),
-          ("INDIA", 5.2035512000199996e7),
-          ("JAPAN", 4.5410175695400015e7)
-        ).sorted
+        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
+          ds.as[(String, Double)].collect().toList.sorted,
+          List(
+            ("INDONESIA", 5.5502041169699915e7),
+            ("VIETNAM", 5.529508699669991e7),
+            ("CHINA", 5.372449425660001e7),
+            ("INDIA", 5.2035512000199996e7),
+            ("JAPAN", 4.5410175695400015e7)
+          ).sorted
+        )
       )
     }
   }
