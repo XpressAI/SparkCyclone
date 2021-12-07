@@ -25,8 +25,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-import com.nec.spark.SparkCycloneExecutorPlugin._
-import com.nec.ve.VeProcess
+import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.VeProcess.LibraryReference
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.ExecutorPlugin
@@ -37,7 +36,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import scala.util.Try
 
-object SparkCycloneExecutorPlugin {
+object SparkCycloneExecutorPlugin extends LazyLogging {
 
   /** For assumption testing purposes only for now */
   var params: Map[String, String] = Map.empty[String, String]
@@ -113,12 +112,30 @@ object SparkCycloneExecutorPlugin {
     }
   }
 
+  @transient val batchCache: scala.collection.mutable.Set[VeColBatch] =
+    scala.collection.mutable.Set.empty
+
+  def cleanCache(): Unit = {
+    batchCache.toList.foreach { colBatch =>
+      batchCache.remove(colBatch)
+      colBatch.cols.foreach(_.free())
+    }
+  }
+
+  def register(cb: VeColBatch): Unit = {
+    batchCache.add(cb)
+  }
+
+  var CleanUpCache: Boolean = true
+
   var libraryStorage: LibraryStorage = _
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    import com.nec.spark.SparkCycloneExecutorPlugin._
+
     val resources = ctx.resources()
     SparkCycloneExecutorPlugin.synchronized {
       SparkCycloneExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
@@ -168,6 +185,11 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
   }
 
   override def shutdown(): Unit = {
+    if (SparkCycloneExecutorPlugin.CleanUpCache) {
+      SparkCycloneExecutorPlugin.cleanCache()
+    }
+
+    import com.nec.spark.SparkCycloneExecutorPlugin._
     if (closeAutomatically) {
       logInfo(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()

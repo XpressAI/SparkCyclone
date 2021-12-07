@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.VeCachedBatchSerializer.{CachedVeBatch, ShortCircuit}
 import com.nec.ve.VeColBatch
@@ -58,7 +59,11 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
       ),
       VeColBatchConverters.getNumRows(input.sparkContext, conf)
     )
-    .map(CachedVeBatch)
+    .map { ui =>
+      if (!ui.isReferenced) SparkCycloneExecutorPlugin.register(ui.veColBatch)
+
+      CachedVeBatch(ui.veColBatch)
+    }
 
   override def convertColumnarBatchToCachedBatch(
     input: RDD[ColumnarBatch],
@@ -67,7 +72,9 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     conf: SQLConf
   ): RDD[CachedBatch] = input.map(cb => {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    CachedVeBatch(VeColBatch.fromArrowColumnarBatch(cb))
+    val vcb = VeColBatch.fromArrowColumnarBatch(cb)
+    SparkCycloneExecutorPlugin.register(vcb)
+    CachedVeBatch(vcb)
   })
 
   override def buildFilter(

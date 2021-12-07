@@ -306,7 +306,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by l_returnflag, l_linestatus
     """
 
-    sparkSession.sql(sql).limit(1).collect()
+    val ds = sparkSession.sql(sql).limit(1)
+    println(ds.queryExecution.executedPlan)
+    ds.collect()
   }
 
   def query2(sparkSession: SparkSession): Array[_] = {
