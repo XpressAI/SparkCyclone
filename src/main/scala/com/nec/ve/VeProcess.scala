@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
 import com.nec.ve.VeProcess.LibraryReference
@@ -182,9 +183,18 @@ object VeProcess {
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
-      val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
-      require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
-      LibraryReference(libRe)
+      SparkCycloneExecutorPlugin.libsPerProcess
+        .getOrElseUpdate(
+          veo_proc_handle,
+          scala.collection.mutable.Map.empty[String, LibraryReference]
+        )
+        .getOrElseUpdate(
+          path.toString, {
+            val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
+            require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
+            LibraryReference(libRe)
+          }
+        )
     }
 
     /** Return multiple datasets - eg for sorting/exchanges */

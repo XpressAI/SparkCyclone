@@ -59,7 +59,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     conf: SQLConf
   ): RDD[CachedBatch] = input.map(cb => {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    CachedVeBatch(VeColBatch.fromColumnarBatch(cb))
+    CachedVeBatch(VeColBatch.fromArrowColumnarBatch(cb))
   })
 
   override def buildFilter(
