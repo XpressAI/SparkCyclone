@@ -66,6 +66,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] = input.map(cb => {
+    println(cb)
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     CachedVeBatch(VeColBatch.fromArrowColumnarBatch(cb))
   })
