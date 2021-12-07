@@ -112,13 +112,18 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     }
   }
 
-  val cache: scala.collection.mutable.Set[VeColBatch] = scala.collection.mutable.Set.empty
+  @transient val batchCache: scala.collection.mutable.Set[VeColBatch] =
+    scala.collection.mutable.Set.empty
 
   def cleanCache(): Unit = {
-    cache.toList.foreach { colBatch =>
-      cache.remove(colBatch)
+    batchCache.toList.foreach { colBatch =>
+      batchCache.remove(colBatch)
       colBatch.cols.foreach(_.free())
     }
+  }
+
+  def register(cb: VeColBatch): Unit = {
+    batchCache.add(cb)
   }
 
   var CleanUpCache: Boolean = true

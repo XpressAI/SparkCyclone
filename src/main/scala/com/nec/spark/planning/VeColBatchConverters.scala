@@ -34,20 +34,22 @@ object VeColBatchConverters {
     }
   }
 
+  final case class UnInternalVeColBatch(isReferenced: Boolean, veColBatch: VeColBatch)
   def internalRowToVeColBatch(
     input: RDD[InternalRow],
     timeZoneId: String,
     schema: StructType,
     numRows: Int
-  ): RDD[VeColBatch] = {
+  ): RDD[UnInternalVeColBatch] = {
     input.mapPartitions { iterator =>
       DualMode.handleIterator(iterator) match {
-        case Left(colBatches) => colBatches
+        case Left(colBatches) =>
+          colBatches.map(v => UnInternalVeColBatch(isReferenced = true, veColBatch = v))
         case Right(rowIterator) =>
           if (rowIterator.hasNext) {
             lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
-            new Iterator[VeColBatch] {
+            new Iterator[UnInternalVeColBatch] {
               private val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
               private val root = VectorSchemaRoot.create(arrowSchema, allocator)
               private val cb = new ColumnarBatch(
@@ -67,7 +69,7 @@ object VeColBatchConverters {
                 rowIterator.hasNext
               }
 
-              override def next(): VeColBatch = {
+              override def next(): UnInternalVeColBatch = {
                 arrowWriter.reset()
                 cb.setNumRows(0)
                 root.getFieldVectors.asScala.foreach(_.reset())
@@ -82,7 +84,10 @@ object VeColBatchConverters {
                 //              numInputRows += rowCount
                 //              numOutputBatches += 1
                 import SparkCycloneExecutorPlugin.veProcess
-                try VeColBatch.fromArrowColumnarBatch(cb)
+                try UnInternalVeColBatch(
+                  isReferenced = false,
+                  veColBatch = VeColBatch.fromArrowColumnarBatch(cb)
+                )
                 finally cb.close()
               }
             }
@@ -116,7 +121,7 @@ object VeColBatchConverters {
       val numRows: Int = getNumRows(sparkContext, conf)
       logInfo(s"Will make batches of ${numRows} rows...")
       val timeZoneId = conf.sessionLocalTimeZone
-      internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
+      internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows).map(_.veColBatch)
     }
 
     override def output: Seq[Attribute] = child.output
