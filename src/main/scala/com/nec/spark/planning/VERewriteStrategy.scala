@@ -133,6 +133,7 @@ final case class VERewriteStrategy(
             .apply(imr)
             .flatMap(sp => List(VectorEngineToSpark(VeFetchFromCachePlan(sp))))
             .toList
+
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 

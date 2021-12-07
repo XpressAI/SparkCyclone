@@ -88,7 +88,7 @@ object VeProcess {
 
   final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
     override def allocate(size: Long): Long = {
-      val veInputPointer = new LongPointer(8)
+      val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       veInputPointer.get()
     }
@@ -120,12 +120,12 @@ object VeProcess {
     ): List[VeColVector] = {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
-        val lp = new LongPointer(8)
+        val lp = new LongPointer(1)
         lp.put(vcv.containerLocation)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
-        val lp = new LongPointer(8)
+        val lp = new LongPointer(1)
         lp.put(-118)
         lp
       }
@@ -133,7 +133,7 @@ object VeProcess {
         val index = reIdx + cols.size
         veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
       }
-      val fnCallResult = new LongPointer(8)
+      val fnCallResult = new LongPointer(1)
 
       val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
 
@@ -199,12 +199,12 @@ object VeProcess {
 
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
-        val lp = new LongPointer(8)
+        val lp = new LongPointer(1)
         lp.put(vcv.containerLocation)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
-        val lp = new LongPointer(8 * MaxSetsCount)
+        val lp = new LongPointer(MaxSetsCount)
         lp.put(-99)
         lp
       }
@@ -215,7 +215,7 @@ object VeProcess {
         val index = cols.size + 1 + reIdx
         veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointer), MaxSetsCount * 8)
       }
-      val fnCallResult = new LongPointer(8)
+      val fnCallResult = new LongPointer(1)
 
       val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
 
@@ -294,14 +294,14 @@ object VeProcess {
 
       batches.groupedColumns.zipWithIndex.foreach { case (colGroup, index) =>
         val byteSize = 8 * batches.batches.size
-        val lp = new LongPointer(byteSize)
+        val lp = new LongPointer(batches.batches.size)
         colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
           lp.put(idx, col.containerLocation)
         }
         veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
       }
       val outPointers = results.map { veType =>
-        val lp = new LongPointer(8)
+        val lp = new LongPointer(1)
         lp.put(-118)
         lp
       }
@@ -309,7 +309,7 @@ object VeProcess {
         val index = 2 + batches.cols + reIdx
         veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
       }
-      val fnCallResult = new LongPointer(8)
+      val fnCallResult = new LongPointer(1)
 
       val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
 

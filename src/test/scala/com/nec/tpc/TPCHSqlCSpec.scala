@@ -1051,7 +1051,7 @@ class TPCHSqlCSpec
       drop view revenue$streamId;
     """
 
-    sparkSession.sql(sql1).show()
+
     sparkSession.sql(sql2).debugSqlHere { ds =>
       assert(
         ds.as[(Long, String, String, String, Double)].collect.toList.sorted === List(
@@ -1059,7 +1059,7 @@ class TPCHSqlCSpec
         ).sorted
       )
     }
-    sparkSession.sql(sql3).show()
+
   }
 
   withTpchViews("Query 16", configuration) { sparkSession =>

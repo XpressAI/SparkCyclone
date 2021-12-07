@@ -100,7 +100,7 @@ object VeArrowNativeInterface extends LazyLogging {
   def copyBufferToVe(proc: veo_proc_handle, byteBuffer: ByteBuffer, len: Option[Long] = None)(
     implicit cleanup: Cleanup
   ): Long = {
-    val veInputPointer = new LongPointer(8)
+    val veInputPointer = new LongPointer(1)
 
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
     val size = len.getOrElse(byteBuffer.capacity().toLong)
@@ -165,7 +165,7 @@ object VeArrowNativeInterface extends LazyLogging {
         addr
       }
 
-      val fnCallResult = new LongPointer(8)
+      val fnCallResult = new LongPointer(1)
       val callRes = veo.veo_call_sync(proc, fnAddr, our_args, fnCallResult)
       val time = System.currentTimeMillis() - startTime
       logger.debug(

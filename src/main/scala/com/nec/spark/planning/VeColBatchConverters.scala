@@ -99,7 +99,6 @@ object VeColBatchConverters {
     with Logging
     with SupportsVeColBatch {
 
-    require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
     override protected def doCanonicalize(): SparkPlan = {
       super.doCanonicalize()
@@ -109,7 +108,9 @@ object VeColBatchConverters {
       childPlan
     }
     override def executeVeColumnar(): RDD[VeColBatch] = {
-//      val numInputRows = longMetric("numInputRows")
+      require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
+
+      //      val numInputRows = longMetric("numInputRows")
 //      val numOutputBatches = longMetric("numOutputBatches")
       // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
       // combine with some of the Arrow conversion tools we will need to unify some of the configs.
