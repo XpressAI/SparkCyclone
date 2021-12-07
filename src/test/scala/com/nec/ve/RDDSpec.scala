@@ -80,9 +80,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
         })
         .map(_.toArrowColumnarBatch())
         .map(cb => cb.column(0).getArrowValueVector)
-        .flatMap(fv =>
-          (0 until fv.getValueCount).map(idx => fv.asInstanceOf[Float8Vector].get(idx))
-        )
+        .flatMap(fv => (0 until fv.getValueCount).map(idx => fv.asInstanceOf[IntVector].get(idx)))
     }).collect()
       .toList
       .sorted
