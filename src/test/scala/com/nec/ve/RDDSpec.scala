@@ -70,7 +70,12 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       numRows = 100
     ).mapPartitions(vcbi => {
       implicit val rootAllocator: RootAllocator = new RootAllocator()
-      vcbi.flatMap(_.toInternalColumnarBatch().rowIterator().asScala)
+      vcbi
+        .map(vcb => {
+          println(vcb)
+          vcb
+        })
+        .flatMap(_.toInternalColumnarBatch().rowIterator().asScala)
     }).map(_.getDouble(0))
       .collect()
       .toList
