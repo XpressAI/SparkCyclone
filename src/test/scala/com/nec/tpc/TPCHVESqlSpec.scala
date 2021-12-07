@@ -22,15 +22,11 @@ package com.nec.tpc
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
-import com.nec.ve.DynamicVeSqlExpressionEvaluationSpec
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.bytedeco.veoffload.global.veo
 import org.scalatest.ConfigMap
-import java.io.File
 
-import com.nec.arrow.VeArrowNativeInterface
+import java.io.File
 
 object TPCHVESqlSpec {
 
@@ -42,13 +38,12 @@ object TPCHVESqlSpec {
         value = "com.nec.spark.planning.VeCachedBatchSerializer"
       )
       .config(key = "spark.ui.enabled", value = true)
-      .config(key = "spark.sql.codegen.wholeStage", value = false)
-      .config(key = "com.nec.spark.ve.columnBatchSize", value = "50000")
+      .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
       .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(_ => {
-          VERewriteStrategy.failFast = true
+          VERewriteStrategy.failFast = false
           new VERewriteStrategy(ExecutorPluginManagedEvaluator)
         })
       )
