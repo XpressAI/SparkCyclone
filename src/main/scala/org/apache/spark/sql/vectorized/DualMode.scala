@@ -22,6 +22,10 @@ object DualMode {
     }
   }
 
+  def readBatches(first: VeColBatch, rest: Iterator[InternalRow]): Iterator[VeColBatch] = {
+
+  }
+
   def handleIterator(
     iterator: Iterator[InternalRow]
   ): Either[Iterator[VeColBatch], Iterator[InternalRow]] = {
@@ -37,11 +41,13 @@ object DualMode {
             VeColBatch(vcv.head.numItems, vcv)
           }
 
+          println("Getting first")
           Left({
             Iterator(firstBatch) ++ {
               new Iterator[VeColBatch] {
                 override def hasNext: Boolean = iterator.hasNext
                 override def next(): VeColBatch = {
+                  println("Getting next...")
                   val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
                     .asInstanceOf[Array[ColumnVector]]
                     .map(_.asInstanceOf[VeColColumnarVector])
