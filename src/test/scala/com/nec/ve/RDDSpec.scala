@@ -3,6 +3,7 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColBatchConverters.internalRowToVeColBatch
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
@@ -78,10 +79,9 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
           vcb
         })
         .map(_.toArrowColumnarBatch())
-        .flatMap(cb =>
-          (0 until cb.numRows()).map(rowNo =>
-            cb.column(0).asInstanceOf[ArrowColumnVector].getDouble(rowNo)
-          )
+        .map(cb => cb.column(0).getArrowValueVector)
+        .flatMap(fv =>
+          (0 until fv.getValueCount).map(idx => fv.asInstanceOf[Float8Vector].get(idx))
         )
     }).collect()
       .toList
