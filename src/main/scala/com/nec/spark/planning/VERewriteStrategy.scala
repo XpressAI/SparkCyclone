@@ -131,8 +131,9 @@ final case class VERewriteStrategy(
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
           SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
-            .flatMap(sp => List(VeFetchFromCachePlan(sp)))
+            .flatMap(sp => List(VectorEngineToSpark(VeFetchFromCachePlan(sp))))
             .toList
+
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
