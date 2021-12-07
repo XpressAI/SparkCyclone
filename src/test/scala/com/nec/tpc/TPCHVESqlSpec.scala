@@ -44,7 +44,7 @@ object TPCHVESqlSpec {
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions(sse =>
         sse.injectPlannerStrategy(_ => {
-          VERewriteStrategy.failFast = true
+          VERewriteStrategy.failFast = false
           new VERewriteStrategy(ExecutorPluginManagedEvaluator)
         })
       )
