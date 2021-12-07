@@ -37,14 +37,12 @@ object DualMode {
             (Iterator(cbr) ++ iterator)
               .map {
                 case cbr: org.apache.spark.sql.vectorized.ColumnarBatchRow =>
-                  println("Got CBR!")
                   cbr
                 case other =>
                   sys.error(s"Not expected anything other than ColumnarBatchRow, got ${other}")
               }
               .distinct
               .map { cbr =>
-                println("GOt back out")
                 val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
                   .asInstanceOf[Array[ColumnVector]]
                   .map(_.asInstanceOf[VeColColumnarVector])
