@@ -33,31 +33,23 @@ object DualMode {
     else {
       iterator.next() match {
         case cbr: org.apache.spark.sql.vectorized.ColumnarBatchRow =>
-          val firstBatch = {
-            val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
-              .asInstanceOf[Array[ColumnVector]]
-              .map(_.asInstanceOf[VeColColumnarVector])
-            val vcv = colVectors.toList.map(_.veColVector)
-            VeColBatch(vcv.head.numItems, vcv)
-          }
-
-          println("Getting first")
-          Left({
-            Iterator(firstBatch) ++ {
-              new Iterator[VeColBatch] {
-                override def hasNext: Boolean = iterator.hasNext
-                override def next(): VeColBatch = {
-                  println("Getting next...")
-                  val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
-                    .asInstanceOf[Array[ColumnVector]]
-                    .map(_.asInstanceOf[VeColColumnarVector])
-                  val vcv = colVectors.toList.map(_.veColVector)
-                  VeColBatch(vcv.head.numItems, vcv)
-
-                }
+          Left {
+            (Iterator(cbr) ++ iterator)
+              .map {
+                case cbr: org.apache.spark.sql.vectorized.ColumnarBatchRow =>
+                  cbr
+                case other =>
+                  sys.error(s"Not expected anything other than ColumnarBatchRow, got ${other}")
               }
-            }
-          }.distinct)
+              .distinct
+              .map { cbr =>
+                val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
+                  .asInstanceOf[Array[ColumnVector]]
+                  .map(_.asInstanceOf[VeColColumnarVector])
+                val vcv = colVectors.toList.map(_.veColVector)
+                VeColBatch(vcv.head.numItems, vcv)
+              }
+          }
         case other =>
           Right(Iterator(other) ++ iterator)
       }
