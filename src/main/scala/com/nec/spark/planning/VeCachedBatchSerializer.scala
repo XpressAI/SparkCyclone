@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 
+import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.VeCachedBatchSerializer.{CachedVeBatch, ShortCircuit}
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
@@ -104,17 +105,13 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
 
             lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
-            ArrowColumnarToRowPlan.mapBatchToRow(
-              cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toArrowColumnarBatch()
-            )
+            mapBatchToRow(cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toArrowColumnarBatch())
           }
           .take(1)
           .flatten
       }
     else
       convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
-        .mapPartitions(columnarBatchIterator =>
-          columnarBatchIterator.flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
-        )
+        .mapPartitions(columnarBatchIterator => columnarBatchIterator.flatMap(mapBatchToRow))
 
 }
