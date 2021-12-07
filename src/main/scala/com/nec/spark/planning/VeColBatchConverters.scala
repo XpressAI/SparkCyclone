@@ -82,7 +82,7 @@ object VeColBatchConverters {
                 //              numInputRows += rowCount
                 //              numOutputBatches += 1
                 import SparkCycloneExecutorPlugin.veProcess
-                try VeColBatch.fromColumnarBatch(cb)
+                try VeColBatch.fromArrowColumnarBatch(cb)
                 finally cb.close()
               }
             }
@@ -98,7 +98,6 @@ object VeColBatchConverters {
     extends UnaryExecNode
     with Logging
     with SupportsVeColBatch {
-
 
     override protected def doCanonicalize(): SparkPlan = {
       super.doCanonicalize()

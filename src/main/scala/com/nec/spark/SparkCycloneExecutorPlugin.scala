@@ -27,6 +27,7 @@ import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.ve.VeProcess
+import com.nec.ve.VeProcess.LibraryReference
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.ExecutorPlugin
 import org.apache.spark.api.plugin.PluginContext
@@ -44,6 +45,11 @@ object SparkCycloneExecutorPlugin {
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
+  @transient val libsPerProcess: scala.collection.mutable.Map[
+    veo_proc_handle,
+    scala.collection.mutable.Map[String, LibraryReference]
+  ] =
+    scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
     VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc))

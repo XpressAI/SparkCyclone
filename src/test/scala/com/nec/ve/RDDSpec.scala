@@ -62,7 +62,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
         .makeRDD(Seq(1, 2))
         .repartition(1)
         .map(int =>
-          VeColBatch.fromColumnarBatch(
+          VeColBatch.fromArrowColumnarBatch(
             if (int == 1) makeColumnarBatch1()
             else makeColumnarBatch2()
           )

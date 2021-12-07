@@ -85,7 +85,7 @@ object VeColBatch {
     }
   }
 
-  def fromColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
+  def fromArrowColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
     VeColBatch(
       numRows = columnarBatch.numRows(),
       cols = (0 until columnarBatch.numCols()).map { colNo =>
