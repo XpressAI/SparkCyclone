@@ -77,9 +77,13 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
           println(vcb)
           vcb
         })
-        .flatMap(_.toArrowColumnarBatch().rowIterator().asScala)
-    }).map(_.getDouble(0))
-      .collect()
+        .map(_.toArrowColumnarBatch())
+        .flatMap(cb =>
+          (0 until cb.numRows()).map(rowNo =>
+            cb.column(0).asInstanceOf[ArrowColumnVector].getDouble(rowNo)
+          )
+        )
+    }).collect()
       .toList
       .sorted
 
