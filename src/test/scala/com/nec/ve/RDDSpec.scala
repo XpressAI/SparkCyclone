@@ -35,6 +35,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         new IntVector("test", rootAllocator)
       }
+      vec1.setValueCount(5)
       vec1.setSafe(0, 10)
       vec1.setSafe(0, 20)
       vec1.setSafe(0, 30)
@@ -48,6 +49,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         new IntVector("test", rootAllocator)
       }
+      vec2.setValueCount(4)
       vec2.setSafe(0, 60)
       vec2.setSafe(0, 70)
       vec2.setSafe(0, 80)
