@@ -23,7 +23,7 @@ object DualMode {
   }
 
   def readBatches(first: VeColBatch, rest: Iterator[InternalRow]): Iterator[VeColBatch] = {
-
+    ???
   }
 
   def handleIterator(
