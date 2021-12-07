@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.planning.VeColBatchConverters.BasedOnColumnarBatch
+import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -15,7 +15,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, DualMode}
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.{SparkContext, TaskContext}
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -128,7 +127,7 @@ object VeColBatchConverters {
 
     override def doExecute(): RDD[InternalRow] =
       doExecuteColumnar().mapPartitions(columnarBatchIterator =>
-        columnarBatchIterator.flatMap(ArrowColumnarToRowPlan.mapBatchToRow)
+        columnarBatchIterator.flatMap(mapBatchToRow)
       )
 
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
