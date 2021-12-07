@@ -38,10 +38,10 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       }
       vec1.setValueCount(5)
       vec1.setSafe(0, 10)
-      vec1.setSafe(0, 20)
-      vec1.setSafe(0, 30)
-      vec1.setSafe(0, 40)
-      vec1.setSafe(0, 50)
+      vec1.setSafe(1, 20)
+      vec1.setSafe(2, 30)
+      vec1.setSafe(3, 40)
+      vec1.setSafe(4, 50)
       new ColumnarBatch(Array(new ArrowColumnVector(vec1)), 5)
     }
 
@@ -52,9 +52,9 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       }
       vec2.setValueCount(4)
       vec2.setSafe(0, 60)
-      vec2.setSafe(0, 70)
-      vec2.setSafe(0, 80)
-      vec2.setSafe(0, 90)
+      vec2.setSafe(1, 70)
+      vec2.setSafe(2, 80)
+      vec2.setSafe(3, 90)
       new ColumnarBatch(Array(new ArrowColumnVector(vec2)), 4)
     }
     val result = internalRowToVeColBatch(
