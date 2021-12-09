@@ -85,7 +85,9 @@ object VeColBatch {
     }
   }
 
-  def fromArrowColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
+  def fromArrowColumnarBatch(
+    columnarBatch: ColumnarBatch
+  )(implicit veProcess: VeProcess): VeColBatch = {
     VeColBatch(
       numRows = columnarBatch.numRows(),
       cols = (0 until columnarBatch.numCols()).map { colNo =>
@@ -142,7 +144,13 @@ object VeColBatch {
     def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
       val totalSize = bufferSizes.sum
 
-      val resultingArray = extractBuffers().toArray.flatten
+      val extractedBuffers = extractBuffers()
+
+      val resultingArray = Array.ofDim[Byte](totalSize)
+      val bufferStarts = extractedBuffers.map(_.length).scanLeft(0)(_ + _)
+      bufferStarts.zip(extractedBuffers).foreach { case (start, buffer) =>
+        System.arraycopy(buffer, 0, resultingArray, start, buffer.length)
+      }
 
       assert(
         resultingArray.length == totalSize,
