@@ -20,9 +20,7 @@
 package com.nec.spark
 
 import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
-import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
-
+import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 
@@ -34,25 +32,8 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       new VERewriteStrategy(
-        ExecutorPluginManagedEvaluator,
-        VeRewriteStrategyOptions(
-          aggregateOnVe = sparkSession.sparkContext.getConf
-            .getOption(key = "spark.com.nec.spark.aggregate-on-ve")
-            .map(_.toBoolean)
-            .getOrElse(true),
-          enableVeSorting = sparkSession.sparkContext.getConf
-            .getOption(key = "spark.com.nec.spark.sort-on-ve")
-            .map(_.toBoolean)
-            .getOrElse(false),
-          projectOnVe = sparkSession.sparkContext.getConf
-            .getOption(key = "spark.com.nec.spark.project-on-ve")
-            .map(_.toBoolean)
-            .getOrElse(true),
-          filterOnVe = sparkSession.sparkContext.getConf
-            .getOption(key = "spark.com.nec.spark.filter-on-ve")
-            .map(_.toBoolean)
-            .getOrElse(true)
-        )
+        nativeEvaluator = ExecutorPluginManagedEvaluator,
+        options = VeRewriteStrategyOptions.fromConfig(sparkSession.sparkContext.getConf)
       )
     )
     sparkSessionExtensions.injectColumnar(_ => new VeColumnarRule)

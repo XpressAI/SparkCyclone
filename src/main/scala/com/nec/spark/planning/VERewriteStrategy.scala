@@ -35,12 +35,7 @@ import com.nec.spark.agile.groupby.{
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VERewriteStrategy.{
-  GroupPrefix,
-  InputPrefix,
-  SequenceList,
-  VeRewriteStrategyOptions
-}
+import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
 import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
 import com.nec.spark.planning.aggregation.{
   VeFinalAggregate,
@@ -51,6 +46,7 @@ import com.nec.spark.planning.aggregation.{
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   HyperLogLogPlusPlus
@@ -77,22 +73,6 @@ import scala.util.Try
 object VERewriteStrategy {
   var _enabled: Boolean = true
   var failFast: Boolean = false
-  final case class VeRewriteStrategyOptions(
-    aggregateOnVe: Boolean,
-    enableVeSorting: Boolean,
-    projectOnVe: Boolean,
-    filterOnVe: Boolean
-  )
-  object VeRewriteStrategyOptions {
-    val default: VeRewriteStrategyOptions =
-      VeRewriteStrategyOptions(
-        enableVeSorting = true,
-        projectOnVe = true,
-        filterOnVe = true,
-        aggregateOnVe = true
-      )
-  }
-
   implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
       case Some(error) => Left(error)

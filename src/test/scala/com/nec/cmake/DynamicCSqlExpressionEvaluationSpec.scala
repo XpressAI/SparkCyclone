@@ -45,7 +45,6 @@ import org.scalactic.{source, Prettifier}
 import java.time.Instant
 import java.time.temporal.TemporalUnit
 import scala.math.Ordered.orderingToOrdered
-import com.nec.spark.planning.VERewriteStrategy.VeRewriteStrategyOptions
 import com.nec.spark.planning.VeColumnarRule
 
 object DynamicCSqlExpressionEvaluationSpec {
@@ -58,7 +57,7 @@ object DynamicCSqlExpressionEvaluationSpec {
       .withExtensions(sse =>
         sse.injectPlannerStrategy(sparkSession => {
           VERewriteStrategy.failFast = true
-          new VERewriteStrategy(CNativeEvaluator(debug = false), VeRewriteStrategyOptions.default)
+          new VERewriteStrategy(CNativeEvaluator(debug = false))
         })
       )
       .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
