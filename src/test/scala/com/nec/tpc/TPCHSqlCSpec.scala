@@ -282,6 +282,7 @@ class TPCHSqlCSpec
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
       val result = ds
+        .limit(1)
         .as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
         .collect()
         .toList
