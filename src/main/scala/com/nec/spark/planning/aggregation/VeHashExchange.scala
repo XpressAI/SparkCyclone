@@ -34,7 +34,6 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
             results = exchangeFunction.results
           )
 
-          multiBatches.flatMap(_._2).filter(_.isEmpty).foreach(_.free())
           val filledOnes = multiBatches.filter(_._2.head.nonEmpty)
           val timeTaken = Duration.between(startTime, Instant.now())
           filledOnes
