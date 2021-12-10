@@ -34,8 +34,8 @@ object VeRewriteStrategyOptions {
   val default: VeRewriteStrategyOptions =
     VeRewriteStrategyOptions(
       enableVeSorting = false,
-      projectOnVe = false,
-      filterOnVe = false,
+      projectOnVe = true,
+      filterOnVe = true,
       aggregateOnVe = true
     )
 }

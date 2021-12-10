@@ -14,13 +14,6 @@ import java.nio.file.Path
 
 trait VeProcess {
 
-  def executeMultiIn(
-    libraryReference: LibraryReference,
-    functionName: String,
-    batches: VeBatchOfBatches,
-    results: List[VeType]
-  ): List[VeColVector]
-
   final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
     val bb = ByteBuffer.allocateDirect(containerSize)
     get(containerLocation, bb, containerSize)
@@ -47,6 +40,15 @@ trait VeProcess {
     cols: List[VeColVector],
     results: List[VeType]
   ): List[(Int, List[VeColVector])]
+
+  def executeMultiIn(
+    libraryReference: LibraryReference,
+    functionName: String,
+    batches: VeBatchOfBatches,
+    results: List[VeType]
+  ): List[VeColVector]
+
+  def getProcessId(): Long
 }
 
 object VeProcess {
@@ -85,6 +87,8 @@ object VeProcess {
       batches: VeBatchOfBatches,
       results: List[VeType]
     ): List[VeColVector] = f().executeMultiIn(libraryReference, functionName, batches, results)
+
+    override def getProcessId(): Long = f().getProcessId()
   }
 
   final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
@@ -113,12 +117,23 @@ object VeProcess {
     override def free(memoryLocation: Long): Unit =
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
 
+    private def validateVectors(list: List[VeColVector]): Unit = {
+      val processId = getProcessId()
+      list.foreach(vector =>
+        require(
+          vector.veProcessId == processId,
+          s"Expecting process ID to be ${processId}, but got ${vector.veProcessId} for vector ${vector}"
+        )
+      )
+    }
+
     override def execute(
       libraryReference: LibraryReference,
       functionName: String,
       cols: List[VeColVector],
       results: List[VeType]
     ): List[VeColVector] = {
+      validateVectors(cols)
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
@@ -158,6 +173,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
+            veProcessId = getProcessId(),
             numItems = byteBuffer.getInt(16),
             name = "output",
             veType = scalar,
@@ -171,6 +187,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
+            veProcessId = getProcessId(),
             numItems = byteBuffer.getInt(28),
             name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
@@ -204,6 +221,8 @@ object VeProcess {
       cols: List[VeColVector],
       results: List[VeType]
     ): List[(Int, List[VeColVector])] = {
+
+      validateVectors(cols)
 
       val MaxSetsCount = 64
 
@@ -259,6 +278,7 @@ object VeProcess {
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
+              veProcessId = getProcessId(),
               numItems = byteBuffer.getInt(28),
               name = "output",
               veType = VeString,
@@ -277,6 +297,7 @@ object VeProcess {
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
+              veProcessId = getProcessId(),
               numItems = byteBuffer.getInt(16),
               name = "output",
               veType = r,
@@ -294,6 +315,8 @@ object VeProcess {
       batches: VeBatchOfBatches,
       results: List[VeType]
     ): List[VeColVector] = {
+
+      batches.batches.foreach(batch => validateVectors(batch.cols))
       val our_args = veo.veo_args_alloc()
 
       /** Total batches count for input pointers */
@@ -343,6 +366,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
+            veProcessId = getProcessId(),
             numItems = byteBuffer.getInt(16),
             name = "output",
             veType = scalar,
@@ -356,6 +380,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
+            veProcessId = getProcessId(),
             numItems = byteBuffer.getInt(28),
             name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
@@ -367,5 +392,6 @@ object VeProcess {
       }
     }
 
+    override def getProcessId(): Long = new LongPointer(veo_proc_handle).get()
   }
 }

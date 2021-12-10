@@ -30,9 +30,12 @@ jobs:
 
       - name: Run TPC-H@1
         run: cd tests/tpchbench && sh run_ve.sh dbgen1 0 && sh run_ve.sh dbgen1 0
+        if: success()
 
       - name: Run TPC-H@10
         run: cd tests/tpchbench && sh run_ve.sh dbgen10 0 && sh run_ve.sh dbgen10 0
+        if: success()
 
       - name: Run TPC-H@20
         run: cd tests/tpchbench && sh run_ve.sh dbgen20 0 && sh run_ve.sh dbgen20 0
+        if: success()
