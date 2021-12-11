@@ -104,7 +104,7 @@ object GenericJoiner {
           ),
           s"""std::vector<size_t> ${b1_out};""",
           s"""std::vector<size_t> ${b2_out};""",
-          s"""frovedis::equi_join(${b2}, ${b2_idx}, ${b1}, ${b1_idx}}, ${b2_out}, ${b1_out});""",
+          s"""frovedis::equi_join(${b2}, ${b2_idx}, ${b1}, ${b1_idx}, ${b2_out}, ${b1_out});""",
           s"""std::vector<size_t> ${conj_x};""",
           s"""std::vector<size_t> ${conj_y};""",
           CodeLines.forLoop(counterName = "i", until = s"${a1_out}.size()")(
