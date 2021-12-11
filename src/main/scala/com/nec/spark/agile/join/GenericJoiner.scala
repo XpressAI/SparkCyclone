@@ -7,6 +7,7 @@ import com.nec.spark.agile.groupby.GroupByOutline
 object GenericJoiner {
   def produce: CodeLines = {
     val x_a_words = "x_a_words"
+    val x_a_dict = "x_a_dict"
     val x_a_cwords = "x_a_cwords"
     val y_a_words = "y_a_words"
     val y_a_cwords = "y_a_cwords"
@@ -17,6 +18,7 @@ object GenericJoiner {
     val y_b = "y_b"
     val y_c = "y_c"
     val o_a = "o_a"
+    val o_a_words = "o_a_words"
     val o_b = "o_b"
     val o_c = "o_c"
     CodeLines.from(
@@ -64,14 +66,13 @@ object GenericJoiner {
           s"""frovedis::words ${y_a_words} = varchar_vector_to_words(${y_a});""",
           s"""frovedis::compressed_words ${x_a_cwords} = frovedis::make_compressed_words(${x_a_words});""",
           s"""frovedis::compressed_words ${y_a_cwords} = frovedis::make_compressed_words(${y_a_words});""",
-          s"""frovedis::dict left_dict = frovedis::make_dict(${x_a_words});""",
-          s"""frovedis::dict right_dict = frovedis::make_dict(${y_a_words});""",
+          s"""frovedis::dict ${x_a_dict} = frovedis::make_dict(${x_a_words});""",
           """""",
           """// First = => a1 = a2""",
-          s"""std::vector<size_t> a1 = left_dict.lookup(${x_a_cwords});""",
+          s"""std::vector<size_t> a1 = ${x_a_dict}.lookup(${x_a_cwords});""",
           """std::vector<size_t> a1_idx(a1.size());""",
           CodeLines.forLoop("i", "a1.size()")(CodeLines.from("""a1_idx[i] = i;""")),
-          s"""std::vector<size_t> a2 = left_dict.lookup(${y_a_cwords});""",
+          s"""std::vector<size_t> a2 = ${x_a_dict}.lookup(${y_a_cwords});""",
           """std::vector<size_t> a2_idx(a2.size());""",
           CodeLines.forLoop("i", "a2.size()")(CodeLines.from("""a2_idx[i] = i;""")),
           """std::vector<size_t> a1_out;""",
@@ -102,8 +103,8 @@ object GenericJoiner {
               )
             )
           ),
-          """frovedis::words result = left_dict.index_to_words(a2);""",
-          s"""words_to_varchar_vector(result, ${o_a});""",
+          s"""frovedis::words ${o_a_words} = ${x_a_dict}.index_to_words(a2);""",
+          s"""words_to_varchar_vector(${o_a_words}, ${o_a});""",
           GroupByOutline
             .initializeScalarVector(VeScalarType.VeNullableInt, s"${o_b}", "conj_x.size()"),
           CodeLines.forLoop(counterName = "i", until = "conj_x.size()")(
