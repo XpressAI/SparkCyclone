@@ -99,7 +99,7 @@ object GenericJoiner {
             )
         ),
         GroupByOutline.initializeScalarVector(
-          veScalarType = VeScalarType.VeNullableInt,
+          veScalarType = VeScalarType.VeNullableDouble,
           variableName = "o_c",
           countExpression = "conj_y.size()"
         ),
