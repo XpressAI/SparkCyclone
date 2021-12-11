@@ -162,7 +162,6 @@ object RDDSpec {
         f = veIterator =>
           veIterator
             .map(arrowVec => {
-              println(s"Process id = ${veProc.getProcessId()}")
               try VeColVector.fromFloat8Vector(arrowVec)
               finally arrowVec.close()
             })

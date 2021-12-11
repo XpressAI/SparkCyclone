@@ -63,6 +63,7 @@ object DetectVectorEngineSpec {
         classOf[DiscoverVectorEnginesPlugin].getCanonicalName
       )
 
+  final case class SampleClass(a: Int, b: Double)
 }
 
 final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
@@ -98,16 +99,24 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
   }
 
   "We can execute in cluster-local mode and it doesn't crash" in withSparkSession2(
-    VeClusterConfig.andThen(_.config("spark.com.nec.spark.exchange-on-ve", "false"))
+    VeClusterConfig
+      .andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
+      .andThen(_.config("spark.com.nec.spark.exchange-on-ve", "true"))
   ) { sparkSession =>
     import sparkSession.sqlContext.implicits._
-    val nums = List[Double](1)
+    val nums =
+      List(
+        DetectVectorEngineSpec.SampleClass(1, 5.0),
+        DetectVectorEngineSpec.SampleClass(2, 6.0),
+        DetectVectorEngineSpec.SampleClass(1, 9)
+      )
     nums
       .toDS()
       .createOrReplaceTempView("nums")
-    val q = sparkSession.sql("select value from nums").as[Double]
-    val result = q.collect().toList
-    assert(result == List(1))
+    val q = sparkSession.sql("select sum(b) from nums group by a").as[Double]
+    println(q.queryExecution.executedPlan)
+    val result = q.collect().toSet
+    assert(result == Set[Double](14, 6.0))
   }
 
 }
