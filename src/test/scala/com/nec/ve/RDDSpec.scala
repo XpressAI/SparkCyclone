@@ -9,7 +9,7 @@ import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.RDDSpec.{doubleBatches, longBatches}
+import com.nec.ve.RDDSpec.{doubleBatches, exchangeBatches, longBatches, MultiFunctionName}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD
@@ -17,10 +17,10 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.scalatest.freespec.AnyFreeSpec
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
@@ -130,56 +130,11 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "Exchange data across partitions in cluster mode" in withSparkSession2(
     VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
-    import SparkCycloneExecutorPlugin.{veProcess => veProc}
-    val MultiFunctionName = "f_multi"
     val result =
       compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr(MultiFunctionName).cCode) {
         path =>
-          val pathStr = path.toString()
-          doubleBatches {
-            sparkSession.sparkContext
-              .range(start = 1, end = 501, step = 1, numSlices = 4)
-              .map(_.toDouble)
-          }
-            .mapPartitions(
-              f = veIterator =>
-                veIterator
-                  .map(arrowVec => {
-                    println(s"Process id = ${veProc.getProcessId()}")
-                    try VeColVector.fromFloat8Vector(arrowVec)
-                    finally arrowVec.close()
-                  })
-                  .flatMap(vecv => {
-                    try {
-                      val ref = veProc.loadLibrary(java.nio.file.Paths.get(pathStr))
-
-                      veProc
-                        .executeMulti(
-                          ref,
-                          MultiFunctionName,
-                          List(vecv),
-                          List(CFunctionGeneration.VeScalarType.veNullableDouble)
-                        )
-                        .map { case (k, vs) => (k, vs.head) }
-                    } finally vecv.free()
-                  }),
-              preservesPartitioning = true
-            )
-            .exchangeBetweenVEs()
-            .mapPartitions(vectorIter =>
-              Iterator
-                .continually {
-                  vectorIter.flatMap { vector =>
-                    WithTestAllocator { implicit alloc =>
-                      val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
-                      val vl = vec.toList
-                      try if (vl.isEmpty) None else Some(vl.max)
-                      finally vec.close()
-                    }
-                  }.max
-                }
-                .take(1)
-            )
+          val pathStr = path.toString
+          exchangeBatches(sparkSession, pathStr)
             .collect()
             .toList
             .toSet
@@ -192,6 +147,57 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
 }
 
 object RDDSpec {
+  val MultiFunctionName = "f_multi"
+
+  private def exchangeBatches(sparkSession: SparkSession, pathStr: String): RDD[Double] = {
+
+    import SparkCycloneExecutorPlugin.{veProcess => veProc}
+
+    doubleBatches {
+      sparkSession.sparkContext
+        .range(start = 1, end = 501, step = 1, numSlices = 4)
+        .map(_.toDouble)
+    }
+      .mapPartitions(
+        f = veIterator =>
+          veIterator
+            .map(arrowVec => {
+              println(s"Process id = ${veProc.getProcessId()}")
+              try VeColVector.fromFloat8Vector(arrowVec)
+              finally arrowVec.close()
+            })
+            .flatMap(veColVector => {
+              try {
+                val ref = veProc.loadLibrary(java.nio.file.Paths.get(pathStr))
+
+                veProc
+                  .executeMulti(
+                    ref,
+                    MultiFunctionName,
+                    List(veColVector),
+                    List(CFunctionGeneration.VeScalarType.veNullableDouble)
+                  )
+                  .map { case (k, vs) => (k, vs.head) }
+              } finally veColVector.free()
+            }),
+        preservesPartitioning = true
+      )
+      .exchangeBetweenVEs()
+      .mapPartitions(vectorIter =>
+        Iterator
+          .continually {
+            vectorIter.flatMap { vector =>
+              WithTestAllocator { implicit alloc =>
+                val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
+                val vl = vec.toList
+                try if (vl.isEmpty) None else Some(vl.max)
+                finally vec.close()
+              }
+            }.max
+          }
+          .take(1)
+      )
+  }
 
   final case class NativeFunction(name: String)
 
