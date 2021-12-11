@@ -42,8 +42,7 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
         }
       }
     }
-    // .exchangeBetweenVEs()
-    .exchangeBetweenVEsNoSer()
+    .exchangeBetweenVEs()
     .mapPartitions(f = _.map(lv => VeColBatch.fromList(lv)), preservesPartitioning = true)
 
   override def output: Seq[Attribute] = child.output
