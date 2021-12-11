@@ -126,7 +126,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     expect(result == expected)
   }
 
-  "Exchange data across partitions" in withSparkSession2(
+  "Exchange data across partitions on YARN" in withSparkYarnSession(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
     implicit val veProc: VeProcess =
