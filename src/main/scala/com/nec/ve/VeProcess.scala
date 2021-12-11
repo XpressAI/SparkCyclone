@@ -210,8 +210,6 @@ object VeProcess {
         )
         .getOrElseUpdate(
           path.toString, {
-            println(veo_proc_handle)
-            println(path.toString)
             val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
             require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
             LibraryReference(libRe)
