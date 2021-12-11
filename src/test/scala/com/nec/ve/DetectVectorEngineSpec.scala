@@ -19,42 +19,19 @@
  */
 package com.nec.ve
 
-import org.scalatest.freespec.AnyFreeSpec
-import java.nio.file.Files
-import java.nio.file.Paths
-import com.nec.spark.SparkAdditions
-import org.scalatest.BeforeAndAfter
-import com.nec.spark.AuroraSqlPlugin
-import org.apache.spark.api.resource.ResourceDiscoveryPlugin
-import org.apache.spark.internal.Logging
-import java.util.Optional
-import org.apache.spark.SparkConf
-import org.apache.spark.resource.{ResourceInformation, ResourceRequest}
-import org.apache.log4j.Level
-import java.net.URLClassLoader
 import com.eed3si9n.expecty.Expecty._
+import com.nec.spark.{AuroraSqlPlugin, SparkAdditions}
+import com.nec.ve.DetectVectorEngineSpec.{ExpectedClassPathItems, ExtraClassPath, VeClusterConfig}
+import org.apache.log4j.Level
+import org.apache.spark.sql.SparkSession
+import org.scalatest.BeforeAndAfter
+import org.scalatest.freespec.AnyFreeSpec
 
-final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
-  "It works" in {
-    import scala.collection.JavaConverters._
+import java.net.URLClassLoader
+import java.nio.file.{Files, Paths}
 
-    // Check using a different regex.
-    val regex = "^veslot[0-7]$".r
-    val veSlots = Files
-      .list(Paths.get("/dev/"))
-      .iterator()
-      .asScala
-      .filter(path => regex.unapplySeq(path.getFileName().toString()).nonEmpty)
-      .map(_.toString.drop(11))
-      .toList
-      .sorted
-    assert(DiscoverVectorEnginesPlugin.detectVE() == veSlots)
-  }
-
-  override protected def logLevel: Level = Level.ERROR
-  // override protected def logLevel: Level = Level.INFO
-
-  val expectedItems =
+object DetectVectorEngineSpec {
+  private val ExpectedClassPathItems =
     List(
       "/classes/",
       "/test-classes/",
@@ -66,39 +43,61 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
       "reflections"
     )
 
-  "Our extra classpath" - {
-    expectedItems.foreach { name =>
-      s"Has ${name}" in {
-        expect(extraClassPath.exists(_.contains(name)))
-      }
-    }
-
-    "All items begin with /, ie absolute paths" in {
-      expect(extraClassPath.forall(_.startsWith("/")))
-    }
-  }
-
-  lazy val extraClassPath =
-    ClassLoader
-      .getSystemClassLoader()
+  private lazy val ExtraClassPath =
+    ClassLoader.getSystemClassLoader
       .asInstanceOf[URLClassLoader]
-      .getURLs()
-      .filter(item => expectedItems.exists(expected => item.toString.contains(expected)))
+      .getURLs
+      .filter(item => ExpectedClassPathItems.exists(expected => item.toString.contains(expected)))
       .map(item => item.toString.replaceAllLiterally("file:/", "/"))
 
-  "We can execute in cluster-local mode" ignore withSparkSession2(
+  val VeClusterConfig: SparkSession.Builder => SparkSession.Builder =
     _.config("spark.executor.resource.ve.amount", "1")
       .config("spark.task.resource.ve.amount", "1")
       .config("spark.worker.resource.ve.amount", "1")
       .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
       .config("spark.ui.enabled", "true")
-      .config("spark.executor.extraClassPath", extraClassPath.mkString(":"))
+      .config("spark.executor.extraClassPath", ExtraClassPath.mkString(":"))
       .config("spark.master", "local-cluster[2,1,1024]")
       .config(
         "spark.resources.discoveryPlugin",
         classOf[DiscoverVectorEnginesPlugin].getCanonicalName
       )
-  ) { sparkSession =>
+
+}
+
+final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
+  "It works" in {
+    import scala.collection.JavaConverters._
+
+    // Check using a different regex.
+    val regex = "^veslot[0-7]$".r
+    val veSlots = Files
+      .list(Paths.get("/dev/"))
+      .iterator()
+      .asScala
+      .filter(path => regex.unapplySeq(path.getFileName.toString).nonEmpty)
+      .map(_.toString.drop(11))
+      .toList
+      .sorted
+    assert(DiscoverVectorEnginesPlugin.detectVE() == veSlots)
+  }
+
+  override protected def logLevel: Level = Level.ERROR
+  // override protected def logLevel: Level = Level.INFO
+
+  "Our extra classpath" - {
+    ExpectedClassPathItems.foreach { name =>
+      s"Has ${name}" in {
+        expect(ExtraClassPath.exists(_.contains(name)))
+      }
+    }
+
+    "All items begin with /, ie absolute paths" in {
+      expect(ExtraClassPath.forall(_.startsWith("/")))
+    }
+  }
+
+  "We can execute in cluster-local mode" ignore withSparkSession2(VeClusterConfig) { sparkSession =>
     import sparkSession.sqlContext.implicits._
     val nums = List[Double](1)
     nums

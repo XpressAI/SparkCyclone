@@ -7,6 +7,7 @@ import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColBatchConverters.internalRowToVeColBatch
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
+import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.RDDSpec.{doubleBatches, longBatches}
 import com.nec.ve.VeColBatch.VeColVector
@@ -126,8 +127,8 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     expect(result == expected)
   }
 
-  "Exchange data across partitions on YARN" in withSparkYarnSession(
-    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+  "Exchange data across partitions on YARN" in withSparkSession2(
+    VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
     implicit val veProc: VeProcess =
       DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
@@ -145,6 +146,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
               f = veIterator =>
                 veIterator
                   .map(arrowVec => {
+                    println(s"Process id = ${veProc.getProcessId()}")
                     try VeColVector.fromFloat8Vector(arrowVec)
                     finally arrowVec.close()
                   })

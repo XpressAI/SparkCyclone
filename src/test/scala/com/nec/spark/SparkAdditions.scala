@@ -65,17 +65,4 @@ trait SparkAdditions {
     finally sparkSession.stop()
   }
 
-  protected def withSparkYarnSession[T](
-    configure: SparkSession.Builder => SparkSession.Builder
-  )(f: SparkSession => T): T = {
-    VERewriteStrategy.failFast = true
-    val conf = new SparkConf()
-    conf.setMaster("yarn-cluster")
-    conf.setAppName("yarn-test")
-    conf.set("spark.ui.enabled", "true")
-    val sparkSession = configure(SparkSession.builder().config(conf)).getOrCreate()
-    try f(sparkSession)
-    finally sparkSession.stop()
-  }
-
 }
