@@ -61,16 +61,13 @@ object GenericJoiner {
         """std::vector<size_t> a1 = left_dict.lookup(left_cwords);""",
         """std::vector<size_t> a1_idx(a1.size());""",
         """for (int i = 0; i < a1.size(); i++) {""",
-        CodeLines.from(
-        """a1_idx[i] = i;"""
-        ).indented,
+        CodeLines.from("""a1_idx[i] = i;""").indented,
         """}""",
         """""",
         """std::vector<size_t> a2 = left_dict.lookup(right_cwords);""",
         """std::vector<size_t> a2_idx(a2.size());""",
         """for (int i = 0; i < a2.size(); i++) {""",
-        CodeLines.from(
-        """a2_idx[i] = i;""").indented,
+        CodeLines.from("""a2_idx[i] = i;""").indented,
         """}""",
         """""",
         """// start with smaller vector""",
@@ -82,15 +79,12 @@ object GenericJoiner {
         """std::vector<int64_t> b1(x_b->count);""",
         """std::vector<size_t> b1_idx(x_b->count);""",
         """for (int i = 0; i < x_b->count; i++) {""",
-        CodeLines.from(
-        """b1[i] = x_b->data[i];""",
-        """b1_idx[i] = i;""").indented,
+        CodeLines.from("""b1[i] = x_b->data[i];""", """b1_idx[i] = i;""").indented,
         """}""",
         """std::vector<int64_t> b2(y_b->count);""",
         """std::vector<size_t> b2_idx(y_b->count);""",
         """for (int i = 0; i < y_b->count; i++) {""",
-        """b2[i] = y_b->data[i];""",
-        """b2_idx[i] = i;""",
+        CodeLines.from("""b2[i] = y_b->data[i];""", """b2_idx[i] = i;""").indented,
         """}""",
         """""",
         """std::vector<size_t> b1_out;""",
@@ -121,14 +115,27 @@ object GenericJoiner {
         """std::vector<size_t> conj_x;""",
         """std::vector<size_t> conj_y;""",
         """for (int i = 0; i < a1_out.size(); i++) {""",
-        """for (int j = 0; j < b1_out.size(); j++) {""",
-        """if (a1_out[i] == b1_out[j]) {""",
-        """if (a2_out[i] == b2_out[j]) {""",
-        """conj_x.push_back(a1_out[i]);""",
-        """conj_y.push_back(a2_out[i]);""",
-        """}""",
-        """}""",
-        """}""",
+        CodeLines
+          .from(
+            """for (int j = 0; j < b1_out.size(); j++) {""",
+            CodeLines
+              .from(
+                """if (a1_out[i] == b1_out[j]) {""",
+                CodeLines
+                  .from(
+                    """if (a2_out[i] == b2_out[j]) {""",
+                    CodeLines
+                      .from("""conj_x.push_back(a1_out[i]);""", """conj_y.push_back(a2_out[i]);""")
+                      .indented,
+                    """}"""
+                  )
+                  .indented,
+                """}"""
+              )
+              .indented,
+            """}"""
+          )
+          .indented,
         """}""",
         """""",
         """#ifdef DEBUG""",
@@ -144,16 +151,24 @@ object GenericJoiner {
         """o_b->data = (int32_t *)malloc(o_b->count * sizeof(int32_t));""",
         """o_b->validityBuffer = (uint64_t *)malloc(ceil(o_b->count / 64.0) * sizeof(uint64_t));""",
         """for (int i = 0; i < conj_x.size(); i++) {""",
-        """o_b->data[i] = x_c->data[conj_x[i]];""",
-        """set_validity(o_b->validityBuffer, i, check_valid(x_c->validityBuffer, conj_x[i]));""",
+        CodeLines
+          .from(
+            """o_b->data[i] = x_c->data[conj_x[i]];""",
+            """set_validity(o_b->validityBuffer, i, check_valid(x_c->validityBuffer, conj_x[i]));"""
+          )
+          .indented,
         """}""",
         """""",
         """o_c->count = conj_y.size();""",
         """o_c->data = (double *)malloc(o_c->count * sizeof(double));""",
         """o_c->validityBuffer = (uint64_t *)malloc(ceil(o_c->count / 64.0) * sizeof(uint64_t));""",
         """for (int i = 0; i < conj_y.size(); i++) {""",
-        """o_c->data[i] = y_c->data[conj_y[i]];""",
-        """set_validity(o_c->validityBuffer, i, check_valid(y_c->validityBuffer, conj_y[i]));""",
+        CodeLines
+          .from(
+            """o_c->data[i] = y_c->data[conj_y[i]];""",
+            """set_validity(o_c->validityBuffer, i, check_valid(y_c->validityBuffer, conj_y[i]));"""
+          )
+          .indented,
         """}""",
         """""",
         """return 0;"""
