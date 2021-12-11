@@ -46,9 +46,9 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
 import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
+import com.nec.spark.agile.join.GenericJoiner
 import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
@@ -626,11 +626,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       ("test3", 123, 4567890)
     )
 
-    val right = List[(String, Long, Double)](
-      ("test2", 123, 654),
-      ("test2", 123, 761),
-      ("test3", 12, 456)
-    )
+    val right =
+      List[(String, Long, Double)](("test2", 123, 654), ("test2", 123, 761), ("test3", 12, 456))
 
     val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
       /** two inner join entries on RHS */
@@ -661,7 +658,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       cLib <- Resource.eval {
         IO.delay {
           CMakeBuilder.buildCLogging(
-            List(TransferDefinitionsSourceCode, "\n\n", CppResource("cpp/adv-join.hpp").readString)
+            List(TransferDefinitionsSourceCode, "\n\n", GenericJoiner.produce.cCode)
               .mkString("\n\n")
           )
         }
