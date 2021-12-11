@@ -21,6 +21,8 @@ object GenericJoiner {
     val o_a_words = "o_a_words"
     val o_b = "o_b"
     val o_c = "o_c"
+    val conj_x = "conj_x"
+    val conj_y = "conj_y"
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -91,14 +93,14 @@ object GenericJoiner {
           """std::vector<size_t> b1_out;""",
           """std::vector<size_t> b2_out;""",
           """frovedis::equi_join(b2, b2_idx, b1, b1_idx, b2_out, b1_out);""",
-          """std::vector<size_t> conj_x;""",
-          """std::vector<size_t> conj_y;""",
+          s"""std::vector<size_t> ${conj_x};""",
+          s"""std::vector<size_t> ${conj_y};""",
           CodeLines.forLoop(counterName = "i", until = "a1_out.size()")(
             CodeLines.forLoop(counterName = "j", until = "b1_out.size()")(
               CodeLines.ifStatement(condition = """a1_out[i] == b1_out[j]""")(
                 CodeLines.ifStatement(condition = """a2_out[i] == b2_out[j]""")(
                   CodeLines
-                    .from("""conj_x.push_back(a1_out[i]);""", """conj_y.push_back(a2_out[i]);""")
+                    .from(s"""${conj_x}.push_back(a1_out[i]);""", s"""${conj_y}.push_back(a2_out[i]);""")
                 )
               )
             )
@@ -106,24 +108,24 @@ object GenericJoiner {
           s"""frovedis::words ${o_a_words} = ${x_a_dict}.index_to_words(a2);""",
           s"""words_to_varchar_vector(${o_a_words}, ${o_a});""",
           GroupByOutline
-            .initializeScalarVector(VeScalarType.VeNullableInt, s"${o_b}", "conj_x.size()"),
-          CodeLines.forLoop(counterName = "i", until = "conj_x.size()")(
+            .initializeScalarVector(VeScalarType.VeNullableInt, s"${o_b}", s"${conj_x}.size()"),
+          CodeLines.forLoop(counterName = "i", until = s"${conj_x}.size()")(
             CodeLines
               .from(
-                s"""${o_b}->data[i] = ${x_c}->data[conj_x[i]];""",
-                s"""set_validity(${o_b}->validityBuffer, i, check_valid(${x_c}->validityBuffer, conj_x[i]));"""
+                s"""${o_b}->data[i] = ${x_c}->data[${conj_x}[i]];""",
+                s"""set_validity(${o_b}->validityBuffer, i, check_valid(${x_c}->validityBuffer, ${conj_x}[i]));"""
               )
           ),
           GroupByOutline.initializeScalarVector(
             veScalarType = VeScalarType.VeNullableDouble,
             variableName = s"${o_c}",
-            countExpression = "conj_y.size()"
+            countExpression = s"${conj_y}.size()"
           ),
-          CodeLines.forLoop(counterName = "i", until = "conj_y.size()")(
+          CodeLines.forLoop(counterName = "i", until = s"${conj_y}.size()")(
             CodeLines
               .from(
-                s"""${o_c}->data[i] = ${y_c}->data[conj_y[i]];""",
-                s"""set_validity(${o_c}->validityBuffer, i, check_valid(${y_c}->validityBuffer, conj_y[i]));"""
+                s"""${o_c}->data[i] = ${y_c}->data[${conj_y}[i]];""",
+                s"""set_validity(${o_c}->validityBuffer, i, check_valid(${y_c}->validityBuffer, ${conj_y}[i]));"""
               )
           ),
           """return 0;"""
