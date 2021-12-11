@@ -42,6 +42,6 @@ object VeRewriteStrategyOptions {
       projectOnVe = true,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = false
+      exchangeOnVe = true
     )
 }

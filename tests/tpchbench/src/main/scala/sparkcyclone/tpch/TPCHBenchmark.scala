@@ -38,24 +38,23 @@ case class Customer(
 )
 
 case class Lineitem(
-                     l_orderkey: Long,
-                     l_partkey: Long,
-                     l_suppkey: Long,
-                     l_linenumber: Long,
-                     l_quantity: Double,
-                     l_extendedprice: Double,
-                     l_discount: Double,
-                     l_tax: Double,
-                     l_returnflag: Long,
-                     l_linestatus: Long,
-                     l_shipdate: LocalDate,
-                     l_commitdate: LocalDate,
-                     l_receiptdate: LocalDate,
-                     l_shipinstruct: String,
-                     l_shipmode: String,
-                     l_comment: String
-                   )
-
+  l_orderkey: Long,
+  l_partkey: Long,
+  l_suppkey: Long,
+  l_linenumber: Long,
+  l_quantity: Double,
+  l_extendedprice: Double,
+  l_discount: Double,
+  l_tax: Double,
+  l_returnflag: Long,
+  l_linestatus: Long,
+  l_shipdate: LocalDate,
+  l_commitdate: LocalDate,
+  l_receiptdate: LocalDate,
+  l_shipinstruct: String,
+  l_shipmode: String,
+  l_comment: String
+)
 
 case class Nation(n_nationkey: Long, n_name: String, n_regionkey: Long, n_comment: String)
 
@@ -364,7 +363,11 @@ object TPCHBenchmark extends SparkSessionWrapper {
           s_name,
           p_partkey
     """
-    sparkSession.sql(sql).limit(100).collect()
+    val ds = sparkSession.sql(sql).limit(100)
+
+    println(ds.queryExecution.executedPlan)
+
+    ds.collect()
   }
 
   def query3(sparkSession: SparkSession): Array[_] = {

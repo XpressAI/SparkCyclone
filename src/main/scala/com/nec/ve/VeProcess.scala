@@ -19,6 +19,7 @@ trait VeProcess {
     get(containerLocation, bb, containerSize)
     bb
   }
+  def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long): Long
   def putBuffer(byteBuffer: ByteBuffer): Long
@@ -54,6 +55,8 @@ trait VeProcess {
 object VeProcess {
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess {
+    
+    override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
     override def allocate(size: Long): Long = f().allocate(size)
@@ -117,7 +120,7 @@ object VeProcess {
     override def free(memoryLocation: Long): Unit =
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
 
-    private def validateVectors(list: List[VeColVector]): Unit = {
+    def validateVectors(list: List[VeColVector]): Unit = {
       val processId = getProcessId()
       list.foreach(vector =>
         require(

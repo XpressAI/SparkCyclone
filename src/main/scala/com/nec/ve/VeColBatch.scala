@@ -85,7 +85,9 @@ object VeColBatch {
     }
   }
 
-  def fromArrowColumnarBatch(columnarBatch: ColumnarBatch)(implicit veProcess: VeProcess): VeColBatch = {
+  def fromArrowColumnarBatch(
+    columnarBatch: ColumnarBatch
+  )(implicit veProcess: VeProcess): VeColBatch = {
     VeColBatch(
       numRows = columnarBatch.numRows(),
       cols = (0 until columnarBatch.numCols()).map { colNo =>
@@ -176,7 +178,7 @@ object VeColBatch {
         bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map { case (bufferStart, bufferSize) =>
           ba.slice(bufferStart, bufferStart + bufferSize)
         }
-      ).newContainer()
+      ).newContainer().copy(veProcessId = veProcess.getProcessId())
 
     private def newContainer()(implicit veProcess: VeProcess): VeColVector = veType match {
       case VeScalarType.VeNullableDouble =>
