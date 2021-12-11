@@ -127,16 +127,15 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     expect(result == expected)
   }
 
-  "Exchange data across partitions on YARN" in withSparkSession2(
+  "Exchange data across partitions in cluster mode" in withSparkSession2(
     VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
-    implicit val veProc: VeProcess =
-      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
+    import SparkCycloneExecutorPlugin.{veProcess => veProc}
     val MultiFunctionName = "f_multi"
     val result =
       compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr(MultiFunctionName).cCode) {
         path =>
-          val ref = veProc.loadLibrary(path)
+          val pathStr = path.toString()
           doubleBatches {
             sparkSession.sparkContext
               .range(start = 1, end = 501, step = 1, numSlices = 4)
@@ -152,6 +151,8 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
                   })
                   .flatMap(vecv => {
                     try {
+                      val ref = veProc.loadLibrary(java.nio.file.Paths.get(pathStr))
+
                       veProc
                         .executeMulti(
                           ref,

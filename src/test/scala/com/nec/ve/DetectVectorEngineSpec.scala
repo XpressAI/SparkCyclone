@@ -97,13 +97,15 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
     }
   }
 
-  "We can execute in cluster-local mode" ignore withSparkSession2(VeClusterConfig) { sparkSession =>
+  "We can execute in cluster-local mode and it doesn't crash" in withSparkSession2(
+    VeClusterConfig.andThen(_.config("spark.com.nec.spark.exchange-on-ve", "false"))
+  ) { sparkSession =>
     import sparkSession.sqlContext.implicits._
     val nums = List[Double](1)
     nums
       .toDS()
       .createOrReplaceTempView("nums")
-    val q = sparkSession.sql("select sum(value) from nums").as[Double]
+    val q = sparkSession.sql("select value from nums").as[Double]
     val result = q.collect().toList
     assert(result == List(1))
   }
