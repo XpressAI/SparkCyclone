@@ -1,6 +1,8 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType
+import com.nec.spark.agile.groupby.GroupByOutline
 
 object GenericJoiner {
   def produce: CodeLines = CodeLines.from(
@@ -63,12 +65,12 @@ object GenericJoiner {
         """frovedis::equi_join(a2, a2_idx, a1, a1_idx, a2_out, a1_out);""",
         """std::vector<int64_t> b1(x_b->count);""",
         """std::vector<size_t> b1_idx(x_b->count);""",
-        CodeLines.forLoop("i", "x_b->count")(
+        CodeLines.forLoop(counterName = "i", until = "x_b->count")(
           CodeLines.from("""b1[i] = x_b->data[i];""", """b1_idx[i] = i;""")
         ),
         """std::vector<int64_t> b2(y_b->count);""",
         """std::vector<size_t> b2_idx(y_b->count);""",
-        CodeLines.forLoop("i", "y_b->count")(
+        CodeLines.forLoop(counterName = "i", until = "y_b->count")(
           CodeLines.from("""b2[i] = y_b->data[i];""", """b2_idx[i] = i;""")
         ),
         """std::vector<size_t> b1_out;""",
@@ -76,10 +78,10 @@ object GenericJoiner {
         """frovedis::equi_join(b2, b2_idx, b1, b1_idx, b2_out, b1_out);""",
         """std::vector<size_t> conj_x;""",
         """std::vector<size_t> conj_y;""",
-        CodeLines.forLoop("i", "a1_out.size()")(
-          CodeLines.forLoop("j", "b1_out.size()")(
-            CodeLines.ifStatement("""a1_out[i] == b1_out[j]""")(
-              CodeLines.ifStatement("""a2_out[i] == b2_out[j]""")(
+        CodeLines.forLoop(counterName = "i", until = "a1_out.size()")(
+          CodeLines.forLoop(counterName = "j", until = "b1_out.size()")(
+            CodeLines.ifStatement(condition = """a1_out[i] == b1_out[j]""")(
+              CodeLines.ifStatement(condition = """a2_out[i] == b2_out[j]""")(
                 CodeLines
                   .from("""conj_x.push_back(a1_out[i]);""", """conj_y.push_back(a2_out[i]);""")
               )
@@ -88,20 +90,20 @@ object GenericJoiner {
         ),
         """frovedis::words result = left_dict.index_to_words(a2);""",
         """words_to_varchar_vector(result, o_a);""",
-        """o_b->count = conj_x.size();""",
-        """o_b->data = (int32_t *)malloc(o_b->count * sizeof(int32_t));""",
-        """o_b->validityBuffer = (uint64_t *)malloc(ceil(o_b->count / 64.0) * sizeof(uint64_t));""",
-        CodeLines.forLoop("i", "conj_x.size()")(
+        GroupByOutline.initializeScalarVector(VeScalarType.VeNullableInt, "o_b", "conj_x.size()"),
+        CodeLines.forLoop(counterName = "i", until = "conj_x.size()")(
           CodeLines
             .from(
               """o_b->data[i] = x_c->data[conj_x[i]];""",
               """set_validity(o_b->validityBuffer, i, check_valid(x_c->validityBuffer, conj_x[i]));"""
             )
         ),
-        """o_c->count = conj_y.size();""",
-        """o_c->data = (double *)malloc(o_c->count * sizeof(double));""",
-        """o_c->validityBuffer = (uint64_t *)malloc(ceil(o_c->count / 64.0) * sizeof(uint64_t));""",
-        CodeLines.forLoop("i", "conj_y.size()")(
+        GroupByOutline.initializeScalarVector(
+          veScalarType = VeScalarType.VeNullableInt,
+          variableName = "o_c",
+          countExpression = "conj_y.size()"
+        ),
+        CodeLines.forLoop(counterName = "i", until = "conj_y.size()")(
           CodeLines
             .from(
               """o_c->data[i] = y_c->data[conj_y[i]];""",
