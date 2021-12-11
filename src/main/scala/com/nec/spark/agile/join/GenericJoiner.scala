@@ -78,7 +78,7 @@ object GenericJoiner {
         """std::vector<size_t> conj_y;""",
         CodeLines.forLoop("i", "a1_out.size()")(
           CodeLines.forLoop("j", "b1_out.size()")(
-            CodeLines.ifStatement("""a1_out[i] == b1_out[j)""")(
+            CodeLines.ifStatement("""a1_out[i] == b1_out[j]""")(
               CodeLines.ifStatement("""a2_out[i] == b2_out[j]""")(
                 CodeLines
                   .from("""conj_x.push_back(a1_out[i]);""", """conj_y.push_back(a2_out[i]);""")
