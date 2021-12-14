@@ -155,9 +155,14 @@ final case class VERewriteStrategy(
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
-
+          val nonIdentityProjections = projectList
+            .toList
+            .filter {
+              case AttributeReference(_, _, _, _) => false
+              case _ => true
+            }
           val planE = for {
-            outputs <- projectList.toList.zipWithIndex.map { case (att, idx) =>
+            outputs <- nonIdentityProjections.zipWithIndex.map { case (att, idx) =>
               val referenced = replaceReferences(InputPrefix, plan.inputSet.toList, att)
               if (referenced.dataType == StringType)
                 evalString(referenced).map(stringProducer =>
