@@ -133,10 +133,7 @@ object StringHole {
       }
       case object NotNullEvaluator extends SlowEvaluator {
         override def evaluate(refName: String): CExpression =
-          CExpression(
-            cCode = s"check_valid(${refName}->validityBuffer, i)",
-            isNotNullCode = None
-          )
+          CExpression(cCode = s"check_valid(${refName}->validityBuffer, i)", isNotNullCode = None)
       }
       final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
         override def evaluate(refName: String): CExpression = {

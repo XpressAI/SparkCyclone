@@ -31,9 +31,9 @@ object ArrowUtilsExposed {
   implicit class RichSmallIntVector(smallInt: SmallIntVector) {
     def toIntVector: IntVector = {
       val intVector = new IntVector(smallInt.getName, rootAllocator)
-      (0 until smallInt.getValueCount ).map {
-        case idx if(!smallInt.isNull(idx)) => intVector.set(idx, smallInt.get(idx))
-        case idx => intVector.setNull(idx)
+      (0 until smallInt.getValueCount).map {
+        case idx if (!smallInt.isNull(idx)) => intVector.set(idx, smallInt.get(idx))
+        case idx                            => intVector.setNull(idx)
       }
 
       intVector

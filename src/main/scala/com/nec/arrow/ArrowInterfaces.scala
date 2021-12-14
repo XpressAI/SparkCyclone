@@ -142,8 +142,7 @@ object ArrowInterfaces {
   def c_nullable_bigint_vector(tzVector: TimeStampMicroTZVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = tzVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer =
-      tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = tzVector.getValueCount
     vc
   }
@@ -325,7 +324,7 @@ object ArrowInterfaces {
     input: nullable_bigint_vector,
     timeStampVector: TimeStampMicroTZVector
   ): Unit = {
-    if ( input.count < 1 ) {
+    if (input.count < 1) {
       return
     }
     timeStampVector.setValueCount(input.count)

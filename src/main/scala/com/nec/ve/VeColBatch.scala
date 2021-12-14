@@ -1,14 +1,33 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowTransferStructures.{nullable_bigint_vector, nullable_double_vector, nullable_int_vector, nullable_varchar_vector}
-import com.nec.arrow.VeArrowTransfers.{nullableBigintVectorToByteBuffer, nullableDoubleVectorToByteBuffer, nullableIntVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
+import com.nec.arrow.ArrowTransferStructures.{
+  nullable_bigint_vector,
+  nullable_double_vector,
+  nullable_int_vector,
+  nullable_varchar_vector
+}
+import com.nec.arrow.VeArrowTransfers.{
+  nullableBigintVectorToByteBuffer,
+  nullableDoubleVectorToByteBuffer,
+  nullableIntVectorToByteBuffer,
+  nullableVarCharVectorVectorToByteBuffer
+}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, DateDayVector, FieldVector, Float8Vector, IntVector, SmallIntVector, ValueVector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  DateDayVector,
+  FieldVector,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  ValueVector,
+  VarCharVector
+}
 
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
@@ -324,13 +343,13 @@ object VeColBatch {
 
     def fromArrowVector(valueVector: ValueVector)(implicit veProcess: VeProcess): VeColVector =
       valueVector match {
-        case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
-        case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
-        case intVector: IntVector         => fromIntVector(intVector)
-        case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
-        case dateDayVector: DateDayVector => fromDateDayVector(dateDayVector)
+        case float8Vector: Float8Vector     => fromFloat8Vector(float8Vector)
+        case bigIntVector: BigIntVector     => fromBigIntVector(bigIntVector)
+        case intVector: IntVector           => fromIntVector(intVector)
+        case varCharVector: VarCharVector   => fromVarcharVector(varCharVector)
+        case dateDayVector: DateDayVector   => fromDateDayVector(dateDayVector)
         case smallIntVector: SmallIntVector => fromSmallIntVector(smallIntVector)
-        case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
+        case other                          => sys.error(s"Not supported to convert from ${other.getClass}")
       }
 
     def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
@@ -369,7 +388,9 @@ object VeColBatch {
       )
     }
 
-    def fromSmallIntVector(smallDirInt: SmallIntVector)(implicit veProcess: VeProcess): VeColVector = {
+    def fromSmallIntVector(
+      smallDirInt: SmallIntVector
+    )(implicit veProcess: VeProcess): VeColVector = {
       val intVector = smallDirInt.toIntVector
       val vcvr = new nullable_int_vector()
       vcvr.count = smallDirInt.getValueCount
@@ -409,8 +430,8 @@ object VeColBatch {
     }
 
     def fromDateDayVector(
-                           dateDayVector: DateDayVector
-                         )(implicit veProcess: VeProcess): VeColVector = {
+      dateDayVector: DateDayVector
+    )(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_int_vector()
       vcvr.count = dateDayVector.getValueCount
       vcvr.data = veProcess.putBuffer(dateDayVector.getDataBuffer.nioBuffer())

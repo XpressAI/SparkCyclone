@@ -7,7 +7,7 @@ final case class VeRewriteStrategyOptions(
   enableVeSorting: Boolean,
   projectOnVe: Boolean,
   filterOnVe: Boolean,
-  exchangeOnVe: Boolean,
+  exchangeOnVe: Boolean
 )
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
