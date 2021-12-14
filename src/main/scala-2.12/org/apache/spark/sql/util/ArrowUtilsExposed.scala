@@ -19,6 +19,7 @@
  */
 package org.apache.spark.sql.util
 import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.{IntVector, SmallIntVector}
 import org.apache.arrow.vector.types.pojo.Schema
 
 import org.apache.spark.sql.types.StructType
@@ -27,4 +28,15 @@ object ArrowUtilsExposed {
   def toArrowSchema(schema: StructType, timeZoneId: String): Schema =
     ArrowUtils.toArrowSchema(schema, timeZoneId)
 
+  implicit class RichSmallIntVector(smallInt: SmallIntVector) {
+    def toIntVector: IntVector = {
+      val intVector = new IntVector(smallInt.getName, rootAllocator)
+      (0 until smallInt.getValueCount ).map {
+        case idx if(!smallInt.isNull(idx)) => intVector.set(idx, smallInt.get(idx))
+        case idx => intVector.setNull(idx)
+      }
+
+      intVector
+    }
+  }
 }
