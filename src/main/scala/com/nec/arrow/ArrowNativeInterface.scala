@@ -238,7 +238,8 @@ object ArrowNativeInterface {
         case smallIntVector: SmallIntVector =>
           InputVectorWrapper.SmallIntVectorInputWrapper(smallIntVector)
         case bitVector: BitVector => InputVectorWrapper.BitVectorInputWrapper(bitVector)
-        case tsVector: TimeStampMicroTZVector => InputVectorWrapper.TimeStampVectorInputWrapper(tsVector)
+        case tsVector: TimeStampMicroTZVector =>
+          InputVectorWrapper.TimeStampVectorInputWrapper(tsVector)
       }
     def wrapOutput(valueVector: ValueVector): OutputVectorWrapper = {
       valueVector match {

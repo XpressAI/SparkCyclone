@@ -21,11 +21,11 @@ package com.nec.arrow
 
 import com.nec.arrow.ArrowInterfaces.{
   nullable_bigint_vector_to_BigIntVector,
+  nullable_bigint_vector_to_TimeStampVector,
   nullable_double_vector_to_float8Vector,
   nullable_int_vector_to_BitVector,
   nullable_int_vector_to_IntVector,
   nullable_int_vector_to_SmallIntVector,
-  nullable_bigint_vector_to_TimeStampVector,
   nullable_varchar_vector_to_VarCharVector
 }
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._

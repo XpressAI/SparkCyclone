@@ -24,14 +24,17 @@ import org.apache.arrow.vector.{
   FieldVector,
   Float8Vector,
   IntVector,
+  SmallIntVector,
   ValueVector,
   VarCharVector
 }
+
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
-
 import java.nio.ByteBuffer
+
+import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
@@ -346,12 +349,13 @@ object VeColBatch {
 
     def fromArrowVector(valueVector: ValueVector)(implicit veProcess: VeProcess): VeColVector =
       valueVector match {
-        case float8Vector: Float8Vector   => fromFloat8Vector(float8Vector)
-        case bigIntVector: BigIntVector   => fromBigIntVector(bigIntVector)
-        case intVector: IntVector         => fromIntVector(intVector)
-        case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
-        case dateDayVector: DateDayVector => fromDateDayVector(dateDayVector)
-        case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
+        case float8Vector: Float8Vector     => fromFloat8Vector(float8Vector)
+        case bigIntVector: BigIntVector     => fromBigIntVector(bigIntVector)
+        case intVector: IntVector           => fromIntVector(intVector)
+        case varCharVector: VarCharVector   => fromVarcharVector(varCharVector)
+        case dateDayVector: DateDayVector   => fromDateDayVector(dateDayVector)
+        case smallIntVector: SmallIntVector => fromSmallIntVector(smallIntVector)
+        case other                          => sys.error(s"Not supported to convert from ${other.getClass}")
       }
 
     def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
@@ -383,6 +387,47 @@ object VeColBatch {
         veProcessId = veProcess.getProcessId(),
         numItems = dirInt.getValueCount,
         name = dirInt.getName,
+        veType = VeScalarType.VeNullableInt,
+        containerLocation = containerLocation,
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
+      )
+    }
+
+    def fromSmallIntVector(
+      smallDirInt: SmallIntVector
+    )(implicit veProcess: VeProcess): VeColVector = {
+      val intVector = smallDirInt.toIntVector
+      val vcvr = new nullable_int_vector()
+      vcvr.count = smallDirInt.getValueCount
+      vcvr.data = veProcess.putBuffer(intVector.getDataBuffer.nioBuffer())
+      vcvr.validityBuffer = veProcess.putBuffer(intVector.getValidityBuffer.nioBuffer())
+      val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+      val containerLocation = veProcess.putBuffer(byteBuffer)
+      VeColVector(
+        veProcessId = veProcess.getProcessId(),
+        numItems = smallDirInt.getValueCount,
+        name = smallDirInt.getName,
+        veType = VeScalarType.VeNullableInt,
+        containerLocation = containerLocation,
+        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
+        variableSize = None
+      )
+    }
+
+    def fromDateDayVector(
+      dateDayVector: DateDayVector
+    )(implicit veProcess: VeProcess): VeColVector = {
+      val vcvr = new nullable_int_vector()
+      vcvr.count = dateDayVector.getValueCount
+      vcvr.data = veProcess.putBuffer(dateDayVector.getDataBuffer.nioBuffer())
+      vcvr.validityBuffer = veProcess.putBuffer(dateDayVector.getValidityBuffer.nioBuffer())
+      val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+      val containerLocation = veProcess.putBuffer(byteBuffer)
+      VeColVector(
+        veProcessId = veProcess.getProcessId(),
+        numItems = dateDayVector.getValueCount,
+        name = dateDayVector.getName,
         veType = VeScalarType.VeNullableInt,
         containerLocation = containerLocation,
         bufferLocations = List(vcvr.data, vcvr.validityBuffer),

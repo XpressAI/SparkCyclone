@@ -55,7 +55,7 @@ trait VeProcess {
 object VeProcess {
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess {
-    
+
     override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
