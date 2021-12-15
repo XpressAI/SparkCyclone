@@ -19,16 +19,11 @@
  */
 package com.nec.spark
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.Float8VectorInputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.IntVectorInputWrapper
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.VarCharVectorInputWrapper
-import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.arrow.vector.Float8Vector
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{Float8VectorInputWrapper, IntVectorInputWrapper, VarCharVectorInputWrapper}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.VarCharVector
 import org.apache.arrow.vector.types.pojo.Schema
+import org.apache.arrow.vector.{Float8Vector, IntVector, VarCharVector, VectorSchemaRoot}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarBatchToArrow extends LazyLogging {
@@ -88,7 +83,7 @@ object ColumnarBatchToArrow extends LazyLogging {
               if (theCol.isNullAt(rowId)) {
                 vcv.setNull(putRowId)
               } else {
-                vcv.setSafe(putRowId, theCol.getUTF8String(rowId).getBytes)
+                vcv.setSafe(putRowId, theCol.getUTF8String(rowId).toString.getBytes("UTF-32LE"))
               }
               rowId = rowId + 1
               putRowId = putRowId + 1

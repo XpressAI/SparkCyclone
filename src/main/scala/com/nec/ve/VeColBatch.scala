@@ -1,32 +1,15 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowTransferStructures.{
-  nullable_bigint_vector,
-  nullable_double_vector,
-  nullable_int_vector,
-  nullable_varchar_vector
-}
-import com.nec.arrow.VeArrowTransfers.{
-  nullableBigintVectorToByteBuffer,
-  nullableDoubleVectorToByteBuffer,
-  nullableIntVectorToByteBuffer,
-  nullableVarCharVectorVectorToByteBuffer
-}
+import com.nec.arrow.ArrowInterfaces
+import com.nec.arrow.ArrowTransferStructures.{nullable_bigint_vector, nullable_double_vector, nullable_int_vector, nullable_varchar_vector}
+import com.nec.arrow.VeArrowTransfers.{nullableBigintVectorToByteBuffer, nullableDoubleVectorToByteBuffer, nullableIntVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{
-  BigIntVector,
-  DateDayVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  ValueVector,
-  VarCharVector
-}
+import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
@@ -427,10 +410,16 @@ object VeColBatch {
     )(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_varchar_vector()
       vcvr.count = varcharVector.getValueCount
-      vcvr.data = veProcess.putBuffer(varcharVector.getDataBuffer.nioBuffer())
+      val data = ArrowInterfaces.intCharsFromVarcharVector(varcharVector)
+      vcvr.data = veProcess.putBuffer(data)
       vcvr.validityBuffer = veProcess.putBuffer(varcharVector.getValidityBuffer.nioBuffer())
-      vcvr.offsets = veProcess.putBuffer(varcharVector.getOffsetBuffer.nioBuffer())
+      val offsets = ArrowInterfaces.startsFromVarcharVector(varcharVector)
+      vcvr.offsets = veProcess.putBuffer(offsets)
       vcvr.dataSize = varcharVector.sizeOfValueBuffer()
+
+      val lengths = ArrowInterfaces.lengthsFromVarcharVector(varcharVector)
+      vcvr.lengths = veProcess.putBuffer(lengths)
+
       val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(

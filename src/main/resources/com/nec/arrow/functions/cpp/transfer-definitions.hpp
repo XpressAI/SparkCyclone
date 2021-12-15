@@ -75,26 +75,22 @@ typedef struct
 
 typedef struct
 {
-    char *data;
+    int32_t *data;
     int32_t *offsets;
     int32_t dataSize;
     int32_t count;
+    int32_t *lengths;
 } non_null_varchar_vector;
 
 typedef struct
 {
-    char *data;
+    int32_t *data;
     int32_t *offsets;
     uint64_t *validityBuffer;
     int32_t dataSize;
     int32_t count;
+    int32_t *lengths;
 } nullable_varchar_vector;
-
-typedef struct
-{
-    char *data;
-    int32_t length;
-} non_null_c_bounded_string;
 
 static std::string utcnanotime() {
     auto now = std::chrono::system_clock::now();
@@ -130,13 +126,33 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
 }
 
 frovedis::words data_offsets_to_words(
-    const char *data,
+    const int32_t *data,
     const int32_t *offsets,
+    const int32_t *lengths,
     /** size of all the data **/
     const int32_t size,
     /** count of the words **/
     const int32_t count
     ) {
+    #ifdef DEBUG
+        std::cout << "data: '";
+        for (int i = 0; i < size; i++) {
+            std::cout << (char)data[i];
+        }
+        std::cout << "'" << std::endl;
+
+        std::cout << "offsets: ";
+        for (int i = 0; i < count; i++) {
+            std::cout << offsets[i] << ", ";
+        }
+
+        std::cout << "lengths: ";
+        for (int i = 0; i < count; i++) {
+            std::cout << lengths[i] << ", ";
+        }
+        std::cout << std::endl;
+    #endif
+
     frovedis::words ret;
     if (count == 0) {
         return ret;
@@ -148,31 +164,24 @@ frovedis::words data_offsets_to_words(
 
     ret.lens.resize(count);
     for (int i = 0; i < count; i++) {
-        ret.lens[i] = offsets[i + 1] - offsets[i];
+        ret.lens[i] = lengths[i];
     }
-
     ret.starts.resize(count);
     for (int i = 0; i < count; i++) {
         ret.starts[i] = offsets[i];
     }
 
-    #ifdef DEBUG
-        std::cout << "size: " << size << std::endl;
-        std::cout << "last offset: " << offsets[count] << std::endl;
-    #endif
-
-    ret.chars.resize(offsets[count]);
-    frovedis::char_to_int(data, offsets[count], ret.chars.data());
+    ret.chars.assign(data, data + size);
 
     return ret;
 }
 
 frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v) {
-    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
+    return data_offsets_to_words(v->data, v->offsets, v->lengths, v->dataSize, v->count);
 }
 
 frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
-    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
+    return data_offsets_to_words(v->data, v->offsets, v->lengths, v->dataSize, v->count);
 }
 
 void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
@@ -186,54 +195,44 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     std::cout << "out->count = " << out->count << std::endl;
     #endif
 
-    int32_t totalChars = 0;
-    for (size_t i = 0; i < in.lens.size(); i++) {
-        totalChars += in.lens[i];
-    }
-    out->dataSize = totalChars;
+    out->dataSize = in.chars.size();
 
     #ifdef DEBUG
     std::cout << "out->dataSize = " << out->dataSize << std::endl;
     #endif
 
-    out->data = (char *)malloc(totalChars * sizeof(char));
+    out->data = (int32_t *)malloc(in.chars.size() * sizeof(int32_t));
     if (out->data == NULL) {
-        std::cout << "Failed to malloc " << out->dataSize << " * sizeof(char)." << std::endl;
+        std::cout << "Failed to malloc " << out->dataSize << " * sizeof(int32_t)." << std::endl;
         return;
     }
-    std::vector<size_t> lastChars(in.lens.size() + 1);
-    size_t sum = 0;
+    std::copy(in.chars.begin(), in.chars.end(), out->data);
+
+    out->offsets = (int32_t *)malloc((in.starts.size()) * sizeof(int32_t));
+    for (int i = 0; i < in.starts.size(); i++) {
+        out->offsets[i] = in.starts[i];
+    }
+
+    out->lengths = (int32_t *)malloc(in.lens.size() * sizeof(int32_t));
     for (int i = 0; i < in.lens.size(); i++) {
-        lastChars[i] = sum;
-        sum += in.lens[i];
+        out->lengths[i] = in.lens[i];
     }
-
-    for (int i = 0; i < out->count; i++) {
-        size_t lastChar = lastChars[i];
-        size_t wordStart = in.starts[i];
-        size_t wordEnd = wordStart + in.lens[i];
-        for (int j = wordStart; j < wordEnd; j++) {
-            out->data[lastChar++] = (char)in.chars[j];
-        }
-    }
-
-    out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
-    out->offsets[0] = 0;
-    for (int i = 1; i < in.starts.size() + 1; i++) {
-        out->offsets[i] = lastChars[i];
-    }
-    out->offsets[in.starts.size()] = totalChars;
 
     #ifdef DEBUG
         std::cout << "data: '";
-        for (int i = 0; i < totalChars; i++) {
-            std::cout << out->data[i];
+        for (int i = 0; i < out->dataSize; i++) {
+            std::cout << (char)out->data[i];
         }
         std::cout << "'" << std::endl;
 
         std::cout << "offsets: ";
-        for (int i = 0; i < out->count + 1; i++) {
+        for (int i = 0; i < out->count; i++) {
             std::cout << out->offsets[i] << ", ";
+        }
+
+        std::cout << "lengths: ";
+        for (int i = 0; i < out->count; i++) {
+            std::cout << out->lengths[i] << ", ";
         }
         std::cout << std::endl;
     #endif

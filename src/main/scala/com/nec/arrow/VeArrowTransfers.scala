@@ -19,41 +19,20 @@
  */
 package com.nec.arrow
 
-import com.nec.arrow.ArrowInterfaces.{
-  nullable_bigint_vector_to_BigIntVector,
-  nullable_double_vector_to_float8Vector,
-  nullable_int_vector_to_BitVector,
-  nullable_int_vector_to_IntVector,
-  nullable_int_vector_to_SmallIntVector,
-  nullable_bigint_vector_to_TimeStampVector,
-  nullable_varchar_vector_to_VarCharVector
-}
+import com.nec.arrow.ArrowInterfaces._
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
-  VectorInputNativeArgument,
-  VectorOutputNativeArgument
-}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{
-  BigIntVectorOutputWrapper,
-  BitVectorOutputWrapper,
-  Float8VectorOutputWrapper,
-  IntVectorOutputWrapper,
-  SmallIntVectorOutputWrapper,
-  TimeStampVectorOutputWrapper,
-  VarCharVectorOutputWrapper
-}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper._
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.{VectorInputNativeArgument, VectorOutputNativeArgument}
 import com.nec.arrow.ArrowTransferStructures._
-import com.nec.arrow.VeArrowNativeInterface.{copyBufferToVe, requireOk, requirePositive, Cleanup}
+import com.nec.arrow.VeArrowNativeInterface.{Cleanup, copyBufferToVe, requireOk, requirePositive}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector._
+import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.{veo_args, veo_proc_handle}
 import sun.nio.ch.DirectBuffer
 
 import java.nio.{ByteBuffer, ByteOrder}
-import scala.collection.mutable
-import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.veo_args
-import org.bytedeco.veoffload.veo_proc_handle
 
 object VeArrowTransfers extends LazyLogging {
 
@@ -259,7 +238,7 @@ object VeArrowTransfers extends LazyLogging {
     val vc = new non_null_c_bounded_string()
     val theBuf = ByteBuffer
       .allocateDirect(string.length)
-      .put(string.getBytes())
+      .put(string.getBytes("UTF-32LE"))
     theBuf.position(0)
     vc.length = string.length
     vc.data = copyBufferToVe(proc, theBuf)
@@ -369,6 +348,12 @@ object VeArrowTransfers extends LazyLogging {
 
     logger.debug(s"Copying Buffer to VE for $keyName")
 
+    val lengths = ByteBuffer.allocateDirect(varcharVector.getValueCount * 4).asIntBuffer()
+    for (i <- 0 until varcharVector.getValueCount) {
+      val len = varcharVector.get(i).length
+      lengths.put(len)
+    }
+
     val vcvr = new nullable_varchar_vector()
     vcvr.count = varcharVector.getValueCount
     vcvr.dataSize = varcharVector.getDataBuffer.capacity().toInt
@@ -381,6 +366,11 @@ object VeArrowTransfers extends LazyLogging {
       proc,
       varcharVector.getOffsetBuffer.nioBuffer(),
       len = Some(varcharVector.getOffsetBuffer.capacity())
+    )(cleanup)
+    vcvr.lengths = copyBufferToVe(
+      proc,
+      lengths.asInstanceOf[ByteBuffer].order(ByteOrder.LITTLE_ENDIAN),
+      len = Some(lengths.capacity())
     )(cleanup)
     vcvr
   }
@@ -684,6 +674,7 @@ object VeArrowTransfers extends LazyLogging {
     v_bb.order(ByteOrder.LITTLE_ENDIAN)
     v_bb.putInt(24, varchar_vector.dataSize)
     v_bb.putInt(28, varchar_vector.count)
+    v_bb.putLong(32, varchar_vector.lengths)
     v_bb
   }
 }
