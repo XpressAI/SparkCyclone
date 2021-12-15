@@ -6,7 +6,8 @@ final case class VeRewriteStrategyOptions(
   aggregateOnVe: Boolean,
   enableVeSorting: Boolean,
   projectOnVe: Boolean,
-  filterOnVe: Boolean
+  filterOnVe: Boolean,
+  exchangeOnVe: Boolean,
 )
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
@@ -27,15 +28,20 @@ object VeRewriteStrategyOptions {
       filterOnVe = sparkConf
         .getOption(key = "spark.com.nec.spark.filter-on-ve")
         .map(_.toBoolean)
-        .getOrElse(default.filterOnVe)
+        .getOrElse(default.filterOnVe),
+      exchangeOnVe = sparkConf
+        .getOption(key = "spark.com.nec.spark.exchange-on-ve")
+        .map(_.toBoolean)
+        .getOrElse(default.exchangeOnVe)
     )
   }
 
   val default: VeRewriteStrategyOptions =
     VeRewriteStrategyOptions(
       enableVeSorting = false,
-      projectOnVe = false,
-      filterOnVe = false,
-      aggregateOnVe = true
+      projectOnVe = true,
+      filterOnVe = true,
+      aggregateOnVe = true,
+      exchangeOnVe = true
     )
 }

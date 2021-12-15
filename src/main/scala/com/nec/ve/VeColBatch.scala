@@ -104,6 +104,7 @@ object VeColBatch {
   }
 
   final case class VeColVector(
+    veProcessId: Long,
     numItems: Int,
     name: String,
     variableSize: Option[Int],
@@ -183,7 +184,7 @@ object VeColBatch {
         bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map { case (bufferStart, bufferSize) =>
           ba.slice(bufferStart, bufferStart + bufferSize)
         }
-      ).newContainer()
+      ).newContainer().copy(veProcessId = veProcess.getProcessId())
 
     private def newContainer()(implicit veProcess: VeProcess): VeColVector = veType match {
       case VeScalarType.VeNullableDouble =>
@@ -361,6 +362,7 @@ object VeColBatch {
       val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
+        veProcessId = veProcess.getProcessId,
         numItems = bigIntVector.getValueCount,
         name = bigIntVector.getName,
         veType = VeScalarType.VeNullableLong,
@@ -378,6 +380,7 @@ object VeColBatch {
       val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
+        veProcessId = veProcess.getProcessId(),
         numItems = dirInt.getValueCount,
         name = dirInt.getName,
         veType = VeScalarType.VeNullableInt,
@@ -397,6 +400,7 @@ object VeColBatch {
       val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
+        veProcessId = veProcess.getProcessId(),
         numItems = dateDayVector.getValueCount,
         name = dateDayVector.getName,
         veType = VeScalarType.VeNullableInt,
@@ -414,6 +418,7 @@ object VeColBatch {
       val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
+        veProcessId = veProcess.getProcessId(),
         numItems = float8Vector.getValueCount,
         name = float8Vector.getName,
         veType = VeScalarType.VeNullableDouble,
@@ -435,6 +440,7 @@ object VeColBatch {
       val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
+        veProcessId = veProcess.getProcessId(),
         numItems = varcharVector.getValueCount,
         name = varcharVector.getName,
         veType = VeString,

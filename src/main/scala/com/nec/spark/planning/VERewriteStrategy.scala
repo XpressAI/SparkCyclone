@@ -393,9 +393,8 @@ final case class VERewriteStrategy(
               )
           } yield {
 
-            val useVeExchange = true
             val exchangePlan =
-              if (useVeExchange)
+              if (options.exchangeOnVe)
                 VeHashExchange(
                   exchangeFunction = VeFunction(
                     libraryPath = libPath.toString,

@@ -23,13 +23,12 @@ object VeRDD extends Logging {
         preservesPartitioning = true
       )
 
-  def exchangeL(
-    rdd: RDD[(Int, List[VeColVector])]
-  )(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
+  def exchangeL(rdd: RDD[(Int, List[VeColVector])]): RDD[List[VeColVector]] =
     rdd
       .mapPartitions(
         f = iter =>
           iter.map { case (p, v) =>
+            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 //            logInfo(s"Preparing to serialize batch ${v}")
             val r = (p, (v, v.map(_.serialize())))
 //            logInfo(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
@@ -43,6 +42,7 @@ object VeRDD extends Logging {
           iter.map { case (_, (v, ba)) =>
             v.zip(ba).map { case (vv, bb) =>
 //              logInfo(s"Preparing to deserialize batch ${vv}")
+              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               val res = vv.deserialize(bb)
 //              logInfo(s"Completed deserializing batch ${vv} --> ${res}")
               res
@@ -64,9 +64,9 @@ object VeRDD extends Logging {
       new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
-    def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[List[VeColVector]] = exchangeL(rdd)
+    def exchangeBetweenVEs(): RDD[List[VeColVector]] = exchangeL(rdd)
     // for single-machine case!
-    def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
-      exchangeLS(rdd)
+    // def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
+    // exchangeLS(rdd)
   }
 }

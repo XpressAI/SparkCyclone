@@ -19,6 +19,8 @@
  */
 package sparkcyclone.tpch
 
+import java.time.LocalDate
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.Dataset
@@ -46,9 +48,9 @@ case class Lineitem(
   l_tax: Double,
   l_returnflag: Long,
   l_linestatus: Long,
-  l_shipdate: String,
-  l_commitdate: String,
-  l_receiptdate: String,
+  l_shipdate: LocalDate,
+  l_commitdate: LocalDate,
+  l_receiptdate: LocalDate,
   l_shipinstruct: String,
   l_shipmode: String,
   l_comment: String
@@ -128,22 +130,22 @@ object TPCHBenchmark extends SparkSessionWrapper {
         .map(_.split('|'))
         .map(p =>
           Lineitem(
-            p(0).trim.toLong,
-            p(1).trim.toLong,
-            p(2).trim.toLong,
-            p(3).trim.toLong,
-            p(4).trim.toDouble,
-            p(5).trim.toDouble,
-            p(6).trim.toDouble,
-            p(7).trim.toDouble,
-            p(8).trim.toCharArray()(0).toLong,
-            p(9).trim.toCharArray()(0).toLong,
-            p(10).trim,
-            p(11).trim,
-            p(12).trim,
-            p(13).trim,
-            p(14).trim,
-            p(15).trim
+            l_orderkey = p(0).trim.toLong,
+            l_partkey = p(1).trim.toLong,
+            l_suppkey = p(2).trim.toLong,
+            l_linenumber = p(3).trim.toLong,
+            l_quantity = p(4).trim.toDouble,
+            l_extendedprice = p(5).trim.toDouble,
+            l_discount = p(6).trim.toDouble,
+            l_tax = p(7).trim.toDouble,
+            l_returnflag = p(8).trim.toCharArray.apply(0),
+            l_linestatus = p(9).trim.toCharArray.apply(0),
+            l_shipdate = LocalDate.parse(p(10).trim),
+            l_commitdate = LocalDate.parse(p(11).trim),
+            l_receiptdate = LocalDate.parse(p(12).trim),
+            l_shipinstruct = p(13).trim,
+            l_shipmode = p(14).trim,
+            l_comment = p(15).trim
           )
         )
         .toDF(),
@@ -361,7 +363,11 @@ object TPCHBenchmark extends SparkSessionWrapper {
           s_name,
           p_partkey
     """
-    sparkSession.sql(sql).limit(100).collect()
+    val ds = sparkSession.sql(sql).limit(100)
+
+    println(ds.queryExecution.executedPlan)
+
+    ds.collect()
   }
 
   def query3(sparkSession: SparkSession): Array[_] = {
