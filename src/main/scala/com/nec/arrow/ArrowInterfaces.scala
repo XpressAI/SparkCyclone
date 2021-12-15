@@ -342,22 +342,17 @@ object ArrowInterfaces {
       Math.ceil(input.count / 64.0).toInt * 8
     )
 
-    var lastOffset = 0
     val dataBuf = ByteBuffer.allocateDirect(input.dataSize * 4).order(ByteOrder.LITTLE_ENDIAN)
     getUnsafe.copyMemory(input.data, dataBuf.asInstanceOf[DirectBuffer].address(), input.dataSize * 4)
 
     val dataBufArray = ByteBuffer.wrap(new Array[Byte](dataBuf.capacity())).order(ByteOrder.LITTLE_ENDIAN)
     dataBufArray.put(dataBuf)
 
-    val outData = varCharVector.getDataBuffer.nioBuffer()
-    val outOffsets = varCharVector.getOffsetBuffer.nioBuffer().asIntBuffer()
-    outOffsets.put(0)
-
     for (i <- 0 until input.count) {
       val start = getUnsafe.getInt(input.offsets + (i * 4)) * 4
       val length = getUnsafe.getInt(input.lengths + (i * 4)) * 4
-      val str2 = new String(dataBufArray.array(), start, length, "UTF-32LE")
-      val utf8bytes = str2.getBytes
+      val str = new String(dataBufArray.array(), start, length, "UTF-32LE")
+      val utf8bytes = str.getBytes
 
       varCharVector.set(i, utf8bytes)
     }
