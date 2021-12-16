@@ -80,6 +80,16 @@ final case class OneStageEvaluationPlan(
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
+  private val isProject = veFunction.functionName.startsWith("project")
+
+  private val copiedRefs = outputExpressions.filter(_.isInstanceOf[AttributeReference])
+  private val idsToCopy = child
+    .outputSet
+    .toList
+    .zipWithIndex
+    .collect {
+      case (ref, idx) if(copiedRefs.find(find => ref.name == find.name).isDefined) => idx
+    }
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def executeVeColumnar(): RDD[VeColBatch] = {

@@ -193,7 +193,7 @@ final case class VERewriteStrategy(
             )
             List(
               VectorEngineToSparkPlan(
-                OneStageEvaluationPlan(
+                ProjectEvaluationPlan(
                   outputExpressions = projectList,
                   veFunction = VeFunction(
                     veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
