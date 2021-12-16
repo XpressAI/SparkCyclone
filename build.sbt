@@ -104,7 +104,7 @@ val sparkVersion = SettingKey[String]("sparkVersion")
 
 ThisBuild / sparkVersion := {
   val scalaV = scalaVersion.value
-  if (scalaV.startsWith("2.12")) "3.1.1" else "2.3.2"
+  if (scalaV.startsWith("2.12")) "3.1.2" else "2.3.2"
 }
 
 val silencerVersion = "1.6.0"
