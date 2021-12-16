@@ -270,8 +270,12 @@ object TPCHBenchmark extends SparkSessionWrapper {
     }
 
     queries.foreach { case (query, i) =>
-      if (!toSkip.contains(i)) {
+      try {
         benchmark(i, query)
+      } catch {
+        case e: Exception =>
+          println(s"Error executing query $i")
+          e.printStackTrace()
       }
     }
   }
