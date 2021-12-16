@@ -19,11 +19,9 @@
  */
 package sparkcyclone.tpch
 
-import java.time.LocalDate
-
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.Dataset
+
+import java.time.LocalDate
 
 // TPC-H table schemas
 case class Customer(
@@ -271,7 +269,13 @@ object TPCHBenchmark extends SparkSessionWrapper {
 
     queries.foreach { case (query, i) =>
       if (!toSkip.contains(i)) {
-        benchmark(i, query)
+        try {
+          benchmark(i, query)
+        } catch {
+          case e: Exception =>
+            println(s"Error executing query $i")
+            e.printStackTrace()
+        }
       }
     }
   }
