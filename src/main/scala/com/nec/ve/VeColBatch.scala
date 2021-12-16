@@ -435,26 +435,6 @@ object VeColBatch {
       )
     }
 
-    def fromDateDayVector(
-      dateDayVector: DateDayVector
-    )(implicit veProcess: VeProcess): VeColVector = {
-      val vcvr = new nullable_int_vector()
-      vcvr.count = dateDayVector.getValueCount
-      vcvr.data = veProcess.putBuffer(dateDayVector.getDataBuffer.nioBuffer())
-      vcvr.validityBuffer = veProcess.putBuffer(dateDayVector.getValidityBuffer.nioBuffer())
-      val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
-      val containerLocation = veProcess.putBuffer(byteBuffer)
-      VeColVector(
-        veProcessId = veProcess.getProcessId(),
-        numItems = dateDayVector.getValueCount,
-        name = dateDayVector.getName,
-        veType = VeScalarType.VeNullableInt,
-        containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.validityBuffer),
-        variableSize = None
-      )
-    }
-
     def fromFloat8Vector(float8Vector: Float8Vector)(implicit veProcess: VeProcess): VeColVector = {
       val vcvr = new nullable_double_vector()
       vcvr.count = float8Vector.getValueCount
