@@ -25,6 +25,7 @@ import scala.language.dynamics
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
@@ -49,12 +50,10 @@ final case class ProjectEvaluationPlan(
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
   private val copiedRefs = outputExpressions.filter(_.isInstanceOf[AttributeReference])
-  private[planning] val idsToCopy = child
-    .outputSet
-    .toList
-    .zipWithIndex
+  private[planning] val idsToCopy = copiedRefs
+    .map(ref => child.outputSet.toList.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
     .collect {
-      case (ref, idx) if(copiedRefs.find(find => ref.exprId == find.exprId).isDefined) => idx
+      case Some((ref, id )) => id
     }
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
@@ -67,12 +66,14 @@ final case class ProjectEvaluationPlan(
         veColBatches.map { veColBatch =>
           import SparkCycloneExecutorPlugin.veProcess
           try {
-            val cols = veProcess.execute(
-              libraryReference = libRef,
-              functionName = veFunction.functionName,
-              cols = veColBatch.cols,
-              results = veFunction.results
-            )
+            val cols = if(copiedRefs.size != outputExpressions.size) {
+              veProcess.execute(
+                libraryReference = libRef,
+                functionName = veFunction.functionName,
+                cols = veColBatch.cols,
+                results = veFunction.results
+              )
+            } else List.empty
            val outBatch = createOutputBatch(cols, veColBatch)
 
             if (veColBatch.numRows < outBatch.numRows)
@@ -83,10 +84,12 @@ final case class ProjectEvaluationPlan(
       }
 
   def createOutputBatch(calculatedColumns: Seq[VeColVector], originalBatch: VeColBatch): VeColBatch = {
+
     val outputColumns = outputExpressions
       .foldLeft((0, 0, Seq.empty[VeColVector])) {
         case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _)) if(child.outputSet.contains(a)) =>
           (calculatedIdx, copiedIdx + 1, seq :+ originalBatch.cols(idsToCopy(copiedIdx)))
+
         case ((calculatedIdx, copiedIdx, seq), _) =>
           (calculatedIdx + 1, copiedIdx, seq :+ calculatedColumns(calculatedIdx))
       }._3.toList
