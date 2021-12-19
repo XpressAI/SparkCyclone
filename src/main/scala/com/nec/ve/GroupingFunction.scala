@@ -4,9 +4,9 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeType}
-import com.nec.spark.agile.{CFunction2, CFunctionGeneration, StringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
+import com.nec.spark.agile.{CFunction2, CFunctionGeneration, StringProducer}
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 
 object GroupingFunction {
@@ -121,7 +121,7 @@ object GroupingFunction {
                       val fp =
                         StringProducer.FilteringProducer(
                           outName,
-                          StringProducer.ImpCopyStringProducer(s"${input.name}[0]")
+                          StringProducer.FrovedisCopyStringProducer(s"${input.name}[0]")
                         )
                       CodeLines
                         .from(

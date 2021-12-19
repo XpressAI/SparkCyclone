@@ -667,7 +667,7 @@ object VeArrowTransfers extends LazyLogging {
   def nullableVarCharVectorVectorToByteBuffer(
     varchar_vector: nullable_varchar_vector
   ): ByteBuffer = {
-    val v_bb = varchar_vector.getPointer.getByteBuffer(0, 32)
+    val v_bb = varchar_vector.getPointer.getByteBuffer(0, (8 * 4) + (4 * 2))
     v_bb.putLong(0, varchar_vector.data)
     v_bb.putLong(8, varchar_vector.offsets)
     v_bb.putLong(16, varchar_vector.validityBuffer)
