@@ -75,12 +75,14 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   it should "correctly create output batch ids if non continous set of columnsIs copied" in {
     val childOutputs: Seq[NamedExpression] = SampleInputSeq
 
-    val firstColVector = VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty)
-    val secondColVector = VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty)
-    val thirdColVector = VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty)
-    val fourthColVector = VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
-    val fifthColVector = VeColVector(0, 1000, "fifthCol", None, VeNullableInt, 5L, List.empty)
-    val sixthColColVector = VeColVector(0, 1000, "sixthCol", None, VeNullableInt, 6L, List.empty)
+    val numRows = 1000
+
+    val firstColVector = VeColVector(0, numRows, "firstCol", None, VeNullableInt, 0L, List.empty)
+    val secondColVector = VeColVector(0, numRows, "secondCol", None, VeNullableInt, 1L, List.empty)
+    val thirdColVector = VeColVector(0, numRows, "thirdCol", None, VeNullableInt, 2L, List.empty)
+    val fourthColVector = VeColVector(0, numRows, "fourthCol", None, VeNullableInt, 3L, List.empty)
+    val fifthColVector = VeColVector(0, numRows, "fifthCol", None, VeNullableInt, 5L, List.empty)
+    val sixthColColVector = VeColVector(0, numRows, "sixthCol", None, VeNullableInt, 6L, List.empty)
     val veInputBatch = VeColBatch.fromList(
       List(
         firstColVector,
@@ -92,9 +94,9 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       )
     )
 
-    val someColVector = VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty)
-    val otherColVector = VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty)
-    val anotherCol = VeColVector(0, 1, "anotherCol", None, VeNullableInt, 11L, List.empty)
+    val someColVector = VeColVector(0, numRows, "someCol", None, VeNullableInt, 9L, List.empty)
+    val otherColVector = VeColVector(0, numRows, "otherCol", None, VeNullableInt, 10L, List.empty)
+    val anotherCol = VeColVector(0, numRows, "anotherCol", None, VeNullableInt, 11L, List.empty)
     val otherColumns = List(someColVector, otherColVector, anotherCol)
 
     val outputBatch =

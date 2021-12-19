@@ -124,6 +124,11 @@ object ProjectEvaluationPlan {
         ._3
         .toList
 
+      require(
+        outputColumns.forall(_.numItems == originalBatch.numRows),
+        s"Expected all output columns to have size ${originalBatch.numRows}, but got: ${outputColumns}"
+      )
+
       VeColBatch.fromList(outputColumns)
     }
   }
