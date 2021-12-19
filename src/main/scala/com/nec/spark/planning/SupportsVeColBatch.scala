@@ -17,7 +17,7 @@ object SupportsVeColBatch {
     }
     case object Cleanup extends DataCleanup {
       override def cleanup(veColBatch: VeColBatch)(implicit veProcess: VeProcess): Unit =
-        veColBatch.cols.foreach(_.free())
+        veColBatch.cols.filter(_.veProcessId == veProcess.getProcessId()).foreach(_.free())
     }
   }
 }
