@@ -20,7 +20,13 @@
 package com.nec.spark
 
 import com.nec.spark.LocalVeoExtension.compilerRule
-import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
+import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
+import com.nec.spark.planning.{
+  PlanCallsVeFunction,
+  VERewriteStrategy,
+  VeColumnarRule,
+  VeRewriteStrategyOptions
+}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
@@ -31,7 +37,10 @@ object LocalVeoExtension {
 
   def compilerRule(sparkSession: SparkSession): ColumnarRule = new ColumnarRule {
     override def preColumnarTransitions: Rule[SparkPlan] = { plan =>
-      println(s"Received: ${plan}")
+      val uncompiledOnes = plan.collect { case UncompiledPlan(plan) =>
+        plan
+      }
+      println(s"Uncompiled plans extracted: (${uncompiledOnes.size})")
       plan
     }
   }

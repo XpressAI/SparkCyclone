@@ -51,6 +51,10 @@ object OneStageEvaluationPlan {
     functionName: String,
     results: List[VeType]
   ) {
+    def isCompiled: Boolean = veFunctionStatus match {
+      case VeFunctionStatus.SourceCode(sourceCode) => false
+      case VeFunctionStatus.Compiled(libraryPath)  => true
+    }
     def libraryPath: String = veFunctionStatus match {
       case VeFunctionStatus.SourceCode(path) =>
         sys.error(
@@ -68,7 +72,8 @@ final case class OneStageEvaluationPlan(
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
-  with SupportsVeColBatch {
+  with SupportsVeColBatch
+  with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
@@ -81,22 +86,26 @@ final case class OneStageEvaluationPlan(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
-        veColBatches.map { veColBatch =>
-          import SparkCycloneExecutorPlugin.veProcess
-          try {
-            val cols = veProcess.execute(
-              libraryReference = libRef,
-              functionName = veFunction.functionName,
-              cols = veColBatch.cols,
-              results = veFunction.results
-            )
+        withVeLibrary { libRef =>
+          veColBatches.map { veColBatch =>
+            import SparkCycloneExecutorPlugin.veProcess
+            try {
+              val cols = veProcess.execute(
+                libraryReference = libRef,
+                functionName = veFunction.functionName,
+                cols = veColBatch.cols,
+                results = veFunction.results
+              )
 
-            val outBatch = VeColBatch.fromList(cols)
-            if (veColBatch.numRows < outBatch.numRows)
-              println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-            outBatch
-          } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+              val outBatch = VeColBatch.fromList(cols)
+              if (veColBatch.numRows < outBatch.numRows)
+                println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+              outBatch
+            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+          }
         }
       }
+
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+    copy(veFunction = f(veFunction))
 }
