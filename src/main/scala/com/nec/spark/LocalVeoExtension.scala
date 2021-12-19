@@ -23,6 +23,8 @@ import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
 object LocalVeoExtension {
   var _enabled = true
@@ -36,6 +38,15 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
         options = VeRewriteStrategyOptions.fromConfig(sparkSession.sparkContext.getConf)
       )
     )
+
+    sparkSessionExtensions.injectQueryStagePrepRule(sparkSession => {
+      new Rule[SparkPlan] {
+        override def apply(plan: SparkPlan): SparkPlan = {
+          println(s"Receivieng: ${plan}")
+          plan
+        }
+      }
+    })
     sparkSessionExtensions.injectColumnar(_ => new VeColumnarRule)
   }
 }
