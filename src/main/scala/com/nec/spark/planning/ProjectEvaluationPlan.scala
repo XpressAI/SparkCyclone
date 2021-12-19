@@ -19,22 +19,20 @@
  */
 package com.nec.spark.planning
 
-import java.nio.file.Paths
-
-import scala.language.dynamics
-
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+
+import java.nio.file.Paths
+import scala.language.dynamics
 
 final case class ProjectEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
@@ -49,17 +47,10 @@ final case class ProjectEvaluationPlan(
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
-  private val copiedRefs = outputExpressions.filter(_.isInstanceOf[AttributeReference])
-
-  private[planning] val idsToCopy = copiedRefs
-    .map(ref =>
-      child.outputSet.toList.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId)
-    )
-    .collect { case Some((ref, id)) =>
-      id
-    }
-
   override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  private[planning] val projectionContext = ProjectionContext(outputExpressions, child.outputSet)
+  import projectionContext._
 
   override def executeVeColumnar(): RDD[VeColBatch] =
     child
@@ -70,14 +61,16 @@ final case class ProjectEvaluationPlan(
         veColBatches.map { veColBatch =>
           import SparkCycloneExecutorPlugin.veProcess
           try {
-            val cols = if (copiedRefs.size != outputExpressions.size) {
-              veProcess.execute(
-                libraryReference = libRef,
-                functionName = veFunction.functionName,
-                cols = veColBatch.cols,
-                results = veFunction.results
-              )
-            } else List.empty
+            val canPassThroughall = passThroughRefs.size == outputExpressions.size
+            val cols =
+              if (canPassThroughall) Nil
+              else
+                veProcess.execute(
+                  libraryReference = libRef,
+                  functionName = veFunction.functionName,
+                  cols = veColBatch.cols,
+                  results = veFunction.results
+                )
             val outBatch = createOutputBatch(cols, veColBatch)
 
             if (veColBatch.numRows < outBatch.numRows)
@@ -86,35 +79,57 @@ final case class ProjectEvaluationPlan(
           } finally child
             .asInstanceOf[SupportsVeColBatch]
             .dataCleanup
-            .cleanup(getBatchForPartialCleanup(veColBatch))
+            .cleanup(ProjectEvaluationPlan.getBatchForPartialCleanup(idsToPass)(veColBatch))
         }
       }
 
-  def createOutputBatch(
-    calculatedColumns: Seq[VeColVector],
-    originalBatch: VeColBatch
-  ): VeColBatch = {
+}
 
-    val outputColumns = outputExpressions
-      .foldLeft((0, 0, Seq.empty[VeColVector])) {
-        case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
-            if (child.outputSet.contains(a)) =>
-          (calculatedIdx, copiedIdx + 1, seq :+ originalBatch.cols(idsToCopy(copiedIdx)))
+object ProjectEvaluationPlan {
 
-        case ((calculatedIdx, copiedIdx, seq), _) =>
-          (calculatedIdx + 1, copiedIdx, seq :+ calculatedColumns(calculatedIdx))
+  final case class ProjectionContext(
+    outputExpressions: Seq[NamedExpression],
+    childOutputSet: AttributeSet
+  ) {
+
+    val passThroughRefs: Seq[NamedExpression] =
+      outputExpressions.filter(_.isInstanceOf[AttributeReference])
+
+    val idsToPass: Seq[Int] = passThroughRefs
+      .map(ref =>
+        childOutputSet.toList.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId)
+      )
+      .collect { case Some((_, id)) =>
+        id
       }
-      ._3
-      .toList
 
-    VeColBatch.fromList(outputColumns)
+    def createOutputBatch(
+      calculatedColumns: Seq[VeColVector],
+      originalBatch: VeColBatch
+    ): VeColBatch = {
+
+      val outputColumns = outputExpressions
+        .foldLeft((0, 0, Seq.empty[VeColVector])) {
+          case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
+              if childOutputSet.contains(a) =>
+            (calculatedIdx, copiedIdx + 1, seq :+ originalBatch.cols(idsToPass(copiedIdx)))
+
+          case ((calculatedIdx, copiedIdx, seq), _) =>
+            (calculatedIdx + 1, copiedIdx, seq :+ calculatedColumns(calculatedIdx))
+        }
+        ._3
+        .toList
+
+      VeColBatch.fromList(outputColumns)
+    }
   }
 
-  def getBatchForPartialCleanup(veColBatch: VeColBatch) = {
+  def getBatchForPartialCleanup(idsToPass: Seq[Int])(veColBatch: VeColBatch): VeColBatch = {
     val colsToCleanUp = veColBatch.cols.zipWithIndex
       .collect {
-        case (col, idx) if (!idsToCopy.contains(idx)) => col
+        case (col, idx) if !idsToPass.contains(idx) => col
       }
     VeColBatch.fromList(colsToCleanUp)
   }
+
 }

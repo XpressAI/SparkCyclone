@@ -1,11 +1,9 @@
 package com.nec.spark.planning
 
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
+import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{
@@ -16,9 +14,11 @@ import org.apache.spark.sql.catalyst.expressions.{
   NamedExpression
 }
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.{DataType, IntegerType}
+import org.apache.spark.sql.types.IntegerType
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
+final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ProjectEvaluationSpec"
 
@@ -29,11 +29,7 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("AnotherData", IntegerType)(),
       AttributeReference("YetAnotherData", IntegerType)()
     )
-
-    val child = StubPlan(outputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-
-    assert(projectPlan.idsToCopy == List(0, 1, 2, 3))
+    assert(ProjectionContext(outputs, AttributeSet(outputs)).idsToPass == List(0, 1, 2, 3))
   }
 
   it should "correctly extract ids if no ids are copied" in {
@@ -51,10 +47,7 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("Data4", IntegerType)()
     )
 
-    val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-
-    assert(projectPlan.idsToCopy == List())
+    assert(ProjectionContext(outputs, AttributeSet(childOutputs)).idsToPass == List())
   }
 
   it should "correctly extract ids if part of the child outputs is copied" in {
@@ -76,10 +69,7 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("SomeData3", IntegerType)()
     )
 
-    val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-
-    assert(projectPlan.idsToCopy == List(0, 1, 2))
+    assert(ProjectionContext(outputs, AttributeSet(childOutputs)).idsToPass == List(0, 1, 2))
   }
 
   it should "correctly extract ids if non continous set of columnsIs copied" in {
@@ -105,10 +95,7 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       thirdCopied
     )
 
-    val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-
-    assert(projectPlan.idsToCopy == List(1, 3, 5))
+    assert(ProjectionContext(outputs, AttributeSet(childOutputs)).idsToPass == List(1, 3, 5))
   }
 
   it should "correctly build output batch if all columns are copied" in {
@@ -132,9 +119,8 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("YetAnotherData", IntegerType)()
     )
 
-    val child = StubPlan(outputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-    val outBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
+    val outBatch = ProjectionContext(outputs, AttributeSet(outputs))
+      .createOutputBatch(otherColumns, veInputBatch)
 
     assert(outBatch == veInputBatch)
   }
@@ -169,9 +155,8 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("YetAnotherData", IntegerType)()
     )
 
-    val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-    val outBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
+    val outBatch = ProjectionContext(outputs, AttributeSet(childOutputs))
+      .createOutputBatch(otherColumns, veInputBatch)
 
     assert(outBatch.cols == otherColumns)
   }
@@ -208,10 +193,8 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("SomeData3", IntegerType)()
     )
 
-    val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
-
-    val outBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
+    val outBatch = ProjectionContext(outputs, AttributeSet(childOutputs))
+      .createOutputBatch(otherColumns, veInputBatch)
 
     assert(outBatch.cols == veInputBatch.cols.take(2) ++ otherColumns.take(2))
   }
@@ -256,10 +239,8 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(0, 1, "anotherCol", None, VeNullableInt, 11L, List.empty)
     )
 
-    val child = StubPlan(outputs)
-    val projectPlan = ProjectEvaluationPlan(childOutputs.toList, null, child)
-
-    val outputBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
+    val outputBatch = ProjectionContext(childOutputs, AttributeSet(outputs))
+      .createOutputBatch(otherColumns, veInputBatch)
     val expectedOutput = List(
       VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty),
       VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
@@ -272,14 +253,4 @@ class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     assert(outputBatch.cols == expectedOutput)
   }
 
-  case class StubPlan(outputs: Seq[Expression]) extends SparkPlan {
-
-    override lazy val outputSet: AttributeSet = AttributeSet(outputs)
-
-    override protected def doExecute(): RDD[InternalRow] = ???
-
-    override def output: Seq[Attribute] = ???
-
-    override def children: Seq[SparkPlan] = ???
-  }
 }
