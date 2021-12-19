@@ -129,4 +129,56 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  it should "correctly cleanup data if all columns are copied" in {
+    val veInputBatch = VeColBatch.fromList(
+      List(
+        VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+        VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+        VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
+        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
+      )
+    )
+
+    val reusedIds = List(0, 1, 2, 3)
+
+    val cleanedBatch = ProjectEvaluationPlan.getBatchForPartialCleanup(reusedIds)(veInputBatch)
+
+    assert(cleanedBatch == VeColBatch(0, List.empty))
+  }
+
+  it should "correctly cleanup batch if no columns are copied" in {
+    val veInputBatch = VeColBatch.fromList(
+      List(
+        VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+        VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+        VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
+        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
+      )
+    )
+
+    val cleanupBatch = ProjectEvaluationPlan.getBatchForPartialCleanup(Seq.empty)(veInputBatch)
+
+    assert(cleanupBatch == veInputBatch)
+  }
+
+  it should "correctly cleanup batch if some columns are copied" in {
+    val copiedVectors = List(
+      VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+      VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+      VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty)
+    )
+
+    val notCopiedVectors = List(
+      VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
+      VeColVector(0, 1000, "fifth", None, VeNullableInt, 3L, List.empty)
+    )
+
+    val veInputBatch = VeColBatch.fromList(
+      copiedVectors ++ notCopiedVectors
+    )
+
+    val outBatch = ProjectEvaluationPlan.getBatchForPartialCleanup(List(0, 1, 2))(veInputBatch)
+
+    assert(outBatch == VeColBatch.fromList(notCopiedVectors))
+  }
 }

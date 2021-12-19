@@ -57,9 +57,14 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
 }
 
 object VeColBatch {
-  def fromList(lv: List[VeColVector]): VeColBatch =
+  def fromList(lv: List[VeColVector]): VeColBatch = {
+    assert(!lv.isEmpty)
     VeColBatch(numRows = lv.head.numItems, lv)
+  }
 
+  def empty: VeColBatch = {
+    VeColBatch(0, List.empty)
+  }
   final case class ColumnGroup(veType: VeType, relatedColumns: List[VeColVector]) {}
 
   final case class VeBatchOfBatches(cols: Int, rows: Int, batches: List[VeColBatch]) {
