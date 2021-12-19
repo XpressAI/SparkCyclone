@@ -181,9 +181,7 @@ object BenchTestingPossibilities extends LazyLogging {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .withExtensions(sse =>
-              sse.injectPlannerStrategy(_ => VERewriteStrategy(CNativeEvaluator))
-            )
+            .withExtensions(sse => sse.injectPlannerStrategy(_ => VERewriteStrategy()))
             .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)
@@ -206,13 +204,7 @@ object BenchTestingPossibilities extends LazyLogging {
           csvStrategy = None
         )
       ),
-      JoinPlanSpec.OurTesting,
-      /** Ignored: because emitting Strings is not currently supported. */
-      /* List(StringGroupByTesting(isVe = true), StringGroupByTesting(isVe = false)) */
-      List(DateTesting(isVe = false)),
-      List(DateTesting(isVe = true)),
-      List(DateDeeperTesting(isVe = true)),
-      List(DateDeeperTesting(isVe = false))
+      JoinPlanSpec.OurTesting
     ).flatten
 
   trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>
