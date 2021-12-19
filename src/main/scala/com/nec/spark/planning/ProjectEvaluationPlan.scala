@@ -79,7 +79,9 @@ final case class ProjectEvaluationPlan(
           } finally child
             .asInstanceOf[SupportsVeColBatch]
             .dataCleanup
-            .cleanup(ProjectEvaluationPlan.getBatchForPartialCleanup(idsToPass)(veColBatch))
+            .cleanup(
+              ProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
+            )
         }
       }
 
@@ -89,16 +91,14 @@ object ProjectEvaluationPlan {
 
   private[planning] final case class ProjectionContext(
     outputExpressions: Seq[NamedExpression],
-    childOutputSet: AttributeSet
+    inputSet: AttributeSet
   ) {
 
     val passThroughRefs: Seq[NamedExpression] =
       outputExpressions.filter(_.isInstanceOf[AttributeReference])
 
-    val idsToPass: Seq[Int] = passThroughRefs
-      .map(ref =>
-        childOutputSet.toList.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId)
-      )
+    val columnIndicesToPass: Seq[Int] = passThroughRefs
+      .map(ref => inputSet.toList.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
       .collect { case Some((_, id)) =>
         id
       }
@@ -111,8 +111,12 @@ object ProjectEvaluationPlan {
       val outputColumns = outputExpressions
         .foldLeft((0, 0, Seq.empty[VeColVector])) {
           case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
-              if childOutputSet.contains(a) =>
-            (calculatedIdx, copiedIdx + 1, seq :+ originalBatch.cols(idsToPass(copiedIdx)))
+              if inputSet.contains(a) =>
+            (
+              calculatedIdx,
+              copiedIdx + 1,
+              seq :+ originalBatch.cols(columnIndicesToPass(copiedIdx))
+            )
 
           case ((calculatedIdx, copiedIdx, seq), _) =>
             (calculatedIdx + 1, copiedIdx, seq :+ calculatedColumns(calculatedIdx))
