@@ -20,6 +20,9 @@
 package com.nec.spark
 
 import com.nec.spark.LocalVeoExtension.compilerRule
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus.SourceCode
 import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
 import com.nec.spark.planning.{
   PlanCallsVeFunction,
@@ -32,6 +35,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
+import java.nio.file.Path
+import java.time.Instant
+
 object LocalVeoExtension {
   var _enabled = true
 
@@ -40,8 +46,37 @@ object LocalVeoExtension {
       val uncompiledOnes = plan.collect { case UncompiledPlan(plan) =>
         plan
       }
-      println(s"Uncompiled plans extracted: (${uncompiledOnes.size})")
-      plan
+
+      println(s"Found ${uncompiledOnes.length} plans uncompiled")
+
+      val uncompiledCodes = uncompiledOnes
+        .map(_.sparkPlan.veFunction)
+        .collect { case veF @ VeFunction(sc @ SourceCode(code), _, _) =>
+          sc
+        }
+        .toSet
+
+      println(s"${Instant.now()} Found ${uncompiledCodes.size} codes uncompiled")
+
+      val compiled: Map[SourceCode, Path] = uncompiledCodes.toList.par
+        .map { sourceCode =>
+          sourceCode -> SparkCycloneDriverPlugin.currentCompiler.forCode(sourceCode.sourceCode)
+        }
+        .toMap
+        .toList
+        .toMap
+      println(s"${Instant.now()} compiled ${compiled.size} codes")
+
+      val result = plan.transformUp { case UncompiledPlan(plan) =>
+        plan.sparkPlan.updateVeFunction {
+          case f @ VeFunction(source @ SourceCode(_), functionName, results)
+              if compiled.contains(source) =>
+            f.copy(veFunctionStatus = VeFunctionStatus.Compiled(compiled(source).toString))
+          case other => other
+        }
+      }
+      println(s"${Instant.now()} transformed functions to compiled status")
+      result
     }
   }
 }
