@@ -23,6 +23,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
 import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -30,11 +31,37 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-import java.nio.file.Paths
 import scala.language.dynamics
 
 object OneStageEvaluationPlan {
-  final case class VeFunction(libraryPath: String, functionName: String, results: List[VeType])
+
+  object VeFunction {
+    sealed trait VeFunctionStatus
+    object VeFunctionStatus {
+      final case class SourceCode(sourceCode: String) extends VeFunctionStatus {
+        override def toString: String = super.toString.take(25)
+      }
+      final case class Compiled(libraryPath: String) extends VeFunctionStatus
+    }
+  }
+
+  final case class VeFunction(
+    veFunctionStatus: VeFunctionStatus,
+    functionName: String,
+    results: List[VeType]
+  ) {
+    def isCompiled: Boolean = veFunctionStatus match {
+      case VeFunctionStatus.SourceCode(_) => false
+      case VeFunctionStatus.Compiled(_)   => true
+    }
+    def libraryPath: String = veFunctionStatus match {
+      case VeFunctionStatus.SourceCode(path) =>
+        sys.error(
+          s"Library was not compiled; expected to build from ${path.take(10)} (${path.hashCode})..."
+        )
+      case VeFunctionStatus.Compiled(libraryPath) => libraryPath
+    }
+  }
 }
 
 final case class OneStageEvaluationPlan(
@@ -44,7 +71,8 @@ final case class OneStageEvaluationPlan(
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
-  with SupportsVeColBatch {
+  with SupportsVeColBatch
+  with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
@@ -57,22 +85,25 @@ final case class OneStageEvaluationPlan(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
-        veColBatches.map { veColBatch =>
-          import SparkCycloneExecutorPlugin.veProcess
-          try {
-            val cols = veProcess.execute(
-              libraryReference = libRef,
-              functionName = veFunction.functionName,
-              cols = veColBatch.cols,
-              results = veFunction.results
-            )
+        withVeLibrary { libRef =>
+          veColBatches.map { veColBatch =>
+            try {
+              val cols = veProcess.execute(
+                libraryReference = libRef,
+                functionName = veFunction.functionName,
+                cols = veColBatch.cols,
+                results = veFunction.results
+              )
 
-            val outBatch = VeColBatch.fromList(cols)
-            if (veColBatch.numRows < outBatch.numRows)
-              println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-            outBatch
-          } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+              val outBatch = VeColBatch.fromList(cols)
+              if (veColBatch.numRows < outBatch.numRows)
+                println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+              outBatch
+            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+          }
         }
       }
+
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+    copy(veFunction = f(veFunction))
 }

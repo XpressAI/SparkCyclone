@@ -68,7 +68,7 @@ object NativeCompiler extends LazyLogging {
     with LazyLogging {
 
     /** Location of the compiled kernel library */
-    override def forCode(code: String): Path = this.synchronized {
+    override def forCode(code: String): Path = {
       cache.get(code) match {
         case None =>
           logger.debug(s"Cache miss for compilation.")
