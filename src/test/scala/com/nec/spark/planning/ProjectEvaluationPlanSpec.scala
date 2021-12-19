@@ -8,11 +8,17 @@ import org.scalatest.matchers.should.Matchers
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSet, Expression, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
+  AttributeReference,
+  AttributeSet,
+  Expression,
+  NamedExpression
+}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{DataType, IntegerType}
 
-class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
+class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ProjectEvaluationSpec"
 
@@ -21,13 +27,11 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("SomeData", IntegerType)(),
       AttributeReference("NextData", IntegerType)(),
       AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)(),
+      AttributeReference("YetAnotherData", IntegerType)()
     )
 
     val child = StubPlan(outputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
 
     assert(projectPlan.idsToCopy == List(0, 1, 2, 3))
   }
@@ -37,20 +41,18 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("SomeData", IntegerType)(),
       AttributeReference("NextData", IntegerType)(),
       AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)(),
+      AttributeReference("YetAnotherData", IntegerType)()
     )
 
     val childOutputs: Seq[NamedExpression] = Seq(
       AttributeReference("Data1", IntegerType)(),
       AttributeReference("Data2", IntegerType)(),
       AttributeReference("Data3", IntegerType)(),
-      AttributeReference("Data4", IntegerType)(),
+      AttributeReference("Data4", IntegerType)()
     )
 
     val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
 
     assert(projectPlan.idsToCopy == List())
   }
@@ -62,22 +64,20 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("AnotherData", IntegerType)()
     )
 
-    val outputs: Seq[NamedExpression] = copiedOutputs ++  Seq(
+    val outputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
       AttributeReference("NotCopiedData1", IntegerType)(),
       AttributeReference("NotCopiedData2", IntegerType)(),
-      AttributeReference("NotCopiedData3", IntegerType)(),
+      AttributeReference("NotCopiedData3", IntegerType)()
     )
 
     val childOutputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
       AttributeReference("SomeData1", IntegerType)(),
       AttributeReference("SomeData2", IntegerType)(),
-      AttributeReference("SomeData3", IntegerType)(),
+      AttributeReference("SomeData3", IntegerType)()
     )
 
     val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
 
     assert(projectPlan.idsToCopy == List(0, 1, 2))
   }
@@ -106,11 +106,9 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     )
 
     val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
 
-    assert(projectPlan.idsToCopy == List(1, 3 ,5))
+    assert(projectPlan.idsToCopy == List(1, 3, 5))
   }
 
   it should "correctly build output batch if all columns are copied" in {
@@ -119,26 +117,23 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
         VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
         VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
         VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
-        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
+        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
       )
     )
 
     val otherColumns = List(
       VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty),
-      VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty),
-
+      VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty)
     )
     val outputs: Seq[NamedExpression] = Seq(
       AttributeReference("SomeData", IntegerType)(),
       AttributeReference("NextData", IntegerType)(),
       AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)(),
+      AttributeReference("YetAnotherData", IntegerType)()
     )
 
     val child = StubPlan(outputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
     val outBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
 
     assert(outBatch == veInputBatch)
@@ -150,34 +145,32 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
         VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
         VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
         VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
-        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
+        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
       )
     )
 
     val childOutputs: Seq[NamedExpression] = Seq(
       AttributeReference("SomeData1", IntegerType)(),
       AttributeReference("SomeData2", IntegerType)(),
-      AttributeReference("SomeData3", IntegerType)(),
+      AttributeReference("SomeData3", IntegerType)()
     )
 
     val otherColumns = List(
       VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty),
       VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty),
       VeColVector(0, 1, "anotherCol", None, VeNullableInt, 9L, List.empty),
-      VeColVector(0, 2, "yetAnotherCol", None, VeNullableInt, 10L, List.empty),
+      VeColVector(0, 2, "yetAnotherCol", None, VeNullableInt, 10L, List.empty)
     )
 
     val outputs: Seq[NamedExpression] = Seq(
       AttributeReference("SomeData", IntegerType)(),
       AttributeReference("NextData", IntegerType)(),
       AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)(),
+      AttributeReference("YetAnotherData", IntegerType)()
     )
 
     val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
     val outBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
 
     assert(outBatch.cols == otherColumns)
@@ -189,7 +182,7 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
         VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
         VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
         VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
-        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
+        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
       )
     )
 
@@ -197,28 +190,26 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty),
       VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty),
       VeColVector(0, 1, "anotherCol", None, VeNullableInt, 9L, List.empty),
-      VeColVector(0, 2, "yetAnotherCol", None, VeNullableInt, 10L, List.empty),
+      VeColVector(0, 2, "yetAnotherCol", None, VeNullableInt, 10L, List.empty)
     )
     val copiedOutputs = Seq(
       AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)(),
+      AttributeReference("NextData", IntegerType)()
     )
 
-    val outputs: Seq[NamedExpression] = copiedOutputs ++  Seq(
+    val outputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
       AttributeReference("NotCopiedData1", IntegerType)(),
-      AttributeReference("NotCopiedData2", IntegerType)(),
+      AttributeReference("NotCopiedData2", IntegerType)()
     )
 
     val childOutputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
       AttributeReference("SomeData1", IntegerType)(),
       AttributeReference("SomeData2", IntegerType)(),
-      AttributeReference("SomeData3", IntegerType)(),
+      AttributeReference("SomeData3", IntegerType)()
     )
 
     val child = StubPlan(childOutputs)
-    val projectPlan = ProjectEvaluationPlan(
-      outputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(outputs.toList, null, child)
 
     val outBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
 
@@ -255,21 +246,18 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
         VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
         VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
         VeColVector(0, 1000, "fifthCol", None, VeNullableInt, 5L, List.empty),
-        VeColVector(0, 1000, "sixthCol", None, VeNullableInt, 6L, List.empty),
-
+        VeColVector(0, 1000, "sixthCol", None, VeNullableInt, 6L, List.empty)
       )
     )
 
     val otherColumns = List(
       VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty),
       VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty),
-      VeColVector(0, 1, "anotherCol", None, VeNullableInt, 11L, List.empty),
+      VeColVector(0, 1, "anotherCol", None, VeNullableInt, 11L, List.empty)
     )
 
     val child = StubPlan(outputs)
-    val projectPlan = ProjectEvaluationPlan(
-      childOutputs.toList, null, child
-    )
+    val projectPlan = ProjectEvaluationPlan(childOutputs.toList, null, child)
 
     val outputBatch = projectPlan.createOutputBatch(otherColumns, veInputBatch)
     val expectedOutput = List(
@@ -278,16 +266,13 @@ class  ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty),
       VeColVector(0, 1000, "fifthCol", None, VeNullableInt, 5L, List.empty),
       VeColVector(0, 1, "anotherCol", None, VeNullableInt, 11L, List.empty),
-      VeColVector(0, 1000, "sixthCol", None, VeNullableInt, 6L, List.empty),
-
+      VeColVector(0, 1000, "sixthCol", None, VeNullableInt, 6L, List.empty)
     )
 
-    assert(
-      outputBatch.cols == expectedOutput
-    )
+    assert(outputBatch.cols == expectedOutput)
   }
 
-    case class StubPlan(outputs: Seq[Expression]) extends SparkPlan {
+  case class StubPlan(outputs: Seq[Expression]) extends SparkPlan {
 
     override lazy val outputSet: AttributeSet = AttributeSet(outputs)
 

@@ -155,11 +155,10 @@ final case class VERewriteStrategy(
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
-          val nonIdentityProjections = projectList
-            .toList
+          val nonIdentityProjections = projectList.toList
             .filter {
               case AttributeReference(_, _, _, _) => false
-              case _ => true
+              case _                              => true
             }
           val planE = for {
             outputs <- nonIdentityProjections.zipWithIndex.map { case (att, idx) =>
