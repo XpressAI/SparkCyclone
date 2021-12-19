@@ -31,7 +31,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-import java.nio.file.Paths
 import scala.language.dynamics
 
 object OneStageEvaluationPlan {
@@ -52,8 +51,8 @@ object OneStageEvaluationPlan {
     results: List[VeType]
   ) {
     def isCompiled: Boolean = veFunctionStatus match {
-      case VeFunctionStatus.SourceCode(sourceCode) => false
-      case VeFunctionStatus.Compiled(libraryPath)  => true
+      case VeFunctionStatus.SourceCode(_) => false
+      case VeFunctionStatus.Compiled(_)   => true
     }
     def libraryPath: String = veFunctionStatus match {
       case VeFunctionStatus.SourceCode(path) =>
@@ -88,7 +87,6 @@ final case class OneStageEvaluationPlan(
       .mapPartitions { veColBatches =>
         withVeLibrary { libRef =>
           veColBatches.map { veColBatch =>
-            import SparkCycloneExecutorPlugin.veProcess
             try {
               val cols = veProcess.execute(
                 libraryReference = libRef,

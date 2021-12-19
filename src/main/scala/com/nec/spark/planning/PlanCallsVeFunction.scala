@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.LibraryReference
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -20,7 +20,7 @@ trait PlanCallsVeFunction {
   def veFunction: VeFunction
   def updateVeFunction(f: VeFunction => VeFunction): SparkPlan
 
-  def withVeLibrary[T](f: LibraryReference => T): T =
+  def withVeLibrary[T](f: LibraryReference => T)(implicit veProcess: VeProcess): T =
     f(veProcess.loadLibrary(Paths.get(veFunction.libraryPath)))
 
 }
