@@ -34,7 +34,6 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       new VERewriteStrategy(
-        nativeEvaluator = ExecutorPluginManagedEvaluator,
         options = VeRewriteStrategyOptions.fromConfig(sparkSession.sparkContext.getConf)
       )
     )

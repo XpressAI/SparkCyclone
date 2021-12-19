@@ -19,7 +19,6 @@
  */
 package com.nec.spark.planning
 
-import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
@@ -85,7 +84,6 @@ object VERewriteStrategy {
 }
 
 final case class VERewriteStrategy(
-  nativeEvaluator: NativeEvaluator,
   options: VeRewriteStrategyOptions = VeRewriteStrategyOptions.default
 ) extends Strategy
   with LazyLogging {
