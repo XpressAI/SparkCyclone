@@ -49,7 +49,7 @@ final case class ProjectEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  private[planning] val projectionContext = ProjectionContext(outputExpressions, child.outputSet)
+  private val projectionContext = ProjectionContext(outputExpressions, child.outputSet)
   import projectionContext._
 
   override def executeVeColumnar(): RDD[VeColBatch] =
@@ -87,7 +87,7 @@ final case class ProjectEvaluationPlan(
 
 object ProjectEvaluationPlan {
 
-  final case class ProjectionContext(
+  private[planning] final case class ProjectionContext(
     outputExpressions: Seq[NamedExpression],
     childOutputSet: AttributeSet
   ) {
