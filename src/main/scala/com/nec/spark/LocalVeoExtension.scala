@@ -33,6 +33,7 @@ object LocalVeoExtension {
   def compilerRule(sparkSession: SparkSession): Rule[SparkPlan] = {
     new Rule[SparkPlan] {
       override def apply(plan: SparkPlan): SparkPlan = {
+        sys.error(s"REACHING HERE?? ${plan}")
         println(s"Receivieng: ${plan}")
         plan
       }

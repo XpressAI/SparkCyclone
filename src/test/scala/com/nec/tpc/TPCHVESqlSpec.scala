@@ -19,7 +19,6 @@
  */
 package com.nec.tpc
 
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
 import com.nec.spark.LocalVeoExtension.compilerRule
 import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
@@ -42,16 +41,14 @@ object TPCHVESqlSpec {
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
       .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-      .withExtensions(sse => {
-
+      .withExtensions { sse =>
         sse.injectPlannerStrategy(_ => {
           VERewriteStrategy.failFast = false
           new VERewriteStrategy()
         })
-
         sse.injectQueryStagePrepRule(compilerRule)
-      })
-      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
+        sse.injectColumnar(_ => new VeColumnarRule)
+      }
   }
 
 }
