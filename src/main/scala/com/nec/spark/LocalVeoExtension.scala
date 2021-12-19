@@ -30,6 +30,7 @@ import com.nec.spark.planning.{
   VeColumnarRule,
   VeRewriteStrategyOptions
 }
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
@@ -38,7 +39,7 @@ import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import java.nio.file.Path
 import java.time.Instant
 
-object LocalVeoExtension {
+object LocalVeoExtension extends LazyLogging {
   var _enabled = true
 
   def compilerRule(sparkSession: SparkSession): ColumnarRule = new ColumnarRule {
@@ -47,36 +48,38 @@ object LocalVeoExtension {
         plan
       }
 
-      println(s"Found ${uncompiledOnes.length} plans uncompiled")
+      logger.debug(s"Found ${uncompiledOnes.length} plans uncompiled")
+      if (uncompiledOnes.nonEmpty) {
 
-      val uncompiledCodes = uncompiledOnes
-        .map(_.sparkPlan.veFunction)
-        .collect { case veF @ VeFunction(sc @ SourceCode(code), _, _) =>
-          sc
+        val uncompiledCodes = uncompiledOnes
+          .map(_.sparkPlan.veFunction)
+          .collect { case veF @ VeFunction(sc @ SourceCode(code), _, _) =>
+            sc
+          }
+          .toSet
+
+        logger.info(s"Found ${uncompiledCodes.size} codes uncompiled")
+
+        val compiled: Map[SourceCode, Path] = uncompiledCodes.toList.par
+          .map { sourceCode =>
+            sourceCode -> SparkCycloneDriverPlugin.currentCompiler.forCode(sourceCode.sourceCode)
+          }
+          .toMap
+          .toList
+          .toMap
+        logger.info(s"Compiled ${compiled.size} codes")
+
+        val result = plan.transformUp { case UncompiledPlan(plan) =>
+          plan.sparkPlan.updateVeFunction {
+            case f @ VeFunction(source @ SourceCode(_), functionName, results)
+                if compiled.contains(source) =>
+              f.copy(veFunctionStatus = VeFunctionStatus.Compiled(compiled(source).toString))
+            case other => other
+          }
         }
-        .toSet
-
-      println(s"${Instant.now()} Found ${uncompiledCodes.size} codes uncompiled")
-
-      val compiled: Map[SourceCode, Path] = uncompiledCodes.toList.par
-        .map { sourceCode =>
-          sourceCode -> SparkCycloneDriverPlugin.currentCompiler.forCode(sourceCode.sourceCode)
-        }
-        .toMap
-        .toList
-        .toMap
-      println(s"${Instant.now()} compiled ${compiled.size} codes")
-
-      val result = plan.transformUp { case UncompiledPlan(plan) =>
-        plan.sparkPlan.updateVeFunction {
-          case f @ VeFunction(source @ SourceCode(_), functionName, results)
-              if compiled.contains(source) =>
-            f.copy(veFunctionStatus = VeFunctionStatus.Compiled(compiled(source).toString))
-          case other => other
-        }
-      }
-      println(s"${Instant.now()} transformed functions to compiled status")
-      result
+        logger.info(s"Transformed functions to compiled status")
+        result
+      } else plan
     }
   }
 }
