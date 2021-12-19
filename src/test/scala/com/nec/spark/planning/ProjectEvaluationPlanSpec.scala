@@ -20,7 +20,12 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("AnotherData", IntegerType)(),
       AttributeReference("YetAnotherData", IntegerType)()
     )
-    assert(ProjectionContext(outputs, AttributeSet(outputs)).idsToPass == List(0, 1, 2, 3))
+    assert(
+      ProjectionContext(
+        outputExpressions = outputs,
+        childOutputSet = AttributeSet(outputs)
+      ).idsToPass == List(0, 1, 2, 3)
+    )
   }
 
   it should "correctly extract ids if no ids are copied" in {
@@ -38,7 +43,12 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("Data4", IntegerType)()
     )
 
-    assert(ProjectionContext(outputs, AttributeSet(childOutputs)).idsToPass == List())
+    assert(
+      ProjectionContext(
+        outputExpressions = outputs,
+        childOutputSet = AttributeSet(childOutputs)
+      ).idsToPass == List()
+    )
   }
 
   it should "correctly extract ids if part of the child outputs is copied" in {
@@ -60,7 +70,12 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("SomeData3", IntegerType)()
     )
 
-    assert(ProjectionContext(outputs, AttributeSet(childOutputs)).idsToPass == List(0, 1, 2))
+    assert(
+      ProjectionContext(
+        outputExpressions = outputs,
+        childOutputSet = AttributeSet(childOutputs)
+      ).idsToPass == List(0, 1, 2)
+    )
   }
 
   it should "correctly extract ids if non continous set of columnsIs copied" in {
@@ -86,7 +101,12 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       thirdCopied
     )
 
-    assert(ProjectionContext(outputs, AttributeSet(childOutputs)).idsToPass == List(1, 3, 5))
+    assert(
+      ProjectionContext(
+        outputExpressions = outputs,
+        childOutputSet = AttributeSet(childOutputs)
+      ).idsToPass == List(1, 3, 5)
+    )
   }
 
   it should "correctly build output batch if all columns are copied" in {
@@ -111,7 +131,7 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     )
 
     val outBatch = ProjectionContext(outputs, AttributeSet(outputs))
-      .createOutputBatch(otherColumns, veInputBatch)
+      .createOutputBatch(calculatedColumns = otherColumns, originalBatch = veInputBatch)
 
     assert(outBatch == veInputBatch)
   }
@@ -146,8 +166,9 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("YetAnotherData", IntegerType)()
     )
 
-    val outBatch = ProjectionContext(outputs, AttributeSet(childOutputs))
-      .createOutputBatch(otherColumns, veInputBatch)
+    val outBatch =
+      ProjectionContext(outputExpressions = outputs, childOutputSet = AttributeSet(childOutputs))
+        .createOutputBatch(calculatedColumns = otherColumns, originalBatch = veInputBatch)
 
     assert(outBatch.cols == otherColumns)
   }
@@ -184,8 +205,9 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       AttributeReference("SomeData3", IntegerType)()
     )
 
-    val outBatch = ProjectionContext(outputs, AttributeSet(childOutputs))
-      .createOutputBatch(otherColumns, veInputBatch)
+    val outBatch =
+      ProjectionContext(outputExpressions = outputs, childOutputSet = AttributeSet(childOutputs))
+        .createOutputBatch(calculatedColumns = otherColumns, originalBatch = veInputBatch)
 
     assert(outBatch.cols == veInputBatch.cols.take(2) ++ otherColumns.take(2))
   }
@@ -230,8 +252,9 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(0, 1, "anotherCol", None, VeNullableInt, 11L, List.empty)
     )
 
-    val outputBatch = ProjectionContext(childOutputs, AttributeSet(outputs))
-      .createOutputBatch(otherColumns, veInputBatch)
+    val outputBatch =
+      ProjectionContext(outputExpressions = childOutputs, childOutputSet = AttributeSet(outputs))
+        .createOutputBatch(calculatedColumns = otherColumns, originalBatch = veInputBatch)
     val expectedOutput = List(
       VeColVector(0, 1, "someCol", None, VeNullableInt, 9L, List.empty),
       VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
