@@ -3,9 +3,6 @@ package com.nec.spark.planning
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.spark.planning.ProjectEvaluationPlanSpec.{
-  SampleCol1,
-  SampleCol2,
-  SampleCol3,
   SampleInputSeq,
   SampleInputSet,
   SampleOutputExpressions
@@ -73,49 +70,63 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "correctly create output batch ids if non continous set of columnsIs copied" in {
-    val childOutputs: Seq[NamedExpression] = SampleInputSeq
-
     val numRows = 1000
 
-    val firstColVector = VeColVector(0, numRows, "firstCol", None, VeNullableInt, 0L, List.empty)
-    val secondColVector = VeColVector(0, numRows, "secondCol", None, VeNullableInt, 1L, List.empty)
-    val thirdColVector = VeColVector(0, numRows, "thirdCol", None, VeNullableInt, 2L, List.empty)
-    val fourthColVector = VeColVector(0, numRows, "fourthCol", None, VeNullableInt, 3L, List.empty)
-    val fifthColVector = VeColVector(0, numRows, "fifthCol", None, VeNullableInt, 5L, List.empty)
-    val sixthColColVector = VeColVector(0, numRows, "sixthCol", None, VeNullableInt, 6L, List.empty)
-    val veInputBatch = VeColBatch.fromList(
-      List(
-        firstColVector,
-        secondColVector,
-        thirdColVector,
-        fourthColVector,
-        fifthColVector,
-        sixthColColVector
-      )
-    )
+    object PassThrough {
+      val passFourthColVector =
+        VeColVector(0, numRows, "fourthCol", None, VeNullableInt, 3L, List.empty)
+      val passFifthColVector =
+        VeColVector(0, numRows, "fifthCol", None, VeNullableInt, 5L, List.empty)
+      val passSixthColColVector =
+        VeColVector(0, numRows, "sixthCol", None, VeNullableInt, 6L, List.empty)
+    }
+    object Compute {
+      val computeSomeColVector =
+        VeColVector(0, numRows, "someCol", None, VeNullableInt, 9L, List.empty)
+      val computeOtherColVector =
+        VeColVector(0, numRows, "otherCol", None, VeNullableInt, 10L, List.empty)
+      val computeAnotherCol =
+        VeColVector(0, numRows, "anotherCol", None, VeNullableInt, 11L, List.empty)
+    }
 
-    val someColVector = VeColVector(0, numRows, "someCol", None, VeNullableInt, 9L, List.empty)
-    val otherColVector = VeColVector(0, numRows, "otherCol", None, VeNullableInt, 10L, List.empty)
-    val anotherCol = VeColVector(0, numRows, "anotherCol", None, VeNullableInt, 11L, List.empty)
-    val otherColumns = List(someColVector, otherColVector, anotherCol)
+    object Ignore {
+      val ignoreFirst = VeColVector(0, numRows, "firstCol", None, VeNullableInt, 0L, List.empty)
+      val ignoreSecond = VeColVector(0, numRows, "secondCol", None, VeNullableInt, 1L, List.empty)
+      val ignoreThird = VeColVector(0, numRows, "thirdCol", None, VeNullableInt, 2L, List.empty)
+    }
 
+    import Compute._
+    import PassThrough._
+    import Ignore._
     val outputBatch =
       ProjectionContext(
-        outputExpressions = childOutputs,
+        outputExpressions = SampleInputSeq,
         inputSet = AttributeSet(SampleOutputExpressions)
       )
-        .createOutputBatch(calculatedColumns = otherColumns, originalBatch = veInputBatch)
+        .createOutputBatch(
+          calculatedColumns = List(computeSomeColVector, computeOtherColVector, computeAnotherCol),
+          originalBatch = VeColBatch.fromList(
+            List(
+              ignoreFirst,
+              ignoreSecond,
+              ignoreThird,
+              passFourthColVector,
+              passFifthColVector,
+              passSixthColColVector
+            )
+          )
+        )
 
-    val expectedOutput = List(
-      someColVector,
-      fourthColVector,
-      otherColVector,
-      fifthColVector,
-      anotherCol,
-      sixthColColVector
+    assert(
+      outputBatch.cols == List(
+        computeSomeColVector,
+        passFourthColVector,
+        computeOtherColVector,
+        passFifthColVector,
+        computeAnotherCol,
+        passSixthColColVector
+      )
     )
-
-    assert(outputBatch.cols == expectedOutput)
   }
 
 }
