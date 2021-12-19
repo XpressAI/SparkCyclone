@@ -46,7 +46,7 @@ object TPCHVESqlSpec {
           VERewriteStrategy.failFast = false
           new VERewriteStrategy()
         })
-        sse.injectQueryStagePrepRule(compilerRule)
+        sse.injectColumnar(compilerRule)
         sse.injectColumnar(_ => new VeColumnarRule)
       }
   }
