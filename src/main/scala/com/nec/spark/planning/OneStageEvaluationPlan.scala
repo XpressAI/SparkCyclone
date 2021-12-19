@@ -23,6 +23,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
+import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
 import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -34,7 +35,28 @@ import java.nio.file.Paths
 import scala.language.dynamics
 
 object OneStageEvaluationPlan {
-  final case class VeFunction(libraryPath: String, functionName: String, results: List[VeType])
+
+  object VeFunction {
+    sealed trait VeFunctionStatus
+    object VeFunctionStatus {
+      final case class SourceCode(sourceCode: String) extends VeFunctionStatus {
+        override def toString: String = super.toString.take(25)
+      }
+      final case class Compiled(libraryPath: String) extends VeFunctionStatus
+    }
+  }
+
+  final case class VeFunction(
+    veFunctionStatus: VeFunctionStatus,
+    functionName: String,
+    results: List[VeType]
+  ) {
+    def libraryPath: String = veFunctionStatus match {
+      case VeFunctionStatus.SourceCode(path) =>
+        sys.error(s"Library was not compiled; expected to build from ${path}")
+      case VeFunctionStatus.Compiled(libraryPath) => libraryPath
+    }
+  }
 }
 
 final case class OneStageEvaluationPlan(
