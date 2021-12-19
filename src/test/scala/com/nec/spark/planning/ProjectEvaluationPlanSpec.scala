@@ -4,7 +4,12 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, AttributeSet, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{
+  AttributeReference,
+  AttributeSet,
+  ExprId,
+  NamedExpression
+}
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -15,10 +20,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   it should "correctly extract ids that should be copied if all of them are copied" in {
     val outputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)(),
-      AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)()
+      AttributeReference("SomeData", IntegerType)(ExprId(1)),
+      AttributeReference("NextData", IntegerType)(ExprId(2)),
+      AttributeReference("AnotherData", IntegerType)(ExprId(3)),
+      AttributeReference("YetAnotherData", IntegerType)(ExprId(4))
     )
     assert(
       ProjectionContext(
@@ -30,17 +35,17 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   it should "correctly extract ids if no ids are copied" in {
     val outputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)(),
-      AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)()
+      AttributeReference("SomeData", IntegerType)(ExprId(1)),
+      AttributeReference("NextData", IntegerType)(ExprId(2)),
+      AttributeReference("AnotherData", IntegerType)(ExprId(3)),
+      AttributeReference("YetAnotherData", IntegerType)(ExprId(4))
     )
 
     val childOutputs: Seq[NamedExpression] = Seq(
-      AttributeReference("Data1", IntegerType)(),
-      AttributeReference("Data2", IntegerType)(),
-      AttributeReference("Data3", IntegerType)(),
-      AttributeReference("Data4", IntegerType)()
+      AttributeReference("Data1", IntegerType)(ExprId(5)),
+      AttributeReference("Data2", IntegerType)(ExprId(6)),
+      AttributeReference("Data3", IntegerType)(ExprId(7)),
+      AttributeReference("Data4", IntegerType)(ExprId(8))
     )
 
     assert(
@@ -53,21 +58,21 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   it should "correctly extract ids if part of the child outputs is copied" in {
     val copiedOutputs = Seq(
-      AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)(),
-      AttributeReference("AnotherData", IntegerType)()
+      AttributeReference("SomeData", IntegerType)(ExprId(1)),
+      AttributeReference("NextData", IntegerType)(ExprId(2)),
+      AttributeReference("AnotherData", IntegerType)(ExprId(3))
     )
 
     val outputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
-      AttributeReference("NotCopiedData1", IntegerType)(),
-      AttributeReference("NotCopiedData2", IntegerType)(),
-      AttributeReference("NotCopiedData3", IntegerType)()
+      AttributeReference("NotCopiedData1", IntegerType)(ExprId(4)),
+      AttributeReference("NotCopiedData2", IntegerType)(ExprId(5)),
+      AttributeReference("NotCopiedData3", IntegerType)(ExprId(6))
     )
 
     val childOutputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
-      AttributeReference("SomeData1", IntegerType)(),
-      AttributeReference("SomeData2", IntegerType)(),
-      AttributeReference("SomeData3", IntegerType)()
+      AttributeReference("SomeData1", IntegerType)(ExprId(7)),
+      AttributeReference("SomeData2", IntegerType)(ExprId(8)),
+      AttributeReference("SomeData3", IntegerType)(ExprId(9))
     )
 
     assert(
@@ -79,25 +84,25 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "correctly extract ids if non continous set of columnsIs copied" in {
-    val firstCopied = AttributeReference("SomeData", IntegerType)()
-    val secondCopied = AttributeReference("NextData", IntegerType)()
-    val thirdCopied = AttributeReference("AnotherData", IntegerType)()
+    val firstCopied = AttributeReference("SomeData", IntegerType)(ExprId(1))
+    val secondCopied = AttributeReference("NextData", IntegerType)(ExprId(2))
+    val thirdCopied = AttributeReference("AnotherData", IntegerType)(ExprId(3))
 
     val outputs: Seq[NamedExpression] = Seq(
-      AttributeReference("NotCopiedData1", IntegerType)(),
-      AttributeReference("NotCopiedData2", IntegerType)(),
-      AttributeReference("NotCopiedData3", IntegerType)(),
+      AttributeReference("NotCopiedData1", IntegerType)(ExprId(4)),
+      AttributeReference("NotCopiedData2", IntegerType)(ExprId(5)),
+      AttributeReference("NotCopiedData3", IntegerType)(ExprId(6)),
       firstCopied,
       secondCopied,
       thirdCopied
     )
 
     val childOutputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData1", IntegerType)(),
+      AttributeReference("SomeData1", IntegerType)(ExprId(7)),
       firstCopied,
-      AttributeReference("SomeData2", IntegerType)(),
+      AttributeReference("SomeData2", IntegerType)(ExprId(8)),
       secondCopied,
-      AttributeReference("SomeData3", IntegerType)(),
+      AttributeReference("SomeData3", IntegerType)(ExprId(9)),
       thirdCopied
     )
 
@@ -124,10 +129,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(0, 2, "otherCol", None, VeNullableInt, 10L, List.empty)
     )
     val outputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)(),
-      AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)()
+      AttributeReference("SomeData", IntegerType)(ExprId(1)),
+      AttributeReference("NextData", IntegerType)(ExprId(2)),
+      AttributeReference("AnotherData", IntegerType)(ExprId(3)),
+      AttributeReference("YetAnotherData", IntegerType)(ExprId(4))
     )
 
     val outBatch = ProjectionContext(outputs, AttributeSet(outputs))
@@ -147,9 +152,9 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     )
 
     val childOutputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData1", IntegerType)(),
-      AttributeReference("SomeData2", IntegerType)(),
-      AttributeReference("SomeData3", IntegerType)()
+      AttributeReference("SomeData1", IntegerType)(ExprId(1)),
+      AttributeReference("SomeData2", IntegerType)(ExprId(2)),
+      AttributeReference("SomeData3", IntegerType)(ExprId(3))
     )
 
     val otherColumns = List(
@@ -160,10 +165,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     )
 
     val outputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)(),
-      AttributeReference("AnotherData", IntegerType)(),
-      AttributeReference("YetAnotherData", IntegerType)()
+      AttributeReference("SomeData", IntegerType)(ExprId(4)),
+      AttributeReference("NextData", IntegerType)(ExprId(5)),
+      AttributeReference("AnotherData", IntegerType)(ExprId(6)),
+      AttributeReference("YetAnotherData", IntegerType)(ExprId(7))
     )
 
     val outBatch =
@@ -190,19 +195,19 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(0, 2, "yetAnotherCol", None, VeNullableInt, 10L, List.empty)
     )
     val copiedOutputs = Seq(
-      AttributeReference("SomeData", IntegerType)(),
-      AttributeReference("NextData", IntegerType)()
+      AttributeReference("SomeData", IntegerType)(ExprId(1)),
+      AttributeReference("NextData", IntegerType)(ExprId(2))
     )
 
     val outputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
-      AttributeReference("NotCopiedData1", IntegerType)(),
-      AttributeReference("NotCopiedData2", IntegerType)()
+      AttributeReference("NotCopiedData1", IntegerType)(ExprId(3)),
+      AttributeReference("NotCopiedData2", IntegerType)(ExprId(4))
     )
 
     val childOutputs: Seq[NamedExpression] = copiedOutputs ++ Seq(
-      AttributeReference("SomeData1", IntegerType)(),
-      AttributeReference("SomeData2", IntegerType)(),
-      AttributeReference("SomeData3", IntegerType)()
+      AttributeReference("SomeData1", IntegerType)(ExprId(5)),
+      AttributeReference("SomeData2", IntegerType)(ExprId(6)),
+      AttributeReference("SomeData3", IntegerType)(ExprId(7))
     )
 
     val outBatch =
@@ -213,25 +218,25 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "correctly create output batch ids if non continous set of columnsIs copied" in {
-    val firstCopied = AttributeReference("SomeData", IntegerType)()
-    val secondCopied = AttributeReference("NextData", IntegerType)()
-    val thirdCopied = AttributeReference("AnotherData", IntegerType)()
+    val firstCopied = AttributeReference("SomeData", IntegerType)(ExprId(1))
+    val secondCopied = AttributeReference("NextData", IntegerType)(ExprId(2))
+    val thirdCopied = AttributeReference("AnotherData", IntegerType)(ExprId(3))
 
     val outputs: Seq[NamedExpression] = Seq(
-      AttributeReference("NotCopiedData1", IntegerType)(),
-      AttributeReference("NotCopiedData2", IntegerType)(),
-      AttributeReference("NotCopiedData3", IntegerType)(),
+      AttributeReference("NotCopiedData1", IntegerType)(ExprId(4)),
+      AttributeReference("NotCopiedData2", IntegerType)(ExprId(5)),
+      AttributeReference("NotCopiedData3", IntegerType)(ExprId(6)),
       firstCopied,
       secondCopied,
       thirdCopied
     )
 
     val childOutputs: Seq[NamedExpression] = Seq(
-      AttributeReference("SomeData1", IntegerType)(),
+      AttributeReference("SomeData1", IntegerType)(ExprId(7)),
       firstCopied,
-      AttributeReference("SomeData2", IntegerType)(),
+      AttributeReference("SomeData2", IntegerType)(ExprId(8)),
       secondCopied,
-      AttributeReference("SomeData3", IntegerType)(),
+      AttributeReference("SomeData3", IntegerType)(ExprId(9)),
       thirdCopied
     )
 
