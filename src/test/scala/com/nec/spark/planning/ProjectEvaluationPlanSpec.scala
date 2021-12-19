@@ -4,16 +4,7 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  AttributeReference,
-  AttributeSet,
-  Expression,
-  NamedExpression
-}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, AttributeSet, NamedExpression}
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
