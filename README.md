@@ -123,3 +123,7 @@ By default all sorting is done on CPU, however there exists possibility to enabl
 ```
 --conf spark.com.nec.spark.sort-on-ve=true
 ```
+
+## Benchmarking
+
+- [tpcbench-run/README.md](tpcbench-run/README.md)

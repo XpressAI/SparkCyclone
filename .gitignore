@@ -195,3 +195,4 @@ thread-samples.json
 src/test/resources/dbgen/dbgen
 
 *.log
+test.db
