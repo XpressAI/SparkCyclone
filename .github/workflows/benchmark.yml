@@ -26,7 +26,7 @@ jobs:
         run: sbt "clean" "deploy local"
       
       - name: Compile TPC-H Benchmark
-        run: cd tests/tpchbench && sbt package
+        run: sbt tpcbench/package
 
       - name: Run TPC-H@1
         run: cd tests/tpchbench && sh run_ve.sh dbgen1 0 && sh run_ve.sh dbgen1 0

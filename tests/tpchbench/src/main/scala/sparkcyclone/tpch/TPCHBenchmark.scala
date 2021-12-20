@@ -19,8 +19,7 @@
  */
 package sparkcyclone.tpch
 
-import java.time.LocalDate
-
+import java.time.{Instant, LocalDate}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.Dataset
@@ -230,10 +229,20 @@ object TPCHBenchmark extends SparkSessionWrapper {
   }
 
   def main(args: Array[String]): Unit = {
-    val tableDir = if (args.length >= 1) {
-      args(0)
-    } else {
-      "dbgen"
+
+    def getOptions(name: String): List[String] = {
+      val full = s"--$name="
+      args.toList
+        .filter(_.startsWith(full))
+        .map(_.drop(full.length))
+    }
+
+    val tableDir = getOptions("dbgen").headOption.getOrElse {
+      if (args.length >= 1) {
+        args(0)
+      } else {
+        "dbgen"
+      }
     }
 
     createViews(sparkSession, tableDir)
@@ -264,25 +273,38 @@ object TPCHBenchmark extends SparkSessionWrapper {
     )
 
     val toSkip = if (args.length >= 2) {
-      args(1).split(",").map(_.toInt).toSet
+      args(1).split(",").filter(str => str.forall(Character.isDigit)).map(_.toInt).toSet
     } else {
       Set[Int]()
     }
 
-    queries.foreach { case (query, i) =>
-      if (!toSkip.contains(i)) {
-        benchmark(i, query)
+    val select = "--select="
+    val toSelect = getOptions("select")
+      .map(_.toInt)
+      .toSet
+
+    if (toSelect.nonEmpty) {
+      queries
+        .filter(q => toSelect.contains(q._2))
+        .foreach { case (q, i) => benchmark(i, q) }
+    } else
+      queries.foreach { case (query, i) =>
+        if (!toSkip.contains(i)) {
+          benchmark(i, query)
+        }
       }
-    }
   }
 
   def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
     println(s"Running Query${i}")
     val start = System.nanoTime()
+    val startI = Instant.now()
     val res = f(sparkSession)
+    val endI = Instant.now()
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
-    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s")
+    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${java.time.Duration
+      .between(startI, endI)}")
     res.take(10).foreach(println)
   }
 
