@@ -53,9 +53,6 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   implicit def veProcess: VeProcess =
     VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc))
 
-  var lib: Long = -1
-  var veArrowNativeInterfaceNumeric: VeArrowNativeInterface = _
-
   /**
    * https://www.hpc.nec/documents/veos/en/veoffload/md_Restriction.html
    *
@@ -167,17 +164,6 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
       )
       require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
       logInfo(s"Opened process: ${_veo_proc}")
-
-      /**
-       * We currently do two approaches - one is to pre-compile, and another is to compile at the point of the SQL.
-       * We're moving to the latter, however this is retained for compatibility for the previous set of sets we had.
-       * *
-       */
-      if (extraConf.containsKey("ve_so_name")) {
-        SparkCycloneExecutorPlugin.lib =
-          veo.veo_load_library(_veo_proc, extraConf.get("ve_so_name"))
-      }
-      veArrowNativeInterfaceNumeric = new VeArrowNativeInterface(_veo_proc, lib)
     }
     logInfo("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala

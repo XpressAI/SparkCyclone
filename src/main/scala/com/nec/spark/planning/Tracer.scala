@@ -23,8 +23,11 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeString}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, ValueVector, VarCharVector}
 import org.apache.arrow.vector.util.Text
+import org.apache.arrow.vector.{ValueVector, VarCharVector}
+import org.apache.spark.{SparkContext, SparkEnv}
+
+import java.util.UUID
 
 object Tracer {
   val TracerDefName = "TRACER"
@@ -52,7 +55,13 @@ object Tracer {
   }
 
   final case class Launched(launchId: String) {
-    def map(mappingId: String): Mapped = Mapped(this, mappingId)
+    def mappedSparkEnv(sparkEnv: SparkEnv): Mapped =
+      Mapped(this, s"${sparkEnv.executorId}|${UUID.randomUUID().toString.take(4)}")
+  }
+  object Launched {
+    def fromSparkContext(sparkContext: SparkContext): Launched = Tracer.Launched(
+      s"${sparkContext.appName}|${sparkContext.applicationId}|${java.time.Instant.now().toString}"
+    )
   }
 
   val TracerOutput: List[String] =

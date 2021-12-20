@@ -19,13 +19,15 @@
  */
 package com.nec.spark.planning
 
-import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.cmake.{ScalaTcpDebug, Spanner}
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
@@ -80,29 +82,37 @@ final case class OneStageEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override def executeVeColumnar(): RDD[VeColBatch] =
+  override def executeVeColumnar(): RDD[VeColBatch] = {
+    val debug = ScalaTcpDebug(VeCompilerConfig.fromSparkConf(sparkContext.getConf))
+    val tracer = Tracer.Launched.fromSparkContext(sparkContext)
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        withVeLibrary { libRef =>
-          veColBatches.map { veColBatch =>
-            try {
-              val cols = veProcess.execute(
-                libraryReference = libRef,
-                functionName = veFunction.functionName,
-                cols = veColBatch.cols,
-                results = veFunction.results
-              )
+        Spanner(debug, tracer.mappedSparkEnv(SparkEnv.get)).spanIterator("map col batches") {
+          withVeLibrary { libRef =>
+            logger.info(s"Will map batches with function ${veFunction}")
+            veColBatches.map { veColBatch =>
+              try {
+                logger.debug(s"Mapping batch ${veColBatch}")
+                val cols = veProcess.execute(
+                  libraryReference = libRef,
+                  functionName = veFunction.functionName,
+                  cols = veColBatch.cols,
+                  results = veFunction.results
+                )
+                logger.debug(s"Completed mapping ${veColBatch}, got ${cols}")
 
-              val outBatch = VeColBatch.fromList(cols)
-              if (veColBatch.numRows < outBatch.numRows)
-                println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-              outBatch
-            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+                val outBatch = VeColBatch.fromList(cols)
+                if (veColBatch.numRows < outBatch.numRows)
+                  logger.error(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+                outBatch
+              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+            }
           }
         }
       }
+  }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(veFunction = f(veFunction))

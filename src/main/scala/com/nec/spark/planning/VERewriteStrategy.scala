@@ -35,13 +35,7 @@ import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
-import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
-import com.nec.spark.planning.aggregation.{
-  VeFinalAggregate,
-  VeFlattenPartition,
-  VeHashExchange,
-  VePartialAggregate
-}
+import com.nec.spark.planning.plans._
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
@@ -107,7 +101,7 @@ final case class VERewriteStrategy(
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
           SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
-            .flatMap(sp => List(VectorEngineToSpark(VeFetchFromCachePlan(sp))))
+            .flatMap(sp => List(VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
             .toList
 
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
@@ -135,7 +129,7 @@ final case class VERewriteStrategy(
             )
 
             List(
-              VectorEngineToSpark(
+              VectorEngineToSparkPlan(
                 OneStageEvaluationPlan(
                   outputExpressions = f.output,
                   veFunction = VeFunction(
@@ -144,7 +138,7 @@ final case class VERewriteStrategy(
                     functionName = functionName,
                     results = cFunction.outputs.map(_.veType)
                   ),
-                  child = SparkToVectorEngine(planLater(child))
+                  child = SparkToVectorEnginePlan(planLater(child))
                 )
               )
             )
@@ -193,7 +187,7 @@ final case class VERewriteStrategy(
               )
             )
             List(
-              VectorEngineToSpark(
+              VectorEngineToSparkPlan(
                 OneStageEvaluationPlan(
                   outputExpressions = projectList,
                   veFunction = VeFunction(
@@ -201,7 +195,7 @@ final case class VERewriteStrategy(
                     functionName = fName,
                     results = cF.outputs.map(_.veType)
                   ),
-                  child = SparkToVectorEngine(planLater(child))
+                  child = SparkToVectorEnginePlan(planLater(child))
                 )
               )
             )
@@ -390,10 +384,10 @@ final case class VERewriteStrategy(
                     functionName = exchangeName,
                     results = partialCFunction.inputs.map(_.veType)
                   ),
-                  child = SparkToVectorEngine(planLater(child))
+                  child = SparkToVectorEnginePlan(planLater(child))
                 )
               else
-                SparkToVectorEngine(
+                SparkToVectorEnginePlan(
                   ShuffleExchangeExec(
                     outputPartitioning =
                       HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
@@ -428,7 +422,7 @@ final case class VERewriteStrategy(
               ),
               child = pag
             )
-            VectorEngineToSpark(
+            VectorEngineToSparkPlan(
               VeFinalAggregate(
                 expectedOutputs = aggregateExpressions,
                 finalFunction = VeFunction(
@@ -480,7 +474,7 @@ final case class VERewriteStrategy(
           val sortFName = s"sort_${functionPrefix}"
 
           List(
-            VectorEngineToSpark(
+            VectorEngineToSparkPlan(
               OneStageEvaluationPlan(
                 outputExpressions = s.output,
                 veFunction = VeFunction(
@@ -489,7 +483,7 @@ final case class VERewriteStrategy(
                   functionName = sortFName,
                   results = code.outputs.map(_.veType)
                 ),
-                child = SparkToVectorEngine(planLater(child))
+                child = SparkToVectorEnginePlan(planLater(child))
               )
             )
           )
