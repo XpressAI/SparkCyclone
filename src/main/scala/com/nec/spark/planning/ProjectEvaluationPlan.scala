@@ -41,9 +41,12 @@ final case class ProjectEvaluationPlan(
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
-  with SupportsVeColBatch {
+  with SupportsVeColBatch with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
+
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+    copy(veFunction = f(veFunction))
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
@@ -61,7 +64,7 @@ final case class ProjectEvaluationPlan(
         veColBatches.map { veColBatch =>
           import SparkCycloneExecutorPlugin.veProcess
           try {
-            val canPassThroughall = passThroughRefs.size == outputExpressions.size
+            val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
             val cols =
               if (canPassThroughall) Nil
               else
@@ -94,10 +97,8 @@ object ProjectEvaluationPlan {
     inputs: List[NamedExpression]
   ) {
 
-    val passThroughRefs: Seq[NamedExpression] =
-      outputExpressions.filter(_.isInstanceOf[AttributeReference])
-
-    val columnIndicesToPass: Seq[Int] = passThroughRefs
+    val columnIndicesToPass: Seq[Int] = outputExpressions
+      .filter(_.isInstanceOf[AttributeReference])
       .map(ref => inputs.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
       .collect { case Some((_, id)) =>
         id
@@ -107,18 +108,18 @@ object ProjectEvaluationPlan {
       calculatedColumns: Seq[VeColVector],
       originalBatch: VeColBatch
     ): VeColBatch = {
-
+//      println(s"""Inputs ${inputs}, Outputs ${outputExpressions}""")
       val outputColumns = outputExpressions
         .foldLeft((0, 0, Seq.empty[VeColVector])) {
           case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
-              if inputs.contains(a) =>
+              if inputs.find(ex => ex.exprId == a.exprId).isDefined =>
             (
               calculatedIdx,
               copiedIdx + 1,
               seq :+ originalBatch.cols(columnIndicesToPass(copiedIdx))
             )
 
-          case ((calculatedIdx, copiedIdx, seq), _) =>
+          case ((calculatedIdx, copiedIdx, seq), ex) =>
             (calculatedIdx + 1, copiedIdx, seq :+ calculatedColumns(calculatedIdx))
         }
         ._3
