@@ -1,8 +1,10 @@
 package com.nec.spark.planning
 
+import com.nec.cmake.{ScalaTcpDebug, Spanner}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.spark.internal.Logging
@@ -15,7 +17,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, DualMode}
-import org.apache.spark.{SparkContext, TaskContext}
+import org.apache.spark.{SparkContext, SparkEnv, TaskContext}
 
 import scala.collection.JavaConverters.asScalaBufferConverter
 
@@ -99,60 +101,5 @@ object VeColBatchConverters {
 
   }
 
-  case class SparkToVectorEngine(childPlan: SparkPlan)
-    extends UnaryExecNode
-    with Logging
-    with SupportsVeColBatch {
 
-    override protected def doCanonicalize(): SparkPlan = {
-      super.doCanonicalize()
-    }
-
-    override def child = {
-      childPlan
-    }
-    override def executeVeColumnar(): RDD[VeColBatch] = {
-      require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
-
-      //      val numInputRows = longMetric("numInputRows")
-//      val numOutputBatches = longMetric("numOutputBatches")
-      // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
-      // combine with some of the Arrow conversion tools we will need to unify some of the configs.
-      val numRows: Int = getNumRows(sparkContext, conf)
-      logInfo(s"Will make batches of ${numRows} rows...")
-      val timeZoneId = conf.sessionLocalTimeZone
-      internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows).map(_.veColBatch)
-    }
-
-    override def output: Seq[Attribute] = child.output
-  }
-
-  case class VectorEngineToSpark(override val child: SparkPlan) extends UnaryExecNode {
-    override def supportsColumnar: Boolean = true
-
-    override def doExecute(): RDD[InternalRow] =
-      doExecuteColumnar().mapPartitions(columnarBatchIterator =>
-        columnarBatchIterator.flatMap(mapBatchToRow)
-      )
-
-    override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-      child
-        .asInstanceOf[SupportsVeColBatch]
-        .executeVeColumnar()
-        .mapPartitions { iterator =>
-          import SparkCycloneExecutorPlugin.veProcess
-          lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
-
-          iterator
-            .map { veColBatch =>
-              try veColBatch.toArrowColumnarBatch()
-              finally veColBatch.cols.foreach(_.free())
-            }
-        }
-    }
-
-    override def output: Seq[Attribute] = child.output
-
-  }
 }

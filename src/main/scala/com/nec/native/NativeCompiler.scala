@@ -29,7 +29,7 @@ import org.apache.spark.SparkConf
 import java.nio.file.Files
 import java.nio.file.Path
 import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeKernelCompiler.{DefaultDirPermissions, VeCompilerConfig}
 
 trait NativeCompiler extends Serializable {
 
@@ -57,7 +57,7 @@ object NativeCompiler extends LazyLogging {
   }
 
   def fromTemporaryDirectory(compilerConfig: VeCompilerConfig): (Path, NativeCompiler) = {
-    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
+    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp", DefaultDirPermissions)
     (tmpBuildDir, OnDemandCompilation(tmpBuildDir.toAbsolutePath.toString, compilerConfig))
   }
 
