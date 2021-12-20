@@ -49,7 +49,7 @@ final case class ProjectEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  private val projectionContext = ProjectionContext(outputExpressions, child.outputSet)
+  private val projectionContext = ProjectionContext(outputExpressions, child.outputSet.toList)
   import projectionContext._
 
   override def executeVeColumnar(): RDD[VeColBatch] =
@@ -91,14 +91,14 @@ object ProjectEvaluationPlan {
 
   private[planning] final case class ProjectionContext(
     outputExpressions: Seq[NamedExpression],
-    inputSet: AttributeSet
+    inputs: List[NamedExpression]
   ) {
 
     val passThroughRefs: Seq[NamedExpression] =
       outputExpressions.filter(_.isInstanceOf[AttributeReference])
 
     val columnIndicesToPass: Seq[Int] = passThroughRefs
-      .map(ref => inputSet.toList.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
+      .map(ref => inputs.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
       .collect { case Some((_, id)) =>
         id
       }
@@ -111,7 +111,7 @@ object ProjectEvaluationPlan {
       val outputColumns = outputExpressions
         .foldLeft((0, 0, Seq.empty[VeColVector])) {
           case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
-              if inputSet.contains(a) =>
+              if inputs.contains(a) =>
             (
               calculatedIdx,
               copiedIdx + 1,

@@ -3,8 +3,7 @@ package com.nec.spark.planning
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.spark.planning.ProjectEvaluationPlanSpec.{
-  SampleInputSeq,
-  SampleInputSet,
+  SampleInputList,
   SampleOutputExpressions
 }
 import com.nec.ve.VeColBatch
@@ -33,8 +32,8 @@ object ProjectEvaluationPlanSpec {
     SampleCol3
   )
 
-  private val SampleInputSeq =
-    Seq(
+  private val SampleInputList =
+    List(
       AttributeReference("SomeData1", IntegerType)(ExprId(7)),
       SampleCol1,
       AttributeReference("SomeData2", IntegerType)(ExprId(8)),
@@ -43,7 +42,6 @@ object ProjectEvaluationPlanSpec {
       SampleCol3
     )
 
-  private val SampleInputSet: AttributeSet = AttributeSet(SampleInputSeq)
 
 }
 
@@ -55,7 +53,7 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     assert(
       ProjectionContext(
         outputExpressions = Seq.empty,
-        inputSet = SampleInputSet
+        inputs = SampleInputList
       ).columnIndicesToPass.isEmpty
     )
   }
@@ -64,7 +62,7 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     assert(
       ProjectionContext(
         outputExpressions = SampleOutputExpressions,
-        inputSet = SampleInputSet
+        inputs = SampleInputList
       ).columnIndicesToPass == List(1, 3, 5)
     )
   }
@@ -100,8 +98,8 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     import Ignore._
     val outputBatch =
       ProjectionContext(
-        outputExpressions = SampleInputSeq,
-        inputSet = AttributeSet(SampleOutputExpressions)
+        outputExpressions = SampleInputList,
+        inputs = SampleInputList
       )
         .createOutputBatch(
           calculatedColumns = List(computeSomeColVector, computeOtherColVector, computeAnotherCol),
