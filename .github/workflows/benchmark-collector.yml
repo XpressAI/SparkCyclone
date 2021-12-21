@@ -23,6 +23,6 @@ jobs:
         run: echo ${GITHUB_REF#refs/heads/}
 
       - name: Run TPC-H@1
-        run: sbt tpcbench-run/reStart
+        run: sbt tpcbench-run/run
         if: success()
 
