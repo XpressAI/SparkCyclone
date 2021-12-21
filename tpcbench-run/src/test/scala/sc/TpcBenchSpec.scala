@@ -45,4 +45,8 @@ final class TpcBenchSpec extends AnyFreeSpec {
     assert(res.columns.contains("aggregateOnVe"))
     assert(res.data.nonEmpty)
   }
+  "We can save results into a file" in {
+    val path = rd.fetchResults.flatMap(_.save).unsafeRunSync()
+    info(s"Path saved => ${path}")
+  }
 }
