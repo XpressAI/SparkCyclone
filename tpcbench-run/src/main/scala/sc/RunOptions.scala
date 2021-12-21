@@ -1,12 +1,12 @@
 package sc
 
-import com.nec.ve.VeKernelCompiler.{FileAttributes, PosixPermissions}
-import sc.PrivateReader.RichObject
 import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
 import sun.misc.IOUtils
 
-import java.io.{BufferedInputStream, FileInputStream}
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.PosixFilePermission._
+import java.util
 
 final case class RunOptions(
   runId: String,
@@ -198,4 +198,15 @@ object RunOptions {
     java.nio.file.Files.setPosixFilePermissions(benchPath, PosixPermissions)
     benchPath
   }
+
+  import scala.collection.JavaConverters._
+  lazy val PosixPermissions: util.Set[PosixFilePermission] = Set[PosixFilePermission](
+    OWNER_READ,
+    OWNER_WRITE,
+    OWNER_EXECUTE,
+    GROUP_READ,
+    GROUP_EXECUTE,
+    OTHERS_READ,
+    OTHERS_EXECUTE
+  ).asJava
 }
