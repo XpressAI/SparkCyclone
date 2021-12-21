@@ -30,7 +30,7 @@ import org.apache.spark.api.plugin.PluginContext
 
 import java.nio.file.Files
 import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.DefaultDirPermissions
+import com.nec.ve.VeKernelCompiler.FileAttributes
 import com.typesafe.scalalogging.LazyLogging
 import okio.ByteString
 

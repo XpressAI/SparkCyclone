@@ -1,10 +1,12 @@
 package sc
 
+import com.nec.ve.VeKernelCompiler.{FileAttributes, PosixPermissions}
 import sc.PrivateReader.RichObject
 import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
+import sun.misc.IOUtils
 
 import java.io.{BufferedInputStream, FileInputStream}
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 
 final case class RunOptions(
   runId: String,
@@ -189,17 +191,11 @@ object RunOptions {
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
-    val str = getClass.getResourceAsStream("/log4j-benchmark.properties")
-    val path = str
-      .asInstanceOf[BufferedInputStream]
-      .readPrivate
-      .in
-      .obj
-      .asInstanceOf[FileInputStream]
-      .readPrivate
-      .path
-      .obj
-      .asInstanceOf[String]
-    Paths.get(path)
+    val benchName = "log4j-benchmark.properties"
+    val benchPath = Paths.get(s"/tmp/${benchName}")
+    java.nio.file.Files
+      .write(benchPath, IOUtils.readAllBytes(getClass.getResourceAsStream(s"/${benchName}")))
+    java.nio.file.Files.setPosixFilePermissions(benchPath, PosixPermissions)
+    benchPath
   }
 }
