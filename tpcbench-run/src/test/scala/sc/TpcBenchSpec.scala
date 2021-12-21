@@ -14,19 +14,19 @@ final class TpcBenchSpec extends AnyFreeSpec {
     assert(RunOptions.fieldNames.contains("name"))
   }
 
+  import doobie._
+  import doobie.implicits._
+  import cats._
+  import cats.data._
+  import cats.effect.IO
+  import cats.implicits._
+
+  val xa = Transactor
+    .fromDriverManager[IO]("org.sqlite.JDBC", "jdbc:sqlite:test.db", "", "")
+  val rd = RunDatabase(xa, "jdbc:sqlite:test.db")
+
   "it saves data into the database" in {
-    import doobie._
-    import doobie.implicits._
-    import cats._
-    import cats.data._
-    import cats.effect.IO
-    import cats.implicits._
-
-    val xa = Transactor
-      .fromDriverManager[IO]("org.sqlite.JDBC", "jdbc:sqlite:test.db", "", "")
-
-    val rd = RunDatabase(xa)
-    (rd.initialize).unsafeRunSync()
+    rd.initialize.unsafeRunSync()
 
     (rd.initialize *> rd.insert(
       RunOptions.default,
@@ -38,5 +38,11 @@ final class TpcBenchSpec extends AnyFreeSpec {
         appUrl = "abc"
       )
     )).unsafeRunSync()
+  }
+
+  "We can generate a table of results" in {
+    val res = rd.fetchResults.unsafeRunSync()
+    assert(res.columns.contains("aggregateOnVe"))
+    assert(res.data.nonEmpty)
   }
 }

@@ -13,6 +13,7 @@ import org.http4s.scalaxml.xml
 import sc.RunOptions.RunResult
 import sc.hadoop.AppsContainer
 
+import java.nio.file.Paths
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.DurationInt
 
@@ -93,8 +94,9 @@ object RunBenchmarksApp extends IOApp {
     import cats.effect.IO
     import cats.implicits._
 
+    val uri = "jdbc:sqlite:/tmp/benchmark-results.db"
     val xa = Transactor
-      .fromDriverManager[IO]("org.sqlite.JDBC", "jdbc:sqlite:/tmp/benchmark-results.db", "", "")
+      .fromDriverManager[IO]("org.sqlite.JDBC", uri, "", "")
 
     val runId: String = java.time.Instant.now().toString
     val cleanRunId: String = runId.filter(char => Character.isLetterOrDigit(char))
@@ -114,7 +116,7 @@ object RunBenchmarksApp extends IOApp {
       } yield (r, Duration.between(start, end).getSeconds.toInt)
     }
 
-    val rd = RunDatabase(xa)
+    val rd = RunDatabase(xa, uri)
     allOptions
       .traverse(options =>
         time(runCommand(options, doTrace = false)).flatMap {
@@ -128,7 +130,7 @@ object RunBenchmarksApp extends IOApp {
                 appUrl = traceResults.appUrl,
                 traceResults = traceResults.traceResults
               )
-            )
+            ) *> rd.fetchResults.flatMap(_.save)
         }
       )
       .void

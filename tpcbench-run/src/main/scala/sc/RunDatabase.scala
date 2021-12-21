@@ -8,7 +8,12 @@ import cats._
 import cats.data._
 import cats.effect.IO
 import cats.implicits._
+import sc.RunDatabase.ResultsInfo
 import sc.RunOptions.RunResult
+import scalatags.Text
+
+import java.nio.file.{Files, Path, Paths}
+import scala.collection.mutable
 
 /**
  * Database wrapper that automatically infers the schema and adds new columns where needed
@@ -16,7 +21,7 @@ import sc.RunOptions.RunResult
  *
  * @param transactor Doobie transactor for the SQLite database.
  */
-final case class RunDatabase(transactor: Transactor[IO]) {
+final case class RunDatabase(transactor: Transactor[IO], uri: String) {
 
   private val createTable =
     sql"""
@@ -60,4 +65,74 @@ final case class RunDatabase(transactor: Transactor[IO]) {
     s.update.run.transact(transactor).void
   }
 
+  import java.sql._
+  def fetchResults: IO[ResultsInfo] = IO.blocking {
+    val connection = DriverManager.getConnection(uri)
+    try {
+      val statement = connection.createStatement()
+      statement.setQueryTimeout(30)
+      val rs = statement.executeQuery("select * from run_result")
+      val cols = (1 to rs.getMetaData.getColumnCount)
+        .map(idx => rs.getMetaData.getColumnLabel(idx))
+        .toList
+      val buf = mutable.Buffer.empty[List[Option[AnyRef]]]
+      while (rs.next()) {
+        buf.append(cols.map(col => Option(rs.getObject(col))))
+      }
+      ResultsInfo(cols, buf.toList)
+    } finally connection.close()
+  }
+
+}
+
+object RunDatabase {
+  import doobie.implicits._
+  import doobie._
+  import doobie.syntax._
+  import java.sql.ResultSetMetaData
+  import cats._
+  import cats.effect._
+  import cats.implicits._
+  import cats.syntax._
+
+  def header(md: ResultSetMetaData): List[String] =
+    (1 until md.getColumnCount).map(md.getColumnLabel).toList
+
+  def row(md: ResultSetMetaData): ResultSetIO[List[AnyRef]] =
+    (1 until md.getColumnCount).toList.traverse(FRS.getObject)
+
+  /** https://github.com/tpolecat/doobie/issues/383#issuecomment-260871837 */
+  def exec(sql: String): ConnectionIO[ResultsInfo] =
+    HC.prepareStatement(sql)(HPS.executeQuery {
+      for {
+        md <- FRS.getMetaData
+        rs <- row(md).whileM[List](HRS.next)
+      } yield ResultsInfo(header(md), rs)
+    })
+
+  final case class ResultsInfo(columns: List[String], data: List[List[AnyRef]]) {
+    import _root_.scalatags.Text.all._
+    def toTable: Text.TypedTag[String] = html(
+      head(tag("title")("TPC Bench results")),
+      body(
+        table(
+          thead(tr(columns.map(col => th(col)))),
+          tbody(data.map { row =>
+            tr(row.map {
+              case None        => td()
+              case Some(value) => td(value.toString)
+            })
+          })
+        )
+      )
+    )
+
+    def save: IO[Path] = IO
+      .blocking {
+        val absPth = Paths.get("tpcbench-run/target/tpc-html/index.html").toAbsolutePath
+        Files.createDirectories(absPth.getParent)
+        Files.write(absPth, toTable.render.getBytes("UTF-8"))
+      }
+      .flatTap(path => IO.println(s"Saved results to ${path}"))
+  }
 }
