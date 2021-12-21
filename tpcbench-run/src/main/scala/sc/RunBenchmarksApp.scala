@@ -29,7 +29,7 @@ object RunBenchmarksApp extends IOApp {
   private def runCommand(runOptions: RunOptions, doTrace: Boolean): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
-        def runProc = IO.delay {
+        def runProc = IO.blocking {
           val sparkHome = "/opt/spark"
           import scala.sys.process._
           val command = Seq(s"$sparkHome/bin/spark-submit") ++ {
@@ -48,10 +48,10 @@ object RunBenchmarksApp extends IOApp {
               ProcessLogger
                 .apply(fout = s => System.out.println(s), ferr = s => System.err.println(s))
             )
-          IO.pure(proc)
-            .onCancel(IO.delay(proc.destroy()))
-            .flatMap(proc => IO.delay(proc.exitValue()))
-        }.flatten
+          proc -> IO.pure(proc)
+            .onCancel(IO.blocking(proc.destroy()))
+            .flatMap(proc => IO.blocking(proc.exitValue()))
+        }
 
         /** Start the tracer, and then the process, then wait for the process to complete and then end the stream of the tracer, */
         for {
@@ -64,7 +64,10 @@ object RunBenchmarksApp extends IOApp {
             .map(_.flatten)
             .start
           initialApps <- getApps
-          procFiber <- runProc.start
+          prio <- runProc
+          proc = prio._1
+          procCloseIO = prio._2
+          procFiber <- procCloseIO.start
           afterStartApps <- getApps.delayBy(15.seconds)
           /** to allow spark to create a tracking url */
           newFoundApps = afterStartApps.apps.filter(app => !initialApps.apps.exists(_.id == app.id))
