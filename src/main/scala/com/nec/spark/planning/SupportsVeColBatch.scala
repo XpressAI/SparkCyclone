@@ -19,6 +19,7 @@ object SupportsVeColBatch {
       override def cleanup(veColBatch: VeColBatch)(implicit veProcess: VeProcess): Unit =
         veColBatch.cols.filter(_.veProcessId == veProcess.getProcessId()).foreach(_.free())
     }
+
   }
 }
 
