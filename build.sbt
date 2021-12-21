@@ -406,8 +406,8 @@ lazy val `tpcbench-run` = project
       .dependsOn((Test / testQuick).toTask(""))
       .evaluated,
     run / javaOptions ++= List(
-      s"-DPACKAGE=${(tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath}",
-      s"-DCYCLONE_JAR=${(root / assembly).value.absolutePath}"
+      s"-Dve.package=${(tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath}",
+      s"-Dve.cyclone_jar=${(root / assembly).value.absolutePath}"
     ),
     reStart / envVars += "PACKAGE" -> (tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath,
     reStart / envVars += "CYCLONE_JAR" -> (root / assembly).value.absolutePath,

@@ -150,7 +150,7 @@ object RunOptions {
       .getOrElse(
         "PACKAGE",
         sys.props.getOrElse(
-          "PACKAGE",
+          "ve.package",
           sys.error("Expected 'PACKAGE' env to specify the JAR to use to run")
         )
       )
@@ -158,7 +158,7 @@ object RunOptions {
   lazy val cycloneJar: String =
     sys.env.getOrElse(
       "CYCLONE_JAR",
-      sys.props.getOrElse("CYCLONE_JAR", sys.error("Expected 'CYCLONE_JAR' to be passed."))
+      sys.props.getOrElse("ve.cyclone_jar", sys.error("Expected 'CYCLONE_JAR' to be passed."))
     )
 
   val default: RunOptions = RunOptions(
