@@ -191,11 +191,16 @@ object RunOptions {
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
-    val tempFile = Files.createTempFile(
-      "log4j",
-      ".properties",
-      PosixFilePermissions.asFileAttribute(PosixPermissions)
-    )
+    val tempFile = {
+      if (scala.util.Properties.isWin)
+        Files.createTempFile("log4j", ".properties")
+      else
+        Files.createTempFile(
+          "log4j",
+          ".properties",
+          PosixFilePermissions.asFileAttribute(PosixPermissions)
+        )
+    }
     Files
       .write(
         tempFile,
