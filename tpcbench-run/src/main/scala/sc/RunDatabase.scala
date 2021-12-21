@@ -158,7 +158,7 @@ object RunDatabase {
 
     def save: IO[Path] = IO
       .blocking {
-        val absPth = Paths.get("tpcbench-run/target/tpc-html/index.html").toAbsolutePath
+        val absPth = Paths.get("target/tpc-html/index.html").toAbsolutePath
         Files.createDirectories(absPth.getParent)
         Files.write(absPth, toTable.render.getBytes("UTF-8"))
       }
