@@ -3,8 +3,8 @@ package sc
 import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
 import sun.misc.IOUtils
 
-import java.nio.file.Paths
-import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.{Files, Paths}
+import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.nio.file.attribute.PosixFilePermission._
 import java.util
 
@@ -191,12 +191,17 @@ object RunOptions {
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
-    val benchName = "log4j-benchmark.properties"
-    val benchPath = Paths.get(s"/tmp/${benchName}")
-    java.nio.file.Files
-      .write(benchPath, IOUtils.readAllBytes(getClass.getResourceAsStream(s"/${benchName}")))
-    java.nio.file.Files.setPosixFilePermissions(benchPath, PosixPermissions)
-    benchPath
+    val tempFile = Files.createTempFile(
+      "log4j",
+      ".properties",
+      PosixFilePermissions.asFileAttribute(PosixPermissions)
+    )
+    Files
+      .write(
+        tempFile,
+        IOUtils.readAllBytes(getClass.getResourceAsStream(s"/log4j-benchmark.properties"))
+      )
+    tempFile
   }
 
   import scala.collection.JavaConverters._
