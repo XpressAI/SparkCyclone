@@ -14,6 +14,9 @@ import java.time.Instant
 
 object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
   override def preColumnarTransitions: Rule[SparkPlan] = { plan =>
+    println(
+      s"Checking plan ==> ${plan.toString.take(50)}; ${UncompiledPlan.unapply(plan).isDefined}"
+    )
     if (UncompiledPlan.unapply(plan).isDefined) {
       val preMatchStart = Instant.now()
       logger.info(s"Found an uncompiled plan - proceeding.")
