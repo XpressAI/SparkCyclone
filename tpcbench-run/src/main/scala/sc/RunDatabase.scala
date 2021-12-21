@@ -129,7 +129,27 @@ object RunDatabase {
             tr(row.zip(columns).map {
               case (None, _)                       => td()
               case (Some(value), cn @ "timestamp") => td(`class` := cn, pre(value.toString))
-              case (Some(value), cn)               => td(`class` := cn, value.toString)
+              case (Some(value), cn @ "gitCommitSha") =>
+                td(
+                  `class` := cn,
+                  pre(
+                    a(
+                      target := "_blank",
+                      href := s"https://github.com/XpressAI/SparkCyclone/commit/${value}",
+                      s"${value}"
+                    )
+                  )
+                )
+              case (Some(value), cn) if value.toString.startsWith("http") =>
+                td(
+                  `class` := cn,
+                  a(
+                    href := value.toString,
+                    target := "_blank",
+                    value.toString.replaceAllLiterally("http://", "")
+                  )
+                )
+              case (Some(value), cn) => td(`class` := cn, value.toString)
             })
           })
         )
