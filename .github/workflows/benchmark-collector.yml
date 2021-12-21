@@ -60,11 +60,7 @@ jobs:
         run: sbt "tpcbench-run/run --query=${{ github.event.inputs.query }} --scale=${{ github.event.inputs.scale }}"
         if: success()
 
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y%m%d%H%M%S')"
-
       - name: Copying to sparkcyclone.io
         if: always()
-        run: rsync -r -v tpcbench-run/target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/b-${{ steps.date.outputs.date }}
+        run: rsync -r -v tpcbench-run/target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/summary
 
