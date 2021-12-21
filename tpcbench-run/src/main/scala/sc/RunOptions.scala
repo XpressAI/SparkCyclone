@@ -147,10 +147,19 @@ object RunOptions {
 
   lazy val packageJar: String =
     sys.env
-      .getOrElse("PACKAGE", sys.error("Expected 'PACKAGE' env to specify the JAR to use to run"))
+      .getOrElse(
+        "PACKAGE",
+        sys.props.getOrElse(
+          "PACKAGE",
+          sys.error("Expected 'PACKAGE' env to specify the JAR to use to run")
+        )
+      )
 
   lazy val cycloneJar: String =
-    sys.env.getOrElse("CYCLONE_JAR", sys.error("Expected 'CYCLONE_JAR' to be passed."))
+    sys.env.getOrElse(
+      "CYCLONE_JAR",
+      sys.props.getOrElse("CYCLONE_JAR", sys.error("Expected 'CYCLONE_JAR' to be passed."))
+    )
 
   val default: RunOptions = RunOptions(
     numExecutors = 8,
