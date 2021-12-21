@@ -401,6 +401,14 @@ lazy val `tpcbench-run` = project
       "org.http4s" %% "http4s-blaze-client" % "0.23.7",
       "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test
     ),
+    run / fork := true,
+    (Compile / run) := (Compile / run)
+      .dependsOn((Test / testQuick).toTask(""))
+      .evaluated,
+    run / javaOptions ++= List(
+      s"-Dve.package=${(tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath}",
+      s"-Dve.cyclone_jar=${(root / assembly).value.absolutePath}"
+    ),
     reStart / envVars += "PACKAGE" -> (tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath,
     reStart / envVars += "CYCLONE_JAR" -> (root / assembly).value.absolutePath,
     reStart := reStart

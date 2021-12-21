@@ -23,36 +23,30 @@ import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CppResource.CppResources
-import com.nec.ve.VeKernelCompiler.{DefaultDirPermissions, VeCompilerConfig}
+import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
 import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file._
 import org.apache.spark.SparkConf
 
-import java.nio.file.attribute.PosixFilePermission.{
-  GROUP_EXECUTE,
-  GROUP_READ,
-  OTHERS_EXECUTE,
-  OTHERS_READ,
-  OWNER_EXECUTE,
-  OWNER_READ,
-  OWNER_WRITE
-}
+import java.nio.file.attribute.PosixFilePermission.{GROUP_EXECUTE, GROUP_READ, OTHERS_EXECUTE, OTHERS_READ, OWNER_EXECUTE, OWNER_READ, OWNER_WRITE}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.util
 
 object VeKernelCompiler {
   import scala.collection.JavaConverters._
 
-  val DefaultDirPermissions = PosixFilePermissions.asFileAttribute(
-    Set[PosixFilePermission](
-      OWNER_READ,
-      OWNER_WRITE,
-      OWNER_EXECUTE,
-      GROUP_READ,
-      GROUP_EXECUTE,
-      OTHERS_READ,
-      OTHERS_EXECUTE
-    ).asJava
+  val PosixPermissions: util.Set[PosixFilePermission] = Set[PosixFilePermission](
+    OWNER_READ,
+    OWNER_WRITE,
+    OWNER_EXECUTE,
+    GROUP_READ,
+    GROUP_EXECUTE,
+    OTHERS_READ,
+    OTHERS_EXECUTE
+  ).asJava
+  val FileAttributes = PosixFilePermissions.asFileAttribute(
+    PosixPermissions
   )
 
   lazy val DefaultIncludes = {
@@ -200,7 +194,7 @@ final case class VeKernelCompiler(
     if (!Files.exists(buildDir)) {
       import PosixFilePermission._
 
-      Files.createDirectories(buildDir, DefaultDirPermissions)
+      Files.createDirectories(buildDir, FileAttributes)
     }
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 

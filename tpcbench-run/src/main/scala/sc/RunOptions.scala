@@ -1,10 +1,12 @@
 package sc
 
-import sc.PrivateReader.RichObject
 import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
+import sun.misc.IOUtils
 
-import java.io.{BufferedInputStream, FileInputStream}
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
+import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.nio.file.attribute.PosixFilePermission._
+import java.util
 
 final case class RunOptions(
   runId: String,
@@ -147,10 +149,19 @@ object RunOptions {
 
   lazy val packageJar: String =
     sys.env
-      .getOrElse("PACKAGE", sys.error("Expected 'PACKAGE' env to specify the JAR to use to run"))
+      .getOrElse(
+        "PACKAGE",
+        sys.props.getOrElse(
+          "ve.package",
+          sys.error("Expected 'PACKAGE' env to specify the JAR to use to run")
+        )
+      )
 
   lazy val cycloneJar: String =
-    sys.env.getOrElse("CYCLONE_JAR", sys.error("Expected 'CYCLONE_JAR' to be passed."))
+    sys.env.getOrElse(
+      "CYCLONE_JAR",
+      sys.props.getOrElse("ve.cyclone_jar", sys.error("Expected 'CYCLONE_JAR' to be passed."))
+    )
 
   val default: RunOptions = RunOptions(
     numExecutors = 8,
@@ -180,17 +191,27 @@ object RunOptions {
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
-    val str = getClass.getResourceAsStream("/log4j-benchmark.properties")
-    val path = str
-      .asInstanceOf[BufferedInputStream]
-      .readPrivate
-      .in
-      .obj
-      .asInstanceOf[FileInputStream]
-      .readPrivate
-      .path
-      .obj
-      .asInstanceOf[String]
-    Paths.get(path)
+    val tempFile = Files.createTempFile(
+      "log4j",
+      ".properties",
+      PosixFilePermissions.asFileAttribute(PosixPermissions)
+    )
+    Files
+      .write(
+        tempFile,
+        IOUtils.readAllBytes(getClass.getResourceAsStream(s"/log4j-benchmark.properties"))
+      )
+    tempFile
   }
+
+  import scala.collection.JavaConverters._
+  lazy val PosixPermissions: util.Set[PosixFilePermission] = Set[PosixFilePermission](
+    OWNER_READ,
+    OWNER_WRITE,
+    OWNER_EXECUTE,
+    GROUP_READ,
+    GROUP_EXECUTE,
+    OTHERS_READ,
+    OTHERS_EXECUTE
+  ).asJava
 }

@@ -58,9 +58,8 @@ object OneStageEvaluationPlan {
     }
     def libraryPath: String = veFunctionStatus match {
       case VeFunctionStatus.SourceCode(path) =>
-        sys.error(
-          s"Library was not compiled; expected to build from ${path.take(10)} (${path.hashCode})..."
-        )
+        sys.error(s"Library was not compiled; expected to build from ${path
+          .take(10)} (${path.hashCode})... Does your plan extend ${classOf[PlanCallsVeFunction]}?")
       case VeFunctionStatus.Compiled(libraryPath) => libraryPath
     }
   }
