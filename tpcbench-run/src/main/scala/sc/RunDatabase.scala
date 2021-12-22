@@ -99,7 +99,7 @@ object RunDatabase {
         raw("""<style>body {font-size:0.8em; }
               |td {vertical-align:top; }
               |.failed td {
-              |background: rgb(255,240,240);
+              |background: rgb(255,240,240) !important;
               |}
               |</style>""".stripMargin)
       ),
