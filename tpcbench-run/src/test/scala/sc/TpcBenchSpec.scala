@@ -14,29 +14,40 @@ final class TpcBenchSpec extends AnyFreeSpec {
     assert(RunOptions.fieldNames.contains("name"))
   }
 
+  import doobie._
+  import doobie.implicits._
+  import cats._
+  import cats.data._
+  import cats.effect.IO
+  import cats.implicits._
+
+  val xa = Transactor
+    .fromDriverManager[IO]("org.sqlite.JDBC", "jdbc:sqlite:test.db", "", "")
+  val rd = RunDatabase(xa, "jdbc:sqlite:test.db")
+
   "it saves data into the database" in {
-    import doobie._
-    import doobie.implicits._
-    import cats._
-    import cats.data._
-    import cats.effect.IO
-    import cats.implicits._
-
-    val xa = Transactor
-      .fromDriverManager[IO]("org.sqlite.JDBC", "jdbc:sqlite:test.db", "", "")
-
-    val rd = RunDatabase(xa)
-    (rd.initialize).unsafeRunSync()
+    rd.initialize.unsafeRunSync()
 
     (rd.initialize *> rd.insert(
       RunOptions.default,
       RunResult(
-        succeeded = true,
+        succeeded = false,
         wallTime = 1,
         queryTime = 123,
         traceResults = "KK",
         appUrl = "abc"
       )
     )).unsafeRunSync()
+  }
+
+  "We can generate a table of results" in {
+    val res = rd.fetchResults.unsafeRunSync()
+    assert(res.columns.contains("aggregateOnVe"))
+    assert(res.data.nonEmpty)
+  }
+
+  "We can save results into a file" in {
+    val path = rd.fetchResults.flatMap(_.save).unsafeRunSync()
+    info(s"Path saved => ${path}")
   }
 }

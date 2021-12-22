@@ -54,13 +54,13 @@ final case class RunOptions(
         k -> v
       }
       .collect {
-        case ("query", nqn)              => copy(queryNo = nqn.toInt)
-        case ("cyclone", nqn)            => copy(useCyclone = nqn == "on")
-        case ("scale", newScale)         => copy(scale = newScale)
-        case ("name", newName)           => copy(name = Some(newName))
-        case ("serializer", v)           => copy(serializerOn = v == "on")
-        case ("ve-log-debug", v)         => copy(veLogDebug = v == "on")
-        case ("kernel-directory", newkd) => copy(kernelDirectory = Some(newkd))
+        case ("query", nqn) if nqn.forall(Character.isDigit) => copy(queryNo = nqn.toInt)
+        case ("cyclone", nqn)                                => copy(useCyclone = nqn == "on")
+        case ("scale", newScale)                             => copy(scale = newScale)
+        case ("name", newName)                               => copy(name = Some(newName))
+        case ("serializer", v)                               => copy(serializerOn = v == "on")
+        case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on")
+        case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
       }
       .orElse {
         val extraStr = "--extra="
@@ -191,11 +191,16 @@ object RunOptions {
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
-    val tempFile = Files.createTempFile(
-      "log4j",
-      ".properties",
-      PosixFilePermissions.asFileAttribute(PosixPermissions)
-    )
+    val tempFile = {
+      if (scala.util.Properties.isWin)
+        Files.createTempFile("log4j", ".properties")
+      else
+        Files.createTempFile(
+          "log4j",
+          ".properties",
+          PosixFilePermissions.asFileAttribute(PosixPermissions)
+        )
+    }
     Files
       .write(
         tempFile,
