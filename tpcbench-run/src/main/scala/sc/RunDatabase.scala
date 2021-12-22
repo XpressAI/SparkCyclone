@@ -105,7 +105,7 @@ object RunDatabase {
       ),
       body(
         table(
-          `class` := "pure-table-striped pure-table pure-table-horizontal",
+          `class` := "pure-table pure-table-horizontal",
           thead(tr(columns.map(col => th(col)))),
           tbody(data.map { row =>
             tr(
