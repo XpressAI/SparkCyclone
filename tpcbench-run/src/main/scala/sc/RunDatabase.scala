@@ -129,39 +129,37 @@ object RunDatabase {
       body(
         table(
           `class` := "pure-table-striped pure-table pure-table-horizontal",
-          thead(
-            tr(
-              if (data(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
-              else (),
-              columns.map(col => th(col))
-            )
-          ),
+          thead(tr(columns.map(col => th(col)))),
           tbody(data.map { row =>
-            tr(row.zip(columns).map {
-              case (None, _)                       => td()
-              case (Some(value), cn @ "timestamp") => td(`class` := cn, pre(value.toString))
-              case (Some(value), cn @ "gitCommitSha") =>
-                td(
-                  `class` := cn,
-                  pre(
-                    a(
-                      target := "_blank",
-                      href := s"https://github.com/XpressAI/SparkCyclone/commit/${value}",
-                      s"${value}"
+            tr(
+              if (row(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
+              else (),
+              row.zip(columns).map {
+                case (None, _)                       => td()
+                case (Some(value), cn @ "timestamp") => td(`class` := cn, pre(value.toString))
+                case (Some(value), cn @ "gitCommitSha") =>
+                  td(
+                    `class` := cn,
+                    pre(
+                      a(
+                        target := "_blank",
+                        href := s"https://github.com/XpressAI/SparkCyclone/commit/${value}",
+                        s"${value}"
+                      )
                     )
                   )
-                )
-              case (Some(value), cn) if value.toString.startsWith("http") =>
-                td(
-                  `class` := cn,
-                  a(
-                    href := value.toString,
-                    target := "_blank",
-                    value.toString.replaceAllLiterally("http://", "")
+                case (Some(value), cn) if value.toString.startsWith("http") =>
+                  td(
+                    `class` := cn,
+                    a(
+                      href := value.toString,
+                      target := "_blank",
+                      value.toString.replaceAllLiterally("http://", "")
+                    )
                   )
-                )
-              case (Some(value), cn) => td(`class` := cn, value.toString)
-            })
+                case (Some(value), cn) => td(`class` := cn, value.toString)
+              }
+            )
           })
         )
       )
