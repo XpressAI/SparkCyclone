@@ -34,7 +34,7 @@ import scalatags.Text.tags2.{details, summary}
 
 import java.time.LocalDate
 
-class TPCHSqlCSpec
+abstract class TPCHSqlCSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with SparkAdditions
@@ -54,8 +54,7 @@ class TPCHSqlCSpec
 
   private var initialized = false
 
-  def configuration: SparkSession.Builder => SparkSession.Builder =
-    DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
+  def configuration: SparkSession.Builder => SparkSession.Builder
   val resultsDir = "src/test/resources/com/nec/spark/results/"
 
   def createViews(sparkSession: SparkSession): Unit = {

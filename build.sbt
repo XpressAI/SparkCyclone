@@ -359,4 +359,60 @@ Test / javaOptions ++= {
   }
 }
 
-ThisBuild / scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation")
+lazy val tpchbench = project
+  .in(file("tests/tpchbench"))
+  .settings(
+    scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
+    version := "0.0.1",
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.1" % "provided",
+    libraryDependencies += "com.github.mrpowers" %% "spark-daria" % "0.38.2",
+    libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+// test suite settings
+    Test / fork := true,
+    javaOptions ++= Seq("-Xms2G", "-Xmx32G", "-XX:+CMSClassUnloadingEnabled"),
+// Show runtime of tests
+    Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+
+// JAR file settings
+
+// don't include Scala in the JAR file
+//assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
+
+// Add the JAR file naming conventions described here: https://github.com/MrPowers/spark-style-guide#jar-files
+// You can add the JAR file naming conventions by running the shell script
+  )
+
+lazy val `tpcbench-run` = project
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.xerial" % "sqlite-jdbc" % "3.36.0.3",
+      "org.tpolecat" %% "doobie-core" % "1.0.0-RC1",
+      "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC1",
+      "org.scalatest" %% "scalatest" % "3.2.10" % Test,
+      "io.circe" %% "circe-literal" % "0.14.1",
+      "io.circe" %% "circe-generic" % "0.14.1",
+      "io.circe" %% "circe-parser" % "0.14.1",
+      "org.http4s" %% "http4s-circe" % "0.23.7",
+      "org.http4s" %% "http4s-scala-xml" % "0.23.7",
+      "org.http4s" %% "http4s-dsl" % "0.23.7",
+      "org.apache.commons" % "commons-lang3" % "3.10",
+      "org.http4s" %% "http4s-blaze-client" % "0.23.7",
+      "com.lihaoyi" %% "scalatags" % "0.11.0",
+      "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test
+    ),
+    run / fork := true,
+    (Compile / run) := (Compile / run)
+      .dependsOn((Test / testQuick).toTask(""))
+      .evaluated,
+    run / javaOptions ++= List(
+      s"-Dve.package=${(tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath}",
+      s"-Dve.cyclone_jar=${(root / assembly).value.absolutePath}"
+    ),
+    reStart / envVars += "PACKAGE" -> (tpchbench / Compile / _root_.sbt.Keys.`package`).value.absolutePath,
+    reStart / envVars += "CYCLONE_JAR" -> (root / assembly).value.absolutePath,
+    reStart := reStart
+      .dependsOn((Test / testQuick).toTask(""))
+      .evaluated
+  )
+  .dependsOn(tracing)

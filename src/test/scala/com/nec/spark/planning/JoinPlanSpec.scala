@@ -99,7 +99,9 @@ object JoinPlanSpec {
                                         Join.runOn(
                                           new VeArrowNativeInterface(
                                             SparkCycloneExecutorPlugin._veo_proc,
-                                            SparkCycloneExecutorPlugin.lib
+                                            sys.error(
+                                              "This test should not run and may need to be removed."
+                                            )
                                           )
                                         )(
                                           firstColumnVec,

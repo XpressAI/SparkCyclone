@@ -1,13 +1,14 @@
 package com.nec.ve
 
 import com.nec.ve.VeColBatch.VeColVector
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.HashPartitioner
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 
 import scala.reflect.ClassTag
 
-object VeRDD extends Logging {
+object VeRDD extends LazyLogging {
   def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
     rdd
       .mapPartitions(
@@ -29,9 +30,9 @@ object VeRDD extends Logging {
         f = iter =>
           iter.map { case (p, v) =>
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-//            logInfo(s"Preparing to serialize batch ${v}")
+            logger.debug(s"Preparing to serialize batch ${v}")
             val r = (p, (v, v.map(_.serialize())))
-//            logInfo(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
+            logger.debug(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
             r
           },
         preservesPartitioning = true
@@ -41,10 +42,10 @@ object VeRDD extends Logging {
         f = iter =>
           iter.map { case (_, (v, ba)) =>
             v.zip(ba).map { case (vv, bb) =>
-//              logInfo(s"Preparing to deserialize batch ${vv}")
+              logger.debug(s"Preparing to deserialize batch ${vv}")
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               val res = vv.deserialize(bb)
-//              logInfo(s"Completed deserializing batch ${vv} --> ${res}")
+              logger.debug(s"Completed deserializing batch ${vv} --> ${res}")
               res
             }
           },

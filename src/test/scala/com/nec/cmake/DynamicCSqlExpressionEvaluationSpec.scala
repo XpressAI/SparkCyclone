@@ -47,25 +47,7 @@ import java.time.temporal.TemporalUnit
 import scala.math.Ordered.orderingToOrdered
 import com.nec.spark.planning.VeColumnarRule
 
-object DynamicCSqlExpressionEvaluationSpec {
-
-  val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
-    _.config(CODEGEN_FALLBACK.key, value = false)
-      .config("spark.sql.codegen.comments", value = true)
-      .config("spark.sql.codegen.comments", value = true)
-      .config("spark.ui.enabled", "true")
-      .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession => {
-          VERewriteStrategy.failFast = true
-          new VERewriteStrategy(CNativeEvaluator(debug = false))
-        })
-      )
-      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
-  }
-
-}
-
-class DynamicCSqlExpressionEvaluationSpec
+abstract class DynamicCSqlExpressionEvaluationSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with BeforeAndAfterAll
@@ -73,8 +55,7 @@ class DynamicCSqlExpressionEvaluationSpec
   with Matchers
   with LazyLogging {
 
-  def configuration: SparkSession.Builder => SparkSession.Builder =
-    DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
+  def configuration: SparkSession.Builder => SparkSession.Builder
 
   "Different single-column expressions can be evaluated" - {
     List(

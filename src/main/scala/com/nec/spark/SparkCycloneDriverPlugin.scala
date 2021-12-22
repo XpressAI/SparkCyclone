@@ -30,6 +30,7 @@ import org.apache.spark.api.plugin.PluginContext
 
 import java.nio.file.Files
 import com.nec.ve.VeKernelCompiler
+import com.nec.ve.VeKernelCompiler.FileAttributes
 import com.typesafe.scalalogging.LazyLogging
 import okio.ByteString
 
@@ -71,16 +72,7 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
           .get("spark.sql.extensions", "")
       )
 
-    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
-    val testArgs: Map[String, String] = Map(
-      "ve_so_name" -> VeKernelCompiler
-        .compile_c(
-          buildDir = tmpBuildDir,
-          config = VeKernelCompiler.VeCompilerConfig.fromSparkConf(pluginContext.conf())
-        )
-        .toAbsolutePath
-        .toString
-    )
+    val testArgs: Map[String, String] = Map.empty
     testArgs.asJava
   }
 

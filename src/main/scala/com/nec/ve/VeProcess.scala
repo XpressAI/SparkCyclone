@@ -5,6 +5,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
 import com.nec.ve.VeProcess.LibraryReference
+import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
@@ -54,7 +55,7 @@ trait VeProcess {
 
 object VeProcess {
   final case class LibraryReference(value: Long)
-  final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess {
+  final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
 
     override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
@@ -94,7 +95,9 @@ object VeProcess {
     override def getProcessId(): Long = f().getProcessId()
   }
 
-  final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
+  final case class WrappingVeo(veo_proc_handle: veo_proc_handle)
+    extends VeProcess
+    with LazyLogging {
     override def allocate(size: Long): Long = {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
@@ -203,6 +206,7 @@ object VeProcess {
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
+      logger.info(s"Loading library from path ${path}...")
       SparkCycloneExecutorPlugin.libsPerProcess
         .getOrElseUpdate(
           veo_proc_handle,
@@ -211,7 +215,8 @@ object VeProcess {
         .getOrElseUpdate(
           path.toString, {
             val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
-            require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
+            require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe} (library at: ${path})")
+            logger.info(s"Loaded library from ${path} as $libRe")
             LibraryReference(libRe)
           }
         )
