@@ -119,15 +119,23 @@ object RunDatabase {
           """<link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css" integrity="sha384-Uu6IeWbM+gzNVXJcM9XV3SohHtmWE+3VGi496jvgX1jyvDTXfdK+rfZc8C1Aehk5" crossorigin="anonymous">"""
         ),
         raw("""<meta name="viewport" content="width=device-width, initial-scale=1">"""),
-        raw(
-          """<style>body {font-size:0.8em; }
-            |td {vertical-align:top; }
-            |</style>""".stripMargin)
+        raw("""<style>body {font-size:0.8em; }
+              |td {vertical-align:top; }
+              |.failed td {
+              |background: rgb(255,240,240);
+              |}
+              |</style>""".stripMargin)
       ),
       body(
         table(
           `class` := "pure-table-striped pure-table pure-table-horizontal",
-          thead(tr(columns.map(col => th(col)))),
+          thead(
+            tr(
+              if (data(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
+              else (),
+              columns.map(col => th(col))
+            )
+          ),
           tbody(data.map { row =>
             tr(row.zip(columns).map {
               case (None, _)                       => td()
