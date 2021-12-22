@@ -132,7 +132,7 @@ object RunDatabase {
           thead(tr(columns.map(col => th(col)))),
           tbody(data.map { row =>
             tr(
-              if (row(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
+              if (row.lift(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
               else (),
               row.zip(columns).map {
                 case (None, _)                       => td()
