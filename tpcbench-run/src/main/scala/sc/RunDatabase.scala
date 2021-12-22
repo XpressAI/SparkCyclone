@@ -108,8 +108,6 @@ object RunDatabase {
           `class` := "pure-table-striped pure-table pure-table-horizontal",
           thead(tr(columns.map(col => th(col)))),
           tbody(data.map { row =>
-            println(row.lift(columns.indexOf("succeeded")))
-
             tr(
               if (row(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
               else (),
