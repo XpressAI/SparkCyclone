@@ -21,8 +21,7 @@ package sparkcyclone.tpch
 
 import java.time.{Instant, LocalDate}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
-import org.apache.spark.sql.Dataset
+
 
 // TPC-H table schemas
 case class Customer(
@@ -330,9 +329,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by l_returnflag, l_linestatus
     """
 
-    val ds = sparkSession.sql(sql).limit(1)
-    println(ds.queryExecution.executedPlan)
-    ds.collect()
+    sparkSession.sql(sql).limit(1).collect()
   }
 
   def query2(sparkSession: SparkSession): Array[_] = {
@@ -385,11 +382,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
           s_name,
           p_partkey
     """
-    val ds = sparkSession.sql(sql).limit(100)
-
-    println(ds.queryExecution.executedPlan)
-
-    ds.collect()
+    sparkSession.sql(sql).limit(100).collect()
   }
 
   def query3(sparkSession: SparkSession): Array[_] = {
