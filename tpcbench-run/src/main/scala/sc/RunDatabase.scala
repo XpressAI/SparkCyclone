@@ -86,31 +86,8 @@ final case class RunDatabase(transactor: Transactor[IO], uri: String) {
 }
 
 object RunDatabase {
-  import doobie.implicits._
-  import doobie._
-  import doobie.syntax._
-  import java.sql.ResultSetMetaData
-  import cats._
-  import cats.effect._
-  import cats.implicits._
-  import cats.syntax._
 
-  def header(md: ResultSetMetaData): List[String] =
-    (1 until md.getColumnCount).map(md.getColumnLabel).toList
-
-  def row(md: ResultSetMetaData): ResultSetIO[List[AnyRef]] =
-    (1 until md.getColumnCount).toList.traverse(FRS.getObject)
-
-  /** https://github.com/tpolecat/doobie/issues/383#issuecomment-260871837 */
-  def exec(sql: String): ConnectionIO[ResultsInfo] =
-    HC.prepareStatement(sql)(HPS.executeQuery {
-      for {
-        md <- FRS.getMetaData
-        rs <- row(md).whileM[List](HRS.next)
-      } yield ResultsInfo(header(md), rs)
-    })
-
-  final case class ResultsInfo(columns: List[String], data: List[List[AnyRef]]) {
+  final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRef]]]) {
     import _root_.scalatags.Text.all._
     def toTable: Text.TypedTag[String] = html(
       head(
@@ -131,8 +108,10 @@ object RunDatabase {
           `class` := "pure-table-striped pure-table pure-table-horizontal",
           thead(tr(columns.map(col => th(col)))),
           tbody(data.map { row =>
+            println(row.lift(columns.indexOf("succeeded")))
+
             tr(
-              if (row.lift(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
+              if (row(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
               else (),
               row.zip(columns).map {
                 case (None, _)                       => td()

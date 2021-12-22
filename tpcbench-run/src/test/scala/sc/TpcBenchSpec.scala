@@ -31,7 +31,7 @@ final class TpcBenchSpec extends AnyFreeSpec {
     (rd.initialize *> rd.insert(
       RunOptions.default,
       RunResult(
-        succeeded = true,
+        succeeded = false,
         wallTime = 1,
         queryTime = 123,
         traceResults = "KK",
@@ -46,7 +46,7 @@ final class TpcBenchSpec extends AnyFreeSpec {
     assert(res.data.nonEmpty)
   }
 
-  "We can save results into a file" ignore {
+  "We can save results into a file" in {
     val path = rd.fetchResults.flatMap(_.save).unsafeRunSync()
     info(s"Path saved => ${path}")
   }
