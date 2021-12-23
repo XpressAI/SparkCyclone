@@ -205,6 +205,7 @@ final case class VERewriteStrategy(
               )
             } else {
               List(
+                VectorEngineToSparkPlan(
                 OneStageEvaluationPlan(
                   outputExpressions = projectList,
                   veFunction = VeFunction(
@@ -213,6 +214,7 @@ final case class VERewriteStrategy(
                     results = cF.outputs.map(_.veType)
                   ),
                   child = SparkToVectorEnginePlan(planLater(child))
+                )
                 )
               )
             }
