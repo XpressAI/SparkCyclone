@@ -5,7 +5,7 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
 
-  implicit def veProcess: VeProcess = VeProcess.WrappingVeo(proc)
+  implicit def veProcess: VeProcess = VeProcess.WrappingVeo(proc, 10)
 
   private var initialized = false
 

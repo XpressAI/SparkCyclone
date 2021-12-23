@@ -95,7 +95,7 @@ object VeProcess {
     override def getProcessId(): Long = f().getProcessId()
   }
 
-  final case class WrappingVeo(veo_proc_handle: veo_proc_handle)
+  final case class WrappingVeo(veo_proc_handle: veo_proc_handle, processId: Int)
     extends VeProcess
     with LazyLogging {
     override def allocate(size: Long): Long = {

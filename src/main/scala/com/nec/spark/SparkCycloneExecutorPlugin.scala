@@ -22,19 +22,21 @@ package com.nec.spark
 import com.nec.arrow.VeArrowNativeInterface
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
-
 import java.util
+
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.VeProcess.LibraryReference
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.api.plugin.ExecutorPlugin
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
-
 import java.nio.file.Files
 import java.nio.file.Path
-import scala.util.Try
+
+import scala.util.{Random, Try}
 
 object SparkCycloneExecutorPlugin extends LazyLogging {
 
@@ -51,7 +53,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc))
+    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, processId))
 
   /**
    * https://www.hpc.nec/documents/veos/en/veoffload/md_Restriction.html
@@ -118,7 +120,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
       colBatch.cols.foreach(_.free())
     }
   }
-
+  var processId: Int = _
   def register(cb: VeColBatch): Unit = {
     batchCache.add(cb)
   }
@@ -155,8 +157,9 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
     }
 
     logInfo(s"Using VE node = ${selectedVeNodeId}")
-
     if (_veo_proc == null) {
+      processId = Random.nextInt()
+
       _veo_proc = veo.veo_proc_create(selectedVeNodeId)
       require(
         _veo_proc != null,
