@@ -48,6 +48,6 @@ object VeRewriteStrategyOptions {
       filterOnVe = true,
       aggregateOnVe = true,
       exchangeOnVe = true,
-      skipIdentityTransformations = true
+      skipIdentityTransformations = false
     )
 }
