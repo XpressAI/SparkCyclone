@@ -612,6 +612,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
      */
 
     val left = List[(String, Long, Int)](
+      ("foo", 42, 43),
       ("test", 123, 456),
       ("test2", 123, 4567),
       ("test2", 12, 45678),
@@ -620,19 +621,23 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
 
     val right = List[(String, Long, Double)](
+      ("foo", 42, 43),
       ("test2", 123, 654),
       ("test2", 123, 761),
-      ("test3", 12, 456)
+      ("test3", 12, 456),
+      ("bar", 0, 0)
     )
 
     val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
       /** two inner join entries on RHS */
+      (("foo", 42, 43), ("foo", 42, 43)),
       (("test2", 123, 4567), ("test2", 123, 654)),
       (("test2", 123, 4567), ("test2", 123, 761)),
       (("test3", 12, 456789), ("test3", 12, 456))
     )
 
     val joinSelectOnlyIntDouble = List[(String, Int, Double)](
+      ("foo", 43, 43),
       ("test2", 4567, 654),
       ("test2", 4567, 761),
       ("test3", 456789, 456)
@@ -655,7 +660,8 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         IO.delay {
           CMakeBuilder.buildCLogging(
             List(TransferDefinitionsSourceCode, "\n\n", CppResource("cpp/adv-join.hpp").readString)
-              .mkString("\n\n")
+              .mkString("\n\n"),
+            debug = false
           )
         }
       }

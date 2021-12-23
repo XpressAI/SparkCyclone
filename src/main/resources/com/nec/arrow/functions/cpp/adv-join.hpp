@@ -84,8 +84,8 @@ extern "C" long adv_join(
     frovedis::equi_join(b2, b2_idx, b1, b1_idx, b2_out, b1_out);
 
     #ifdef DEBUG
-    print_vec("a", a);
-    print_vec("b", b);
+    print_vec("a1", a1);
+    print_vec("a2", a2);
     print_vec("a1_out", a1_out);
     print_vec("a2_out", a2_out);
     //a1_out = [2,1,2,1,4,3]
@@ -117,13 +117,18 @@ extern "C" long adv_join(
         }
     }
 
+    std::vector<size_t> conj_a;
+    for (int i = 0; i < conj_x.size(); i++) {
+        conj_a.push_back(a1[conj_x[i]]);
+    }
+
     #ifdef DEBUG
     print_vec("conj_x", conj_x);
     print_vec("conj_y", conj_y);
     #endif
 
     // TODO: need to double check this. b is left_dict.lookup(right_cwords)
-    frovedis::words result = left_dict.index_to_words(a2);
+    frovedis::words result = left_dict.index_to_words(conj_a);
     words_to_varchar_vector(result, o_a);
 
     o_b->count = conj_x.size();
