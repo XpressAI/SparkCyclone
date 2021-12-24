@@ -32,6 +32,20 @@ final case class RunOptions(
   exchangeOnVe: Boolean
 ) {
 
+  def enhanceWith(args: List[String]): RunOptions = {
+    args
+      .sliding(2)
+      .foldLeft {
+        args
+          .foldLeft(this) { case (ro, arg) =>
+            ro.rewriteArgs(arg).getOrElse(ro)
+          }
+      } {
+        case (r, a :: b :: Nil) => r.rewriteArgsTwo(a, b).getOrElse(r)
+        case (r, _)             => r
+      }
+  }
+
   def pluginBooleans: List[(String, String)] = {
     List(
       ("spark.com.nec.spark.aggregate-on-ve", aggregateOnVe),

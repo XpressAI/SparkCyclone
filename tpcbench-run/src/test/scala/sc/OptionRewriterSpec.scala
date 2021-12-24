@@ -16,4 +16,9 @@ final class OptionRewriterSpec extends AnyFreeSpec {
         .contains("--conf x=y")
     )
   }
+  "We can add --conf directly too" in {
+    assert(
+      RunOptions.default.enhanceWith(List("z", "--conf", "test")).extras.contains("--conf test")
+    )
+  }
 }

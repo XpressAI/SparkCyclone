@@ -129,29 +129,21 @@ object RunBenchmarksApp extends IOApp {
         val runId: String = java.time.Instant.now().toString
         (1 to 22).map { qId =>
           val cleanRunId: String = runId.filter(char => Character.isLetterOrDigit(char))
-          args
-            .foldLeft(
-              RunOptions.default
-                .copy(
-                  runId = s"${runId}_${qId}",
-                  name = Some(s"Benchmark_${cleanRunId}_${qId}"),
-                  queryNo = qId
-                )
-            ) { case (ro, arg) =>
-              ro.rewriteArgs(arg).getOrElse(ro)
-            }
+          val initial = RunOptions.default
+            .copy(
+              runId = s"${runId}_${qId}",
+              name = Some(s"Benchmark_${cleanRunId}_${qId}"),
+              queryNo = qId
+            )
+
+          initial.enhanceWith(args)
         }.toList
       } else {
         val runId: String = java.time.Instant.now().toString
         val cleanRunId: String = runId.filter(char => Character.isLetterOrDigit(char))
-        List(
-          args
-            .foldLeft(
-              RunOptions.default.copy(runId = runId, name = Some(s"Benchmark_${cleanRunId}"))
-            ) { case (ro, arg) =>
-              ro.rewriteArgs(arg).getOrElse(ro)
-            }
-        )
+        val initial =
+          RunOptions.default.copy(runId = runId, name = Some(s"Benchmark_${cleanRunId}"))
+        List(initial.enhanceWith(args))
       }
     }
 
