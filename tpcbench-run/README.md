@@ -36,25 +36,26 @@ to worry about schema evolution.
 $ sbt
 > tpcbench-run/reStart
 $ sbt
-> tpcbench-run/reStart --extra=--conf --extra=spark.ui.enabled=true --extra=--conf --extra=spark.ui.port=4055 --select=1
+> tpcbench-run/reStart --conf spark.ui.enabled=true --conf --extra=spark.ui.port=4055 --query=1
 ```
 
 ### All the options (optional)
 
-| option name        | example                            | purpose                                                                                                     |
-|--------------------|------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| `query`            | `--query=2`                        | pick which query to run                                                                                     |
-| `cyclone`          | `--cyclone=off`                    | pick whether to run in Cyclone plugin or not                                                                |
-| `scale`            | `--scale=1`                        | pick which scale to use (`1`, `10`, `20`)                                                                   |
-| `name`             | `--name=abc`                       | name of the job                                                                                             |
-| `serializer`       | `--serializer=off`                 | whether to use the Cyclone serializer for caching                                                           |
-| `ve-log-debug`     | `--ve-log-deubg=on`                | whether to set the environment variable for AVEO to debug what it's doing (`VEO_LOG_DEBUG=1`, heavy logging |
+| option name        | example                          | purpose                                                                                                     |
+|--------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `query`            | `--query=2`                      | pick which query to run                                                                                     |
+| `cyclone`          | `--cyclone=off`                  | pick whether to run in Cyclone plugin or not                                                                |
+| `scale`            | `--scale=1`                      | pick which scale to use (`1`, `10`, `20`)                                                                   |
+| `name`             | `--name=abc`                     | name of the job                                                                                             |
+| `serializer`       | `--serializer=off`               | whether to use the Cyclone serializer for caching                                                           |
+| `ve-log-debug`     | `--ve-log-deubg=on`              | whether to set the environment variable for AVEO to debug what it's doing (`VEO_LOG_DEBUG=1`, heavy logging |
 | `kernel-directory` | `--kernel-directory=/tmp/my/space` | where to cache compiled `.so` modules                                                                       |
-| `--extra`          | `--extra=--conf --extra=abcd`      | append arguments to the `spark-submit` command. Here, it will append `--conf abcd`                          |
+| `--extra`          | `--extra=--conf --extra=abcd`    | append arguments to the `spark-submit` command. Here, it will append `--conf abcd`                          |
+| `--conf x`    | `--conf abcd`      | append arguments to the `spark-submit` command. Here, it will append `--conf abcd`                          |
 
 ## All result options
 
-These are subject to change, refer to your instance for completeness. 
+These are subject to change, refer to your instance for completeness.
 
 ```
 $ sqlite3 /tmp/benchmark-results.db -cmd '.mode column' -cmd '.headers on' 'pragma table_info(run_result);'cid         name        type        notnull     dflt_value  pk        
