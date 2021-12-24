@@ -1,25 +1,24 @@
 package sc
 
-import cats.effect.{Deferred, ExitCode, IO, IOApp}
+import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.implicits.global
+import cats.effect.{ExitCode, IO, IOApp}
 import com.comcast.ip4s.Host
 import com.nec.tracing.SpanProcessor
 import com.nec.tracing.TracingListenerApp.socketToLines
-import fs2.concurrent.{Signal, SignallingRef}
+import fs2.concurrent.{SignallingRef, Topic}
 import fs2.io.net.Network
 import org.http4s.blaze.client.BlazeClientBuilder
-import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.scalaxml.xml
-import sc.RunOptions.RunResult
 import sc.hadoop.AppsContainer
 
-import java.nio.file.Paths
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.DurationInt
 
 object RunBenchmarksApp extends IOApp {
 
-  final case class RunResults(appUrl: String, traceResults: String)
+  final case class RunResults(appUrl: String, traceResults: String, logOutput: String)
 
   private def getApps: IO[AppsContainer] = {
     BlazeClientBuilder[IO].resource
@@ -27,10 +26,12 @@ object RunBenchmarksApp extends IOApp {
       .map(elem => AppsContainer.parse(elem))
   }
 
-  private def runCommand(runOptions: RunOptions, doTrace: Boolean): IO[(Int, RunResults)] =
+  private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
+    runtime: IORuntime
+  ): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
-        def runProc = IO.blocking {
+        def runProc(_stdout: String => IO[Unit], _stderr: String => IO[Unit]) = IO.blocking {
           val sparkHome = "/opt/spark"
           import scala.sys.process._
           val command = Seq(s"$sparkHome/bin/spark-submit") ++ {
@@ -47,7 +48,10 @@ object RunBenchmarksApp extends IOApp {
           val proc = Process(command = command, None, "SPARK_HOME" -> sparkHome)
             .run(
               ProcessLogger
-                .apply(fout = s => System.out.println(s), ferr = s => System.err.println(s))
+                .apply(
+                  fout = s => _stdout(s).unsafeRunSync()(runtime),
+                  ferr = s => _stderr(s).unsafeRunSync()(runtime)
+                )
             )
           proc -> IO
             .pure(proc)
@@ -66,7 +70,19 @@ object RunBenchmarksApp extends IOApp {
             .map(_.flatten)
             .start
           initialApps <- getApps
-          prio <- runProc
+          outLinesTopic <- Topic[IO, String]
+          outLinesF <- outLinesTopic
+            .subscribe(Int.MaxValue)
+            .interruptWhen(haltWhenTrue = s)
+            .compile
+            .toList
+            .start
+          prio <- runProc(
+            _stdout = line => IO.println(line) *> outLinesTopic.publish1(line).void,
+            _stderr = line =>
+              IO.println(line)
+                *> outLinesTopic.publish1(line).void
+          )
           proc = prio._1
           procCloseIO = prio._2
           procFiber <- procCloseIO.start
@@ -85,18 +101,23 @@ object RunBenchmarksApp extends IOApp {
           exitValue <- procFiber.joinWithNever
           _ <- s.set(true).delayBy(2.seconds)
           traceLines <- streamFiber.joinWithNever
+          outLines <- outLinesF.joinWithNever
           _ = println(s"Trace lines => ${traceLines.toString().take(50)}")
           analyzeResult = SpanProcessor.analyzeLines(traceLines)
-        } yield (exitValue, RunResults(newFoundApp.appUrl, analyzeResult.mkString("", "\n", "")))
+        } yield (
+          exitValue,
+          RunResults(
+            appUrl = newFoundApp.appUrl,
+            traceResults = analyzeResult.mkString("", "\n", ""),
+            logOutput = outLines.mkString("", "\n", "")
+          )
+        )
     }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    import doobie._
-    import doobie.implicits._
-    import cats._
-    import cats.data._
     import cats.effect.IO
     import cats.implicits._
+    import doobie._
 
     val uri = "jdbc:sqlite:/tmp/benchmark-results.db"
     val xa = Transactor
@@ -153,7 +174,8 @@ object RunBenchmarksApp extends IOApp {
                 wallTime = wallTime,
                 queryTime = wallTime,
                 appUrl = traceResults.appUrl,
-                traceResults = traceResults.traceResults
+                traceResults = traceResults.traceResults,
+                logOutput = traceResults.logOutput
               )
             ) *> rd.fetchResults.flatMap(_.save)
         }
