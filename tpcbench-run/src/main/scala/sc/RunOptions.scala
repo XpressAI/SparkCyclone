@@ -45,6 +45,11 @@ final case class RunOptions(
   def includeExtra(e: String): RunOptions =
     copy(extras = Some((extras.toList ++ List(e)).mkString(" ")))
 
+  def rewriteArgsTwo(a: String, b: String): Option[RunOptions] =
+    PartialFunction.condOpt(a -> b) { case (k @ "--conf", v) =>
+      includeExtra(s"$k $v")
+    }
+
   def rewriteArgs(str: String): Option[RunOptions] = {
     Option(str)
       .filter(_.startsWith("--"))

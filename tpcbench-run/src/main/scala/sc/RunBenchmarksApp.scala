@@ -11,6 +11,7 @@ import fs2.io.net.Network
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.scalaxml.xml
+import sc.ResultsInfo.DefaultOrdering
 import sc.hadoop.AppsContainer
 
 import java.time.{Duration, Instant}
@@ -177,7 +178,7 @@ object RunBenchmarksApp extends IOApp {
                 traceResults = traceResults.traceResults,
                 logOutput = traceResults.logOutput
               )
-            ) *> rd.fetchResults.flatMap(_.save)
+            ) *> rd.fetchResults.map(_.reorder(DefaultOrdering)).flatMap(_.save)
         }
       )
       .void
