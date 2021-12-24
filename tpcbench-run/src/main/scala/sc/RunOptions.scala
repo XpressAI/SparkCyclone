@@ -3,9 +3,9 @@ package sc
 import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
 import sun.misc.IOUtils
 
-import java.nio.file.{Files, Paths}
-import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission._
+import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util
 
 final case class RunOptions(
@@ -131,18 +131,6 @@ final case class RunOptions(
 }
 
 object RunOptions {
-  final case class RunResult(
-    succeeded: Boolean,
-    wallTime: Int,
-    queryTime: Int,
-    appUrl: String,
-    traceResults: String
-  ) {}
-  object RunResult {
-    val fieldNames: List[String] = {
-      classOf[RunResult].getDeclaredFields.map(_.getName).toList
-    }
-  }
   val fieldNames: List[String] = {
     classOf[RunOptions].getDeclaredFields.map(_.getName).toList
   }

@@ -2,7 +2,8 @@ package sc
 
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
-import sc.RunOptions.{Log4jFile, RunResult}
+import sc.ResultsInfo.DefaultOrdering
+import sc.RunOptions.Log4jFile
 
 import java.nio.file.Files
 
@@ -14,12 +15,8 @@ final class TpcBenchSpec extends AnyFreeSpec {
     assert(RunOptions.fieldNames.contains("name"))
   }
 
-  import doobie._
-  import doobie.implicits._
-  import cats._
-  import cats.data._
   import cats.effect.IO
-  import cats.implicits._
+  import doobie._
 
   val xa = Transactor
     .fromDriverManager[IO]("org.sqlite.JDBC", "jdbc:sqlite:test.db", "", "")
@@ -35,7 +32,8 @@ final class TpcBenchSpec extends AnyFreeSpec {
         wallTime = 1,
         queryTime = 123,
         traceResults = "KK",
-        appUrl = "abc"
+        appUrl = "abc",
+        logOutput = (0 to 40).map(l => s"s$l").mkString("\n")
       )
     )).unsafeRunSync()
   }
@@ -47,7 +45,7 @@ final class TpcBenchSpec extends AnyFreeSpec {
   }
 
   "We can save results into a file" in {
-    val path = rd.fetchResults.flatMap(_.save).unsafeRunSync()
+    val path = rd.fetchResults.map(_.reorder(DefaultOrdering)).flatMap(_.save).unsafeRunSync()
     info(s"Path saved => ${path}")
   }
 }
