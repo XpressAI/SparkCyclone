@@ -5,7 +5,43 @@ import scalatags.Text
 
 import java.nio.file.{Files, Path, Paths}
 
+object ResultsInfo {
+  val DefaultOrdering: List[String] =
+    List(
+      "id",
+      "timestamp",
+      "gitCOmmitSha",
+      "scale",
+      "queryNo",
+      "succeeded",
+      "wallTime",
+      "serializerOn",
+      "logOutput",
+      "appUrl"
+    )
+}
 final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRef]]]) {
+
+  def reorder(priorities: List[String]): ResultsInfo = {
+    copy(
+      data = data.map(dataRow =>
+        columns
+          .zip(dataRow)
+          .sortBy(xc => {
+            val p = priorities.indexOf(xc._1)
+            if (p == -1) Int.MaxValue
+            else p
+          })
+          .map(_._2)
+      ),
+      columns = columns.sortBy(xc => {
+        val p = priorities.indexOf(xc)
+        if (p == -1) Int.MaxValue
+        else p
+      })
+    )
+  }
+
   import _root_.scalatags.Text.all._
   def toTable: Text.TypedTag[String] = html(
     head(
@@ -19,6 +55,9 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             |.failed td {
             |background: rgb(255,240,240) !important;
             |}
+            |tr:target td {
+            |background: rgb(255,250,240) !important;
+            |}
             |dialog {
             |width: 90vw
             |}
@@ -29,7 +68,9 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
         `class` := "pure-table pure-table-horizontal",
         thead(tr(columns.map(col => th(col)))),
         tbody(data.map { row =>
+          val theId = row(columns.indexOf("id")).get.toString
           tr(
+            id := theId,
             if (row(columns.indexOf("succeeded")).contains("false")) (`class` := "failed")
             else (),
             row.zip(columns).map {
@@ -64,6 +105,8 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
                     value.toString.replaceAllLiterally("http://", "")
                   )
                 )
+              case (Some(value), cn @ "id") =>
+                td(`class` := cn, a(href := s"#${theId}", value.toString))
               case (Some(value), cn) => td(`class` := cn, value.toString)
             }
           )

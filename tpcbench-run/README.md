@@ -33,8 +33,10 @@ to worry about schema evolution.
 ## Running
 
 ```
-$ sbt tpcbench-run/reStart
-$ sbt 'tpcbench-run/reStart --extra=--conf --extra=spark.ui.enabled=true --extra=--conf --extra=spark.ui.port=4055 --select=1'
+$ sbt
+> tpcbench-run/reStart
+$ sbt
+> tpcbench-run/reStart --extra=--conf --extra=spark.ui.enabled=true --extra=--conf --extra=spark.ui.port=4055 --select=1
 ```
 
 ### All the options (optional)
