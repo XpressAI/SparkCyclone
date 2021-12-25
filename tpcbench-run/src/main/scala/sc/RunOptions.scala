@@ -28,7 +28,6 @@ final case class RunOptions(
   aggregateOnVe: Boolean,
   enableVeSorting: Boolean,
   projectOnVe: Boolean,
-  skipIdentityProjections: Boolean,
   filterOnVe: Boolean,
   passThroughProject: Boolean,
   exchangeOnVe: Boolean
@@ -40,7 +39,6 @@ final case class RunOptions(
       ("spark.com.nec.spark.sort-on-ve", enableVeSorting),
       ("spark.com.nec.spark.pass-through-project", passThroughProject),
       ("spark.com.nec.spark.project-on-ve", projectOnVe),
-      ("spark.com.nec.spark.project-on-ve.skip-identity", projectOnVe),
       ("spark.com.nec.spark.filter-on-ve", filterOnVe),
       ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe)
     ).map { case (k, v) => (k, v.toString) }
@@ -191,7 +189,6 @@ object RunOptions {
     projectOnVe = true,
     filterOnVe = true,
     exchangeOnVe = true,
-    skipIdentityProjections = true,
     codeDebug = false,
     useCyclone = true,
     passThroughProject = false
