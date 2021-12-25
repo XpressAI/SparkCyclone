@@ -146,7 +146,7 @@ object RunBenchmarksApp extends IOApp {
 
           containerLogsListF <- monitorAllContainers(newFoundApp.id)
             .interruptWhen(haltWhenTrue = s)
-            .evalTap(cnt => IO.println(s"Detected a container: ${cnt}"))
+            .evalTap(cnt => IO.println(s"Detected a new container: ${cnt.logUrl}"))
             .compile
             .toList
             .start
