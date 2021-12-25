@@ -54,9 +54,6 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
       raw(
         """<script src="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.js" integrity="sha512-qUIG93zKzcLBVD5RGRbx2PBmbVRu+tJIl+EPLTus0z8I1AMru9sQYdlf6cBacSzYmZVncB9rcc8rYBnazqgrxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>"""
       ),
-      raw(
-        """<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.css" integrity="sha512-J2+1q+RsZuJXabBfH1q/fgRr6jMy9By5SwVLk7bScEW7NFJkMUXxfeOyyxtDe6fsaJ4jsciexSlGrPYn9YbBIg==" crossorigin="anonymous" referrerpolicy="no-referrer" />"""
-      ),
       raw("""<meta name="viewport" content="width=device-width, initial-scale=1">"""),
       raw("""<style>body {font-size:0.8em; }
             |td {vertical-align:top; }
@@ -67,7 +64,7 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             |    white-space: nowrap;
             |}
             |tr:target td {
-            |background: rgb(255,255,230) !important;
+            |background: rgb(255,225,190) !important;
             |}
             |dialog {
             |width: 90vw
@@ -133,7 +130,12 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             }
           )
         })
-      )
+      ),
+
+      raw(
+        """<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.css" integrity="sha512-J2+1q+RsZuJXabBfH1q/fgRr6jMy9By5SwVLk7bScEW7NFJkMUXxfeOyyxtDe6fsaJ4jsciexSlGrPYn9YbBIg==" crossorigin="anonymous" referrerpolicy="no-referrer" />"""
+      ),
+      raw("""<script>Array.from(document.querySelectorAll('dialog')).forEach((d) => (dialogPolyfill.registerDialog(d)));</script>""")
     )
   )
 
