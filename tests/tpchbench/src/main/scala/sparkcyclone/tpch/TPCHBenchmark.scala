@@ -889,8 +889,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
         p_type,
         p_size
     """
-
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    println(ds.queryExecution.executedPlan)
+    ds.collect()
   }
 
   def query17(sparkSession: SparkSession): Array[_] = {
