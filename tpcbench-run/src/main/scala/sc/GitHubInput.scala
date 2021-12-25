@@ -18,7 +18,8 @@ object GitHubInput {
     "scale" -> Choice("Scale", Some("1"), List("1", "10", "20")),
     "serializer" -> OnOrOff("Use Serializer", default = true),
     "ve-log-debug" -> OnOrOff("Debug VE logs", default = false),
-    "extra" -> Input("Extra command line arguments to add to Spark")
+    "extra" -> Input("Extra command line arguments to add to Spark"),
+    "pass-through-project" -> OnOrOff("Pass through in projection", default = false)
   )
 
   final case class Choice(description: String, default: Option[String], options: List[String])
