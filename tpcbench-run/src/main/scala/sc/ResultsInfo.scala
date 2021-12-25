@@ -61,7 +61,7 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             |    white-space: nowrap;
             |}
             |tr:target td {
-            |background: rgb(255,250,240) !important;
+            |background: rgb(255,255,230) !important;
             |}
             |dialog {
             |width: 90vw
