@@ -155,13 +155,13 @@ final case class VERewriteStrategy(
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
-          val nonIdentityProjections = projectList.toList
-            .filter {
-              case AttributeReference(_, _, _, _) => false
-              case _                              => true
-            }
+          val nonIdentityProjections =
+            if (options.passThroughProject)
+              projectList.filter(_.isInstanceOf[AttributeReference])
+            else projectList
+
           val planE = for {
-            outputs <- nonIdentityProjections.zipWithIndex.map { case (att, idx) =>
+            outputs <- nonIdentityProjections.toList.zipWithIndex.map { case (att, idx) =>
               val referenced = replaceReferences(InputPrefix, plan.inputSet.toList, att)
               if (referenced.dataType == StringType)
                 evalString(referenced).map(stringProducer =>
@@ -190,19 +190,27 @@ final case class VERewriteStrategy(
                 outputs = outputs
               )
             )
-            List(
-              VectorEngineToSparkPlan(
-                ProjectEvaluationPlan(
-                  outputExpressions = projectList,
-                  veFunction = VeFunction(
-                    veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
-                    functionName = fName,
-                    results = cF.outputs.map(_.veType)
-                  ),
-                  child = SparkToVectorEnginePlan(planLater(child))
-                )
+            List(VectorEngineToSparkPlan(if (options.passThroughProject) {
+              ProjectEvaluationPlan(
+                outputExpressions = projectList,
+                veFunction = VeFunction(
+                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
+                  functionName = fName,
+                  results = cF.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEnginePlan(planLater(child))
               )
-            )
+            } else {
+              OneStageEvaluationPlan(
+                outputExpressions = projectList,
+                veFunction = VeFunction(
+                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
+                  functionName = fName,
+                  results = cF.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEnginePlan(planLater(child))
+              )
+            }))
           }
 
           planE.fold(e => sys.error(s"Could not map ${e}"), identity)

@@ -3,11 +3,12 @@ package com.nec.spark.planning
 import org.apache.spark.SparkConf
 
 final case class VeRewriteStrategyOptions(
-  aggregateOnVe: Boolean,
-  enableVeSorting: Boolean,
-  projectOnVe: Boolean,
-  filterOnVe: Boolean,
-  exchangeOnVe: Boolean
+                                           aggregateOnVe: Boolean,
+                                           enableVeSorting: Boolean,
+                                           projectOnVe: Boolean,
+                                           filterOnVe: Boolean,
+                                           exchangeOnVe: Boolean,
+                                           passThroughProject: Boolean
 )
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
@@ -32,7 +33,11 @@ object VeRewriteStrategyOptions {
       exchangeOnVe = sparkConf
         .getOption(key = "spark.com.nec.spark.exchange-on-ve")
         .map(_.toBoolean)
-        .getOrElse(default.exchangeOnVe)
+        .getOrElse(default.exchangeOnVe),
+      passThroughProject = sparkConf
+        .getOption(key = "spark.com.nec.spark.pass-through-project")
+        .map(_.toBoolean)
+        .getOrElse(default.passThroughProject)
     )
   }
 
@@ -42,6 +47,7 @@ object VeRewriteStrategyOptions {
       projectOnVe = true,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = true
+      exchangeOnVe = true,
+      passThroughProject = false
     )
 }
