@@ -55,7 +55,7 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
         """<script src="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.js" integrity="sha512-qUIG93zKzcLBVD5RGRbx2PBmbVRu+tJIl+EPLTus0z8I1AMru9sQYdlf6cBacSzYmZVncB9rcc8rYBnazqgrxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>"""
       ),
       raw("""<meta name="viewport" content="width=device-width, initial-scale=1">"""),
-      raw("""<style>body {font-size:0.8em; }
+      raw("""<style>body {font-size:14pt; }
             |td {vertical-align:top; }
             |.failed td {
             |background: rgb(255,240,240) !important;
@@ -74,6 +74,7 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
     body(
       table(
         `class` := "pure-table pure-table-horizontal",
+        style := "font-size:9pt",
         thead(tr(columns.map(col => th(col)))),
         tbody(data.map { row =>
           val theId = row(columns.indexOf("id")).get.toString
@@ -103,6 +104,17 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
                   )
                 )
               case (Some(value), cn @ "timestamp") => td(`class` := cn, pre(value.toString))
+              case (Some(value), cn @ "gitBranch") =>
+                td(
+                  `class` := cn,
+                  pre(
+                    a(
+                      target := "_blank",
+                      href := s"https://github.com/XpressAI/SparkCyclone/commits/${value}",
+                      s"${value}"
+                    )
+                  )
+                )
               case (Some(value), cn @ "gitCommitSha") =>
                 td(
                   `class` := cn,
