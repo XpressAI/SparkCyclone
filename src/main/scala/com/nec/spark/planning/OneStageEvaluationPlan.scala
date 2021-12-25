@@ -20,7 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.cmake.{ScalaTcpDebug, Spanner}
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus

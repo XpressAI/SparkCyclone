@@ -20,7 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
@@ -41,7 +41,8 @@ final case class ProjectEvaluationPlan(
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
-  with SupportsVeColBatch with PlanCallsVeFunction {
+  with SupportsVeColBatch
+  with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
@@ -139,7 +140,7 @@ object ProjectEvaluationPlan {
       .collect {
         case (col, idx) if !idsToPass.contains(idx) => col
       }
-    if(!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
+    if (!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
   }
 
 }

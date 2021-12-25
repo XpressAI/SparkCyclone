@@ -2,6 +2,7 @@ package com.nec.spark.planning
 
 import com.nec.cmake.{ScalaTcpDebug, Spanner}
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig

@@ -1,9 +1,9 @@
 package com.nec.ve
 
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.ve.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.HashPartitioner
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 
 import scala.reflect.ClassTag
