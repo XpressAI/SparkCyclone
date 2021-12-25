@@ -242,7 +242,7 @@ abstract class TPCHSqlCSpec
   def withTpchViews[T](
     appName: String,
     configure: SparkSession.Builder => SparkSession.Builder,
-    ignore: Boolean = false
+    ignore: Boolean = true
   )(f: SparkSession => T): Unit =
     if (ignore) { appName ignore {} }
     else {
