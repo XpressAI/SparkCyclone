@@ -14,7 +14,7 @@ object GitHubInput {
 
   val DefaultList: SortedMap[String, GitHubInput] = SortedMap(
     "query" -> Choice("Query to use", Some("1"), (1 to 22).map(_.toString).toList ++ List("all")),
-    "use-cyclone" -> OnOrOff("Use cyclone plugin?", default = true),
+    "use-cyclone" -> OnOrOff("Enable Spark Cyclone plugin?", default = true),
     "scale" -> Choice("Scale", Some("1"), List("1", "10", "20")),
     "serializer" -> OnOrOff("Use Serializer", default = true),
     "ve-log-debug" -> OnOrOff("Debug VE logs", default = false),
