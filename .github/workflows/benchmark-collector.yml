@@ -1,5 +1,5 @@
 ---
-name: "TPC-H Benchmark (with collector)"
+name: "TPC-H Central runner"
 env:
   INPUT_extra: "${{ github.event.inputs.extra }}"
   INPUT_query: "${{ github.event.inputs.query }}"
@@ -55,7 +55,7 @@ env:
         default: "true"
       use-cyclone:
         type: "boolean"
-        description: "Use cyclone plugin?"
+        description: "Enable Spark Cyclone plugin?"
         default: "true"
       ve-log-debug:
         type: "boolean"
