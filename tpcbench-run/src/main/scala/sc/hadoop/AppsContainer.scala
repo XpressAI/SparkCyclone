@@ -21,6 +21,23 @@ object AppsContainer {
     amContainerLogs: String,
     trackingUrl: String
   ) {
+    def appAttemptsUrl: String =
+      Uri
+        .unsafeFromString(appUrl)
+        .withPath(
+          Uri.Path(segments =
+            Vector(
+              Uri.Path.Segment("ws"),
+              Uri.Path.Segment("v1"),
+              Uri.Path.Segment("cluster"),
+              Uri.Path.Segment("apps"),
+              Uri.Path.Segment(id),
+              Uri.Path.Segment("appattempts")
+            )
+          )
+        )
+        .renderString
+
     def appUrl: String =
       Uri
         .unsafeFromString(amContainerLogs)
@@ -31,6 +48,7 @@ object AppsContainer {
         )
         .renderString
         .replaceAllLiterally("8042", "8088")
+
   }
 
   object App {
