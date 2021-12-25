@@ -400,6 +400,6 @@ object VeProcess {
       }
     }
 
-    override def getProcessId(): Long = new LongPointer(veo_proc_handle).get()
+    override def getProcessId(): Long = processId
   }
 }
