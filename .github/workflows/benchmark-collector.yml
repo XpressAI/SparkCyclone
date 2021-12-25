@@ -1,27 +1,20 @@
 ---
 name: "TPC-H Benchmark (with collector)"
 env:
-  INPUT_cyclone: "${{ github.event.inputs.cyclone }}"
   INPUT_extra: "${{ github.event.inputs.extra }}"
   INPUT_query: "${{ github.event.inputs.query }}"
   INPUT_scale: "${{ github.event.inputs.scale }}"
   INPUT_serializer: "${{ github.event.inputs.serializer }}"
+  INPUT_use-cyclone: "${{ github.event.inputs.use-cyclone }}"
   INPUT_ve-log-debug: "${{ github.event.inputs.ve-log-debug }}"
 "on":
   workflow_dispatch:
     inputs:
-      cyclone:
-        type: "boolean"
-        required: true
-        description: "Use cyclone"
-        default: "true"
       extra:
         type: "input"
-        required: true
         description: "Extra command line arguments to add to Spark"
       query:
         type: "choice"
-        required: true
         description: "Query to use"
         options:
         - "1"
@@ -50,7 +43,6 @@ env:
         default: "1"
       scale:
         type: "choice"
-        required: true
         description: "Scale"
         options:
         - "1"
@@ -59,12 +51,14 @@ env:
         default: "1"
       serializer:
         type: "boolean"
-        required: true
         description: "Use Serializer"
+        default: "true"
+      use-cyclone:
+        type: "boolean"
+        description: "Use cyclone plugin?"
         default: "true"
       ve-log-debug:
         type: "boolean"
-        required: true
         description: "Debug VE logs"
         default: "false"
 jobs:
