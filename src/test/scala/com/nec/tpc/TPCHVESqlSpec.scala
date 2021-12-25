@@ -37,7 +37,7 @@ object TPCHVESqlSpec {
       .config(key = WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(
-        key = "spark.sql.cache.serializer",
+        key = "spark.sql.cache.serializer?",
         value = "com.nec.spark.planning.VeCachedBatchSerializer"
       )
       .config(key = "spark.ui.enabled", value = true)
