@@ -20,6 +20,7 @@
 package com.nec.spark
 
 import com.nec.arrow.VeArrowNativeInterface
+import com.nec.ve.VeColBatch.VeColVectorSource
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -28,6 +29,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.VeProcess.LibraryReference
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.ExecutorPlugin
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
@@ -51,7 +53,11 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc))
+    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source))
+
+  implicit def source: VeColVectorSource = VeColVectorSource(
+    s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
+  )
 
   /**
    * https://www.hpc.nec/documents/veos/en/veoffload/md_Restriction.html

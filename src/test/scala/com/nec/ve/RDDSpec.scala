@@ -10,12 +10,12 @@ import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.RDDSpec.{doubleBatches, exchangeBatches, longBatches, MultiFunctionName}
-import com.nec.ve.VeColBatch.VeColVector
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
-import org.apache.spark.TaskContext
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
@@ -30,8 +30,12 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
+    implicit val source = VeColVectorSource(
+      s"Process ${SparkCycloneExecutorPlugin._veo_proc}, executor ${SparkEnv.get.executorId}"
+    )
+
     implicit val veProc: VeProcess =
-      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
+      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source))
     def makeColumnarBatch1() = {
       val vec1 = {
         implicit val rootAllocator: RootAllocator = new RootAllocator()
@@ -99,8 +103,12 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "We can perform a VE call on Arrow things" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
+    implicit val source: VeColVectorSource = VeColVectorSource(
+      s"Process ${SparkCycloneExecutorPlugin._veo_proc}, executor ${SparkEnv.get.executorId}"
+    )
+
     implicit val veProc: VeProcess =
-      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc))
+      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source))
     val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
       path =>
         val ref = veProc.loadLibrary(path)
@@ -162,6 +170,7 @@ object RDDSpec {
         f = veIterator =>
           veIterator
             .map(arrowVec => {
+              import SparkCycloneExecutorPlugin.source
               try VeColVector.fromFloat8Vector(arrowVec)
               finally arrowVec.close()
             })
