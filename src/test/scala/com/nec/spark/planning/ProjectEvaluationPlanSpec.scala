@@ -2,15 +2,12 @@ package com.nec.spark.planning
 
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
-import com.nec.spark.planning.ProjectEvaluationPlanSpec.{
-  SampleInputList,
-  SampleOutputExpressions,
-  TheSource
-}
+import com.nec.spark.planning.ProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, ExprId, NamedExpression}
 import org.apache.spark.sql.types.IntegerType
+import org.scalatest.Ignore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -42,6 +39,8 @@ object ProjectEvaluationPlanSpec {
 
 }
 
+// ignored as currently disabled by default anwyay
+@Ignore
 final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ProjectEvaluationSpec"
