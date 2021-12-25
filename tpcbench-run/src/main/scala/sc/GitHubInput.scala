@@ -27,7 +27,6 @@ object GitHubInput {
       val m = target
         .putObject(key)
         .put("type", "choice")
-        .put("required", true)
         .put("description", description)
 
       val arr = m.putArray("options")
@@ -42,7 +41,6 @@ object GitHubInput {
     override def createNode(key: String, target: ObjectNode): Unit = target
       .putObject(key)
       .put("type", "input")
-      .put("required", true)
       .put("description", description)
   }
   final case class OnOrOff(description: String, default: Boolean) extends GitHubInput {
@@ -50,7 +48,6 @@ object GitHubInput {
       target
         .putObject(key)
         .put("type", "boolean")
-        .put("required", true)
         .put("description", description)
         .put("default", default.toString)
   }

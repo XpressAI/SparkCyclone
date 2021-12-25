@@ -53,7 +53,6 @@ final class GithubActionRewriterSpec extends AnyFreeSpec {
                          |    inputs:
                          |      use-cyclone:
                          |        type: "boolean"
-                         |        required: true
                          |        description: "Use Cyclone"
                          |        default: "true"
                          |env:
