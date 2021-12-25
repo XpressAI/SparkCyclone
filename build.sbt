@@ -394,6 +394,7 @@ lazy val `tpcbench-run` = project
       "io.circe" %% "circe-literal" % "0.14.1",
       "io.circe" %% "circe-generic" % "0.14.1",
       "io.circe" %% "circe-parser" % "0.14.1",
+      "io.circe" %% "circe-optics" % "0.14.1",
       "org.http4s" %% "http4s-circe" % "0.23.7",
       "org.http4s" %% "http4s-scala-xml" % "0.23.7",
       "org.http4s" %% "http4s-dsl" % "0.23.7",

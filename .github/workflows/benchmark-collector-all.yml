@@ -1,9 +1,8 @@
 ---
-name: "TPC-H Central runner"
+name: "TPC-H Central All-Runner"
 env:
   INPUT_extra: "${{ github.event.inputs.extra }}"
   INPUT_pass-through-project: "${{ github.event.inputs.pass-through-project }}"
-  INPUT_query: "${{ github.event.inputs.query }}"
   INPUT_scale: "${{ github.event.inputs.scale }}"
   INPUT_serializer: "${{ github.event.inputs.serializer }}"
   INPUT_use-cyclone: "${{ github.event.inputs.use-cyclone }}"
@@ -18,34 +17,6 @@ env:
         type: "boolean"
         description: "Pass through in projection"
         default: "false"
-      query:
-        type: "choice"
-        description: "Query to use"
-        options:
-        - "1"
-        - "2"
-        - "3"
-        - "4"
-        - "5"
-        - "6"
-        - "7"
-        - "8"
-        - "9"
-        - "10"
-        - "11"
-        - "12"
-        - "13"
-        - "14"
-        - "15"
-        - "16"
-        - "17"
-        - "18"
-        - "19"
-        - "20"
-        - "21"
-        - "22"
-        - "all"
-        default: "1"
       scale:
         type: "choice"
         description: "Scale"
@@ -86,3 +57,30 @@ jobs:
     - name: "Copying to sparkcyclone.io"
       if: "always()"
       run: "rsync -r -v tpcbench-run/target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/summary"
+    strategy:
+      matrix:
+        query:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
+        - 10
+        - 11
+        - 12
+        - 13
+        - 14
+        - 15
+        - 16
+        - 17
+        - 18
+        - 19
+        - 20
+        - 21
+        - 22
+    env:
+      INPUT_query: "${{ matrix.query }}"
