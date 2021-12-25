@@ -400,7 +400,8 @@ lazy val `tpcbench-run` = project
       "org.apache.commons" % "commons-lang3" % "3.10",
       "org.http4s" %% "http4s-blaze-client" % "0.23.7",
       "com.lihaoyi" %% "scalatags" % "0.11.0",
-      "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test
+      "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test,
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.13.1"
     ),
     run / fork := true,
     (Compile / run) := (Compile / run)

@@ -136,14 +136,14 @@ object RunBenchmarksApp extends IOApp {
               queryNo = qId
             )
 
-          initial.enhanceWith(args)
+          initial.enhanceWith(args).enhanceWithEnv(sys.env)
         }.toList
       } else {
         val runId: String = java.time.Instant.now().toString
         val cleanRunId: String = runId.filter(char => Character.isLetterOrDigit(char))
         val initial =
           RunOptions.default.copy(runId = runId, name = Some(s"Benchmark_${cleanRunId}"))
-        List(initial.enhanceWith(args))
+        List(initial.enhanceWith(args).enhanceWithEnv(sys.env))
       }
     }
 
