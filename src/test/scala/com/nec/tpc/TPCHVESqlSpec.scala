@@ -25,6 +25,8 @@ import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.{CODEGEN_FALLBACK, WHOLESTAGE_CODEGEN_ENABLED}
 import org.scalatest.ConfigMap
+import org.scalatest.concurrent.TimeLimitedTests
+import org.scalatest.time.{Minutes, Span}
 
 import java.io.File
 
@@ -53,9 +55,7 @@ object TPCHVESqlSpec {
 
 }
 
-final class TPCHVESqlSpec extends TPCHSqlCSpec {
-
-  private var initialized = false
+final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
     TPCHVESqlSpec.VeConfiguration
@@ -80,5 +80,7 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
 
     super.beforeAll(configMap)
   }
+
+  override def timeLimit: Span = Span(5, Minutes)
 
 }
