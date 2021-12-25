@@ -20,7 +20,7 @@
 package com.nec.tpc
 
 import com.nec.spark.LocalVeoExtension.compilerRule
-import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
+import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.{CODEGEN_FALLBACK, WHOLESTAGE_CODEGEN_ENABLED}
@@ -35,7 +35,7 @@ object TPCHVESqlSpec {
       .config(key = WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(
-        key = "spark.sql.cache.serializer?",
+        key = "spark.sql.cache.serializer",
         value = "com.nec.spark.planning.VeCachedBatchSerializer"
       )
       .config(key = "spark.ui.enabled", value = true)
@@ -44,8 +44,7 @@ object TPCHVESqlSpec {
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions { sse =>
         sse.injectPlannerStrategy(_ => {
-          VERewriteStrategy.failFast = false
-          new VERewriteStrategy()
+          new VERewriteStrategy(VeRewriteStrategyOptions.default.copy(failFast = true))
         })
         sse.injectColumnar(compilerRule)
         sse.injectColumnar(_ => new VeColumnarRule)
