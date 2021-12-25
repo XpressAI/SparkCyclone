@@ -11,11 +11,11 @@ libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 
 // test suite settings
-fork in Test := true
+Test / fork := true
 javaOptions ++= Seq("-Xms2G", "-Xmx32G", "-XX:+CMSClassUnloadingEnabled")
 
 // Show runtime of tests
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 // JAR file settings
 

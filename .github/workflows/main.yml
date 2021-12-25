@@ -1,7 +1,12 @@
 name: CI
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+      - verdd
+      - 'cit/**'
 
 jobs:
   build:
@@ -22,8 +27,5 @@ jobs:
       - name: Branch Ref
         run: echo ${GITHUB_REF#refs/heads/}
 
-      - name: Run unit tests
-        run: sbt "Test / test"
-
-      - name: Run Vector Engine Tests
-        run: sbt "VectorEngine / test"
+      - name: Run unit tests in the key projects
+        run: sbt test "tpcbench-run / test" "tracing / test"
