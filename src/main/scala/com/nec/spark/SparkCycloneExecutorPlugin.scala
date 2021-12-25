@@ -20,7 +20,7 @@
 package com.nec.spark
 
 import com.nec.arrow.VeArrowNativeInterface
-import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -70,7 +70,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
    *
    * *
    */
-  var closeAutomatically: Boolean = false
+  var CloseAutomatically: Boolean = true
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
       veo.veo_proc_destroy(_veo_proc)
@@ -118,15 +118,29 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   @transient val batchCache: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
 
+  @transient val colCache: scala.collection.mutable.Set[VeColVector] =
+    scala.collection.mutable.Set.empty
+
   def cleanCache(): Unit = {
     batchCache.toList.foreach { colBatch =>
       batchCache.remove(colBatch)
-      colBatch.cols.foreach(_.free())
+      colBatch.cols.foreach(freeCol)
+    }
+  }
+
+  def freeCol(col: VeColVector): Unit = {
+    if (colCache.contains(col)) {
+      logger.debug(s"Freeing column ${col}... in ${source}")
+      colCache.remove(col)
+      col.free()
+    } else {
+      logger.warn(s"Trying to free a free column ${col} in ${source}")
     }
   }
 
   def register(cb: VeColBatch): Unit = {
     batchCache.add(cb)
+    cb.cols.foreach(colCache.add)
   }
 
   var CleanUpCache: Boolean = true
@@ -182,7 +196,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
     }
 
     import com.nec.spark.SparkCycloneExecutorPlugin._
-    if (closeAutomatically) {
+    if (CloseAutomatically) {
       logInfo(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()
     }

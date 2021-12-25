@@ -20,6 +20,7 @@
 package com.nec.tpc
 
 import com.nec.spark.LocalVeoExtension.compilerRule
+import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.sql.SparkSession
@@ -64,8 +65,8 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
   }
 
   override protected def beforeAll(configMap: ConfigMap): Unit = {
-
-    //SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
+    // reuse the process
+    CloseAutomatically = false
 
     val dbGenFile = new File("src/test/resources/dbgen/dbgen")
     if (!dbGenFile.exists()) {
