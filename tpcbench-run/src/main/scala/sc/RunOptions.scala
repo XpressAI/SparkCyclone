@@ -3,15 +3,16 @@ package sc
 import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
 import sun.misc.IOUtils
 
-import java.nio.file.{Files, Paths}
-import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission._
+import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util
 
 final case class RunOptions(
   runId: String,
   kernelDirectory: Option[String],
   gitCommitSha: String,
+  gitBranch: String,
   queryNo: Int,
   useCyclone: Boolean,
   name: Option[String],
@@ -29,13 +30,36 @@ final case class RunOptions(
   enableVeSorting: Boolean,
   projectOnVe: Boolean,
   filterOnVe: Boolean,
+  passThroughProject: Boolean,
   exchangeOnVe: Boolean
 ) {
+
+  def enhanceWithEnv(env: Map[String, String]): RunOptions = env
+    .collect {
+      case (k, v) if k.startsWith("INPUT_") =>
+        k.drop("INPUT_".length) -> v
+    }
+    .foldLeft(this) { case (t, (k, v)) => t.setArg(k, v).getOrElse(t) }
+
+  def enhanceWith(args: List[String]): RunOptions = {
+    args
+      .sliding(2)
+      .foldLeft {
+        args
+          .foldLeft(this) { case (ro, arg) =>
+            ro.rewriteArgs(arg).getOrElse(ro)
+          }
+      } {
+        case (r, a :: b :: Nil) => r.rewriteArgsTwo(a, b).getOrElse(r)
+        case (r, _)             => r
+      }
+  }
 
   def pluginBooleans: List[(String, String)] = {
     List(
       ("spark.com.nec.spark.aggregate-on-ve", aggregateOnVe),
       ("spark.com.nec.spark.sort-on-ve", enableVeSorting),
+      ("spark.com.nec.spark.pass-through-project", passThroughProject),
       ("spark.com.nec.spark.project-on-ve", projectOnVe),
       ("spark.com.nec.spark.filter-on-ve", filterOnVe),
       ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe)
@@ -45,6 +69,25 @@ final case class RunOptions(
   def includeExtra(e: String): RunOptions =
     copy(extras = Some((extras.toList ++ List(e)).mkString(" ")))
 
+  def rewriteArgsTwo(a: String, b: String): Option[RunOptions] =
+    PartialFunction.condOpt(a -> b) { case (k @ "--conf", v) =>
+      includeExtra(s"$k $v")
+    }
+
+  def setArg(key: String, value: String): Option[RunOptions] = {
+    PartialFunction.condOpt(key -> value) {
+      case ("query", nqn) if nqn.forall(Character.isDigit) => copy(queryNo = nqn.toInt)
+      case ("cyclone", nqn)                                => copy(useCyclone = nqn == "on" || nqn == "true")
+      case ("scale", newScale)                             => copy(scale = newScale)
+      case ("name", newName)                               => copy(name = Some(newName))
+      case ("extra", e)                                    => includeExtra(e)
+      case ("serializer", v)                               => copy(serializerOn = v == "on" || v == "true")
+      case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
+      case ("pass-through-project", v)                     => copy(passThroughProject = v == "on")
+      case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
+    }
+  }
+
   def rewriteArgs(str: String): Option[RunOptions] = {
     Option(str)
       .filter(_.startsWith("--"))
@@ -53,15 +96,7 @@ final case class RunOptions(
       .collect { case k :: v :: Nil =>
         k -> v
       }
-      .collect {
-        case ("query", nqn) if nqn.forall(Character.isDigit) => copy(queryNo = nqn.toInt)
-        case ("cyclone", nqn)                                => copy(useCyclone = nqn == "on")
-        case ("scale", newScale)                             => copy(scale = newScale)
-        case ("name", newName)                               => copy(name = Some(newName))
-        case ("serializer", v)                               => copy(serializerOn = v == "on")
-        case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on")
-        case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
-      }
+      .flatMap { case (k, v) => setArg(k, v) }
       .orElse {
         val extraStr = "--extra="
         Option(str)
@@ -131,18 +166,7 @@ final case class RunOptions(
 }
 
 object RunOptions {
-  final case class RunResult(
-    succeeded: Boolean,
-    wallTime: Int,
-    queryTime: Int,
-    appUrl: String,
-    traceResults: String
-  ) {}
-  object RunResult {
-    val fieldNames: List[String] = {
-      classOf[RunResult].getDeclaredFields.map(_.getName).toList
-    }
-  }
+
   val fieldNames: List[String] = {
     classOf[RunOptions].getDeclaredFields.map(_.getName).toList
   }
@@ -177,6 +201,10 @@ object RunOptions {
       import scala.sys.process._
       List("git", "rev-parse", "HEAD").!!.trim.take(8)
     },
+    gitBranch = {
+      import scala.sys.process._
+      List("git", "rev-parse", "--abbrev-ref", "HEAD").!!.trim
+    },
     veLogDebug = false,
     runId = "test",
     kernelDirectory = None,
@@ -187,7 +215,8 @@ object RunOptions {
     filterOnVe = true,
     exchangeOnVe = true,
     codeDebug = false,
-    useCyclone = true
+    useCyclone = true,
+    passThroughProject = false
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
