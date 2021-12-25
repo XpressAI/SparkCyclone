@@ -51,8 +51,12 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
       raw(
         """<link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css" integrity="sha384-Uu6IeWbM+gzNVXJcM9XV3SohHtmWE+3VGi496jvgX1jyvDTXfdK+rfZc8C1Aehk5" crossorigin="anonymous">"""
       ),
-      raw("""<script src="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.js" integrity="sha512-qUIG93zKzcLBVD5RGRbx2PBmbVRu+tJIl+EPLTus0z8I1AMru9sQYdlf6cBacSzYmZVncB9rcc8rYBnazqgrxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>"""),
-      raw("""<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.css" integrity="sha512-J2+1q+RsZuJXabBfH1q/fgRr6jMy9By5SwVLk7bScEW7NFJkMUXxfeOyyxtDe6fsaJ4jsciexSlGrPYn9YbBIg==" crossorigin="anonymous" referrerpolicy="no-referrer" />"""),
+      raw(
+        """<script src="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.js" integrity="sha512-qUIG93zKzcLBVD5RGRbx2PBmbVRu+tJIl+EPLTus0z8I1AMru9sQYdlf6cBacSzYmZVncB9rcc8rYBnazqgrxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>"""
+      ),
+      raw(
+        """<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.css" integrity="sha512-J2+1q+RsZuJXabBfH1q/fgRr6jMy9By5SwVLk7bScEW7NFJkMUXxfeOyyxtDe6fsaJ4jsciexSlGrPYn9YbBIg==" crossorigin="anonymous" referrerpolicy="no-referrer" />"""
+      ),
       raw("""<meta name="viewport" content="width=device-width, initial-scale=1">"""),
       raw("""<style>body {font-size:0.8em; }
             |td {vertical-align:top; }
@@ -119,7 +123,8 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
                   a(
                     href := value.toString,
                     target := "_blank",
-                    value.toString.replaceAllLiterally("http://", "")
+                    if (cn == "appUrl") "Open"
+                    else value.toString.replaceAllLiterally("http://", "")
                   )
                 )
               case (Some(value), cn @ "id") =>
