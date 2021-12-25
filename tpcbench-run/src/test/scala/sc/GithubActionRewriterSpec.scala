@@ -79,7 +79,7 @@ object GithubActionRewriterSpec {
       .asInstanceOf[ObjectNode]
       .putObject("env")
       .put("INPUT_query", s"$${{ matrix.query }}")
-    (0 to 22).map(x => qa.add(x))
+    (1 to 22).map(x => qa.add(x))
     om.writeValueAsString(t)
   }
 }
