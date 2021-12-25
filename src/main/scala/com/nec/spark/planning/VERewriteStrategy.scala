@@ -94,9 +94,6 @@ final case class VERewriteStrategy(
       log.debug(
         s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
       )
-      println(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
-      )
 
       def res: immutable.Seq[SparkPlan] = plan match {
         case imr @ InMemoryRelation(output, cb, oo)
