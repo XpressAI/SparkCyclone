@@ -53,7 +53,7 @@ import org.apache.spark.sql.catalyst.expressions.{
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.types.StringType
@@ -512,7 +512,20 @@ final case class VERewriteStrategy(
         catch {
           case e: Throwable =>
             logger.error(s"Could not map plan ${plan} because of: ${e}", e)
-            Nil
+            plan match {
+              case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
+                  if cb.serializer
+                    .isInstanceOf[
+                      VeCachedBatchSerializer
+                    ] && VeCachedBatchSerializer.ShortCircuit =>
+                SparkSession.active.sessionState.planner.InMemoryScans
+                  .apply(imr)
+                  .flatMap(sp =>
+                    List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+                  )
+                  .toList
+              case _ => Nil
+            }
         }
       }
     } else Nil
