@@ -79,7 +79,7 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             else (),
             row.zip(columns).map {
               case (None, _) => td()
-              case (Some(value), cn @ "logOutput") if value.toString.nonEmpty =>
+              case (Some(value), cn @ ("logOutput" | "traceResults")) if value.toString.nonEmpty =>
                 td(
                   `class` := cn,
                   tag("dialog")(pre(code(value.toString))),
