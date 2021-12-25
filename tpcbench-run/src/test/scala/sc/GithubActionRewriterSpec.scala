@@ -73,7 +73,12 @@ object GithubActionRewriterSpec {
       .asInstanceOf[ObjectNode]
       .put("name", "TPC-H Central All-Runner")
 
-    t.path("env").asInstanceOf[ObjectNode].put("INPUT_query", s"$${{ matrix.query }}")
+    t.path("env").asInstanceOf[ObjectNode].remove("INPUT_query")
+    t.path("jobs")
+      .path("build")
+      .asInstanceOf[ObjectNode]
+      .putObject("env")
+      .put("INPUT_query", s"$${{ matrix.query }}")
     (0 to 22).map(x => qa.add(x))
     om.writeValueAsString(t)
   }
@@ -145,8 +150,18 @@ final class GithubActionRewriterSpec extends AnyFreeSpec {
         (y \\ "on").flatMap(_ \\ "workflow_dispatch").flatMap(_ \\ "inputs").flatMap(_ \\ "query")
       assert(r.isEmpty, "Expecting query to not be there")
     }
-    "Query value is fetched from the Matrix" in {
-      val qv = (y \\ "env").flatMap(_ \\ "INPUT_query").flatMap(_.asString)
+    "INPUT_query is not set globally" in {
+      val qv = y.asObject.flatMap(_.apply("env")).toList.flatMap(_ \\ "INPUT_query")
+      withClue(s"$y") {
+        assert(qv.isEmpty, "Expected there not to be INPUT_query at global level")
+      }
+    }
+    "INPUT_query is set at job level" in {
+      val qv = (y \\ "jobs")
+        .flatMap(_ \\ "build")
+        .flatMap(_ \\ "env")
+        .flatMap(_ \\ "INPUT_query")
+        .flatMap(_.asString)
       assert(qv == List(s"$${{ matrix.query }}"))
     }
   }

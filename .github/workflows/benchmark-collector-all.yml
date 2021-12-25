@@ -3,7 +3,6 @@ name: "TPC-H Central All-Runner"
 env:
   INPUT_extra: "${{ github.event.inputs.extra }}"
   INPUT_pass-through-project: "${{ github.event.inputs.pass-through-project }}"
-  INPUT_query: "${{ matrix.query }}"
   INPUT_scale: "${{ github.event.inputs.scale }}"
   INPUT_serializer: "${{ github.event.inputs.serializer }}"
   INPUT_use-cyclone: "${{ github.event.inputs.use-cyclone }}"
@@ -84,3 +83,5 @@ jobs:
         - 20
         - 21
         - 22
+    env:
+      INPUT_query: "${{ matrix.query }}"
