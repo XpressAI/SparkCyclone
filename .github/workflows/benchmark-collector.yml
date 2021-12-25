@@ -2,6 +2,7 @@
 name: "TPC-H Central runner"
 env:
   INPUT_extra: "${{ github.event.inputs.extra }}"
+  INPUT_pass-through-project: "${{ github.event.inputs.pass-through-project }}"
   INPUT_query: "${{ github.event.inputs.query }}"
   INPUT_scale: "${{ github.event.inputs.scale }}"
   INPUT_serializer: "${{ github.event.inputs.serializer }}"
@@ -13,6 +14,10 @@ env:
       extra:
         type: "input"
         description: "Extra command line arguments to add to Spark"
+      pass-through-project:
+        type: "boolean"
+        description: "Pass through in projection"
+        default: "false"
       query:
         type: "choice"
         description: "Query to use"
