@@ -60,7 +60,6 @@ jobs:
     strategy:
       matrix:
         query:
-        - 0
         - 1
         - 2
         - 3
