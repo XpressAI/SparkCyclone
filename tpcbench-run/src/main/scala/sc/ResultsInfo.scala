@@ -93,7 +93,7 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
                 val urls = value.toString.split("\n").toList
                 td(
                   `class` := cn,
-                  tag("dialog")(ol(urls.map(x => li(a(href := x, x))))),
+                  tag("dialog")(ol(urls.map(x => li(a(target := "_blank", href := x, x))))),
                   button(
                     `onclick` := "this.parentNode.querySelector('dialog').showModal();",
                     s"View ${urls.size} container URLs"
