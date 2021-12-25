@@ -3,6 +3,7 @@ package sc
 import cats.implicits.toShow
 import com.eed3si9n.expecty.Expecty.expect
 import org.scalatest.freespec.AnyFreeSpec
+import sc.RunBenchmarksApp.getDistinct
 import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
 import scala.xml.Elem
@@ -49,5 +50,15 @@ final class HadoopResourceManagerSpec extends AnyFreeSpec {
         "http://the-server:8042/node/containerlogs/container_1638487109505_0440_01_000001/github"
       )
     )
+  }
+
+  "We can detect new items in an fs2 stream" in {
+    val result =
+      fs2.Stream
+        .apply[fs2.Pure, String]("x", "y", "x", "n", "y", "z")
+        .through(getDistinct)
+        .compile
+        .toList
+    assert(result == List("x", "y", "n", "z"))
   }
 }

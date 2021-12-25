@@ -16,6 +16,7 @@ import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.DurationInt
+import scala.language.higherKinds
 
 object RunBenchmarksApp extends IOApp {
 
@@ -59,8 +60,17 @@ object RunBenchmarksApp extends IOApp {
       .map(_.flatten)
   }
 
-  private def monitorAllContainers(appId: String): fs2.Stream[IO, List[AppAttemptContainer]] =
-    fs2.Stream.awakeEvery[IO](5.seconds).evalMap(_ => fetchContainers(appId))
+  def getDistinct[F[_], I]: fs2.Pipe[F, I, I] =
+    _.scan(Set.empty[I] -> Option.empty[I]) {
+      case ((s, _), i) if s.contains(i) => (s, None)
+      case ((s, _), i)                  => (s + i, Some(i))
+    }.map(_._2).unNone
+
+  private def monitorAllContainers(appId: String): fs2.Stream[IO, AppAttemptContainer] =
+    fs2.Stream
+      .awakeEvery[IO](5.seconds)
+      .flatMap(_ => fs2.Stream.evalSeq(fetchContainers(appId)))
+      .through(getDistinct[IO, AppAttemptContainer])
 
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
     runtime: IORuntime
@@ -136,9 +146,9 @@ object RunBenchmarksApp extends IOApp {
 
           containerLogsListF <- monitorAllContainers(newFoundApp.id)
             .interruptWhen(haltWhenTrue = s)
+            .evalTap(cnt => IO.println(s"Detected a container: ${cnt}"))
             .compile
             .toList
-            .map(_.flatten.toSet.toList)
             .start
           exitValue <- procFiber.joinWithNever
           _ <- s.set(true).delayBy(2.seconds)
@@ -153,7 +163,7 @@ object RunBenchmarksApp extends IOApp {
             appUrl = newFoundApp.appUrl,
             traceResults = analyzeResult.mkString("", "\n", ""),
             logOutput = outLines.mkString("", "\n", ""),
-            containerList = containerLogsList.map(_.logUrl)
+            containerList = containerLogsList.map(_.logUrl).sorted
           )
         )
     }
