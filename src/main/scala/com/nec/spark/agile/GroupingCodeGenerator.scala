@@ -48,7 +48,7 @@ final case class GroupingCodeGenerator(
           CodeLines
             .from(
               s"long ${stringHashTmp} = 0;",
-              s"for ( int q = ${name}->offsets[i]; q < ${name}->offsets[i + 1]; q++ ) {",
+              s"for ( int q = ${name}->offsets[i]; q < ${name}->lengths[i]; q++ ) {",
               CodeLines
                 .from(s"${stringHashTmp} = 31*${stringHashTmp} + ${name}->data[q];")
                 .indented,

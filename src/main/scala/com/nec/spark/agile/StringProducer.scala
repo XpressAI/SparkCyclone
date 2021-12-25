@@ -125,16 +125,16 @@ object StringProducer {
     val tmpCurrentOffset = s"${outputName}_tmp_current_offset"
     val tmpCount = s"${outputName}_tmp_count"
 
-    def setup: CodeLines =
+    def setup(size: String = "groups_count"): CodeLines =
       stringProducer match {
         case f: FrovedisStringProducer =>
-          CodeLines.from(CodeLines.debugHere, f.init(outputName, "groups_count"))
+          CodeLines.from(CodeLines.debugHere, f.init(outputName, size))
       }
 
-    def forEach: CodeLines = {
+    def forEach(outputIdx: String = "g"): CodeLines = {
       stringProducer match {
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines.from(frovedisStringProducer.produce(outputName, "g"))
+          CodeLines.from(frovedisStringProducer.produce(outputName, outputIdx))
       }
     }
 
@@ -155,9 +155,9 @@ object StringProducer {
   ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
-      fp.setup,
+      fp.setup(),
       s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",
-      fp.forEach.indented,
+      fp.forEach("i").indented,
       "}",
       fp.complete,
       s"for( int32_t i = 0; i < $inputCount; i++ ) {",

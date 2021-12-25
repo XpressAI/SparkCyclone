@@ -25,13 +25,7 @@ import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector,
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer
 import com.nec.spark.agile.StringProducer.FilteringProducer
-import com.nec.spark.agile.groupby.GroupByOutline.{
-  storeTo,
-  GroupingKey,
-  StagedAggregation,
-  StagedProjection,
-  StringReference
-}
+import com.nec.spark.agile.groupby.GroupByOutline._
 
 final case class GroupByPartialGenerator(
   finalGenerator: GroupByPartialToFinalGenerator,
@@ -99,8 +93,8 @@ final case class GroupByPartialGenerator(
         )
       CodeLines.from(
         CodeLines.debugHere,
-        fp.setup,
-        groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach)),
+        fp.setup(size = "groups_count"),
+        groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach("g"))),
         fp.complete,
         groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
       )
@@ -174,8 +168,8 @@ final case class GroupByPartialGenerator(
           FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(sr))
 
         ProductionTriplet(
-          init = fp.setup,
-          forEach = fp.forEach,
+          init = fp.setup(size = "groups_count"),
+          forEach = fp.forEach("g"),
           complete = CodeLines.from(
             fp.complete,
             groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
