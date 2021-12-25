@@ -27,5 +27,5 @@ jobs:
       - name: Branch Ref
         run: echo ${GITHUB_REF#refs/heads/}
 
-      - name: Run unit tests
-        run: sbt "Test / test"
+      - name: Run unit tests in the key projects
+        run: sbt test "tpcbench-run / test" "tracing / test"
