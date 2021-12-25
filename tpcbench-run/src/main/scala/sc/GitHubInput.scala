@@ -19,7 +19,8 @@ object GitHubInput {
     "serializer" -> OnOrOff("Use Serializer", default = true),
     "ve-log-debug" -> OnOrOff("Debug VE logs", default = false),
     "extra" -> Input("Extra command line arguments to add to Spark"),
-    "pass-through-project" -> OnOrOff("Pass through in projection", default = false)
+    "pass-through-project" -> OnOrOff("Pass through in projection", default = false),
+    "fail-fast" -> OnOrOff("Fail Fast", default = true)
   )
 
   final case class Choice(description: String, default: Option[String], options: List[String])

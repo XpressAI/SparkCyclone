@@ -64,7 +64,6 @@ import scala.util.Try
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
-  var failFast: Boolean = false
   implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
       case Some(error) => Left(error)
@@ -88,15 +87,13 @@ final case class VERewriteStrategy(
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
-    val failFast = VERewriteStrategy.failFast
-
     if (VERewriteStrategy._enabled) {
       log.debug(
         s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case imr @ InMemoryRelation(output, cb, oo)
+        case imr @ InMemoryRelation(_, cb, oo)
             if cb.serializer
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
           SparkSession.active.sessionState.planner.InMemoryScans
@@ -503,7 +500,7 @@ final case class VERewriteStrategy(
         case _ => Nil
       }
 
-      if (failFast) res
+      if (options.failFast) res
       else {
         try res
         catch {

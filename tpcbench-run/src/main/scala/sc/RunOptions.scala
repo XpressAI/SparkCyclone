@@ -31,6 +31,7 @@ final case class RunOptions(
   projectOnVe: Boolean,
   filterOnVe: Boolean,
   passThroughProject: Boolean,
+  failFast: Boolean,
   exchangeOnVe: Boolean
 ) {
 
@@ -62,7 +63,8 @@ final case class RunOptions(
       ("spark.com.nec.spark.pass-through-project", passThroughProject),
       ("spark.com.nec.spark.project-on-ve", projectOnVe),
       ("spark.com.nec.spark.filter-on-ve", filterOnVe),
-      ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe)
+      ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe),
+      ("spark.com.nec.spark.fail-fast", failFast)
     ).map { case (k, v) => (k, v.toString) }
   }
 
@@ -84,6 +86,7 @@ final case class RunOptions(
       case ("serializer", v)                               => copy(serializerOn = v == "on" || v == "true")
       case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
       case ("pass-through-project", v)                     => copy(passThroughProject = v == "on")
+      case ("fail-fast", v)                                => copy(failFast = v == "on")
       case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
     }
   }
@@ -216,7 +219,8 @@ object RunOptions {
     exchangeOnVe = true,
     codeDebug = false,
     useCyclone = true,
-    passThroughProject = false
+    passThroughProject = false,
+    failFast = true
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
