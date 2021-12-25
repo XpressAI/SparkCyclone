@@ -29,6 +29,7 @@ final case class RunOptions(
   enableVeSorting: Boolean,
   projectOnVe: Boolean,
   filterOnVe: Boolean,
+  passThroughProject: Boolean,
   exchangeOnVe: Boolean
 ) {
 
@@ -50,6 +51,7 @@ final case class RunOptions(
     List(
       ("spark.com.nec.spark.aggregate-on-ve", aggregateOnVe),
       ("spark.com.nec.spark.sort-on-ve", enableVeSorting),
+      ("spark.com.nec.spark.pass-through-project", passThroughProject),
       ("spark.com.nec.spark.project-on-ve", projectOnVe),
       ("spark.com.nec.spark.filter-on-ve", filterOnVe),
       ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe)
@@ -78,6 +80,7 @@ final case class RunOptions(
         case ("scale", newScale)                             => copy(scale = newScale)
         case ("name", newName)                               => copy(name = Some(newName))
         case ("serializer", v)                               => copy(serializerOn = v == "on")
+        case ("pass-through-project", v)                     => copy(passThroughProject = v == "on")
         case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on")
         case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
       }
@@ -194,7 +197,8 @@ object RunOptions {
     filterOnVe = true,
     exchangeOnVe = true,
     codeDebug = false,
-    useCyclone = true
+    useCyclone = true,
+    passThroughProject = false
   )
 
   lazy val Log4jFile: java.nio.file.Path = {
