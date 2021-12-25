@@ -12,20 +12,55 @@ import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.scalaxml.xml
 import sc.ResultsInfo.DefaultOrdering
-import sc.hadoop.AppsContainer
+import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.DurationInt
 
 object RunBenchmarksApp extends IOApp {
 
-  final case class RunResults(appUrl: String, traceResults: String, logOutput: String)
+  final case class RunResults(
+    appUrl: String,
+    traceResults: String,
+    logOutput: String,
+    containerList: List[String]
+  )
 
   private def getApps: IO[AppsContainer] = {
     BlazeClientBuilder[IO].resource
       .use(client => client.expect[scala.xml.Elem](uri"http://localhost:8088/ws/v1/cluster/apps"))
       .map(elem => AppsContainer.parse(elem))
   }
+
+  private def fetchContainers(appId: String): IO[List[AppAttemptContainer]] = {
+    import cats._
+    import cats.implicits._
+    import cats.syntax._
+    val startUri =
+      uri"http://localhost:8088/ws/v1/cluster/apps/".addSegment(appId).addSegment("appattempts")
+    BlazeClientBuilder[IO].resource
+      .use(client =>
+        client
+          .expect[scala.xml.Elem](startUri)
+          .map(AppAttempt.listFromXml)
+          .flatMap(listOfAttempts =>
+            listOfAttempts.traverse(attempt => {
+              val attUri = uri"http://localhost:8088/ws/v1/cluster/apps/"
+                .addSegment(appId)
+                .addSegment("appattempts")
+                .addSegment(attempt.appAttemptId)
+                .addSegment("containers")
+              client
+                .expect[scala.xml.Elem](attUri)
+                .map(AppAttemptContainer.listFromXml)
+            })
+          )
+      )
+      .map(_.flatten)
+  }
+
+  private def monitorAllContainers(appId: String): fs2.Stream[IO, List[AppAttemptContainer]] =
+    fs2.Stream.awakeEvery[IO](5.seconds).evalMap(_ => fetchContainers(appId))
 
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
     runtime: IORuntime
@@ -63,7 +98,7 @@ object RunBenchmarksApp extends IOApp {
         /** Start the tracer, and then the process, then wait for the process to complete and then end the stream of the tracer, */
         for {
           s <- SignallingRef[IO].of(false)
-          streamFiber <- streamOfSockets
+          traceStreamFiber <- streamOfSockets
             .evalMap(socketToLines)
             .interruptWhen(haltWhenTrue = s)
             .compile
@@ -99,10 +134,17 @@ object RunBenchmarksApp extends IOApp {
             }
           }
 
+          containerLogsListF <- monitorAllContainers(newFoundApp.id)
+            .interruptWhen(haltWhenTrue = s)
+            .compile
+            .toList
+            .map(_.flatten.toSet.toList)
+            .start
           exitValue <- procFiber.joinWithNever
           _ <- s.set(true).delayBy(2.seconds)
-          traceLines <- streamFiber.joinWithNever
+          traceLines <- traceStreamFiber.joinWithNever
           outLines <- outLinesF.joinWithNever
+          containerLogsList <- containerLogsListF.joinWithNever
           _ = println(s"Trace lines => ${traceLines.toString().take(50)}")
           analyzeResult = SpanProcessor.analyzeLines(traceLines)
         } yield (
@@ -110,7 +152,8 @@ object RunBenchmarksApp extends IOApp {
           RunResults(
             appUrl = newFoundApp.appUrl,
             traceResults = analyzeResult.mkString("", "\n", ""),
-            logOutput = outLines.mkString("", "\n", "")
+            logOutput = outLines.mkString("", "\n", ""),
+            containerList = containerLogsList.map(_.logUrl)
           )
         )
     }
@@ -168,7 +211,8 @@ object RunBenchmarksApp extends IOApp {
                 queryTime = wallTime,
                 appUrl = traceResults.appUrl,
                 traceResults = traceResults.traceResults,
-                logOutput = traceResults.logOutput
+                logOutput = traceResults.logOutput,
+                containerList = traceResults.containerList.mkString("\n")
               )
             ) *> rd.fetchResults.map(_.reorder(DefaultOrdering)).flatMap(_.save)
         }

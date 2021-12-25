@@ -18,7 +18,8 @@ object ResultsInfo {
       "wallTime",
       "serializerOn",
       "logOutput",
-      "appUrl"
+      "appUrl",
+      "containerList"
     )
 }
 final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRef]]]) {
@@ -86,6 +87,16 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
                   button(
                     `onclick` := "this.parentNode.querySelector('dialog').showModal();",
                     s"View log (${value.toString.count(_ == '\n')} lines)"
+                  )
+                )
+              case (Some(value), cn @ "containerList") if value.toString.nonEmpty =>
+                val urls = value.toString.split("\n").toList
+                td(
+                  `class` := cn,
+                  tag("dialog")(ol(urls.map(x => li(a(href := x, x))))),
+                  button(
+                    `onclick` := "this.parentNode.querySelector('dialog').showModal();",
+                    s"View ${urls.size} container URLs"
                   )
                 )
               case (Some(value), cn @ "timestamp") => td(`class` := cn, pre(value.toString))
