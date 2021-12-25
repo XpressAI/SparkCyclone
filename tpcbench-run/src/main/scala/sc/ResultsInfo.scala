@@ -10,7 +10,8 @@ object ResultsInfo {
     List(
       "id",
       "timestamp",
-      "gitCOmmitSha",
+      "gitCommitSha",
+      "gitBranch",
       "scale",
       "queryNo",
       "succeeded",
@@ -54,6 +55,9 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             |td {vertical-align:top; }
             |.failed td {
             |background: rgb(255,240,240) !important;
+            |}
+            |td,th, button, a {
+            |    white-space: nowrap;
             |}
             |tr:target td {
             |background: rgb(255,250,240) !important;
