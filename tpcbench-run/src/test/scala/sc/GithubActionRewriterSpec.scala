@@ -62,6 +62,8 @@ object GithubActionRewriterSpec {
       .asInstanceOf[ObjectNode]
       .remove("query")
     val qa = t
+      .path("jobs")
+      .path("build")
       .asInstanceOf[ObjectNode]
       .putObject("strategy")
       .putObject("matrix")
@@ -124,7 +126,9 @@ final class GithubActionRewriterSpec extends AnyFreeSpec {
     import io.circe._
     def y: Json = yamlAs[Json](genV)
     "Matrix is set up" in {
-      val queryNos: List[Int] = (y \\ "strategy")
+      val queryNos: List[Int] = (y \\ "jobs")
+        .flatMap(_ \\ "build")
+        .flatMap(_ \\ "strategy")
         .flatMap(_ \\ "matrix")
         .flatMap(_ \\ "query")
         .flatMap(_.asArray)
