@@ -1,5 +1,6 @@
 package sc
 
+import com.eed3si9n.expecty.Expecty.expect
 import org.scalatest.freespec.AnyFreeSpec
 
 final class OptionRewriterSpec extends AnyFreeSpec {
@@ -20,5 +21,10 @@ final class OptionRewriterSpec extends AnyFreeSpec {
     assert(
       RunOptions.default.enhanceWith(List("z", "--conf", "test")).extras.contains("--conf test")
     )
+  }
+  "We can add env vars" in {
+    val r =
+      RunOptions.default.enhanceWithEnv(Map("INPUT_query" -> "2", "INPUT_extra" -> "--conf test"))
+    expect(r.extras.get == "--conf test", r.queryNo == 2)
   }
 }

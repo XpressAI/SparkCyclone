@@ -12,6 +12,7 @@ final case class RunOptions(
   runId: String,
   kernelDirectory: Option[String],
   gitCommitSha: String,
+  gitBranch: String,
   queryNo: Int,
   useCyclone: Boolean,
   name: Option[String],
@@ -32,6 +33,13 @@ final case class RunOptions(
   passThroughProject: Boolean,
   exchangeOnVe: Boolean
 ) {
+
+  def enhanceWithEnv(env: Map[String, String]): RunOptions = env
+    .collect {
+      case (k, v) if k.startsWith("INPUT_") =>
+        k.drop("INPUT_".length) -> v
+    }
+    .foldLeft(this) { case (t, (k, v)) => t.setArg(k, v).getOrElse(t) }
 
   def enhanceWith(args: List[String]): RunOptions = {
     args
@@ -66,6 +74,20 @@ final case class RunOptions(
       includeExtra(s"$k $v")
     }
 
+  def setArg(key: String, value: String): Option[RunOptions] = {
+    PartialFunction.condOpt(key -> value) {
+      case ("query", nqn) if nqn.forall(Character.isDigit) => copy(queryNo = nqn.toInt)
+      case ("cyclone", nqn)                                => copy(useCyclone = nqn == "on" || nqn == "true")
+      case ("scale", newScale)                             => copy(scale = newScale)
+      case ("name", newName)                               => copy(name = Some(newName))
+      case ("extra", e)                                    => includeExtra(e)
+      case ("serializer", v)                               => copy(serializerOn = v == "on" || v == "true")
+      case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
+      case ("pass-through-project", v)                     => copy(passThroughProject = v == "on")
+      case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
+    }
+  }
+
   def rewriteArgs(str: String): Option[RunOptions] = {
     Option(str)
       .filter(_.startsWith("--"))
@@ -74,16 +96,7 @@ final case class RunOptions(
       .collect { case k :: v :: Nil =>
         k -> v
       }
-      .collect {
-        case ("query", nqn) if nqn.forall(Character.isDigit) => copy(queryNo = nqn.toInt)
-        case ("cyclone", nqn)                                => copy(useCyclone = nqn == "on")
-        case ("scale", newScale)                             => copy(scale = newScale)
-        case ("name", newName)                               => copy(name = Some(newName))
-        case ("serializer", v)                               => copy(serializerOn = v == "on")
-        case ("pass-through-project", v)                     => copy(passThroughProject = v == "on")
-        case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on")
-        case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
-      }
+      .flatMap { case (k, v) => setArg(k, v) }
       .orElse {
         val extraStr = "--extra="
         Option(str)
@@ -153,6 +166,7 @@ final case class RunOptions(
 }
 
 object RunOptions {
+
   val fieldNames: List[String] = {
     classOf[RunOptions].getDeclaredFields.map(_.getName).toList
   }
@@ -186,6 +200,10 @@ object RunOptions {
     gitCommitSha = {
       import scala.sys.process._
       List("git", "rev-parse", "HEAD").!!.trim.take(8)
+    },
+    gitBranch = {
+      import scala.sys.process._
+      List("git", "rev-parse", "--abbrev-ref", "HEAD").!!.trim
     },
     veLogDebug = false,
     runId = "test",
