@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 
+import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.ve.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeColBatch, VeProcess}
@@ -10,7 +11,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object SupportsVeColBatch {
   sealed trait DataCleanup {
-    def cleanup(veColBatch: VeColBatch)(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit
+    def cleanup(
+      veColBatch: VeColBatch
+    )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit
   }
   object DataCleanup {
     case object NoCleanup extends DataCleanup {
@@ -22,7 +25,7 @@ object SupportsVeColBatch {
       override def cleanup(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit =
-        veColBatch.cols.filter(_.source == processId).foreach(_.free())
+        cleanUpIfNotCached(veColBatch)
     }
 
   }

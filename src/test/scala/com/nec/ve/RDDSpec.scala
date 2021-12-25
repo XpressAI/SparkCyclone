@@ -30,7 +30,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
-    implicit val source = VeColVectorSource(
+    implicit val source: VeColVectorSource = VeColVectorSource(
       s"Process ${SparkCycloneExecutorPlugin._veo_proc}, executor ${SparkEnv.get.executorId}"
     )
 
@@ -175,6 +175,7 @@ object RDDSpec {
               finally arrowVec.close()
             })
             .flatMap(veColVector => {
+              import SparkCycloneExecutorPlugin.source
               try {
                 val ref = veProc.loadLibrary(java.nio.file.Paths.get(pathStr))
 

@@ -115,37 +115,39 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     }
   }
 
-  @transient val batchCache: scala.collection.mutable.Set[VeColBatch] =
+  @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
 
-  @transient val colCache: scala.collection.mutable.Set[VeColVector] =
+  @transient val cachedCols: scala.collection.mutable.Set[VeColVector] =
     scala.collection.mutable.Set.empty
 
   def cleanCache(): Unit = {
-    batchCache.toList.foreach { colBatch =>
-      batchCache.remove(colBatch)
+    cachedBatches.toList.foreach { colBatch =>
+      cachedBatches.remove(colBatch)
       colBatch.cols.foreach(freeCol)
     }
   }
 
   def freeCol(col: VeColVector): Unit = {
-    if (colCache.contains(col)) {
+    if (cachedCols.contains(col)) {
       logger.debug(s"Freeing column ${col}... in ${source}")
-      colCache.remove(col)
+      cachedCols.remove(col)
       col.free()
-    } else {
-      logger.warn(s"Trying to free a free column ${col} in ${source}")
     }
   }
 
   def register(cb: VeColBatch): Unit = {
-    batchCache.add(cb)
-    cb.cols.foreach(colCache.add)
+    cachedBatches.add(cb)
+    cb.cols.foreach(cachedCols.add)
   }
 
   var CleanUpCache: Boolean = true
 
   var libraryStorage: LibraryStorage = _
+
+  def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
+    if (!cachedBatches.contains(veColBatch))
+      veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
