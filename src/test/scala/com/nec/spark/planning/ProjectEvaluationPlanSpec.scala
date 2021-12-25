@@ -1,19 +1,12 @@
 package com.nec.spark.planning
 
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
-import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
-import com.nec.spark.planning.ProjectEvaluationPlanSpec.{
-  SampleInputList,
-  SampleOutputExpressions
-}
+import com.nec.spark.planning.ProjectEvaluationPlan.{IdentitySkipProjectionContext, NonSkippingProjectionContext, ProjectionContext}
+import com.nec.spark.planning.ProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
-import org.apache.spark.sql.catalyst.expressions.{
-  AttributeReference,
-  AttributeSet,
-  ExprId,
-  NamedExpression
-}
+
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, AttributeSet, ExprId, NamedExpression}
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -51,19 +44,54 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   it should "not return anything when there are no output expressions" in {
     assert(
-      ProjectionContext(
+      IdentitySkipProjectionContext(
         outputExpressions = Seq.empty,
         inputs = SampleInputList
-      ).columnIndicesToPass.isEmpty
+      ).columnIndicesToPassThrough.isEmpty
     )
   }
 
   it should "selects the right indices of columns to pass through, as only 1, 3 and 5 are referenced in the projection" in {
     assert(
-      ProjectionContext(
+      IdentitySkipProjectionContext(
         outputExpressions = SampleOutputExpressions,
         inputs = SampleInputList
-      ).columnIndicesToPass == List(1, 3, 5)
+      ).columnIndicesToPassThrough == List(1, 3, 5)
+    )
+  }
+
+
+  it should "not skip any operations for non skipping context" in {
+    assert(
+      NonSkippingProjectionContext(
+        outputExpressions = SampleOutputExpressions,
+        inputs = SampleInputList
+      ).columnIndicesToPassThrough == Nil
+    )
+  }
+
+  it should "not pass any columns in non skipping context" in {
+    val calculatedCols =
+      List(
+        VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+        VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+        VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
+        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
+        VeColVector(0, 1000, "fifth", None, VeNullableInt, 3L, List.empty),
+        VeColVector(0, 1000, "sixth", None, VeNullableInt, 3L, List.empty)
+    )
+    val outputBatch =
+      NonSkippingProjectionContext(
+        outputExpressions = SampleOutputExpressions,
+        inputs = SampleInputList
+      )
+        .createOutputBatch(
+          calculatedColumns = calculatedCols,
+          originalBatch = VeColBatch.empty
+          )
+
+    assert(
+      outputBatch.cols == calculatedCols
     )
   }
 
@@ -97,8 +125,8 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     import PassThrough._
     import Ignore._
     val outputBatch =
-      ProjectionContext(
-        outputExpressions = SampleInputList,
+      IdentitySkipProjectionContext(
+        outputExpressions = SampleOutputExpressions,
         inputs = SampleInputList
       )
         .createOutputBatch(
@@ -106,10 +134,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
           originalBatch = VeColBatch.fromList(
             List(
               ignoreFirst,
-              ignoreSecond,
-              ignoreThird,
               passFourthColVector,
+              ignoreSecond,
               passFifthColVector,
+              ignoreThird,
               passSixthColColVector
             )
           )
@@ -118,10 +146,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     assert(
       outputBatch.cols == List(
         computeSomeColVector,
-        passFourthColVector,
         computeOtherColVector,
-        passFifthColVector,
         computeAnotherCol,
+        passFourthColVector,
+        passFifthColVector,
         passSixthColColVector
       )
     )

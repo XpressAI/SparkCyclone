@@ -22,22 +22,24 @@ package com.nec.spark.planning
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
+import com.nec.spark.planning.ProjectEvaluationPlan.{IdentitySkipProjectionContext, NonSkippingProjectionContext, ProjectionContext}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-
 import java.nio.file.Paths
+
 import scala.language.dynamics
 
 final case class ProjectEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
   veFunction: VeFunction,
-  child: SparkPlan
+  child: SparkPlan,
+  skipIdentityOperations: Boolean
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
@@ -52,7 +54,9 @@ final case class ProjectEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  private val projectionContext = ProjectionContext(outputExpressions, child.outputSet.toList)
+  private val projectionContext = if(skipIdentityOperations)
+    IdentitySkipProjectionContext(outputExpressions, child.outputSet.toList) else
+    NonSkippingProjectionContext(outputExpressions, child.outputSet.toList)
   import projectionContext._
 
   override def executeVeColumnar(): RDD[VeColBatch] =
@@ -64,7 +68,7 @@ final case class ProjectEvaluationPlan(
         veColBatches.map { veColBatch =>
           import SparkCycloneExecutorPlugin.veProcess
           try {
-            val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
+            val canPassThroughall = projectionContext.columnIndicesToPassThrough.size == outputExpressions.size
             val cols =
               if (canPassThroughall) Nil
               else
@@ -83,7 +87,7 @@ final case class ProjectEvaluationPlan(
             .asInstanceOf[SupportsVeColBatch]
             .dataCleanup
             .cleanup(
-              ProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
+              ProjectEvaluationPlan.getBatchForPartialCleanup(projectionContext.columnIndicesToPassThrough)(veColBatch)
             )
         }
       }
@@ -91,32 +95,31 @@ final case class ProjectEvaluationPlan(
 }
 
 object ProjectEvaluationPlan {
-
-  private[planning] final case class ProjectionContext(
-    outputExpressions: Seq[NamedExpression],
-    inputs: List[NamedExpression]
-  ) {
-
-    val columnIndicesToPass: Seq[Int] = outputExpressions
-      .filter(_.isInstanceOf[AttributeReference])
-      .map(ref => inputs.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
-      .collect { case Some((_, id)) =>
-        id
+  def getBatchForPartialCleanup(idsToPass: Seq[Int])(veColBatch: VeColBatch): VeColBatch = {
+    val colsToCleanUp = veColBatch.cols.zipWithIndex
+      .collect {
+        case (col, idx) if !idsToPass.contains(idx) => col
       }
-
-    def createOutputBatch(
-      calculatedColumns: Seq[VeColVector],
-      originalBatch: VeColBatch
-    ): VeColBatch = {
-//      println(s"""Inputs ${inputs}, Outputs ${outputExpressions}""")
+    if(!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
+  }
+  sealed trait ProjectionContext {
+    def createOutputBatch(calculatedColumns: Seq[VeColVector],
+                          originalBatch: VeColBatch): VeColBatch
+    def columnIndicesToPassThrough(): Seq[Int]
+  }
+  private [planning] final case class IdentitySkipProjectionContext(
+                                                                     outputExpressions: Seq[NamedExpression],
+                                                                     inputs: List[NamedExpression]
+                                                                   ) extends ProjectionContext {
+    override def createOutputBatch(calculatedColumns: Seq[VeColVector], originalBatch: VeColBatch): VeColBatch =  {
       val outputColumns = outputExpressions
         .foldLeft((0, 0, Seq.empty[VeColVector])) {
           case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
-              if inputs.find(ex => ex.exprId == a.exprId).isDefined =>
+            if inputs.find(ex => ex.exprId == a.exprId).isDefined =>
             (
               calculatedIdx,
               copiedIdx + 1,
-              seq :+ originalBatch.cols(columnIndicesToPass(copiedIdx))
+              seq :+ originalBatch.cols(columnIndicesToPassThrough(copiedIdx))
             )
 
           case ((calculatedIdx, copiedIdx, seq), ex) =>
@@ -132,14 +135,22 @@ object ProjectEvaluationPlan {
 
       VeColBatch.fromList(outputColumns)
     }
-  }
 
-  def getBatchForPartialCleanup(idsToPass: Seq[Int])(veColBatch: VeColBatch): VeColBatch = {
-    val colsToCleanUp = veColBatch.cols.zipWithIndex
-      .collect {
-        case (col, idx) if !idsToPass.contains(idx) => col
+  override val columnIndicesToPassThrough: Seq[Int] = outputExpressions
+      .filter(_.isInstanceOf[AttributeReference])
+      .map(ref => inputs.zipWithIndex.find(findRef => findRef._1.exprId == ref.exprId))
+      .collect { case Some((_, id)) =>
+        id
       }
-    if(!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
   }
+  private [planning] final case class NonSkippingProjectionContext(
+                                                                     outputExpressions: Seq[NamedExpression],
+                                                                     inputs: List[NamedExpression]
+                                                                   ) extends ProjectionContext {
+    override def createOutputBatch(calculatedColumns: Seq[VeColVector], originalBatch: VeColBatch): VeColBatch = {
+      VeColBatch.fromList(calculatedColumns.toList)
+    }
 
+    override val columnIndicesToPassThrough: Seq[Int] = Nil
+  }
 }

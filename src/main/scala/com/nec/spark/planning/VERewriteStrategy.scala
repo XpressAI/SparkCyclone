@@ -189,7 +189,6 @@ final case class VERewriteStrategy(
                 outputs = outputs
               )
             )
-            if(options.skipIdentityTransformations) {
               List(
                 VectorEngineToSparkPlan(
                   ProjectEvaluationPlan(
@@ -199,25 +198,11 @@ final case class VERewriteStrategy(
                       functionName = fName,
                       results = cF.outputs.map(_.veType)
                     ),
-                    child = SparkToVectorEnginePlan(planLater(child))
+                    child = SparkToVectorEnginePlan(planLater(child)),
+                    options.skipIdentityTransformations
                   )
                 )
               )
-            } else {
-              List(
-                VectorEngineToSparkPlan(
-                OneStageEvaluationPlan(
-                  outputExpressions = projectList,
-                  veFunction = VeFunction(
-                    veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
-                    functionName = fName,
-                    results = cF.outputs.map(_.veType)
-                  ),
-                  child = SparkToVectorEnginePlan(planLater(child))
-                )
-                )
-              )
-            }
           }
 
           planE.fold(e => sys.error(s"Could not map ${e}"), identity)
