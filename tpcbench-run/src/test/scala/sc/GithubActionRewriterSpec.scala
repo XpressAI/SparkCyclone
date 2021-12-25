@@ -3,13 +3,13 @@ package sc
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import io.circe.Decoder
 import org.scalatest.freespec.AnyFreeSpec
+import sc.GithubActionRewriterSpec.{makeGeneric, setInputs, yamlAs}
 
 import java.nio.file.{Files, Paths}
 
-object GithubActionRewriterSpec {}
-final class GithubActionRewriterSpec extends AnyFreeSpec {
-
+object GithubActionRewriterSpec {
   def setInputs(inputs: Map[String, GitHubInput])(yaml: String): String = {
 
     /** SnakeYaml parses key 'on' as 'true' */
@@ -38,6 +38,46 @@ final class GithubActionRewriterSpec extends AnyFreeSpec {
     om.writeValueAsString(t)
   }
 
+  import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+
+  def convertYamlToJson(yaml: String): String = {
+    val yamlReader = new ObjectMapper(new YAMLFactory)
+    val obj = yamlReader.readValue(yaml, classOf[Any])
+    val jsonWriter = new ObjectMapper()
+    jsonWriter.writeValueAsString(obj)
+  }
+
+  def yamlAs[X: Decoder](yaml: String): X = {
+    io.circe.parser.parse(convertYamlToJson(yaml)).fold(throw _, _.as[X]).fold(throw _, identity)
+  }
+  def makeGeneric(yaml: String): String = {
+
+    /** SnakeYaml parses key 'on' as 'true' */
+    val yf = new YAMLFactory()
+    val om = new ObjectMapper(yf)
+    val t = om.readTree(yaml)
+    t.path("on")
+      .path("workflow_dispatch")
+      .path("inputs")
+      .asInstanceOf[ObjectNode]
+      .remove("query")
+    val qa = t
+      .asInstanceOf[ObjectNode]
+      .putObject("strategy")
+      .putObject("matrix")
+      .putArray("query")
+
+    t
+      .asInstanceOf[ObjectNode]
+      .put("name", "TPC-H Central All-Runner")
+
+    t.path("env").asInstanceOf[ObjectNode].put("INPUT_query", s"$${{ matrix.query }}")
+    (0 to 22).map(x => qa.add(x))
+    om.writeValueAsString(t)
+  }
+}
+
+final class GithubActionRewriterSpec extends AnyFreeSpec {
   "We can set options in a YAML" in {
     val inputYaml = """name: bench
                       |on:
@@ -65,11 +105,48 @@ final class GithubActionRewriterSpec extends AnyFreeSpec {
       )(inputYaml)
     assert(result == expectedYaml)
   }
+
+  val pathColl = Paths.get(".github/workflows/benchmark-collector.yml")
+
   "We can rewrite the YAML" in {
-    val path = Paths.get(".github/workflows/benchmark-collector.yml")
     Files.write(
-      path,
-      setInputs(GitHubInput.DefaultList)(new String(Files.readAllBytes(path))).getBytes()
+      pathColl,
+      setInputs(GitHubInput.DefaultList)(new String(Files.readAllBytes(pathColl))).getBytes()
     )
+  }
+
+  val pathCollAll = pathColl.getParent.resolve("benchmark-collector-all.yml")
+
+  def genV: String = makeGeneric(new String(Files.readAllBytes(pathColl)))
+
+  "Make generic works" - {
+    import io.circe.generic.auto._
+    import io.circe._
+    def y: Json = yamlAs[Json](genV)
+    "Matrix is set up" in {
+      val queryNos: List[Int] = (y \\ "strategy")
+        .flatMap(_ \\ "matrix")
+        .flatMap(_ \\ "query")
+        .flatMap(_.asArray)
+        .flatten
+        .flatMap(_.asNumber)
+        .flatMap(_.toInt)
+
+      withClue(s"$y") {
+        assert(queryNos.contains(21))
+      }
+    }
+    "Query is removed from the choices" in {
+      val r =
+        (y \\ "on").flatMap(_ \\ "workflow_dispatch").flatMap(_ \\ "inputs").flatMap(_ \\ "query")
+      assert(r.isEmpty, "Expecting query to not be there")
+    }
+    "Query value is fetched from the Matrix" in {
+      val qv = (y \\ "env").flatMap(_ \\ "INPUT_query").flatMap(_.asString)
+      assert(qv == List(s"$${{ matrix.query }}"))
+    }
+  }
+  "We can generate a YAML that will run for everything (generic)" in {
+    Files.write(pathCollAll, genV.getBytes())
   }
 }
