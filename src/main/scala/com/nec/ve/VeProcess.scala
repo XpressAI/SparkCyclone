@@ -3,7 +3,7 @@ package com.nec.ve
 import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
+import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.LibraryReference
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
@@ -50,7 +50,6 @@ trait VeProcess {
     results: List[VeType]
   ): List[VeColVector]
 
-  def getProcessId(): Long
 }
 
 object VeProcess {
@@ -92,10 +91,9 @@ object VeProcess {
       results: List[VeType]
     ): List[VeColVector] = f().executeMultiIn(libraryReference, functionName, batches, results)
 
-    override def getProcessId(): Long = f().getProcessId()
   }
 
-  final case class WrappingVeo(veo_proc_handle: veo_proc_handle)
+  final case class WrappingVeo(veo_proc_handle: veo_proc_handle, source: VeColVectorSource)
     extends VeProcess
     with LazyLogging {
     override def allocate(size: Long): Long = {
@@ -124,11 +122,10 @@ object VeProcess {
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
 
     def validateVectors(list: List[VeColVector]): Unit = {
-      val processId = getProcessId()
       list.foreach(vector =>
         require(
-          vector.veProcessId == processId,
-          s"Expecting process ID to be ${processId}, but got ${vector.veProcessId} for vector ${vector}"
+          vector.source == source,
+          s"Expecting source to be ${source}, but got ${vector.source} for vector ${vector}"
         )
       )
     }
@@ -179,7 +176,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(16),
             name = "output",
             veType = scalar,
@@ -193,7 +190,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(28),
             name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
@@ -286,7 +283,7 @@ object VeProcess {
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
-              veProcessId = getProcessId(),
+              source = source,
               numItems = byteBuffer.getInt(28),
               name = "output",
               veType = VeString,
@@ -305,7 +302,7 @@ object VeProcess {
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
-              veProcessId = getProcessId(),
+              source = source,
               numItems = byteBuffer.getInt(16),
               name = "output",
               veType = r,
@@ -374,7 +371,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(16),
             name = "output",
             veType = scalar,
@@ -388,7 +385,7 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(28),
             name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
@@ -400,6 +397,5 @@ object VeProcess {
       }
     }
 
-    override def getProcessId(): Long = new LongPointer(veo_proc_handle).get()
   }
 }

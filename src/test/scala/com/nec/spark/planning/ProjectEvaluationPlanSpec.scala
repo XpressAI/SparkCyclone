@@ -4,16 +4,12 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.spark.planning.ProjectEvaluationPlanSpec.{
   SampleInputList,
-  SampleOutputExpressions
+  SampleOutputExpressions,
+  TheSource
 }
 import com.nec.ve.VeColBatch
-import com.nec.ve.VeColBatch.VeColVector
-import org.apache.spark.sql.catalyst.expressions.{
-  AttributeReference,
-  AttributeSet,
-  ExprId,
-  NamedExpression
-}
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, ExprId, NamedExpression}
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -42,6 +38,7 @@ object ProjectEvaluationPlanSpec {
       SampleCol3
     )
 
+  private val TheSource: VeColVectorSource = VeColVectorSource("Unit tests")
 
 }
 
@@ -72,35 +69,35 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
     object PassThrough {
       val passFourthColVector =
-        VeColVector(0, numRows, "fourthCol", None, VeNullableInt, 3L, List.empty)
+        VeColVector(TheSource, numRows, "fourthCol", None, VeNullableInt, 3L, List.empty)
       val passFifthColVector =
-        VeColVector(0, numRows, "fifthCol", None, VeNullableInt, 5L, List.empty)
+        VeColVector(TheSource, numRows, "fifthCol", None, VeNullableInt, 5L, List.empty)
       val passSixthColColVector =
-        VeColVector(0, numRows, "sixthCol", None, VeNullableInt, 6L, List.empty)
+        VeColVector(TheSource, numRows, "sixthCol", None, VeNullableInt, 6L, List.empty)
     }
     object Compute {
       val computeSomeColVector =
-        VeColVector(0, numRows, "someCol", None, VeNullableInt, 9L, List.empty)
+        VeColVector(TheSource, numRows, "someCol", None, VeNullableInt, 9L, List.empty)
       val computeOtherColVector =
-        VeColVector(0, numRows, "otherCol", None, VeNullableInt, 10L, List.empty)
+        VeColVector(TheSource, numRows, "otherCol", None, VeNullableInt, 10L, List.empty)
       val computeAnotherCol =
-        VeColVector(0, numRows, "anotherCol", None, VeNullableInt, 11L, List.empty)
+        VeColVector(TheSource, numRows, "anotherCol", None, VeNullableInt, 11L, List.empty)
     }
 
     object Ignore {
-      val ignoreFirst = VeColVector(0, numRows, "firstCol", None, VeNullableInt, 0L, List.empty)
-      val ignoreSecond = VeColVector(0, numRows, "secondCol", None, VeNullableInt, 1L, List.empty)
-      val ignoreThird = VeColVector(0, numRows, "thirdCol", None, VeNullableInt, 2L, List.empty)
+      val ignoreFirst =
+        VeColVector(TheSource, numRows, "firstCol", None, VeNullableInt, 0L, List.empty)
+      val ignoreSecond =
+        VeColVector(TheSource, numRows, "secondCol", None, VeNullableInt, 1L, List.empty)
+      val ignoreThird =
+        VeColVector(TheSource, numRows, "thirdCol", None, VeNullableInt, 2L, List.empty)
     }
 
     import Compute._
-    import PassThrough._
     import Ignore._
+    import PassThrough._
     val outputBatch =
-      ProjectionContext(
-        outputExpressions = SampleInputList,
-        inputs = SampleInputList
-      )
+      ProjectionContext(outputExpressions = SampleInputList, inputs = SampleInputList)
         .createOutputBatch(
           calculatedColumns = List(computeSomeColVector, computeOtherColVector, computeAnotherCol),
           originalBatch = VeColBatch.fromList(
@@ -130,10 +127,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   it should "correctly cleanup data if all columns are copied" in {
     val veInputBatch = VeColBatch.fromList(
       List(
-        VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
-        VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
-        VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
-        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
+        VeColVector(TheSource, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+        VeColVector(TheSource, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+        VeColVector(TheSource, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
+        VeColVector(TheSource, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
       )
     )
 
@@ -147,10 +144,10 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   it should "correctly cleanup batch if no columns are copied" in {
     val veInputBatch = VeColBatch.fromList(
       List(
-        VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
-        VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
-        VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
-        VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
+        VeColVector(TheSource, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+        VeColVector(TheSource, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+        VeColVector(TheSource, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty),
+        VeColVector(TheSource, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty)
       )
     )
 
@@ -161,21 +158,20 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   it should "correctly cleanup batch if some columns are copied" in {
     val copiedVectors = List(
-      VeColVector(0, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
-      VeColVector(0, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
-      VeColVector(0, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty)
+      VeColVector(TheSource, 1000, "firstCol", None, VeNullableInt, 0L, List.empty),
+      VeColVector(TheSource, 1000, "secondCol", None, VeNullableInt, 1L, List.empty),
+      VeColVector(TheSource, 1000, "thirdCol", None, VeNullableInt, 2L, List.empty)
     )
 
     val notCopiedVectors = List(
-      VeColVector(0, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
-      VeColVector(0, 1000, "fifth", None, VeNullableInt, 3L, List.empty)
+      VeColVector(TheSource, 1000, "fourthCol", None, VeNullableInt, 3L, List.empty),
+      VeColVector(TheSource, 1000, "fifth", None, VeNullableInt, 3L, List.empty)
     )
 
-    val veInputBatch = VeColBatch.fromList(
-      copiedVectors ++ notCopiedVectors
-    )
+    val veInputBatch = VeColBatch.fromList(copiedVectors ++ notCopiedVectors)
 
-    val outBatch = ProjectEvaluationPlan.getBatchForPartialCleanup(List(0, 1, 2))(veInputBatch)
+    val outBatch =
+      ProjectEvaluationPlan.getBatchForPartialCleanup(List(0, 1, 2))(veInputBatch)
 
     assert(outBatch == VeColBatch.fromList(notCopiedVectors))
   }

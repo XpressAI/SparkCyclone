@@ -1,5 +1,6 @@
 package com.nec.spark.planning.plans
 
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch}
 import com.nec.ve.VeColBatch

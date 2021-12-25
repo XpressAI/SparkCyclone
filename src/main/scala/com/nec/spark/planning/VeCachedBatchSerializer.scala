@@ -1,6 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.VeCachedBatchSerializer.{CachedVeBatch, ShortCircuit}
 import com.nec.ve.VeColBatch

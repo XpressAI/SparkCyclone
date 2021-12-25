@@ -1,6 +1,6 @@
 package com.nec.spark.planning.aggregation
 
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
