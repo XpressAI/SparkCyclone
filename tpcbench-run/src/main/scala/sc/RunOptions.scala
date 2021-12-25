@@ -85,8 +85,8 @@ final case class RunOptions(
       case ("extra", e)                                    => includeExtra(e)
       case ("serializer", v)                               => copy(serializerOn = v == "on" || v == "true")
       case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
-      case ("pass-through-project", v)                     => copy(passThroughProject = v == "on")
-      case ("fail-fast", v)                                => copy(failFast = v == "on")
+      case ("pass-through-project", v)                     => copy(passThroughProject = v == "on" || v == "true")
+      case ("fail-fast", v)                                => copy(failFast = v == "on" || v == "true")
       case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
     }
   }
