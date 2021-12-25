@@ -33,7 +33,8 @@ final class TpcBenchSpec extends AnyFreeSpec {
         queryTime = 123,
         traceResults = "KK",
         appUrl = "abc",
-        logOutput = (0 to 40).map(l => s"s$l").mkString("\n")
+        logOutput = (0 to 40).map(l => s"s$l").mkString("\n"),
+        containerList = "http://abc\nhttp://bcd"
       )
     )).unsafeRunSync()
   }
