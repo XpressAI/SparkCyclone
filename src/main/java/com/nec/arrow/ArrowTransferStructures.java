@@ -200,8 +200,8 @@ public interface ArrowTransferStructures extends Library {
         public long validityBuffer;
         public Integer dataSize;
         public Integer count;
-        /* 24 + 8 = 32 bytes in size */
         public long lengths;
+        /* (sizeof(long) * 4) + (sizeof(int) * 2) = 40 bytes */
 
         public nullable_varchar_vector() {
             super();

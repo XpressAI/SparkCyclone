@@ -129,13 +129,16 @@ object GroupingFunction {
                           CodeLines.debugHere,
                           GroupByOutline.initializeStringVector(outName),
                           CodeLines.debugHere,
-                          fp.setup,
+                          fp.setup(size = "idToBucket.size()"),
                           CodeLines.debugHere,
                           "int o = 0;",
                           CodeLines.forLoop("i", s"idToBucket.size()") {
                             CodeLines.from(
                               CodeLines.ifStatement("b == idToBucket[i]")(
-                                CodeLines.from(fp.forEach, "o++;")
+                                CodeLines.from(
+                                  fp.forEach("i"),
+                                  "o++;"
+                                )
                               )
                             )
                           },

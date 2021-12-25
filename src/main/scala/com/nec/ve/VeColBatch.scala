@@ -9,14 +9,13 @@ import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
-
 import org.apache.arrow.vector._
+import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
-import java.nio.ByteBuffer
 
-import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
+import java.nio.ByteBuffer
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
@@ -115,10 +114,11 @@ object VeColBatch {
     def bufferSizes: List[Int] = veType match {
       case v: VeScalarType => List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
       case VeString =>
-        val offsetBuffSize = (numItems + 1) * 4
+        val offsetBuffSize = (numItems) * 4
+        val lengthBuffSize = (numItems) * 4
         val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
-        variableSize.toList ++ List(offsetBuffSize, validitySize)
+        variableSize.toList ++ List(offsetBuffSize, validitySize, lengthBuffSize)
     }
 
     def injectBuffers(newBuffers: List[Array[Byte]])(implicit veProcess: VeProcess): VeColVector =
@@ -209,6 +209,7 @@ object VeColBatch {
         vcvr.validityBuffer = bufferLocations(2)
         vcvr.dataSize =
           variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
+        vcvr.lengths = bufferLocations(3)
         val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
 
         copy(containerLocation = veProcess.putBuffer(byteBuffer))
@@ -463,7 +464,7 @@ object VeColBatch {
         name = varcharVector.getName,
         veType = VeString,
         containerLocation = containerLocation,
-        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer),
+        bufferLocations = List(vcvr.data, vcvr.offsets, vcvr.validityBuffer, vcvr.lengths),
         variableSize = Some(varcharVector.getDataBuffer.nioBuffer().capacity())
       )
     }
