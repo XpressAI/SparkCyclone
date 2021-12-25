@@ -71,7 +71,6 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
         allExtensions.map(_.getCanonicalName).mkString(",") + "," + sc.getConf
           .get("spark.sql.extensions", "")
       )
-      .set("spark.sql.codegen.wholeStage", "false")
 
     val testArgs: Map[String, String] = Map.empty
     testArgs.asJava
