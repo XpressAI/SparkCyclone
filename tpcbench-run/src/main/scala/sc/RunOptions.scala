@@ -1,11 +1,9 @@
 package sc
 
-import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
-import sun.misc.IOUtils
+import sc.RunOptions.{cycloneJar, packageJar}
 
-import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermission._
-import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util
 
 final case class RunOptions(
@@ -122,12 +120,6 @@ final case class RunOptions(
       "--deploy-mode",
       "client",
       "--conf",
-      s"spark.driver.extraJavaOptions=-Dlog4j.configuration=file:${Log4jFile.toString}",
-      "--conf",
-      s"spark.executor.extraJavaOptions=-Dlog4j.configuration=file:${Log4jFile.toString}",
-      "--files",
-      Log4jFile.toString,
-      "--conf",
       "spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc"
     ) ++ {
       if (useCyclone)
@@ -223,25 +215,6 @@ object RunOptions {
     passThroughProject = false,
     failFast = true
   )
-
-  lazy val Log4jFile: java.nio.file.Path = {
-    val tempFile = {
-      if (scala.util.Properties.isWin)
-        Files.createTempFile("log4j", ".properties")
-      else
-        Files.createTempFile(
-          "log4j",
-          ".properties",
-          PosixFilePermissions.asFileAttribute(PosixPermissions)
-        )
-    }
-    Files
-      .write(
-        tempFile,
-        IOUtils.readAllBytes(getClass.getResourceAsStream(s"/log4j-benchmark.properties"))
-      )
-    tempFile
-  }
 
   import scala.collection.JavaConverters._
   lazy val PosixPermissions: util.Set[PosixFilePermission] = Set[PosixFilePermission](
