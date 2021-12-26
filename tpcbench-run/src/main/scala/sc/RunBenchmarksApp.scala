@@ -3,6 +3,7 @@ package sc
 import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp}
+import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEventVO}
 import com.comcast.ip4s.Host
 import com.nec.tracing.SpanProcessor
 import com.nec.tracing.TracingListenerApp.socketToLines
@@ -11,9 +12,13 @@ import fs2.io.net.Network
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.scalaxml.xml
-import sc.ResultsInfo.DefaultOrdering
+import sc.DetectLogback.LogbackItemsClasspath
+import sc.RunResults.DefaultOrdering
+import sc.RunOptions.PosixPermissions
 import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.DurationInt
 import scala.language.higherKinds
@@ -22,9 +27,13 @@ object RunBenchmarksApp extends IOApp {
 
   final case class RunResults(
     appUrl: String,
+    compileTime: Option[String],
+    queryTime: Option[String],
     traceResults: String,
     logOutput: String,
-    containerList: List[String]
+    containerList: List[String],
+    metrics: List[String],
+    maybeFoundPlan: Option[String]
   )
 
   private def getApps: IO[AppsContainer] = {
@@ -72,100 +81,177 @@ object RunBenchmarksApp extends IOApp {
       .flatMap(_ => fs2.Stream.evalSeq(fetchContainers(appId)))
       .through(getDistinct[IO, AppAttemptContainer])
 
+  require(LogbackItemsClasspath.nonEmpty, "Expecting to have logback in classpath.")
+
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
     runtime: IORuntime
   ): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
-        def runProc(_stdout: String => IO[Unit], _stderr: String => IO[Unit]) = IO.blocking {
-          val sparkHome = "/opt/spark"
-          import scala.sys.process._
-          val command = Seq(s"$sparkHome/bin/spark-submit") ++ {
-            if (doTrace)
-              List(
-                "--conf",
-                s"spark.com.nec.spark.ncc.profile-target=127.0.0.1:${ipAddr.port.value}"
+        Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
+          case (logbackIpAddr, logbackStreamOfSockets) =>
+            def runProc(_stdout: String => IO[Unit], _stderr: String => IO[Unit]) = IO.blocking {
+              val sparkHome = "/opt/spark"
+              import scala.sys.process._
+
+              val tempFileLocation = Files.createTempFile(
+                "logback",
+                ".xml",
+                PosixFilePermissions.asFileAttribute(PosixPermissions)
               )
-            else Nil
-          } ++
-            runOptions.toArguments
 
-          println(s"Running command: ${command.mkString(" ")}")
-          val proc = Process(command = command, None, "SPARK_HOME" -> sparkHome)
-            .run(
-              ProcessLogger
-                .apply(
-                  fout = s => _stdout(s).unsafeRunSync()(runtime),
-                  ferr = s => _stderr(s).unsafeRunSync()(runtime)
+              Files.write(
+                tempFileLocation,
+                BenchmarkLogbackConfigurationFile
+                  .forPort(logbackIpAddr.port.value)
+                  .toString
+                  .getBytes()
+              )
+
+              val logbackConf = List("driver", "executor")
+                .flatMap(key =>
+                  List(
+                    "--conf",
+                    s"spark.${key}.extraJavaOptions=-Dlogback.configurationFile=${tempFileLocation}"
+                  )
                 )
-            )
-          proc -> IO
-            .pure(proc)
-            .onCancel(IO.blocking(proc.destroy()))
-            .flatMap(proc => IO.blocking(proc.exitValue()))
-        }
 
-        /** Start the tracer, and then the process, then wait for the process to complete and then end the stream of the tracer, */
-        for {
-          s <- SignallingRef[IO].of(false)
-          traceStreamFiber <- streamOfSockets
-            .evalMap(socketToLines)
-            .interruptWhen(haltWhenTrue = s)
-            .compile
-            .toList
-            .map(_.flatten)
-            .start
-          initialApps <- getApps
-          outLinesTopic <- Topic[IO, String]
-          outLinesF <- outLinesTopic
-            .subscribe(Int.MaxValue)
-            .interruptWhen(haltWhenTrue = s)
-            .compile
-            .toList
-            .start
-          prio <- runProc(
-            _stdout = line => IO.println(line) *> outLinesTopic.publish1(line).void,
-            _stderr = line =>
-              IO.println(line)
-                *> outLinesTopic.publish1(line).void
-          )
-          proc = prio._1
-          procCloseIO = prio._2
-          procFiber <- procCloseIO.start
-          afterStartApps <- getApps.delayBy(15.seconds)
-          /** to allow spark to create a tracking url */
-          newFoundApps = afterStartApps.apps.filter(app => !initialApps.apps.exists(_.id == app.id))
-          newFoundApp = newFoundApps.headOption
-            .getOrElse(sys.error(s"Could not find Hadoop app for this"))
-          _ <- {
-            import cats.implicits._
-            newFoundApps.traverse { newFoundApp =>
-              IO.println(show"Hadoop app found:") *> IO.println(newFoundApp)
+              val metricsConf =
+                List(
+                  "*.sink.slf4j.class=org.apache.spark.metrics.sink.Slf4jSink",
+                  "*.sink.slf4j.period=5"
+                )
+
+              val metricsOptions: List[String] = {
+                metricsConf.flatMap(item => List("--conf", s"spark.metrics.conf.${item}"))
+              }
+
+              val command =
+                Seq(s"$sparkHome/bin/spark-submit") ++ metricsOptions ++ logbackConf ++ {
+                  if (doTrace)
+                    List(
+                      "--conf",
+                      s"spark.com.nec.spark.ncc.profile-target=127.0.0.1:${ipAddr.port.value}"
+                    )
+                  else Nil
+                } ++
+                  runOptions.toArguments
+
+              println(s"Running command: ${command.mkString(" ")}")
+              val proc = Process(command = command, None, "SPARK_HOME" -> sparkHome)
+                .run(
+                  ProcessLogger
+                    .apply(
+                      fout = s => _stdout(s).unsafeRunSync()(runtime),
+                      ferr = s => _stderr(s).unsafeRunSync()(runtime)
+                    )
+                )
+              proc -> IO
+                .pure(proc)
+                .onCancel(IO.blocking(proc.destroy()))
+                .flatMap(proc => IO.blocking(proc.exitValue()))
             }
-          }
 
-          containerLogsListF <- monitorAllContainers(newFoundApp.id)
-            .interruptWhen(haltWhenTrue = s)
-            .evalTap(cnt => IO.println(s"Detected a new container: ${cnt.logUrl}"))
-            .compile
-            .toList
-            .start
-          exitValue <- procFiber.joinWithNever
-          _ <- s.set(true).delayBy(2.seconds)
-          traceLines <- traceStreamFiber.joinWithNever
-          outLines <- outLinesF.joinWithNever
-          containerLogsList <- containerLogsListF.joinWithNever
-          _ = println(s"Trace lines => ${traceLines.toString().take(50)}")
-          analyzeResult = SpanProcessor.analyzeLines(traceLines)
-        } yield (
-          exitValue,
-          RunResults(
-            appUrl = newFoundApp.appUrl,
-            traceResults = analyzeResult.mkString("", "\n", ""),
-            logOutput = outLines.mkString("", "\n", ""),
-            containerList = containerLogsList.map(_.logUrl).sorted
-          )
-        )
+            /** Start the tracer, and then the process, then wait for the process to complete and then end the stream of the tracer, */
+            for {
+              s <- SignallingRef[IO].of(false)
+              traceStreamFiber <- streamOfSockets
+                .evalMap(socketToLines)
+                .interruptWhen(haltWhenTrue = s)
+                .compile
+                .toList
+                .map(_.flatten)
+                .start
+              initialApps <- getApps
+              outLinesTopic <- Topic[IO, String]
+              outLinesF <- outLinesTopic
+                .subscribe(Int.MaxValue)
+                .interruptWhen(haltWhenTrue = s)
+                .compile
+                .toList
+                .start
+              logLinesF <- logbackStreamOfSockets
+                .map(socket => LogbackListener.getLoggingEvents(socket))
+                .parJoinUnbounded
+                .map((i: ILoggingEvent) => i.asInstanceOf[LoggingEventVO])
+                .filter(i =>
+                  i.getLoggerName != null && (i.getLoggerName.contains(".nec.") || i.getLoggerName
+                    .contains("sparkcyclone") || MetricCapture.matches(i.getMessage))
+                )
+                .interruptWhen(haltWhenTrue = s)
+                .evalTap(event =>
+                  if (
+                    MetricCapture
+                      .matches(event.getMessage)
+                  ) IO.unit
+                  else IO.println(s"${event}: ${event.getFormattedMessage}")
+                )
+                .compile
+                .toList
+                .start
+              prio <- runProc(
+                _stdout = line => IO.println(line) *> outLinesTopic.publish1(line).void,
+                _stderr = line =>
+                  IO.println(line)
+                    *> outLinesTopic.publish1(line).void
+              )
+              proc = prio._1
+              procCloseIO = prio._2
+              procFiber <- procCloseIO.start
+              afterStartApps <- getApps.delayBy(15.seconds)
+
+              /** to allow spark to create a tracking url */
+              newFoundApps = afterStartApps.apps
+                .filter(app => !initialApps.apps.exists(_.id == app.id))
+              newFoundApp = newFoundApps.headOption
+                .getOrElse(sys.error(s"Could not find Hadoop app for this"))
+              _ <- {
+                import cats.implicits._
+                newFoundApps.traverse { newFoundApp =>
+                  IO.println(show"Hadoop app found:") *> IO.println(newFoundApp)
+                }
+              }
+
+              containerLogsListF <- monitorAllContainers(newFoundApp.id)
+                .interruptWhen(haltWhenTrue = s)
+                .evalTap(cnt => IO.println(s"Detected a new container: ${cnt.logUrl}"))
+                .compile
+                .toList
+                .start
+              exitValue <- procFiber.joinWithNever
+              _ <- s.set(true).delayBy(2.seconds)
+              traceLines <- traceStreamFiber.joinWithNever
+              outLines <- outLinesF.joinWithNever
+              loggingEventVoes <- logLinesF.joinWithNever
+              containerLogsList <- containerLogsListF.joinWithNever
+              _ = println(s"Trace lines => ${traceLines.toString().take(50)}")
+              analyzeResult = SpanProcessor.analyzeLines(traceLines)
+            } yield (
+              exitValue,
+              RunResults(
+                appUrl = newFoundApp.appUrl,
+                traceResults = analyzeResult.mkString("", "\n", ""),
+                logOutput = outLines.mkString("", "\n", ""),
+                containerList = containerLogsList.map(_.logUrl).sorted,
+                metrics = loggingEventVoes.collect {
+                  case m if m.getMessage != null && MetricCapture.matches(m.getMessage) =>
+                    m.getMessage
+                },
+                maybeFoundPlan = loggingEventVoes.collectFirst {
+                  case m if m.getMessage.startsWith("Final plan: ") =>
+                    Option(m.getArgumentArray.apply(0)).map(_.toString)
+                }.flatten,
+                compileTime = loggingEventVoes.collectFirst {
+                  case m if m.getMessage.startsWith("Compilation time: ") =>
+                    Option(m.getArgumentArray.apply(0)).map(_.toString)
+                }.flatten,
+                queryTime = loggingEventVoes.collectFirst {
+                  case m if m.getMessage.startsWith("Query time: ") =>
+                    Option(m.getArgumentArray.apply(0)).map(_.toString)
+                }.flatten
+              )
+            )
+        }
     }
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -218,11 +304,14 @@ object RunBenchmarksApp extends IOApp {
               RunResult(
                 succeeded = result == 0,
                 wallTime = wallTime,
-                queryTime = wallTime,
+                queryTime = traceResults.queryTime.getOrElse(""),
+                compileTime = traceResults.compileTime.getOrElse(""),
                 appUrl = traceResults.appUrl,
                 traceResults = traceResults.traceResults,
                 logOutput = traceResults.logOutput,
-                containerList = traceResults.containerList.mkString("\n")
+                containerList = traceResults.containerList.mkString("\n"),
+                metrics = traceResults.metrics.mkString("\n"),
+                finalPlan = traceResults.maybeFoundPlan
               )
             ) *> rd.fetchResults.map(_.reorder(DefaultOrdering)).flatMap(_.save)
         }

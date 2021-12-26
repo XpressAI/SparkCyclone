@@ -35,7 +35,9 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     )
 
     implicit val veProc: VeProcess =
-      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source))
+      DeferredVeProcess(() =>
+        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
+      )
     def makeColumnarBatch1() = {
       val vec1 = {
         implicit val rootAllocator: RootAllocator = new RootAllocator()
@@ -108,7 +110,9 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     )
 
     implicit val veProc: VeProcess =
-      DeferredVeProcess(() => WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source))
+      DeferredVeProcess(() =>
+        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
+      )
     val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
       path =>
         val ref = veProc.loadLibrary(path)

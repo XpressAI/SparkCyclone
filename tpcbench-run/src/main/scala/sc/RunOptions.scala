@@ -1,11 +1,10 @@
 package sc
 
-import sc.RunOptions.{cycloneJar, packageJar, Log4jFile}
-import sun.misc.IOUtils
+import sc.DetectLogback.LogbackItemsClasspath
+import sc.RunOptions.{cycloneJar, packageJar}
 
-import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermission._
-import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util
 
 final case class RunOptions(
@@ -79,7 +78,7 @@ final case class RunOptions(
   def setArg(key: String, value: String): Option[RunOptions] = {
     PartialFunction.condOpt(key -> value) {
       case ("query", nqn) if nqn.forall(Character.isDigit) => copy(queryNo = nqn.toInt)
-      case ("cyclone", nqn)                                => copy(useCyclone = nqn == "on" || nqn == "true")
+      case ("cyclone" | "use-cyclone", nqn)                => copy(useCyclone = nqn == "on" || nqn == "true")
       case ("scale", newScale)                             => copy(scale = newScale)
       case ("name", newName)                               => copy(name = Some(newName))
       case ("extra", e)                                    => includeExtra(e)
@@ -120,26 +119,24 @@ final case class RunOptions(
       s"--executor-cores=$executorCores",
       s"--executor-memory=${executorMemory}",
       "--deploy-mode",
-      "client",
-      "--conf",
-      s"spark.driver.extraJavaOptions=-Dlog4j.configuration=file:${Log4jFile.toString}",
-      "--conf",
-      s"spark.executor.extraJavaOptions=-Dlog4j.configuration=file:${Log4jFile.toString}",
-      "--files",
-      Log4jFile.toString,
+      "cluster",
       "--conf",
       "spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc"
     ) ++ {
-      if (useCyclone)
+      if (useCyclone) {
+        val exCls: String =
+          (List(cycloneJar) ++ LogbackItemsClasspath.map(_.getFileName.toString)).mkString(":")
         List(
           "--jars",
-          cycloneJar,
+          (List(cycloneJar) ++ LogbackItemsClasspath.map(_.toString)).mkString(","),
           "--conf",
-          s"spark.executor.extraClassPath=${cycloneJar}",
+          s"spark.executor.extraClassPath=${exCls}",
+          "--conf",
+          s"spark.driver.extraClassPath=${exCls}",
           "--conf",
           "spark.plugins=com.nec.spark.AuroraSqlPlugin"
         )
-      else Nil
+      } else Nil
     } ++ List(
       "--conf",
       s"spark.sql.columnVector.offheap.enabled=${offHeapEnabled.toString}",
@@ -223,25 +220,6 @@ object RunOptions {
     passThroughProject = false,
     failFast = true
   )
-
-  lazy val Log4jFile: java.nio.file.Path = {
-    val tempFile = {
-      if (scala.util.Properties.isWin)
-        Files.createTempFile("log4j", ".properties")
-      else
-        Files.createTempFile(
-          "log4j",
-          ".properties",
-          PosixFilePermissions.asFileAttribute(PosixPermissions)
-        )
-    }
-    Files
-      .write(
-        tempFile,
-        IOUtils.readAllBytes(getClass.getResourceAsStream(s"/log4j-benchmark.properties"))
-      )
-    tempFile
-  }
 
   import scala.collection.JavaConverters._
   lazy val PosixPermissions: util.Set[PosixFilePermission] = Set[PosixFilePermission](

@@ -5,7 +5,7 @@ import scalatags.Text
 
 import java.nio.file.{Files, Path, Paths}
 
-object ResultsInfo {
+object RunResults {
   val DefaultOrdering: List[String] =
     List(
       "id",
@@ -16,15 +16,19 @@ object ResultsInfo {
       "queryNo",
       "succeeded",
       "wallTime",
+      "queryTime",
+      "compileTime",
       "serializerOn",
       "logOutput",
       "appUrl",
-      "containerList"
+      "containerList",
+      "metrics",
+      "finalPlan"
     )
 }
-final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRef]]]) {
+final case class RunResults(columns: List[String], data: List[List[Option[AnyRef]]]) {
 
-  def reorder(priorities: List[String]): ResultsInfo = {
+  def reorder(priorities: List[String]): RunResults = {
     copy(
       data = data.map(dataRow =>
         columns
@@ -84,7 +88,8 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
             else (),
             row.zip(columns).map {
               case (None, _) => td()
-              case (Some(value), cn @ ("logOutput" | "traceResults")) if value.toString.nonEmpty =>
+              case (Some(value), cn @ ("logOutput" | "traceResults" | "metrics" | "finalPlan"))
+                  if value.toString.nonEmpty =>
                 td(
                   `class` := cn,
                   tag("dialog")(pre(code(value.toString))),
@@ -143,11 +148,12 @@ final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRe
           )
         })
       ),
-
       raw(
         """<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dialog-polyfill/0.5.6/dialog-polyfill.min.css" integrity="sha512-J2+1q+RsZuJXabBfH1q/fgRr6jMy9By5SwVLk7bScEW7NFJkMUXxfeOyyxtDe6fsaJ4jsciexSlGrPYn9YbBIg==" crossorigin="anonymous" referrerpolicy="no-referrer" />"""
       ),
-      raw("""<script>Array.from(document.querySelectorAll('dialog')).forEach((d) => (dialogPolyfill.registerDialog(d)));</script>""")
+      raw(
+        """<script>Array.from(document.querySelectorAll('dialog')).forEach((d) => (dialogPolyfill.registerDialog(d)));</script>"""
+      )
     )
   )
 

@@ -113,7 +113,7 @@ final class GithubActionRewriterSpec extends AnyFreeSpec {
     assert(result == expectedYaml)
   }
 
-  val pathColl = Paths.get(".github/workflows/benchmark-collector.yml")
+  val pathColl = Paths.get("../.github/workflows/benchmark-collector.yml")
 
   "We can rewrite the YAML" in {
     Files.write(

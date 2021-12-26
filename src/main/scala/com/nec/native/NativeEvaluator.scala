@@ -19,14 +19,11 @@
  */
 package com.nec.native
 
-import com.nec.arrow.ArrowNativeInterface
-import com.nec.arrow.ArrowNativeInterface.DeferredArrowInterface
-import com.nec.arrow.CArrowNativeInterface
+import com.nec.arrow.{ArrowNativeInterface, CArrowNativeInterface}
 import com.nec.arrow.VeArrowNativeInterface.VeArrowNativeInterfaceLazyLib
 import com.nec.native.NativeCompiler.{CNativeCompiler, CNativeCompilerDebug}
-import com.nec.spark.SparkCycloneExecutorPlugin
-import org.bytedeco.veoffload.veo_proc_handle
 import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.veoffload.veo_proc_handle
 
 trait NativeEvaluator extends Serializable {
   def forCode(code: String): ArrowNativeInterface
@@ -55,19 +52,6 @@ object NativeEvaluator {
       val localLib = nativeCompiler.forCode(code).toString
       logger.debug(s"For evaluation, will use local lib '$localLib'")
       new VeArrowNativeInterfaceLazyLib(proc, localLib)
-    }
-  }
-
-  case object ExecutorPluginManagedEvaluator extends NativeEvaluator with LazyLogging {
-    def forCode(code: String): ArrowNativeInterface = {
-      // defer because we need the executors to initialize first
-      logger.debug(s"For evaluation, will refer to the Executor Plugin")
-      DeferredArrowInterface(() =>
-        new VeArrowNativeInterfaceLazyLib(
-          SparkCycloneExecutorPlugin._veo_proc,
-          SparkCycloneExecutorPlugin.libraryStorage.getLocalLibraryPath(code).toString
-        )
-      )
     }
   }
 

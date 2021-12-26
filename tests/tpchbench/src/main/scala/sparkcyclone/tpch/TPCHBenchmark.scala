@@ -19,10 +19,13 @@
  */
 package sparkcyclone.tpch
 
+import com.typesafe.scalalogging.LazyLogging
+
 import java.time.{Instant, LocalDate}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.execution.SparkPlan
 
 // TPC-H table schemas
 case class Customer(
@@ -101,7 +104,7 @@ case class Supplier(
   s_comment: String
 )
 
-object TPCHBenchmark extends SparkSessionWrapper {
+object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
   def createViews(sparkSession: SparkSession, inputDir: String): Unit = {
     import sparkSession.implicits._
 
@@ -297,14 +300,18 @@ object TPCHBenchmark extends SparkSessionWrapper {
 
   def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
     println(s"Running Query${i}")
+    logger.info(s"Running Query${i}")
     val start = System.nanoTime()
     val startI = Instant.now()
     val res = f(sparkSession)
     val endI = Instant.now()
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
-    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${java.time.Duration
-      .between(startI, endI)}")
+    logger.info(s"Result returned ${res.length} records.")
+    val duration = java.time.Duration
+      .between(startI, endI)
+    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${duration}")
+    logger.info(s"Query time: ${duration}")
     res.take(10).foreach(println)
   }
 
@@ -328,15 +335,15 @@ object TPCHBenchmark extends SparkSessionWrapper {
         l_shipdate <= date '1998-12-01' - interval '$delta' day
       group by l_returnflag, l_linestatus
       order by l_returnflag, l_linestatus
+      limit 1
     """
 
-    val ps = sparkSession.sql(sql)
-    println(s"Plan before limit is ==> ${ps.queryExecution.executedPlan}")
-    val ds = ps.limit(1)
-    println(s"Final plan to output is ==>")
-    println(ds.queryExecution.executedPlan)
+    val ds = sparkSession.sql(sql)
+    logPlan(ds.queryExecution.executedPlan)
     ds.collect()
   }
+
+  private def logPlan(executedPlan: SparkPlan): Unit = logger.info(s"Final plan: ${executedPlan}")
 
   def query2(sparkSession: SparkSession): Array[_] = {
     val size = 15
@@ -390,7 +397,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
     """
     val ds = sparkSession.sql(sql).limit(100)
 
-    println(ds.queryExecution.executedPlan)
+    logPlan(ds.queryExecution.executedPlan)
 
     ds.collect()
   }
@@ -900,7 +907,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
         p_size
     """
     val ds = sparkSession.sql(sql)
-    println(ds.queryExecution.executedPlan)
+    logPlan(ds.queryExecution.executedPlan)
     ds.collect()
   }
 

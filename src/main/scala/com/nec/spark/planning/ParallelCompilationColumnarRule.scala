@@ -56,9 +56,7 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
       logger.info(
         s"Took ${timeTaken} to transform functions to compiled status (total: ${timeTakenMatch})."
       )
-      println(
-        s"Took ${timeTaken} to transform functions to compiled status (total: ${timeTakenMatch})."
-      )
+      logger.info(s"Compilation time: ${timeTakenMatch}")
       result
     } else plan
   }

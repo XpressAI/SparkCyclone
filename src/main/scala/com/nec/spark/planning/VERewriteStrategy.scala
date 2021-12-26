@@ -321,7 +321,6 @@ final case class VERewriteStrategy(
               groupingKeys = groupingExpressionsKeys.map { case (gk, _) => gk },
               finalOutputs = finalOutputs
             )
-            _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             computedGroupingKeys <-
               groupingExpressionsKeys.map { case (gk, exp) =>
                 mapGroupingExpression(exp, referenceReplacer)
@@ -455,7 +454,6 @@ final case class VERewriteStrategy(
           }
 
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
-          logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
         case s @ Sort(orders, global, child)
             if options.enableVeSorting && !child.output

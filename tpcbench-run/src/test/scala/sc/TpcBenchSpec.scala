@@ -2,15 +2,11 @@ package sc
 
 import cats.effect.unsafe.implicits.global
 import org.scalatest.freespec.AnyFreeSpec
-import sc.ResultsInfo.DefaultOrdering
-import sc.RunOptions.Log4jFile
+import sc.RunResults.DefaultOrdering
 
 import java.nio.file.Files
 
 final class TpcBenchSpec extends AnyFreeSpec {
-  "log4j file is retrieved" in {
-    assert(Files.exists(Log4jFile))
-  }
   "name is one of the fields" in {
     assert(RunOptions.fieldNames.contains("name"))
   }
@@ -30,11 +26,14 @@ final class TpcBenchSpec extends AnyFreeSpec {
       RunResult(
         succeeded = false,
         wallTime = 1,
-        queryTime = 123,
+        queryTime = "123",
         traceResults = "KK",
         appUrl = "abc",
         logOutput = (0 to 40).map(l => s"s$l").mkString("\n"),
-        containerList = "http://abc\nhttp://bcd"
+        containerList = "http://abc\nhttp://bcd",
+        metrics = "",
+        finalPlan = None,
+        compileTime = "abc"
       )
     )).unsafeRunSync()
   }

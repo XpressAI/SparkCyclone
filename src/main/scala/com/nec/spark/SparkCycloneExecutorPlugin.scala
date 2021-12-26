@@ -19,23 +19,19 @@
  */
 package com.nec.spark
 
-import com.nec.arrow.VeArrowNativeInterface
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.ve.VeProcess.LibraryReference
+import com.nec.ve.{VeColBatch, VeProcess}
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkEnv
+import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
+import org.apache.spark.internal.Logging
+import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-import com.nec.ve.{VeColBatch, VeProcess}
-import com.nec.ve.VeProcess.LibraryReference
-import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.SparkEnv
-import org.apache.spark.api.plugin.ExecutorPlugin
-import org.apache.spark.api.plugin.PluginContext
-import org.apache.spark.internal.Logging
-
-import java.nio.file.Files
-import java.nio.file.Path
 import scala.util.Try
 
 object SparkCycloneExecutorPlugin extends LazyLogging {
@@ -53,7 +49,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source))
+    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
 
   implicit def source: VeColVectorSource = VeColVectorSource(
     s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
@@ -78,42 +74,6 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   }
 
   var DefaultVeNodeId = 0
-
-  trait LibraryStorage {
-    // Get a local copy of the library for loading
-    def getLocalLibraryPath(code: String): Path
-  }
-
-  final class DriverFetchingLibraryStorage(pluginContext: PluginContext)
-    extends LibraryStorage
-    with LazyLogging {
-
-    private var locallyStoredLibs = Map.empty[String, Path]
-
-    /** Get a local copy of the library for loading */
-    override def getLocalLibraryPath(code: String): Path = this.synchronized {
-      locallyStoredLibs.get(code) match {
-        case Some(result) =>
-          logger.debug("Cache hit for executor-fetch for code.")
-          result
-        case None =>
-          logger.debug("Cache miss for executor-fetch for code; asking Driver.")
-          val result = pluginContext.ask(RequestCompiledLibraryForCode(code))
-          if (result == null) {
-            sys.error(s"Could not fetch library: ${code}")
-          } else {
-            val localPath = Files.createTempFile("ve_fn", ".lib")
-            Files.write(
-              localPath,
-              result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
-            )
-            logger.debug(s"Saved file to '$localPath'")
-            locallyStoredLibs += code -> localPath
-            localPath
-          }
-      }
-    }
-  }
 
   @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
@@ -143,11 +103,11 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var CleanUpCache: Boolean = true
 
-  var libraryStorage: LibraryStorage = _
-
   def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
     if (!cachedBatches.contains(veColBatch))
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
+
+  val metrics = new ProcessExecutorMetrics()
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
@@ -155,10 +115,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     import com.nec.spark.SparkCycloneExecutorPlugin._
 
+    SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
     val resources = ctx.resources()
-    SparkCycloneExecutorPlugin.synchronized {
-      SparkCycloneExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
-    }
 
     logInfo(s"Executor has the following resources available => ${resources}")
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
