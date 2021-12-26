@@ -90,7 +90,7 @@ jobs:
       run: "/opt/nec/ve/bin/vecmd info"
     - name: "Branch Ref"
       run: "echo ${GITHUB_REF#refs/heads/}"
-    - name: "Run TPC-H@1"
+    - name: "Run TPC-H"
       run: "sbt tpcbench-run/run"
       if: "success()"
     - name: "Copying to sparkcyclone.io"
