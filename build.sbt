@@ -363,6 +363,7 @@ Test / javaOptions ++= {
 lazy val tpchbench = project
   .in(file("tests/tpchbench"))
   .settings(
+    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
     version := "0.0.1",
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.1" % "provided",
@@ -404,7 +405,7 @@ lazy val `tpcbench-run` = project
       "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test,
       "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.13.1",
       "org.slf4j" % "log4j-over-slf4j" % "1.7.25",
-      "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "ch.qos.logback" % "logback-classic" % "1.2.3"
     ),
     run / fork := true,
     (Compile / run) := (Compile / run)

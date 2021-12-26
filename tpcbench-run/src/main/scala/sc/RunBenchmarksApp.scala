@@ -172,7 +172,10 @@ object RunBenchmarksApp extends IOApp {
                 .map(socket => LogbackListener.getLoggingEvents(socket))
                 .parJoinUnbounded
                 .map((i: ILoggingEvent) => i.asInstanceOf[LoggingEventVO])
-                .filter(_.getLoggerName.contains(".nec."))
+                .filter(i =>
+                  i.getLoggerName != null && (i.getLoggerName.contains(".nec.") || i.getLoggerName
+                    .contains("sparkcyclone"))
+                )
                 .interruptWhen(haltWhenTrue = s)
                 .evalTap(event => IO.println(s"${event}: ${event.getMessage}"))
                 .compile
