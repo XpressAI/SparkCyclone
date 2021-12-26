@@ -63,7 +63,7 @@ final case class RunDatabase(transactor: Transactor[IO], uri: String) {
   }
 
   import java.sql._
-  def fetchResults: IO[ResultsInfo] = IO.blocking {
+  def fetchResults: IO[RunResults] = IO.blocking {
     val connection = DriverManager.getConnection(uri)
     try {
       val statement = connection.createStatement()
@@ -76,7 +76,7 @@ final case class RunDatabase(transactor: Transactor[IO], uri: String) {
       while (rs.next()) {
         buf.append(cols.map(col => Option(rs.getObject(col))))
       }
-      ResultsInfo(cols, buf.toList)
+      RunResults(cols, buf.toList)
     } finally connection.close()
   }
 

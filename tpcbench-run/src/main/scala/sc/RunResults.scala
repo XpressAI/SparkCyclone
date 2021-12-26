@@ -5,7 +5,7 @@ import scalatags.Text
 
 import java.nio.file.{Files, Path, Paths}
 
-object ResultsInfo {
+object RunResults {
   val DefaultOrdering: List[String] =
     List(
       "id",
@@ -20,12 +20,13 @@ object ResultsInfo {
       "logOutput",
       "appUrl",
       "containerList",
-      "metrics"
+      "metrics",
+      "finalPlan"
     )
 }
-final case class ResultsInfo(columns: List[String], data: List[List[Option[AnyRef]]]) {
+final case class RunResults(columns: List[String], data: List[List[Option[AnyRef]]]) {
 
-  def reorder(priorities: List[String]): ResultsInfo = {
+  def reorder(priorities: List[String]): RunResults = {
     copy(
       data = data.map(dataRow =>
         columns

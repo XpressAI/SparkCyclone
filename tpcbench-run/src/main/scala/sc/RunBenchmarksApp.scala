@@ -13,7 +13,7 @@ import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.scalaxml.xml
 import sc.DetectLogback.LogbackItemsClasspath
-import sc.ResultsInfo.DefaultOrdering
+import sc.RunResults.DefaultOrdering
 import sc.RunOptions.PosixPermissions
 import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
@@ -27,10 +27,13 @@ object RunBenchmarksApp extends IOApp {
 
   final case class RunResults(
     appUrl: String,
+    compileTime: Option[String],
+    queryTime: Option[String],
     traceResults: String,
     logOutput: String,
     containerList: List[String],
-    metrics: List[String]
+    metrics: List[String],
+    maybeFoundPlan: Option[String]
   )
 
   private def getApps: IO[AppsContainer] = {
@@ -214,7 +217,11 @@ object RunBenchmarksApp extends IOApp {
               _ <- s.set(true).delayBy(2.seconds)
               traceLines <- traceStreamFiber.joinWithNever
               outLines <- outLinesF.joinWithNever
-              logLines <- logLinesF.joinWithNever
+              loggingEventVoes <- logLinesF.joinWithNever
+              maybeFoundPlan = loggingEventVoes.collectFirst {
+                case logEvent if logEvent.getMessage.startsWith("Final plan:") =>
+                  logEvent.getMessage
+              }
               containerLogsList <- containerLogsListF.joinWithNever
               _ = println(s"Trace lines => ${traceLines.toString().take(50)}")
               analyzeResult = SpanProcessor.analyzeLines(traceLines)
@@ -225,10 +232,17 @@ object RunBenchmarksApp extends IOApp {
                 traceResults = analyzeResult.mkString("", "\n", ""),
                 logOutput = outLines.mkString("", "\n", ""),
                 containerList = containerLogsList.map(_.logUrl).sorted,
-                metrics = logLines.collect {
+                metrics = loggingEventVoes.collect {
                   case m if m.getMessage != null && MetricCapture.matches(m.getMessage) =>
                     m.getMessage
-                }
+                },
+                maybeFoundPlan = maybeFoundPlan,
+                compileTime = loggingEventVoes
+                  .flatMap(m => StringUtils.afterStart(m.getMessage, "Compilation time: "))
+                  .headOption,
+                queryTime = loggingEventVoes
+                  .flatMap(m => StringUtils.afterStart(m.getMessage, "Query time: "))
+                  .headOption
               )
             )
         }
@@ -284,12 +298,14 @@ object RunBenchmarksApp extends IOApp {
               RunResult(
                 succeeded = result == 0,
                 wallTime = wallTime,
-                queryTime = wallTime,
+                queryTime = traceResults.queryTime.getOrElse(""),
+                compileTime = traceResults.compileTime.getOrElse(""),
                 appUrl = traceResults.appUrl,
                 traceResults = traceResults.traceResults,
                 logOutput = traceResults.logOutput,
                 containerList = traceResults.containerList.mkString("\n"),
-                metrics = traceResults.metrics.mkString("\n")
+                metrics = traceResults.metrics.mkString("\n"),
+                finalPlan = traceResults.maybeFoundPlan
               )
             ) *> rd.fetchResults.map(_.reorder(DefaultOrdering)).flatMap(_.save)
         }

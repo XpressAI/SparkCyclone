@@ -308,8 +308,10 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
     logger.info(s"Result returned ${res.length} records.")
-    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${java.time.Duration
-      .between(startI, endI)}")
+    val duration = java.time.Duration
+      .between(startI, endI)
+    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${duration}")
+    logger.info(s"Query time: ${duration}")
     res.take(10).foreach(println)
   }
 
