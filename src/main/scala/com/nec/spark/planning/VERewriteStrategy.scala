@@ -161,7 +161,6 @@ final case class VERewriteStrategy(
               List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
             )
             .toList
-        case _ => Nil
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
