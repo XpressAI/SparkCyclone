@@ -3,6 +3,7 @@ package sc
 import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp}
+import ch.qos.logback.classic.spi.LoggingEventVO
 import com.comcast.ip4s.Host
 import com.nec.tracing.SpanProcessor
 import com.nec.tracing.TracingListenerApp.socketToLines
@@ -165,8 +166,9 @@ object RunBenchmarksApp extends IOApp {
               logLinesF <- logbackStreamOfSockets
                 .evalTap(socket => IO.println(s"$socket connected!"))
                 .flatMap(socket => LogbackListener.getLoggingEvents(socket))
+                .map(_.asInstanceOf[LoggingEventVO])
                 .interruptWhen(haltWhenTrue = s)
-                .evalTap(event => IO.println(event.toString))
+                .evalTap(event => IO.println(s"${event}: ${event.getMessage}"))
                 .compile
                 .toList
                 .start
