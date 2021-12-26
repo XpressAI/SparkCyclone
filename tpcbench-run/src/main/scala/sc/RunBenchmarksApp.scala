@@ -11,6 +11,7 @@ import fs2.io.net.Network
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.scalaxml.xml
+import sc.DetectLogback.LogbackItemsClasspath
 import sc.ResultsInfo.DefaultOrdering
 import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
@@ -22,11 +23,11 @@ import scala.language.higherKinds
 object RunBenchmarksApp extends IOApp {
 
   final case class RunResults(
-                               appUrl: String,
-                               traceResults: String,
-                               logOutput: String,
-                               containerList: List[String]
-                             )
+    appUrl: String,
+    traceResults: String,
+    logOutput: String,
+    containerList: List[String]
+  )
 
   private def getApps: IO[AppsContainer] = {
     BlazeClientBuilder[IO].resource
@@ -64,7 +65,7 @@ object RunBenchmarksApp extends IOApp {
   def getDistinct[F[_], I]: fs2.Pipe[F, I, I] =
     _.scan(Set.empty[I] -> Option.empty[I]) {
       case ((s, _), i) if s.contains(i) => (s, None)
-      case ((s, _), i) => (s + i, Some(i))
+      case ((s, _), i)                  => (s + i, Some(i))
     }.map(_._2).unNone
 
   private def monitorAllContainers(appId: String): fs2.Stream[IO, AppAttemptContainer] =
@@ -73,8 +74,10 @@ object RunBenchmarksApp extends IOApp {
       .flatMap(_ => fs2.Stream.evalSeq(fetchContainers(appId)))
       .through(getDistinct[IO, AppAttemptContainer])
 
+  require(LogbackItemsClasspath.nonEmpty, "Expecting to have logback in classpath.")
+
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
-                                                                   runtime: IORuntime
+    runtime: IORuntime
   ): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
@@ -82,16 +85,25 @@ object RunBenchmarksApp extends IOApp {
           val sparkHome = "/opt/spark"
           import scala.sys.process._
 
+          val logbackConf = List("driver", "executor")
+            .flatMap(key =>
+              List(
+                "--conf", s"spark.${key}.extraClassPath=${LogbackItemsClasspath.mkString(":")}",
+                "--conf", s"spark.${key}.extraJavaOptions=-Dlogback.configurationFile="
+              )
+            )
+
           val metricsConf =
             List(
-              "*.sink.csv.class=org.apache.spark.metrics.sink.CsvSink",
-              "*.sink.csv.directory=/tmp/",
+              "*.sink.slf4j.class=org.apache.spark.metrics.sink.Slf4jSink",
+              "*.sink.slf4j.period=5"
             )
 
           val metricsOptions: List[String] = {
             metricsConf.flatMap(item => List("--conf", s"spark.metrics.conf.${item}"))
           }
-          val command = Seq(s"$sparkHome/bin/spark-submit") ++ metricsOptions ++ {
+
+          val command = Seq(s"$sparkHome/bin/spark-submit") ++ metricsOptions ++ logbackConf ++ {
             if (doTrace)
               List(
                 "--conf",

@@ -402,7 +402,9 @@ lazy val `tpcbench-run` = project
       "org.http4s" %% "http4s-blaze-client" % "0.23.7",
       "com.lihaoyi" %% "scalatags" % "0.11.0",
       "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % Test,
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.13.1"
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.13.1",
+      "org.slf4j" % "log4j-over-slf4j" % "1.7.25",
+      "ch.qos.logback" % "logback-classic" % "1.2.3",
     ),
     run / fork := true,
     (Compile / run) := (Compile / run)
@@ -416,6 +418,7 @@ lazy val `tpcbench-run` = project
     reStart / envVars += "CYCLONE_JAR" -> (root / assembly).value.absolutePath,
     reStart := reStart
       .dependsOn((Test / testQuick).toTask(""))
-      .evaluated
+      .evaluated,
+    Test / fork := true
   )
   .dependsOn(tracing)
