@@ -3,6 +3,7 @@ name: "TPC-H Central runner"
 env:
   INPUT_extra: "${{ github.event.inputs.extra }}"
   INPUT_fail-fast: "${{ github.event.inputs.fail-fast }}"
+  INPUT_filter-on-ve: "${{ github.event.inputs.filter-on-ve }}"
   INPUT_pass-through-project: "${{ github.event.inputs.pass-through-project }}"
   INPUT_query: "${{ github.event.inputs.query }}"
   INPUT_scale: "${{ github.event.inputs.scale }}"
@@ -19,9 +20,13 @@ env:
         type: "boolean"
         description: "Fail Fast"
         default: "true"
+      filter-on-ve:
+        type: "boolean"
+        description: "Filter on VE"
+        default: "true"
       pass-through-project:
         type: "boolean"
-        description: "Pass through in projection"
+        description: "Pass-through in projection"
         default: "false"
       query:
         type: "choice"
