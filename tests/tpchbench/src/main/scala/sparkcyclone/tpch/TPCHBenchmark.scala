@@ -340,7 +340,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
     val ds = sparkSession.sql(sql)
     logPlan(ds.queryExecution.executedPlan)
-    ds.collect()
+    ds.limit(1).collect()
   }
 
   private def logPlan(executedPlan: SparkPlan): Unit = logger.info(s"Final plan: ${executedPlan}")
@@ -397,7 +397,11 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     """
     val ds = sparkSession.sql(sql).limit(100)
 
+<<<<<<< HEAD
     logPlan(ds.queryExecution.executedPlan)
+=======
+    //println(ds.queryExecution.executedPlan)
+>>>>>>> 72ad9880 (Update run_ve.sh configuration.)
 
     ds.collect()
   }
@@ -677,7 +681,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         c_custkey = o_custkey
         and l_orderkey = o_orderkey
         and o_orderdate >= date '$date'
-        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 'R'
+        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 82
         and c_nationkey = n_nationkey
       group by
         c_custkey,
