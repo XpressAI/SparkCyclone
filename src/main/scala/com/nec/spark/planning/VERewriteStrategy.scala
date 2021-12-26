@@ -321,7 +321,6 @@ final case class VERewriteStrategy(
               groupingKeys = groupingExpressionsKeys.map { case (gk, _) => gk },
               finalOutputs = finalOutputs
             )
-            _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             computedGroupingKeys <-
               groupingExpressionsKeys.map { case (gk, exp) =>
                 mapGroupingExpression(exp, referenceReplacer)
