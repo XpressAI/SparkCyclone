@@ -222,7 +222,6 @@ final case class VeKernelCompiler(
           oFile.toString
         )
       logger.info(s"Compilation command = ${command}")
-      println(s"Compilation command = ${command}")
 
       runHopeOk(Process(command = command, cwd = buildDir.toFile))
       // make sure everyone an read this
