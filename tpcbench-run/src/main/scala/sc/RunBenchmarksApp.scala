@@ -179,7 +179,13 @@ object RunBenchmarksApp extends IOApp {
                     .contains("sparkcyclone") || MetricCapture.matches(i.getMessage))
                 )
                 .interruptWhen(haltWhenTrue = s)
-                .evalTap(event => IO.println(s"${event}: ${event.getMessage}"))
+                .evalTap(event =>
+                  if (
+                    MetricCapture
+                      .matches(event.getMessage)
+                  ) IO.unit
+                  else IO.println(s"${event}: ${event.getFormattedMessage}")
+                )
                 .compile
                 .toList
                 .start
