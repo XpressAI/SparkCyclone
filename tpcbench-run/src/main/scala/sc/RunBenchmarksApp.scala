@@ -29,7 +29,8 @@ object RunBenchmarksApp extends IOApp {
     appUrl: String,
     traceResults: String,
     logOutput: String,
-    containerList: List[String]
+    containerList: List[String],
+    metrics: List[String]
   )
 
   private def getApps: IO[AppsContainer] = {
@@ -98,7 +99,10 @@ object RunBenchmarksApp extends IOApp {
 
               Files.write(
                 tempFileLocation,
-                LogbackBenchmarkFile.forPort(logbackIpAddr.port.value).toString.getBytes()
+                BenchmarkLogbackConfigurationFile
+                  .forPort(logbackIpAddr.port.value)
+                  .toString
+                  .getBytes()
               )
 
               val logbackConf = List("driver", "executor")
@@ -168,6 +172,7 @@ object RunBenchmarksApp extends IOApp {
                 .map(socket => LogbackListener.getLoggingEvents(socket))
                 .parJoinUnbounded
                 .map((i: ILoggingEvent) => i.asInstanceOf[LoggingEventVO])
+                .filter(_.getLoggerName.contains(".nec."))
                 .interruptWhen(haltWhenTrue = s)
                 .evalTap(event => IO.println(s"${event}: ${event.getMessage}"))
                 .compile
@@ -216,7 +221,11 @@ object RunBenchmarksApp extends IOApp {
                 appUrl = newFoundApp.appUrl,
                 traceResults = analyzeResult.mkString("", "\n", ""),
                 logOutput = outLines.mkString("", "\n", ""),
-                containerList = containerLogsList.map(_.logUrl).sorted
+                containerList = containerLogsList.map(_.logUrl).sorted,
+                metrics = logLines.collect {
+                  case m if m.getMessage != null && MetricCapture.matches(m.getMessage) =>
+                    m.getMessage
+                }
               )
             )
         }
@@ -276,7 +285,8 @@ object RunBenchmarksApp extends IOApp {
                 appUrl = traceResults.appUrl,
                 traceResults = traceResults.traceResults,
                 logOutput = traceResults.logOutput,
-                containerList = traceResults.containerList.mkString("\n")
+                containerList = traceResults.containerList.mkString("\n"),
+                metrics = traceResults.metrics.mkString("\n")
               )
             ) *> rd.fetchResults.map(_.reorder(DefaultOrdering)).flatMap(_.save)
         }

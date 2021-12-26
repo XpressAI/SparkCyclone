@@ -7,7 +7,8 @@ final case class RunResult(
   appUrl: String,
   traceResults: String,
   logOutput: String,
-  containerList: String
+  containerList: String,
+  metrics: String
 ) {}
 object RunResult {
   val fieldNames: List[String] = {

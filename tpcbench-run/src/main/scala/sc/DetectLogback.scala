@@ -13,7 +13,9 @@ object DetectLogback {
       .asInstanceOf[URLClassLoader]
       .getURLs
       .filter(item => ExpectedClassPathItems.exists(expected => item.toString.contains(expected)))
-      .map(item => Paths.get(item.toString.replaceAllLiterally("file:/", "/")))
+      .map(item =>
+        Paths.get(item.toString.replaceAllLiterally("file:/", "/").replaceAll("/C:", "C:"))
+      )
       .toList
 
 }

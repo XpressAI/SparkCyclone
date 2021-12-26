@@ -1,6 +1,6 @@
 package sc
 
-object LogbackBenchmarkFile {
+object BenchmarkLogbackConfigurationFile {
   def forPort(port: Int): scala.xml.Elem = <configuration debug="true">
     <appender name="SERVER" class="ch.qos.logback.classic.net.SocketAppender">
       <remoteHost>127.0.0.1</remoteHost>
@@ -11,5 +11,6 @@ object LogbackBenchmarkFile {
     <root level="info">
       <appender-ref ref="SERVER"/>
     </root>
+    <logger level="debug" name="com.nec.spark.planning"/>
   </configuration>
 }

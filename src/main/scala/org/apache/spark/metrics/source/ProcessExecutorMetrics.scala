@@ -14,7 +14,7 @@ final class ProcessExecutorMetrics() extends VeProcessMetrics with Source {
   override def deregisterAllocation(position: Long): Unit =
     allocations.remove(position)
 
-  override def sourceName: String = "VE Process Executor Metrics"
+  override def sourceName: String = "VEProcessExecutor"
 
   override val metricRegistry: MetricRegistry = new MetricRegistry()
 
