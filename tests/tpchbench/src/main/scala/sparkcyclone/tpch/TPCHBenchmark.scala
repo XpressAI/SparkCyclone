@@ -432,13 +432,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
           p_partkey
     """
     val ds = sparkSession.sql(sql).limit(100)
-
-<<<<<<< HEAD
     logPlan(ds.queryExecution.executedPlan)
-=======
-    //println(ds.queryExecution.executedPlan)
->>>>>>> 72ad9880 (Update run_ve.sh configuration.)
-
     ds.collect()
   }
 
