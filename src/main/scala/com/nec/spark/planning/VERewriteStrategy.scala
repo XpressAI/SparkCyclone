@@ -455,7 +455,6 @@ final case class VERewriteStrategy(
           }
 
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
-          logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
         case s @ Sort(orders, global, child)
             if options.enableVeSorting && !child.output

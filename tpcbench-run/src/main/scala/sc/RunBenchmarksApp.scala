@@ -217,10 +217,6 @@ object RunBenchmarksApp extends IOApp {
               traceLines <- traceStreamFiber.joinWithNever
               outLines <- outLinesF.joinWithNever
               loggingEventVoes <- logLinesF.joinWithNever
-              maybeFoundPlan = loggingEventVoes.collectFirst {
-                case logEvent if logEvent.getMessage.startsWith("Final plan:") =>
-                  logEvent.getMessage
-              }
               containerLogsList <- containerLogsListF.joinWithNever
               _ = println(s"Trace lines => ${traceLines.toString().take(50)}")
               analyzeResult = SpanProcessor.analyzeLines(traceLines)
@@ -235,13 +231,18 @@ object RunBenchmarksApp extends IOApp {
                   case m if m.getMessage != null && MetricCapture.matches(m.getMessage) =>
                     m.getMessage
                 },
-                maybeFoundPlan = maybeFoundPlan,
-                compileTime = loggingEventVoes
-                  .flatMap(m => StringUtils.afterStart(m.getMessage, "Compilation time: "))
-                  .headOption,
-                queryTime = loggingEventVoes
-                  .flatMap(m => StringUtils.afterStart(m.getMessage, "Query time: "))
-                  .headOption
+                maybeFoundPlan = loggingEventVoes.collectFirst {
+                  case m if m.getMessage.startsWith("Final plan: ") =>
+                    Option(m.getArgumentArray.apply(0)).map(_.toString)
+                }.flatten,
+                compileTime = loggingEventVoes.collectFirst {
+                  case m if m.getMessage.startsWith("Compilation time: ") =>
+                    Option(m.getArgumentArray.apply(0)).map(_.toString)
+                }.flatten,
+                queryTime = loggingEventVoes.collectFirst {
+                  case m if m.getMessage.startsWith("Query time: ") =>
+                    Option(m.getArgumentArray.apply(0)).map(_.toString)
+                }.flatten
               )
             )
         }
