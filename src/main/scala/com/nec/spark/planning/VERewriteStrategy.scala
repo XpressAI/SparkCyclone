@@ -88,6 +88,7 @@ final case class VERewriteStrategy(
     def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
     if (VERewriteStrategy._enabled) {
+      println(s"Strategy options = ${options}")
       log.debug(
         s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
       )
