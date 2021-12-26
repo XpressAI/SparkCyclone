@@ -152,9 +152,7 @@ final case class VERewriteStrategy(
           )
         case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
             if cb.serializer
-              .isInstanceOf[
-                VeCachedBatchSerializer
-              ] && VeCachedBatchSerializer.ShortCircuit && false =>
+              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
           SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
             .flatMap(sp =>
