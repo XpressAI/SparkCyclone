@@ -61,8 +61,6 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
       VeColBatchConverters.getNumRows(input.sparkContext, conf)
     )
     .map { ui =>
-      if (!ui.isReferenced) SparkCycloneExecutorPlugin.register(ui.veColBatch)
-
       CachedVeBatch(ui.veColBatch)
     }
 

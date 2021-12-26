@@ -1,5 +1,7 @@
 package com.nec.spark.planning
 
+import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarArray, ColumnarMap}
@@ -15,7 +17,7 @@ final class VeColColumnarVector(val veColVector: VeColVector, dataType: DataType
   extends ColumnVector(dataType) {
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
-  override def close(): Unit = veColVector.free()
+  override def close(): Unit = SparkCycloneExecutorPlugin.freeCol(veColVector)
 
   override def hasNull: Boolean = VeColColumnarVector.unsupported()
 

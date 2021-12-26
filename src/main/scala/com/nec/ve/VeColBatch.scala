@@ -348,8 +348,13 @@ object VeColBatch {
       case other => sys.error(s"Not supported for conversion to arrow vector: $other")
     }
 
-    def free()(implicit veProcess: VeProcess): Unit =
+    def free()(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): Unit = {
+      require(
+        veColVectorSource == source,
+        s"Intended to `free` in ${source}, but got ${veColVectorSource} context."
+      )
       (containerLocation :: bufferLocations).foreach(veProcess.free)
+    }
 
   }
 
