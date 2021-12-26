@@ -22,11 +22,11 @@ import scala.language.higherKinds
 object RunBenchmarksApp extends IOApp {
 
   final case class RunResults(
-    appUrl: String,
-    traceResults: String,
-    logOutput: String,
-    containerList: List[String]
-  )
+                               appUrl: String,
+                               traceResults: String,
+                               logOutput: String,
+                               containerList: List[String]
+                             )
 
   private def getApps: IO[AppsContainer] = {
     BlazeClientBuilder[IO].resource
@@ -64,7 +64,7 @@ object RunBenchmarksApp extends IOApp {
   def getDistinct[F[_], I]: fs2.Pipe[F, I, I] =
     _.scan(Set.empty[I] -> Option.empty[I]) {
       case ((s, _), i) if s.contains(i) => (s, None)
-      case ((s, _), i)                  => (s + i, Some(i))
+      case ((s, _), i) => (s + i, Some(i))
     }.map(_._2).unNone
 
   private def monitorAllContainers(appId: String): fs2.Stream[IO, AppAttemptContainer] =
@@ -74,7 +74,7 @@ object RunBenchmarksApp extends IOApp {
       .through(getDistinct[IO, AppAttemptContainer])
 
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
-    runtime: IORuntime
+                                                                   runtime: IORuntime
   ): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
@@ -82,16 +82,15 @@ object RunBenchmarksApp extends IOApp {
           val sparkHome = "/opt/spark"
           import scala.sys.process._
 
-          val metricsConfFile = Files.createTempFile("metrics", ".conf")
-          Files.write(
-            metricsConfFile,
+          val metricsConf =
             List(
               "*.sink.csv.class=org.apache.spark.metrics.sink.CsvSink",
               "*.sink.csv.directory=/tmp/",
-            ).mkString("\n", "\n", "\n").getBytes()
-          )
-          val metricsOptions: List[String] =
-            List(s"-Dspark.metrics.conf=${metricsConfFile.toString}")
+            )
+
+          val metricsOptions: List[String] = {
+            metricsConf.flatMap(item => List("--conf", s"spark.metrics.conf.${item}"))
+          }
           val command = Seq(s"$sparkHome/bin/spark-submit") ++ metricsOptions ++ {
             if (doTrace)
               List(
@@ -145,6 +144,7 @@ object RunBenchmarksApp extends IOApp {
           procCloseIO = prio._2
           procFiber <- procCloseIO.start
           afterStartApps <- getApps.delayBy(15.seconds)
+
           /** to allow spark to create a tracking url */
           newFoundApps = afterStartApps.apps.filter(app => !initialApps.apps.exists(_.id == app.id))
           newFoundApp = newFoundApps.headOption
