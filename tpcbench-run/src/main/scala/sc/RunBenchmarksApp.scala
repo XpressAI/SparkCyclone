@@ -108,12 +108,12 @@ object RunBenchmarksApp extends IOApp {
                   .getBytes()
               )
 
-              val logbackConf = List("driver", "executor")
-                .flatMap(key =>
-                  List(
-                    "--conf",
-                    s"spark.${key}.extraJavaOptions=-Dlogback.configurationFile=${tempFileLocation}"
-                  )
+              val logbackConf =
+                List(
+                  "--conf",
+                  s"spark.executor.extraJavaOptions=-Dlogback.configurationFile=${tempFileLocation}",
+                  "--driver-java-options",
+                  s"-Dlogback.configurationFile=${tempFileLocation}"
                 )
 
               val metricsConf =

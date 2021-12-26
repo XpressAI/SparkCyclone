@@ -30,7 +30,6 @@ import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
-import java.nio.file.{Files, Path}
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.util.Try
@@ -76,42 +75,6 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var DefaultVeNodeId = 0
 
-  trait LibraryStorage {
-    // Get a local copy of the library for loading
-    def getLocalLibraryPath(code: String): Path
-  }
-
-  final class DriverFetchingLibraryStorage(pluginContext: PluginContext)
-    extends LibraryStorage
-    with LazyLogging {
-
-    private var locallyStoredLibs = Map.empty[String, Path]
-
-    /** Get a local copy of the library for loading */
-    override def getLocalLibraryPath(code: String): Path = this.synchronized {
-      locallyStoredLibs.get(code) match {
-        case Some(result) =>
-          logger.debug("Cache hit for executor-fetch for code.")
-          result
-        case None =>
-          logger.debug("Cache miss for executor-fetch for code; asking Driver.")
-          val result = pluginContext.ask(RequestCompiledLibraryForCode(code))
-          if (result == null) {
-            sys.error(s"Could not fetch library: ${code}")
-          } else {
-            val localPath = Files.createTempFile("ve_fn", ".lib")
-            Files.write(
-              localPath,
-              result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
-            )
-            logger.debug(s"Saved file to '$localPath'")
-            locallyStoredLibs += code -> localPath
-            localPath
-          }
-      }
-    }
-  }
-
   @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
 
@@ -140,8 +103,6 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var CleanUpCache: Boolean = true
 
-  var libraryStorage: LibraryStorage = _
-
   def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
     if (!cachedBatches.contains(veColBatch))
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
@@ -156,9 +117,6 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
 
     SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
     val resources = ctx.resources()
-    SparkCycloneExecutorPlugin.synchronized {
-      SparkCycloneExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
-    }
 
     logInfo(s"Executor has the following resources available => ${resources}")
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
