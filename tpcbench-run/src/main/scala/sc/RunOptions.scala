@@ -1,5 +1,6 @@
 package sc
 
+import sc.DetectLogback.LogbackItemsClasspath
 import sc.RunOptions.{cycloneJar, packageJar}
 
 import java.nio.file.attribute.PosixFilePermission
@@ -122,16 +123,20 @@ final case class RunOptions(
       "--conf",
       "spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc"
     ) ++ {
-      if (useCyclone)
+      if (useCyclone) {
+        val exCls: String =
+          (List(cycloneJar) ++ LogbackItemsClasspath.map(_.getFileName.toString)).mkString(":")
         List(
           "--jars",
-          cycloneJar,
+          (List(cycloneJar) ++ LogbackItemsClasspath.map(_.toString)).mkString(","),
           "--conf",
-          s"spark.executor.extraClassPath=${cycloneJar}",
+          s"spark.executor.extraClassPath=${exCls}",
+          "--conf",
+          s"spark.driver.extraClassPath=${exCls}",
           "--conf",
           "spark.plugins=com.nec.spark.AuroraSqlPlugin"
         )
-      else Nil
+      } else Nil
     } ++ List(
       "--conf",
       s"spark.sql.columnVector.offheap.enabled=${offHeapEnabled.toString}",

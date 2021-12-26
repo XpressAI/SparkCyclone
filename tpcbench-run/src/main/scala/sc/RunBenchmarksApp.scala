@@ -104,8 +104,6 @@ object RunBenchmarksApp extends IOApp {
                 .flatMap(key =>
                   List(
                     "--conf",
-                    s"spark.${key}.extraClassPath=${LogbackItemsClasspath.mkString(":")}",
-                    "--conf",
                     s"spark.${key}.extraJavaOptions=-Dlogback.configurationFile=${tempFileLocation}"
                   )
                 )
