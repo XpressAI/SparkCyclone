@@ -88,12 +88,9 @@ final case class VERewriteStrategy(
     def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
     if (VERewriteStrategy._enabled) {
-      println(s"Strategy options = ${options}")
       log.debug(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
-      )
-      println(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
+        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output
+          .map(_.dataType)}; options = ${options}"
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
@@ -155,7 +152,9 @@ final case class VERewriteStrategy(
           )
         case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
             if cb.serializer
-              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit && false =>
+              .isInstanceOf[
+                VeCachedBatchSerializer
+              ] && VeCachedBatchSerializer.ShortCircuit && false =>
           SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
             .flatMap(sp =>
