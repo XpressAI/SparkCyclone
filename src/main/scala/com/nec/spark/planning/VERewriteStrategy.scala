@@ -152,6 +152,16 @@ final case class VERewriteStrategy(
               ),
             identity
           )
+        case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
+            if cb.serializer
+              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
+          SparkSession.active.sessionState.planner.InMemoryScans
+            .apply(imr)
+            .flatMap(sp =>
+              List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+            )
+            .toList
+        case _ => Nil
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
