@@ -515,7 +515,10 @@ final case class VERewriteStrategy(
 
       if (options.failFast) {
         val x = res
-        println(s"Rewrote it to ==> ${x}")
+        if (x.isEmpty)
+          logger.debug(s"Didn't rewrite")
+        else
+          logger.debug(s"Rewrote it to ==> ${x}")
         x
       } else {
         try res
