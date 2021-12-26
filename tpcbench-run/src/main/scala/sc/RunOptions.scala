@@ -87,6 +87,7 @@ final case class RunOptions(
       case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
       case ("pass-through-project", v)                     => copy(passThroughProject = v == "on" || v == "true")
       case ("fail-fast", v)                                => copy(failFast = v == "on" || v == "true")
+      case ("filter-on-ve", v)                             => copy(filterOnVe = v == "on" || v == "true")
       case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
     }
   }

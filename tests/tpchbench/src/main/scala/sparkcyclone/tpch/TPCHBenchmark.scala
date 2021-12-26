@@ -330,7 +330,10 @@ object TPCHBenchmark extends SparkSessionWrapper {
       order by l_returnflag, l_linestatus
     """
 
-    val ds = sparkSession.sql(sql).limit(1)
+    val ps = sparkSession.sql(sql)
+    println(s"Plan before limit is ==> ${ps.queryExecution.executedPlan}")
+    val ds = ps.limit(1)
+    println(s"Final plan to output is ==>")
     println(ds.queryExecution.executedPlan)
     ds.collect()
   }

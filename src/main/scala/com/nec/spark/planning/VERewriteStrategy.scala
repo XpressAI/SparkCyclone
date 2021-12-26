@@ -89,7 +89,8 @@ final case class VERewriteStrategy(
 
     if (VERewriteStrategy._enabled) {
       log.debug(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
+        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output
+          .map(_.dataType)}; options = ${options}"
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
@@ -149,6 +150,15 @@ final case class VERewriteStrategy(
               ),
             identity
           )
+        case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
+            if cb.serializer
+              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
+          SparkSession.active.sessionState.planner.InMemoryScans
+            .apply(imr)
+            .flatMap(sp =>
+              List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+            )
+            .toList
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
@@ -500,8 +510,14 @@ final case class VERewriteStrategy(
         case _ => Nil
       }
 
-      if (options.failFast) res
-      else {
+      if (options.failFast) {
+        val x = res
+        if (x.isEmpty)
+          logger.debug(s"Didn't rewrite")
+        else
+          logger.debug(s"Rewrote it to ==> ${x}")
+        x
+      } else {
         try res
         catch {
           case e: Throwable =>
