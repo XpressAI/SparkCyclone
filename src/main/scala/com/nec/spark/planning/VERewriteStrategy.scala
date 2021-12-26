@@ -513,8 +513,11 @@ final case class VERewriteStrategy(
         case _ => Nil
       }
 
-      if (options.failFast) res
-      else {
+      if (options.failFast) {
+        val x = res
+        println(s"Rewrote it to ==> ${x}")
+        x
+      } else {
         try res
         catch {
           case e: Throwable =>
