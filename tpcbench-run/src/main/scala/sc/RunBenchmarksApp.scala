@@ -14,6 +14,7 @@ import org.http4s.scalaxml.xml
 import sc.ResultsInfo.DefaultOrdering
 import sc.hadoop.{AppAttempt, AppAttemptContainer, AppsContainer}
 
+import java.nio.file.Files
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.DurationInt
 import scala.language.higherKinds
@@ -80,7 +81,18 @@ object RunBenchmarksApp extends IOApp {
         def runProc(_stdout: String => IO[Unit], _stderr: String => IO[Unit]) = IO.blocking {
           val sparkHome = "/opt/spark"
           import scala.sys.process._
-          val command = Seq(s"$sparkHome/bin/spark-submit") ++ {
+
+          val metricsConfFile = Files.createTempFile("metrics", ".conf")
+          Files.write(
+            metricsConfFile,
+            List(
+              "*.sink.csv.class=org.apache.spark.metrics.sink.CsvSink",
+              "*.sink.csv.directory=/tmp/",
+            ).mkString("\n", "\n", "\n").getBytes()
+          )
+          val metricsOptions: List[String] =
+            List(s"-Dspark.metrics.conf=${metricsConfFile.toString}")
+          val command = Seq(s"$sparkHome/bin/spark-submit") ++ metricsOptions ++ {
             if (doTrace)
               List(
                 "--conf",
