@@ -163,6 +163,7 @@ object RunBenchmarksApp extends IOApp {
                 .toList
                 .start
               logLinesF <- logbackStreamOfSockets
+                .evalTap(socket => IO.println(s"$socket connected!"))
                 .flatMap(socket => LogbackListener.getLoggingEvents(socket))
                 .interruptWhen(haltWhenTrue = s)
                 .evalTap(event => IO.println(event.toString))
