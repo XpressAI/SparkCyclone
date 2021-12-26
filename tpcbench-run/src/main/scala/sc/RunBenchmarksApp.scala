@@ -176,7 +176,7 @@ object RunBenchmarksApp extends IOApp {
                 .map((i: ILoggingEvent) => i.asInstanceOf[LoggingEventVO])
                 .filter(i =>
                   i.getLoggerName != null && (i.getLoggerName.contains(".nec.") || i.getLoggerName
-                    .contains("sparkcyclone"))
+                    .contains("sparkcyclone") || i.getLoggerName.contains("codehale"))
                 )
                 .interruptWhen(haltWhenTrue = s)
                 .evalTap(event => IO.println(s"${event}: ${event.getMessage}"))

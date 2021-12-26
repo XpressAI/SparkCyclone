@@ -16,6 +16,8 @@ object RunResults {
       "queryNo",
       "succeeded",
       "wallTime",
+      "queryTime",
+      "compileTime",
       "serializerOn",
       "logOutput",
       "appUrl",
@@ -86,7 +88,7 @@ final case class RunResults(columns: List[String], data: List[List[Option[AnyRef
             else (),
             row.zip(columns).map {
               case (None, _) => td()
-              case (Some(value), cn @ ("logOutput" | "traceResults" | "metrics"))
+              case (Some(value), cn @ ("logOutput" | "traceResults" | "metrics" | "finalPlan"))
                   if value.toString.nonEmpty =>
                 td(
                   `class` := cn,
