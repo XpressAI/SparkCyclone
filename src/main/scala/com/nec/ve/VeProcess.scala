@@ -93,13 +93,18 @@ object VeProcess {
 
   }
 
-  final case class WrappingVeo(veo_proc_handle: veo_proc_handle, source: VeColVectorSource)
-    extends VeProcess
+  final case class WrappingVeo(
+    veo_proc_handle: veo_proc_handle,
+    source: VeColVectorSource,
+    veProcessMetrics: VeProcessMetrics
+  ) extends VeProcess
     with LazyLogging {
     override def allocate(size: Long): Long = {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
-      veInputPointer.get()
+      val ptr = veInputPointer.get()
+      veProcessMetrics.registerAllocation(size, ptr)
+      ptr
     }
 
     override def putBuffer(byteBuffer: ByteBuffer): Long = {
@@ -118,8 +123,10 @@ object VeProcess {
     override def get(from: Long, to: ByteBuffer, size: Long): Unit =
       veo.veo_read_mem(veo_proc_handle, new org.bytedeco.javacpp.Pointer(to), from, size)
 
-    override def free(memoryLocation: Long): Unit =
+    override def free(memoryLocation: Long): Unit = {
+      veProcessMetrics.deregisterAllocation(memoryLocation)
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
+    }
 
     def validateVectors(list: List[VeColVector]): Unit = {
       list.foreach(vector =>

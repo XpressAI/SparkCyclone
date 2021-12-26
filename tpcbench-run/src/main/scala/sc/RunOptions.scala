@@ -129,7 +129,7 @@ final case class RunOptions(
       Log4jFile.toString,
       "--conf",
       "spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc"
-    ) ++ {
+    ) ++ metricsConf ++ {
       if (useCyclone)
         List(
           "--jars",

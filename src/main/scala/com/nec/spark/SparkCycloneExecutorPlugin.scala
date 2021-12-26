@@ -19,23 +19,20 @@
  */
 package com.nec.spark
 
-import com.nec.arrow.VeArrowNativeInterface
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.ve.VeProcess.LibraryReference
+import com.nec.ve.{VeColBatch, VeProcess}
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkEnv
+import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
+import org.apache.spark.internal.Logging
+import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
+import java.nio.file.{Files, Path}
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-import com.nec.ve.{VeColBatch, VeProcess}
-import com.nec.ve.VeProcess.LibraryReference
-import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.SparkEnv
-import org.apache.spark.api.plugin.ExecutorPlugin
-import org.apache.spark.api.plugin.PluginContext
-import org.apache.spark.internal.Logging
-
-import java.nio.file.Files
-import java.nio.file.Path
 import scala.util.Try
 
 object SparkCycloneExecutorPlugin extends LazyLogging {
@@ -53,7 +50,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source))
+    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
 
   implicit def source: VeColVectorSource = VeColVectorSource(
     s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
@@ -148,6 +145,8 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
     if (!cachedBatches.contains(veColBatch))
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
+
+  val metrics = new ProcessExecutorMetrics()
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
@@ -155,6 +154,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     import com.nec.spark.SparkCycloneExecutorPlugin._
 
+    SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
     val resources = ctx.resources()
     SparkCycloneExecutorPlugin.synchronized {
       SparkCycloneExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
