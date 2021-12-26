@@ -108,12 +108,12 @@ object RunBenchmarksApp extends IOApp {
                   .getBytes()
               )
 
-              val logbackConf =
-                List(
-                  "--conf",
-                  s"spark.executor.extraJavaOptions=-Dlogback.configurationFile=${tempFileLocation}",
-                  "--driver-java-options",
-                  s"-Dlogback.configurationFile=${tempFileLocation}"
+              val logbackConf = List("driver", "executor")
+                .flatMap(key =>
+                  List(
+                    "--conf",
+                    s"spark.${key}.extraJavaOptions=-Dlogback.configurationFile=${tempFileLocation}"
+                  )
                 )
 
               val metricsConf =
@@ -171,7 +171,6 @@ object RunBenchmarksApp extends IOApp {
                 .toList
                 .start
               logLinesF <- logbackStreamOfSockets
-                .evalTap(socket => IO.println(s"$socket connected!"))
                 .map(socket => LogbackListener.getLoggingEvents(socket))
                 .parJoinUnbounded
                 .map((i: ILoggingEvent) => i.asInstanceOf[LoggingEventVO])

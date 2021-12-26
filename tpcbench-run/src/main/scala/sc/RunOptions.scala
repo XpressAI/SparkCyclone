@@ -119,7 +119,7 @@ final case class RunOptions(
       s"--executor-cores=$executorCores",
       s"--executor-memory=${executorMemory}",
       "--deploy-mode",
-      "client",
+      "cluster",
       "--conf",
       "spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc"
     ) ++ {
