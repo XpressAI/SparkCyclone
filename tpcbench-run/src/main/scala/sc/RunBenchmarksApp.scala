@@ -26,15 +26,15 @@ import scala.language.higherKinds
 object RunBenchmarksApp extends IOApp {
 
   final case class RunResults(
-    appUrl: String,
-    compileTime: Option[String],
-    queryTime: Option[String],
-    traceResults: String,
-    logOutput: String,
-    containerList: List[String],
-    metrics: List[String],
-    maybeFoundPlan: Option[String]
-  )
+                               appUrl: String,
+                               compileTime: Option[String],
+                               queryTime: Option[String],
+                               traceResults: String,
+                               logOutput: String,
+                               containerList: List[String],
+                               metrics: List[String],
+                               maybeFoundPlan: Option[String]
+                             )
 
   private def getApps: IO[AppsContainer] = {
     BlazeClientBuilder[IO].resource
@@ -84,14 +84,14 @@ object RunBenchmarksApp extends IOApp {
   require(LogbackItemsClasspath.nonEmpty, "Expecting to have logback in classpath.")
 
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
-    runtime: IORuntime
+                                                                   runtime: IORuntime
   ): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
         Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
           case (logbackIpAddr, logbackStreamOfSockets) =>
             def runProc(_stdout: String => IO[Unit], _stderr: String => IO[Unit]) = IO.blocking {
-              val sparkHome = "/opt/spark"
+              val sparkHome = _root_.scala.sys.env.getOrElse("SPARK_HOME", "/opt/spark")
               import scala.sys.process._
 
               val tempFileLocation = Files.createTempFile(
