@@ -166,6 +166,7 @@ object RunBenchmarksApp extends IOApp {
               outLinesTopic <- Topic[IO, String]
               outLinesF <- outLinesTopic
                 .subscribe(Int.MaxValue)
+                .evalTap(IO.println)
                 .interruptWhen(haltWhenTrue = s)
                 .compile
                 .toList
@@ -190,10 +191,8 @@ object RunBenchmarksApp extends IOApp {
                 .toList
                 .start
               prio <- runProc(
-                _stdout = line => IO.println(line) *> outLinesTopic.publish1(line).void,
-                _stderr = line =>
-                  IO.println(line)
-                    *> outLinesTopic.publish1(line).void
+                _stdout = line => outLinesTopic.publish1(line).void,
+                _stderr = line => outLinesTopic.publish1(line).void
               )
               proc = prio._1
               procCloseIO = prio._2
