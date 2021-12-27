@@ -115,6 +115,7 @@ object VeProcess {
           logger.debug(s"Registering allocation of ${size} at ${location}")
           veProcessMetrics.registerAllocation(size, location)
         }
+        veColVector
       }
     }
 
