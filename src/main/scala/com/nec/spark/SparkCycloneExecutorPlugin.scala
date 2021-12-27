@@ -156,6 +156,12 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
     }
 
     import com.nec.spark.SparkCycloneExecutorPlugin._
+    Option(metrics.getAllocations)
+      .filter(_.nonEmpty)
+      .foreach(unfinishedAllocations =>
+        logger.error(s"There were some unreleased allocations: ${unfinishedAllocations}, expected to be none.")
+      )
+
     if (CloseAutomatically) {
       logInfo(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()

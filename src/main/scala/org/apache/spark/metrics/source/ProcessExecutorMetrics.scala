@@ -32,4 +32,6 @@ final class ProcessExecutorMetrics() extends VeProcessMetrics with Source {
     }
   )
 
+  def getAllocations: Map[Long, Long] = allocations.toMap
+
 }
