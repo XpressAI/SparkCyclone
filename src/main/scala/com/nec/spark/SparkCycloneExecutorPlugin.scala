@@ -19,6 +19,7 @@
  */
 package com.nec.spark
 
+import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.LibraryReference
 import com.nec.ve.{VeColBatch, VeProcess}
@@ -110,18 +111,19 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   val metrics = new ProcessExecutorMetrics()
 }
 
-class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
-
+class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
+  import com.nec.spark.SparkCycloneExecutorPlugin._veo_proc
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    import com.nec.spark.SparkCycloneExecutorPlugin._
 
     SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
     val resources = ctx.resources()
 
-    logInfo(s"Executor has the following resources available => ${resources}")
+    logger.info(s"Executor has the following resources available => ${resources}")
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
       val nodeId = Try(System.getenv("VE_NODE_NUMBER").toInt).getOrElse(DefaultVeNodeId)
-      logInfo(s"Do not have a VE resource available. Will use '${nodeId}' as the main resource.")
+      logger.info(
+        s"Do not have a VE resource available. Will use '${nodeId}' as the main resource."
+      )
       nodeId
     } else {
       val veResources = resources.get("ve")
@@ -134,7 +136,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
       veResources.addresses(veMultiple % resourceCount).toInt
     }
 
-    logInfo(s"Using VE node = ${selectedVeNodeId}")
+    logger.info(s"Using VE node = ${selectedVeNodeId}")
 
     if (_veo_proc == null) {
       _veo_proc = veo.veo_proc_create(selectedVeNodeId)
@@ -143,9 +145,9 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
         s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
       )
       require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
-      logInfo(s"Opened process: ${_veo_proc}")
+      logger.info(s"Opened process: ${_veo_proc}")
     }
-    logInfo("Initializing SparkCycloneExecutorPlugin.")
+    logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
   }
@@ -155,16 +157,21 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin._
+    import com.nec.spark.SparkCycloneExecutorPlugin.metrics
+    import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
+    import com.nec.spark.SparkCycloneExecutorPlugin.closeProcAndCtx
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>
-        logger.error(s"There were some unreleased allocations: ${unfinishedAllocations}, expected to be none.")
+        logger.error(
+          s"There were some unreleased allocations: ${unfinishedAllocations}, expected to be none."
+        )
       )
 
     if (CloseAutomatically) {
-      logInfo(s"Closing process: ${_veo_proc}")
+      logger.info(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()
+      launched = false
     }
     super.shutdown()
   }
