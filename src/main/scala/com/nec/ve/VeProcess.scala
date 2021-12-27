@@ -109,6 +109,15 @@ object VeProcess {
       ptr
     }
 
+    private implicit class RichVCV(veColVector: VeColVector) {
+      def register(): Unit = {
+        veColVector.bufferLocations.zip(veColVector.bufferSizes).foreach { case (location, size) =>
+          logger.debug(s"Registering allocation of ${size} at ${location}")
+          veProcessMetrics.registerAllocation(size, location)
+        }
+      }
+    }
+
     override def putBuffer(byteBuffer: ByteBuffer): Long = {
       val memoryLocation = allocate(byteBuffer.capacity().toLong)
       requireOk(
@@ -193,7 +202,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
-          )
+          ).register()
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
@@ -208,7 +217,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations =
               List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
-          )
+          ).register()
       }
     }
 
@@ -301,7 +310,7 @@ object VeProcess {
               bufferLocations =
                 List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16)),
               variableSize = Some(byteBuffer.getInt(24))
-            )
+            ).register()
           case (outPointer, r: VeScalarType) =>
             val outContainerLocation = outPointer.get(set)
             require(
@@ -319,7 +328,7 @@ object VeProcess {
               containerLocation = outContainerLocation,
               bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
               variableSize = None
-            )
+            ).register()
         }
       }
     }
@@ -388,7 +397,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
-          )
+          ).register()
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
@@ -403,7 +412,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations =
               List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
-          )
+          ).register()
       }
     }
 
