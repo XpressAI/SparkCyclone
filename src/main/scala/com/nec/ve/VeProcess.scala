@@ -20,6 +20,7 @@ trait VeProcess {
     get(containerLocation, bb, containerSize)
     bb
   }
+
   def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long): Long
@@ -103,6 +104,7 @@ object VeProcess {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
+      logger.debug(s"Allocating ${size} bytes ==> ${ptr}")
       veProcessMetrics.registerAllocation(size, ptr)
       ptr
     }
@@ -125,6 +127,7 @@ object VeProcess {
 
     override def free(memoryLocation: Long): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
+      logger.debug(s"Deallocating ptr ${memoryLocation}")
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
     }
 

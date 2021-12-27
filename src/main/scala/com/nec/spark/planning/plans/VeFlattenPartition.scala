@@ -1,17 +1,13 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch}
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-
-import java.nio.file.Paths
 
 case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode

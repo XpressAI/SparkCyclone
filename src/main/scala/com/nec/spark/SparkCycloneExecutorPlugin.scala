@@ -164,7 +164,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>
         logger.error(
-          s"There were some unreleased allocations: ${unfinishedAllocations.toString.take(50)}..., expected to be none."
+          s"There were some ${unfinishedAllocations.size} unreleased allocations: ${unfinishedAllocations.toString
+            .take(50)}..., expected to be none."
         )
       )
 

@@ -1,8 +1,7 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch}
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import org.apache.spark.internal.Logging
