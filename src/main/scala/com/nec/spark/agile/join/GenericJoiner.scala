@@ -91,15 +91,16 @@ object GenericJoiner {
             leftInput = x_b,
             rightInput = y_b
           ),
-          compCC(
-            conj_a = conj_a_var,
-            conj_x = conj_x_var,
-            conj_y = conj_y_var,
+          computeConjunction(
             colALeft = a1_out_var,
             colARight = b1_out_var,
-            colBLeft = a2_out_var,
-            colBRight = b2_out_var,
-            leftDictIndices = a1_var
+            conj = List(
+              Conj(conj_a_var, s"${a1_var}[${a1_out_var}[i]]"),
+              Conj(conj_x_var, s"${a1_out_var}[i]"),
+              Conj(conj_y_var, s"${a2_out_var}[i]")
+            ),
+            pairings =
+              List(EqualityPairing(a1_out_var, b1_out_var), EqualityPairing(a2_out_var, b2_out_var))
           ),
           populateVarChar(left_dict_var, conj_a_var, o_a_var),
           populateScalar(o_b, conj_x_var, x_c, VeScalarType.VeNullableInt),
@@ -113,27 +114,22 @@ object GenericJoiner {
 
   final case class Conj(name: String, input: String)
 
-  private def compCC(
-    conj_a: String,
-    conj_x: String,
-    conj_y: String,
+  final case class EqualityPairing(left: String, right: String) {
+    def toCondition: String = s"$left[i] == $right[j]"
+  }
+
+  private def computeConjunction(
     colALeft: String,
     colARight: String,
-    colBLeft: String,
-    colBRight: String,
-    leftDictIndices: String
+    conj: List[Conj],
+    pairings: List[EqualityPairing]
   ): CodeLines = {
-    val conjN = List(conj_a, conj_x, conj_y)
-    val conj_out = List(s"$leftDictIndices[$colALeft[i]]", s"$colALeft[i]", s"$colBLeft[i]")
-    val conj = conjN.zip(conj_out).map { case (n, i) =>
-      Conj(n, i)
-    }
     CodeLines
       .from(
         conj.map(n => s"std::vector<size_t> ${n.name};"),
         s"for (int i = 0; i < $colALeft.size(); i++) {",
         s"  for (int j = 0; j < $colARight.size(); j++) {",
-        s"    if ($colALeft[i] == $colARight[j] && $colBLeft[i] == $colBRight[j]) {",
+        s"    if (${pairings.map(_.toCondition).mkString(" && ")}) {",
         conj.map { case Conj(k, i) => s"$k.push_back($i);" },
         "    }",
         "  }",
