@@ -45,6 +45,7 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.join.GenericJoiner
+import com.nec.spark.agile.join.GenericJoiner.Join
 import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -679,10 +680,26 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
             List(
               TransferDefinitionsSourceCode,
               "\n\n",
-              GenericJoiner.printVec.cCode,
-              GenericJoiner.produce.cCode
+              GenericJoiner.printVec.cCode, {
+                val inputsLeft =
+                  List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
+                val inputsRight =
+                  List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
+                val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
+                val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
+                GenericJoiner
+                  .produce(
+                    inputsLeft = inputsLeft,
+                    inputsRight = inputsRight,
+                    firstJoin = firstJoin,
+                    secondJoin = secondJoin
+                  )
+                  .cCode
+
+              }
             )
-              .mkString("\n\n"))
+              .mkString("\n\n")
+          )
         }
       }
 

@@ -29,18 +29,14 @@ object GenericJoiner {
 
   final case class Join(left: CVector, right: CVector)
 
-  def produce: CodeLines = {
-
-    val inputsLeft =
-      List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
-
-    val inputsRight =
-      List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
+  def produce(
+    inputsLeft: List[CVector],
+    inputsRight: List[CVector],
+    firstJoin: Join,
+    secondJoin: Join
+  ): CodeLines = {
 
     val varCharMatchingIndicesLeftDict = s"dict_indices_${inputsLeft(0).name}"
-
-    val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
-    val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
 
     val firstPairing =
       EqualityPairing(s"index_${firstJoin.left.name}", s"index_${firstJoin.right.name}")
