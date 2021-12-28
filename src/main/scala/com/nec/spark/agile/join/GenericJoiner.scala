@@ -27,45 +27,38 @@ object GenericJoiner {
       )
     )
 
+  final case class Join(left: CVector, right: CVector)
+
   def produce: CodeLines = {
-    val left_varchar_vector = "x_a"
-    val left_matching_num_vector = "x_b"
     val left_input_int_vector = "x_c"
-    val right_varchar_vector = "y_a"
-    val right_matching_num_vector = "y_b"
     val right_input_double_vector = "y_c"
-    val output_varchar_vector = "o_a_var"
-    val output_int_vector = "o_b_var"
-    val output_double_vector = "o_c_var"
-    val left_dict = "left_dict_var"
     val left_dict_indices = "a1_var"
     val string_match_left_idx = "a1_out_var"
     val num_match_left_idx = "b1_out_var"
     val string_right_idx = "a2_out_var"
     val num_right_idx = "b2_out_var"
-    val left_words = "left_words_var"
 
-    val inputsLeft = List(
-      CVector.varChar(left_varchar_vector),
-      CVector.bigInt(left_matching_num_vector),
-      CVector.int(left_input_int_vector)
-    )
+    val inputsLeft =
+      List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int(left_input_int_vector))
 
-    val inputsRight = List(
-      CVector.varChar(right_varchar_vector),
-      CVector.bigInt(right_matching_num_vector),
-      CVector.double(right_input_double_vector)
-    )
+    val inputsRight =
+      List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double(right_input_double_vector))
+
+    val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
+    val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
+
+    val left_words = s"words_${firstJoin.left.name}"
+    val left_dict = s"dict_${firstJoin.left.name}"
 
     val dictsWords = CodeLines
       .from(
-        s"frovedis::words ${left_words} = varchar_vector_to_words($left_varchar_vector);",
+        s"frovedis::words ${left_words} = varchar_vector_to_words(${firstJoin.left.name});",
         s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
       )
 
     val outputs: List[Output] = List(
       outStr(
-        outputName = output_varchar_vector,
+        outputName = "o_a_var",
         sourceDict = left_dict,
         sourceDictIndices = left_dict_indices,
         sourceDictIndicesIndices = string_match_left_idx
@@ -73,13 +66,13 @@ object GenericJoiner {
       outScalar(
         source = left_input_int_vector,
         sourceIndices = string_match_left_idx,
-        outputName = output_int_vector,
+        outputName = "o_b_var",
         veScalarType = VeScalarType.VeNullableInt
       ),
       outScalar(
         source = right_input_double_vector,
         sourceIndices = string_right_idx,
-        outputName = output_double_vector,
+        outputName = "o_c_var",
         veScalarType = VeScalarType.VeNullableDouble
       )
     )
@@ -91,19 +84,19 @@ object GenericJoiner {
         matchingIndicesRight = string_right_idx,
         leftDict = left_dict,
         leftWords = left_words,
-        rightVec = right_varchar_vector
+        rightVec = firstJoin.right.name
       ),
       computeNumJoin(
-        leftOut = num_match_left_idx,
-        leftInput = left_matching_num_vector,
-        rightOut = num_right_idx,
-        rightInput = right_matching_num_vector
+        matchingIndicesLeft = num_match_left_idx,
+        leftInput = secondJoin.left.name,
+        matchingIndicesRight = num_right_idx,
+        rightInput = secondJoin.right.name
       )
     )
 
     val conjunctions = computeConjunction(
-      left = string_match_left_idx,
-      right = num_match_left_idx,
+      firstLeft = string_match_left_idx,
+      secondLeft = num_match_left_idx,
       conj = outputs.map(_.conj),
       pairings = List(
         EqualityPairing(string_match_left_idx, num_match_left_idx),
@@ -153,7 +146,7 @@ object GenericJoiner {
     outputName: String,
     sourceIndices: String,
     veScalarType: VeScalarType
-  ) = {
+  ): Output = {
 
     val conj_name = s"conj_${outputName}"
 
@@ -176,7 +169,7 @@ object GenericJoiner {
     sourceDict: String,
     sourceDictIndices: String,
     sourceDictIndicesIndices: String
-  ) = {
+  ): Output = {
     val conj_name = s"conj_${outputName}"
     Output(
       outputName = outputName,
@@ -189,38 +182,40 @@ object GenericJoiner {
 
   final case class Conj(name: String, input: String)
 
-  final case class EqualityPairing(left: String, right: String) {
-    def toCondition: String = s"$left[i] == $right[j]"
+  final case class EqualityPairing(indexOfFirstColumn: String, indexOfSecondColumn: String) {
+    def toCondition: String = s"$indexOfFirstColumn[i] == $indexOfSecondColumn[j]"
   }
 
+  /**
+   * This combines joins from multiple places to produce corresponding indices for output items
+   */
   private def computeConjunction(
-    left: String,
-    right: String,
+    firstLeft: String,
+    secondLeft: String,
     conj: List[Conj],
     pairings: List[EqualityPairing]
-  ): CodeLines = {
+  ): CodeLines =
     CodeLines
       .from(
         conj.map(n => s"std::vector<size_t> ${n.name};"),
-        s"for (int i = 0; i < $left.size(); i++) {",
-        s"  for (int j = 0; j < $right.size(); j++) {",
+        s"for (int i = 0; i < $firstLeft.size(); i++) {",
+        s"  for (int j = 0; j < $secondLeft.size(); j++) {",
         s"    if (${pairings.map(_.toCondition).mkString(" && ")}) {",
         conj.map { case Conj(k, i) => s"$k.push_back($i);" },
         "    }",
         "  }",
         "}"
       )
-  }
 
   private def computeNumJoin(
-    leftOut: String,
-    rightOut: String,
+    matchingIndicesLeft: String,
+    matchingIndicesRight: String,
     leftInput: String,
     rightInput: String
   ): CodeLines =
     CodeLines.from(
-      s"std::vector<size_t> ${leftOut};",
-      s"std::vector<size_t> ${rightOut};",
+      s"std::vector<size_t> ${matchingIndicesLeft};",
+      s"std::vector<size_t> ${matchingIndicesRight};",
       CodeLines
         .from(
           s"std::vector<int64_t> left(${leftInput}->count);",
@@ -235,7 +230,7 @@ object GenericJoiner {
           s"  right[i] = ${rightInput}->data[i];",
           s"  right_idx[i] = i;",
           s"}",
-          s"frovedis::equi_join(right, right_idx, left, left_idx, $rightOut, $leftOut);"
+          s"frovedis::equi_join(right, right_idx, left, left_idx, $matchingIndicesRight, $matchingIndicesLeft);"
         )
         .block
     )
