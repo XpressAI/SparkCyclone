@@ -3,7 +3,7 @@ package org.apache.spark.sql.vectorized
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
 import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeColBatch
-import com.nec.ve.VeColBatch.VeColVector
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType
@@ -34,7 +34,15 @@ final class DualModeTest extends AnyFreeSpec {
   }
 
   "Accessing private class happens Ok" in {
-    val vcv = VeColVector(123, 3, "test", None, VeScalarType.veNullableInt, -1, Nil)
+    val vcv = VeColVector(
+      VeColVectorSource("unit test"),
+      3,
+      "test",
+      None,
+      VeScalarType.veNullableInt,
+      -1,
+      Nil
+    )
     val expectedCb = VeColBatch(numRows = vcv.numItems, cols = List(vcv))
     val cv = new VeColColumnarVector(vcv, IntegerType)
     val cb = new ColumnarBatch(Array(cv))

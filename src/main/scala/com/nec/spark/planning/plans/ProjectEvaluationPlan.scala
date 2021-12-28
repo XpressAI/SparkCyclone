@@ -17,12 +17,11 @@
  * limitations under the License.
  *
  */
-package com.nec.spark.planning
+package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
@@ -41,7 +40,8 @@ final case class ProjectEvaluationPlan(
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
-  with SupportsVeColBatch with PlanCallsVeFunction {
+  with SupportsVeColBatch
+  with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
@@ -52,9 +52,10 @@ final case class ProjectEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  private val projectionContext = ProjectionContext(outputExpressions, child.outputSet.toList)
-  import projectionContext._
+  private val projectionContext =
+    ProjectEvaluationPlan.ProjectionContext(outputExpressions, child.outputSet.toList)
 
+  import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] =
     child
       .asInstanceOf[SupportsVeColBatch]
@@ -139,7 +140,7 @@ object ProjectEvaluationPlan {
       .collect {
         case (col, idx) if !idsToPass.contains(idx) => col
       }
-    if(!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
+    if (!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
   }
 
 }

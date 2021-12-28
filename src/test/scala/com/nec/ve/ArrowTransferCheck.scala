@@ -1,20 +1,11 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowVectorBuilders.{
-  withArrowFloat8VectorI,
-  withArrowStringVector,
-  withDirectBigIntVector,
-  withDirectIntVector,
-  withNullableArrowStringVector
-}
+import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType, VeString, VeType}
-import com.nec.spark.agile.groupby.GroupByOutline
+import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue

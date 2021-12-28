@@ -2,6 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.{SupportsVeColBatch, Tracer}
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
@@ -54,8 +55,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
                   val res = veColBatch.toArrowColumnarBatch()
                   logger.debug(s"Finished mapping ${veColBatch}")
                   res
-                }
-                finally veColBatch.cols.foreach(_.free())
+                } finally cleanUpIfNotCached(veColBatch)
               }
           }
       }

@@ -63,12 +63,12 @@ final case class RunDatabase(transactor: Transactor[IO], uri: String) {
   }
 
   import java.sql._
-  def fetchResults: IO[ResultsInfo] = IO.blocking {
+  def fetchResults: IO[RunResults] = IO.blocking {
     val connection = DriverManager.getConnection(uri)
     try {
       val statement = connection.createStatement()
       statement.setQueryTimeout(30)
-      val rs = statement.executeQuery("select * from run_result order by timestamp desc")
+      val rs = statement.executeQuery("select * from run_result order by timestamp desc limit 50")
       val cols = (1 to rs.getMetaData.getColumnCount)
         .map(idx => rs.getMetaData.getColumnLabel(idx))
         .toList
@@ -76,7 +76,7 @@ final case class RunDatabase(transactor: Transactor[IO], uri: String) {
       while (rs.next()) {
         buf.append(cols.map(col => Option(rs.getObject(col))))
       }
-      ResultsInfo(cols, buf.toList)
+      RunResults(cols, buf.toList)
     } finally connection.close()
   }
 

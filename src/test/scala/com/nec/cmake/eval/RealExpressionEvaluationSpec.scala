@@ -35,8 +35,8 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggrega
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
-import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
+import com.nec.spark.agile.StringProducer.ImperativeStringProducer
+import com.nec.spark.planning.Tracer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
@@ -69,10 +69,18 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
   /*
   "We can transform a column to a String and a Double" in {
+
+    def expr_to_string(cExpression: CExpression): ImperativeStringProducer =
+      (tsn, iln) =>
+        CodeLines
+          .from(
+            s"std::string len_str = std::to_string(${cExpression.cCode});",
+            s"${tsn}.append(len_str);",
+            s"${iln} += len_str.size();"
+          )
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
-        StringCExpressionEvaluation
-          .expr_to_string(CExpression("2 * input_0->data[i]", None)): StringProducer,
+        expr_to_string(CExpression("2 * input_0->data[i]", None)): StringProducer,
         TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
       ) == List[(String, Double)](
         ("180.000000", 92.0),

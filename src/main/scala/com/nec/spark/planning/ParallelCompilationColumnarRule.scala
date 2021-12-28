@@ -1,10 +1,9 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneDriverPlugin
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus.SourceCode
 import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
+import com.nec.spark.planning.VeFunction.VeFunctionStatus
+import com.nec.spark.planning.VeFunction.VeFunctionStatus.SourceCode
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
@@ -56,9 +55,7 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
       logger.info(
         s"Took ${timeTaken} to transform functions to compiled status (total: ${timeTakenMatch})."
       )
-      println(
-        s"Took ${timeTaken} to transform functions to compiled status (total: ${timeTakenMatch})."
-      )
+      logger.info(s"Compilation time: ${timeTakenMatch}")
       result
     } else plan
   }

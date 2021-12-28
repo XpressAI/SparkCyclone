@@ -24,32 +24,17 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
-import com.nec.spark.agile.groupby.{
-  ConvertNamedExpression,
-  GroupByOutline,
-  GroupByPartialGenerator,
-  GroupByPartialToFinalGenerator
-}
+import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
+import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.plans._
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  HyperLogLogPlusPlus
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  Expression,
-  NamedExpression,
-  SortOrder
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
@@ -64,7 +49,6 @@ import scala.util.Try
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
-  var failFast: Boolean = false
   implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
       case Some(error) => Left(error)
@@ -88,15 +72,14 @@ final case class VERewriteStrategy(
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
-    val failFast = VERewriteStrategy.failFast
-
     if (VERewriteStrategy._enabled) {
       log.debug(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
+        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output
+          .map(_.dataType)}; options = ${options}"
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case imr @ InMemoryRelation(output, cb, oo)
+        case imr @ InMemoryRelation(_, cb, oo)
             if cb.serializer
               .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
           SparkSession.active.sessionState.planner.InMemoryScans
@@ -152,6 +135,15 @@ final case class VERewriteStrategy(
               ),
             identity
           )
+        case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
+            if cb.serializer
+              .isInstanceOf[VeCachedBatchSerializer] && VeCachedBatchSerializer.ShortCircuit =>
+          SparkSession.active.sessionState.planner.InMemoryScans
+            .apply(imr)
+            .flatMap(sp =>
+              List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+            )
+            .toList
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
@@ -314,7 +306,6 @@ final case class VERewriteStrategy(
               groupingKeys = groupingExpressionsKeys.map { case (gk, _) => gk },
               finalOutputs = finalOutputs
             )
-            _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             computedGroupingKeys <-
               groupingExpressionsKeys.map { case (gk, exp) =>
                 mapGroupingExpression(exp, referenceReplacer)
@@ -448,7 +439,6 @@ final case class VERewriteStrategy(
           }
 
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
-          logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
         case s @ Sort(orders, global, child)
             if options.enableVeSorting && !child.output
@@ -503,8 +493,14 @@ final case class VERewriteStrategy(
         case _ => Nil
       }
 
-      if (failFast) res
-      else {
+      if (options.failFast) {
+        val x = res
+        if (x.isEmpty)
+          logger.debug(s"Didn't rewrite")
+        else
+          logger.debug(s"Rewrote it to ==> ${x}")
+        x
+      } else {
         try res
         catch {
           case e: Throwable =>

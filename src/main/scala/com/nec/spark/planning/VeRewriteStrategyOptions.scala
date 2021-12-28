@@ -3,13 +3,15 @@ package com.nec.spark.planning
 import org.apache.spark.SparkConf
 
 final case class VeRewriteStrategyOptions(
-                                           aggregateOnVe: Boolean,
-                                           enableVeSorting: Boolean,
-                                           projectOnVe: Boolean,
-                                           filterOnVe: Boolean,
-                                           exchangeOnVe: Boolean,
-                                           passThroughProject: Boolean
-)
+  aggregateOnVe: Boolean,
+  enableVeSorting: Boolean,
+  projectOnVe: Boolean,
+  filterOnVe: Boolean,
+  exchangeOnVe: Boolean,
+  passThroughProject: Boolean,
+  failFast: Boolean
+) {}
+
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
   def fromConfig(sparkConf: SparkConf): VeRewriteStrategyOptions = {
@@ -37,7 +39,11 @@ object VeRewriteStrategyOptions {
       passThroughProject = sparkConf
         .getOption(key = "spark.com.nec.spark.pass-through-project")
         .map(_.toBoolean)
-        .getOrElse(default.passThroughProject)
+        .getOrElse(default.passThroughProject),
+      failFast = sparkConf
+        .getOption(key = "spark.com.nec.spark.fail-fast")
+        .map(_.toBoolean)
+        .getOrElse(default.failFast)
     )
   }
 
@@ -48,6 +54,7 @@ object VeRewriteStrategyOptions {
       filterOnVe = true,
       aggregateOnVe = true,
       exchangeOnVe = true,
-      passThroughProject = false
+      passThroughProject = false,
+      failFast = false
     )
 }

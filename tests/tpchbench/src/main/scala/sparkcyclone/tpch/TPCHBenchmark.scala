@@ -19,9 +19,11 @@
  */
 package sparkcyclone.tpch
 
-import java.time.{Instant, LocalDate}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.SparkPlan
 
+import java.time.{Instant, LocalDate}
 
 // TPC-H table schemas
 case class Customer(
@@ -100,7 +102,7 @@ case class Supplier(
   s_comment: String
 )
 
-object TPCHBenchmark extends SparkSessionWrapper {
+object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
   def createViews(sparkSession: SparkSession, inputDir: String): Unit = {
     import sparkSession.implicits._
 
@@ -223,7 +225,6 @@ object TPCHBenchmark extends SparkSessionWrapper {
 
     dfMap.foreach { case (key, value) =>
       value.createOrReplaceTempView(key)
-      sparkSession.sql("CACHE TABLE " + key)
     }
   }
 
@@ -289,21 +290,64 @@ object TPCHBenchmark extends SparkSessionWrapper {
     } else
       queries.foreach { case (query, i) =>
         if (!toSkip.contains(i)) {
+          cacheTables(i)
           benchmark(i, query)
+          uncacheTables(i)
         }
       }
   }
 
+  val tableMap: Map[Int, Seq[String]] = Map(
+    1 -> Seq("lineitem"),
+    2 -> Seq("part", "supplier", "partsupp", "nation", "region"),
+    3 -> Seq("customer", "orders", "lineitem"),
+    4 -> Seq("orders", "lineitem"),
+    5 -> Seq("customer", "orders", "lineitem", "supplier", "nation", "region"),
+    6 -> Seq("lineitem"),
+    7 -> Seq("supplier", "lineitem", "orders", "customer", "nation"),
+    8 -> Seq("part", "supplier", "lineitem", "orders", "customer", "nation", "region"),
+    9 -> Seq("part", "supplier", "lineitem", "partsupp", "orders", "nation"),
+    10 -> Seq("customer", "orders", "lineitem", "nation"),
+    11 -> Seq("partsupp", "supplier", "nation"),
+    12 -> Seq("orders", "lineitem"),
+    13 -> Seq("customer", "orders"),
+    14 -> Seq("lineitem", "part"),
+    15 -> Seq("lineitem", "supplier"),
+    16 -> Seq("partsupp", "part", "supplier"),
+    17 -> Seq("lineitem", "part"),
+    18 -> Seq("customer", "orders", "lineitem"),
+    19 -> Seq("lineitem", "part"),
+    20 -> Seq("supplier", "nation", "partsupp", "part", "lineitem"),
+    21 -> Seq("supplier", "lineitem", "orders", "nation"),
+    22 -> Seq("customer", "orders")
+  )
+
+  def cacheTables(i: Int): Unit = {
+    for (key <- tableMap(i)) {
+      sparkSession.sql("CACHE TABLE " + key)
+    }
+  }
+
+  def uncacheTables(i: Int): Unit = {
+    for (key <- tableMap(i)) {
+      sparkSession.sql("UNCACHE TABLE " + key)
+    }
+  }
+
   def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
     println(s"Running Query${i}")
+    logger.info(s"Running Query${i}")
     val start = System.nanoTime()
     val startI = Instant.now()
     val res = f(sparkSession)
     val endI = Instant.now()
     val end = System.nanoTime()
     println(s"Result returned ${res.length} records.")
-    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${java.time.Duration
-      .between(startI, endI)}")
+    logger.info(s"Result returned ${res.length} records.")
+    val duration = java.time.Duration
+      .between(startI, endI)
+    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${duration}")
+    logger.info(s"Query time: ${duration}")
     res.take(10).foreach(println)
   }
 
@@ -327,10 +371,15 @@ object TPCHBenchmark extends SparkSessionWrapper {
         l_shipdate <= date '1998-12-01' - interval '$delta' day
       group by l_returnflag, l_linestatus
       order by l_returnflag, l_linestatus
+      limit 1
     """
 
-    sparkSession.sql(sql).limit(1).collect()
+    val ds = sparkSession.sql(sql)
+    logPlan(ds.queryExecution.executedPlan)
+    ds.limit(1).collect()
   }
+
+  private def logPlan(executedPlan: SparkPlan): Unit = logger.info(s"Final plan: ${executedPlan}")
 
   def query2(sparkSession: SparkSession): Array[_] = {
     val size = 15
@@ -382,7 +431,9 @@ object TPCHBenchmark extends SparkSessionWrapper {
           s_name,
           p_partkey
     """
-    sparkSession.sql(sql).limit(100).collect()
+    val ds = sparkSession.sql(sql).limit(100)
+    logPlan(ds.queryExecution.executedPlan)
+    ds.collect()
   }
 
   def query3(sparkSession: SparkSession): Array[_] = {
@@ -660,7 +711,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
         c_custkey = o_custkey
         and l_orderkey = o_orderkey
         and o_orderdate >= date '$date'
-        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 'R'
+        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 82
         and c_nationkey = n_nationkey
       group by
         c_custkey,
@@ -890,7 +941,7 @@ object TPCHBenchmark extends SparkSessionWrapper {
         p_size
     """
     val ds = sparkSession.sql(sql)
-    println(ds.queryExecution.executedPlan)
+    logPlan(ds.queryExecution.executedPlan)
     ds.collect()
   }
 

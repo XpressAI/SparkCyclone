@@ -19,21 +19,20 @@
  */
 package com.nec.spark
 
-import com.nec.arrow.VeArrowNativeInterface
+import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.ve.VeProcess.LibraryReference
+import com.nec.ve.{VeColBatch, VeProcess}
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkEnv
+import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
+import org.apache.spark.internal.Logging
+import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
-import com.nec.ve.{VeColBatch, VeProcess}
-import com.nec.ve.VeProcess.LibraryReference
-import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.api.plugin.ExecutorPlugin
-import org.apache.spark.api.plugin.PluginContext
-import org.apache.spark.internal.Logging
-
-import java.nio.file.Files
-import java.nio.file.Path
 import scala.util.Try
 
 object SparkCycloneExecutorPlugin extends LazyLogging {
@@ -51,7 +50,11 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc))
+    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
+
+  implicit def source: VeColVectorSource = VeColVectorSource(
+    s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
+  )
 
   /**
    * https://www.hpc.nec/documents/veos/en/veoffload/md_Restriction.html
@@ -64,7 +67,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
    *
    * *
    */
-  var closeAutomatically: Boolean = false
+  var CloseAutomatically: Boolean = true
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
       veo.veo_proc_destroy(_veo_proc)
@@ -73,75 +76,54 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var DefaultVeNodeId = 0
 
-  trait LibraryStorage {
-    // Get a local copy of the library for loading
-    def getLocalLibraryPath(code: String): Path
-  }
+  @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
+    scala.collection.mutable.Set.empty
 
-  final class DriverFetchingLibraryStorage(pluginContext: PluginContext)
-    extends LibraryStorage
-    with LazyLogging {
-
-    private var locallyStoredLibs = Map.empty[String, Path]
-
-    /** Get a local copy of the library for loading */
-    override def getLocalLibraryPath(code: String): Path = this.synchronized {
-      locallyStoredLibs.get(code) match {
-        case Some(result) =>
-          logger.debug("Cache hit for executor-fetch for code.")
-          result
-        case None =>
-          logger.debug("Cache miss for executor-fetch for code; asking Driver.")
-          val result = pluginContext.ask(RequestCompiledLibraryForCode(code))
-          if (result == null) {
-            sys.error(s"Could not fetch library: ${code}")
-          } else {
-            val localPath = Files.createTempFile("ve_fn", ".lib")
-            Files.write(
-              localPath,
-              result.asInstanceOf[RequestCompiledLibraryResponse].byteString.toByteArray
-            )
-            logger.debug(s"Saved file to '$localPath'")
-            locallyStoredLibs += code -> localPath
-            localPath
-          }
-      }
-    }
-  }
-
-  @transient val batchCache: scala.collection.mutable.Set[VeColBatch] =
+  @transient val cachedCols: scala.collection.mutable.Set[VeColVector] =
     scala.collection.mutable.Set.empty
 
   def cleanCache(): Unit = {
-    batchCache.toList.foreach { colBatch =>
-      batchCache.remove(colBatch)
-      colBatch.cols.foreach(_.free())
+    cachedBatches.toList.foreach { colBatch =>
+      cachedBatches.remove(colBatch)
+      colBatch.cols.foreach(freeCol)
+    }
+  }
+
+  def freeCol(col: VeColVector): Unit = {
+    if (cachedCols.contains(col)) {
+      logger.debug(s"Freeing column ${col}... in ${source}")
+      cachedCols.remove(col)
+      col.free()
     }
   }
 
   def register(cb: VeColBatch): Unit = {
-    batchCache.add(cb)
+    cachedBatches.add(cb)
+    cb.cols.foreach(cachedCols.add)
   }
 
   var CleanUpCache: Boolean = true
 
-  var libraryStorage: LibraryStorage = _
+  def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
+    if (!cachedBatches.contains(veColBatch))
+      veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
+
+  val metrics = new ProcessExecutorMetrics()
 }
 
-class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
-
+class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
+  import com.nec.spark.SparkCycloneExecutorPlugin._veo_proc
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    import com.nec.spark.SparkCycloneExecutorPlugin._
 
+    SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
     val resources = ctx.resources()
-    SparkCycloneExecutorPlugin.synchronized {
-      SparkCycloneExecutorPlugin.libraryStorage = new DriverFetchingLibraryStorage(ctx)
-    }
 
-    logInfo(s"Executor has the following resources available => ${resources}")
+    logger.info(s"Executor has the following resources available => ${resources}")
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
       val nodeId = Try(System.getenv("VE_NODE_NUMBER").toInt).getOrElse(DefaultVeNodeId)
-      logInfo(s"Do not have a VE resource available. Will use '${nodeId}' as the main resource.")
+      logger.info(
+        s"Do not have a VE resource available. Will use '${nodeId}' as the main resource."
+      )
       nodeId
     } else {
       val veResources = resources.get("ve")
@@ -154,7 +136,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
       veResources.addresses(veMultiple % resourceCount).toInt
     }
 
-    logInfo(s"Using VE node = ${selectedVeNodeId}")
+    logger.info(s"Using VE node = ${selectedVeNodeId}")
 
     if (_veo_proc == null) {
       _veo_proc = veo.veo_proc_create(selectedVeNodeId)
@@ -163,9 +145,9 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
         s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
       )
       require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
-      logInfo(s"Opened process: ${_veo_proc}")
+      logger.info(s"Opened process: ${_veo_proc}")
     }
-    logInfo("Initializing SparkCycloneExecutorPlugin.")
+    logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
   }
@@ -175,10 +157,22 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging {
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin._
-    if (closeAutomatically) {
-      logInfo(s"Closing process: ${_veo_proc}")
+    import com.nec.spark.SparkCycloneExecutorPlugin.metrics
+    import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
+    import com.nec.spark.SparkCycloneExecutorPlugin.closeProcAndCtx
+    Option(metrics.getAllocations)
+      .filter(_.nonEmpty)
+      .foreach(unfinishedAllocations =>
+        logger.error(
+          s"There were some ${unfinishedAllocations.size} unreleased allocations: ${unfinishedAllocations.toString
+            .take(50)}..., expected to be none."
+        )
+      )
+
+    if (CloseAutomatically) {
+      logger.info(s"Closing process: ${_veo_proc}")
       closeProcAndCtx()
+      launched = false
     }
     super.shutdown()
   }

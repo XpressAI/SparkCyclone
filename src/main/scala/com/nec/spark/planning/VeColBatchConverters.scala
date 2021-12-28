@@ -2,6 +2,7 @@ package com.nec.spark.planning
 
 import com.nec.cmake.{ScalaTcpDebug, Spanner}
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
@@ -36,7 +37,8 @@ object VeColBatchConverters {
     }
   }
 
-  final case class UnInternalVeColBatch(isReferenced: Boolean, veColBatch: VeColBatch)
+  final case class UnInternalVeColBatch(veColBatch: VeColBatch)
+
   def internalRowToVeColBatch(
     input: RDD[InternalRow],
     timeZoneId: String,
@@ -46,7 +48,7 @@ object VeColBatchConverters {
     input.mapPartitions { iterator =>
       DualMode.handleIterator(iterator) match {
         case Left(colBatches) =>
-          colBatches.map(v => UnInternalVeColBatch(isReferenced = true, veColBatch = v))
+          colBatches.map(v => UnInternalVeColBatch(veColBatch = v))
         case Right(rowIterator) =>
           if (rowIterator.hasNext) {
             lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
@@ -86,11 +88,11 @@ object VeColBatchConverters {
                 //              numInputRows += rowCount
                 //              numOutputBatches += 1
                 import SparkCycloneExecutorPlugin.veProcess
-                try UnInternalVeColBatch(
-                  isReferenced = false,
-                  veColBatch = VeColBatch.fromArrowColumnarBatch(cb)
-                )
-                finally cb.close()
+                val newBatch =
+                  try UnInternalVeColBatch(veColBatch = VeColBatch.fromArrowColumnarBatch(cb))
+                  finally cb.close()
+                SparkCycloneExecutorPlugin.register(newBatch.veColBatch)
+                newBatch
               }
             }
           } else {
@@ -100,6 +102,5 @@ object VeColBatchConverters {
     }
 
   }
-
 
 }

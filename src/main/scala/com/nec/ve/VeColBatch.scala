@@ -76,7 +76,7 @@ object VeColBatch {
 
   def fromArrowColumnarBatch(
     columnarBatch: ColumnarBatch
-  )(implicit veProcess: VeProcess): VeColBatch = {
+  )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
     VeColBatch(
       numRows = columnarBatch.numRows(),
       cols = (0 until columnarBatch.numCols()).map { colNo =>
@@ -92,8 +92,9 @@ object VeColBatch {
     theUnsafe.get(null).asInstanceOf[Unsafe]
   }
 
+  final case class VeColVectorSource(identifier: String)
   final case class VeColVector(
-    veProcessId: Long,
+    source: VeColVectorSource,
     numItems: Int,
     name: String,
     variableSize: Option[Int],
@@ -169,36 +170,42 @@ object VeColBatch {
      * The parent ColVector is a description of the original source vector from another VE that
      * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
      */
-    def deserialize(ba: Array[Byte])(implicit veProcess: VeProcess): VeColVector =
+    def deserialize(
+      ba: Array[Byte]
+    )(implicit source: VeColVectorSource, veProcess: VeProcess): VeColVector =
       injectBuffers(newBuffers =
         bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map { case (bufferStart, bufferSize) =>
           ba.slice(bufferStart, bufferStart + bufferSize)
         }
-      ).newContainer().copy(veProcessId = veProcess.getProcessId())
+      ).newContainer()
 
-    private def newContainer()(implicit veProcess: VeProcess): VeColVector = veType match {
-      case VeScalarType.VeNullableDouble =>
-        val vcvr = new nullable_double_vector()
-        vcvr.count = numItems
-        vcvr.data = bufferLocations(0)
-        vcvr.validityBuffer = bufferLocations(1)
-        val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
+    private def newContainer()(implicit
+      veProcess: VeProcess,
+      source: VeColVectorSource
+    ): VeColVector = {
+      veType match {
+        case VeScalarType.VeNullableDouble =>
+          val vcvr = new nullable_double_vector()
+          vcvr.count = numItems
+          vcvr.data = bufferLocations(0)
+          vcvr.validityBuffer = bufferLocations(1)
+          val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
 
-        copy(containerLocation = veProcess.putBuffer(byteBuffer))
-      case VeScalarType.VeNullableInt =>
-        val vcvr = new nullable_int_vector()
-        vcvr.count = numItems
-        vcvr.data = bufferLocations(0)
-        vcvr.validityBuffer = bufferLocations(1)
-        val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+          copy(containerLocation = veProcess.putBuffer(byteBuffer))
+        case VeScalarType.VeNullableInt =>
+          val vcvr = new nullable_int_vector()
+          vcvr.count = numItems
+          vcvr.data = bufferLocations(0)
+          vcvr.validityBuffer = bufferLocations(1)
+          val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
 
-        copy(containerLocation = veProcess.putBuffer(byteBuffer))
-      case VeScalarType.VeNullableLong =>
-        val vcvr = new nullable_bigint_vector()
-        vcvr.count = numItems
-        vcvr.data = bufferLocations(0)
-        vcvr.validityBuffer = bufferLocations(1)
-        val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
+          copy(containerLocation = veProcess.putBuffer(byteBuffer))
+        case VeScalarType.VeNullableLong =>
+          val vcvr = new nullable_bigint_vector()
+          vcvr.count = numItems
+          vcvr.data = bufferLocations(0)
+          vcvr.validityBuffer = bufferLocations(1)
+          val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
 
         copy(containerLocation = veProcess.putBuffer(byteBuffer))
       case VeString =>
@@ -212,9 +219,10 @@ object VeColBatch {
         vcvr.lengths = bufferLocations(3)
         val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
 
-        copy(containerLocation = veProcess.putBuffer(byteBuffer))
-      case other => sys.error(s"Other $other not supported.")
-    }
+          copy(containerLocation = veProcess.putBuffer(byteBuffer))
+        case other => sys.error(s"Other $other not supported.")
+      }
+    }.copy(source = source)
 
     def containerSize: Int = veType.containerSize
 
@@ -323,8 +331,13 @@ object VeColBatch {
       case other => sys.error(s"Not supported for conversion to arrow vector: $other")
     }
 
-    def free()(implicit veProcess: VeProcess): Unit =
+    def free()(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): Unit = {
+      require(
+        veColVectorSource == source,
+        s"Intended to `free` in ${source}, but got ${veColVectorSource} context."
+      )
       (containerLocation :: bufferLocations).foreach(veProcess.free)
+    }
 
   }
 
@@ -332,10 +345,13 @@ object VeColBatch {
   object VeColVector {
 
     def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
-      veProcess: VeProcess
+      veProcess: VeProcess,
+      _source: VeColVectorSource
     ): VeColVector = fromArrowVector(source.getArrowValueVector)
 
-    def fromArrowVector(valueVector: ValueVector)(implicit veProcess: VeProcess): VeColVector =
+    def fromArrowVector(
+      valueVector: ValueVector
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
       valueVector match {
         case float8Vector: Float8Vector     => fromFloat8Vector(float8Vector)
         case bigIntVector: BigIntVector     => fromBigIntVector(bigIntVector)
@@ -346,7 +362,9 @@ object VeColBatch {
         case other                          => sys.error(s"Not supported to convert from ${other.getClass}")
       }
 
-    def fromBigIntVector(bigIntVector: BigIntVector)(implicit veProcess: VeProcess): VeColVector = {
+    def fromBigIntVector(
+      bigIntVector: BigIntVector
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       val vcvr = new nullable_bigint_vector()
       vcvr.count = bigIntVector.getValueCount
       vcvr.data = veProcess.putBuffer(bigIntVector.getDataBuffer.nioBuffer())
@@ -354,7 +372,7 @@ object VeColBatch {
       val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
-        veProcessId = veProcess.getProcessId,
+        source = source,
         numItems = bigIntVector.getValueCount,
         name = bigIntVector.getName,
         veType = VeScalarType.VeNullableLong,
@@ -364,7 +382,9 @@ object VeColBatch {
       )
     }
 
-    def fromIntVector(dirInt: IntVector)(implicit veProcess: VeProcess): VeColVector = {
+    def fromIntVector(
+      dirInt: IntVector
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       val vcvr = new nullable_int_vector()
       vcvr.count = dirInt.getValueCount
       vcvr.data = veProcess.putBuffer(dirInt.getDataBuffer.nioBuffer())
@@ -372,7 +392,7 @@ object VeColBatch {
       val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
-        veProcessId = veProcess.getProcessId(),
+        source = source,
         numItems = dirInt.getValueCount,
         name = dirInt.getName,
         veType = VeScalarType.VeNullableInt,
@@ -384,7 +404,7 @@ object VeColBatch {
 
     def fromSmallIntVector(
       smallDirInt: SmallIntVector
-    )(implicit veProcess: VeProcess): VeColVector = {
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       val intVector = smallDirInt.toIntVector
       val vcvr = new nullable_int_vector()
       vcvr.count = smallDirInt.getValueCount
@@ -393,7 +413,7 @@ object VeColBatch {
       val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
-        veProcessId = veProcess.getProcessId(),
+        source = source,
         numItems = smallDirInt.getValueCount,
         name = smallDirInt.getName,
         veType = VeScalarType.VeNullableInt,
@@ -405,7 +425,7 @@ object VeColBatch {
 
     def fromDateDayVector(
       dateDayVector: DateDayVector
-    )(implicit veProcess: VeProcess): VeColVector = {
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       val vcvr = new nullable_int_vector()
       vcvr.count = dateDayVector.getValueCount
       vcvr.data = veProcess.putBuffer(dateDayVector.getDataBuffer.nioBuffer())
@@ -413,7 +433,7 @@ object VeColBatch {
       val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
-        veProcessId = veProcess.getProcessId(),
+        source = source,
         numItems = dateDayVector.getValueCount,
         name = dateDayVector.getName,
         veType = VeScalarType.VeNullableInt,
@@ -423,7 +443,9 @@ object VeColBatch {
       )
     }
 
-    def fromFloat8Vector(float8Vector: Float8Vector)(implicit veProcess: VeProcess): VeColVector = {
+    def fromFloat8Vector(
+      float8Vector: Float8Vector
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       val vcvr = new nullable_double_vector()
       vcvr.count = float8Vector.getValueCount
       vcvr.data = veProcess.putBuffer(float8Vector.getDataBuffer.nioBuffer())
@@ -431,7 +453,7 @@ object VeColBatch {
       val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
-        veProcessId = veProcess.getProcessId(),
+        source = source,
         numItems = float8Vector.getValueCount,
         name = float8Vector.getName,
         veType = VeScalarType.VeNullableDouble,
@@ -443,7 +465,7 @@ object VeColBatch {
 
     def fromVarcharVector(
       varcharVector: VarCharVector
-    )(implicit veProcess: VeProcess): VeColVector = {
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       val vcvr = new nullable_varchar_vector()
       vcvr.count = varcharVector.getValueCount
       val data = ArrowInterfaces.intCharsFromVarcharVector(varcharVector)
@@ -459,7 +481,7 @@ object VeColBatch {
       val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
       val containerLocation = veProcess.putBuffer(byteBuffer)
       VeColVector(
-        veProcessId = veProcess.getProcessId(),
+        source = source,
         numItems = varcharVector.getValueCount,
         name = varcharVector.getName,
         veType = VeString,
