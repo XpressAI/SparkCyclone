@@ -32,10 +32,10 @@ object GenericJoiner {
     val conj_x_var = "conj_x_var"
     val conj_y_var = "conj_y_var"
     val x_a = "x_a"
-    val x_b = "x_b"
+    val num_left_values = "x_b"
     val x_c = "x_c"
     val y_a = "y_a"
-    val y_b = "y_b"
+    val num_right_values = "y_b"
     val y_c = "y_c"
     val o_a_var = "o_a_var"
     val o_b = "o_b_var"
@@ -43,9 +43,9 @@ object GenericJoiner {
     val left_dict_var = "left_dict_var"
     val a1_var = "a1_var"
     val a1_out_var = "a1_out_var"
-    val b1_out_var = "b1_out_var"
+    val num_left_idx = "b1_out_var"
     val a2_out_var = "a2_out_var"
-    val b2_out_var = "b2_out_var"
+    val num_right_idx = "b2_out_var"
     val left_words = "left_words_var"
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
@@ -61,10 +61,10 @@ object GenericJoiner {
       printVec,
       """extern "C" long adv_join(""",
       s"""nullable_varchar_vector *${x_a},""",
-      s"""nullable_bigint_vector *${x_b},""",
+      s"""nullable_bigint_vector *${num_left_values},""",
       s"""nullable_int_vector *${x_c},""",
       s"""nullable_varchar_vector *${y_a},""",
-      s"""nullable_bigint_vector *${y_b},""",
+      s"""nullable_bigint_vector *${num_right_values},""",
       s"""nullable_double_vector *${y_c},""",
       s"""nullable_varchar_vector *$o_a_var,""",
       s"""nullable_int_vector *${o_b},""",
@@ -86,21 +86,21 @@ object GenericJoiner {
             rightVec = y_a
           ),
           computeNumJoin(
-            leftOut = b1_out_var,
-            rightOut = b2_out_var,
-            leftInput = x_b,
-            rightInput = y_b
+            leftOut = num_left_idx,
+            rightOut = num_right_idx,
+            leftInput = num_left_values,
+            rightInput = num_right_values
           ),
           computeConjunction(
             colALeft = a1_out_var,
-            colARight = b1_out_var,
+            colARight = num_left_idx,
             conj = List(
               Conj(conj_a_var, s"${a1_var}[${a1_out_var}[i]]"),
               Conj(conj_x_var, s"${a1_out_var}[i]"),
               Conj(conj_y_var, s"${a2_out_var}[i]")
             ),
             pairings =
-              List(EqualityPairing(a1_out_var, b1_out_var), EqualityPairing(a2_out_var, b2_out_var))
+              List(EqualityPairing(a1_out_var, num_left_idx), EqualityPairing(a2_out_var, num_right_idx))
           ),
           populateVarChar(left_dict_var, conj_a_var, o_a_var),
           populateScalar(o_b, conj_x_var, x_c, VeScalarType.VeNullableInt),
