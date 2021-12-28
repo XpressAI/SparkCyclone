@@ -7,6 +7,26 @@ import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 
 object GenericJoiner {
+
+  def populateVarChar(leftDict: String, conj: String, output: String): CodeLines =
+    CodeLines.from(s"""words_to_varchar_vector(${leftDict}.index_to_words(${conj}), ${output});""")
+
+  def populateScalar(
+    outputName: String,
+    conj: String,
+    inputName: String,
+    veScalarType: VeScalarType
+  ): CodeLines =
+    CodeLines.from(
+      initializeScalarVector(veScalarType, outputName, s"${conj}.size()"),
+      CodeLines.forLoop("i", s"${conj}.size()")(
+        CodeLines.from(
+          s"${outputName}->data[i] = ${inputName}->data[${conj}[i]];",
+          s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, ${conj}[i]));"
+        )
+      )
+    )
+
   def produce: CodeLines = {
     val x_a = "x_a"
     val x_b = "x_b"
@@ -17,31 +37,9 @@ object GenericJoiner {
     val o_a = "o_a"
     val o_b = "o_b"
     val o_c = "o_c"
-    val populateFirstColumn =
-      CodeLines.from("""
-                       |    frovedis::words result = left_dict.index_to_words(conj_a);
-                       |    words_to_varchar_vector(result, o_a);
-                       |
-                       |""".stripMargin)
-    val populateSecondColumn = CodeLines.from(
-      initializeScalarVector(VeScalarType.VeNullableInt, "o_b", "conj_x.size()"),
-      CodeLines.forLoop("i", "conj_x.size()")(
-        CodeLines.from(
-          s"o_b->data[i] = x_c->data[conj_x[i]];",
-          "set_validity(o_b->validityBuffer, i, check_valid(x_c->validityBuffer, conj_x[i]));"
-        )
-      )
-    )
-
-    val populateThirdColumn = CodeLines.from(
-      initializeScalarVector(VeScalarType.VeNullableDouble, "o_c", "conj_y.size()"),
-      CodeLines.forLoop("i", "conj_y.size()")(
-        CodeLines.from(
-          s"o_c->data[i] = y_c->data[conj_y[i]];",
-          "set_validity(o_c->validityBuffer, i, check_valid(y_c->validityBuffer, conj_y[i]));"
-        )
-      )
-    )
+    val populateFirstColumn = populateVarChar("left_dict", "conj_a", "o_a")
+    val populateSecondColumn = populateScalar("o_b", "conj_x", "x_c", VeScalarType.VeNullableInt)
+    val populateThirdColumn = populateScalar("o_c", "conj_y", "y_c", VeScalarType.VeNullableDouble)
 
     val computeB1B2Out =
       CodeLines.from("""
