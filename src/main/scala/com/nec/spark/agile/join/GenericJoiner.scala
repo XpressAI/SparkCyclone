@@ -27,13 +27,10 @@ object GenericJoiner {
       )
     )
 
-  private val conj_a_var = "conj_a_v"
-
-  private val conj_x_var = "conj_x_var"
-
-  private val conj_y_var = "conj_y_var"
-
   def produce: CodeLines = {
+    val conj_a_var = "conj_a_v"
+    val conj_x_var = "conj_x_var"
+    val conj_y_var = "conj_y_var"
     val x_a = "x_a"
     val x_b = "x_b"
     val x_c = "x_c"
@@ -88,15 +85,20 @@ object GenericJoiner {
             leftWords = left_words,
             rightVec = y_a
           ),
-          computeNumJoin(b1_out_var, b2_out_var, x_b, y_b),
+          computeNumJoin(
+            leftOut = b1_out_var,
+            rightOut = b2_out_var,
+            leftInput = x_b,
+            rightInput = y_b
+          ),
           compCC(
             conj_a = conj_a_var,
             conj_x = conj_x_var,
             conj_y = conj_y_var,
-            a1_out = a1_out_var,
-            b1_out = b1_out_var,
-            a2_out = a2_out_var,
-            b2_out = b2_out_var,
+            colALeft = a1_out_var,
+            colARight = b1_out_var,
+            colBLeft = a2_out_var,
+            colBRight = b2_out_var,
             a1 = a1_var
           ),
           populateVarChar(left_dict_var, conj_a_var, o_a_var),
@@ -113,38 +115,37 @@ object GenericJoiner {
     conj_a: String,
     conj_x: String,
     conj_y: String,
-    a1_out: String,
-    b1_out: String,
-    a2_out: String,
-    b2_out: String,
+    colALeft: String,
+    colARight: String,
+    colBLeft: String,
+    colBRight: String,
     a1: String
-  ) = {
+  ): CodeLines =
     CodeLines
       .from(
         s"std::vector<size_t> $conj_a;",
         s"std::vector<size_t> $conj_x;",
         s"std::vector<size_t> $conj_y;",
-        s"for (int i = 0; i < $a1_out.size(); i++) {",
-        s"  for (int j = 0; j < $b1_out.size(); j++) {",
-        s"    if ($a1_out[i] == $b1_out[j] && $a2_out[i] == $b2_out[j]) {",
-        s"      $conj_a.push_back($a1[$a1_out[i]]);",
-        s"      $conj_x.push_back($a1_out[i]);",
-        s"      $conj_y.push_back($a2_out[i]);",
+        s"for (int i = 0; i < $colALeft.size(); i++) {",
+        s"  for (int j = 0; j < $colARight.size(); j++) {",
+        s"    if ($colALeft[i] == $colARight[j] && $colBLeft[i] == $colBRight[j]) {",
+        s"      $conj_a.push_back($a1[$colALeft[i]]);",
+        s"      $conj_x.push_back($colALeft[i]);",
+        s"      $conj_y.push_back($colBLeft[i]);",
         "    }",
         "  }",
         "}"
       )
-  }
 
   private def computeNumJoin(
-    b1_out: String,
-    b2_out: String,
+    leftOut: String,
+    rightOut: String,
     leftInput: String,
     rightInput: String
   ): CodeLines =
     CodeLines.from(
-      s"std::vector<size_t> ${b1_out};",
-      s"std::vector<size_t> ${b2_out};",
+      s"std::vector<size_t> ${leftOut};",
+      s"std::vector<size_t> ${rightOut};",
       CodeLines
         .from(
           s"std::vector<int64_t> left(${leftInput}->count);",
@@ -159,7 +160,7 @@ object GenericJoiner {
           s"  right[i] = ${rightInput}->data[i];",
           s"  right_idx[i] = i;",
           s"}",
-          s"frovedis::equi_join(right, right_idx, left, left_idx, $b2_out, $b1_out);"
+          s"frovedis::equi_join(right, right_idx, left, left_idx, $rightOut, $leftOut);"
         )
         .block
     )
