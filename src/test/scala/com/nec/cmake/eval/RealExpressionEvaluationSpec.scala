@@ -44,6 +44,7 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
+import com.nec.spark.agile.join.GenericJoiner
 import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -675,10 +676,13 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       cLib <- Resource.eval {
         IO.delay {
           CMakeBuilder.buildCLogging(
-            List(TransferDefinitionsSourceCode, "\n\n", CppResource("cpp/adv-join.hpp").readString)
-              .mkString("\n\n"),
-            debug = false
-          )
+            List(
+              TransferDefinitionsSourceCode,
+              "\n\n",
+              GenericJoiner.printVec.cCode,
+              GenericJoiner.produce.cCode
+            )
+              .mkString("\n\n"))
         }
       }
 
