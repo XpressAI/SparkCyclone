@@ -99,7 +99,7 @@ object GenericJoiner {
             colARight = b1_out_var,
             colBLeft = a2_out_var,
             colBRight = b2_out_var,
-            a1 = a1_var
+            leftDictIndices = a1_var
           ),
           populateVarChar(left_dict_var, conj_a_var, o_a_var),
           populateScalar(o_b, conj_x_var, x_c, VeScalarType.VeNullableInt),
@@ -111,6 +111,8 @@ object GenericJoiner {
     )
   }
 
+  final case class Conj(name: String, input: String)
+
   private def compCC(
     conj_a: String,
     conj_x: String,
@@ -119,23 +121,25 @@ object GenericJoiner {
     colARight: String,
     colBLeft: String,
     colBRight: String,
-    a1: String
-  ): CodeLines =
+    leftDictIndices: String
+  ): CodeLines = {
+    val conjN = List(conj_a, conj_x, conj_y)
+    val conj_out = List(s"$leftDictIndices[$colALeft[i]]", s"$colALeft[i]", s"$colBLeft[i]")
+    val conj = conjN.zip(conj_out).map { case (n, i) =>
+      Conj(n, i)
+    }
     CodeLines
       .from(
-        s"std::vector<size_t> $conj_a;",
-        s"std::vector<size_t> $conj_x;",
-        s"std::vector<size_t> $conj_y;",
+        conj.map(n => s"std::vector<size_t> ${n.name};"),
         s"for (int i = 0; i < $colALeft.size(); i++) {",
         s"  for (int j = 0; j < $colARight.size(); j++) {",
         s"    if ($colALeft[i] == $colARight[j] && $colBLeft[i] == $colBRight[j]) {",
-        s"      $conj_a.push_back($a1[$colALeft[i]]);",
-        s"      $conj_x.push_back($colALeft[i]);",
-        s"      $conj_y.push_back($colBLeft[i]);",
+        conj.map { case Conj(k, i) => s"$k.push_back($i);" },
         "    }",
         "  }",
         "}"
       )
+  }
 
   private def computeNumJoin(
     leftOut: String,
