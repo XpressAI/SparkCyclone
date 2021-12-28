@@ -11,7 +11,7 @@ object BenchmarkLogbackConfigurationFile {
     <root level="info">
       <appender-ref ref="SERVER"/>
     </root>
-    <logger level="info" name="com.nec.spark"/>
+    <logger level="debug" name="com.nec"/>
     <logger level="info" name="sparkcyclone.tpch"/>
   </configuration>
 }

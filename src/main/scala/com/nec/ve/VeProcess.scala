@@ -20,6 +20,7 @@ trait VeProcess {
     get(containerLocation, bb, containerSize)
     bb
   }
+
   def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long): Long
@@ -103,8 +104,19 @@ object VeProcess {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
+      logger.debug(s"Allocating ${size} bytes ==> ${ptr}")
       veProcessMetrics.registerAllocation(size, ptr)
       ptr
+    }
+
+    private implicit class RichVCV(veColVector: VeColVector) {
+      def register(): VeColVector = {
+        veColVector.bufferLocations.zip(veColVector.bufferSizes).foreach { case (location, size) =>
+          logger.debug(s"Registering allocation of ${size} at ${location}")
+          veProcessMetrics.registerAllocation(size, location)
+        }
+        veColVector
+      }
     }
 
     override def putBuffer(byteBuffer: ByteBuffer): Long = {
@@ -125,6 +137,7 @@ object VeProcess {
 
     override def free(memoryLocation: Long): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
+      logger.debug(s"Deallocating ptr ${memoryLocation}")
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
     }
 
@@ -190,7 +203,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
-          )
+          ).register()
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
@@ -205,12 +218,11 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations =
               List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
-          )
+          ).register()
       }
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
-      logger.info(s"Loading library from path ${path}...")
       SparkCycloneExecutorPlugin.libsPerProcess
         .getOrElseUpdate(
           veo_proc_handle,
@@ -218,6 +230,7 @@ object VeProcess {
         )
         .getOrElseUpdate(
           path.toString, {
+            logger.info(s"Loading library from path ${path}...")
             val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
             require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe} (library at: ${path})")
             logger.info(s"Loaded library from ${path} as $libRe")
@@ -298,7 +311,7 @@ object VeProcess {
               bufferLocations =
                 List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16)),
               variableSize = Some(byteBuffer.getInt(24))
-            )
+            ).register()
           case (outPointer, r: VeScalarType) =>
             val outContainerLocation = outPointer.get(set)
             require(
@@ -316,7 +329,7 @@ object VeProcess {
               containerLocation = outContainerLocation,
               bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
               variableSize = None
-            )
+            ).register()
         }
       }
     }
@@ -385,7 +398,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
-          )
+          ).register()
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
@@ -400,7 +413,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations =
               List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
-          )
+          ).register()
       }
     }
 

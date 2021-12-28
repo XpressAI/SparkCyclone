@@ -1,8 +1,9 @@
 package com.nec.spark.planning
 
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
-import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
 import com.nec.spark.planning.ProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
+import com.nec.spark.planning.plans.ProjectEvaluationPlan
+import com.nec.spark.planning.plans.ProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, ExprId, NamedExpression}

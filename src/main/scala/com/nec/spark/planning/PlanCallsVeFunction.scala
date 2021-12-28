@@ -1,6 +1,5 @@
 package com.nec.spark.planning
 
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.LibraryReference
 import org.apache.spark.sql.execution.SparkPlan

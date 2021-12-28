@@ -17,12 +17,11 @@
  * limitations under the License.
  *
  */
-package com.nec.spark.planning
+package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.ProjectEvaluationPlan.ProjectionContext
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
@@ -53,9 +52,10 @@ final case class ProjectEvaluationPlan(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  private val projectionContext = ProjectionContext(outputExpressions, child.outputSet.toList)
-  import projectionContext._
+  private val projectionContext =
+    ProjectEvaluationPlan.ProjectionContext(outputExpressions, child.outputSet.toList)
 
+  import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] =
     child
       .asInstanceOf[SupportsVeColBatch]
