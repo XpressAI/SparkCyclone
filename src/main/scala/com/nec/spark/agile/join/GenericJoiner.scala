@@ -99,7 +99,7 @@ object GenericJoiner {
     val leftIndicesVec = "lel"
     val rightIndicesVec = "rel"
 
-    val conjunctions = CodeLines.from(
+    val outIndexComputations =
       computeLeftRightIndices(
         outMatchingLeftIndices = leftIndicesVec,
         outMatchingRightIndices = rightIndicesVec,
@@ -107,13 +107,7 @@ object GenericJoiner {
         secondLeft = firstPairing.indexOfSecondColumn,
         firstPairing = firstPairing,
         secondPairing = secondPairing
-      ),
-      computeConjunction(
-        outMatchingLeftIndices = leftIndicesVec,
-        outMatchingRightIndices = rightIndicesVec,
-        conj = outputs.map(_.conj)
       )
-    )
 
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
@@ -139,8 +133,8 @@ object GenericJoiner {
           dictsWords,
           firstJoinCode,
           secondJoinCode,
-          conjunctions,
-          outputs.map(_.outputProduction),
+          outIndexComputations,
+          outputs.map(_.produce(leftIndicesVec, rightIndicesVec)),
           "return 0;"
         )
         .indented,
@@ -150,10 +144,23 @@ object GenericJoiner {
 
   final case class Output(
     outputName: String,
-    conj: Conj,
+    sourceIndex: String,
     outputProduction: CodeLines,
     veType: VeType
   ) {
+
+    def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
+      .from(
+        s"std::vector<size_t> input_indices;",
+        s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
+        s"  int i = $leftIndicesVec[x];",
+        s"  int j = $rightIndicesVec[x];",
+        s"  input_indices.push_back(${sourceIndex});",
+        "}",
+        outputProduction
+      )
+      .block
+
     def cVector: CVector = CVector(outputName, veType)
   }
 
@@ -162,41 +169,35 @@ object GenericJoiner {
     outputName: String,
     sourceIndices: String,
     veScalarType: VeScalarType
-  ): Output = {
-
-    val conj_name = s"conj_${outputName}"
-
+  ): Output =
     Output(
       outputName = outputName,
-      conj = Conj(conj_name, s"${sourceIndices}[i]"),
+      sourceIndex = s"${sourceIndices}[i]",
       outputProduction = populateScalar(
         outputName = outputName,
-        inputIndices = conj_name,
+        inputIndices = "input_indices",
         inputName = source,
         veScalarType = veScalarType
       ),
       veType = veScalarType
     )
 
-  }
-
   private def outStr(
     outputName: String,
     sourceDict: String,
     inMatchingDictIndices: String,
     sourceIndices: String
-  ): Output = {
-    val conj_name = s"conj_${outputName}"
+  ): Output =
     Output(
       outputName = outputName,
-      conj = Conj(conj_name, s"${inMatchingDictIndices}[${sourceIndices}[i]]"),
-      outputProduction =
-        populateVarChar(leftDict = sourceDict, inputIndices = conj_name, outputName = outputName),
+      sourceIndex = s"${inMatchingDictIndices}[${sourceIndices}[i]]",
+      outputProduction = populateVarChar(
+        leftDict = sourceDict,
+        inputIndices = "input_indices",
+        outputName = outputName
+      ),
       veType = VeString
     )
-  }
-
-  final case class Conj(name: String, input: String)
 
   final case class EqualityPairing(indexOfFirstColumn: String, indexOfSecondColumn: String) {
     def toCondition: String = s"$indexOfFirstColumn[i] == $indexOfSecondColumn[j]"
@@ -224,24 +225,6 @@ object GenericJoiner {
         s"      ${outMatchingRightIndices}.push_back(j);",
         "    }",
         "  }",
-        "}"
-      )
-
-  /**
-   * This combines joins from multiple places to produce corresponding indices for output items
-   */
-  private def computeConjunction(
-    outMatchingLeftIndices: String,
-    outMatchingRightIndices: String,
-    conj: List[Conj]
-  ): CodeLines =
-    CodeLines
-      .from(
-        conj.map(n => s"std::vector<size_t> ${n.name};"),
-        s"for (int x = 0; x < $outMatchingLeftIndices.size(); x++) {",
-        s"  int i = $outMatchingLeftIndices[x];",
-        s"  int j = $outMatchingLeftIndices[x];",
-        conj.map { case Conj(k, i) => s"  $k.push_back($i);" },
         "}"
       )
 
