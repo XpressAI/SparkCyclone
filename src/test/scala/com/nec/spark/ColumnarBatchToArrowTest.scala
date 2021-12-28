@@ -20,7 +20,11 @@
 package com.nec.spark
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{Float8VectorInputWrapper, IntVectorInputWrapper, VarCharVectorInputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{
+  Float8VectorInputWrapper,
+  IntVectorInputWrapper,
+  VarCharVectorInputWrapper
+}
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.execution.arrow.ColumnarArrowWriter
@@ -63,13 +67,13 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
       val (vectorSchemaRoot, columns) =
         ColumnarBatchToArrow.fromBatch(arrowSchema, allocator)(sampleBatch)
       try {
-        expect(
-          columns.size == 1,
-          columns.head.asInstanceOf[VarCharVectorInputWrapper].varCharVector.toList == List[String](
-            "ABC",
-            "DEF"
-          )
-        )
+        val list: List[String] =
+          columns.head
+            .asInstanceOf[VarCharVectorInputWrapper]
+            .varCharVector
+            .toList
+        // fails due to UTF-32 being returned
+        expect(list.map(_.length).sum == 6, columns.size == 1, list == List[String]("ABC", "DEF"))
       } finally vectorSchemaRoot.close()
     } finally {
       allocator.close()

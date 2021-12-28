@@ -1,6 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.VeCachedBatchSerializer.{CachedVeBatch, ShortCircuit}
 import com.nec.ve.VeColBatch
@@ -60,8 +61,6 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
       VeColBatchConverters.getNumRows(input.sparkContext, conf)
     )
     .map { ui =>
-      if (!ui.isReferenced) SparkCycloneExecutorPlugin.register(ui.veColBatch)
-
       CachedVeBatch(ui.veColBatch)
     }
 

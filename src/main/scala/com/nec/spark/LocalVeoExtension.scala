@@ -19,23 +19,32 @@
  */
 package com.nec.spark
 
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
+import com.nec.spark.LocalVeoExtension.compilerRule
+import com.nec.spark.planning.{
+  ParallelCompilationColumnarRule,
+  VERewriteStrategy,
+  VeColumnarRule,
+  VeRewriteStrategyOptions
+}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.execution.ColumnarRule
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
-object LocalVeoExtension {
+object LocalVeoExtension extends LazyLogging {
   var _enabled = true
+
+  def compilerRule(sparkSession: SparkSession): ColumnarRule = ParallelCompilationColumnarRule
 }
 
 final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logging {
   override def apply(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectPlannerStrategy(sparkSession =>
       new VERewriteStrategy(
-        nativeEvaluator = ExecutorPluginManagedEvaluator,
         options = VeRewriteStrategyOptions.fromConfig(sparkSession.sparkContext.getConf)
       )
     )
+    sparkSessionExtensions.injectColumnar(compilerRule)
     sparkSessionExtensions.injectColumnar(_ => new VeColumnarRule)
   }
 }

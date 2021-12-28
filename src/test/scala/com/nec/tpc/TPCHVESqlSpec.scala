@@ -19,12 +19,15 @@
  */
 package com.nec.tpc
 
-import com.nec.native.NativeEvaluator.ExecutorPluginManagedEvaluator
-import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule}
+import com.nec.spark.LocalVeoExtension.compilerRule
+import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
+import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
+import org.apache.spark.sql.internal.SQLConf.{CODEGEN_FALLBACK, WHOLESTAGE_CODEGEN_ENABLED}
 import org.scalatest.ConfigMap
+import org.scalatest.concurrent.TimeLimitedTests
+import org.scalatest.time.{Minutes, Span}
 
 import java.io.File
 
@@ -32,6 +35,7 @@ object TPCHVESqlSpec {
 
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
+      .config(key = WHOLESTAGE_CODEGEN_ENABLED.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(
         key = "spark.sql.cache.serializer",
@@ -39,22 +43,19 @@ object TPCHVESqlSpec {
       )
       .config(key = "spark.ui.enabled", value = true)
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
-      .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-      .withExtensions(sse =>
+      .withExtensions { sse =>
         sse.injectPlannerStrategy(_ => {
-          VERewriteStrategy.failFast = false
-          new VERewriteStrategy(ExecutorPluginManagedEvaluator)
+          new VERewriteStrategy(VeRewriteStrategyOptions.default.copy(failFast = true))
         })
-      )
-      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
+        sse.injectColumnar(compilerRule)
+        sse.injectColumnar(_ => new VeColumnarRule)
+      }
   }
 
 }
 
-final class TPCHVESqlSpec extends TPCHSqlCSpec {
-
-  private var initialized = false
+final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
     TPCHVESqlSpec.VeConfiguration
@@ -64,8 +65,8 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
   }
 
   override protected def beforeAll(configMap: ConfigMap): Unit = {
-
-    //SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
+    // reuse the process
+    CloseAutomatically = false
 
     val dbGenFile = new File("src/test/resources/dbgen/dbgen")
     if (!dbGenFile.exists()) {
@@ -79,5 +80,7 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec {
 
     super.beforeAll(configMap)
   }
+
+  override def timeLimit: Span = Span(5, Minutes)
 
 }

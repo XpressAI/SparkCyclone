@@ -1,0 +1,98 @@
+---
+name: "TPC-H Central runner"
+env:
+  INPUT_extra: "${{ github.event.inputs.extra }}"
+  INPUT_fail-fast: "${{ github.event.inputs.fail-fast }}"
+  INPUT_filter-on-ve: "${{ github.event.inputs.filter-on-ve }}"
+  INPUT_pass-through-project: "${{ github.event.inputs.pass-through-project }}"
+  INPUT_query: "${{ github.event.inputs.query }}"
+  INPUT_scale: "${{ github.event.inputs.scale }}"
+  INPUT_serializer: "${{ github.event.inputs.serializer }}"
+  INPUT_use-cyclone: "${{ github.event.inputs.use-cyclone }}"
+  INPUT_ve-log-debug: "${{ github.event.inputs.ve-log-debug }}"
+"on":
+  workflow_dispatch:
+    inputs:
+      extra:
+        type: "input"
+        description: "Extra command line arguments to add to Spark"
+      fail-fast:
+        type: "boolean"
+        description: "Fail Fast"
+        default: "true"
+      filter-on-ve:
+        type: "boolean"
+        description: "Filter on VE"
+        default: "true"
+      pass-through-project:
+        type: "boolean"
+        description: "Pass-through in projection"
+        default: "false"
+      query:
+        type: "choice"
+        description: "Query to use"
+        options:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+        - "7"
+        - "8"
+        - "9"
+        - "10"
+        - "11"
+        - "12"
+        - "13"
+        - "14"
+        - "15"
+        - "16"
+        - "17"
+        - "18"
+        - "19"
+        - "20"
+        - "21"
+        - "22"
+        - "all"
+        default: "1"
+      scale:
+        type: "choice"
+        description: "Scale"
+        options:
+        - "1"
+        - "10"
+        - "20"
+        default: "1"
+      serializer:
+        type: "boolean"
+        description: "Use Serializer"
+        default: "true"
+      use-cyclone:
+        type: "boolean"
+        description: "Enable Spark Cyclone plugin?"
+        default: "true"
+      ve-log-debug:
+        type: "boolean"
+        description: "Debug VE logs"
+        default: "false"
+jobs:
+  build:
+    runs-on: "ve"
+    timeout-minutes: 20
+    steps:
+    - uses: "actions/checkout@v2"
+    - name: "Check User"
+      run: "whoami"
+    - name: "Check Path"
+      run: "pwd"
+    - name: "Check Access to VE"
+      run: "/opt/nec/ve/bin/vecmd info"
+    - name: "Branch Ref"
+      run: "echo ${GITHUB_REF#refs/heads/}"
+    - name: "Run TPC-H"
+      run: "sbt tpcbench-run/run"
+      if: "success()"
+    - name: "Copying to sparkcyclone.io"
+      if: "always()"
+      run: "rsync -r -v tpcbench-run/target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/summary"

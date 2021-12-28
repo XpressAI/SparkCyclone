@@ -22,8 +22,27 @@ package com.nec.arrow
 import com.nec.arrow.ArrowInterfaces.c_bounded_data
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.ArrowInterfaces._
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{BigIntVectorInputWrapper, BitVectorInputWrapper, ByteBufferInputWrapper, DateDayVectorInputWrapper, Float8VectorInputWrapper, IntVectorInputWrapper, SmallIntVectorInputWrapper, StringInputWrapper, TimeStampVectorInputWrapper, VarCharVectorInputWrapper}
-import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{BigIntVectorOutputWrapper, BitVectorOutputWrapper, Float8VectorOutputWrapper, IntVectorOutputWrapper, SmallIntVectorOutputWrapper, TimeStampVectorOutputWrapper, VarCharVectorOutputWrapper}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{
+  BigIntVectorInputWrapper,
+  BitVectorInputWrapper,
+  ByteBufferInputWrapper,
+  DateDayVectorInputWrapper,
+  Float8VectorInputWrapper,
+  IntVectorInputWrapper,
+  SmallIntVectorInputWrapper,
+  StringInputWrapper,
+  TimeStampVectorInputWrapper,
+  VarCharVectorInputWrapper
+}
+import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgument.OutputVectorWrapper.{
+  BigIntVectorOutputWrapper,
+  BitVectorOutputWrapper,
+  Float8VectorOutputWrapper,
+  IntVectorOutputWrapper,
+  SmallIntVectorOutputWrapper,
+  TimeStampVectorOutputWrapper,
+  VarCharVectorOutputWrapper
+}
 import com.sun.jna.Library
 import com.nec.arrow.ArrowNativeInterface._
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper._

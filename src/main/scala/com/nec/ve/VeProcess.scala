@@ -3,8 +3,9 @@ package com.nec.ve
 import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
+import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.LibraryReference
+import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
@@ -19,6 +20,7 @@ trait VeProcess {
     get(containerLocation, bb, containerSize)
     bb
   }
+
   def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long): Long
@@ -49,13 +51,12 @@ trait VeProcess {
     results: List[VeType]
   ): List[VeColVector]
 
-  def getProcessId(): Long
 }
 
 object VeProcess {
   final case class LibraryReference(value: Long)
-  final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess {
-    
+  final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
+
     override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
@@ -91,14 +92,31 @@ object VeProcess {
       results: List[VeType]
     ): List[VeColVector] = f().executeMultiIn(libraryReference, functionName, batches, results)
 
-    override def getProcessId(): Long = f().getProcessId()
   }
 
-  final case class WrappingVeo(veo_proc_handle: veo_proc_handle) extends VeProcess {
+  final case class WrappingVeo(
+    veo_proc_handle: veo_proc_handle,
+    source: VeColVectorSource,
+    veProcessMetrics: VeProcessMetrics
+  ) extends VeProcess
+    with LazyLogging {
     override def allocate(size: Long): Long = {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
-      veInputPointer.get()
+      val ptr = veInputPointer.get()
+      logger.debug(s"Allocating ${size} bytes ==> ${ptr}")
+      veProcessMetrics.registerAllocation(size, ptr)
+      ptr
+    }
+
+    private implicit class RichVCV(veColVector: VeColVector) {
+      def register(): VeColVector = {
+        veColVector.bufferLocations.zip(veColVector.bufferSizes).foreach { case (location, size) =>
+          logger.debug(s"Registering allocation of ${size} at ${location}")
+          veProcessMetrics.registerAllocation(size, location)
+        }
+        veColVector
+      }
     }
 
     override def putBuffer(byteBuffer: ByteBuffer): Long = {
@@ -117,15 +135,17 @@ object VeProcess {
     override def get(from: Long, to: ByteBuffer, size: Long): Unit =
       veo.veo_read_mem(veo_proc_handle, new org.bytedeco.javacpp.Pointer(to), from, size)
 
-    override def free(memoryLocation: Long): Unit =
+    override def free(memoryLocation: Long): Unit = {
+      veProcessMetrics.deregisterAllocation(memoryLocation)
+      logger.debug(s"Deallocating ptr ${memoryLocation}")
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
+    }
 
     def validateVectors(list: List[VeColVector]): Unit = {
-      val processId = getProcessId()
       list.foreach(vector =>
         require(
-          vector.veProcessId == processId,
-          s"Expecting process ID to be ${processId}, but got ${vector.veProcessId} for vector ${vector}"
+          vector.source == source,
+          s"Expecting source to be ${source}, but got ${vector.source} for vector ${vector}"
         )
       )
     }
@@ -176,21 +196,21 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(16),
             name = "output",
             veType = scalar,
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
-          )
+          ).register()
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(28),
             name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
@@ -198,7 +218,7 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations =
               List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
-          )
+          ).register()
       }
     }
 
@@ -210,8 +230,10 @@ object VeProcess {
         )
         .getOrElseUpdate(
           path.toString, {
+            logger.info(s"Loading library from path ${path}...")
             val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
-            require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe}")
+            require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe} (library at: ${path})")
+            logger.info(s"Loaded library from ${path} as $libRe")
             LibraryReference(libRe)
           }
         )
@@ -281,7 +303,7 @@ object VeProcess {
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
-              veProcessId = getProcessId(),
+              source = source,
               numItems = byteBuffer.getInt(28),
               name = "output",
               veType = VeString,
@@ -289,7 +311,7 @@ object VeProcess {
               bufferLocations =
                 List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16)),
               variableSize = Some(byteBuffer.getInt(24))
-            )
+            ).register()
           case (outPointer, r: VeScalarType) =>
             val outContainerLocation = outPointer.get(set)
             require(
@@ -300,14 +322,14 @@ object VeProcess {
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
-              veProcessId = getProcessId(),
+              source = source,
               numItems = byteBuffer.getInt(16),
               name = "output",
               veType = r,
               containerLocation = outContainerLocation,
               bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
               variableSize = None
-            )
+            ).register()
         }
       }
     }
@@ -369,21 +391,21 @@ object VeProcess {
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(16),
             name = "output",
             veType = scalar,
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
-          )
+          ).register()
         case (outPointer, VeString) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
-            veProcessId = getProcessId(),
+            source = source,
             numItems = byteBuffer.getInt(28),
             name = "output",
             variableSize = Some(byteBuffer.getInt(24)),
@@ -391,10 +413,9 @@ object VeProcess {
             containerLocation = outContainerLocation,
             bufferLocations =
               List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
-          )
+          ).register()
       }
     }
 
-    override def getProcessId(): Long = new LongPointer(veo_proc_handle).get()
   }
 }

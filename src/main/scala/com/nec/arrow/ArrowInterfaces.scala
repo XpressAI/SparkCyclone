@@ -25,7 +25,7 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
-import java.nio.ByteBuffer
+import java.nio.{ByteBuffer, ByteOrder}
 
 object ArrowInterfaces {
 
@@ -56,12 +56,43 @@ object ArrowInterfaces {
     vc
   }
 
+  def intCharsFromVarcharVector(buf: VarCharVector): ByteBuffer = {
+    val ret = ByteBuffer.allocateDirect(buf.getBufferSize * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val out = ret.asIntBuffer()
+    for (i <- 0 until buf.getValueCount) {
+      val ints = buf.getObject(i).toString.getBytes("UTF-32LE")
+      val intBuf = ByteBuffer.wrap(ints).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+      out.put(intBuf)
+    }
+    ret
+  }
+
+  def lengthsFromVarcharVector(buf: VarCharVector): ByteBuffer = {
+    val ret = ByteBuffer.allocateDirect(buf.getValueCount * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val lengths = ret.asIntBuffer()
+    for (i <- 0 until buf.getValueCount) {
+      val len = buf.getEndOffset(i) - buf.getStartOffset(i)
+      lengths.put(len)
+    }
+    ret
+  }
+
+  def startsFromVarcharVector(buf: VarCharVector): ByteBuffer = {
+    val ret = ByteBuffer.allocateDirect(buf.getValueCount * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val starts = ret.asIntBuffer()
+    for (i <- 0 until buf.getValueCount) {
+      val len = buf.getStartOffset(i)
+      starts.put(len)
+    }
+    ret
+  }
+
   def c_nullable_varchar_vector(varCharVector: VarCharVector): nullable_varchar_vector = {
     val vc = new nullable_varchar_vector()
-    vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.offsets = varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer =
-      varCharVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = intCharsFromVarcharVector(varCharVector).asInstanceOf[DirectBuffer].address()
+    vc.offsets = startsFromVarcharVector(varCharVector).asInstanceOf[DirectBuffer].address()
+    vc.lengths = lengthsFromVarcharVector(varCharVector).asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = varCharVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = varCharVector.getValueCount
     vc.dataSize = varCharVector.sizeOfValueBuffer()
     vc
@@ -71,7 +102,7 @@ object ArrowInterfaces {
     val vc = new non_null_c_bounded_string()
     vc.data = ByteBuffer
       .allocateDirect(string.length)
-      .put(string.getBytes())
+      .put(string.getBytes("UTF-32LE"))
       .asInstanceOf[DirectBuffer]
       .address()
     vc.length = string.length
@@ -142,8 +173,7 @@ object ArrowInterfaces {
   def c_nullable_bigint_vector(tzVector: TimeStampMicroTZVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
     vc.data = tzVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer =
-      tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.validityBuffer = tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = tzVector.getValueCount
     vc
   }
@@ -293,15 +323,38 @@ object ArrowInterfaces {
     if (input.count < 1) {
       return
     }
-    varCharVector.allocateNew(input.dataSize.toLong, input.count)
+
+    val buf = ByteBuffer.allocateDirect(input.count * 4).order(ByteOrder.LITTLE_ENDIAN)
+    getUnsafe.copyMemory(input.lengths, buf.asInstanceOf[DirectBuffer].address(), input.count * 4)
+    val lengths = buf.asIntBuffer()
+    var sum = 0;
+    for (i <- 0 until input.count) {
+      val len = lengths.get(i)
+      sum += len
+    }
+
+    varCharVector.allocateNew(sum, input.count)
     varCharVector.setValueCount(input.count)
     getUnsafe.copyMemory(
       input.validityBuffer,
       varCharVector.getValidityBufferAddress,
       Math.ceil(input.count / 64.0).toInt * 8
     )
-    getUnsafe.copyMemory(input.data, varCharVector.getDataBufferAddress, input.dataSize.toLong)
-    getUnsafe.copyMemory(input.offsets, varCharVector.getOffsetBufferAddress, 4 * (input.count + 1))
+
+    val dataBuf = ByteBuffer.allocateDirect(input.dataSize * 4).order(ByteOrder.LITTLE_ENDIAN)
+    getUnsafe.copyMemory(input.data, dataBuf.asInstanceOf[DirectBuffer].address(), input.dataSize * 4)
+
+    val dataBufArray = ByteBuffer.wrap(new Array[Byte](dataBuf.capacity())).order(ByteOrder.LITTLE_ENDIAN)
+    dataBufArray.put(dataBuf)
+
+    for (i <- 0 until input.count) {
+      val start = getUnsafe.getInt(input.offsets + (i * 4)) * 4
+      val length = getUnsafe.getInt(input.lengths + (i * 4)) * 4
+      val str = new String(dataBufArray.array(), start, length, "UTF-32LE")
+      val utf8bytes = str.getBytes
+
+      varCharVector.set(i, utf8bytes)
+    }
   }
 
   def nullable_int_vector_to_BitVector(input: nullable_int_vector, bitVector: BitVector): Unit = {
@@ -325,7 +378,7 @@ object ArrowInterfaces {
     input: nullable_bigint_vector,
     timeStampVector: TimeStampMicroTZVector
   ): Unit = {
-    if ( input.count < 1 ) {
+    if (input.count < 1) {
       return
     }
     timeStampVector.setValueCount(input.count)

@@ -26,10 +26,6 @@ sealed trait StringProducer extends Serializable {}
 
 object StringProducer {
 
-  trait ImperativeStringProducer extends StringProducer {
-    def produceTo(tempStringName: String, lenName: String): CodeLines
-  }
-
   trait FrovedisStringProducer extends StringProducer {
     def init(outputName: String, size: String): CodeLines
     def produce(outputName: String, outputIdx: String): CodeLines
@@ -38,28 +34,13 @@ object StringProducer {
 
   def copyString(inputName: String): StringProducer = FrovedisCopyStringProducer(inputName)
 
-  //  def copyString(inputName: String): StringProducer = ImpCopyStringProducer(inputName)
-
-  final case class ImpCopyStringProducer(inputName: String)
-    extends ImperativeStringProducer
-      with CopyStringProducer {
-
-    override def produceTo(tsn: String, iln: String): CodeLines = {
-      CodeLines.from(
-        s"std::string sub_str = std::string(${inputName}->data, ${inputName}->offsets[i], ${inputName}->offsets[i+1] - ${inputName}->offsets[i]);",
-        s"${tsn}.append(sub_str);",
-        s"${iln} += sub_str.size();"
-      )
-    }
-  }
-
   sealed trait CopyStringProducer {
     def inputName: String
   }
 
   final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
-      with CopyStringProducer {
+    with CopyStringProducer {
 
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
     def frovedisLens(outputName: String) = s"${outputName}_lens"
@@ -99,14 +80,43 @@ object StringProducer {
   }
 
   final case class StringChooser(condition: CExpression, ifTrue: String, otherwise: String)
-    extends ImperativeStringProducer {
-    override def produceTo(tempStringName: String, lenName: String): CodeLines =
+    extends FrovedisStringProducer {
+    def init(outputName: String, size: String): CodeLines = {
       CodeLines.from(
-        // note: does not escape strings
-        s"""std::string sub_str = ${condition.cCode} ? std::string("${ifTrue}") : std::string("${otherwise}");""",
-        s"${tempStringName}.append(sub_str);",
-        s"${lenName} += sub_str.size();"
+        s"""std::vector<int> ${outputName}_chars = frovedis::char_to_int("${ifTrue}");""",
+        s"""int ${outputName}_if_true_pos = 0;""",
+        s"""int ${outputName}_if_true_len = ${outputName}_chars.size();""",
+        s"""int ${outputName}_otherwise_pos = ${outputName}_chars.size();""",
+        s"""std::vector<int> ${outputName}_otherwise = frovedis::char_to_int("${otherwise}");""",
+        s"""int ${outputName}_otherwise_len = ${outputName}_chars.size();""",
+        s"""${outputName}_chars.insert(${outputName}_chars.end(), ${outputName}_otherwise.begin(), ${outputName}_otherwise.end());""",
+        s"""std::vector<size_t> ${outputName}_starts();""", // the length of this should be known...
+        s"""std::vector<size_t> ${outputName}_lens();""",   // same here.
       )
+    }
+    def produce(outputName: String, outputIdx: String): CodeLines = {
+      CodeLines.from(
+        s"if (${condition.cCode}) {",
+        CodeLines.from(
+          s"${outputName}_starts[i] = ${outputName}_if_true_pos;",
+          s"${outputName}_lens[i] = ${outputName}_if_true_len;",
+        ),
+        "} else {",
+        CodeLines.from(
+          s"${outputName}_starts[i] = ${outputName}_otherwise_pos;",
+          s"${outputName}_lens[i] = ${outputName}_otherwise_len;",
+        ),
+      "}"
+      )
+    }
+    def complete(outputName: String): CodeLines = {
+      CodeLines.from(
+        s"frovedis::words ${outputName}_words;",
+        s"${outputName}_words.chars.swap(${outputName}_chars);",
+        s"${outputName}_words.starts.swap(${outputName}_starts);",
+        s"${outputName}_words.lens.swap(${outputName}_lens);",
+      )
+    }
   }
 
   final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
@@ -115,53 +125,21 @@ object StringProducer {
     val tmpCurrentOffset = s"${outputName}_tmp_current_offset"
     val tmpCount = s"${outputName}_tmp_count"
 
-    def setup: CodeLines =
+    def setup(size: String = "groups_count"): CodeLines =
       stringProducer match {
-        case _: ImperativeStringProducer =>
-          CodeLines.from(
-            CodeLines.debugHere,
-            s"""std::string ${tmpString}("");""",
-            s"""std::vector<int32_t> ${tmpOffsets};""",
-            s"""int32_t ${tmpCurrentOffset} = 0;""",
-            s"int ${tmpCount} = 0;"
-          )
         case f: FrovedisStringProducer =>
-          CodeLines.from(CodeLines.debugHere, f.init(outputName, "groups_count"))
+          CodeLines.from(CodeLines.debugHere, f.init(outputName, size))
       }
 
-    def forEach: CodeLines = {
+    def forEach(outputIdx: String = "g"): CodeLines = {
       stringProducer match {
-        case imperative: ImperativeStringProducer =>
-          CodeLines
-            .from(
-              CodeLines.debugHere,
-              "int len = 0;",
-              imperative.produceTo(s"$tmpString", "len"),
-              s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
-              s"""${tmpCurrentOffset} += len;""",
-              s"${tmpCount}++;"
-            )
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines.from(frovedisStringProducer.produce(outputName, "g"))
+          CodeLines.from(frovedisStringProducer.produce(outputName, outputIdx))
       }
     }
 
     def complete: CodeLines =
       stringProducer match {
-        case _: ImperativeStringProducer =>
-          CodeLines.from(
-            CodeLines.debugHere,
-            s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
-            s"""${outputName}->count = ${tmpCount};""",
-            s"""${outputName}->dataSize = ${tmpCurrentOffset};""",
-            s"""${outputName}->data = (char*)malloc(${outputName}->dataSize);""",
-            s"""memcpy(${outputName}->data, ${tmpString}.data(), ${outputName}->dataSize);""",
-            s"""${outputName}->offsets = (int32_t*)malloc(sizeof(int32_t) * (${outputName}->count + 1));""",
-            s"""memcpy(${outputName}->offsets, ${tmpOffsets}.data(), sizeof(int32_t) * (${outputName}->count + 1));""",
-            s"${outputName}->validityBuffer = (uint64_t *) malloc(ceil(${outputName}->count / 64.0) * sizeof(uint64_t));",
-            CodeLines.debugHere
-          )
-
         case f: FrovedisStringProducer =>
           CodeLines.from(CodeLines.debugHere, f.complete(outputName))
       }
@@ -171,15 +149,15 @@ object StringProducer {
   }
 
   def produceVarChar(
-                      inputCount: String,
-                      outputName: String,
-                      stringProducer: ImperativeStringProducer
-                    ): CodeLines = {
+    inputCount: String,
+    outputName: String,
+    stringProducer: FrovedisStringProducer
+  ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
-      fp.setup,
+      fp.setup(),
       s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",
-      fp.forEach.indented,
+      fp.forEach("i").indented,
       "}",
       fp.complete,
       s"for( int32_t i = 0; i < $inputCount; i++ ) {",
@@ -189,12 +167,12 @@ object StringProducer {
   }
 
   def produceVarChar(
-                      inputCount: String,
-                      outputName: String,
-                      stringProducer: FrovedisStringProducer,
-                      outputCount: String,
-                      outputIdx: String
-                    ): CodeLines = {
+    inputCount: String,
+    outputName: String,
+    stringProducer: FrovedisStringProducer,
+    outputCount: String,
+    outputIdx: String
+  ): CodeLines = {
     CodeLines.from(
       stringProducer.init(outputName, outputCount),
       s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",

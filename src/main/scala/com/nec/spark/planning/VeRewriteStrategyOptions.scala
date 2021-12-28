@@ -8,7 +8,10 @@ final case class VeRewriteStrategyOptions(
   projectOnVe: Boolean,
   filterOnVe: Boolean,
   exchangeOnVe: Boolean,
-)
+  passThroughProject: Boolean,
+  failFast: Boolean
+) {}
+
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
   def fromConfig(sparkConf: SparkConf): VeRewriteStrategyOptions = {
@@ -32,7 +35,15 @@ object VeRewriteStrategyOptions {
       exchangeOnVe = sparkConf
         .getOption(key = "spark.com.nec.spark.exchange-on-ve")
         .map(_.toBoolean)
-        .getOrElse(default.exchangeOnVe)
+        .getOrElse(default.exchangeOnVe),
+      passThroughProject = sparkConf
+        .getOption(key = "spark.com.nec.spark.pass-through-project")
+        .map(_.toBoolean)
+        .getOrElse(default.passThroughProject),
+      failFast = sparkConf
+        .getOption(key = "spark.com.nec.spark.fail-fast")
+        .map(_.toBoolean)
+        .getOrElse(default.failFast)
     )
   }
 
@@ -42,6 +53,8 @@ object VeRewriteStrategyOptions {
       projectOnVe = true,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = true
+      exchangeOnVe = true,
+      passThroughProject = false,
+      failFast = false
     )
 }

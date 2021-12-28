@@ -28,11 +28,11 @@ object DualMode {
     if (!iterator.hasNext) Right(Iterator.empty)
     else {
       iterator.next() match {
-        case cbr: org.apache.spark.sql.vectorized.ColumnarBatchRow =>
+        case cbr if cbr.toString.contains("ColumnarBatchRow") =>
           Left {
             (Iterator(cbr) ++ iterator)
               .map {
-                case cbr: org.apache.spark.sql.vectorized.ColumnarBatchRow =>
+                case cbr if cbr.toString.contains("ColumnarBatchRow") =>
                   cbr
                 case other =>
                   sys.error(s"Not expected anything other than ColumnarBatchRow, got ${other}")

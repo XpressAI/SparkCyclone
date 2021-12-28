@@ -22,16 +22,9 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.SparkAdditions
-import com.nec.spark.planning.{OneStageEvaluationPlan, VERewriteStrategy}
+import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource
-import com.nec.testing.SampleSource.{
-  makeCsvNumsMultiColumn,
-  makeCsvNumsMultiColumnJoin,
-  SampleColA,
-  SampleColB,
-  SampleColC,
-  SampleColD
-}
+import com.nec.testing.SampleSource.{SampleColA, SampleColB, SampleColC, SampleColD, makeCsvNumsMultiColumn, makeCsvNumsMultiColumnJoin}
 import com.nec.testing.Testing.DataSize.SanityCheckSize
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -40,32 +33,15 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.scalactic.{source, Prettifier}
+import org.scalactic.{Prettifier, source}
 
 import java.time.Instant
 import java.time.temporal.TemporalUnit
 import scala.math.Ordered.orderingToOrdered
 import com.nec.spark.planning.VeColumnarRule
+import com.nec.spark.planning.plans.OneStageEvaluationPlan
 
-object DynamicCSqlExpressionEvaluationSpec {
-
-  val DefaultConfiguration: SparkSession.Builder => SparkSession.Builder = {
-    _.config(CODEGEN_FALLBACK.key, value = false)
-      .config("spark.sql.codegen.comments", value = true)
-      .config("spark.sql.codegen.comments", value = true)
-      .config("spark.ui.enabled", "true")
-      .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession => {
-          VERewriteStrategy.failFast = true
-          new VERewriteStrategy(CNativeEvaluator(debug = false))
-        })
-      )
-      .withExtensions(sse => sse.injectColumnar(_ => new VeColumnarRule))
-  }
-
-}
-
-class DynamicCSqlExpressionEvaluationSpec
+abstract class DynamicCSqlExpressionEvaluationSpec
   extends AnyFreeSpec
   with BeforeAndAfter
   with BeforeAndAfterAll
@@ -73,8 +49,7 @@ class DynamicCSqlExpressionEvaluationSpec
   with Matchers
   with LazyLogging {
 
-  def configuration: SparkSession.Builder => SparkSession.Builder =
-    DynamicCSqlExpressionEvaluationSpec.DefaultConfiguration
+  def configuration: SparkSession.Builder => SparkSession.Builder
 
   "Different single-column expressions can be evaluated" - {
     List(
