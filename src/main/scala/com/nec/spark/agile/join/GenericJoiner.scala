@@ -42,7 +42,8 @@ object GenericJoiner {
     val populateThirdColumn = populateScalar("o_c", "conj_y", "y_c", VeScalarType.VeNullableDouble)
 
     val computeA1OutA2Out =
-      computeStringJoin(leftOutIndices = "a1", leftOut = "a1_out", rightOut = "a2_out")
+      computeStringJoin(leftOutIndices = "a1", leftOut = "a1_out", rightOut = "a2_out",
+        leftWords = "left_words", rightVec = "y_a")
     val computeB1B2Out =
       computeNumJoin("b1_out", "b2_out", "x_b", "y_b")
     val computeConj = CodeLines
@@ -122,24 +123,26 @@ object GenericJoiner {
                       |        b2[i] = ${y_b}->data[i];
                       |        b2_idx[i] = i;
                       |    }
-                      |    frovedis::equi_join(b2, b2_idx, b1, b1_idx, b2_out, b1_out);
+                      |    frovedis::equi_join(b2, b2_idx, b1, b1_idx, $b2_out, $b1_out);
                       |}""".stripMargin)
 
   private def computeStringJoin(
+    leftWords: String,
     leftOutIndices: String,
     leftOut: String,
-    rightOut: String
+    rightOut: String,
+    rightVec: String
   ): CodeLines = {
     CodeLines.from(s"""
                       |    std::vector<size_t> ${leftOut};
                       |    std::vector<size_t> ${rightOut};
-                      |    std::vector<size_t> ${leftOutIndices} = left_dict.lookup(frovedis::make_compressed_words(left_words));
+                      |    std::vector<size_t> ${leftOutIndices} = left_dict.lookup(frovedis::make_compressed_words(${leftWords}));
                       |   {
                       |   std::vector<size_t> a1_idx(a1.size());
                       |    for (int i = 0; i < a1.size(); i++) {
                       |        a1_idx[i] = i;
                       |    }
-                      |    std::vector<size_t> a2 = left_dict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(y_a)));
+                      |    std::vector<size_t> a2 = left_dict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVec})));
                       |    std::vector<size_t> a2_idx(a2.size());
                       |    for (int i = 0; i < a2.size(); i++) {
                       |        a2_idx[i] = i;
