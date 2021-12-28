@@ -52,21 +52,17 @@ object GenericJoiner {
       )
     val computeB1B2Out =
       computeNumJoin("b1_out", "b2_out", "x_b", "y_b")
-    val computeConj = CodeLines
-      .from(
-        "std::vector<size_t> conj_a;",
-        "std::vector<size_t> conj_x;",
-        "std::vector<size_t> conj_y;",
-        "for (int i = 0; i < a1_out.size(); i++) {",
-        "  for (int j = 0; j < b1_out.size(); j++) {",
-        "    if (a1_out[i] == b1_out[j] && a2_out[i] == b2_out[j]) {",
-        "      conj_a.push_back(a1[a1_out[i]]);",
-        "      conj_x.push_back(a1_out[i]);",
-        "      conj_y.push_back(a2_out[i]);",
-        "    }",
-        "  }",
-        "}"
-      )
+
+    val computeConj = compCC(
+      conj_a = "conj_a",
+      conj_x = "conj_x",
+      conj_y = "conj_y",
+      a1_out = "a1_out",
+      b1_out = "b1_out",
+      a2_out = "a2_out",
+      b2_out = "b2_out",
+      a1 = "a1",
+    )
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -99,16 +95,37 @@ object GenericJoiner {
       computeB1B2Out,
       computeConj,
       CodeLines
-        .from(
-          populateFirstColumn,
-          populateSecondColumn,
-          populateThirdColumn,
-          """
-            |    return 0;""".stripMargin
-        )
+        .from(populateFirstColumn, populateSecondColumn, populateThirdColumn, "return 0;")
         .indented,
       """}"""
     )
+  }
+
+  private def compCC(
+    conj_a: String,
+    conj_x: String,
+    conj_y: String,
+    a1_out: String,
+    b1_out: String,
+    a2_out: String,
+    b2_out: String,
+    a1: String,
+  ) = {
+    CodeLines
+      .from(
+        s"std::vector<size_t> $conj_a;",
+        s"std::vector<size_t> $conj_x;",
+        s"std::vector<size_t> $conj_y;",
+        s"for (int i = 0; i < $a1_out.size(); i++) {",
+        s"  for (int j = 0; j < $b1_out.size(); j++) {",
+        s"    if ($a1_out[i] == $b1_out[j] && $a2_out[i] == $b2_out[j]) {",
+        s"      $conj_a.push_back($a1[$a1_out[i]]);",
+        s"      $conj_x.push_back($a1_out[i]);",
+        s"      $conj_y.push_back($a2_out[i]);",
+        "    }",
+        "  }",
+        "}"
+      )
   }
 
   private def computeNumJoin(
