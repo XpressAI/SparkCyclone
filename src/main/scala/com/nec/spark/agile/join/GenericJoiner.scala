@@ -53,20 +53,20 @@ object GenericJoiner {
     val computeB1B2Out =
       computeNumJoin("b1_out", "b2_out", "x_b", "y_b")
     val computeConj = CodeLines
-      .from("""
-              |    std::vector<size_t> conj_a;
-              |    std::vector<size_t> conj_x;
-              |    std::vector<size_t> conj_y;
-              |    for (int i = 0; i < a1_out.size(); i++) {
-              |        for (int j = 0; j < b1_out.size(); j++) {
-              |            if (a1_out[i] == b1_out[j] && a2_out[i] == b2_out[j]) {
-              |                conj_a.push_back(a1[a1_out[i]]);
-              |                conj_x.push_back(a1_out[i]);
-              |                conj_y.push_back(a2_out[i]);
-              |            }
-              |        }
-              |    }
-              |""".stripMargin)
+      .from(
+        "std::vector<size_t> conj_a;",
+        "std::vector<size_t> conj_x;",
+        "std::vector<size_t> conj_y;",
+        "for (int i = 0; i < a1_out.size(); i++) {",
+        "  for (int j = 0; j < b1_out.size(); j++) {",
+        "    if (a1_out[i] == b1_out[j] && a2_out[i] == b2_out[j]) {",
+        "      conj_a.push_back(a1[a1_out[i]]);",
+        "      conj_x.push_back(a1_out[i]);",
+        "      conj_y.push_back(a2_out[i]);",
+        "    }",
+        "  }",
+        "}"
+      )
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -91,11 +91,10 @@ object GenericJoiner {
       s"""nullable_double_vector *${o_c})""",
       """{""",
       CodeLines
-        .from("""
-                |    frovedis::words left_words = varchar_vector_to_words(x_a);
-                |    frovedis::dict left_dict = frovedis::make_dict(left_words);
-                |
-                |    """.stripMargin),
+        .from(
+          "frovedis::words left_words = varchar_vector_to_words(x_a);",
+          "frovedis::dict left_dict = frovedis::make_dict(left_words);"
+        ),
       computeA1OutA2Out,
       computeB1B2Out,
       computeConj,
@@ -118,24 +117,27 @@ object GenericJoiner {
     leftInput: String,
     rightInput: String
   ): CodeLines =
-    CodeLines.from(s"""
-                      |    std::vector<size_t> ${b1_out};
-                      |    std::vector<size_t> ${b2_out};
-                      |     {
-                      |    std::vector<int64_t> left(${leftInput}->count);
-                      |    std::vector<size_t> left_idx(${leftInput}->count);
-                      |    for (int i = 0; i < ${leftInput}->count; i++) {
-                      |        left[i] = ${leftInput}->data[i];
-                      |        left_idx[i] = i;
-                      |    }
-                      |    std::vector<int64_t> right(${rightInput}->count);
-                      |    std::vector<size_t> right_idx(${rightInput}->count);
-                      |    for (int i = 0; i < ${rightInput}->count; i++) {
-                      |        right[i] = ${rightInput}->data[i];
-                      |        right_idx[i] = i;
-                      |    }
-                      |    frovedis::equi_join(right, right_idx, left, left_idx, $b2_out, $b1_out);
-                      |}""".stripMargin)
+    CodeLines.from(
+      s"std::vector<size_t> ${b1_out};",
+      s"std::vector<size_t> ${b2_out};",
+      CodeLines
+        .from(
+          s"std::vector<int64_t> left(${leftInput}->count);",
+          s"std::vector<size_t> left_idx(${leftInput}->count);",
+          s"for (int i = 0; i < ${leftInput}->count; i++) {",
+          s"  left[i] = ${leftInput}->data[i];",
+          s"  left_idx[i] = i;",
+          s"}",
+          s"std::vector<int64_t> right(${rightInput}->count);",
+          s"std::vector<size_t> right_idx(${rightInput}->count);",
+          s"for (int i = 0; i < ${rightInput}->count; i++) {",
+          s"  right[i] = ${rightInput}->data[i];",
+          s"  right_idx[i] = i;",
+          s"}",
+          s"frovedis::equi_join(right, right_idx, left, left_idx, $b2_out, $b1_out);"
+        )
+        .block
+    )
 
   private def computeStringJoin(
     leftWords: String,
@@ -144,25 +146,26 @@ object GenericJoiner {
     leftOut: String,
     rightOut: String,
     rightVec: String
-  ): CodeLines = {
-    CodeLines.from(s"""
-                      |    std::vector<size_t> ${leftOut};
-                      |    std::vector<size_t> ${rightOut};
-                      |    std::vector<size_t> ${leftOutIndices} = $leftDict.lookup(frovedis::make_compressed_words(${leftWords}));
-                      |   {
-                      |   std::vector<size_t> left_idx($leftOutIndices.size());
-                      |    for (int i = 0; i < $leftOutIndices.size(); i++) {
-                      |        left_idx[i] = i;
-                      |    }
-                      |    std::vector<size_t> right = $leftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVec})));
-                      |    std::vector<size_t> right_idx(right.size());
-                      |    for (int i = 0; i < right.size(); i++) {
-                      |        right_idx[i] = i;
-                      |    }
-                      |    frovedis::equi_join(right, right_idx, $leftOutIndices, left_idx, ${rightOut}, ${leftOut});
-                      |}
-                      |""".stripMargin)
-  }
+  ): CodeLines =
+    CodeLines.from(
+      s"std::vector<size_t> ${leftOut};",
+      s"std::vector<size_t> ${rightOut};",
+      s"std::vector<size_t> ${leftOutIndices} = $leftDict.lookup(frovedis::make_compressed_words(${leftWords}));",
+      CodeLines
+        .from(
+          s"std::vector<size_t> left_idx($leftOutIndices.size());",
+          s"for (int i = 0; i < $leftOutIndices.size(); i++) {",
+          s"  left_idx[i] = i;",
+          s"}",
+          s"std::vector<size_t> right = $leftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVec})));",
+          s"std::vector<size_t> right_idx(right.size());",
+          s"for (int i = 0; i < right.size(); i++) {",
+          s"  right_idx[i] = i;",
+          s"}",
+          s"frovedis::equi_join(right, right_idx, $leftOutIndices, left_idx, ${rightOut}, ${leftOut});"
+        )
+        .block
+    )
 
   def printVec: CodeLines = CodeLines.from(
     """#ifdef DEBUG""",
