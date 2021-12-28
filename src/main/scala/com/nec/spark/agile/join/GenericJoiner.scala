@@ -1,7 +1,7 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeString, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 
 object GenericJoiner {
@@ -44,6 +44,19 @@ object GenericJoiner {
     val string_right_idx = "a2_out_var"
     val num_right_idx = "b2_out_var"
     val left_words = "left_words_var"
+
+    val inputsLeft = List(
+      CVector.varChar(left_varchar_vector),
+      CVector.bigInt(left_matching_num_vector),
+      CVector.int(left_input_int_vector)
+    )
+
+    val inputsRight = List(
+      CVector.varChar(right_varchar_vector),
+      CVector.bigInt(right_matching_num_vector),
+      CVector.double(right_input_double_vector)
+    )
+
     val outputs: List[Output] = List(
       outStr(
         outputName = output_varchar_vector,
@@ -65,6 +78,34 @@ object GenericJoiner {
       )
     )
 
+    val joins = CodeLines.from(
+      computeStringJoin(
+        leftDictIndices = left_dict_indices,
+        matchingIndicesLeft = string_match_left_idx,
+        matchingIndicesRight = string_right_idx,
+        leftDict = left_dict,
+        leftWords = left_words,
+        rightVec = right_varchar_vector
+      ),
+      computeNumJoin(
+        leftOut = num_match_left_idx,
+        leftInput = left_matching_num_vector,
+        rightOut = num_right_idx,
+        rightInput = right_matching_num_vector
+      )
+    )
+
+    val conjunctions = computeConjunction(
+      colALeft = string_match_left_idx,
+      colBLeft = num_match_left_idx,
+      conj = outputs.map(_.conj),
+      pairings = List(
+        EqualityPairing(string_match_left_idx, num_match_left_idx),
+        EqualityPairing(string_right_idx, num_right_idx)
+      )
+    )
+    val inputs = inputsLeft ++ inputsRight
+
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -78,16 +119,9 @@ object GenericJoiner {
       """#include <cmath>""",
       printVec,
       """extern "C" long adv_join(""",
-      s"""nullable_varchar_vector *${left_varchar_vector},""",
-      s"""nullable_bigint_vector *${left_matching_num_vector},""",
-      s"""nullable_int_vector *${left_input_int_vector},""",
-      s"""nullable_varchar_vector *${right_varchar_vector},""",
-      s"""nullable_bigint_vector *${right_matching_num_vector},""",
-      s"""nullable_double_vector *${right_input_double_vector},""",
-      outputs
-        .map { out =>
-          s"${out.veType.cVectorType} *${out.outputName}"
-        }
+      (inputs ++ outputs
+        .map(_.cVector))
+        .map(_.declarePointer)
         .mkString(",\n"),
       ")",
       """{""",
@@ -98,34 +132,9 @@ object GenericJoiner {
               s"frovedis::words ${left_words} = varchar_vector_to_words($left_varchar_vector);",
               "frovedis::dict " + left_dict + s" = frovedis::make_dict(${left_words});"
             ),
-          computeStringJoin(
-            leftDictIndices = left_dict_indices,
-            matchingIndicesLeft = string_match_left_idx,
-            matchingIndicesRight = string_right_idx,
-            leftDict = left_dict,
-            leftWords = left_words,
-            rightVec = right_varchar_vector
-          ),
-          computeNumJoin(
-            leftOut = num_match_left_idx,
-            leftInput = left_matching_num_vector,
-            rightOut = num_right_idx,
-            rightInput = right_matching_num_vector
-          ), {
-
-            CodeLines.from(
-              computeConjunction(
-                colALeft = string_match_left_idx,
-                colBLeft = num_match_left_idx,
-                conj = outputs.map(_.conj),
-                pairings = List(
-                  EqualityPairing(string_match_left_idx, num_match_left_idx),
-                  EqualityPairing(string_right_idx, num_right_idx)
-                )
-              ),
-              outputs.map(_.codeLines)
-            )
-          },
+          joins,
+          conjunctions,
+          outputs.map(_.outputProduction),
           "return 0;"
         )
         .indented,
@@ -133,7 +142,14 @@ object GenericJoiner {
     )
   }
 
-  final case class Output(outputName: String, conj: Conj, codeLines: CodeLines, veType: VeType)
+  final case class Output(
+    outputName: String,
+    conj: Conj,
+    outputProduction: CodeLines,
+    veType: VeType
+  ) {
+    def cVector: CVector = CVector(outputName, veType)
+  }
 
   private def outScalar(
     source: String,
@@ -147,7 +163,7 @@ object GenericJoiner {
     Output(
       outputName = outputName,
       conj = Conj(conj_name, s"${sourceIndices}[i]"),
-      codeLines = populateScalar(
+      outputProduction = populateScalar(
         outputName = outputName,
         inputIndices = conj_name,
         inputName = source,
@@ -168,7 +184,7 @@ object GenericJoiner {
     Output(
       outputName = outputName,
       conj = Conj(conj_name, s"${sourceDictIndices}[${sourceDictIndicesIndices}[i]]"),
-      codeLines =
+      outputProduction =
         populateVarChar(leftDict = sourceDict, inputIndices = conj_name, outputName = outputName),
       veType = VeString
     )

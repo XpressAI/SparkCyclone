@@ -21,7 +21,12 @@ package com.nec.spark.agile
 
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
+  VeNullableDouble,
+  VeNullableFloat,
+  VeNullableInt,
+  VeNullableLong
+}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
@@ -48,14 +53,21 @@ object CFunctionGeneration {
   final case object Ascending extends SortOrdering
 
   sealed trait CVector {
+    def declarePointer: String = s"${veType.cVectorType} *${name}"
     def replaceName(search: String, replacement: String): CVector
     def name: String
     def veType: VeType
   }
   object CVector {
+    def apply(name: String, veType: VeType): CVector =
+      veType match {
+        case VeString => varChar(name)
+        case o: VeScalarType => CScalarVector(name, o)
+      }
     def varChar(name: String): CVector = CVarChar(name)
     def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
     def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableInt)
+    def bigInt(name: String): CVector = CScalarVector(name, VeScalarType.VeNullableLong)
   }
 
   final case class CVarChar(name: String) extends CVector {
