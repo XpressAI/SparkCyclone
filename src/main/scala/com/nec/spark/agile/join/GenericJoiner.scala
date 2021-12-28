@@ -46,6 +46,7 @@ object GenericJoiner {
         leftOutIndices = "a1",
         leftOut = "a1_out",
         rightOut = "a2_out",
+        leftDict = "left_dict",
         leftWords = "left_words",
         rightVec = "y_a"
       )
@@ -138,6 +139,7 @@ object GenericJoiner {
 
   private def computeStringJoin(
     leftWords: String,
+    leftDict: String,
     leftOutIndices: String,
     leftOut: String,
     rightOut: String,
@@ -146,18 +148,18 @@ object GenericJoiner {
     CodeLines.from(s"""
                       |    std::vector<size_t> ${leftOut};
                       |    std::vector<size_t> ${rightOut};
-                      |    std::vector<size_t> ${leftOutIndices} = left_dict.lookup(frovedis::make_compressed_words(${leftWords}));
+                      |    std::vector<size_t> ${leftOutIndices} = $leftDict.lookup(frovedis::make_compressed_words(${leftWords}));
                       |   {
-                      |   std::vector<size_t> a1_idx(a1.size());
-                      |    for (int i = 0; i < a1.size(); i++) {
-                      |        a1_idx[i] = i;
+                      |   std::vector<size_t> left_idx($leftOutIndices.size());
+                      |    for (int i = 0; i < $leftOutIndices.size(); i++) {
+                      |        left_idx[i] = i;
                       |    }
-                      |    std::vector<size_t> a2 = left_dict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVec})));
-                      |    std::vector<size_t> a2_idx(a2.size());
-                      |    for (int i = 0; i < a2.size(); i++) {
-                      |        a2_idx[i] = i;
+                      |    std::vector<size_t> right = $leftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVec})));
+                      |    std::vector<size_t> right_idx(right.size());
+                      |    for (int i = 0; i < right.size(); i++) {
+                      |        right_idx[i] = i;
                       |    }
-                      |    frovedis::equi_join(a2, a2_idx, a1, a1_idx, ${rightOut}, ${leftOut});
+                      |    frovedis::equi_join(right, right_idx, $leftOutIndices, left_idx, ${rightOut}, ${leftOut});
                       |}
                       |""".stripMargin)
   }
