@@ -51,19 +51,19 @@ object GenericJoiner {
     val left_dict = s"dict_${firstJoin.left.name}"
 
     val firstJoinCode = computeStringJoin(
-      leftDictIndices = varCharMatchingIndicesLeftDict,
-      matchingIndicesLeft = firstPairing.indexOfFirstColumn,
-      matchingIndicesRight = secondPairing.indexOfFirstColumn,
-      leftDict = left_dict,
-      leftWords = left_words,
-      rightVarChar = firstJoin.right.name
+      outLeftDictIndices = varCharMatchingIndicesLeftDict,
+      outMatchingIndicesLeft = firstPairing.indexOfFirstColumn,
+      outMatchingIndicesRight = secondPairing.indexOfFirstColumn,
+      inLeftDict = left_dict,
+      inLeftWords = left_words,
+      inRightVarChar = firstJoin.right.name
     )
 
     val secondJoinCode = computeNumJoin(
-      matchingIndicesLeft = firstPairing.indexOfSecondColumn,
-      leftInput = secondJoin.left.name,
-      matchingIndicesRight = secondPairing.indexOfSecondColumn,
-      rightInput = secondJoin.right.name
+      outMatchingIndicesLeft = firstPairing.indexOfSecondColumn,
+      inLeft = secondJoin.left.name,
+      outMatchingIndicesRight = secondPairing.indexOfSecondColumn,
+      inRight = secondJoin.right.name
     )
 
     val inputs = inputsLeft ++ inputsRight
@@ -79,7 +79,7 @@ object GenericJoiner {
       outStr(
         outputName = "o_a_var",
         sourceDict = left_dict,
-        sourceDictIndices = varCharMatchingIndicesLeftDict,
+        inMatchingDictIndices = varCharMatchingIndicesLeftDict,
         sourceIndices = firstPairing.indexOfFirstColumn
       ),
       outScalar(
@@ -96,12 +96,23 @@ object GenericJoiner {
       )
     )
 
-    val conjunctions = computeConjunction(
-      firstLeft = firstPairing.indexOfFirstColumn,
-      secondLeft = firstPairing.indexOfSecondColumn,
-      conj = outputs.map(_.conj),
-      firstPairing = firstPairing,
-      secondPairing = secondPairing
+    val leftIndicesVec = "lel"
+    val rightIndicesVec = "rel"
+
+    val conjunctions = CodeLines.from(
+      computeLeftRightIndices(
+        outMatchingLeftIndices = leftIndicesVec,
+        outMatchingRightIndices = rightIndicesVec,
+        firstLeft = firstPairing.indexOfFirstColumn,
+        secondLeft = firstPairing.indexOfSecondColumn,
+        firstPairing = firstPairing,
+        secondPairing = secondPairing
+      ),
+      computeConjunction(
+        outMatchingLeftIndices = leftIndicesVec,
+        outMatchingRightIndices = rightIndicesVec,
+        conj = outputs.map(_.conj)
+      )
     )
 
     CodeLines.from(
@@ -172,13 +183,13 @@ object GenericJoiner {
   private def outStr(
     outputName: String,
     sourceDict: String,
-    sourceDictIndices: String,
+    inMatchingDictIndices: String,
     sourceIndices: String
   ): Output = {
     val conj_name = s"conj_${outputName}"
     Output(
       outputName = outputName,
-      conj = Conj(conj_name, s"${sourceDictIndices}[${sourceIndices}[i]]"),
+      conj = Conj(conj_name, s"${inMatchingDictIndices}[${sourceIndices}[i]]"),
       outputProduction =
         populateVarChar(leftDict = sourceDict, inputIndices = conj_name, outputName = outputName),
       veType = VeString
@@ -194,77 +205,98 @@ object GenericJoiner {
   /**
    * This combines joins from multiple places to produce corresponding indices for output items
    */
-  private def computeConjunction(
+  private def computeLeftRightIndices(
+    outMatchingLeftIndices: String,
+    outMatchingRightIndices: String,
     firstLeft: String,
     secondLeft: String,
-    conj: List[Conj],
     firstPairing: EqualityPairing,
     secondPairing: EqualityPairing
   ): CodeLines =
     CodeLines
       .from(
-        conj.map(n => s"std::vector<size_t> ${n.name};"),
+        s"std::vector<size_t> ${outMatchingLeftIndices};",
+        s"std::vector<size_t> ${outMatchingRightIndices};",
         s"for (int i = 0; i < $firstLeft.size(); i++) {",
         s"  for (int j = 0; j < $secondLeft.size(); j++) {",
         s"    if (${firstPairing.toCondition} && ${secondPairing.toCondition}) {",
-        conj.map { case Conj(k, i) => s"$k.push_back($i);" },
+        s"      ${outMatchingLeftIndices}.push_back(i);",
+        s"      ${outMatchingRightIndices}.push_back(j);",
         "    }",
         "  }",
         "}"
       )
 
+  /**
+   * This combines joins from multiple places to produce corresponding indices for output items
+   */
+  private def computeConjunction(
+    outMatchingLeftIndices: String,
+    outMatchingRightIndices: String,
+    conj: List[Conj]
+  ): CodeLines =
+    CodeLines
+      .from(
+        conj.map(n => s"std::vector<size_t> ${n.name};"),
+        s"for (int x = 0; x < $outMatchingLeftIndices.size(); x++) {",
+        s"  int i = $outMatchingLeftIndices[x];",
+        s"  int j = $outMatchingLeftIndices[x];",
+        conj.map { case Conj(k, i) => s"  $k.push_back($i);" },
+        "}"
+      )
+
   private def computeNumJoin(
-    matchingIndicesLeft: String,
-    matchingIndicesRight: String,
-    leftInput: String,
-    rightInput: String
+    outMatchingIndicesLeft: String,
+    outMatchingIndicesRight: String,
+    inLeft: String,
+    inRight: String
   ): CodeLines =
     CodeLines.from(
-      s"std::vector<size_t> ${matchingIndicesLeft};",
-      s"std::vector<size_t> ${matchingIndicesRight};",
+      s"std::vector<size_t> ${outMatchingIndicesLeft};",
+      s"std::vector<size_t> ${outMatchingIndicesRight};",
       CodeLines
         .from(
-          s"std::vector<int64_t> left(${leftInput}->count);",
-          s"std::vector<size_t> left_idx(${leftInput}->count);",
-          s"for (int i = 0; i < ${leftInput}->count; i++) {",
-          s"  left[i] = ${leftInput}->data[i];",
+          s"std::vector<int64_t> left(${inLeft}->count);",
+          s"std::vector<size_t> left_idx(${inLeft}->count);",
+          s"for (int i = 0; i < ${inLeft}->count; i++) {",
+          s"  left[i] = ${inLeft}->data[i];",
           s"  left_idx[i] = i;",
           s"}",
-          s"std::vector<int64_t> right(${rightInput}->count);",
-          s"std::vector<size_t> right_idx(${rightInput}->count);",
-          s"for (int i = 0; i < ${rightInput}->count; i++) {",
-          s"  right[i] = ${rightInput}->data[i];",
+          s"std::vector<int64_t> right(${inRight}->count);",
+          s"std::vector<size_t> right_idx(${inRight}->count);",
+          s"for (int i = 0; i < ${inRight}->count; i++) {",
+          s"  right[i] = ${inRight}->data[i];",
           s"  right_idx[i] = i;",
           s"}",
-          s"frovedis::equi_join(right, right_idx, left, left_idx, $matchingIndicesRight, $matchingIndicesLeft);"
+          s"frovedis::equi_join(right, right_idx, left, left_idx, $outMatchingIndicesRight, $outMatchingIndicesLeft);"
         )
         .block
     )
 
   private def computeStringJoin(
-    leftWords: String,
-    leftDict: String,
-    leftDictIndices: String,
-    matchingIndicesLeft: String,
-    matchingIndicesRight: String,
-    rightVarChar: String
+    inLeftWords: String,
+    inLeftDict: String,
+    outLeftDictIndices: String,
+    outMatchingIndicesLeft: String,
+    outMatchingIndicesRight: String,
+    inRightVarChar: String
   ): CodeLines =
     CodeLines.from(
-      s"std::vector<size_t> ${matchingIndicesLeft};",
-      s"std::vector<size_t> ${matchingIndicesRight};",
-      s"std::vector<size_t> ${leftDictIndices} = $leftDict.lookup(frovedis::make_compressed_words(${leftWords}));",
+      s"std::vector<size_t> ${outMatchingIndicesLeft};",
+      s"std::vector<size_t> ${outMatchingIndicesRight};",
+      s"std::vector<size_t> ${outLeftDictIndices} = $inLeftDict.lookup(frovedis::make_compressed_words(${inLeftWords}));",
       CodeLines
         .from(
-          s"std::vector<size_t> left_idx($leftDictIndices.size());",
-          s"for (int i = 0; i < $leftDictIndices.size(); i++) {",
+          s"std::vector<size_t> left_idx($outLeftDictIndices.size());",
+          s"for (int i = 0; i < $outLeftDictIndices.size(); i++) {",
           s"  left_idx[i] = i;",
           s"}",
-          s"std::vector<size_t> right = $leftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVarChar})));",
+          s"std::vector<size_t> right = $inLeftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${inRightVarChar})));",
           s"std::vector<size_t> right_idx(right.size());",
           s"for (int i = 0; i < right.size(); i++) {",
           s"  right_idx[i] = i;",
           s"}",
-          s"frovedis::equi_join(right, right_idx, $leftDictIndices, left_idx, ${matchingIndicesRight}, ${matchingIndicesLeft});"
+          s"frovedis::equi_join(right, right_idx, $outLeftDictIndices, left_idx, ${outMatchingIndicesRight}, ${outMatchingIndicesLeft});"
         )
         .block
     )
