@@ -27,6 +27,12 @@ object GenericJoiner {
       )
     )
 
+  private val conj_a_var = "conj_a_v"
+
+  private val conj_x_var = "conj_x_var"
+
+  private val conj_y_var = "conj_y_var"
+
   def produce: CodeLines = {
     val x_a = "x_a"
     val x_b = "x_b"
@@ -34,35 +40,16 @@ object GenericJoiner {
     val y_a = "y_a"
     val y_b = "y_b"
     val y_c = "y_c"
-    val o_a = "o_a"
-    val o_b = "o_b"
-    val o_c = "o_c"
-    val populateFirstColumn = populateVarChar("left_dict", "conj_a", "o_a")
-    val populateSecondColumn = populateScalar("o_b", "conj_x", "x_c", VeScalarType.VeNullableInt)
-    val populateThirdColumn = populateScalar("o_c", "conj_y", "y_c", VeScalarType.VeNullableDouble)
-
-    val computeA1OutA2Out =
-      computeStringJoin(
-        leftOutIndices = "a1",
-        leftOut = "a1_out",
-        rightOut = "a2_out",
-        leftDict = "left_dict",
-        leftWords = "left_words",
-        rightVec = "y_a"
-      )
-    val computeB1B2Out =
-      computeNumJoin("b1_out", "b2_out", "x_b", "y_b")
-
-    val computeConj = compCC(
-      conj_a = "conj_a",
-      conj_x = "conj_x",
-      conj_y = "conj_y",
-      a1_out = "a1_out",
-      b1_out = "b1_out",
-      a2_out = "a2_out",
-      b2_out = "b2_out",
-      a1 = "a1",
-    )
+    val o_a_var = "o_a_var"
+    val o_b = "o_b_var"
+    val o_c = "o_c_var"
+    val left_dict_var = "left_dict_var"
+    val a1_var = "a1_var"
+    val a1_out_var = "a1_out_var"
+    val b1_out_var = "b1_out_var"
+    val a2_out_var = "a2_out_var"
+    val b2_out_var = "b2_out_var"
+    val left_words = "left_words_var"
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -82,20 +69,41 @@ object GenericJoiner {
       s"""nullable_varchar_vector *${y_a},""",
       s"""nullable_bigint_vector *${y_b},""",
       s"""nullable_double_vector *${y_c},""",
-      s"""nullable_varchar_vector *${o_a},""",
+      s"""nullable_varchar_vector *$o_a_var,""",
       s"""nullable_int_vector *${o_b},""",
       s"""nullable_double_vector *${o_c})""",
       """{""",
       CodeLines
         .from(
-          "frovedis::words left_words = varchar_vector_to_words(x_a);",
-          "frovedis::dict left_dict = frovedis::make_dict(left_words);"
-        ),
-      computeA1OutA2Out,
-      computeB1B2Out,
-      computeConj,
-      CodeLines
-        .from(populateFirstColumn, populateSecondColumn, populateThirdColumn, "return 0;")
+          CodeLines
+            .from(
+              s"frovedis::words ${left_words} = varchar_vector_to_words($x_a);",
+              "frovedis::dict " + left_dict_var + s" = frovedis::make_dict(${left_words});"
+            ),
+          computeStringJoin(
+            leftOutIndices = a1_var,
+            leftOut = a1_out_var,
+            rightOut = a2_out_var,
+            leftDict = left_dict_var,
+            leftWords = left_words,
+            rightVec = y_a
+          ),
+          computeNumJoin(b1_out_var, b2_out_var, x_b, y_b),
+          compCC(
+            conj_a = conj_a_var,
+            conj_x = conj_x_var,
+            conj_y = conj_y_var,
+            a1_out = a1_out_var,
+            b1_out = b1_out_var,
+            a2_out = a2_out_var,
+            b2_out = b2_out_var,
+            a1 = a1_var
+          ),
+          populateVarChar(left_dict_var, conj_a_var, o_a_var),
+          populateScalar(o_b, conj_x_var, x_c, VeScalarType.VeNullableInt),
+          populateScalar(o_c, conj_y_var, y_c, VeScalarType.VeNullableDouble),
+          "return 0;"
+        )
         .indented,
       """}"""
     )
@@ -109,7 +117,7 @@ object GenericJoiner {
     b1_out: String,
     a2_out: String,
     b2_out: String,
-    a1: String,
+    a1: String
   ) = {
     CodeLines
       .from(
