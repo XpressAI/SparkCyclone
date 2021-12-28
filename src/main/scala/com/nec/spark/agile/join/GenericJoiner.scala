@@ -41,10 +41,27 @@ object GenericJoiner {
     val populateSecondColumn = populateScalar("o_b", "conj_x", "x_c", VeScalarType.VeNullableInt)
     val populateThirdColumn = populateScalar("o_c", "conj_y", "y_c", VeScalarType.VeNullableDouble)
 
+    val computeA1OutA2Out = CodeLines.from(
+      """
+        |    std::vector<size_t> a1_out;
+        |    std::vector<size_t> a2_out;
+        |    std::vector<size_t> a1 = left_dict.lookup(frovedis::make_compressed_words(left_words));
+        |   {
+        |   std::vector<size_t> a1_idx(a1.size());
+        |    for (int i = 0; i < a1.size(); i++) {
+        |        a1_idx[i] = i;
+        |    }
+        |    std::vector<size_t> a2 = left_dict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(y_a)));
+        |    std::vector<size_t> a2_idx(a2.size());
+        |    for (int i = 0; i < a2.size(); i++) {
+        |        a2_idx[i] = i;
+        |    }
+        |    frovedis::equi_join(a2, a2_idx, a1, a1_idx, a2_out, a1_out);
+        |}
+        |""".stripMargin
+    )
     val computeB1B2Out =
       CodeLines.from("""
-                       |  
-                       |    // Second = => b1 = b2
                        |    std::vector<size_t> b1_out;
                        |    std::vector<size_t> b2_out;
                        |     {
@@ -64,52 +81,19 @@ object GenericJoiner {
                        |}""".stripMargin)
     val computeConj = CodeLines
       .from("""
-              |
-              |    // Resolve && in a1 == a2 && b1 == b2
-              |    // Conjunction is where the resulting outs are the same.
-              |    // 1 -> 0, 1 -> 1, 3 -> 3
-              |    // TODO: this could be vectorized to a compress operation.  Need to check.
               |    std::vector<size_t> conj_a;
               |    std::vector<size_t> conj_x;
               |    std::vector<size_t> conj_y;
-              |
               |    for (int i = 0; i < a1_out.size(); i++) {
               |        for (int j = 0; j < b1_out.size(); j++) {
-              |            if (a1_out[i] == b1_out[j]) {
-              |                if (a2_out[i] == b2_out[j]) {
-              |                    conj_a.push_back(a1[a1_out[i]]);
-              |                    conj_x.push_back(a1_out[i]);
-              |                    conj_y.push_back(a2_out[i]);
-              |                }
+              |            if (a1_out[i] == b1_out[j] && a2_out[i] == b2_out[j]) {
+              |                conj_a.push_back(a1[a1_out[i]]);
+              |                conj_x.push_back(a1_out[i]);
+              |                conj_y.push_back(a2_out[i]);
               |            }
               |        }
               |    }
               |""".stripMargin)
-    val computeA1OutA2Out = CodeLines.from(
-      """
-        |
-        |    std::vector<size_t> a1_out;
-        |    std::vector<size_t> a2_out;
-        |
-        |      // First = => a1 = a2
-        |    std::vector<size_t> a1 = left_dict.lookup(frovedis::make_compressed_words(left_words));
-        |    std::vector<size_t> a2 = left_dict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(y_a)));
-        |      
-        |   {
-        |   std::vector<size_t> a1_idx(a1.size());
-        |    for (int i = 0; i < a1.size(); i++) {
-        |        a1_idx[i] = i;
-        |    }
-        |
-        |    std::vector<size_t> a2_idx(a2.size());
-        |    for (int i = 0; i < a2.size(); i++) {
-        |        a2_idx[i] = i;
-        |    }
-        |    frovedis::equi_join(a2, a2_idx, a1, a1_idx, a2_out, a1_out);
-        |}
-        |
-        |""".stripMargin
-    )
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
