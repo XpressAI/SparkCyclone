@@ -28,9 +28,6 @@ object GenericJoiner {
     )
 
   def produce: CodeLines = {
-    val conj_first_output_varchar_vector = "conj_a_v"
-    val conj_second_output_int_vector = "conj_x_var"
-    val conj_third_output_double_vector = "conj_y_var"
     val left_varchar_vector = "x_a"
     val left_matching_num_vector = "x_b"
     val left_input_int_vector = "x_c"
@@ -42,8 +39,8 @@ object GenericJoiner {
     val output_double_vector = "o_c_var"
     val left_dict = "left_dict_var"
     val left_dict_indices = "a1_var"
-    val string_left_idx = "a1_out_var"
-    val num_left_idx = "b1_out_var"
+    val string_match_left_idx = "a1_out_var"
+    val num_match_left_idx = "b1_out_var"
     val string_right_idx = "a2_out_var"
     val num_right_idx = "b2_out_var"
     val left_words = "left_words_var"
@@ -79,48 +76,60 @@ object GenericJoiner {
             ),
           computeStringJoin(
             leftDictIndices = left_dict_indices,
-            matchingIndicesLeft = string_left_idx,
+            matchingIndicesLeft = string_match_left_idx,
             matchingIndicesRight = string_right_idx,
             leftDict = left_dict,
             leftWords = left_words,
             rightVec = right_varchar_vector
           ),
           computeNumJoin(
-            leftOut = num_left_idx,
+            leftOut = num_match_left_idx,
             leftInput = left_matching_num_vector,
             rightOut = num_right_idx,
             rightInput = right_matching_num_vector
           ), {
 
-            val outputs = List(
-              Conj(
-                conj_first_output_varchar_vector,
-                s"${left_dict_indices}[${string_left_idx}[i]]"
-              ) -> populateVarChar(
-                leftDict = left_dict,
-                inputIndices = conj_first_output_varchar_vector,
-                output = output_varchar_vector
-              ),
-              Conj(conj_second_output_int_vector, s"${string_left_idx}[i]") -> populateScalar(
-                outputName = output_int_vector,
-                inputIndices = conj_second_output_int_vector,
-                inputName = left_input_int_vector,
-                veScalarType = VeScalarType.VeNullableInt
-              ),
-              Conj(conj_third_output_double_vector, s"${string_right_idx}[i]") -> populateScalar(
-                outputName = output_double_vector,
-                inputIndices = conj_third_output_double_vector,
-                inputName = right_input_double_vector,
-                veScalarType = VeScalarType.VeNullableDouble
-              )
+            final case class StringOutput(leftDict: String, leftDictIndices: String, outputName: String)
+            val outputs: List[(Conj, CodeLines)] = List(
+              {
+                val conj_name = "conj_a_v"
+                Conj(
+                  conj_name,
+                  s"${left_dict_indices}[${string_match_left_idx}[i]]"
+                ) -> populateVarChar(
+                  leftDict = left_dict,
+                  inputIndices = conj_name,
+                  output = output_varchar_vector
+                )
+              },
+              {
+                val conj_name = "conj_x_var"
+                Conj(conj_name, s"${string_match_left_idx}[i]") -> populateScalar(
+                  outputName = output_int_vector,
+                  inputIndices = conj_name,
+                  inputName = left_input_int_vector,
+                  veScalarType = VeScalarType.VeNullableInt
+                )
+              },
+              {
+                val conj_name = "conj_y_var"
+
+                Conj(conj_name, s"${string_right_idx}[i]") -> populateScalar(
+                  outputName = output_double_vector,
+                  inputIndices = conj_name,
+                  inputName = right_input_double_vector,
+                  veScalarType = VeScalarType.VeNullableDouble
+                )
+              }
             )
             CodeLines.from(
               computeConjunction(
-                colALeft = string_left_idx,
-                colBLeft = num_left_idx,
+                colALeft = string_match_left_idx,
+                colBLeft = num_match_left_idx,
+
                 conj = outputs.map(_._1),
                 pairings = List(
-                  EqualityPairing(string_left_idx, num_left_idx),
+                  EqualityPairing(string_match_left_idx, num_match_left_idx),
                   EqualityPairing(string_right_idx, num_right_idx)
                 )
               ),
