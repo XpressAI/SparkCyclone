@@ -57,6 +57,12 @@ object GenericJoiner {
       CVector.double(right_input_double_vector)
     )
 
+    val dictsWords = CodeLines
+      .from(
+        s"frovedis::words ${left_words} = varchar_vector_to_words($left_varchar_vector);",
+        s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
+      )
+
     val outputs: List[Output] = List(
       outStr(
         outputName = output_varchar_vector,
@@ -96,14 +102,15 @@ object GenericJoiner {
     )
 
     val conjunctions = computeConjunction(
-      colALeft = string_match_left_idx,
-      colBLeft = num_match_left_idx,
+      left = string_match_left_idx,
+      right = num_match_left_idx,
       conj = outputs.map(_.conj),
       pairings = List(
         EqualityPairing(string_match_left_idx, num_match_left_idx),
         EqualityPairing(string_right_idx, num_right_idx)
       )
     )
+
     val inputs = inputsLeft ++ inputsRight
 
     CodeLines.from(
@@ -126,17 +133,7 @@ object GenericJoiner {
       ")",
       """{""",
       CodeLines
-        .from(
-          CodeLines
-            .from(
-              s"frovedis::words ${left_words} = varchar_vector_to_words($left_varchar_vector);",
-              "frovedis::dict " + left_dict + s" = frovedis::make_dict(${left_words});"
-            ),
-          joins,
-          conjunctions,
-          outputs.map(_.outputProduction),
-          "return 0;"
-        )
+        .from(dictsWords, joins, conjunctions, outputs.map(_.outputProduction), "return 0;")
         .indented,
       """}"""
     )
@@ -197,16 +194,16 @@ object GenericJoiner {
   }
 
   private def computeConjunction(
-    colALeft: String,
-    colBLeft: String,
+    left: String,
+    right: String,
     conj: List[Conj],
     pairings: List[EqualityPairing]
   ): CodeLines = {
     CodeLines
       .from(
         conj.map(n => s"std::vector<size_t> ${n.name};"),
-        s"for (int i = 0; i < $colALeft.size(); i++) {",
-        s"  for (int j = 0; j < $colBLeft.size(); j++) {",
+        s"for (int i = 0; i < $left.size(); i++) {",
+        s"  for (int j = 0; j < $right.size(); j++) {",
         s"    if (${pairings.map(_.toCondition).mkString(" && ")}) {",
         conj.map { case Conj(k, i) => s"$k.push_back($i);" },
         "    }",
