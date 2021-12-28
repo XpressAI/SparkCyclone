@@ -1,9 +1,7 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType
-import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 
 object GenericJoiner {
@@ -28,23 +26,23 @@ object GenericJoiner {
     )
 
   def produce: CodeLines = {
-    val conj_a_var = "conj_a_v"
-    val conj_x_var = "conj_x_var"
-    val conj_y_var = "conj_y_var"
-    val x_a = "x_a"
-    val num_left_values = "x_b"
-    val x_c = "x_c"
-    val y_a = "y_a"
-    val num_right_values = "y_b"
-    val y_c = "y_c"
-    val o_a_var = "o_a_var"
-    val o_b = "o_b_var"
-    val o_c = "o_c_var"
-    val left_dict_var = "left_dict_var"
-    val a1_var = "a1_var"
-    val a1_out_var = "a1_out_var"
+    val conj_first_output_varchar_vector = "conj_a_v"
+    val conj_second_output_int_vector = "conj_x_var"
+    val conj_third_output_double_vector = "conj_y_var"
+    val left_varchar_vector = "x_a"
+    val left_matching_num_vector = "x_b"
+    val left_input_int_vector = "x_c"
+    val right_varchar_vector = "y_a"
+    val right_matching_num_vector = "y_b"
+    val right_input_double_vector = "y_c"
+    val output_varchar_vector = "o_a_var"
+    val output_int_vector = "o_b_var"
+    val output_double_vector = "o_c_var"
+    val left_dict = "left_dict_var"
+    val left_dict_indices = "a1_var"
+    val string_left_idx = "a1_out_var"
     val num_left_idx = "b1_out_var"
-    val a2_out_var = "a2_out_var"
+    val string_right_idx = "a2_out_var"
     val num_right_idx = "b2_out_var"
     val left_words = "left_words_var"
     CodeLines.from(
@@ -60,51 +58,70 @@ object GenericJoiner {
       """#include <cmath>""",
       printVec,
       """extern "C" long adv_join(""",
-      s"""nullable_varchar_vector *${x_a},""",
-      s"""nullable_bigint_vector *${num_left_values},""",
-      s"""nullable_int_vector *${x_c},""",
-      s"""nullable_varchar_vector *${y_a},""",
-      s"""nullable_bigint_vector *${num_right_values},""",
-      s"""nullable_double_vector *${y_c},""",
-      s"""nullable_varchar_vector *$o_a_var,""",
-      s"""nullable_int_vector *${o_b},""",
-      s"""nullable_double_vector *${o_c})""",
+      s"""nullable_varchar_vector *${left_varchar_vector},""",
+      s"""nullable_bigint_vector *${left_matching_num_vector},""",
+      s"""nullable_int_vector *${left_input_int_vector},""",
+      s"""nullable_varchar_vector *${right_varchar_vector},""",
+      s"""nullable_bigint_vector *${right_matching_num_vector},""",
+      s"""nullable_double_vector *${right_input_double_vector},""",
+      s"""nullable_varchar_vector *$output_varchar_vector,""",
+      s"""nullable_int_vector *${output_int_vector},""",
+      s"""nullable_double_vector *${output_double_vector})""",
       """{""",
       CodeLines
         .from(
           CodeLines
             .from(
-              s"frovedis::words ${left_words} = varchar_vector_to_words($x_a);",
-              "frovedis::dict " + left_dict_var + s" = frovedis::make_dict(${left_words});"
+              s"frovedis::words ${left_words} = varchar_vector_to_words($left_varchar_vector);",
+              "frovedis::dict " + left_dict + s" = frovedis::make_dict(${left_words});"
             ),
           computeStringJoin(
-            leftOutIndices = a1_var,
-            leftOut = a1_out_var,
-            rightOut = a2_out_var,
-            leftDict = left_dict_var,
+            leftDictIndices = left_dict_indices,
+            matchingIndicesLeft = string_left_idx,
+            matchingIndicesRight = string_right_idx,
+            leftDict = left_dict,
             leftWords = left_words,
-            rightVec = y_a
+            rightVec = right_varchar_vector
           ),
           computeNumJoin(
             leftOut = num_left_idx,
+            leftInput = left_matching_num_vector,
             rightOut = num_right_idx,
-            leftInput = num_left_values,
-            rightInput = num_right_values
+            rightInput = right_matching_num_vector
           ),
           computeConjunction(
-            colALeft = a1_out_var,
-            colARight = num_left_idx,
+            colALeft = string_left_idx,
+            colBLeft = num_left_idx,
             conj = List(
-              Conj(conj_a_var, s"${a1_var}[${a1_out_var}[i]]"),
-              Conj(conj_x_var, s"${a1_out_var}[i]"),
-              Conj(conj_y_var, s"${a2_out_var}[i]")
+              Conj(
+                conj_first_output_varchar_vector,
+                s"${left_dict_indices}[${string_left_idx}[i]]"
+              ),
+              Conj(conj_second_output_int_vector, s"${string_left_idx}[i]"),
+              Conj(conj_third_output_double_vector, s"${string_right_idx}[i]")
             ),
-            pairings =
-              List(EqualityPairing(a1_out_var, num_left_idx), EqualityPairing(a2_out_var, num_right_idx))
+            pairings = List(
+              EqualityPairing(string_left_idx, num_left_idx),
+              EqualityPairing(string_right_idx, num_right_idx)
+            )
           ),
-          populateVarChar(left_dict_var, conj_a_var, o_a_var),
-          populateScalar(o_b, conj_x_var, x_c, VeScalarType.VeNullableInt),
-          populateScalar(o_c, conj_y_var, y_c, VeScalarType.VeNullableDouble),
+          populateVarChar(
+            leftDict = left_dict,
+            conj = conj_first_output_varchar_vector,
+            output = output_varchar_vector
+          ),
+          populateScalar(
+            outputName = output_int_vector,
+            conj = conj_second_output_int_vector,
+            inputName = left_input_int_vector,
+            veScalarType = VeScalarType.VeNullableInt
+          ),
+          populateScalar(
+            outputName = output_double_vector,
+            conj = conj_third_output_double_vector,
+            inputName = right_input_double_vector,
+            veScalarType = VeScalarType.VeNullableDouble
+          ),
           "return 0;"
         )
         .indented,
@@ -120,7 +137,7 @@ object GenericJoiner {
 
   private def computeConjunction(
     colALeft: String,
-    colARight: String,
+    colBLeft: String,
     conj: List[Conj],
     pairings: List[EqualityPairing]
   ): CodeLines = {
@@ -128,7 +145,7 @@ object GenericJoiner {
       .from(
         conj.map(n => s"std::vector<size_t> ${n.name};"),
         s"for (int i = 0; i < $colALeft.size(); i++) {",
-        s"  for (int j = 0; j < $colARight.size(); j++) {",
+        s"  for (int j = 0; j < $colBLeft.size(); j++) {",
         s"    if (${pairings.map(_.toCondition).mkString(" && ")}) {",
         conj.map { case Conj(k, i) => s"$k.push_back($i);" },
         "    }",
@@ -168,19 +185,19 @@ object GenericJoiner {
   private def computeStringJoin(
     leftWords: String,
     leftDict: String,
-    leftOutIndices: String,
-    leftOut: String,
-    rightOut: String,
+    leftDictIndices: String,
+    matchingIndicesLeft: String,
+    matchingIndicesRight: String,
     rightVec: String
   ): CodeLines =
     CodeLines.from(
-      s"std::vector<size_t> ${leftOut};",
-      s"std::vector<size_t> ${rightOut};",
-      s"std::vector<size_t> ${leftOutIndices} = $leftDict.lookup(frovedis::make_compressed_words(${leftWords}));",
+      s"std::vector<size_t> ${matchingIndicesLeft};",
+      s"std::vector<size_t> ${matchingIndicesRight};",
+      s"std::vector<size_t> ${leftDictIndices} = $leftDict.lookup(frovedis::make_compressed_words(${leftWords}));",
       CodeLines
         .from(
-          s"std::vector<size_t> left_idx($leftOutIndices.size());",
-          s"for (int i = 0; i < $leftOutIndices.size(); i++) {",
+          s"std::vector<size_t> left_idx($leftDictIndices.size());",
+          s"for (int i = 0; i < $leftDictIndices.size(); i++) {",
           s"  left_idx[i] = i;",
           s"}",
           s"std::vector<size_t> right = $leftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${rightVec})));",
@@ -188,7 +205,7 @@ object GenericJoiner {
           s"for (int i = 0; i < right.size(); i++) {",
           s"  right_idx[i] = i;",
           s"}",
-          s"frovedis::equi_join(right, right_idx, $leftOutIndices, left_idx, ${rightOut}, ${leftOut});"
+          s"frovedis::equi_join(right, right_idx, $leftDictIndices, left_idx, ${matchingIndicesRight}, ${matchingIndicesLeft});"
         )
         .block
     )
