@@ -78,7 +78,7 @@ env:
         default: "false"
 jobs:
   build:
-    runs-on: "gpu"
+    runs-on: "ve"
     timeout-minutes: 20
     steps:
     - uses: "actions/checkout@v2"
