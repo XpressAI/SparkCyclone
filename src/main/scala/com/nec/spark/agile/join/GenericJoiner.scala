@@ -1,14 +1,14 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType
+import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 
 object GenericJoiner {
 
-  def populateVarChar(leftDict: String, inputIndices: String, output: String): CodeLines =
+  def populateVarChar(leftDict: String, inputIndices: String, outputName: String): CodeLines =
     CodeLines.from(
-      s"""words_to_varchar_vector(${leftDict}.index_to_words(${inputIndices}), ${output});"""
+      s"""words_to_varchar_vector(${leftDict}.index_to_words(${inputIndices}), ${outputName});"""
     )
 
   def populateScalar(
@@ -44,6 +44,27 @@ object GenericJoiner {
     val string_right_idx = "a2_out_var"
     val num_right_idx = "b2_out_var"
     val left_words = "left_words_var"
+    val outputs: List[Output] = List(
+      outStr(
+        outputName = output_varchar_vector,
+        sourceDict = left_dict,
+        sourceDictIndices = left_dict_indices,
+        sourceDictIndicesIndices = string_match_left_idx
+      ),
+      outScalar(
+        source = left_input_int_vector,
+        sourceIndices = string_match_left_idx,
+        outputName = output_int_vector,
+        veScalarType = VeScalarType.VeNullableInt
+      ),
+      outScalar(
+        source = right_input_double_vector,
+        sourceIndices = string_right_idx,
+        outputName = output_double_vector,
+        veScalarType = VeScalarType.VeNullableDouble
+      )
+    )
+
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -63,9 +84,12 @@ object GenericJoiner {
       s"""nullable_varchar_vector *${right_varchar_vector},""",
       s"""nullable_bigint_vector *${right_matching_num_vector},""",
       s"""nullable_double_vector *${right_input_double_vector},""",
-      s"""nullable_varchar_vector *$output_varchar_vector,""",
-      s"""nullable_int_vector *${output_int_vector},""",
-      s"""nullable_double_vector *${output_double_vector})""",
+      outputs
+        .map { out =>
+          s"${out.veType.cVectorType} *${out.outputName}"
+        }
+        .mkString(",\n"),
+      ")",
       """{""",
       CodeLines
         .from(
@@ -89,57 +113,64 @@ object GenericJoiner {
             rightInput = right_matching_num_vector
           ), {
 
-            final case class StringOutput(leftDict: String, leftDictIndices: String, outputName: String)
-            val outputs: List[(Conj, CodeLines)] = List(
-              {
-                val conj_name = "conj_a_v"
-                Conj(
-                  conj_name,
-                  s"${left_dict_indices}[${string_match_left_idx}[i]]"
-                ) -> populateVarChar(
-                  leftDict = left_dict,
-                  inputIndices = conj_name,
-                  output = output_varchar_vector
-                )
-              },
-              {
-                val conj_name = "conj_x_var"
-                Conj(conj_name, s"${string_match_left_idx}[i]") -> populateScalar(
-                  outputName = output_int_vector,
-                  inputIndices = conj_name,
-                  inputName = left_input_int_vector,
-                  veScalarType = VeScalarType.VeNullableInt
-                )
-              },
-              {
-                val conj_name = "conj_y_var"
-
-                Conj(conj_name, s"${string_right_idx}[i]") -> populateScalar(
-                  outputName = output_double_vector,
-                  inputIndices = conj_name,
-                  inputName = right_input_double_vector,
-                  veScalarType = VeScalarType.VeNullableDouble
-                )
-              }
-            )
             CodeLines.from(
               computeConjunction(
                 colALeft = string_match_left_idx,
                 colBLeft = num_match_left_idx,
-
-                conj = outputs.map(_._1),
+                conj = outputs.map(_.conj),
                 pairings = List(
                   EqualityPairing(string_match_left_idx, num_match_left_idx),
                   EqualityPairing(string_right_idx, num_right_idx)
                 )
               ),
-              outputs.map(_._2)
+              outputs.map(_.codeLines)
             )
           },
           "return 0;"
         )
         .indented,
       """}"""
+    )
+  }
+
+  final case class Output(outputName: String, conj: Conj, codeLines: CodeLines, veType: VeType)
+
+  private def outScalar(
+    source: String,
+    outputName: String,
+    sourceIndices: String,
+    veScalarType: VeScalarType
+  ) = {
+
+    val conj_name = s"conj_${outputName}"
+
+    Output(
+      outputName = outputName,
+      conj = Conj(conj_name, s"${sourceIndices}[i]"),
+      codeLines = populateScalar(
+        outputName = outputName,
+        inputIndices = conj_name,
+        inputName = source,
+        veScalarType = veScalarType
+      ),
+      veType = veScalarType
+    )
+
+  }
+
+  private def outStr(
+    outputName: String,
+    sourceDict: String,
+    sourceDictIndices: String,
+    sourceDictIndicesIndices: String
+  ) = {
+    val conj_name = s"conj_${outputName}"
+    Output(
+      outputName = outputName,
+      conj = Conj(conj_name, s"${sourceDictIndices}[${sourceDictIndicesIndices}[i]]"),
+      codeLines =
+        populateVarChar(leftDict = sourceDict, inputIndices = conj_name, outputName = outputName),
+      veType = VeString
     )
   }
 
