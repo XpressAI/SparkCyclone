@@ -6,21 +6,23 @@ import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 
 object GenericJoiner {
 
-  def populateVarChar(leftDict: String, conj: String, output: String): CodeLines =
-    CodeLines.from(s"""words_to_varchar_vector(${leftDict}.index_to_words(${conj}), ${output});""")
+  def populateVarChar(leftDict: String, inputIndices: String, output: String): CodeLines =
+    CodeLines.from(
+      s"""words_to_varchar_vector(${leftDict}.index_to_words(${inputIndices}), ${output});"""
+    )
 
   def populateScalar(
     outputName: String,
-    conj: String,
+    inputIndices: String,
     inputName: String,
     veScalarType: VeScalarType
   ): CodeLines =
     CodeLines.from(
-      initializeScalarVector(veScalarType, outputName, s"${conj}.size()"),
-      CodeLines.forLoop("i", s"${conj}.size()")(
+      initializeScalarVector(veScalarType, outputName, s"${inputIndices}.size()"),
+      CodeLines.forLoop("i", s"${inputIndices}.size()")(
         CodeLines.from(
-          s"${outputName}->data[i] = ${inputName}->data[${conj}[i]];",
-          s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, ${conj}[i]));"
+          s"${outputName}->data[i] = ${inputName}->data[${inputIndices}[i]];",
+          s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, ${inputIndices}[i]));"
         )
       )
     )
@@ -88,40 +90,43 @@ object GenericJoiner {
             leftInput = left_matching_num_vector,
             rightOut = num_right_idx,
             rightInput = right_matching_num_vector
-          ),
-          computeConjunction(
-            colALeft = string_left_idx,
-            colBLeft = num_left_idx,
-            conj = List(
+          ), {
+
+            val outputs = List(
               Conj(
                 conj_first_output_varchar_vector,
                 s"${left_dict_indices}[${string_left_idx}[i]]"
+              ) -> populateVarChar(
+                leftDict = left_dict,
+                inputIndices = conj_first_output_varchar_vector,
+                output = output_varchar_vector
               ),
-              Conj(conj_second_output_int_vector, s"${string_left_idx}[i]"),
-              Conj(conj_third_output_double_vector, s"${string_right_idx}[i]")
-            ),
-            pairings = List(
-              EqualityPairing(string_left_idx, num_left_idx),
-              EqualityPairing(string_right_idx, num_right_idx)
+              Conj(conj_second_output_int_vector, s"${string_left_idx}[i]") -> populateScalar(
+                outputName = output_int_vector,
+                inputIndices = conj_second_output_int_vector,
+                inputName = left_input_int_vector,
+                veScalarType = VeScalarType.VeNullableInt
+              ),
+              Conj(conj_third_output_double_vector, s"${string_right_idx}[i]") -> populateScalar(
+                outputName = output_double_vector,
+                inputIndices = conj_third_output_double_vector,
+                inputName = right_input_double_vector,
+                veScalarType = VeScalarType.VeNullableDouble
+              )
             )
-          ),
-          populateVarChar(
-            leftDict = left_dict,
-            conj = conj_first_output_varchar_vector,
-            output = output_varchar_vector
-          ),
-          populateScalar(
-            outputName = output_int_vector,
-            conj = conj_second_output_int_vector,
-            inputName = left_input_int_vector,
-            veScalarType = VeScalarType.VeNullableInt
-          ),
-          populateScalar(
-            outputName = output_double_vector,
-            conj = conj_third_output_double_vector,
-            inputName = right_input_double_vector,
-            veScalarType = VeScalarType.VeNullableDouble
-          ),
+            CodeLines.from(
+              computeConjunction(
+                colALeft = string_left_idx,
+                colBLeft = num_left_idx,
+                conj = outputs.map(_._1),
+                pairings = List(
+                  EqualityPairing(string_left_idx, num_left_idx),
+                  EqualityPairing(string_right_idx, num_right_idx)
+                )
+              ),
+              outputs.map(_._2)
+            )
+          },
           "return 0;"
         )
         .indented,
