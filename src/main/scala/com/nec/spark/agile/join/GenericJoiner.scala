@@ -42,8 +42,13 @@ object GenericJoiner {
     val populateThirdColumn = populateScalar("o_c", "conj_y", "y_c", VeScalarType.VeNullableDouble)
 
     val computeA1OutA2Out =
-      computeStringJoin(leftOutIndices = "a1", leftOut = "a1_out", rightOut = "a2_out",
-        leftWords = "left_words", rightVec = "y_a")
+      computeStringJoin(
+        leftOutIndices = "a1",
+        leftOut = "a1_out",
+        rightOut = "a2_out",
+        leftWords = "left_words",
+        rightVec = "y_a"
+      )
     val computeB1B2Out =
       computeNumJoin("b1_out", "b2_out", "x_b", "y_b")
     val computeConj = CodeLines
@@ -88,7 +93,7 @@ object GenericJoiner {
         .from("""
                 |    frovedis::words left_words = varchar_vector_to_words(x_a);
                 |    frovedis::dict left_dict = frovedis::make_dict(left_words);
-                |    
+                |
                 |    """.stripMargin),
       computeA1OutA2Out,
       computeB1B2Out,
@@ -106,24 +111,29 @@ object GenericJoiner {
     )
   }
 
-  private def computeNumJoin(b1_out: String, b2_out: String, x_b: String, y_b: String): CodeLines =
+  private def computeNumJoin(
+    b1_out: String,
+    b2_out: String,
+    leftInput: String,
+    rightInput: String
+  ): CodeLines =
     CodeLines.from(s"""
                       |    std::vector<size_t> ${b1_out};
                       |    std::vector<size_t> ${b2_out};
                       |     {
-                      |    std::vector<int64_t> b1(${x_b}->count);
-                      |    std::vector<size_t> b1_idx(${x_b}->count);
-                      |    for (int i = 0; i < ${x_b}->count; i++) {
-                      |        b1[i] = ${x_b}->data[i];
-                      |        b1_idx[i] = i;
+                      |    std::vector<int64_t> left(${leftInput}->count);
+                      |    std::vector<size_t> left_idx(${leftInput}->count);
+                      |    for (int i = 0; i < ${leftInput}->count; i++) {
+                      |        left[i] = ${leftInput}->data[i];
+                      |        left_idx[i] = i;
                       |    }
-                      |    std::vector<int64_t> b2(${y_b}->count);
-                      |    std::vector<size_t> b2_idx(${y_b}->count);
-                      |    for (int i = 0; i < ${y_b}->count; i++) {
-                      |        b2[i] = ${y_b}->data[i];
-                      |        b2_idx[i] = i;
+                      |    std::vector<int64_t> right(${rightInput}->count);
+                      |    std::vector<size_t> right_idx(${rightInput}->count);
+                      |    for (int i = 0; i < ${rightInput}->count; i++) {
+                      |        right[i] = ${rightInput}->data[i];
+                      |        right_idx[i] = i;
                       |    }
-                      |    frovedis::equi_join(b2, b2_idx, b1, b1_idx, $b2_out, $b1_out);
+                      |    frovedis::equi_join(right, right_idx, left, left_idx, $b2_out, $b1_out);
                       |}""".stripMargin)
 
   private def computeStringJoin(
