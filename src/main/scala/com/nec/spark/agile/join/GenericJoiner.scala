@@ -30,25 +30,37 @@ object GenericJoiner {
   final case class Join(left: CVector, right: CVector)
 
   def produce: CodeLines = {
-    val left_input_int_vector = "x_c"
-    val right_input_double_vector = "y_c"
-    val left_dict_indices = "a1_var"
+    val varCharMatchingIndicesLeftDict = "a1_var"
     val string_match_left_idx = "a1_out_var"
-    val num_match_left_idx = "b1_out_var"
+    val numMatchingIndicesLeft = "b1_out_var"
     val string_right_idx = "a2_out_var"
-    val num_right_idx = "b2_out_var"
+    val numMatchingIndicesRight = "b2_out_var"
 
     val inputsLeft =
-      List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int(left_input_int_vector))
+      List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
 
     val inputsRight =
-      List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double(right_input_double_vector))
+      List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
 
     val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
     val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
 
     val left_words = s"words_${firstJoin.left.name}"
     val left_dict = s"dict_${firstJoin.left.name}"
+    val firstJoinCode = computeStringJoin(
+      leftDictIndices = varCharMatchingIndicesLeftDict,
+      matchingIndicesLeft = string_match_left_idx,
+      matchingIndicesRight = string_right_idx,
+      leftDict = left_dict,
+      leftWords = left_words,
+      rightVec = firstJoin.right.name
+    )
+    val secondJoinCode = computeNumJoin(
+      matchingIndicesLeft = numMatchingIndicesLeft,
+      leftInput = secondJoin.left.name,
+      matchingIndicesRight = numMatchingIndicesRight,
+      rightInput = secondJoin.right.name
+    )
 
     val dictsWords = CodeLines
       .from(
@@ -60,48 +72,29 @@ object GenericJoiner {
       outStr(
         outputName = "o_a_var",
         sourceDict = left_dict,
-        sourceDictIndices = left_dict_indices,
+        sourceDictIndices = varCharMatchingIndicesLeftDict,
         sourceDictIndicesIndices = string_match_left_idx
       ),
       outScalar(
-        source = left_input_int_vector,
+        source = inputsLeft(2).name,
         sourceIndices = string_match_left_idx,
         outputName = "o_b_var",
         veScalarType = VeScalarType.VeNullableInt
       ),
       outScalar(
-        source = right_input_double_vector,
+        source = inputsRight(2).name,
         sourceIndices = string_right_idx,
         outputName = "o_c_var",
         veScalarType = VeScalarType.VeNullableDouble
       )
     )
 
-    val joins = CodeLines.from(
-      computeStringJoin(
-        leftDictIndices = left_dict_indices,
-        matchingIndicesLeft = string_match_left_idx,
-        matchingIndicesRight = string_right_idx,
-        leftDict = left_dict,
-        leftWords = left_words,
-        rightVec = firstJoin.right.name
-      ),
-      computeNumJoin(
-        matchingIndicesLeft = num_match_left_idx,
-        leftInput = secondJoin.left.name,
-        matchingIndicesRight = num_right_idx,
-        rightInput = secondJoin.right.name
-      )
-    )
-
     val conjunctions = computeConjunction(
       firstLeft = string_match_left_idx,
-      secondLeft = num_match_left_idx,
+      secondLeft = numMatchingIndicesLeft,
       conj = outputs.map(_.conj),
-      pairings = List(
-        EqualityPairing(string_match_left_idx, num_match_left_idx),
-        EqualityPairing(string_right_idx, num_right_idx)
-      )
+      firstPairing = EqualityPairing(string_match_left_idx, numMatchingIndicesLeft),
+      secondPairing = EqualityPairing(string_right_idx, numMatchingIndicesRight)
     )
 
     val inputs = inputsLeft ++ inputsRight
@@ -126,7 +119,14 @@ object GenericJoiner {
       ")",
       """{""",
       CodeLines
-        .from(dictsWords, joins, conjunctions, outputs.map(_.outputProduction), "return 0;")
+        .from(
+          dictsWords,
+          firstJoinCode,
+          secondJoinCode,
+          conjunctions,
+          outputs.map(_.outputProduction),
+          "return 0;"
+        )
         .indented,
       """}"""
     )
@@ -193,14 +193,15 @@ object GenericJoiner {
     firstLeft: String,
     secondLeft: String,
     conj: List[Conj],
-    pairings: List[EqualityPairing]
+    firstPairing: EqualityPairing,
+    secondPairing: EqualityPairing
   ): CodeLines =
     CodeLines
       .from(
         conj.map(n => s"std::vector<size_t> ${n.name};"),
         s"for (int i = 0; i < $firstLeft.size(); i++) {",
         s"  for (int j = 0; j < $secondLeft.size(); j++) {",
-        s"    if (${pairings.map(_.toCondition).mkString(" && ")}) {",
+        s"    if (${firstPairing.toCondition} && ${secondPairing.toCondition}) {",
         conj.map { case Conj(k, i) => s"$k.push_back($i);" },
         "    }",
         "  }",
