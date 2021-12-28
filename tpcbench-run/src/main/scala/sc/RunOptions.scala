@@ -1,5 +1,7 @@
 package sc
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import sc.DetectLogback.LogbackItemsClasspath
 import sc.RunOptions.{cycloneJar, packageJar}
 
@@ -168,7 +170,7 @@ final case class RunOptions(
 
 object RunOptions {
 
-  val fieldNames: List[String] = {
+  lazy val fieldNames: List[String] = {
     classOf[RunOptions].getDeclaredFields.map(_.getName).toList
   }
 
@@ -188,7 +190,7 @@ object RunOptions {
       sys.props.getOrElse("ve.cyclone_jar", sys.error("Expected 'CYCLONE_JAR' to be passed."))
     )
 
-  val default: RunOptions = RunOptions(
+  lazy val default: RunOptions = RunOptions(
     numExecutors = 8,
     executorCores = 1,
     executorMemory = "8G",
@@ -200,11 +202,15 @@ object RunOptions {
     name = None,
     gitCommitSha = {
       import scala.sys.process._
-      List("git", "rev-parse", "HEAD").!!.trim.take(8)
+      IO.blocking { List("git", "rev-parse", "HEAD").!!.trim.take(8) }
+        .handleError(_ => "")
+        .unsafeRunSync()
     },
     gitBranch = {
       import scala.sys.process._
-      List("git", "rev-parse", "--abbrev-ref", "HEAD").!!.trim
+      IO.blocking { List("git", "rev-parse", "--abbrev-ref", "HEAD").!!.trim }
+        .handleError(_ => "")
+        .unsafeRunSync()
     },
     veLogDebug = false,
     runId = "test",
