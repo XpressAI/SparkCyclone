@@ -25,18 +25,26 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.InputArrowVectorWrapper
-import com.nec.arrow.ArrowVectorBuilders.{withArrowStringVector, withDirectBigIntVector, withDirectFloat8Vector, withNullableArrowStringVector}
+import com.nec.arrow.ArrowVectorBuilders.{
+  withArrowStringVector,
+  withDirectBigIntVector,
+  withDirectFloat8Vector,
+  withNullableArrowStringVector
+}
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}
+import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
+  GroupByAggregation,
+  GroupByProjection
+}
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.agile.StringProducer.ImperativeStringProducer
-import com.nec.spark.planning.Tracer
+import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
@@ -91,7 +99,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )
   }
-  */
+   */
 
   "We can project a null-column (ProjectNull)" in {
     expect(
