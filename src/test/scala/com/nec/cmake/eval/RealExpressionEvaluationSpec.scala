@@ -687,14 +687,12 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                   List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
                 val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
                 val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
-                GenericJoiner
-                  .produce(
-                    inputsLeft = inputsLeft,
-                    inputsRight = inputsRight,
-                    firstJoin = firstJoin,
-                    secondJoin = secondJoin
-                  )
-                  .cCode
+                GenericJoiner(
+                  inputsLeft = inputsLeft,
+                  inputsRight = inputsRight,
+                  firstJoin = firstJoin,
+                  secondJoin = secondJoin
+                ).produce.cCode
 
               }
             )

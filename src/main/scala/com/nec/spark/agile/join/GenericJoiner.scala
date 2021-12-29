@@ -3,116 +3,26 @@ package com.nec.spark.agile.join
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CVarChar, CVector, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
+import com.nec.spark.agile.join.GenericJoiner.{
+  computeLeftRightIndices,
+  computeNumJoin,
+  computeStringJoin,
+  printVec,
+  EqualityPairing,
+  Join,
+  LeftIndicesVec,
+  Output,
+  RightIndicesVec
+}
 import com.nec.spark.agile.join.GenericJoiner.Output.{ScalarOutput, StringOutput}
 
-object GenericJoiner {
-
-  def populateVarChar(leftDict: String, inputIndices: String, outputName: String): CodeLines =
-    CodeLines.from(
-      s"""words_to_varchar_vector(${leftDict}.index_to_words(${inputIndices}), ${outputName});"""
-    )
-
-  def populateScalar(
-    outputName: String,
-    inputIndices: String,
-    inputName: String,
-    veScalarType: VeScalarType
-  ): CodeLines =
-    CodeLines.from(
-      initializeScalarVector(veScalarType, outputName, s"${inputIndices}.size()"),
-      CodeLines.forLoop("i", s"${inputIndices}.size()")(
-        CodeLines.from(
-          s"${outputName}->data[i] = ${inputName}->data[${inputIndices}[i]];",
-          s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, ${inputIndices}[i]));"
-        )
-      )
-    )
-
-  final case class Join(left: CVector, right: CVector)
-
-  def produce(
-    inputsLeft: List[CVector],
-    inputsRight: List[CVector],
-    firstJoin: Join,
-    secondJoin: Join
-  ): CodeLines = {
-
-    val varCharMatchingIndicesLeftDict = s"dict_indices_${inputsLeft(0).name}"
-
-    val firstPairing =
-      EqualityPairing(
-        indexOfFirstColumn = s"index_${firstJoin.left.name}",
-        indexOfSecondColumn = s"index_${firstJoin.right.name}"
-      )
-
-    val secondPairing =
-      EqualityPairing(
-        indexOfFirstColumn = s"index_${secondJoin.left.name}",
-        indexOfSecondColumn = s"index_${secondJoin.right.name}"
-      )
-
-    val left_words = s"words_${firstJoin.left.name}"
-    val left_dict = s"dict_${firstJoin.left.name}"
-
-    val firstJoinCode = computeStringJoin(
-      outLeftDictIndices = varCharMatchingIndicesLeftDict,
-      outMatchingIndicesLeft = firstPairing.indexOfFirstColumn,
-      outMatchingIndicesRight = secondPairing.indexOfFirstColumn,
-      inLeftDict = left_dict,
-      inLeftWords = left_words,
-      inRightVarChar = firstJoin.right.name
-    )
-
-    val secondJoinCode = computeNumJoin(
-      outMatchingIndicesLeft = firstPairing.indexOfSecondColumn,
-      inLeft = secondJoin.left.name,
-      outMatchingIndicesRight = secondPairing.indexOfSecondColumn,
-      inRight = secondJoin.right.name
-    )
-
-    val inputs = inputsLeft ++ inputsRight
-
-    /** Specific to this case - to make generic we may have to de-optimize */
-    val dictsWords = CodeLines
-      .from(
-        s"frovedis::words ${left_words} = varchar_vector_to_words(${firstJoin.left.name});",
-        s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
-      )
-
-    val outputs: List[Output] = List(
-      StringOutput(
-        outputName = "o_a_var",
-        sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
-        sourceDict = left_dict,
-        inMatchingDictIndices = varCharMatchingIndicesLeftDict
-      ),
-      ScalarOutput(
-        source = inputsLeft(2).name,
-        sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
-        outputName = "o_b_var",
-        veType = VeScalarType.VeNullableInt
-      ),
-      ScalarOutput(
-        source = inputsRight(2).name,
-        sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
-        outputName = "o_c_var",
-        veType = VeScalarType.VeNullableDouble
-      )
-    )
-
-    val leftIndicesVec = "lel"
-    val rightIndicesVec = "rel"
-
-    val outIndexComputations =
-      computeLeftRightIndices(
-        outMatchingLeftIndices = leftIndicesVec,
-        outMatchingRightIndices = rightIndicesVec,
-        firstLeft = firstPairing.indexOfFirstColumn,
-        secondLeft = firstPairing.indexOfSecondColumn,
-        firstPairing = firstPairing,
-        secondPairing = secondPairing
-      )
-
+final case class GenericJoiner(
+  inputsLeft: List[CVector],
+  inputsRight: List[CVector],
+  firstJoin: Join,
+  secondJoin: Join
+) {
+  def produce: CodeLines =
     CodeLines.from(
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
@@ -138,13 +48,115 @@ object GenericJoiner {
           firstJoinCode,
           secondJoinCode,
           outIndexComputations,
-          outputs.map(_.produce(leftIndicesVec, rightIndicesVec)),
+          outputs.map(_.produce(LeftIndicesVec, RightIndicesVec)),
           "return 0;"
         )
         .indented,
       """}"""
     )
-  }
+
+  def varCharMatchingIndicesLeftDict = s"dict_indices_${inputsLeft(0).name}"
+
+  private def firstPairing =
+    EqualityPairing(
+      indexOfFirstColumn = s"index_${firstJoin.left.name}",
+      indexOfSecondColumn = s"index_${firstJoin.right.name}"
+    )
+
+  private def secondPairing =
+    EqualityPairing(
+      indexOfFirstColumn = s"index_${secondJoin.left.name}",
+      indexOfSecondColumn = s"index_${secondJoin.right.name}"
+    )
+
+  private def left_words = s"words_${firstJoin.left.name}"
+
+  private def left_dict = s"dict_${firstJoin.left.name}"
+
+  private def firstJoinCode = computeStringJoin(
+    outLeftDictIndices = varCharMatchingIndicesLeftDict,
+    outMatchingIndicesLeft = firstPairing.indexOfFirstColumn,
+    outMatchingIndicesRight = secondPairing.indexOfFirstColumn,
+    inLeftDict = left_dict,
+    inLeftWords = left_words,
+    inRightVarChar = firstJoin.right.name
+  )
+
+  private def secondJoinCode = computeNumJoin(
+    outMatchingIndicesLeft = firstPairing.indexOfSecondColumn,
+    inLeft = secondJoin.left.name,
+    outMatchingIndicesRight = secondPairing.indexOfSecondColumn,
+    inRight = secondJoin.right.name
+  )
+
+  private def inputs = inputsLeft ++ inputsRight
+
+  /** Specific to this case - to make generic we may have to de-optimize */
+  private def dictsWords = CodeLines
+    .from(
+      s"frovedis::words ${left_words} = varchar_vector_to_words(${firstJoin.left.name});",
+      s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
+    )
+
+  def outputs: List[Output] = List(
+    StringOutput(
+      outputName = "o_a_var",
+      sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
+      sourceDict = left_dict,
+      inMatchingDictIndices = varCharMatchingIndicesLeftDict
+    ),
+    ScalarOutput(
+      source = inputsLeft(2).name,
+      sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
+      outputName = "o_b_var",
+      veType = VeScalarType.VeNullableInt
+    ),
+    ScalarOutput(
+      source = inputsRight(2).name,
+      sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
+      outputName = "o_c_var",
+      veType = VeScalarType.VeNullableDouble
+    )
+  )
+
+  def outIndexComputations: CodeLines =
+    computeLeftRightIndices(
+      outMatchingLeftIndices = LeftIndicesVec,
+      outMatchingRightIndices = RightIndicesVec,
+      firstLeft = firstPairing.indexOfFirstColumn,
+      secondLeft = firstPairing.indexOfSecondColumn,
+      firstPairing = firstPairing,
+      secondPairing = secondPairing
+    )
+
+}
+object GenericJoiner {
+
+  val LeftIndicesVec = "lel"
+  val RightIndicesVec = "rel"
+
+  def populateVarChar(leftDict: String, inputIndices: String, outputName: String): CodeLines =
+    CodeLines.from(
+      s"""words_to_varchar_vector(${leftDict}.index_to_words(${inputIndices}), ${outputName});"""
+    )
+
+  def populateScalar(
+    outputName: String,
+    inputIndices: String,
+    inputName: String,
+    veScalarType: VeScalarType
+  ): CodeLines =
+    CodeLines.from(
+      initializeScalarVector(veScalarType, outputName, s"${inputIndices}.size()"),
+      CodeLines.forLoop("i", s"${inputIndices}.size()")(
+        CodeLines.from(
+          s"${outputName}->data[i] = ${inputName}->data[${inputIndices}[i]];",
+          s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, ${inputIndices}[i]));"
+        )
+      )
+    )
+
+  final case class Join(left: CVector, right: CVector)
 
   sealed trait Output {
     def cVector: CVector
