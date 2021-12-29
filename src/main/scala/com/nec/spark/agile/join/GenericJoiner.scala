@@ -1,7 +1,14 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CVarChar, CVector, VeScalarType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CScalarVector,
+  CVarChar,
+  CVector,
+  VeScalarType,
+  VeString,
+  VeType
+}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.join.GenericJoiner.{
   computeLeftRightIndices,
@@ -12,9 +19,11 @@ import com.nec.spark.agile.join.GenericJoiner.{
   Join,
   LeftIndicesVec,
   Output,
+  OutputSpec,
   RightIndicesVec
 }
 import com.nec.spark.agile.join.GenericJoiner.Output.{ScalarOutput, StringOutput}
+import com.nec.spark.agile.join.GenericJoiner.OutputSpec.{ScalarOutputSpec, StringOutputSpec}
 
 final case class GenericJoiner(
   inputsLeft: List[CVector],
@@ -47,7 +56,14 @@ final case class GenericJoiner(
           dictsWords,
           firstJoinCode,
           secondJoinCode,
-          outIndexComputations,
+          computeLeftRightIndices(
+            outMatchingLeftIndices = LeftIndicesVec,
+            outMatchingRightIndices = RightIndicesVec,
+            firstLeft = firstPairing.indexOfFirstColumn,
+            secondLeft = firstPairing.indexOfSecondColumn,
+            firstPairing = firstPairing,
+            secondPairing = secondPairing
+          ),
           outputs.map(_.produce(LeftIndicesVec, RightIndicesVec)),
           "return 0;"
         )
@@ -98,39 +114,70 @@ final case class GenericJoiner(
       s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
     )
 
+  private def firstColSpec =
+    StringOutputSpec(outputName = "o_a_var", inputName = inputsLeft(0).name)
+
+  private def secondColSpec =
+    ScalarOutputSpec(
+      outputName = "o_b_var",
+      inputName = inputsLeft(2).name,
+      veScalarType = inputsLeft(2).veType.asInstanceOf[VeScalarType]
+    )
+
+  private def thirdColSpec = ScalarOutputSpec(
+    outputName = "o_c_var",
+    inputName = inputsRight(2).name,
+    veScalarType = inputsRight(2).veType.asInstanceOf[VeScalarType]
+  )
+
   def outputs: List[Output] = List(
     StringOutput(
-      outputName = "o_a_var",
+      outputName = firstColSpec.outputName,
       sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
       sourceDict = left_dict,
       inMatchingDictIndices = varCharMatchingIndicesLeftDict
     ),
     ScalarOutput(
-      source = inputsLeft(2).name,
+      source = secondColSpec.inputName,
       sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
-      outputName = "o_b_var",
-      veType = VeScalarType.VeNullableInt
+      outputName = secondColSpec.outputName,
+      veType = secondColSpec.veScalarType
     ),
     ScalarOutput(
-      source = inputsRight(2).name,
+      source = thirdColSpec.inputName,
       sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
-      outputName = "o_c_var",
-      veType = VeScalarType.VeNullableDouble
+      outputName = thirdColSpec.outputName,
+      veType = thirdColSpec.veScalarType
     )
   )
 
-  def outIndexComputations: CodeLines =
-    computeLeftRightIndices(
-      outMatchingLeftIndices = LeftIndicesVec,
-      outMatchingRightIndices = RightIndicesVec,
-      firstLeft = firstPairing.indexOfFirstColumn,
-      secondLeft = firstPairing.indexOfSecondColumn,
-      firstPairing = firstPairing,
-      secondPairing = secondPairing
-    )
-
 }
+
 object GenericJoiner {
+
+  sealed trait OutputSpec {
+    def outputName: String
+    def inputName: String
+    def veType: VeType
+    def inputVector: CVector
+    def outputVector: CVector
+  }
+  object OutputSpec {
+    final case class StringOutputSpec(outputName: String, inputName: String) extends OutputSpec {
+      override def veType: VeType = VeString
+      override def inputVector: CVector = CVector.varChar(inputName)
+      override def outputVector: CVector = CVector.varChar(outputName)
+    }
+    final case class ScalarOutputSpec(
+      outputName: String,
+      inputName: String,
+      veScalarType: VeScalarType
+    ) extends OutputSpec {
+      override def veType: VeType = veScalarType
+      override def inputVector: CVector = veScalarType.makeCVector(inputName)
+      override def outputVector: CVector = veScalarType.makeCVector(outputName)
+    }
+  }
 
   val LeftIndicesVec = "lel"
   val RightIndicesVec = "rel"
