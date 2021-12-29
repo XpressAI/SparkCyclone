@@ -1,34 +1,32 @@
 package com.nec.cmake.eval
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.DateCastStringHoleEvaluationSpec.executeHoleEvaluation
-import com.nec.util.RichVectors.RichIntVector
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
-import com.nec.spark.agile.StringHole
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.DateCastStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
-import org.scalatest.freespec.AnyFreeSpec
+import com.nec.util.RichVectors.RichIntVector
+import org.scalatest.flatspec.AnyFlatSpec
 
-final class DateCastStringHoleEvaluationSpec extends AnyFreeSpec {
+final class DateCastStringHoleEvaluationSpec extends AnyFlatSpec {
+  "It" should  "correctly map string to date" in {
+    val list = List("1970-01-01", "2000-01-01", "1960-01-01", "2022-12-31")
+    val expectedResults = list.map(LocalDate.parse(_, DateTimeFormatter.ISO_DATE))
+      .map(_.toEpochDay)
+    val evaluation = DateCastStringHoleEvaluation("strings")
 
-  val list = List("1970-01-01", "2000-01-01", "1960-01-01", "2022-12-31")
-  val expectedResults = list.map(LocalDate.parse(_, DateTimeFormatter.ISO_DATE))
-    .map(_.toEpochDay)
-  val evaluation = DateCastStringHoleEvaluation("strings")
+    val results = executeHoleEvaluation(list, evaluation)
 
-  val results = executeHoleEvaluation(list, evaluation)
-
-  assert(results == expectedResults)
+    assert(results == expectedResults)
+  }
 }
 
 object DateCastStringHoleEvaluationSpec {
