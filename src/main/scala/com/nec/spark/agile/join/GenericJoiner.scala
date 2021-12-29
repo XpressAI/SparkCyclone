@@ -40,8 +40,6 @@ final case class GenericJoiner(
           secondJoinCode.commented("Second join code"),
           computeMatchingIndices(
             outMatchingIndices = MatchingIndicesVec,
-            firstLeft = firstPairing.indexOfFirstColumn,
-            secondLeft = firstPairing.indexOfSecondColumn,
             firstPairing = firstPairing,
             secondPairing = secondPairing
           ).commented("Compute left & right indices"),
@@ -261,16 +259,14 @@ object GenericJoiner {
    */
   private def computeMatchingIndices(
     outMatchingIndices: String,
-    firstLeft: String,
-    secondLeft: String,
     firstPairing: EqualityPairing,
     secondPairing: EqualityPairing
   ): CodeLines =
     CodeLines
       .from(
         s"std::vector<size_t> ${outMatchingIndices};",
-        s"for (int i = 0; i < $firstLeft.size(); i++) {",
-        s"  for (int j = 0; j < $secondLeft.size(); j++) {",
+        s"for (int i = 0; i < ${firstPairing.indexOfFirstColumn}.size(); i++) {",
+        s"  for (int j = 0; j < ${secondPairing.indexOfSecondColumn}.size(); j++) {",
         s"    if (${firstPairing.toCondition} && ${secondPairing.toCondition}) {",
         s"      ${outMatchingIndices}.push_back(i);",
         "    }",
