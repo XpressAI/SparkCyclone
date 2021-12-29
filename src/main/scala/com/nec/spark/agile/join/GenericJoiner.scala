@@ -1,29 +1,11 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  CScalarVector,
-  CVarChar,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
+import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
-import com.nec.spark.agile.join.GenericJoiner.{
-  computeLeftRightIndices,
-  computeNumJoin,
-  computeStringJoin,
-  printVec,
-  EqualityPairing,
-  Join,
-  LeftIndicesVec,
-  Output,
-  OutputSpec,
-  RightIndicesVec
-}
 import com.nec.spark.agile.join.GenericJoiner.Output.{ScalarOutput, StringOutput}
 import com.nec.spark.agile.join.GenericJoiner.OutputSpec.{ScalarOutputSpec, StringOutputSpec}
+import com.nec.spark.agile.join.GenericJoiner._
 
 final case class GenericJoiner(
   inputsLeft: List[CVector],
@@ -53,18 +35,26 @@ final case class GenericJoiner(
       """{""",
       CodeLines
         .from(
-          dictsWords,
-          firstJoinCode,
-          secondJoinCode,
-          computeLeftRightIndices(
-            outMatchingLeftIndices = LeftIndicesVec,
-            outMatchingRightIndices = RightIndicesVec,
+          dictsWords.commented("Create dicts"),
+          firstJoinCode.commented("First join code"),
+          secondJoinCode.commented("Second join code"),
+          computeMatchingIndices(
+            outMatchingIndices = MatchingIndicesVec,
             firstLeft = firstPairing.indexOfFirstColumn,
             secondLeft = firstPairing.indexOfSecondColumn,
             firstPairing = firstPairing,
             secondPairing = secondPairing
-          ),
-          outputs.map(_.produce(LeftIndicesVec, RightIndicesVec)),
+          ).commented("Compute left & right indices"),
+          CodeLines
+            .from(
+              outputs.map(out =>
+                out
+                  .produce(MatchingIndicesVec)
+                  .indented
+                  .commented(s"Produce ${out.cVector.name}")
+              )
+            )
+            .commented("Produce outputs"),
           "return 0;"
         )
         .indented,
@@ -115,17 +105,17 @@ final case class GenericJoiner(
     )
 
   private def firstColSpec =
-    StringOutputSpec(outputName = "o_a_var", inputName = inputsLeft(0).name)
+    StringOutputSpec(outputName = "o_a", inputName = inputsLeft(0).name)
 
   private def secondColSpec =
     ScalarOutputSpec(
-      outputName = "o_b_var",
+      outputName = "o_b",
       inputName = inputsLeft(2).name,
       veScalarType = inputsLeft(2).veType.asInstanceOf[VeScalarType]
     )
 
   private def thirdColSpec = ScalarOutputSpec(
-    outputName = "o_c_var",
+    outputName = "o_c",
     inputName = inputsRight(2).name,
     veScalarType = inputsRight(2).veType.asInstanceOf[VeScalarType]
   )
@@ -179,8 +169,7 @@ object GenericJoiner {
     }
   }
 
-  val LeftIndicesVec = "lel"
-  val RightIndicesVec = "rel"
+  val MatchingIndicesVec = "left_indices"
 
   def populateVarChar(leftDict: String, inputIndices: String, outputName: String): CodeLines =
     CodeLines.from(
@@ -207,7 +196,7 @@ object GenericJoiner {
 
   sealed trait Output {
     def cVector: CVector
-    def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines
+    def produce(matchingIndicesVec: String): CodeLines
   }
   object Output {
 
@@ -217,11 +206,11 @@ object GenericJoiner {
       sourceIndex: String,
       veType: VeScalarType
     ) extends Output {
-      def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
+      def produce(matchingIndicesVec: String): CodeLines = CodeLines
         .from(
           s"std::vector<size_t> input_indices;",
-          s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
-          s"  int i = $leftIndicesVec[x];",
+          s"for (int x = 0; x < $matchingIndicesVec.size(); x++) {",
+          s"  int i = $matchingIndicesVec[x];",
           s"  input_indices.push_back(${sourceIndex});",
           "}",
           populateScalar(
@@ -243,11 +232,11 @@ object GenericJoiner {
       sourceDict: String
     ) extends Output {
 
-      def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
+      def produce(matchingIndicesVec: String): CodeLines = CodeLines
         .from(
           s"std::vector<size_t> input_indices;",
-          s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
-          s"  int i = $leftIndicesVec[x];",
+          s"for (int x = 0; x < $matchingIndicesVec.size(); x++) {",
+          s"  int i = $matchingIndicesVec[x];",
           s"  input_indices.push_back(${sourceIndex});",
           "}",
           populateVarChar(
@@ -270,9 +259,8 @@ object GenericJoiner {
   /**
    * This combines joins from multiple places to produce corresponding indices for output items
    */
-  private def computeLeftRightIndices(
-    outMatchingLeftIndices: String,
-    outMatchingRightIndices: String,
+  private def computeMatchingIndices(
+    outMatchingIndices: String,
     firstLeft: String,
     secondLeft: String,
     firstPairing: EqualityPairing,
@@ -280,13 +268,11 @@ object GenericJoiner {
   ): CodeLines =
     CodeLines
       .from(
-        s"std::vector<size_t> ${outMatchingLeftIndices};",
-        s"std::vector<size_t> ${outMatchingRightIndices};",
+        s"std::vector<size_t> ${outMatchingIndices};",
         s"for (int i = 0; i < $firstLeft.size(); i++) {",
         s"  for (int j = 0; j < $secondLeft.size(); j++) {",
         s"    if (${firstPairing.toCondition} && ${secondPairing.toCondition}) {",
-        s"      ${outMatchingLeftIndices}.push_back(i);",
-        s"      ${outMatchingRightIndices}.push_back(j);",
+        s"      ${outMatchingIndices}.push_back(i);",
         "    }",
         "  }",
         "}"

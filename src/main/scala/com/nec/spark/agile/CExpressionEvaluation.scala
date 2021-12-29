@@ -180,6 +180,9 @@ object CExpressionEvaluation {
     def blockCommented(str: String): CodeLines =
       CodeLines.from(s"// ${str}", "{", this.indented, "}", "")
 
+    def commented(str: String): CodeLines =
+      CodeLines.from("", s"/* START: ${str} */", this, s"/* END: ${str} */", "")
+
     def indented: CodeLines = CodeLines(lines = lines.map(line => s"  $line"))
 
     override def toString: String =
