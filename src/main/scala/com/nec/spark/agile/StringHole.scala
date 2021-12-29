@@ -68,12 +68,12 @@ object StringHole {
         CodeLines.from(
           CodeLines.debugHere,
           s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
-          s"""std::vector<datetime_t> $dateTimeVectorName = frovedis::parsedatetime($myIdWords, "%YYYY-%mm-%dd");""",
+          s"""std::vector<datetime_t> $dateTimeVectorName = frovedis::parsedatetime($myIdWords, std::string("%Y-%m-%d"));""",
           s"std::vector<int> $finalVectorName($refName->count);",
           "datetime_t epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);",
           s"for(int i = 0; i < $refName->count; i++) {",
           CodeLines.from(
-            s"$finalVectorName[i] = frovedis::datetime_diff_day(epoch, $dateTimeVectorName[i]);"
+            s"$finalVectorName[i] = frovedis::datetime_diff_day($dateTimeVectorName[i], epoch);"
           ).indented,
           "}"
         )
