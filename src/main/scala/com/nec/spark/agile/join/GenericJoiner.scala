@@ -1,8 +1,9 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeString, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CVarChar, CVector, VeScalarType, VeString, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
+import com.nec.spark.agile.join.GenericJoiner.Output.{ScalarOutput, StringOutput}
 
 object GenericJoiner {
 
@@ -39,9 +40,16 @@ object GenericJoiner {
     val varCharMatchingIndicesLeftDict = s"dict_indices_${inputsLeft(0).name}"
 
     val firstPairing =
-      EqualityPairing(s"index_${firstJoin.left.name}", s"index_${firstJoin.right.name}")
+      EqualityPairing(
+        indexOfFirstColumn = s"index_${firstJoin.left.name}",
+        indexOfSecondColumn = s"index_${firstJoin.right.name}"
+      )
+
     val secondPairing =
-      EqualityPairing(s"index_${secondJoin.left.name}", s"index_${secondJoin.right.name}")
+      EqualityPairing(
+        indexOfFirstColumn = s"index_${secondJoin.left.name}",
+        indexOfSecondColumn = s"index_${secondJoin.right.name}"
+      )
 
     val left_words = s"words_${firstJoin.left.name}"
     val left_dict = s"dict_${firstJoin.left.name}"
@@ -72,23 +80,23 @@ object GenericJoiner {
       )
 
     val outputs: List[Output] = List(
-      outStr(
+      StringOutput(
         outputName = "o_a_var",
-        sourceDict = left_dict,
+        sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
         inMatchingDictIndices = varCharMatchingIndicesLeftDict,
-        sourceIndices = firstPairing.indexOfFirstColumn
+        sourceDict = left_dict
       ),
-      outScalar(
+      ScalarOutput(
         source = inputsLeft(2).name,
-        sourceIndices = firstPairing.indexOfFirstColumn,
         outputName = "o_b_var",
-        veScalarType = VeScalarType.VeNullableInt
+        sourceIndices = firstPairing.indexOfFirstColumn,
+        veType = VeScalarType.VeNullableInt
       ),
-      outScalar(
+      ScalarOutput(
         source = inputsRight(2).name,
-        sourceIndices = secondPairing.indexOfFirstColumn,
         outputName = "o_c_var",
-        veScalarType = VeScalarType.VeNullableDouble
+        sourceIndices = secondPairing.indexOfFirstColumn,
+        veType = VeScalarType.VeNullableDouble
       )
     )
 
@@ -138,62 +146,66 @@ object GenericJoiner {
     )
   }
 
-  final case class Output(
-    outputName: String,
-    sourceIndex: String,
-    outputProduction: CodeLines,
-    veType: VeType
-  ) {
-
-    def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
-      .from(
-        s"std::vector<size_t> input_indices;",
-        s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
-        s"  int i = $leftIndicesVec[x];",
-        s"  int j = $rightIndicesVec[x];",
-        s"  input_indices.push_back(${sourceIndex});",
-        "}",
-        outputProduction
-      )
-      .block
-
-    def cVector: CVector = CVector(outputName, veType)
+  sealed trait Output {
+    def cVector: CVector
+    def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines
   }
+  object Output {
 
-  private def outScalar(
-    source: String,
-    outputName: String,
-    sourceIndices: String,
-    veScalarType: VeScalarType
-  ): Output =
-    Output(
-      outputName = outputName,
-      sourceIndex = s"${sourceIndices}[i]",
-      outputProduction = populateScalar(
-        outputName = outputName,
-        inputIndices = "input_indices",
-        inputName = source,
-        veScalarType = veScalarType
-      ),
-      veType = veScalarType
-    )
+    final case class ScalarOutput(
+      source: String,
+      outputName: String,
+      sourceIndices: String,
+      veType: VeScalarType
+    ) extends Output {
+      def sourceIndex = s"${sourceIndices}[i]"
 
-  private def outStr(
-    outputName: String,
-    sourceDict: String,
-    inMatchingDictIndices: String,
-    sourceIndices: String
-  ): Output =
-    Output(
-      outputName = outputName,
-      sourceIndex = s"${inMatchingDictIndices}[${sourceIndices}[i]]",
-      outputProduction = populateVarChar(
-        leftDict = sourceDict,
-        inputIndices = "input_indices",
-        outputName = outputName
-      ),
-      veType = VeString
-    )
+      def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
+        .from(
+          s"std::vector<size_t> input_indices;",
+          s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
+          s"  int i = $leftIndicesVec[x];",
+          s"  int j = $rightIndicesVec[x];",
+          s"  input_indices.push_back(${sourceIndex});",
+          "}",
+          populateScalar(
+            outputName = outputName,
+            inputIndices = "input_indices",
+            inputName = source,
+            veScalarType = veType
+          )
+        )
+        .block
+
+      def cVector: CVector = CVector(outputName, veType)
+    }
+    final case class StringOutput(
+      outputName: String,
+      sourceIndex: String,
+      inMatchingDictIndices: String,
+      sourceDict: String
+    ) extends Output {
+
+      def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
+        .from(
+          s"std::vector<size_t> input_indices;",
+          s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
+          s"  int i = $leftIndicesVec[x];",
+          s"  int j = $rightIndicesVec[x];",
+          s"  input_indices.push_back(${sourceIndex});",
+          "}",
+          populateVarChar(
+            leftDict = sourceDict,
+            inputIndices = "input_indices",
+            outputName = outputName
+          )
+        )
+        .block
+
+      def cVector: CVector = CVarChar(outputName)
+    }
+
+  }
 
   final case class EqualityPairing(indexOfFirstColumn: String, indexOfSecondColumn: String) {
     def toCondition: String = s"$indexOfFirstColumn[i] == $indexOfSecondColumn[j]"
