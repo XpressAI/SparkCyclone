@@ -22,28 +22,11 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{
-  NotNullEvaluator,
-  SlowEvaluator
-}
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{
-  LikeStringHoleEvaluation,
-  SlowEvaluation,
-  SlowEvaluator
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  AttributeReference,
-  Contains,
-  EndsWith,
-  EqualTo,
-  Expression,
-  IsNotNull,
-  LeafExpression,
-  Literal,
-  StartsWith,
-  Unevaluable
-}
-import org.apache.spark.sql.types.{DataType, StringType}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{NotNullEvaluator, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluation, SlowEvaluator}
+
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Contains, EndsWith, EqualTo, Expression, IsNotNull, LeafExpression, Literal, StartsWith, Unevaluable}
+import org.apache.spark.sql.types.{DataType, DateType, StringType}
 
 /**
  * An expression which takes a String and processes it as a vector
@@ -75,6 +58,30 @@ object StringHole {
         def contains: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject%")
         def equalsTo: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject")
       }
+    }
+
+    final case class DateCastStringHoleEvaluation(refName: String) extends StringHoleEvaluation {
+      val finalVectorName = s"stringCasting_${Math.abs(hashCode())}"
+      val myIdWords = s"stringCasting_words_${Math.abs(hashCode())}"
+      val dateTimeVectorName = s"stringCasting_datetime_${Math.abs(hashCode())}"
+      override def computeVector: CodeLines = {
+        CodeLines.from(
+          CodeLines.debugHere,
+          s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
+          s"""std::vector<datetime_t> $dateTimeVectorName = frovedis::parsedatetime($myIdWords, "%YYYY-%mm-%dd");""",
+          s"std::vector<int> $finalVectorName($refName->count);",
+          "datetime_t epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);",
+          s"for(int i = 0; i < $refName->count; i++) {",
+          CodeLines.from(
+            s"$finalVectorName[i] = frovedis::datetime_diff_day(epoch, $dateTimeVectorName[i]);"
+          ).indented,
+          "}"
+        )
+      }
+
+      override def deallocData: CodeLines = CodeLines.empty
+
+      override def fetchResult: CExpression = CExpression(s"$finalVectorName[i]", None)
     }
 
     /** Vectorized evaluation */
@@ -212,6 +219,7 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
+    case Cast(expr: AttributeReference, DateType, Some(zoneId)) => DateCastStringHoleEvaluation(expr.name)
   }
 
   def transform: PartialFunction[Expression, Expression] = Function
