@@ -443,8 +443,6 @@ object CFunctionGeneration {
       "#include <tuple>",
       "#include \"tuple_hash.hpp\"",
       """#include "frovedis/core/radix_sort.hpp"""",
-      """#include "frovedis/text/parsedatetime.cc"""",
-      """#include "frovedis/text/datetime_utility.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
       """#include "frovedis/dataframe/join.cc"""",
       """#include "frovedis/core/set_operations.hpp"""",
