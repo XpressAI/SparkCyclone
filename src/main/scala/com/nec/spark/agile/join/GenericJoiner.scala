@@ -1,7 +1,7 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CVarChar, CVector, VeScalarType, VeString, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CVarChar, CVector, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.join.GenericJoiner.Output.{ScalarOutput, StringOutput}
 
@@ -83,19 +83,19 @@ object GenericJoiner {
       StringOutput(
         outputName = "o_a_var",
         sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
-        inMatchingDictIndices = varCharMatchingIndicesLeftDict,
-        sourceDict = left_dict
+        sourceDict = left_dict,
+        inMatchingDictIndices = varCharMatchingIndicesLeftDict
       ),
       ScalarOutput(
         source = inputsLeft(2).name,
+        sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
         outputName = "o_b_var",
-        sourceIndices = firstPairing.indexOfFirstColumn,
         veType = VeScalarType.VeNullableInt
       ),
       ScalarOutput(
         source = inputsRight(2).name,
+        sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
         outputName = "o_c_var",
-        sourceIndices = secondPairing.indexOfFirstColumn,
         veType = VeScalarType.VeNullableDouble
       )
     )
@@ -155,17 +155,14 @@ object GenericJoiner {
     final case class ScalarOutput(
       source: String,
       outputName: String,
-      sourceIndices: String,
+      sourceIndex: String,
       veType: VeScalarType
     ) extends Output {
-      def sourceIndex = s"${sourceIndices}[i]"
-
       def produce(leftIndicesVec: String, rightIndicesVec: String): CodeLines = CodeLines
         .from(
           s"std::vector<size_t> input_indices;",
           s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
           s"  int i = $leftIndicesVec[x];",
-          s"  int j = $rightIndicesVec[x];",
           s"  input_indices.push_back(${sourceIndex});",
           "}",
           populateScalar(
@@ -179,6 +176,7 @@ object GenericJoiner {
 
       def cVector: CVector = CVector(outputName, veType)
     }
+
     final case class StringOutput(
       outputName: String,
       sourceIndex: String,
@@ -191,7 +189,6 @@ object GenericJoiner {
           s"std::vector<size_t> input_indices;",
           s"for (int x = 0; x < $leftIndicesVec.size(); x++) {",
           s"  int i = $leftIndicesVec[x];",
-          s"  int j = $rightIndicesVec[x];",
           s"  input_indices.push_back(${sourceIndex});",
           "}",
           populateVarChar(
