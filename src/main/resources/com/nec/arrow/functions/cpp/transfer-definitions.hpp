@@ -34,7 +34,9 @@
 #include "char_int_conv.cc"
 #include "parsefloat.hpp"
 #include "parsefloat.cc"
-
+#include "parsedatetime.hpp"
+#include "parsedatetime.cc"
+#include "datetime_utility.hpp"
 
 #ifndef VE_TD_DEFS
 typedef struct
