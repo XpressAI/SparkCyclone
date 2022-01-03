@@ -102,42 +102,45 @@ final case class GenericJoiner(
       s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
     )
 
-  private def firstColSpec =
-    StringOutputSpec(outputName = "o_a", inputName = inputsLeft(0).name)
+  def outputs: List[Output] = {
 
-  private def secondColSpec =
-    ScalarOutputSpec(
-      outputName = "o_b",
-      inputName = inputsLeft(2).name,
-      veScalarType = inputsLeft(2).veType.asInstanceOf[VeScalarType]
+    def firstColSpec =
+      StringOutputSpec(outputName = "o_a", inputName = inputsLeft(0).name)
+
+    def secondColSpec =
+      ScalarOutputSpec(
+        outputName = "o_b",
+        inputName = inputsLeft(2).name,
+        veScalarType = inputsLeft(2).veType.asInstanceOf[VeScalarType]
+      )
+
+    def thirdColSpec = ScalarOutputSpec(
+      outputName = "o_c",
+      inputName = inputsRight(2).name,
+      veScalarType = inputsRight(2).veType.asInstanceOf[VeScalarType]
     )
 
-  private def thirdColSpec = ScalarOutputSpec(
-    outputName = "o_c",
-    inputName = inputsRight(2).name,
-    veScalarType = inputsRight(2).veType.asInstanceOf[VeScalarType]
-  )
-
-  def outputs: List[Output] = List(
-    StringOutput(
-      outputName = firstColSpec.outputName,
-      sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
-      sourceDict = left_dict,
-      inMatchingDictIndices = varCharMatchingIndicesLeftDict
-    ),
-    ScalarOutput(
-      source = secondColSpec.inputName,
-      sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
-      outputName = secondColSpec.outputName,
-      veType = secondColSpec.veScalarType
-    ),
-    ScalarOutput(
-      source = thirdColSpec.inputName,
-      sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
-      outputName = thirdColSpec.outputName,
-      veType = thirdColSpec.veScalarType
+    List(
+      StringOutput(
+        outputName = firstColSpec.outputName,
+        sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
+        sourceDict = left_dict,
+        inMatchingDictIndices = varCharMatchingIndicesLeftDict
+      ),
+      ScalarOutput(
+        source = secondColSpec.inputName,
+        sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
+        outputName = secondColSpec.outputName,
+        veType = secondColSpec.veScalarType
+      ),
+      ScalarOutput(
+        source = thirdColSpec.inputName,
+        sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
+        outputName = thirdColSpec.outputName,
+        veType = thirdColSpec.veScalarType
+      )
     )
-  )
+  }
 
 }
 
