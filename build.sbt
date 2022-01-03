@@ -3,7 +3,6 @@ import sbt.Keys.envVars
 
 import java.lang.management.ManagementFactory
 import java.nio.file.Files
-import java.nio.file.Paths
 
 val CMake = config("cmake") extend Test
 val TPC = config("tpc") extend Test
@@ -164,8 +163,8 @@ CMake / parallelExecution := false
 VectorEngine / parallelExecution := false
 inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
-VectorEngine / fork := true
-VectorEngine / run / fork := true
+VectorEngine / fork := false
+VectorEngine / run / fork := false
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
 VectorEngine / run / javaOptions ++= {
@@ -209,7 +208,7 @@ TPC / testOptions := {
 /** CMake specific configuration */
 inConfig(CMake)(Defaults.testTasks)
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
-CMake / fork := true
+CMake / fork := false
 CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
 Global / cancelable := true
