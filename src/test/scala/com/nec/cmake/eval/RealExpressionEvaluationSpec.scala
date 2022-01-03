@@ -45,7 +45,7 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
-import com.nec.spark.agile.join.GenericJoiner.{Join, FilteredOutput}
+import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
 import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -773,7 +773,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                     joins = List(firstJoin, secondJoin),
                     outputs = List(
                       FilteredOutput("o_a", inputsLeft(0)),
-                      FilteredOutput("o_b", inputsLeft(1)),
+                      FilteredOutput("o_b", inputsLeft(2)),
                       FilteredOutput("o_c", inputsRight(2))
                     )
                   ).produce(fName = "adv_join").cCode
