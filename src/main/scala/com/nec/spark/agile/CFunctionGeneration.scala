@@ -21,23 +21,14 @@ package com.nec.spark.agile
 
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
-  VeNullableDouble,
-  VeNullableFloat,
-  VeNullableInt,
-  VeNullableLong
-}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringProducer.{
-  FrovedisCopyStringProducer,
-  FrovedisStringProducer,
-  ImperativeStringProducer
-}
+import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer, ImperativeStringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector._
 import org.apache.spark.sql.UserDefinedVeType
-import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType, SQLUserDefinedType}
+import org.apache.spark.sql.types._
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
@@ -57,14 +48,22 @@ object CFunctionGeneration {
   final case object Ascending extends SortOrdering
 
   sealed trait CVector {
+    def withNewName(str: String): CVector
+    def declarePointer: String = s"${veType.cVectorType} *${name}"
     def replaceName(search: String, replacement: String): CVector
     def name: String
     def veType: VeType
   }
   object CVector {
+    def apply(name: String, veType: VeType): CVector =
+      veType match {
+        case VeString        => varChar(name)
+        case o: VeScalarType => CScalarVector(name, o)
+      }
     def varChar(name: String): CVector = CVarChar(name)
     def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
     def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableInt)
+    def bigInt(name: String): CVector = CScalarVector(name, VeScalarType.VeNullableLong)
   }
 
   final case class CVarChar(name: String) extends CVector {
@@ -72,11 +71,15 @@ object CFunctionGeneration {
 
     override def replaceName(search: String, replacement: String): CVector =
       copy(name = name.replaceAllLiterally(search, replacement))
+
+    override def withNewName(str: String): CVector = copy(name = str)
   }
 
   final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
     override def replaceName(search: String, replacement: String): CVector =
       copy(name = name.replaceAllLiterally(search, replacement))
+
+    override def withNewName(str: String): CVector = copy(name = str)
   }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String]) {

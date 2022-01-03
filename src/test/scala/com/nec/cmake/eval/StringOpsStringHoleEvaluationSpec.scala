@@ -15,7 +15,7 @@ import com.nec.spark.agile.StringHole.StringHoleEvaluation.{LikeStringHoleEvalua
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.scalatest.freespec.AnyFreeSpec
 
-final class StringHoleEvaluationSpec extends AnyFreeSpec {
+final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
 
   val list = List("this", "test", "is defi", "nitely", "tested")
 
@@ -23,7 +23,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.startsWith("test")) 1 else 0)
 
     expect(
-      StringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
         input = list,
         slowEvaluator = SlowEvaluator.StartsWithEvaluator("test")
       ) == testedList
@@ -34,7 +34,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.endsWith("d")) 1 else 0)
 
     expect(
-      StringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
         input = list,
         slowEvaluator = SlowEvaluator.EndsWithEvaluator("d")
       ) == testedList
@@ -45,7 +45,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.contains("s")) 1 else 0)
 
     expect(
-      StringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
         input = list,
         slowEvaluator = SlowEvaluator.ContainsEvaluator("s")
       ) == testedList
@@ -56,7 +56,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str == "test") 1 else 0)
 
     expect(
-      StringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
         input = list,
         slowEvaluator = SlowEvaluator.EqualsEvaluator("test")
       ) == testedList
@@ -67,7 +67,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.startsWith("test")) 1 else 0)
 
     expect(
-      StringHoleEvaluationSpec.executeHoleEvaluation(
+      StringOpsStringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
         stringHoleEvaluation = LikeStringHoleEvaluation(refName = "strings", likeString = "test%")
       ) == testedList
@@ -76,7 +76,7 @@ final class StringHoleEvaluationSpec extends AnyFreeSpec {
 
 }
 
-object StringHoleEvaluationSpec {
+object StringOpsStringHoleEvaluationSpec {
   def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
     executeHoleEvaluation(
       input = input,
