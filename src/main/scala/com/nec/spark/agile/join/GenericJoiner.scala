@@ -78,7 +78,7 @@ final case class GenericJoiner(
   private def left_dict = s"dict_${firstJoin.left.name}"
 
   private def firstJoinCode = computeStringJoin(
-    outLeftDictIndices = varCharMatchingIndicesLeftDict,
+    leftDictIndices = varCharMatchingIndicesLeftDict,
     outMatchingIndicesLeft = firstPairing.indexOfFirstColumn,
     outMatchingIndicesRight = secondPairing.indexOfFirstColumn,
     inLeftDict = left_dict,
@@ -170,7 +170,7 @@ object GenericJoiner {
     }
   }
 
-  val MatchingIndicesVec = "left_indices"
+  val MatchingIndicesVec = "matching_indices"
 
   def populateVarChar(leftDict: String, inputIndices: String, outputName: String): CodeLines =
     CodeLines.from(
@@ -277,7 +277,7 @@ object GenericJoiner {
         "}"
       )
 
-  private def computeNumJoin(
+  def computeNumJoin(
     outMatchingIndicesLeft: String,
     outMatchingIndicesRight: String,
     inLeft: String,
@@ -305,22 +305,22 @@ object GenericJoiner {
         .block
     )
 
-  private def computeStringJoin(
-    inLeftWords: String,
-    inLeftDict: String,
-    outLeftDictIndices: String,
-    outMatchingIndicesLeft: String,
-    outMatchingIndicesRight: String,
-    inRightVarChar: String
+  def computeStringJoin(
+                         inLeftWords: String,
+                         inLeftDict: String,
+                         leftDictIndices: String,
+                         outMatchingIndicesLeft: String,
+                         outMatchingIndicesRight: String,
+                         inRightVarChar: String
   ): CodeLines =
     CodeLines.from(
       s"std::vector<size_t> ${outMatchingIndicesLeft};",
       s"std::vector<size_t> ${outMatchingIndicesRight};",
-      s"std::vector<size_t> ${outLeftDictIndices} = $inLeftDict.lookup(frovedis::make_compressed_words(${inLeftWords}));",
+      s"std::vector<size_t> ${leftDictIndices} = $inLeftDict.lookup(frovedis::make_compressed_words(${inLeftWords}));",
       CodeLines
         .from(
-          s"std::vector<size_t> left_idx($outLeftDictIndices.size());",
-          s"for (int i = 0; i < $outLeftDictIndices.size(); i++) {",
+          s"std::vector<size_t> left_idx($leftDictIndices.size());",
+          s"for (int i = 0; i < $leftDictIndices.size(); i++) {",
           s"  left_idx[i] = i;",
           s"}",
           s"std::vector<size_t> right = $inLeftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${inRightVarChar})));",
@@ -328,7 +328,7 @@ object GenericJoiner {
           s"for (int i = 0; i < right.size(); i++) {",
           s"  right_idx[i] = i;",
           s"}",
-          s"frovedis::equi_join(right, right_idx, $outLeftDictIndices, left_idx, ${outMatchingIndicesRight}, ${outMatchingIndicesLeft});"
+          s"frovedis::equi_join(right, right_idx, $leftDictIndices, left_idx, ${outMatchingIndicesRight}, ${outMatchingIndicesLeft});"
         )
         .block
     )
