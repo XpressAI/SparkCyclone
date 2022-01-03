@@ -53,6 +53,7 @@ object CFunctionGeneration {
   final case object Ascending extends SortOrdering
 
   sealed trait CVector {
+    def withNewName(str: String): CVector
     def declarePointer: String = s"${veType.cVectorType} *${name}"
     def replaceName(search: String, replacement: String): CVector
     def name: String
@@ -61,7 +62,7 @@ object CFunctionGeneration {
   object CVector {
     def apply(name: String, veType: VeType): CVector =
       veType match {
-        case VeString => varChar(name)
+        case VeString        => varChar(name)
         case o: VeScalarType => CScalarVector(name, o)
       }
     def varChar(name: String): CVector = CVarChar(name)
@@ -75,11 +76,15 @@ object CFunctionGeneration {
 
     override def replaceName(search: String, replacement: String): CVector =
       copy(name = name.replaceAllLiterally(search, replacement))
+
+    override def withNewName(str: String): CVector = copy(name = str)
   }
 
   final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
     override def replaceName(search: String, replacement: String): CVector =
       copy(name = name.replaceAllLiterally(search, replacement))
+
+    override def withNewName(str: String): CVector = copy(name = str)
   }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String]) {

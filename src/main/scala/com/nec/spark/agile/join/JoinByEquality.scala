@@ -32,11 +32,13 @@ final case class JoinByEquality(
     case other => sys.error(s"Unmatched => $other")
   }
 
-  private val out_left = CVector.int("left_idx")
+  val out_left = CVector.int("left_idx")
 
-  private val out_right = CVector.int("right_idx")
+  val out_right = CVector.int("right_idx")
 
-  private def io: List[CVector] = inputsLeft ++ inputsRight ++ List(out_left, out_right)
+  def ioWo: List[CVector] = inputsLeft ++ inputsRight
+  def ioO: List[CVector] = List(out_left, out_right)
+  def io: List[CVector] = ioWo ++ ioO
 
   def produceIndices(fName: String): CodeLines = CodeLines.from(
     """#include "frovedis/core/radix_sort.hpp"""",

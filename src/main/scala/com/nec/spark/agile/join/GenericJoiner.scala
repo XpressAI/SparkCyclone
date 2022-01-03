@@ -3,148 +3,77 @@ package com.nec.spark.agile.join
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
-import com.nec.spark.agile.join.GenericJoiner.Output.{ScalarOutput, StringOutput}
-import com.nec.spark.agile.join.GenericJoiner.OutputSpec.{ScalarOutputSpec, StringOutputSpec}
 import com.nec.spark.agile.join.GenericJoiner._
 
 final case class GenericJoiner(
   inputsLeft: List[CVector],
   inputsRight: List[CVector],
-  firstJoin: Join,
-  secondJoin: Join
+  joins: List[Join],
+  outputs: List[FilteredOutput]
 ) {
-  def produce: CodeLines =
-    CodeLines.from(
-      """#include "frovedis/core/radix_sort.hpp"""",
-      """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/dataframe/join.cc"""",
-      """#include "frovedis/text/words.hpp"""",
-      """#include "frovedis/text/words.cc"""",
-      """#include "frovedis/text/dict.hpp"""",
-      """#include "frovedis/text/dict.cc"""",
-      """#include <iostream>""",
-      """#include <vector>""",
-      """#include <cmath>""",
-      printVec,
-      """extern "C" long adv_join(""",
-      (inputs ++ outputs
-        .map(_.cVector))
-        .map(_.declarePointer)
-        .mkString(",\n"),
-      ")",
-      """{""",
-      CodeLines
-        .from(
-          dictsWords.commented("Create dicts"),
-          firstJoinCode.commented("First join code"),
-          secondJoinCode.commented("Second join code"),
-          computeMatchingIndices(
-            outMatchingIndices = MatchingIndicesVec,
-            firstPairing = firstPairing,
-            secondPairing = secondPairing
-          ).commented("Compute left & right indices"),
-          CodeLines
-            .from(
-              outputs.map(out =>
-                out
-                  .produce(MatchingIndicesVec)
-                  .indented
-                  .commented(s"Produce ${out.cVector.name}")
+  val jbe = JoinByEquality(inputsLeft, inputsRight, joins)
+  val io: List[CVector] = inputsLeft ++ inputsRight ++ outputs.map(_.cVector)
+  def produce(fName: String): CodeLines = CodeLines.from(
+    jbe.produceIndices("compute_indices"),
+    s"""extern "C" long ${fName}(""",
+    io
+      .map(_.declarePointer)
+      .mkString(",\n"),
+    ") {",
+    "nullable_int_vector left_idx;",
+    "nullable_int_vector right_idx;",
+    CodeLines
+      .from(
+        s"compute_indices(${{
+          jbe.ioWo.map(_.name) ++
+            jbe.ioO.map(v => s"&${v.name}")
+        }.mkString(", ")});",
+        s"std::vector<size_t> left_idx_std = idx_to_std(&left_idx);",
+        s"std::vector<size_t> right_idx_std = idx_to_std(&right_idx);",
+        outputs.reverse
+          .map {
+            case FilteredOutput(newName, source @ CScalarVector(name, veType)) =>
+              val isLeft = inputsLeft.contains(source)
+              val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
+              populateScalar(
+                outputName = newName,
+                inputIndices = indicesName,
+                inputName = name,
+                veScalarType = veType
               )
+            case FilteredOutput(newName, source @ CVarChar(name)) =>
+              val isLeft = inputsLeft.contains(source)
+              val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
+
+              CodeLines.from(
+                s"""std::cout << " A " << std::endl << std::flush;""",
+                s"auto ${name}_words = varchar_vector_to_words(${name});",
+                s"""std::cout << " D " << std::endl << std::flush;""",
+                s"auto ${name}_new_words = filter_words(${name}_words, ${indicesName});",
+                s"words_to_varchar_vector(${name}_new_words, ${name});",
+                s"""std::cout << " E " << std::endl << std::flush;"""
+              )
+          }
+          .zipWithIndex
+          .map { case (cl, i) =>
+            CodeLines.from(
+              s"""std::cout << $i << " -- " << std::endl << std::flush;""",
+              cl,
+              s"""std::cout << $i << " /-- " << std::endl << std::flush;"""
             )
-            .commented("Produce outputs"),
-          "return 0;"
-        )
-        .indented,
-      """}"""
-    )
-
-  def varCharMatchingIndicesLeftDict = s"dict_indices_${inputsLeft(0).name}"
-
-  private def firstPairing =
-    EqualityPairing(
-      indexOfFirstColumn = s"index_${firstJoin.left.name}",
-      indexOfSecondColumn = s"index_${firstJoin.right.name}"
-    )
-
-  private def secondPairing =
-    EqualityPairing(
-      indexOfFirstColumn = s"index_${secondJoin.left.name}",
-      indexOfSecondColumn = s"index_${secondJoin.right.name}"
-    )
-
-  private def left_words = s"words_${firstJoin.left.name}"
-
-  private def left_dict = s"dict_${firstJoin.left.name}"
-
-  private def firstJoinCode = computeStringJoin(
-    leftDictIndices = varCharMatchingIndicesLeftDict,
-    outMatchingIndicesLeft = firstPairing.indexOfFirstColumn,
-    outMatchingIndicesRight = secondPairing.indexOfFirstColumn,
-    inLeftDict = left_dict,
-    inLeftWords = left_words,
-    inRightVarChar = firstJoin.right.name
-  )
-
-  private def secondJoinCode = computeNumJoin(
-    outMatchingIndicesLeft = firstPairing.indexOfSecondColumn,
-    inLeft = secondJoin.left.name,
-    outMatchingIndicesRight = secondPairing.indexOfSecondColumn,
-    inRight = secondJoin.right.name
-  )
-
-  private def inputs = inputsLeft ++ inputsRight
-
-  /** Specific to this case - to make generic we may have to de-optimize */
-  private def dictsWords = CodeLines
-    .from(
-      s"frovedis::words ${left_words} = varchar_vector_to_words(${firstJoin.left.name});",
-      s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
-    )
-
-  def outputs: List[Output] = {
-
-    def firstColSpec =
-      StringOutputSpec(outputName = "o_a", inputName = inputsLeft(0).name)
-
-    def secondColSpec =
-      ScalarOutputSpec(
-        outputName = "o_b",
-        inputName = inputsLeft(2).name,
-        veScalarType = inputsLeft(2).veType.asInstanceOf[VeScalarType]
+          },
+        "return 0;"
       )
-
-    def thirdColSpec = ScalarOutputSpec(
-      outputName = "o_c",
-      inputName = inputsRight(2).name,
-      veScalarType = inputsRight(2).veType.asInstanceOf[VeScalarType]
-    )
-
-    List(
-      StringOutput(
-        outputName = firstColSpec.outputName,
-        sourceIndex = s"${varCharMatchingIndicesLeftDict}[${firstPairing.indexOfFirstColumn}[i]]",
-        sourceDict = left_dict,
-        inMatchingDictIndices = varCharMatchingIndicesLeftDict
-      ),
-      ScalarOutput(
-        source = secondColSpec.inputName,
-        sourceIndex = s"${firstPairing.indexOfFirstColumn}[i]",
-        outputName = secondColSpec.outputName,
-        veType = secondColSpec.veScalarType
-      ),
-      ScalarOutput(
-        source = thirdColSpec.inputName,
-        sourceIndex = s"${secondPairing.indexOfFirstColumn}[i]",
-        outputName = thirdColSpec.outputName,
-        veType = thirdColSpec.veScalarType
-      )
-    )
-  }
-
+      .indented,
+    "}"
+  )
 }
 
 object GenericJoiner {
+
+  final case class FilteredOutput(outputName: String, source: CVector) {
+    def cVector: CVector = source.withNewName(outputName)
+  }
 
   sealed trait OutputSpec {
     def outputName: String
@@ -172,9 +101,9 @@ object GenericJoiner {
 
   val MatchingIndicesVec = "matching_indices"
 
-  def populateVarChar(leftDict: String, inputIndices: String, outputName: String): CodeLines =
+  def populateVarChar(dict: String, inputIndices: String, outputName: String): CodeLines =
     CodeLines.from(
-      s"""words_to_varchar_vector(${leftDict}.index_to_words(${inputIndices}), ${outputName});"""
+      s"""words_to_varchar_vector(${dict}.index_to_words(${inputIndices}), ${outputName});"""
     )
 
   def populateScalar(
@@ -194,64 +123,6 @@ object GenericJoiner {
     )
 
   final case class Join(left: CVector, right: CVector)
-
-  sealed trait Output {
-    def cVector: CVector
-    def produce(matchingIndicesVec: String): CodeLines
-  }
-  object Output {
-
-    final case class ScalarOutput(
-      source: String,
-      outputName: String,
-      sourceIndex: String,
-      veType: VeScalarType
-    ) extends Output {
-      def produce(matchingIndicesVec: String): CodeLines = CodeLines
-        .from(
-          s"std::vector<size_t> input_indices;",
-          s"for (int x = 0; x < $matchingIndicesVec.size(); x++) {",
-          s"  int i = $matchingIndicesVec[x];",
-          s"  input_indices.push_back(${sourceIndex});",
-          "}",
-          populateScalar(
-            outputName = outputName,
-            inputIndices = "input_indices",
-            inputName = source,
-            veScalarType = veType
-          )
-        )
-        .block
-
-      def cVector: CVector = CVector(outputName, veType)
-    }
-
-    final case class StringOutput(
-      outputName: String,
-      sourceIndex: String,
-      inMatchingDictIndices: String,
-      sourceDict: String
-    ) extends Output {
-
-      def produce(matchingIndicesVec: String): CodeLines = CodeLines
-        .from(
-          s"std::vector<size_t> input_indices;",
-          s"for (int x = 0; x < $matchingIndicesVec.size(); x++) {",
-          s"  int i = $matchingIndicesVec[x];",
-          s"  input_indices.push_back(${sourceIndex});",
-          "}",
-          populateVarChar(
-            leftDict = sourceDict,
-            inputIndices = "input_indices",
-            outputName = outputName
-          )
-        )
-        .block
-
-      def cVector: CVector = CVarChar(outputName)
-    }
-
-  }
 
   final case class EqualityPairing(indexOfFirstColumn: String, indexOfSecondColumn: String) {
     def toCondition: String = s"$indexOfFirstColumn[i] == $indexOfSecondColumn[j]"
@@ -306,12 +177,12 @@ object GenericJoiner {
     )
 
   def computeStringJoin(
-                         inLeftWords: String,
-                         inLeftDict: String,
-                         leftDictIndices: String,
-                         outMatchingIndicesLeft: String,
-                         outMatchingIndicesRight: String,
-                         inRightVarChar: String
+    inLeftWords: String,
+    inLeftDict: String,
+    leftDictIndices: String,
+    outMatchingIndicesLeft: String,
+    outMatchingIndicesRight: String,
+    inRightVarChar: String
   ): CodeLines =
     CodeLines.from(
       s"std::vector<size_t> ${outMatchingIndicesLeft};",
