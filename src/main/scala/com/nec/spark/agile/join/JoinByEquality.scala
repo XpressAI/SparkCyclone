@@ -1,13 +1,15 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector}
+import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeScalarType}
+import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.join.GenericJoiner.{
   computeNumJoin,
   computeStringJoin,
   EqualityPairing,
   Join
 }
+import com.nec.spark.agile.join.JoinByEquality.Conjunction
 
 final case class JoinByEquality(
   inputsLeft: List[CVector],
@@ -30,8 +32,11 @@ final case class JoinByEquality(
     case other => sys.error(s"Unmatched => $other")
   }
 
-  private def io: List[CVector] =
-    inputsLeft ++ inputsRight ++ List(CVector.int("left_idx"), CVector.int("right_idx"))
+  private val out_left = CVector.int("left_idx")
+
+  private val out_right = CVector.int("right_idx")
+
+  private def io: List[CVector] = inputsLeft ++ inputsRight ++ List(out_left, out_right)
 
   def produceIndices(fName: String): CodeLines = CodeLines.from(
     """#include "frovedis/core/radix_sort.hpp"""",
@@ -73,7 +78,6 @@ final case class JoinByEquality(
             inRightVarChar = right
           )
         )
-
       case Join(CScalarVector(left, _), CScalarVector(right, _)) =>
         val pairing = EqualityPairing(
           indexOfFirstColumn = s"index_${left}",
@@ -88,18 +92,94 @@ final case class JoinByEquality(
       case other =>
         sys.error(s"Unmatched join: ${other}")
     },
-    pairings.map { equalityPairing =>
-      CodeLines.from(
-        s"for ( int i = 0; i < ${equalityPairing.indexOfFirstColumn}.size(); i++ ) {",
-        s"  std::cout << " + "\"" + equalityPairing.indexOfFirstColumn + " - \"" + s" << ${equalityPairing.indexOfFirstColumn}[i] << std::endl << std::flush;",
-        "}",
-        s"for ( int i = 0; i < ${equalityPairing.indexOfSecondColumn}.size(); i++ ) {",
-        s"  std::cout << " + "\"" + equalityPairing.indexOfSecondColumn + " - \"" + s" << ${equalityPairing.indexOfSecondColumn}[i] << std::endl << std::flush;",
-        "}"
-      )
+    pairings match {
+      case one :: Nil =>
+        CodeLines.from(
+          List("left", "right").zip(List(one.indexOfFirstColumn, one.indexOfSecondColumn)).map {
+            case (nme, in) =>
+              CodeLines.from(
+                initializeScalarVector(VeScalarType.veNullableInt, s"${nme}_idx", s"${in}.size()"),
+                CodeLines.forLoop("i", s"${in}.size()")(
+                  CodeLines.from(
+                    s"${nme}_idx->data[i] = ${in}[i];",
+                    s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+                  )
+                )
+              )
+          }
+        )
+
+      case moreThanOne =>
+        CodeLines.from(
+          s"std::vector<size_t> left_idx_vec;",
+          s"std::vector<size_t> right_idx_vec;",
+          Conjunction(moreThanOne).compute("left_idx_vec", "right_idx_vec"),
+          CodeLines.from(List("left", "right").zip(List("left_idx_vec", "right_idx_vec")).map {
+            case (nme, in) =>
+              CodeLines.from(
+                initializeScalarVector(VeScalarType.veNullableInt, s"${nme}_idx", s"${in}.size()"),
+                CodeLines.forLoop("i", s"${in}.size()")(
+                  CodeLines.from(
+                    s"${nme}_idx->data[i] = ${in}[i];",
+                    s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+                  )
+                )
+              )
+          })
+        )
     },
     "return 0;",
     "}"
   )
 
+}
+
+object JoinByEquality {
+
+  def nestLoop(loops: List[String], inside: CodeLines): CodeLines =
+    loops.foldRight(inside) { case (loopInfo, insideCode) =>
+      CodeLines.from(s"for ( $loopInfo ) {", insideCode.indented, "}")
+    }
+
+  final case class Conjunction(pairings: List[EqualityPairing]) {
+    def loops: List[String] =
+      pairings.zip(pairingIndices).map { case (ep, idx) =>
+        s"int ${idx} = 0; ${idx} < ${ep.indexOfFirstColumn}.size(); ${idx}++"
+      }
+
+    def compute(leftOut: String, rightOut: String): CodeLines =
+      nestLoop(
+        loops,
+        CodeLines.ifStatement(condition)(
+          CodeLines.from(
+            s"$leftOut.push_back(${pairings.head.indexOfFirstColumn}[${pairingIndices.head}]);",
+            s"$rightOut.push_back(${pairings.head.indexOfSecondColumn}[${pairingIndices.head}]);"
+          )
+        )
+      )
+
+    private def pairingIndices: List[String] =
+      pairings.indices.map(idx => Character.toString(('i'.toInt + idx).toChar)).toList
+
+    def condition: String = {
+      val firstCol = pairings
+        .sliding(2)
+        .zip(pairingIndices.sliding(2))
+        .collect { case (Seq(a, b), Seq(ai, bi)) =>
+          s"${a.indexOfFirstColumn}[$ai] == ${b.indexOfFirstColumn}[$bi]"
+        }
+        .mkString(" && ")
+
+      val secondCol = pairings
+        .sliding(2)
+        .zip(pairingIndices.sliding(2))
+        .collect { case (Seq(a, b), Seq(ai, bi)) =>
+          s"${a.indexOfSecondColumn}[$ai] == ${b.indexOfSecondColumn}[$bi]"
+        }
+        .mkString(" && ")
+
+      s"($firstCol) && ($secondCol)"
+    }
+
+  }
 }

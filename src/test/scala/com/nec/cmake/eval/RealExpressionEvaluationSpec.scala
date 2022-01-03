@@ -701,7 +701,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                 NativeArgument.input(y_b),
                 NativeArgument.input(y_c),
                 NativeArgument.output(idx_left),
-                NativeArgument.output(idx_left)
+                NativeArgument.output(idx_right)
               )
             )
           }
@@ -710,7 +710,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
 
       val evaluation = evaluationResource.use { case (output_idx_left, output_idx_right) =>
         IO.delay {
-          expect(output_idx_left == List(0, 2, 3, 4), output_idx_right == List(0, 1, 2, 3))
+          expect(output_idx_left == List(0, 2, 2, 4), output_idx_right == List(0, 1, 2, 3))
         }
       }
 
