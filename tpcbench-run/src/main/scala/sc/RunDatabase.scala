@@ -68,7 +68,7 @@ final case class RunDatabase(transactor: Transactor[IO], uri: String) {
     try {
       val statement = connection.createStatement()
       statement.setQueryTimeout(30)
-      val rs = statement.executeQuery("select * from run_result order by timestamp desc limit 50")
+      val rs = statement.executeQuery("select * from run_result order by timestamp desc limit 250")
       val cols = (1 to rs.getMetaData.getColumnCount)
         .map(idx => rs.getMetaData.getColumnLabel(idx))
         .toList
