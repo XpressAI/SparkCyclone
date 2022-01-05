@@ -16,6 +16,7 @@ import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColColumnarVector
+import com.nec.ve.ColVector.MaybeByteArrayColVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{
@@ -28,12 +29,11 @@ import org.apache.arrow.vector.{
   ValueVector,
   VarCharVector
 }
-
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
-import java.nio.ByteBuffer
 
+import java.nio.ByteBuffer
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 
 //noinspection AccessorLikeMethodIsEmptyParen
@@ -121,17 +121,23 @@ object VeColBatch {
 
     def toInternalVector(): ColumnVector = new VeColColumnarVector(cv, likelySparkType(veType))
 
-    def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
-      bufferLocations
-        .zip(bufferSizes)
-        .map { case (veBufferLocation, veBufferSize) =>
-          val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
-          veProcess.get(veBufferLocation.value, targetBuf, veBufferSize)
-          val dst = Array.fill[Byte](veBufferSize)(-1)
-          targetBuf.get(dst, 0, veBufferSize)
-          dst
-        }
+    def toByteArrayContainer()(implicit veProcess: VeProcess): MaybeByteArrayColVector = {
+      copy(
+        bufferLocations = bufferLocations
+          .zip(bufferSizes)
+          .map { case (veBufferLocation, veBufferSize) =>
+            val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
+            veProcess.get(veBufferLocation.value, targetBuf, veBufferSize)
+            val dst = Array.fill[Byte](veBufferSize)(-1)
+            targetBuf.get(dst, 0, veBufferSize)
+            Option(dst)
+          },
+        containerLocation = None
+      )
     }
+
+    def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] =
+      toByteArrayContainer.bufferLocations.flatten
 
     /**
      * Decompose the Byte Array and allocate into VeProcess. Uses bufferSizes.
@@ -148,7 +154,19 @@ object VeColBatch {
         }
       ).newContainer()
 
-    def newContainer()(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
+    private[ve] def injectBuffers(
+      newBuffers: List[Array[Byte]]
+    )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
+      val withBuffers: MaybeByteArrayColVector =
+        copy(containerLocation = Option.empty, bufferLocations = newBuffers.map(b => Option(b)))
+      import ColVector._
+      withBuffers.transferBuffersToVe().map(_.getOrElse(VectorEngineLocation(-1)))
+    }
+
+    private[ve] def newContainer()(implicit
+      veProcess: VeProcess,
+      source: VeColVectorSource
+    ): VeColVector = {
       veType match {
         case VeScalarType.VeNullableDouble =>
           val vcvr = new nullable_double_vector()
@@ -188,14 +206,6 @@ object VeColBatch {
         case other => sys.error(s"Other $other not supported.")
       }
     }.copy(source = source)
-
-    def injectBuffers(newBuffers: List[Array[Byte]])(implicit veProcess: VeProcess): VeColVector =
-      copy(bufferLocations = newBuffers.map { ba =>
-        val byteBuffer = ByteBuffer.allocateDirect(ba.length)
-        byteBuffer.put(ba, 0, ba.length)
-        byteBuffer.position(0)
-        VectorEngineLocation(veProcess.putBuffer(byteBuffer))
-      })
 
     /**
      * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
@@ -331,36 +341,6 @@ object VeColBatch {
       )
       (containerLocation :: bufferLocations).foreach(loc => veProcess.free(loc.value))
     }
-  }
-  final case class ColVector[Data](
-    source: VeColVectorSource,
-    numItems: Int,
-    name: String,
-    variableSize: Option[Int],
-    veType: VeType,
-    containerLocation: Data,
-    bufferLocations: List[Data]
-  ) {
-
-    def nonEmpty: Boolean = numItems > 0
-    def isEmpty: Boolean = !nonEmpty
-
-    if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
-
-    /**
-     * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
-     */
-    def bufferSizes: List[Int] = veType match {
-      case v: VeScalarType => List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
-      case VeString =>
-        val offsetBuffSize = (numItems + 1) * 4
-        val validitySize = Math.ceil(numItems / 64.0).toInt * 8
-
-        variableSize.toList ++ List(offsetBuffSize, validitySize)
-    }
-
-    def containerSize: Int = veType.containerSize
-
   }
 
   //noinspection ScalaUnusedSymbol
