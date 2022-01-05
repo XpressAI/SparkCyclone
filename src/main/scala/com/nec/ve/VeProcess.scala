@@ -113,7 +113,7 @@ object VeProcess {
       def register(): VeColVector = {
         veColVector.bufferLocations.zip(veColVector.bufferSizes).foreach { case (location, size) =>
           logger.debug(s"Registering allocation of ${size} at ${location}")
-          veProcessMetrics.registerAllocation(size, location)
+          veProcessMetrics.registerAllocation(size, location.value)
         }
         veColVector
       }
@@ -160,7 +160,7 @@ object VeProcess {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
-        lp.put(vcv.containerLocation)
+        lp.put(vcv.containerLocation.value)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
@@ -254,7 +254,7 @@ object VeProcess {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
-        lp.put(vcv.containerLocation)
+        lp.put(vcv.containerLocation.value)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
@@ -354,7 +354,7 @@ object VeProcess {
         val byteSize = 8 * batches.batches.size
         val lp = new LongPointer(batches.batches.size)
         colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
-          lp.put(idx, col.containerLocation)
+          lp.put(idx, col.containerLocation.value)
         }
         veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
       }
