@@ -4,6 +4,7 @@ import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.spark.planning.{SupportsVeColBatch, VeCachedBatchSerializer}
 import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
@@ -20,6 +21,12 @@ case class VeFetchFromCachePlan(child: SparkPlan)
       val veColBatch = VeCachedBatchSerializer.unwrapIntoVE(cb)
       // todo register for deletion
       logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${veColBatch}")
+
+      TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+        veColBatch.cols.foreach(_.free())
+      }
+
       veColBatch
     })
 

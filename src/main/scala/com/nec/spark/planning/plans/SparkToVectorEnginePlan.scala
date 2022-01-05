@@ -9,6 +9,7 @@ import com.nec.spark.planning.VeColBatchConverters.{
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VectorEngineLocation
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
@@ -36,27 +37,36 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     logger.info(s"Will make batches of ${numRows} rows...")
     val timeZoneId = conf.sessionLocalTimeZone
     internalRowToSerializedBatch(child.execute(), timeZoneId, child.schema, numRows)
-      .map {
-        case ByteArrayOrBufferColBatch(Left(colsByteBuffer)) =>
-          import com.nec.spark.SparkCycloneExecutorPlugin._
-          import com.nec.ve.ByteBufferVeColVector._
-          VeColBatch.fromList(
-            colsByteBuffer.map(
-              _.transferBuffersToVe()
-                .map(_.getOrElse(VectorEngineLocation(-1)))
-                .newContainer()
+      .map { bb =>
+        val result = bb match {
+          case ByteArrayOrBufferColBatch(Left(colsByteBuffer)) =>
+            import com.nec.spark.SparkCycloneExecutorPlugin._
+            import com.nec.ve.ByteBufferVeColVector._
+            VeColBatch.fromList(
+              colsByteBuffer.map(
+                _.transferBuffersToVe()
+                  .map(_.getOrElse(VectorEngineLocation(-1)))
+                  .newContainer()
+              )
             )
-          )
-        case ByteArrayOrBufferColBatch(Right(colsByteArray)) =>
-          import com.nec.spark.SparkCycloneExecutorPlugin._
-          import com.nec.ve.ByteArrayColVector._
-          VeColBatch.fromList(
-            colsByteArray.map(
-              _.transferBuffersToVe()
-                .map(_.getOrElse(VectorEngineLocation(-1)))
-                .newContainer()
+          case ByteArrayOrBufferColBatch(Right(colsByteArray)) =>
+            import com.nec.spark.SparkCycloneExecutorPlugin._
+            import com.nec.ve.ByteArrayColVector._
+            VeColBatch.fromList(
+              colsByteArray.map(
+                _.transferBuffersToVe()
+                  .map(_.getOrElse(VectorEngineLocation(-1)))
+                  .newContainer()
+              )
             )
-          )
+        }
+
+        TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+          import com.nec.spark.SparkCycloneExecutorPlugin._
+          result.cols.foreach(_.free())
+        }
+
+        result
       }
   }
 
