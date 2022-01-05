@@ -1,10 +1,14 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.planning.SupportsVeColBatch
-import com.nec.spark.planning.VeColBatchConverters.{getNumRows, internalRowToVeColBatch}
+import com.nec.spark.planning.VeColBatchConverters.{
+  getNumRows,
+  internalRowToSerializedBatch,
+  ByteArrayOrBufferColBatch
+}
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeColBatch.VectorEngineLocation
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
@@ -31,7 +35,29 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     val numRows: Int = getNumRows(sparkContext, conf)
     logger.info(s"Will make batches of ${numRows} rows...")
     val timeZoneId = conf.sessionLocalTimeZone
-    internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows).map(_.veColBatch)
+    internalRowToSerializedBatch(child.execute(), timeZoneId, child.schema, numRows)
+      .map {
+        case ByteArrayOrBufferColBatch(Left(colsByteBuffer)) =>
+          import com.nec.spark.SparkCycloneExecutorPlugin._
+          import com.nec.ve.ByteBufferVeColVector._
+          VeColBatch.fromList(
+            colsByteBuffer.map(
+              _.transferBuffersToVe()
+                .map(_.getOrElse(VectorEngineLocation(-1)))
+                .newContainer()
+            )
+          )
+        case ByteArrayOrBufferColBatch(Right(colsByteArray)) =>
+          import com.nec.spark.SparkCycloneExecutorPlugin._
+          import com.nec.ve.ByteArrayColVector._
+          VeColBatch.fromList(
+            colsByteArray.map(
+              _.transferBuffersToVe()
+                .map(_.getOrElse(VectorEngineLocation(-1)))
+                .newContainer()
+            )
+          )
+      }
   }
 
   override def output: Seq[Attribute] = child.output

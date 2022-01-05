@@ -1,10 +1,8 @@
 package com.nec.spark.planning
 
-import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.VeCachedBatchSerializer.ArrowSerializedCachedBatch
-import com.nec.ve.VeColBatch.VectorEngineLocation
-import com.nec.ve.{ByteBufferVeColVector, VeColBatch}
+import com.nec.ve.VeColBatch.{VeColVectorSource, VectorEngineLocation}
+import com.nec.ve.{ByteBufferVeColVector, MaybeByteArrayColVector, VeColBatch, VeProcess}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.spark.rdd.RDD
@@ -14,7 +12,7 @@ import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, DualMode}
 import org.apache.spark.{SparkContext, TaskContext}
 
 import scala.collection.JavaConverters.asScalaBufferConverter
@@ -30,8 +28,35 @@ object VeColBatchConverters {
 
   final case class ArrowColumnarBatch(columnarBatch: ColumnarBatch)
 
-  final case class UnInternalVeColBatch(veColBatch: VeColBatch)
-  final case class ByteBufferColBatch(numRows: Int, cols: List[ByteBufferVeColVector])
+  final case class ByteArrayOrBufferColBatch(
+    cols: Either[List[ByteBufferVeColVector], List[MaybeByteArrayColVector]]
+  ) {
+    def toVeColBatch()(implicit
+      veProcess: VeProcess,
+      veColVectorSource: VeColVectorSource
+    ): VeColBatch = {
+      import com.nec.ve.ByteBufferVeColVector._
+      cols match {
+        case Left(colsByteBuffer) =>
+          VeColBatch.fromList(
+            colsByteBuffer.map(
+              _.transferBuffersToVe()
+                .map(_.getOrElse(VectorEngineLocation(-1)))
+                .newContainer()
+            )
+          )
+        case Right(colsByteArray) =>
+          import com.nec.ve.ByteArrayColVector._
+          VeColBatch.fromList(
+            colsByteArray.map(
+              _.transferBuffersToVe()
+                .map(_.getOrElse(VectorEngineLocation(-1)))
+                .newContainer()
+            )
+          )
+      }
+    }
+  }
 
   def internalRowIteratorToByteBufferVeColVector(
     rowIterator: Iterator[InternalRow],
@@ -76,6 +101,7 @@ object VeColBatchConverters {
           cb.setNumRows(rowCount)
           //              numInputRows += rowCount
           //              numOutputBatches += 1
+          import com.nec.spark.SparkCycloneExecutorPlugin.source
           (0 until cb.numCols())
             .map(idx => ByteBufferVeColVector.fromVectorColumn(cb.column(idx)))
             .toList
@@ -97,30 +123,20 @@ object VeColBatchConverters {
       }
   }
 
-  def internalRowToVeColBatch(
+  def internalRowToSerializedBatch(
     input: RDD[InternalRow],
     timeZoneId: String,
     schema: StructType,
     numRows: Int
-  ): RDD[UnInternalVeColBatch] = {
+  ): RDD[ByteArrayOrBufferColBatch] = {
     input.mapPartitions { iterator =>
-      internalRowIteratorToByteBufferVeColVector(iterator, timeZoneId, schema, numRows)
-        .map { lvec =>
-          import ByteBufferVeColVector.RichByteBufferVeColVector
-          import SparkCycloneExecutorPlugin.veProcess
-          val newBatch =
-            UnInternalVeColBatch(veColBatch =
-              VeColBatch.fromList(
-                lvec.map(
-                  _.transferBuffersToVe()
-                    .map(_.getOrElse(VectorEngineLocation(-1)))
-                    .newContainer()
-                )
-              )
-            )
-          SparkCycloneExecutorPlugin.register(newBatch.veColBatch)
-          newBatch
-        }
+      DualMode.handleIterator(iterator) match {
+        case Left(lvec) =>
+          lvec.map(vl => ByteArrayOrBufferColBatch(Right(vl)))
+        case Right(value) =>
+          internalRowIteratorToByteBufferVeColVector(value, timeZoneId, schema, numRows)
+            .map(vl => ByteArrayOrBufferColBatch(Left(vl)))
+      }
     }
   }
 }

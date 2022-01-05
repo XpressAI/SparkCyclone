@@ -4,7 +4,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColBatchConverters.internalRowToVeColBatch
+import com.nec.spark.planning.VeColBatchConverters.internalRowToSerializedBatch
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
@@ -64,7 +64,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       vec2.setSafe(3, 90)
       new ColumnarBatch(Array(new ArrowColumnVector(vec2)), 4)
     }
-    val result = internalRowToVeColBatch(
+    val result = internalRowToSerializedBatch(
       input = sparkSession.sparkContext
         .makeRDD(Seq(1, 2))
         .repartition(1)
@@ -83,7 +83,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       vcbi
         .map(vcb => {
           println(vcb)
-          vcb.veColBatch
+          vcb.toVeColBatch()
         })
         .map(_.toArrowColumnarBatch())
         .map(cb => cb.column(0).getArrowValueVector)
