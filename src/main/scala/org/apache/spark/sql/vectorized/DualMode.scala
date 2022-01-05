@@ -1,8 +1,8 @@
 package org.apache.spark.sql.vectorized
 
+import com.nec.spark.planning.ArrowSerializedColColumnarVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
-import com.nec.spark.planning.VeColColumnarVector
-import com.nec.ve.VeColBatch
+import com.nec.ve.MaybeByteArrayColVector
 import org.apache.spark.sql.catalyst.InternalRow
 
 object DualMode {
@@ -24,7 +24,7 @@ object DualMode {
 
   def handleIterator(
     iterator: Iterator[InternalRow]
-  ): Either[Iterator[VeColBatch], Iterator[InternalRow]] = {
+  ): Either[Iterator[List[MaybeByteArrayColVector]], Iterator[InternalRow]] = {
     if (!iterator.hasNext) Right(Iterator.empty)
     else {
       iterator.next() match {
@@ -39,11 +39,11 @@ object DualMode {
               }
               .distinct
               .map { cbr =>
-                val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
+                cbr.readPrivate.columns.obj
                   .asInstanceOf[Array[ColumnVector]]
-                  .map(_.asInstanceOf[VeColColumnarVector])
-                val vcv = colVectors.toList.map(_.veColVector)
-                VeColBatch(vcv.head.numItems, vcv)
+                  .map(_.asInstanceOf[ArrowSerializedColColumnarVector])
+                  .toList
+                  .map(_.veColVector)
               }
           }
         case other =>

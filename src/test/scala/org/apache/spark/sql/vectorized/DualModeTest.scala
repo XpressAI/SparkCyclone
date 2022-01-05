@@ -1,11 +1,10 @@
 package org.apache.spark.sql.vectorized
 
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
-import com.nec.spark.planning.VeColColumnarVector
-import com.nec.ve.VeColBatch
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType
+import com.nec.spark.planning.ArrowSerializedColColumnarVector
+import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.ve.{ColVector, MaybeByteArrayColVector}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.vectorized.DualMode.RichIterator
 import org.scalatest.freespec.AnyFreeSpec
@@ -34,25 +33,24 @@ final class DualModeTest extends AnyFreeSpec {
   }
 
   "Accessing private class happens Ok" in {
-    val vcv = VeColVector(
+    val vcv: MaybeByteArrayColVector = ColVector(
       VeColVectorSource("unit test"),
       3,
       "test",
       None,
       VeScalarType.veNullableInt,
-      -1,
+      None,
       Nil
     )
-    val expectedCb = VeColBatch(numRows = vcv.numItems, cols = List(vcv))
-    val cv = new VeColColumnarVector(vcv, IntegerType)
+    val cv = new ArrowSerializedColColumnarVector(vcv, IntegerType)
     val cb = new ColumnarBatch(Array(cv))
     cb.setNumRows(2)
     import scala.collection.JavaConverters._
-    val either: Either[Iterator[VeColBatch], Iterator[InternalRow]] =
+    val either: Either[Iterator[List[MaybeByteArrayColVector]], Iterator[InternalRow]] =
       DualMode.handleIterator(cb.rowIterator().asScala)
     assert(either.isLeft, s"Expecting left-biased result (ve col batches), got ${either}")
     val listBatches = either.left.get.toList
-    assert(listBatches == List(expectedCb))
+    assert(listBatches == List(vcv))
   }
 
 }

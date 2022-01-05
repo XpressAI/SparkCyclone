@@ -1,14 +1,17 @@
 package com.nec.ve
 
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
-import com.nec.ve.ColVector.MaybeByteArrayColVector
-import com.nec.ve.VeColBatch.{VeColVectorSource, VectorEngineLocation}
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource, VectorEngineLocation}
 import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
-
-import java.nio.ByteBuffer
+import org.apache.spark.sql.vectorized.ColumnVector
 
 object ByteBufferVeColVector {
+
+  def fromVectorColumn(source: ColumnVector)(implicit
+    veColVectorSource: VeColVectorSource
+  ): ByteBufferVeColVector = fromArrowVector(source.getArrowValueVector)
 
   def fromArrowVector(
     valueVector: ValueVector
@@ -32,16 +35,9 @@ object ByteBufferVeColVector {
       vec
         .map(_.map(bb => VectorEngineLocation(veProcess.putBuffer(bb))))
         .copy(source = source)
-  }
 
-  implicit final class RichByteArrayColVector(byteArrayColVector: MaybeByteArrayColVector) {
-    def transferToByteBuffers(): ByteBufferVeColVector =
-      byteArrayColVector.map(_.map { ba =>
-        val byteBuffer = ByteBuffer.allocateDirect(ba.length)
-        byteBuffer.put(ba, 0, ba.length)
-        byteBuffer.position(0)
-        byteBuffer
-      })
+    def serializeBuffers(): MaybeByteArrayColVector =
+      vec.copy(containerLocation = None, buffers = vec.buffers.map(_.map(bb => bb.array())))
   }
 
   def fromBigIntVector(
@@ -53,7 +49,7 @@ object ByteBufferVeColVector {
       name = bigIntVector.getName,
       veType = VeScalarType.VeNullableLong,
       containerLocation = None,
-      bufferLocations = List(
+      buffers = List(
         Some(bigIntVector.getDataBuffer.nioBuffer()),
         Some(bigIntVector.getValidityBuffer.nioBuffer())
       ),
@@ -67,7 +63,7 @@ object ByteBufferVeColVector {
       name = dirInt.getName,
       veType = VeScalarType.VeNullableInt,
       containerLocation = None,
-      bufferLocations =
+      buffers =
         List(Some(dirInt.getDataBuffer.nioBuffer()), Some(dirInt.getValidityBuffer.nioBuffer())),
       variableSize = None
     )
@@ -82,7 +78,7 @@ object ByteBufferVeColVector {
       name = smallDirInt.getName,
       veType = VeScalarType.VeNullableInt,
       containerLocation = None,
-      bufferLocations = List(
+      buffers = List(
         Some(intVector.getDataBuffer.nioBuffer()),
         Some(intVector.getValidityBuffer.nioBuffer())
       ),
@@ -99,7 +95,7 @@ object ByteBufferVeColVector {
       name = dateDayVector.getName,
       veType = VeScalarType.VeNullableInt,
       containerLocation = None,
-      bufferLocations = List(
+      buffers = List(
         Some(dateDayVector.getDataBuffer.nioBuffer()),
         Some(dateDayVector.getValidityBuffer.nioBuffer())
       ),
@@ -115,7 +111,7 @@ object ByteBufferVeColVector {
       name = float8Vector.getName,
       veType = VeScalarType.VeNullableDouble,
       containerLocation = None,
-      bufferLocations = List(
+      buffers = List(
         Some(float8Vector.getDataBuffer.nioBuffer()),
         Some(float8Vector.getValidityBuffer.nioBuffer())
       ),
@@ -131,7 +127,7 @@ object ByteBufferVeColVector {
       name = varcharVector.getName,
       veType = VeString,
       containerLocation = None,
-      bufferLocations = List(
+      buffers = List(
         Some(varcharVector.getDataBuffer.nioBuffer()),
         Some(varcharVector.getOffsetBuffer.nioBuffer()),
         Some(varcharVector.getValidityBuffer.nioBuffer())

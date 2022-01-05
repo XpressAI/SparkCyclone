@@ -15,8 +15,7 @@ import com.nec.arrow.VeArrowTransfers.{
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColColumnarVector
-import com.nec.ve.ColVector.MaybeByteArrayColVector
+import com.nec.spark.planning.ArrowSerializedColColumnarVector
 import com.nec.ve.VeColBatch.VeColVector
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{
@@ -45,7 +44,7 @@ final case class VeColBatch(numRows: Int, cols: List[VeColVector]) {
     cb
   }
 
-  def toInternalColumnarBatch(): ColumnarBatch = {
+  def toInternalColumnarBatch()(implicit veProcess: VeProcess): ColumnarBatch = {
     val vecs = cols.map(_.toInternalVector())
     val cb = new ColumnarBatch(vecs.toArray)
     cb.setNumRows(numRows)
@@ -116,11 +115,12 @@ object VeColBatch {
   implicit class RichVeColVector(cv: ColVector[VectorEngineLocation]) {
     import cv._
 
-    def toInternalVector(): ColumnVector = new VeColColumnarVector(cv, likelySparkType(veType))
+    def toInternalVector()(implicit veProcess: VeProcess): ColumnVector =
+      new ArrowSerializedColColumnarVector(cv.toByteArrayContainer(), likelySparkType(veType))
 
     def toByteArrayContainer()(implicit veProcess: VeProcess): MaybeByteArrayColVector = {
       copy(
-        bufferLocations = bufferLocations
+        buffers = buffers
           .zip(bufferSizes)
           .map { case (veBufferLocation, veBufferSize) =>
             val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
@@ -134,7 +134,7 @@ object VeColBatch {
     }
 
     def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] =
-      toByteArrayContainer.bufferLocations.flatten
+      toByteArrayContainer.buffers.flatten
 
     /**
      * Decompose the Byte Array and allocate into VeProcess. Uses bufferSizes.
@@ -154,47 +154,44 @@ object VeColBatch {
     private[ve] def injectBuffers(
       newBuffers: List[Array[Byte]]
     )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
+      import ByteArrayColVector._
       val withBuffers: MaybeByteArrayColVector =
-        copy(containerLocation = Option.empty, bufferLocations = newBuffers.map(b => Option(b)))
-      import ColVector._
+        copy(containerLocation = Option.empty, buffers = newBuffers.map(b => Option(b)))
       withBuffers.transferBuffersToVe().map(_.getOrElse(VectorEngineLocation(-1)))
     }
 
-    private[ve] def newContainer()(implicit
-      veProcess: VeProcess,
-      source: VeColVectorSource
-    ): VeColVector = {
+    def newContainer()(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector = {
       veType match {
         case VeScalarType.VeNullableDouble =>
           val vcvr = new nullable_double_vector()
           vcvr.count = numItems
-          vcvr.data = bufferLocations(0).value
-          vcvr.validityBuffer = bufferLocations(1).value
+          vcvr.data = buffers(0).value
+          vcvr.validityBuffer = buffers(1).value
           val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
 
           copy(containerLocation = VectorEngineLocation(veProcess.putBuffer(byteBuffer)))
         case VeScalarType.VeNullableInt =>
           val vcvr = new nullable_int_vector()
           vcvr.count = numItems
-          vcvr.data = bufferLocations(0).value
-          vcvr.validityBuffer = bufferLocations(1).value
+          vcvr.data = buffers(0).value
+          vcvr.validityBuffer = buffers(1).value
           val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
 
           copy(containerLocation = VectorEngineLocation(veProcess.putBuffer(byteBuffer)))
         case VeScalarType.VeNullableLong =>
           val vcvr = new nullable_bigint_vector()
           vcvr.count = numItems
-          vcvr.data = bufferLocations(0).value
-          vcvr.validityBuffer = bufferLocations(1).value
+          vcvr.data = buffers(0).value
+          vcvr.validityBuffer = buffers(1).value
           val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
 
           copy(containerLocation = VectorEngineLocation(veProcess.putBuffer(byteBuffer)))
         case VeString =>
           val vcvr = new nullable_varchar_vector()
           vcvr.count = numItems
-          vcvr.data = bufferLocations(0).value
-          vcvr.offsets = bufferLocations(1).value
-          vcvr.validityBuffer = bufferLocations(2).value
+          vcvr.data = buffers(0).value
+          vcvr.offsets = buffers(1).value
+          vcvr.validityBuffer = buffers(2).value
           vcvr.dataSize =
             variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
           val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
@@ -237,8 +234,8 @@ object VeColBatch {
           float8Vector.setValueCount(numItems)
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
           val validityTarget = ByteBuffer.allocateDirect(numItems)
-          veProcess.get(bufferLocations.head.value, vhTarget, vhTarget.limit())
-          veProcess.get(bufferLocations(1).value, validityTarget, validityTarget.limit())
+          veProcess.get(buffers.head.value, vhTarget, vhTarget.limit())
+          veProcess.get(buffers(1).value, validityTarget, validityTarget.limit())
           getUnsafe.copyMemory(
             validityTarget.asInstanceOf[DirectBuffer].address(),
             float8Vector.getValidityBufferAddress,
@@ -258,8 +255,8 @@ object VeColBatch {
           bigIntVector.setValueCount(numItems)
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
           val validityTarget = ByteBuffer.allocateDirect(numItems)
-          veProcess.get(bufferLocations.head.value, vhTarget, vhTarget.limit())
-          veProcess.get(bufferLocations(1).value, validityTarget, validityTarget.limit())
+          veProcess.get(buffers.head.value, vhTarget, vhTarget.limit())
+          veProcess.get(buffers(1).value, validityTarget, validityTarget.limit())
           getUnsafe.copyMemory(
             validityTarget.asInstanceOf[DirectBuffer].address(),
             bigIntVector.getValidityBufferAddress,
@@ -279,8 +276,8 @@ object VeColBatch {
           intVector.setValueCount(numItems)
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
           val validityTarget = ByteBuffer.allocateDirect(numItems)
-          veProcess.get(bufferLocations.head.value, vhTarget, vhTarget.limit())
-          veProcess.get(bufferLocations(1).value, validityTarget, validityTarget.limit())
+          veProcess.get(buffers.head.value, vhTarget, vhTarget.limit())
+          veProcess.get(buffers(1).value, validityTarget, validityTarget.limit())
           getUnsafe.copyMemory(
             validityTarget.asInstanceOf[DirectBuffer].address(),
             intVector.getValidityBufferAddress,
@@ -301,13 +298,13 @@ object VeColBatch {
           val offTarget = ByteBuffer.allocateDirect(offsetsSize)
           val validityTarget = ByteBuffer.allocateDirect(numItems)
 
-          veProcess.get(bufferLocations(1).value, offTarget, offTarget.limit())
-          veProcess.get(bufferLocations(2).value, validityTarget, validityTarget.limit())
+          veProcess.get(buffers(1).value, offTarget, offTarget.limit())
+          veProcess.get(buffers(2).value, validityTarget, validityTarget.limit())
           val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
           val vhTarget = ByteBuffer.allocateDirect(dataSize)
 
           offTarget.rewind()
-          veProcess.get(bufferLocations.head.value, vhTarget, vhTarget.limit())
+          veProcess.get(buffers.head.value, vhTarget, vhTarget.limit())
           vcvr.allocateNew(dataSize, numItems)
           vcvr.setValueCount(numItems)
 
@@ -336,7 +333,7 @@ object VeColBatch {
         veColVectorSource == source,
         s"Intended to `free` in ${source}, but got ${veColVectorSource} context."
       )
-      (containerLocation :: bufferLocations).foreach(loc => veProcess.free(loc.value))
+      (containerLocation :: buffers).foreach(loc => veProcess.free(loc.value))
     }
   }
 
@@ -358,7 +355,7 @@ object VeColBatch {
       variableSize = variableSize,
       veType = veType,
       containerLocation = VectorEngineLocation(containerLocation),
-      bufferLocations = bufferLocations.map(VectorEngineLocation)
+      buffers = bufferLocations.map(VectorEngineLocation)
     )
 
     def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
@@ -375,7 +372,6 @@ object VeColBatch {
         .transferBuffersToVe()
         .map(_.getOrElse(VectorEngineLocation(-1)))
         .newContainer()
-
     }
 
   }

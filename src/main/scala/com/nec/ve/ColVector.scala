@@ -1,21 +1,7 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowTransferStructures.{
-  nullable_bigint_vector,
-  nullable_double_vector,
-  nullable_int_vector,
-  nullable_varchar_vector
-}
-import com.nec.arrow.VeArrowTransfers.{
-  nullableBigintVectorToByteBuffer,
-  nullableDoubleVectorToByteBuffer,
-  nullableIntVectorToByteBuffer,
-  nullableVarCharVectorVectorToByteBuffer
-}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource, VectorEngineLocation}
-
-import java.nio.ByteBuffer
+import com.nec.ve.VeColBatch.VeColVectorSource
 
 final case class ColVector[Data](
   source: VeColVectorSource,
@@ -24,7 +10,7 @@ final case class ColVector[Data](
   variableSize: Option[Int],
   veType: VeType,
   containerLocation: Data,
-  bufferLocations: List[Data]
+  buffers: List[Data]
 ) {
 
   def nonEmpty: Boolean = numItems > 0
@@ -46,33 +32,7 @@ final case class ColVector[Data](
 
   def containerSize: Int = veType.containerSize
 
-  def map[Other](f: Data => Other): ColVector[Other] = copy(
-    containerLocation = f(containerLocation),
-    bufferLocations = bufferLocations.map(f)
-  )
-
-}
-
-object ColVector {
-  type MaybeByteArrayColVector = ColVector[Option[Array[Byte]]]
-  implicit final class RichByteArrayColVector(byteArrayColVector: MaybeByteArrayColVector) {
-    import byteArrayColVector._
-    def transferBuffersToVe()(implicit
-      veProcess: VeProcess,
-      source: VeColVectorSource
-    ): ColVector[Option[VectorEngineLocation]] =
-      copy(
-        bufferLocations = bufferLocations.map { maybeBa =>
-          maybeBa.map { ba =>
-            val byteBuffer = ByteBuffer.allocateDirect(ba.length)
-            byteBuffer.put(ba, 0, ba.length)
-            byteBuffer.position(0)
-            VectorEngineLocation(veProcess.putBuffer(byteBuffer))
-          }
-        },
-        containerLocation = None,
-        source = source
-      )
-  }
+  def map[Other](f: Data => Other): ColVector[Other] =
+    copy(containerLocation = f(containerLocation), buffers = buffers.map(f))
 
 }
