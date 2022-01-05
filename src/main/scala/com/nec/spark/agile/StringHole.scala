@@ -25,7 +25,7 @@ import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{NotNullEvaluator, SlowEvaluator}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluation, SlowEvaluator}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Contains, EndsWith, EqualTo, Expression, IsNotNull, LeafExpression, Literal, StartsWith, Unevaluable}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Contains, EndsWith, EqualTo, Expression, In, IsNotNull, LeafExpression, Literal, StartsWith, Unevaluable}
 import org.apache.spark.sql.types.{DataType, DateType, StringType}
 
 /**
@@ -58,6 +58,39 @@ object StringHole {
         def contains: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject%")
         def equalsTo: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject")
       }
+    }
+
+    final case class InStringHoleEvaluation(refName: String, valueList: List[String]) extends
+        StringHoleEvaluation {
+      val valuesWords = s"in_values_${Math.abs(hashCode())}"
+      val toCheckWords = s"in_toCheck_${Math.abs(hashCode())}"
+      val filteredIds = s"in_filtered_${Math.abs(hashCode())}"
+      val matchingIds = s"in_matches_${Math.abs(hashCode())}"
+
+      val words = valueList.mkString(" ").map(_.toInt).mkString(",")
+
+      override def computeVector: CodeLines = CodeLines.from(
+    s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
+        s"vector<int> values{ ${words} };",
+        s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
+        s"std::vector<size_t> ${matchingIds} = filter_words_dict(${valuesWords}, ${toCheckWords});",
+        s"std::vector<size_t> ${filteredIds} = ${toCheckWords}.starts;",
+        s"for(int i =0; i < ${refName}->count; i++) {",
+        CodeLines.from(
+        s"${filteredIds}[i] = 0;"
+        ).indented,
+        "}",
+        s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
+        s"""std::cout << "IDS:" <<  $matchingIds[i];""",
+        CodeLines.from(
+          s"${filteredIds}[$matchingIds[i]] = 1;"
+        ),
+        "}"
+      )
+
+      override def deallocData: CodeLines = CodeLines.empty
+
+      override def fetchResult: CExpression = CExpression(s"${filteredIds}[i]", None)
     }
 
     final case class DateCastStringHoleEvaluation(refName: String) extends StringHoleEvaluation {
@@ -219,7 +252,9 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
-    case Cast(expr: AttributeReference, DateType, Some(zoneId)) => DateCastStringHoleEvaluation(expr.name)
+    case Cast(expr: AttributeReference, DateType, Some(_)) => DateCastStringHoleEvaluation(expr.name)
+//    case In(expr: AttributeReference, exprList: List[AttributeReference]) =>
+
   }
 
   def transform: PartialFunction[Expression, Expression] = Function
