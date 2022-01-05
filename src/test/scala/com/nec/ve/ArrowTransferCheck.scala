@@ -20,7 +20,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     "for Float8Vector" in {
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
           val arrowVec = colVec.toArrowVector()
 
           try {
@@ -34,7 +34,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     "for VarCharVector" in {
       WithTestAllocator { implicit alloc =>
         withArrowStringVector(List("Quick", "brown", "fox", "smth smth", "lazy dog")) { f8v =>
-          val colVec: VeColVector = VeColVector.fromVarcharVector(f8v)
+          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
           val arrowVec = colVec.toArrowVector()
 
           try {
@@ -47,7 +47,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     "for BigInt" in {
       WithTestAllocator { implicit alloc =>
         withDirectBigIntVector(List(1, -1, 1238)) { biv =>
-          val colVec: VeColVector = VeColVector.fromBigIntVector(biv)
+          val colVec: VeColVector = VeColVector.fromArrowVector(biv)
           val arrowVec = colVec.toArrowVector()
 
           try {
@@ -60,7 +60,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     "for Int" in {
       WithTestAllocator { implicit alloc =>
         withDirectIntVector(List(1, 2, 3, -5)) { dirInt =>
-          val colVec: VeColVector = VeColVector.fromIntVector(dirInt)
+          val colVec: VeColVector = VeColVector.fromArrowVector(dirInt)
           val arrowVec = colVec.toArrowVector()
 
           try {
@@ -77,7 +77,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
           val results = veProcess.execute(
             libraryReference = lib,
             functionName = "f",
@@ -99,7 +99,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(95, 99, 105, 500, 501)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
+          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
           val results = veProcess.executeMulti(
             libraryReference = lib,
             functionName = "f",
@@ -146,9 +146,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
             val lastString = "cccc"
             withNullableArrowStringVector(List("a", "b", lastString).map(Some.apply)) { sv =>
-              val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
-              val colVec2: VeColVector = VeColVector.fromFloat8Vector(f8v2)
-              val colVecS: VeColVector = VeColVector.fromVarcharVector(sv)
+              val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
+              val colVec2: VeColVector = VeColVector.fromArrowVector(f8v2)
+              val colVecS: VeColVector = VeColVector.fromArrowVector(sv)
               val results = veProcess.executeMulti(
                 libraryReference = lib,
                 functionName = "f",
@@ -280,10 +280,10 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           withArrowStringVector(Seq("a", "b", "c", "x")) { sv =>
             withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
               withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
-                val colVec: VeColVector = VeColVector.fromFloat8Vector(f8v)
-                val colVec2: VeColVector = VeColVector.fromFloat8Vector(f8v2)
-                val sVec: VeColVector = VeColVector.fromVarcharVector(sv)
-                val sVec2: VeColVector = VeColVector.fromVarcharVector(sv2)
+                val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
+                val colVec2: VeColVector = VeColVector.fromArrowVector(f8v2)
+                val sVec: VeColVector = VeColVector.fromArrowVector(sv)
+                val sVec2: VeColVector = VeColVector.fromArrowVector(sv2)
                 val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
                 val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
                 val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
