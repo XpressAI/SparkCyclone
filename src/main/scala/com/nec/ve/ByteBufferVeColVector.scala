@@ -37,7 +37,19 @@ object ByteBufferVeColVector {
         .copy(source = source)
 
     def serializeBuffers(): MaybeByteArrayColVector =
-      vec.copy(containerLocation = None, buffers = vec.buffers.map(_.map(bb => bb.array())))
+      vec.copy(
+        containerLocation = None,
+        buffers = vec.buffers.map(_.map(bb => {
+          try bb.array()
+          catch {
+            case _: UnsupportedOperationException =>
+              val size = bb.capacity()
+              val target: Array[Byte] = Array.fill(size)(-1)
+              bb.get(target)
+              target
+          }
+        }))
+      )
   }
 
   def fromBigIntVector(
