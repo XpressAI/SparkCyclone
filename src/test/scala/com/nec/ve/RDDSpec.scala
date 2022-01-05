@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColBatchConverters.internalRowToSerializedBatch
@@ -21,11 +22,21 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
-final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
+final class RDDSpec
+  extends AnyFreeSpec
+  with SparkAdditions
+  with VeKernelInfra
+  with BeforeAndAfterAll {
+
+  override protected def beforeAll(): Unit = {
+    CloseAutomatically = false
+    super.beforeAll()
+  }
 
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
