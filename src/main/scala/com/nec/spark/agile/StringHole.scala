@@ -259,8 +259,8 @@ object StringHole {
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
     case Cast(expr: AttributeReference, DateType, Some(_)) => DateCastStringHoleEvaluation(expr.name)
-    case In(expr: AttributeReference, exprList: List[Literal]) => InStringHoleEvaluation(
-      expr.name, exprList.map(_.toString())
+    case In(expr: AttributeReference, exprlist: List[Expression]) if exprlist.forall(_.isInstanceOf[Literal]) => InStringHoleEvaluation(
+      expr.name, exprlist.map(_.toString())
     )
 
   }
