@@ -102,9 +102,14 @@ object VeProcess {
     with LazyLogging {
     override def allocate(size: Long): Long = {
       val veInputPointer = new LongPointer(1)
+      logger.debug(s"Allocating ${size} bytes...")
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
-      logger.debug(s"Allocating ${size} bytes ==> ${ptr}")
+      if (ptr != 0)
+        logger.error(
+          s"Expected pointer to be > 0, got ${ptr}. Tried to allocate ${size} bytes against ${veo_proc_handle}"
+        )
+      logger.debug(s"Allocated ${size} bytes ==> ${ptr}")
       veProcessMetrics.registerAllocation(ptr, size)
       ptr
     }
