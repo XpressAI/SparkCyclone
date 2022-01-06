@@ -162,12 +162,13 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     import com.nec.spark.SparkCycloneExecutorPlugin.closeProcAndCtx
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
-      .foreach(unfinishedAllocations =>
+      .foreach { unfinishedAllocations =>
+        val totalSize = unfinishedAllocations.valuesIterator.sum
         logger.error(
-          s"There were some ${unfinishedAllocations.size} unreleased allocations: ${unfinishedAllocations.toString
+          s"There were some ${unfinishedAllocations.size} unreleased allocations totalling ${totalSize} bytes: ${unfinishedAllocations.toString
             .take(50)}..., expected to be none."
         )
-      )
+      }
 
     if (CloseAutomatically) {
       logger.info(s"Closing process: ${_veo_proc}")
