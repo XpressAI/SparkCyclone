@@ -12,6 +12,8 @@ import org.bytedeco.veoffload.veo_proc_handle
 
 import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 trait VeProcess {
 
@@ -54,6 +56,62 @@ trait VeProcess {
 }
 
 object VeProcess {
+
+  final class ExecutionContextBoundVeProcess(target: VeProcess)(implicit
+    executionContext: ExecutionContext
+  ) extends VeProcess {
+    override def validateVectors(list: List[VeColVector]): Unit =
+      Await.result(Future { target.validateVectors(list) }, Duration.Inf)
+
+    override def loadLibrary(path: Path): LibraryReference =
+      Await.result(Future { target.loadLibrary(path) }, Duration.Inf)
+
+    override def allocate(size: Long): Long =
+      Await.result(Future { target.allocate(size) }, Duration.Inf)
+
+    override def putBuffer(byteBuffer: ByteBuffer): Long =
+      Await.result(Future { target.allocate(putBuffer(byteBuffer)) }, Duration.Inf)
+
+    override def get(from: Long, to: ByteBuffer, size: Long): Unit =
+      Await.result(Future { target.get(from, to, size) }, Duration.Inf)
+
+    override def free(memoryLocation: Long): Unit =
+      Await.result(Future { target.free(memoryLocation) }, Duration.Inf)
+
+    /** Return a single dataset */
+    override def execute(
+      libraryReference: LibraryReference,
+      functionName: String,
+      cols: List[VeColVector],
+      results: List[VeType]
+    ): List[VeColVector] =
+      Await.result(
+        Future { target.execute(libraryReference, functionName, cols, results) },
+        Duration.Inf
+      )
+
+    /** Return multiple datasets - eg for sorting/exchanges */
+    override def executeMulti(
+      libraryReference: LibraryReference,
+      functionName: String,
+      cols: List[VeColVector],
+      results: List[VeType]
+    ): List[(Int, List[VeColVector])] =
+      Await.result(
+        Future { target.executeMulti(libraryReference, functionName, cols, results) },
+        Duration.Inf
+      )
+
+    override def executeMultiIn(
+      libraryReference: LibraryReference,
+      functionName: String,
+      batches: VeBatchOfBatches,
+      results: List[VeType]
+    ): List[VeColVector] = Await.result(
+      Future { target.executeMultiIn(libraryReference, functionName, batches, results) },
+      Duration.Inf
+    )
+  }
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
 

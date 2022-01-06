@@ -22,7 +22,7 @@ package com.nec.spark
 import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
 import com.nec.ve.VeColBatch.VeColVectorSource
 import com.nec.ve.VeProcess
-import com.nec.ve.VeProcess.LibraryReference
+import com.nec.ve.VeProcess.{ExecutionContextBoundVeProcess, LibraryReference}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
@@ -33,7 +33,9 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
+import java.util.concurrent.{ExecutorService, Executors}
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 import scala.util.Try
 
 object SparkCycloneExecutorPlugin extends LazyLogging {
@@ -50,8 +52,14 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   ] =
     scala.collection.mutable.Map.empty
 
+  lazy val boundProc = {
+    implicit val executionContext: ExecutionContextExecutorService =
+      ExecutionContext.fromExecutorService(Executors.newSingleThreadExecutor())
+    new ExecutionContextBoundVeProcess(VeProcess.WrappingVeo(_veo_proc, source, metrics))
+  }
+
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
+    VeProcess.DeferredVeProcess(() => boundProc)
 
   implicit def source: VeColVectorSource = VeColVectorSource(
     s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
