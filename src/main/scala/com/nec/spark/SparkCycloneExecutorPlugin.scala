@@ -121,7 +121,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
       notCached.foreach(_.free())
     }
 
-  private val metrics = new ProcessExecutorMetrics(AllocationTracker.noOp)
+  val metrics = new ProcessExecutorMetrics(AllocationTracker.noOp)
 
 }
 

@@ -11,7 +11,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import sun.nio.ch.DirectBuffer
-
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
 import java.nio.ByteBuffer
 
 /**
@@ -34,10 +34,13 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
     veProcess: VeProcess,
     source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext
-  ): GenericColVector[Option[Long]] =
-    underlying
-      .map(_.map(bb => veProcess.putBuffer(bb)))
-      .copy(source = source)
+  ): GenericColVector[Option[Long]] = {
+    measureRunningTime(
+      underlying
+        .map(_.map(bb => veProcess.putBuffer(bb)))
+        .copy(source = source)
+    )(registerTransferTime)
+  }
 
   def toByteArrayColVector(): ByteArrayColVector =
     ByteArrayColVector(

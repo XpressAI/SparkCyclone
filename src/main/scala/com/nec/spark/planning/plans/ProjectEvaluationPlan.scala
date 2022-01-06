@@ -21,6 +21,10 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
+  measureRunningTime,
+  registerFunctionCallTime
+}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
@@ -71,13 +75,17 @@ final case class ProjectEvaluationPlan(
 
             val cols =
               if (canPassThroughall) Nil
-              else
-                veProcess.execute(
-                  libraryReference = libRef,
-                  functionName = veFunction.functionName,
-                  cols = veColBatch.cols,
-                  results = veFunction.results
-                )
+              else {
+                measureRunningTime(
+                  veProcess.execute(
+                    libraryReference = libRef,
+                    functionName = veFunction.functionName,
+                    cols = veColBatch.cols,
+                    results = veFunction.results
+                  )
+                )(registerFunctionCallTime(_, veFunction.functionName))
+
+              }
             val outBatch = createOutputBatch(cols, veColBatch)
 
             if (veColBatch.numRows < outBatch.numRows)
