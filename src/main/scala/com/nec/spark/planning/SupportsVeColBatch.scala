@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
-import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.{VeColBatch, VeProcess}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -13,9 +13,16 @@ object SupportsVeColBatch {
     def cleanup(
       veColBatch: VeColBatch
     )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit
+    def cleanup(
+      veColVector: VeColVector
+    )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit
   }
   object DataCleanup {
     case object Cleanup extends DataCleanup {
+      override def cleanup(
+        veColVector: VeColVector
+      )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit =
+        veColVector.free()
       override def cleanup(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit =
