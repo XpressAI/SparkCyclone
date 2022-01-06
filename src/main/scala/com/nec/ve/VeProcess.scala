@@ -116,7 +116,9 @@ object VeProcess {
 
     private implicit class RichVCV(veColVector: VeColVector) {
       def register(): VeColVector = {
-        veColVector.buffers.zip(veColVector.bufferSizes).foreach { case (location, size) =>
+        ((veColVector.containerLocation -> veColVector.containerSize) :: veColVector.buffers.zip(
+          veColVector.bufferSizes
+        )).foreach { case (location, size) =>
           logger.debug(s"Registering allocation of ${size} at ${location}")
           veProcessMetrics.registerAllocation(location.value, size)
         }
