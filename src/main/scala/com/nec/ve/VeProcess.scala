@@ -127,7 +127,8 @@ object VeProcess {
           memoryLocation,
           new org.bytedeco.javacpp.Pointer(byteBuffer),
           byteBuffer.capacity().toLong
-        )
+        ),
+        s"Tried to allocate ${byteBuffer.capacity()} bytes to the VE, but couldn't"
       )
       memoryLocation
     }
