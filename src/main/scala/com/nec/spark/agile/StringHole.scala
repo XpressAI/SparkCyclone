@@ -71,19 +71,25 @@ object StringHole {
 
       override def computeVector: CodeLines = CodeLines.from(
     s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
+        s"${valuesWords}.print();",
         s"vector<int> values{ ${words} };",
         s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
+        s"${toCheckWords}.print();",
+        "auto NOT_FOUND = numeric_limits<size_t>::max();",
         s"std::vector<size_t> ${matchingIds} = filter_words_dict(${valuesWords}, ${toCheckWords});",
-        s"std::vector<size_t> ${filteredIds} = ${toCheckWords}.starts;",
-        s"for(int i =0; i < ${refName}->count; i++) {",
-        CodeLines.from(
-        s"${filteredIds}[i] = 0;"
-        ).indented,
-        "}",
+        s"std::vector<size_t> ${filteredIds}(${refName}->count);",
         s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
-        s"""std::cout << "IDS:" <<  $matchingIds[i];""",
+        s"""std::cout << "IDS: " << ${matchingIds}[i] <<" ";  """,
         CodeLines.from(
-          s"${filteredIds}[$matchingIds[i]] = 1;"
+          s"if($matchingIds[i] != NOT_FOUND) {",
+            CodeLines.from(
+              s"${filteredIds}[i] = 1;"
+            ).indented,
+          "} else {",
+          CodeLines.from(
+            s"${filteredIds}[i] = 0;"
+          ).indented,
+          "}"
         ),
         "}"
       )

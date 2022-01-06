@@ -17,10 +17,27 @@ import com.nec.util.RichVectors.RichIntVector
 import org.scalatest.flatspec.AnyFlatSpec
 
 final class InStringHoleEvaluationSpec extends AnyFlatSpec {
-  "It" should  "correctly map string to date" in {
+  "It" should  "correctly filter out input set" in {
     val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
-    val toMatchList = List("Cat", "Brown", "Fox")
-    val expectedResults = List()
+    val toMatchList = List("Dog", "Cat", "Fox")
+    val expectedResults = list.collect{
+      case elem if(toMatchList.contains(elem)) => 1
+      case _ => 0
+    }
+    val evaluation = InStringHoleEvaluation("strings", toMatchList)
+
+    val results = executeHoleEvaluation(list, evaluation)
+
+    assert(results == expectedResults)
+  }
+
+  "It" should  "correctly filter out input set if no matches are preset" in {
+    val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
+    val toMatchList = List("not", "here","Has")
+    val expectedResults = list.collect{
+      case elem if(toMatchList.contains(elem)) => 1
+      case _ => 0
+    }
     val evaluation = InStringHoleEvaluation("strings", toMatchList)
 
     val results = executeHoleEvaluation(list, evaluation)
@@ -28,6 +45,8 @@ final class InStringHoleEvaluationSpec extends AnyFlatSpec {
     assert(results == expectedResults)
   }
 }
+
+
 
 object InStringHoleEvaluationSpec {
 
