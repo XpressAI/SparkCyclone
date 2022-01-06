@@ -1,8 +1,5 @@
 package com.nec.cmake.eval
 
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
@@ -11,7 +8,7 @@ import com.nec.cmake.eval.DateCastStringHoleEvaluationSpec.executeHoleEvaluation
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, InStringHoleEvaluation}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.InStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.util.RichVectors.RichIntVector
 import org.scalatest.flatspec.AnyFlatSpec
@@ -34,6 +31,34 @@ final class InStringHoleEvaluationSpec extends AnyFlatSpec {
   "It" should  "correctly filter out input set if no matches are preset" in {
     val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
     val toMatchList = List("not", "here","Has")
+    val expectedResults = list.collect{
+      case elem if(toMatchList.contains(elem)) => 1
+      case _ => 0
+    }
+    val evaluation = InStringHoleEvaluation("strings", toMatchList)
+
+    val results = executeHoleEvaluation(list, evaluation)
+
+    assert(results == expectedResults)
+  }
+
+  "It" should  "correctly filter out input set if all words match" in {
+    val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
+    val toMatchList = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
+    val expectedResults = list.collect{
+      case elem if(toMatchList.contains(elem)) => 1
+      case _ => 0
+    }
+    val evaluation = InStringHoleEvaluation("strings", toMatchList)
+
+    val results = executeHoleEvaluation(list, evaluation)
+
+    assert(results == expectedResults)
+  }
+
+  "It" should  "correctly filter out input set with more complex matches" in {
+    val list = List("Fox", "Dog", "CatFox", "SparkCyclone")
+    val toMatchList = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
     val expectedResults = list.collect{
       case elem if(toMatchList.contains(elem)) => 1
       case _ => 0

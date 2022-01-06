@@ -60,7 +60,7 @@ object StringHole {
       }
     }
 
-    final case class InStringHoleEvaluation(refName: String, valueList: List[String]) extends
+    final case class InStringHoleEvaluation(refName: String, valueList: Seq[String]) extends
         StringHoleEvaluation {
       val valuesWords = s"in_values_${Math.abs(hashCode())}"
       val toCheckWords = s"in_toCheck_${Math.abs(hashCode())}"
@@ -71,15 +71,12 @@ object StringHole {
 
       override def computeVector: CodeLines = CodeLines.from(
     s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
-        s"${valuesWords}.print();",
         s"vector<int> values{ ${words} };",
         s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
-        s"${toCheckWords}.print();",
         "auto NOT_FOUND = numeric_limits<size_t>::max();",
         s"std::vector<size_t> ${matchingIds} = filter_words_dict(${valuesWords}, ${toCheckWords});",
         s"std::vector<size_t> ${filteredIds}(${refName}->count);",
         s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
-        s"""std::cout << "IDS: " << ${matchingIds}[i] <<" ";  """,
         CodeLines.from(
           s"if($matchingIds[i] != NOT_FOUND) {",
             CodeLines.from(
@@ -259,7 +256,7 @@ object StringHole {
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
     case Cast(expr: AttributeReference, DateType, Some(_)) => DateCastStringHoleEvaluation(expr.name)
-    case In(expr: AttributeReference, exprlist: List[Expression]) if exprlist.forall(_.isInstanceOf[Literal]) => InStringHoleEvaluation(
+    case In(expr: AttributeReference, exprlist: Seq[Literal])  => InStringHoleEvaluation(
       expr.name, exprlist.map(_.toString())
     )
 
