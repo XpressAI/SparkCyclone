@@ -2,6 +2,10 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
+  measureRunningTime,
+  registerFunctionCallTime
+}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
@@ -35,12 +39,14 @@ case class VePartialAggregate(
           VeColBatch.fromList {
             import OriginalCallingContext.Automatic._
             try {
-              val result = veProcess.execute(
-                libraryReference = libRef,
-                functionName = partialFunction.functionName,
-                cols = veColBatch.cols,
-                results = partialFunction.results
-              )
+              val result = measureRunningTime(
+                veProcess.execute(
+                  libraryReference = libRef,
+                  functionName = partialFunction.functionName,
+                  cols = veColBatch.cols,
+                  results = partialFunction.results
+                )
+              )(registerFunctionCallTime(_, veFunction.functionName))
               logger.debug(s"Mapped $veColBatch to $result")
               result
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)

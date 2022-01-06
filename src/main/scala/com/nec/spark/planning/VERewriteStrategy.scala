@@ -423,7 +423,7 @@ final case class VERewriteStrategy(
                 input to output vectors at all if:
 
                   dataDescriptions.count(_.keyOrValue.isKey) <= 0
-              */
+               */
               if (options.exchangeOnVe) {
                 VeHashExchange(
                   exchangeFunction = VeFunction(

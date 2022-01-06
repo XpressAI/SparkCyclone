@@ -4,6 +4,10 @@ import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
+  measureRunningTime,
+  registerDeserializationTime
+}
 
 /**
  * Used as a pure carrier class, to ensure type-wise that we are not trying to transfer data itself.
@@ -23,18 +27,19 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
     veProcess: VeProcess,
     originalCallingContext: OriginalCallingContext
   ): VeColVector =
-    VeColVector(
-      ByteArrayColVector(
-        underlying.copy(
-          container = None,
-          buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
-            case (bufferStart, bufferSize) =>
-              Option(ba.slice(bufferStart, bufferStart + bufferSize))
-          }
-        )
-      ).transferBuffersToVe()
-        .map(_.getOrElse(-1))
-    )
-      .newContainer()
-
+    measureRunningTime {
+      VeColVector(
+        ByteArrayColVector(
+          underlying.copy(
+            container = None,
+            buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
+              case (bufferStart, bufferSize) =>
+                Option(ba.slice(bufferStart, bufferStart + bufferSize))
+            }
+          )
+        ).transferBuffersToVe()
+          .map(_.getOrElse(-1))
+      )
+        .newContainer()
+    }(registerDeserializationTime)
 }

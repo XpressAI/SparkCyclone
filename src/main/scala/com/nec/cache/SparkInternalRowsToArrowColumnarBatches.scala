@@ -8,7 +8,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerConversionTime}
 object SparkInternalRowsToArrowColumnarBatches {
   def apply(rowIterator: Iterator[InternalRow], arrowSchema: Schema)(implicit
     bufferAllocator: BufferAllocator,
@@ -36,18 +36,20 @@ object SparkInternalRowsToArrowColumnarBatches {
         }
 
         override def next(): ColumnarBatch = {
-          arrowWriter.reset()
-          cb.setNumRows(0)
-          root.getFieldVectors.asScala.foreach(_.reset())
-          var rowCount = 0
-          while (rowCount < arrowEncodingSettings.numRows && rowIterator.hasNext) {
-            val row = rowIterator.next()
-            arrowWriter.write(row)
-            arrowWriter.finish()
-            rowCount += 1
-          }
-          cb.setNumRows(rowCount)
-          cb
+          measureRunningTime {
+            arrowWriter.reset()
+            cb.setNumRows(0)
+            root.getFieldVectors.asScala.foreach(_.reset())
+            var rowCount = 0
+            while (rowCount < arrowEncodingSettings.numRows && rowIterator.hasNext) {
+              val row = rowIterator.next()
+              arrowWriter.write(row)
+              arrowWriter.finish()
+              rowCount += 1
+            }
+            cb.setNumRows(rowCount)
+            cb
+          }(registerConversionTime)
         }
       }
     } else Iterator.empty
