@@ -105,7 +105,7 @@ object VeProcess {
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
       logger.debug(s"Allocating ${size} bytes ==> ${ptr}")
-      veProcessMetrics.registerAllocation(size, ptr)
+      veProcessMetrics.registerAllocation(ptr, size)
       ptr
     }
 
@@ -113,7 +113,7 @@ object VeProcess {
       def register(): VeColVector = {
         veColVector.buffers.zip(veColVector.bufferSizes).foreach { case (location, size) =>
           logger.debug(s"Registering allocation of ${size} at ${location}")
-          veProcessMetrics.registerAllocation(size, location.value)
+          veProcessMetrics.registerAllocation(location.value, size)
         }
         veColVector
       }

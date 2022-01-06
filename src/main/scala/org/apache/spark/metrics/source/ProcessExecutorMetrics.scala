@@ -8,7 +8,7 @@ import scala.collection.mutable
 final class ProcessExecutorMetrics() extends VeProcessMetrics with Source {
   private val allocations: scala.collection.mutable.Map[Long, Long] = mutable.Map.empty
 
-  override def registerAllocation(amount: Long, position: Long): Unit =
+  override def registerAllocation(position: Long, amount: Long): Unit =
     allocations.put(position, amount)
 
   override def deregisterAllocation(position: Long): Unit =
