@@ -24,7 +24,8 @@ trait VeProcess {
   def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long): Long
-  def putBuffer(byteBuffer: ByteBuffer): Long
+  def putBuffer(buffer: ByteBuffer): Long
+  def put(from: ByteBuffer, size: Long): Long
   def get(from: Long, to: ByteBuffer, size: Long): Unit
   def free(memoryLocation: Long): Unit
 
@@ -62,7 +63,9 @@ object VeProcess {
 
     override def allocate(size: Long): Long = f().allocate(size)
 
-    override def putBuffer(byteBuffer: ByteBuffer): Long = f().putBuffer(byteBuffer)
+    override def putBuffer(buffer: ByteBuffer): Long = f().putBuffer(buffer)
+
+    override def put(from: ByteBuffer, size: Long): Long = f().put(from, size)
 
     override def get(from: Long, to: ByteBuffer, size: Long): Unit = f().get(from, to, size)
 
@@ -119,17 +122,26 @@ object VeProcess {
       }
     }
 
-    override def putBuffer(byteBuffer: ByteBuffer): Long = {
-      val memoryLocation = allocate(byteBuffer.capacity().toLong)
+    override def putBuffer(buffer: ByteBuffer): Long = {
+      put(buffer, buffer.capacity.toLong)
+    }
+
+    override def put(from: ByteBuffer, size: Long): Long = {
+      require(size > 0, "Specified write size is invalid")
+      require(size <= from.capacity.toLong, "Specified write size is > ByteBuffer capacity")
+
+      val location = allocate(size)
+
       requireOk(
         veo.veo_write_mem(
           veo_proc_handle,
-          memoryLocation,
-          new org.bytedeco.javacpp.Pointer(byteBuffer),
-          byteBuffer.capacity().toLong
+          location,
+          new org.bytedeco.javacpp.Pointer(from),
+          size
         )
       )
-      memoryLocation
+
+      location
     }
 
     override def get(from: Long, to: ByteBuffer, size: Long): Unit =
