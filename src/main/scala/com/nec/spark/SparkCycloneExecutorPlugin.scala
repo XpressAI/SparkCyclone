@@ -27,7 +27,8 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.metrics.source.ProcessExecutorMetrics
+import org.apache.spark.metrics.source.DeepProcessExecutorMetrics.AllocationInfo
+import org.apache.spark.metrics.source.{DeepProcessExecutorMetrics, ProcessExecutorMetrics}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -76,7 +77,8 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var DefaultVeNodeId = 0
 
-  val metrics = new ProcessExecutorMetrics()
+//  val metrics = new ProcessExecutorMetrics()
+  val metrics = new DeepProcessExecutorMetrics()
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
@@ -126,11 +128,20 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach { unfinishedAllocations =>
-        val totalSize = unfinishedAllocations.valuesIterator.sum
+        val totalSize = unfinishedAllocations.valuesIterator
+          .map(_.asInstanceOf[Any])
+          .map {
+            case v: Long            => v
+            case ai: AllocationInfo => ai.size
+          }
+          .sum
+
         logger.error(
           s"There were some ${unfinishedAllocations.size} unreleased allocations totalling ${totalSize} bytes: ${unfinishedAllocations.toString
             .take(50)}..., expected to be none."
         )
+
+        unfinishedAllocations.take(2).foreach(alloc => logger.error(s"Example (up to 2): ${alloc}"))
       }
 
     if (CloseAutomatically) {
