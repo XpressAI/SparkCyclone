@@ -23,7 +23,7 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{NotNullEvaluator, SlowEvaluator}
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluation, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, InStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluation, SlowEvaluator}
 
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Contains, EndsWith, EqualTo, Expression, In, IsNotNull, LeafExpression, Literal, StartsWith, Unevaluable}
 import org.apache.spark.sql.types.{DataType, DateType, StringType}
@@ -259,7 +259,9 @@ object StringHole {
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
     case Cast(expr: AttributeReference, DateType, Some(_)) => DateCastStringHoleEvaluation(expr.name)
-//    case In(expr: AttributeReference, exprList: List[AttributeReference]) =>
+    case In(expr: AttributeReference, exprList: List[Literal]) => InStringHoleEvaluation(
+      expr.name, exprList.map(_.toString())
+    )
 
   }
 
