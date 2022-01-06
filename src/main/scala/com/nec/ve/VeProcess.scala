@@ -70,7 +70,7 @@ object VeProcess {
       Await.result(Future { target.allocate(size) }, Duration.Inf)
 
     override def putBuffer(byteBuffer: ByteBuffer): Long =
-      Await.result(Future { target.allocate(putBuffer(byteBuffer)) }, Duration.Inf)
+      Await.result(Future { target.putBuffer(byteBuffer) }, Duration.Inf)
 
     override def get(from: Long, to: ByteBuffer, size: Long): Unit =
       Await.result(Future { target.get(from, to, size) }, Duration.Inf)
