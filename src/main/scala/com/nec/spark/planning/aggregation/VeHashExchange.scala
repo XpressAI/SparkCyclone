@@ -1,6 +1,7 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
+import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeRDD.RichKeyedRDDL
@@ -44,7 +45,7 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
         }
       }
     }
-    .exchangeBetweenVEs()
+    .exchangeBetweenVEs()(DataCleanup.cleanup)
     .mapPartitions(f = _.map(lv => VeColBatch.fromList(lv)), preservesPartitioning = true)
 
   override def output: Seq[Attribute] = child.output

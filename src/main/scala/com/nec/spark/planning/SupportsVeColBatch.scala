@@ -18,6 +18,7 @@ object SupportsVeColBatch {
     )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit
   }
   object DataCleanup {
+    def cleanup: DataCleanup = Cleanup
     case object Cleanup extends DataCleanup {
       override def cleanup(
         veColVector: VeColVector

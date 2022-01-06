@@ -1,9 +1,10 @@
 package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
+import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.ve.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.{HashPartitioner, TaskContext}
+import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 
 import scala.reflect.ClassTag
@@ -24,7 +25,9 @@ object VeRDD extends LazyLogging {
         preservesPartitioning = true
       )
 
-  def exchangeL(rdd: RDD[(Int, List[VeColVector])]): RDD[List[VeColVector]] =
+  def exchangeL(
+    rdd: RDD[(Int, List[VeColVector])]
+  )(implicit cleanup: DataCleanup): RDD[List[VeColVector]] =
     rdd
       .mapPartitions(
         f = iter =>
@@ -33,6 +36,7 @@ object VeRDD extends LazyLogging {
             logger.debug(s"Preparing to serialize batch ${v}")
             val r = (p, (v, v.map(_.serialize())))
             logger.debug(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
+            v.foreach(cleanup.cleanup)
             r
           },
         preservesPartitioning = true
@@ -65,7 +69,7 @@ object VeRDD extends LazyLogging {
       new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
-    def exchangeBetweenVEs(): RDD[List[VeColVector]] = exchangeL(rdd)
+    def exchangeBetweenVEs()(implicit cleanup: DataCleanup): RDD[List[VeColVector]] = exchangeL(rdd)
     // for single-machine case!
     // def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
     // exchangeLS(rdd)
