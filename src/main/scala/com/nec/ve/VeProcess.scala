@@ -120,15 +120,17 @@ object VeProcess {
     }
 
     override def putBuffer(byteBuffer: ByteBuffer): Long = {
-      val memoryLocation = allocate(byteBuffer.capacity().toLong)
+      val cap = byteBuffer.capacity().toLong
+      byteBuffer.position(0)
+      val memoryLocation = allocate(cap)
       requireOk(
         veo.veo_write_mem(
           veo_proc_handle,
           memoryLocation,
           new org.bytedeco.javacpp.Pointer(byteBuffer),
-          byteBuffer.capacity().toLong
+          cap
         ),
-        s"Tried to write ${byteBuffer.capacity()} bytes to the VE at memory location ${memoryLocation}, but couldn't"
+        s"Tried to write ${cap} bytes to the VE at memory location ${memoryLocation}, but couldn't"
       )
       memoryLocation
     }
