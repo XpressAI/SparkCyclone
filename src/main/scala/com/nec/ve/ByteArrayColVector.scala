@@ -17,10 +17,7 @@ object ByteArrayColVector {
       copy(
         buffers = buffers.map { maybeBa =>
           maybeBa.map { ba =>
-            val byteBuffer = ByteBuffer.allocateDirect(ba.length)
-            byteBuffer.put(ba, 0, ba.length)
-            byteBuffer.position(0)
-            VectorEngineLocation(veProcess.putBuffer(byteBuffer))
+            VectorEngineLocation(veProcess.putBuffer(ByteBuffer.wrap(ba)))
           }
         },
         containerLocation = None,
@@ -28,10 +25,7 @@ object ByteArrayColVector {
       )
     def transferToByteBuffers(): ByteBufferVeColVector =
       byteArrayColVector.map(_.map { ba =>
-        val byteBuffer = ByteBuffer.allocateDirect(ba.length)
-        byteBuffer.put(ba, 0, ba.length)
-        byteBuffer.position(0)
-        byteBuffer
+        ByteBuffer.wrap(ba)
       })
 
     def toInternalVector: ColumnVector =
