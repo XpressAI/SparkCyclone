@@ -21,12 +21,6 @@ case class VeFetchFromCachePlan(child: SparkPlan)
       val veColBatch = VeCachedBatchSerializer.unwrapIntoVE(cb)
       // todo register for deletion
       logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${veColBatch}")
-
-      TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-        import com.nec.spark.SparkCycloneExecutorPlugin._
-        veColBatch.cols.foreach(_.free())
-      }
-
       veColBatch
     })
 
