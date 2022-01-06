@@ -20,9 +20,9 @@
 package com.nec.spark
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.LibraryReference
-import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
@@ -76,38 +76,6 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var DefaultVeNodeId = 0
 
-  @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
-    scala.collection.mutable.Set.empty
-
-  @transient val cachedCols: scala.collection.mutable.Set[VeColVector] =
-    scala.collection.mutable.Set.empty
-
-  def cleanCache(): Unit = {
-    cachedBatches.toList.foreach { colBatch =>
-      cachedBatches.remove(colBatch)
-      colBatch.cols.foreach(freeCol)
-    }
-  }
-
-  def freeCol(col: VeColVector): Unit = {
-    if (cachedCols.contains(col)) {
-      logger.debug(s"Freeing column ${col}... in ${source}")
-      cachedCols.remove(col)
-      col.free()
-    }
-  }
-
-  def register(cb: VeColBatch): Unit = {
-    cachedBatches.add(cb)
-    cb.cols.foreach(cachedCols.add)
-  }
-
-  var CleanUpCache: Boolean = true
-
-  def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
-    if (!cachedBatches.contains(veColBatch))
-      veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
-
   val metrics = new ProcessExecutorMetrics()
 }
 
@@ -153,13 +121,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
   }
 
   override def shutdown(): Unit = {
-    if (SparkCycloneExecutorPlugin.CleanUpCache) {
-      SparkCycloneExecutorPlugin.cleanCache()
-    }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.metrics
-    import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
-    import com.nec.spark.SparkCycloneExecutorPlugin.closeProcAndCtx
+    import com.nec.spark.SparkCycloneExecutorPlugin.{closeProcAndCtx, metrics, CloseAutomatically}
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach { unfinishedAllocations =>

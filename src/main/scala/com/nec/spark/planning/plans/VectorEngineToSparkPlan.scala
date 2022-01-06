@@ -2,7 +2,6 @@ package com.nec.spark.planning.plans
 
 import com.nec.cmake.ScalaTcpDebug
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.{SupportsVeColBatch, Tracer}
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
@@ -41,7 +40,6 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { iterator =>
-        import SparkCycloneExecutorPlugin.veProcess
         lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
@@ -50,12 +48,13 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
           .spanIterator("map ve batch to arrow columnar batch") {
             iterator
               .map { veColBatch =>
+                import SparkCycloneExecutorPlugin._
                 try {
                   logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
                   val res = veColBatch.toArrowColumnarBatch()
                   logger.debug(s"Finished mapping ${veColBatch}")
                   res
-                } finally cleanUpIfNotCached(veColBatch)
+                } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
           }
       }
