@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColBatchConverters.internalRowToVeColBatch
@@ -15,17 +16,33 @@ import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
-import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+import org.apache.spark.{SparkEnv, TaskContext}
+import org.bytedeco.veoffload.global.veo
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
-final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
+final class RDDSpec
+  extends AnyFreeSpec
+  with SparkAdditions
+  with VeKernelInfra
+  with BeforeAndAfterAll {
+
+  override protected def beforeAll(): Unit = {
+    CloseAutomatically = false
+    super.beforeAll()
+  }
+
+  override protected def afterAll(): Unit = {
+    veo.veo_proc_destroy(SparkCycloneExecutorPlugin._veo_proc)
+    super.afterAll()
+  }
 
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration

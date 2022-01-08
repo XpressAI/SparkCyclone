@@ -4,6 +4,7 @@ import com.nec.arrow.colvector.GenericColBatch
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve
 import com.nec.ve.VeProcess
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -11,6 +12,10 @@ import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
   def numRows = underlying.numRows
   def cols = underlying.cols
+
+  def free()(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): Unit =
+    cols.foreach(_.free())
+
   def toArrowColumnarBatch()(implicit
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess

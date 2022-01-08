@@ -2,11 +2,12 @@ package com.nec.spark.planning.plans
 
 import com.nec.arrow.colvector.ByteArrayColVector
 import com.nec.cache.VeColColumnarVector
+import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
-import com.nec.spark.planning.{SupportsVeColBatch, VeCachedBatchSerializer}
 import com.nec.ve.VeColBatch
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
@@ -31,8 +32,17 @@ case class VeFetchFromCachePlan(child: SparkPlan)
       import com.nec.spark.SparkCycloneExecutorPlugin._
 
       val res = VeColBatch.fromList(unwrapBatch(cb).map {
-        case Left(veColVector)         => veColVector
-        case Right(byteArrayColVector) => byteArrayColVector.transferToByteBuffers().toVeColVector()
+        case Left(veColVector) => veColVector
+        case Right(byteArrayColVector) =>
+          val colVec = byteArrayColVector.transferToByteBuffers().toVeColVector()
+
+          /* If we derived it from the byte-array cache, then clean up the inputs at the end.
+           * For VE-cached data, don't clean it up - this is done by the Executor instead. */
+          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            colVec.free()
+          }
+
+          colVec
       })
       logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
       res
