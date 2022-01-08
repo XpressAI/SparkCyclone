@@ -24,7 +24,10 @@ object VeRDD extends LazyLogging {
         preservesPartitioning = true
       )
 
-  def exchangeL(rdd: RDD[(Int, List[VeColVector])], cleanUpInput: Boolean): RDD[List[VeColVector]] =
+  def exchangeL(rdd: RDD[(Int, List[VeColVector])], cleanUpInput: Boolean)(implicit
+    fullName: sourcecode.FullName,
+    line: sourcecode.Line
+  ): RDD[List[VeColVector]] =
     rdd
       .mapPartitions(
         f = iter =>

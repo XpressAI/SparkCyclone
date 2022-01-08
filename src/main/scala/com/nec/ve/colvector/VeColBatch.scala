@@ -13,7 +13,12 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
   def numRows = underlying.numRows
   def cols = underlying.cols
 
-  def free()(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): Unit =
+  def free()(implicit
+    veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
+    fullName: sourcecode.FullName,
+    line: sourcecode.Line
+  ): Unit =
     cols.foreach(_.free())
 
   def toArrowColumnarBatch()(implicit

@@ -42,7 +42,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-      DualMode.unwrapDualToVeColBatches(
+      DualMode.unwrapPossiblyDualToVeColBatches(
         possiblyDualModeInternalRows = internalRows,
         arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
       )

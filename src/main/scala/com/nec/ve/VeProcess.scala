@@ -23,10 +23,14 @@ trait VeProcess {
 
   def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
-  def allocate(size: Long): Long
-  def putBuffer(byteBuffer: ByteBuffer): Long
+  def allocate(size: Long)(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Long
+  def putBuffer(
+    byteBuffer: ByteBuffer
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Long
   def get(from: Long, to: ByteBuffer, size: Long): Unit
-  def free(memoryLocation: Long): Unit
+  def free(
+    memoryLocation: Long
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit
 
   /** Return a single dataset */
   def execute(
@@ -34,7 +38,7 @@ trait VeProcess {
     functionName: String,
     cols: List[VeColVector],
     results: List[VeType]
-  ): List[VeColVector]
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[VeColVector]
 
   /** Return multiple datasets - eg for sorting/exchanges */
   def executeMulti(
@@ -42,14 +46,14 @@ trait VeProcess {
     functionName: String,
     cols: List[VeColVector],
     results: List[VeType]
-  ): List[(Int, List[VeColVector])]
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[(Int, List[VeColVector])]
 
   def executeMultiIn(
     libraryReference: LibraryReference,
     functionName: String,
     batches: VeBatchOfBatches,
     results: List[VeType]
-  ): List[VeColVector]
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[VeColVector]
 
 }
 
@@ -60,20 +64,28 @@ object VeProcess {
     override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
-    override def allocate(size: Long): Long = f().allocate(size)
+    override def allocate(
+      size: Long
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Long = f().allocate(size)
 
-    override def putBuffer(byteBuffer: ByteBuffer): Long = f().putBuffer(byteBuffer)
+    override def putBuffer(
+      byteBuffer: ByteBuffer
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Long =
+      f().putBuffer(byteBuffer)
 
     override def get(from: Long, to: ByteBuffer, size: Long): Unit = f().get(from, to, size)
 
-    override def free(memoryLocation: Long): Unit = f().free(memoryLocation)
+    override def free(
+      memoryLocation: Long
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit =
+      f().free(memoryLocation)
 
     override def execute(
       libraryReference: LibraryReference,
       functionName: String,
       cols: List[VeColVector],
       results: List[VeType]
-    ): List[VeColVector] =
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[VeColVector] =
       f().execute(libraryReference, functionName, cols, results)
 
     /** Return multiple datasets - eg for sorting/exchanges */
@@ -82,6 +94,9 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[VeType]
+    )(implicit
+      fullName: sourcecode.FullName,
+      line: sourcecode.Line
     ): List[(Int, List[VeColVector])] =
       f().executeMulti(libraryReference, functionName, cols, results)
 
@@ -90,7 +105,8 @@ object VeProcess {
       functionName: String,
       batches: VeBatchOfBatches,
       results: List[VeType]
-    ): List[VeColVector] = f().executeMultiIn(libraryReference, functionName, batches, results)
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[VeColVector] =
+      f().executeMultiIn(libraryReference, functionName, batches, results)
 
   }
 
@@ -100,11 +116,13 @@ object VeProcess {
     veProcessMetrics: VeProcessMetrics
   ) extends VeProcess
     with LazyLogging {
-    override def allocate(size: Long): Long = {
+    override def allocate(
+      size: Long
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Long = {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
-      logger.debug(s"Allocating ${size} bytes ==> ${ptr}")
+      logger.debug(s"Allocating ${size} bytes ==> ${ptr} in ${fullName.value}#${line.value}")
       veProcessMetrics.registerAllocation(size, ptr)
       ptr
     }
@@ -120,7 +138,9 @@ object VeProcess {
       }
     }
 
-    override def putBuffer(byteBuffer: ByteBuffer): Long = {
+    override def putBuffer(
+      byteBuffer: ByteBuffer
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Long = {
       val memoryLocation = allocate(byteBuffer.capacity().toLong)
       requireOk(
         veo.veo_write_mem(
@@ -136,9 +156,11 @@ object VeProcess {
     override def get(from: Long, to: ByteBuffer, size: Long): Unit =
       veo.veo_read_mem(veo_proc_handle, new org.bytedeco.javacpp.Pointer(to), from, size)
 
-    override def free(memoryLocation: Long): Unit = {
+    override def free(
+      memoryLocation: Long
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
-      logger.debug(s"Deallocating ptr ${memoryLocation}")
+      logger.debug(s"Deallocating ptr ${memoryLocation} (in ${fullName.value}#${line.value})")
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
     }
 
@@ -156,7 +178,7 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[VeType]
-    ): List[VeColVector] = {
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[VeColVector] = {
       validateVectors(cols)
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
@@ -246,6 +268,9 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[VeType]
+    )(implicit
+      fullName: sourcecode.FullName,
+      line: sourcecode.Line
     ): List[(Int, List[VeColVector])] = {
 
       validateVectors(cols)
@@ -340,7 +365,7 @@ object VeProcess {
       functionName: String,
       batches: VeBatchOfBatches,
       results: List[VeType]
-    ): List[VeColVector] = {
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): List[VeColVector] = {
 
       batches.batches.foreach(batch => validateVectors(batch.cols))
       val our_args = veo.veo_args_alloc()

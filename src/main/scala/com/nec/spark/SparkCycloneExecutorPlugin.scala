@@ -90,9 +90,11 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     }
   }
 
-  def freeCol(col: VeColVector): Unit = {
+  def freeCol(
+    col: VeColVector
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit = {
     if (cachedCols.contains(col)) {
-      logger.debug(s"Freeing column ${col}... in ${source}")
+      logger.debug(s"Freeing column ${col}... in ${source}; from ${fullName.value}#${line.value}")
       cachedCols.remove(col)
       col.free()
     }
@@ -105,7 +107,9 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var CleanUpCache: Boolean = true
 
-  def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
+  def cleanUpIfNotCached(
+    veColBatch: VeColBatch
+  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit =
     if (!cachedBatches.contains(veColBatch))
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
 

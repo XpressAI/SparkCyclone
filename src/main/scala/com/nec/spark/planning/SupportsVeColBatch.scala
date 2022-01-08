@@ -13,18 +13,18 @@ object SupportsVeColBatch {
   sealed trait DataCleanup {
     def cleanup(
       veColBatch: VeColBatch
-    )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit
+    )(implicit veProcess: VeProcess, processId: VeColVectorSource, fullName: sourcecode.FullName, line: sourcecode.Line): Unit
   }
   object DataCleanup {
     case object NoCleanup extends DataCleanup {
       override def cleanup(
         veColBatch: VeColBatch
-      )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit = ()
+      )(implicit veProcess: VeProcess, processId: VeColVectorSource, fullName: sourcecode.FullName, line: sourcecode.Line): Unit = ()
     }
     case object Cleanup extends DataCleanup {
       override def cleanup(
         veColBatch: VeColBatch
-      )(implicit veProcess: VeProcess, processId: VeColVectorSource): Unit =
+      )(implicit veProcess: VeProcess, processId: VeColVectorSource, fullName: sourcecode.FullName, line: sourcecode.Line): Unit =
         cleanUpIfNotCached(veColBatch)
     }
 

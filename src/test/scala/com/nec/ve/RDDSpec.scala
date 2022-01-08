@@ -3,7 +3,7 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.{ArrowEncodingSettings, WithTestAllocator}
 import com.nec.cache.CycloneCacheBase
-import com.nec.cache.DualMode.unwrapDualToVeColBatches
+import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
@@ -98,7 +98,7 @@ final class RDDSpec
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         implicit val arrowEncodingSettings = ArrowEncodingSettings("UTC", 3)
-        unwrapDualToVeColBatches(
+        unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =
             CycloneCacheBase.makaArrowSchema(Seq(AttributeReference("test", IntegerType)()))

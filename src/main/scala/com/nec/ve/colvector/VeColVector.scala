@@ -1,7 +1,17 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.ArrowTransferStructures.{nullable_bigint_vector, nullable_double_vector, nullable_int_vector, nullable_varchar_vector}
-import com.nec.arrow.VeArrowTransfers.{nullableBigintVectorToByteBuffer, nullableDoubleVectorToByteBuffer, nullableIntVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
+import com.nec.arrow.ArrowTransferStructures.{
+  nullable_bigint_vector,
+  nullable_double_vector,
+  nullable_int_vector,
+  nullable_varchar_vector
+}
+import com.nec.arrow.VeArrowTransfers.{
+  nullableBigintVectorToByteBuffer,
+  nullableDoubleVectorToByteBuffer,
+  nullableIntVectorToByteBuffer,
+  nullableVarCharVectorVectorToByteBuffer
+}
 import com.nec.arrow.colvector.{ByteBufferColVector, GenericColVector}
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
@@ -29,7 +39,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def buffers = underlying.buffers
 
   import underlying._
-  def toInternalVector(): ColumnVector = new VeColColumnarVector(Left(this), likelySparkType(veType))
+  def toInternalVector(): ColumnVector =
+    new VeColColumnarVector(Left(this), likelySparkType(veType))
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
@@ -216,7 +227,12 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case other => sys.error(s"Not supported for conversion to arrow vector: $other")
   }
 
-  def free()(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): Unit = {
+  def free()(implicit
+    veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
+    fullName: sourcecode.FullName,
+    line: sourcecode.Line
+  ): Unit = {
     require(
       veColVectorSource == source,
       s"Intended to `free` in ${source}, but got ${veColVectorSource} context."

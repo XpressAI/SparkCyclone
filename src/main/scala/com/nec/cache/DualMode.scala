@@ -87,7 +87,7 @@ object DualMode {
       .flatten
   }
 
-  def unwrapDualToVeColBatches(
+  def unwrapPossiblyDualToVeColBatches(
     possiblyDualModeInternalRows: Iterator[InternalRow],
     arrowSchema: Schema
   )(implicit
