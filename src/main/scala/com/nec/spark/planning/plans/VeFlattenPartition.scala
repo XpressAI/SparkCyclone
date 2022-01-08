@@ -4,6 +4,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeBatchOfBatches
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -35,8 +36,10 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
               case one :: Nil => Iterator(one)
               case Nil        => Iterator.empty
               case _ =>
+                import OriginalCallingContext.Automatic._
                 Iterator {
                   VeColBatch.fromList(try {
+
                     val res =
                       veProcess.executeMultiIn(
                         libraryReference = libRefExchange,

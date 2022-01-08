@@ -3,6 +3,7 @@ package com.nec.spark.planning.aggregation
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -18,6 +19,8 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
   with PlanCallsVeFunction {
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+  import OriginalCallingContext.Automatic._
+
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]
     .executeVeColumnar()

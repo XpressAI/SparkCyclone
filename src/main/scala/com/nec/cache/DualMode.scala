@@ -3,6 +3,7 @@ package com.nec.cache
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeColBatch, VeProcess}
 import org.apache.arrow.memory.BufferAllocator
@@ -94,7 +95,8 @@ object DualMode {
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess,
     source: VeColVectorSource,
-    arrowEncodingSettings: ArrowEncodingSettings
+    arrowEncodingSettings: ArrowEncodingSettings,
+    originalCallingContext: OriginalCallingContext
   ): Iterator[VeColBatch] =
     DualMode.unwrapInternalRows(possiblyDualModeInternalRows) match {
       case Left(colBatches) =>

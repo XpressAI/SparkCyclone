@@ -4,6 +4,7 @@ import com.nec.arrow.colvector.ByteArrayColVector
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeColBatch.VeColVector
+import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized._
 import org.apache.spark.unsafe.types.UTF8String
@@ -28,7 +29,11 @@ object VeColColumnarVector {
 final class VeColColumnarVector(val dualVeBatch: CachedColumnVector, dataType: DataType)
   extends ColumnVector(dataType) {
 
-  override def close(): Unit = dualVeBatch.left.foreach(SparkCycloneExecutorPlugin.freeCol)
+  override def close(): Unit = {
+    import OriginalCallingContext.Automatic._
+
+    dualVeBatch.left.foreach(SparkCycloneExecutorPlugin.freeCol)
+  }
 
   override def hasNull: Boolean = VeColColumnarVector.unsupported()
 

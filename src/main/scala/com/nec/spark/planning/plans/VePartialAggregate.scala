@@ -3,6 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
@@ -32,6 +33,7 @@ case class VePartialAggregate(
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           logger.debug(s"Mapping a VeColBatch $veColBatch")
           VeColBatch.fromList {
+            import OriginalCallingContext.Automatic._
             try {
               val result = veProcess.execute(
                 libraryReference = libRef,

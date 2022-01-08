@@ -18,6 +18,7 @@ import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeProcess
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
@@ -78,7 +79,11 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       )
     )
 
-  def newContainer()(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
+  def newContainer()(implicit
+    veProcess: VeProcess,
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     copy(underlying = {
       veType match {
         case VeScalarType.VeNullableDouble =>
@@ -230,8 +235,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def free()(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
-    fullName: sourcecode.FullName,
-    line: sourcecode.Line
+    originalCallingContext: OriginalCallingContext
   ): Unit = {
     require(
       veColVectorSource == source,
@@ -273,12 +277,15 @@ object VeColVector {
 
   def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
     veProcess: VeProcess,
-    _source: VeColVectorSource
+    _source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
   ): VeColVector = fromArrowVector(source.getArrowValueVector)
 
-  def fromArrowVector(
-    valueVector: ValueVector
-  )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
+  def fromArrowVector(valueVector: ValueVector)(implicit
+    veProcess: VeProcess,
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     ByteBufferColVector
       .fromArrowVector(valueVector)
       .toVeColVector()

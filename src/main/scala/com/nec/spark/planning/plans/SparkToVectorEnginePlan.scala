@@ -6,6 +6,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -42,6 +43,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+      import OriginalCallingContext.Automatic._
+
       DualMode.unwrapPossiblyDualToVeColBatches(
         possiblyDualModeInternalRows = internalRows,
         arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)

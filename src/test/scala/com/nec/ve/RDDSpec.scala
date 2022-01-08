@@ -11,9 +11,9 @@ import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.RDDSpec.{MultiFunctionName, doubleBatches, exchangeBatches, longBatches}
+import com.nec.ve.RDDSpec.{doubleBatches, exchangeBatches, longBatches, MultiFunctionName}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
-import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
+import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
@@ -36,6 +36,7 @@ final class RDDSpec
   with SparkAdditions
   with VeKernelInfra
   with BeforeAndAfterAll {
+  import OriginalCallingContext.Automatic._
 
   override protected def beforeAll(): Unit = {
     CloseAutomatically = false
@@ -200,6 +201,7 @@ final class RDDSpec
 
 object RDDSpec {
   val MultiFunctionName = "f_multi"
+  import OriginalCallingContext.Automatic._
 
   private def exchangeBatches(sparkSession: SparkSession, pathStr: String): RDD[Double] = {
 

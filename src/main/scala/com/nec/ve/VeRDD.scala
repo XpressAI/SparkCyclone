@@ -2,8 +2,9 @@ package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.ve.VeColBatch.VeColVector
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.{HashPartitioner, TaskContext}
+import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 
 import scala.reflect.ClassTag
@@ -11,8 +12,7 @@ import scala.reflect.ClassTag
 object VeRDD extends LazyLogging {
   def exchange(rdd: RDD[(Int, VeColVector)])(implicit
     veProcess: VeProcess,
-    fullName: sourcecode.FullName,
-    line: sourcecode.Line
+    originalCallingContext: OriginalCallingContext
   ): RDD[VeColVector] =
     rdd
       .mapPartitions(f =
@@ -27,8 +27,7 @@ object VeRDD extends LazyLogging {
       .mapPartitions(f = iter => iter.map { case (_, (v, ba)) => v.deserialize(ba) })
 
   def exchangeL(rdd: RDD[(Int, List[VeColVector])], cleanUpInput: Boolean)(implicit
-    fullName: sourcecode.FullName,
-    line: sourcecode.Line
+    originalCallingContext: OriginalCallingContext
   ): RDD[List[VeColVector]] =
     rdd
       .mapPartitions(f =
@@ -59,8 +58,7 @@ object VeRDD extends LazyLogging {
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
     def exchangeBetweenVEs()(implicit
       veProcess: VeProcess,
-      fullName: sourcecode.FullName,
-      line: sourcecode.Line
+      originalCallingContext: OriginalCallingContext
     ): RDD[VeColVector] = exchange(rdd)
   }
 
@@ -69,9 +67,9 @@ object VeRDD extends LazyLogging {
       new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
-    def exchangeBetweenVEs(
-      cleanUpInput: Boolean
-    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): RDD[List[VeColVector]] =
+    def exchangeBetweenVEs(cleanUpInput: Boolean)(implicit
+      originalCallingContext: OriginalCallingContext
+    ): RDD[List[VeColVector]] =
       exchangeL(rdd, cleanUpInput)
     // for single-machine case!
     // def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[List[VeColVector]] =

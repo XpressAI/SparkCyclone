@@ -11,11 +11,14 @@ import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
+import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector, ValueVector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
 
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
+  import OriginalCallingContext.Automatic._
+
   "Identify check: data that we put into the VE can be retrieved back out" - {
     "for Float8Vector" in {
       WithTestAllocator { implicit alloc =>

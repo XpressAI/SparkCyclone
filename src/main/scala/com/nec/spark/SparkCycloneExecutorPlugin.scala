@@ -21,7 +21,7 @@ package com.nec.spark
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
-import com.nec.ve.VeProcess.LibraryReference
+import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
@@ -83,18 +83,15 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   @transient val cachedCols: scala.collection.mutable.Set[VeColVector] =
     scala.collection.mutable.Set.empty
 
-  def cleanCache(): Unit = {
+  def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
     cachedBatches.toList.foreach { colBatch =>
       cachedBatches.remove(colBatch)
       colBatch.cols.foreach(freeCol)
     }
   }
 
-  def freeCol(
-    col: VeColVector
-  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit = {
+  def freeCol(col: VeColVector)(implicit originalCallingContext: OriginalCallingContext): Unit = {
     if (cachedCols.contains(col)) {
-      logger.debug(s"Freeing column ${col}... in ${source}; from ${fullName.value}#${line.value}")
       cachedCols.remove(col)
       col.free()
     }
@@ -109,10 +106,12 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   def cleanUpIfNotCached(
     veColBatch: VeColBatch
-  )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit =
+  )(implicit originalCallingContext: OriginalCallingContext): Unit =
     if (cachedBatches.contains(veColBatch))
-      logger.debug(s"Data at ${veColBatch.cols
-        .map(_.containerLocation)} will not be cleaned up as it's cached (${fullName.value}#${line.value})")
+      logger.debug(
+        s"Data at ${veColBatch.cols
+          .map(_.containerLocation)} will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
+      )
     else
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
 
@@ -163,6 +162,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
   override def shutdown(): Unit = {
     if (SparkCycloneExecutorPlugin.CleanUpCache) {
+      import OriginalCallingContext.Automatic._
+
       SparkCycloneExecutorPlugin.cleanCache()
     }
 

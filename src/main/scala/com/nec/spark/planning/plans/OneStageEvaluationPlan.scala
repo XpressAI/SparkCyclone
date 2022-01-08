@@ -24,6 +24,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, Tracer, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
@@ -59,9 +60,11 @@ final case class OneStageEvaluationPlan(
         Spanner(debug, tracer.mappedSparkEnv(SparkEnv.get)).spanIterator("map col batches") {
           withVeLibrary { libRef =>
             logger.info(s"Will map batches with function ${veFunction}")
+            import OriginalCallingContext.Automatic._
             veColBatches.map { inputBatch =>
               try {
                 logger.debug(s"Mapping batch ${inputBatch}")
+
                 val cols = veProcess.execute(
                   libraryReference = libRef,
                   functionName = veFunction.functionName,

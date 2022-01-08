@@ -3,6 +3,7 @@ package com.nec.arrow.colvector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.spark.planning.Tracer.TracerVector.veType
 import com.nec.ve.VeProcess
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
@@ -19,7 +20,11 @@ import java.nio.ByteBuffer
  */
 final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuffer]]) {
 
-  def toVeColVector()(implicit veProcess: VeProcess, _source: VeColVectorSource): VeColVector =
+  def toVeColVector()(implicit
+    veProcess: VeProcess,
+    _source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     VeColVector(
       transferBuffersToVe()
         .map(_.getOrElse(-1))
@@ -27,7 +32,8 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
 
   def transferBuffersToVe()(implicit
     veProcess: VeProcess,
-    source: VeColVectorSource
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
   ): GenericColVector[Option[Long]] =
     underlying
       .map(_.map(bb => veProcess.putBuffer(bb)))
@@ -64,7 +70,7 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
   }
 
   def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
-    import underlying.{numItems, buffers}
+    import underlying.{buffers, numItems}
     val byteBuffersAddresses = buffers.flatten.map(_.asInstanceOf[DirectBuffer].address())
     veType match {
       case VeScalarType.VeNullableDouble =>

@@ -3,6 +3,7 @@ package com.nec.spark.planning
 import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -15,8 +16,7 @@ object SupportsVeColBatch extends LazyLogging {
     def cleanup(veColBatch: VeColBatch)(implicit
       veProcess: VeProcess,
       processId: VeColVectorSource,
-      fullName: sourcecode.FullName,
-      line: sourcecode.Line
+      originalCallingContext: OriginalCallingContext
     ): Unit
   }
   object DataCleanup {
@@ -24,24 +24,22 @@ object SupportsVeColBatch extends LazyLogging {
       override def cleanup(veColBatch: VeColBatch)(implicit
         veProcess: VeProcess,
         processId: VeColVectorSource,
-        fullName: sourcecode.FullName,
-        line: sourcecode.Line
+        originalCallingContext: OriginalCallingContext
       ): Unit = logger.debug(
         s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
-          .map(_.containerLocation)} - from ${fullName.value}#${line.value}, directed by ${parent.getCanonicalName}"
+          .map(_.containerLocation)} - from ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
       )
     }
     def cleanup(parent: Class[_]): DataCleanup = new DataCleanup {
       override def cleanup(veColBatch: VeColBatch)(implicit
         veProcess: VeProcess,
         processId: VeColVectorSource,
-        fullName: sourcecode.FullName,
-        line: sourcecode.Line
+        originalCallingContext: OriginalCallingContext
       ): Unit = {
         logger.debug(
-          s"Requesting to clean up data at ${processId} by ${fullName.value}#${line.value}, directed by ${parent.getCanonicalName}"
+          s"Requesting to clean up data at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
         )
-        cleanUpIfNotCached(veColBatch)(fullName, line)
+        cleanUpIfNotCached(veColBatch)
       }
     }
 

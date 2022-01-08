@@ -5,6 +5,7 @@ import com.nec.cache.VeColColumnarVector
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.TaskContext
@@ -30,6 +31,7 @@ case class VeFetchFromCachePlan(child: SparkPlan)
     .map(cb => {
       logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
       import com.nec.spark.SparkCycloneExecutorPlugin._
+      import OriginalCallingContext.Automatic._
 
       val res = VeColBatch.fromList(unwrapBatch(cb).map {
         case Left(veColVector) => veColVector
@@ -38,6 +40,8 @@ case class VeFetchFromCachePlan(child: SparkPlan)
 
           /* If we derived it from the byte-array cache, then clean up the inputs at the end.
            * For VE-cached data, don't clean it up - this is done by the Executor instead. */
+          import OriginalCallingContext.Automatic._
+
           TaskContext.get().addTaskCompletionListener[Unit] { _ =>
             colVec.free()
           }

@@ -1,6 +1,7 @@
 package com.nec.arrow.colvector
 
 import com.nec.ve.VeProcess
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
 
@@ -17,9 +18,11 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
    * The parent ColVector is a description of the original source vector from another VE that
    * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
    */
-  def deserialize(
-    ba: Array[Byte]
-  )(implicit source: VeColVectorSource, veProcess: VeProcess): VeColVector =
+  def deserialize(ba: Array[Byte])(implicit
+    source: VeColVectorSource,
+    veProcess: VeProcess,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     VeColVector(
       ByteArrayColVector(
         underlying.copy(

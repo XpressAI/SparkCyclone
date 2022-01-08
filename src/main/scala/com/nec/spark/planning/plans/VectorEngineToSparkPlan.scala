@@ -6,6 +6,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.{SupportsVeColBatch, Tracer}
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.rdd.RDD
@@ -50,6 +51,8 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
           .spanIterator("map ve batch to arrow columnar batch") {
             iterator
               .map { veColBatch =>
+                import OriginalCallingContext.Automatic._
+
                 try {
                   logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
                   val res = veColBatch.toArrowColumnarBatch()
