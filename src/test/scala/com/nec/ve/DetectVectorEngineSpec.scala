@@ -35,6 +35,7 @@ object DetectVectorEngineSpec {
     List(
       "/classes/",
       "/test-classes/",
+      "/ve/",
       "scala-logging",
       "veoffload",
       "javacpp",
@@ -88,12 +89,12 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
 
   "Our extra classpath" - {
     ExpectedClassPathItems.foreach { name =>
-      s"Has ${name}" in {
+      s"Classpath: Has ${name}" in {
         expect(ExtraClassPath.exists(_.contains(name)))
       }
     }
 
-    "All items begin with /, ie absolute paths" in {
+    "Classpath: All items begin with /, ie absolute paths" in {
       expect(ExtraClassPath.forall(_.startsWith("/")))
     }
   }
