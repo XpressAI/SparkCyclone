@@ -12,6 +12,11 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
+/**
+ * Cache that is using the Vector Engine as the target.
+ * This does not account for VE memory usage at all as Spark API assumes only CPU as a Serializer.
+ * The alternate approach is [[ArrowBasedCacheSerializer]].
+ */
 class InVectorEngineCacheSerializer extends CycloneCacheBase {
 
   override def convertInternalRowToCachedBatch(

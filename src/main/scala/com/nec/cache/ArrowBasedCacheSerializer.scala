@@ -12,6 +12,14 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
+/**
+ * Cache on JVM using Spark's storage/manipulation methods
+ *
+ * The conversion cost for getting the data onto the VE is paid up-front
+ * here by pre-converting the data using the Arrow format.
+ *
+ * The alternate approach is [[InVectorEngineCacheSerializer]].
+ */
 class ArrowBasedCacheSerializer extends CycloneCacheBase {
 
   override def convertInternalRowToCachedBatch(

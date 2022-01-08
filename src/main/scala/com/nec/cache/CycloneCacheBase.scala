@@ -1,6 +1,5 @@
 package com.nec.cache
 
-import com.nec.spark.SparkCycloneExecutorPlugin
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -11,6 +10,12 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+/**
+ * This base decodes both variations of [[ArrowBasedCacheSerializer]] and [[InVectorEngineCacheSerializer]].
+ *
+ * We are using Serializer as opposed to a custom CacheManager due to the complexity of implementing one.
+ * Serializer works, mostly.
+ */
 abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatchSerializer {
 
   override def supportsColumnarOutput(schema: StructType): Boolean = true
