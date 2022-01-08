@@ -4,6 +4,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.VeCachedBatchSerializer.{CachedVeBatch, ShortCircuit}
+import com.nec.spark.planning.VeColColumnarVector.{CachedColVector, DualVeBatch}
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.rdd.RDD
@@ -17,21 +18,23 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
 object VeCachedBatchSerializer {
-  final case class CachedVeBatch(veColBatch: VeColBatch) extends CachedBatch {
-    override def numRows: Int = veColBatch.numRows
+  object CachedVeBatch {
+    def apply(ccv: List[CachedColVector]): CachedVeBatch = CachedVeBatch(DualVeBatch(ccv))
+    def apply(veColBatch: VeColBatch): CachedVeBatch = CachedVeBatch(
+      DualVeBatch(veColBatch.cols.map(vcv => Left(vcv)))
+    )
+  }
+  final case class CachedVeBatch(dualVeBatch: DualVeBatch) extends CachedBatch {
+    override def numRows: Int = dualVeBatch.numRows
 
-    override def sizeInBytes: Long = 100
+    override def sizeInBytes: Long = dualVeBatch.onCpuSize.getOrElse {
+      // cannot represent sizeInBytes here, so use a fairly random number
+      100L
+    }
   }
 
   val ShortCircuit = true
 
-  def unwrapBatch(columnarBatch: ColumnarBatch): VeColBatch =
-    VeColBatch(
-      numRows = columnarBatch.numRows(),
-      cols = (0 until columnarBatch.numCols())
-        .map(colIdx => columnarBatch.column(colIdx).asInstanceOf[VeColColumnarVector].veColVector)
-        .toList
-    )
 }
 
 class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchSerializer {
@@ -61,7 +64,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
       VeColBatchConverters.getNumRows(input.sparkContext, conf)
     )
     .map { ui =>
-      CachedVeBatch(ui.veColBatch)
+      CachedVeBatch(ui.colBatch)
     }
 
   override def convertColumnarBatchToCachedBatch(
@@ -87,13 +90,14 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     selectedAttributes: Seq[Attribute],
     conf: SQLConf
   ): RDD[ColumnarBatch] = input.map(cachedBatch => {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+
+    import SparkCycloneExecutorPlugin._
     if (ShortCircuit)
-      cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toInternalColumnarBatch()
+      cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toInternalColumnarBatch()
     else {
       lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
-      cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toArrowColumnarBatch()
+      cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toArrowColumnarBatch()
     }
   })
 
@@ -107,11 +111,12 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
       input.flatMap { cachedBatch =>
         Iterator
           .continually {
-            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-
+            import SparkCycloneExecutorPlugin._
             lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
-            mapBatchToRow(cachedBatch.asInstanceOf[CachedVeBatch].veColBatch.toArrowColumnarBatch())
+            mapBatchToRow(
+              cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toArrowColumnarBatch()
+            )
           }
           .take(1)
           .flatten

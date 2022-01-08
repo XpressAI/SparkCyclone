@@ -39,7 +39,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def buffers = underlying.buffers
 
   import underlying._
-  def toInternalVector(): ColumnVector = new VeColColumnarVector(this, likelySparkType(veType))
+  def toInternalVector(): ColumnVector = new VeColColumnarVector(Left(this), likelySparkType(veType))
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
@@ -259,7 +259,7 @@ object VeColVector {
     )
   )
 
-  private def getUnsafe: Unsafe = {
+  def getUnsafe: Unsafe = {
     val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
     theUnsafe.setAccessible(true)
     theUnsafe.get(null).asInstanceOf[Unsafe]

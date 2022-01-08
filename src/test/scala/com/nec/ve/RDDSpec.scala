@@ -83,7 +83,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
       vcbi
         .map(vcb => {
           println(vcb)
-          vcb.veColBatch
+          vcb.toDualVeBatch.toVEColBatch()
         })
         .map(_.toArrowColumnarBatch())
         .map(cb => cb.column(0).getArrowValueVector)

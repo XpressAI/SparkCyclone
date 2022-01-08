@@ -1,11 +1,15 @@
 package com.nec.arrow.colvector
 
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
+import com.nec.spark.planning.Tracer.TracerVector.veType
 import com.nec.ve.VeProcess
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
+import com.nec.ve.colvector.VeColVector.getUnsafe
+import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
+import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
@@ -57,6 +61,73 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
         targetBuf.get(dst, 0, veBufferSize)
         dst
       }
+  }
+
+  def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
+    import underlying.{numItems, buffers}
+    val byteBuffersAddresses = buffers.flatten.map(_.asInstanceOf[DirectBuffer].address())
+    veType match {
+      case VeScalarType.VeNullableDouble =>
+        val float8Vector = new Float8Vector("output", bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 8
+          float8Vector.setValueCount(numItems)
+          getUnsafe.copyMemory(
+            byteBuffersAddresses(1),
+            float8Vector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(byteBuffersAddresses(0), float8Vector.getDataBufferAddress, dataSize)
+        }
+        float8Vector
+      case VeScalarType.VeNullableLong =>
+        val bigIntVector = new BigIntVector("output", bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 8
+          bigIntVector.setValueCount(numItems)
+          getUnsafe.copyMemory(
+            byteBuffersAddresses(1),
+            bigIntVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(byteBuffersAddresses(0), bigIntVector.getDataBufferAddress, dataSize)
+        }
+        bigIntVector
+      case VeScalarType.VeNullableInt =>
+        val intVector = new IntVector("output", bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 4
+          intVector.setValueCount(numItems)
+          getUnsafe.copyMemory(
+            byteBuffersAddresses(1),
+            intVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(byteBuffersAddresses(0), intVector.getDataBufferAddress, dataSize)
+        }
+        intVector
+      case VeString =>
+        val vcvr = new VarCharVector("output", bufferAllocator)
+        if (numItems > 0) {
+          val offsetsSize = (numItems + 1) * 4
+          val lastOffsetIndex = numItems * 4
+          val offTarget = buffers(1).get
+          val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
+          offTarget.rewind()
+          vcvr.allocateNew(dataSize, numItems)
+          vcvr.setValueCount(numItems)
+
+          getUnsafe.copyMemory(
+            byteBuffersAddresses(2),
+            vcvr.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(byteBuffersAddresses(1), vcvr.getOffsetBufferAddress, offsetsSize)
+          getUnsafe.copyMemory(byteBuffersAddresses(0), vcvr.getDataBufferAddress, dataSize)
+        }
+        vcvr
+      case other => sys.error(s"Not supported for conversion to arrow vector: $other")
+    }
   }
 }
 

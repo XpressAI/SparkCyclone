@@ -4,7 +4,6 @@ import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.VeColBatchConverters.{getNumRows, internalRowToVeColBatch}
 import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
@@ -31,7 +30,12 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     val numRows: Int = getNumRows(sparkContext, conf)
     logger.info(s"Will make batches of ${numRows} rows...")
     val timeZoneId = conf.sessionLocalTimeZone
-    internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows).map(_.veColBatch)
+
+    internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
+      .map { unInternal =>
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+        unInternal.toDualVeBatch.toVEColBatch()
+      }
   }
 
   override def output: Seq[Attribute] = child.output

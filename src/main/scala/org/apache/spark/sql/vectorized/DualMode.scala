@@ -2,6 +2,7 @@ package org.apache.spark.sql.vectorized
 
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.planning.VeColColumnarVector
+import com.nec.spark.planning.VeColColumnarVector.CachedColVector
 import com.nec.ve.VeColBatch
 import org.apache.spark.sql.catalyst.InternalRow
 
@@ -24,7 +25,7 @@ object DualMode {
 
   def handleIterator(
     iterator: Iterator[InternalRow]
-  ): Either[Iterator[VeColBatch], Iterator[InternalRow]] = {
+  ): Either[Iterator[List[CachedColVector]], Iterator[InternalRow]] = {
     if (!iterator.hasNext) Right(Iterator.empty)
     else {
       iterator.next() match {
@@ -42,8 +43,7 @@ object DualMode {
                 val colVectors: Array[VeColColumnarVector] = cbr.readPrivate.columns.obj
                   .asInstanceOf[Array[ColumnVector]]
                   .map(_.asInstanceOf[VeColColumnarVector])
-                val vcv = colVectors.toList.map(_.veColVector)
-                VeColBatch(vcv.head.numItems, vcv)
+                colVectors.toList.map(_.dualVeBatch)
               }
           }
         case other =>

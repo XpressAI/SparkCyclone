@@ -44,12 +44,15 @@ final class DualModeTest extends AnyFreeSpec {
       Nil
     )
     val expectedCb = VeColBatch(numRows = vcv.numItems, cols = List(vcv))
-    val cv = new VeColColumnarVector(vcv, IntegerType)
+    val cv = new VeColColumnarVector(Left(vcv), IntegerType)
     val cb = new ColumnarBatch(Array(cv))
     cb.setNumRows(2)
     import scala.collection.JavaConverters._
     val either: Either[Iterator[VeColBatch], Iterator[InternalRow]] =
-      DualMode.handleIterator(cb.rowIterator().asScala)
+      DualMode
+        .handleIterator(cb.rowIterator().asScala)
+        .left
+        .map(_.map(lcv => VeColBatch.fromList(lcv.flatMap(_.left.toSeq))))
     assert(either.isLeft, s"Expecting left-biased result (ve col batches), got ${either}")
     val listBatches = either.left.get.toList
     assert(listBatches == List(expectedCb))

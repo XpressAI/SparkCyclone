@@ -4,6 +4,7 @@ import com.nec.cmake.{ScalaTcpDebug, Spanner}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
+import com.nec.spark.planning.VeColColumnarVector.{CachedColVector, DualVeBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import org.apache.arrow.memory.BufferAllocator
@@ -37,7 +38,9 @@ object VeColBatchConverters {
     }
   }
 
-  final case class UnInternalVeColBatch(veColBatch: VeColBatch)
+  final case class UnInternalVeColBatch(colBatch: List[CachedColVector]) {
+    def toDualVeBatch: DualVeBatch = DualVeBatch(colBatch)
+  }
 
   def internalRowToVeColBatch(
     input: RDD[InternalRow],
@@ -48,7 +51,7 @@ object VeColBatchConverters {
     input.mapPartitions { iterator =>
       DualMode.handleIterator(iterator) match {
         case Left(colBatches) =>
-          colBatches.map(v => UnInternalVeColBatch(veColBatch = v))
+          colBatches.map(v => UnInternalVeColBatch(colBatch = v))
         case Right(rowIterator) =>
           if (rowIterator.hasNext) {
             lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
@@ -89,9 +92,14 @@ object VeColBatchConverters {
                 //              numOutputBatches += 1
                 import SparkCycloneExecutorPlugin.veProcess
                 val newBatch =
-                  try UnInternalVeColBatch(veColBatch = VeColBatch.fromArrowColumnarBatch(cb))
+                  try UnInternalVeColBatch(colBatch =
+                    VeColBatch.fromArrowColumnarBatch(cb).cols.map(cv => Left(cv))
+                  )
                   finally cb.close()
-                SparkCycloneExecutorPlugin.register(newBatch.veColBatch)
+                Option(newBatch.colBatch.flatMap(_.left.toSeq.toList))
+                  .filter(_.nonEmpty)
+                  .map(VeColBatch.fromList)
+                  .foreach(SparkCycloneExecutorPlugin.register)
                 newBatch
               }
             }
