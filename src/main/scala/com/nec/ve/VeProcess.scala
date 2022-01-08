@@ -133,10 +133,12 @@ object VeProcess {
     }
 
     private implicit class RichVCV(veColVector: VeColVector) {
-      def register(): VeColVector = {
+      def register()(implicit context: OriginalCallingContext): VeColVector = {
         veColVector.bufferLocations.zip(veColVector.underlying.bufferSizes).foreach {
           case (location, size) =>
-            logger.debug(s"Registering allocation of ${size} at ${location}")
+            logger.debug(
+              s"Registering allocation of ${size} at ${location}; original source is ${context.fullName.value}#${context.line.value}"
+            )
             veProcessMetrics.registerAllocation(size, location)
         }
         veColVector
