@@ -1,5 +1,5 @@
 package com.nec.spark.planning
 
-import com.nec.cache.InVectorEngineCacheSerializer
+import com.nec.cache._
 
-class VeCachedBatchSerializer extends InVectorEngineCacheSerializer
+class VeCachedBatchSerializer extends ArrowBasedCacheSerializer
