@@ -59,8 +59,14 @@ object CycloneCacheBase {
 
   /** This is done as [[SqlConf]] cannot be serialized. */
   final case class EncodedTimeZone(value: String)
+  
   object EncodedTimeZone {
-    def fromConf(conf: SQLConf): EncodedTimeZone = EncodedTimeZone(conf.sessionLocalTimeZone)
+    def fromConf(conf: SQLConf): EncodedTimeZone = EncodedTimeZone(
+      try conf.sessionLocalTimeZone
+      catch {
+        case _: Throwable => "UTC"
+      }
+    )
   }
   def makaArrowSchema(schema: Seq[Attribute])(implicit encodedTimeZone: EncodedTimeZone): Schema =
     ArrowUtilsExposed.toArrowSchema(
