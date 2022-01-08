@@ -196,3 +196,4 @@ src/test/resources/dbgen/dbgen
 
 *.log
 test.db
+.DS_Store

@@ -24,10 +24,11 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
   def transferBuffersToVe()(implicit
     veProcess: VeProcess,
     source: VeColVectorSource
-  ): GenericColVector[Option[Long]] =
+  ): GenericColVector[Option[Long]] = {
     underlying
       .map(_.map(bb => veProcess.putBuffer(bb)))
       .copy(source = source)
+  }
 
   def serializeBuffers(): ByteArrayColVector =
     ByteArrayColVector(

@@ -28,11 +28,11 @@ final case class GenericColVector[Data](
    * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
    */
   def bufferSizes: List[Int] = veType match {
-    case v: VeScalarType => List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
+    case v: VeScalarType =>
+      List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
     case VeString =>
       val offsetBuffSize = (numItems + 1) * 4
       val validitySize = Math.ceil(numItems / 64.0).toInt * 8
-
       variableSize.toList ++ List(offsetBuffSize, validitySize)
   }
 

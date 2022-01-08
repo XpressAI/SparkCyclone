@@ -43,21 +43,14 @@ final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[By
    * Compress Array[Byte] list into an Array[Byte]
    */
   def serialize(): Array[Byte] = {
-    val totalSize = bufferSizes.sum
+    val output = Array.ofDim[Byte](bufferSizes.sum)
+    val buffers = underlying.buffers.flatten
 
-    val extractedBuffers = underlying.buffers.flatten
+    (buffers, buffers.map(_.length).scanLeft(0)(_ + _)).zipped
+      .foreach { case (buffer, offset) =>
+        System.arraycopy(buffer, 0, output, offset, buffer.length)
+      }
 
-    val resultingArray = Array.ofDim[Byte](totalSize)
-    val bufferStarts = extractedBuffers.map(_.length).scanLeft(0)(_ + _)
-    bufferStarts.zip(extractedBuffers).foreach { case (start, buffer) =>
-      System.arraycopy(buffer, 0, resultingArray, start, buffer.length)
-    }
-
-    assert(
-      resultingArray.length == totalSize,
-      "Resulting array should be same size as sum of all buffer sizes"
-    )
-
-    resultingArray
+    output
   }
 }

@@ -48,17 +48,24 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
    * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
    */
   def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
-    val totalSize = bufferSizes.sum
-    val resultingArray = toByteBufferVector()
-      .serializeBuffers()
-      .serialize()
+    val bufsizes = bufferSizes
+    val maxBufSize = if (bufsizes.size > 0) bufsizes.max else -1
 
-    assert(
-      resultingArray.length == totalSize,
-      "Resulting array should be same size as sum of all buffer sizes"
-    )
+    // Allocate ByteBuffer just once
+    val tmpbuffer = ByteBuffer.allocateDirect(maxBufSize)
+    val output = Array.fill[Byte](bufsizes.sum)(-1)
 
-    resultingArray
+    (buffers, bufsizes.scanLeft(0)(_ + _), bufsizes).zipped
+      .foreach { case (vebuffer, offset, size) =>
+        // Reset the ByteBuffer's current position
+        tmpbuffer.position(0)
+        // Fetch from VE to ByteBuffer
+        veProcess.get(vebuffer, tmpbuffer, size)
+        // Copy from ByteBuffer to Array[Byte] at offset, starting from ByteBuffer's current position
+        tmpbuffer.get(output, offset, size)
+      }
+
+    output
   }
 
   def toByteBufferVector()(implicit veProcess: VeProcess): ByteBufferColVector =
@@ -77,47 +84,44 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       )
     )
 
-  def newContainer()(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
-    copy(underlying = {
-      veType match {
-        case VeScalarType.VeNullableDouble =>
-          val vcvr = new nullable_double_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val byteBuffer = nullableDoubleVectorToByteBuffer(vcvr)
+  def newContainer()(implicit source: VeColVectorSource, veProcess: VeProcess): VeColVector = {
+    val container = veType match {
+      case VeScalarType.VeNullableDouble =>
+        val vcvr = new nullable_double_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        veProcess.putBuffer(nullableDoubleVectorToByteBuffer(vcvr))
 
-          underlying.copy(container = veProcess.putBuffer(byteBuffer))
-        case VeScalarType.VeNullableInt =>
-          val vcvr = new nullable_int_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val byteBuffer = nullableIntVectorToByteBuffer(vcvr)
+      case VeScalarType.VeNullableInt =>
+        val vcvr = new nullable_int_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        veProcess.putBuffer(nullableIntVectorToByteBuffer(vcvr))
 
-          underlying.copy(container = veProcess.putBuffer(byteBuffer))
-        case VeScalarType.VeNullableLong =>
-          val vcvr = new nullable_bigint_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val byteBuffer = nullableBigintVectorToByteBuffer(vcvr)
+      case VeScalarType.VeNullableLong =>
+        val vcvr = new nullable_bigint_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.validityBuffer = bufferLocations(1)
+        veProcess.putBuffer(nullableBigintVectorToByteBuffer(vcvr))
 
-          underlying.copy(container = veProcess.putBuffer(byteBuffer))
-        case VeString =>
-          val vcvr = new nullable_varchar_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.offsets = buffers(1)
-          vcvr.validityBuffer = buffers(2)
-          vcvr.dataSize =
-            variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
-          val byteBuffer = nullableVarCharVectorVectorToByteBuffer(vcvr)
+      case VeString =>
+        val vcvr = new nullable_varchar_vector()
+        vcvr.count = numItems
+        vcvr.data = bufferLocations(0)
+        vcvr.offsets = bufferLocations(1)
+        vcvr.validityBuffer = bufferLocations(2)
+        vcvr.dataSize = variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
+        veProcess.putBuffer(nullableVarCharVectorVectorToByteBuffer(vcvr))
 
-          underlying.copy(container = veProcess.putBuffer(byteBuffer))
-        case other => sys.error(s"Other $other not supported.")
-      }
-    }.copy(source = source))
+      case other =>
+        sys.error(s"VeType ${other} is not supported.")
+    }
+
+    copy(underlying = underlying.copy(container = container, source = source))
+  }
 
   def containerSize: Int = veType.containerSize
 
