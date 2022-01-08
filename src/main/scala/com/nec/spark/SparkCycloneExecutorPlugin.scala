@@ -110,7 +110,10 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   def cleanUpIfNotCached(
     veColBatch: VeColBatch
   )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Unit =
-    if (!cachedBatches.contains(veColBatch))
+    if (cachedBatches.contains(veColBatch))
+      logger.debug(s"Data at ${veColBatch.cols
+        .map(_.containerLocation)} will not be cleaned up as it's cached (${fullName.value}#${line.value})")
+    else
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
 
   val metrics = new ProcessExecutorMetrics(AllocationTracker.simple())

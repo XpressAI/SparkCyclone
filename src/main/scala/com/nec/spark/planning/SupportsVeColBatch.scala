@@ -4,28 +4,51 @@ import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
 import com.nec.ve.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeColBatch, VeProcess}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object SupportsVeColBatch {
-  sealed trait DataCleanup {
-    def cleanup(
-      veColBatch: VeColBatch
-    )(implicit veProcess: VeProcess, processId: VeColVectorSource, fullName: sourcecode.FullName, line: sourcecode.Line): Unit
+object SupportsVeColBatch extends LazyLogging {
+  trait DataCleanup {
+    def cleanup(veColBatch: VeColBatch)(implicit
+      veProcess: VeProcess,
+      processId: VeColVectorSource,
+      fullName: sourcecode.FullName,
+      line: sourcecode.Line
+    ): Unit
   }
   object DataCleanup {
-    case object NoCleanup extends DataCleanup {
-      override def cleanup(
-        veColBatch: VeColBatch
-      )(implicit veProcess: VeProcess, processId: VeColVectorSource, fullName: sourcecode.FullName, line: sourcecode.Line): Unit = ()
+    def noCleanup(implicit
+      defnFullName: sourcecode.FullName,
+      defnLine: sourcecode.Line
+    ): DataCleanup = new DataCleanup {
+      override def cleanup(veColBatch: VeColBatch)(implicit
+        veProcess: VeProcess,
+        processId: VeColVectorSource,
+        fullName: sourcecode.FullName,
+        line: sourcecode.Line
+      ): Unit = logger.debug(
+        s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
+          .map(_.containerLocation)} - from ${fullName.value}#${line.value}, directed by ${defnFullName.value}#${defnLine.value}"
+      )
     }
-    case object Cleanup extends DataCleanup {
-      override def cleanup(
-        veColBatch: VeColBatch
-      )(implicit veProcess: VeProcess, processId: VeColVectorSource, fullName: sourcecode.FullName, line: sourcecode.Line): Unit =
-        cleanUpIfNotCached(veColBatch)
+    def cleanup(implicit
+      defnFullName: sourcecode.FullName,
+      defnLine: sourcecode.Line
+    ): DataCleanup = new DataCleanup {
+      override def cleanup(veColBatch: VeColBatch)(implicit
+        veProcess: VeProcess,
+        processId: VeColVectorSource,
+        fullName: sourcecode.FullName,
+        line: sourcecode.Line
+      ): Unit = {
+        logger.debug(
+          s"Requesting to clean up data at ${processId} by ${fullName.value}#${line.value}, directed by ${defnFullName.value}#${defnLine.value}"
+        )
+        cleanUpIfNotCached(veColBatch)(fullName, line)
+      }
     }
 
   }

@@ -9,12 +9,17 @@ import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import scala.reflect.ClassTag
 
 object VeRDD extends LazyLogging {
-  def exchange(rdd: RDD[(Int, VeColVector)])(implicit veProcess: VeProcess): RDD[VeColVector] =
+  def exchange(rdd: RDD[(Int, VeColVector)])(implicit
+    veProcess: VeProcess,
+    fullName: sourcecode.FullName,
+    line: sourcecode.Line
+  ): RDD[VeColVector] =
     rdd
       .mapPartitions(
         f = iter =>
           iter.map { case (p, v) =>
-            (p, (v.underlying.toUnit, v.serialize()))
+            try (p, (v.underlying.toUnit, v.serialize()))
+            finally v.free()
           },
         preservesPartitioning = true
       )
@@ -55,21 +60,23 @@ object VeRDD extends LazyLogging {
           },
         preservesPartitioning = true
       )
-  def exchangeLS(rdd: RDD[(Int, List[VeColVector])])(implicit
-    veProcess: VeProcess
-  ): RDD[List[VeColVector]] =
-    rdd.repartitionByKey().mapPartitions(f = _.map(_._2), preservesPartitioning = true)
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
-    def exchangeBetweenVEs()(implicit veProcess: VeProcess): RDD[VeColVector] = exchange(rdd)
+    def exchangeBetweenVEs()(implicit
+      veProcess: VeProcess,
+      fullName: sourcecode.FullName,
+      line: sourcecode.Line
+    ): RDD[VeColVector] = exchange(rdd)
   }
 
-  implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
+  private implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
     def repartitionByKey(): RDD[(Int, V)] =
       new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
-    def exchangeBetweenVEs(cleanUpInput: Boolean): RDD[List[VeColVector]] =
+    def exchangeBetweenVEs(
+      cleanUpInput: Boolean
+    )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): RDD[List[VeColVector]] =
       exchangeL(rdd, cleanUpInput)
     // for single-machine case!
     // def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[List[VeColVector]] =
