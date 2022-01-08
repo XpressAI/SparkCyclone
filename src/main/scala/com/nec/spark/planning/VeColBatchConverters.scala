@@ -35,9 +35,8 @@ object VeColBatchConverters {
     }
   }
 
-  final case class UnInternalVeColBatch(colBatch: List[CachedColumnVector]) {
-    def toDualVeBatch: DualColumnarBatchContainer = DualColumnarBatchContainer(colBatch)
-  }
+  type CachedColBatchWrapper = DualColumnarBatchContainer
+  val CachedColBatchWrapper = DualColumnarBatchContainer
 
   def originalInternalRowToArrowColumnarBatches(
     rowIterator: Iterator[InternalRow],
@@ -91,11 +90,11 @@ object VeColBatchConverters {
     timeZoneId: String,
     schema: StructType,
     numRows: Int
-  ): RDD[UnInternalVeColBatch] =
+  ): RDD[CachedColBatchWrapper] =
     input.mapPartitions { iterator =>
       DualMode.handleIterator(iterator) match {
         case Left(colBatches) =>
-          colBatches.map(v => UnInternalVeColBatch(colBatch = v))
+          colBatches.map(v => CachedColBatchWrapper(v))
         case Right(rowIterator) =>
           originalInternalRowToArrowColumnarBatches(
             rowIterator = rowIterator,
@@ -104,9 +103,7 @@ object VeColBatchConverters {
             numRows = numRows
           )
             .map { cb =>
-              import SparkCycloneExecutorPlugin.veProcess
-
-              UnInternalVeColBatch(colBatch = (0 until cb.numCols()).map { colNo =>
+              CachedColBatchWrapper(vecs = (0 until cb.numCols()).map { colNo =>
                 Right(
                   ByteBufferColVector
                     .fromArrowVector(cb.column(colNo).getArrowValueVector)
@@ -122,11 +119,11 @@ object VeColBatchConverters {
     timeZoneId: String,
     schema: StructType,
     numRows: Int
-  ): RDD[UnInternalVeColBatch] =
+  ): RDD[CachedColBatchWrapper] =
     input.mapPartitions { iterator =>
       DualMode.handleIterator(iterator) match {
         case Left(colBatches) =>
-          colBatches.map(v => UnInternalVeColBatch(colBatch = v))
+          colBatches.map(cachedColumnVectors => CachedColBatchWrapper(vecs = cachedColumnVectors))
         case Right(rowIterator) =>
           originalInternalRowToArrowColumnarBatches(
             rowIterator = rowIterator,
@@ -134,17 +131,13 @@ object VeColBatchConverters {
             schema = schema,
             numRows = numRows
           )
-            .map { cb =>
+            .map { columnarBatch =>
               import SparkCycloneExecutorPlugin.veProcess
               val newBatch =
-                try UnInternalVeColBatch(colBatch =
-                  VeColBatch.fromArrowColumnarBatch(cb).cols.map(cv => Left(cv))
+                try CachedColBatchWrapper(vecs =
+                  VeColBatch.fromArrowColumnarBatch(columnarBatch).cols.map(cv => Left(cv))
                 )
-                finally cb.close()
-              Option(newBatch.colBatch.flatMap(_.left.toSeq.toList))
-                .filter(_.nonEmpty)
-                .map(VeColBatch.fromList)
-                .foreach(SparkCycloneExecutorPlugin.register)
+                finally columnarBatch.close()
               newBatch
             }
       }

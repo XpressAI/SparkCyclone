@@ -98,7 +98,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     }
   }
 
-  def register(cb: VeColBatch): Unit = {
+  def registerCachedBatch(cb: VeColBatch): Unit = {
     cachedBatches.add(cb)
     cb.cols.foreach(cachedCols.add)
   }
@@ -180,7 +180,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
         logger.error(s"There were some unreleased allocations. First ${NumToPrint}:")
         someAllocations.foreach { allocation =>
           val throwable = new Throwable {
-            override def getMessage: String = s"Unreleased allocation found at ${allocation}"
+            override def getMessage: String = s"Unreleased allocation found at ${allocation.position}"
             override def getStackTrace: Array[StackTraceElement] = allocation.stackTrace.toArray
           }
           logger.error(s"Position: ${allocation}", throwable)

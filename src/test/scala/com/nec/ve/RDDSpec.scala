@@ -100,7 +100,7 @@ final class RDDSpec
       vcbi
         .map(vcb => {
           println(vcb)
-          vcb.toDualVeBatch.toVEColBatch()
+          vcb.toVEColBatch()
         })
         .map(_.toArrowColumnarBatch())
         .map(cb => cb.column(0).getArrowValueVector)

@@ -41,8 +41,9 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
         ),
         VeColBatchConverters.getNumRows(input.sparkContext, conf)
       )
-      .map { ui =>
-        CachedVeBatch(ui.colBatch)
+      .map { cachedColBatchWrapper =>
+        cachedColBatchWrapper.toEither.left.foreach(SparkCycloneExecutorPlugin.registerCachedBatch)
+        CachedVeBatch(cachedColBatchWrapper)
       }
 
   override def convertColumnarBatchToCachedBatch(
@@ -54,7 +55,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
     import com.nec.spark.SparkCycloneExecutorPlugin._
 
     val vcb = VeColBatch.fromArrowColumnarBatch(cb)
-    SparkCycloneExecutorPlugin.register(vcb)
+    SparkCycloneExecutorPlugin.registerCachedBatch(vcb)
     CachedVeBatch(vcb)
   }
 

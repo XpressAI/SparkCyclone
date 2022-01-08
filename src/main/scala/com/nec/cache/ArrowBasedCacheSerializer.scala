@@ -44,8 +44,8 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
         ),
         VeColBatchConverters.getNumRows(input.sparkContext, conf)
       )
-      .map { ui =>
-        CachedVeBatch(ui.colBatch)
+      .map { cachedColBatchWrapper =>
+        CachedVeBatch(cachedColBatchWrapper)
       }
 
   override def convertColumnarBatchToCachedBatch(
