@@ -1,9 +1,11 @@
 package com.nec.spark.planning
 
+import com.nec.arrow.colvector.ByteBufferColVector
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
-import com.nec.spark.planning.VeCachedBatchSerializer.{CachedVeBatch, ShortCircuit}
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.spark.planning.VeCachedBatchSerializer.{CacheInSpark, CachedVeBatch, ShortCircuit}
 import com.nec.spark.planning.VeColColumnarVector.{CachedColVector, DualVeBatch}
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
@@ -35,6 +37,8 @@ object VeCachedBatchSerializer {
 
   val ShortCircuit = true
 
+  val CacheInSpark = true
+
 }
 
 class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchSerializer {
@@ -47,37 +51,71 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     schema: Seq[Attribute],
     storageLevel: StorageLevel,
     conf: SQLConf
-  ): RDD[CachedBatch] = VeColBatchConverters
-    .internalRowToVeColBatch(
-      input,
-      conf.sessionLocalTimeZone,
-      StructType(
-        schema.map(att =>
-          StructField(
-            name = att.name,
-            dataType = att.dataType,
-            nullable = att.nullable,
-            metadata = att.metadata
+  ): RDD[CachedBatch] = if (CacheInSpark)
+    VeColBatchConverters
+      .internalRowToArrowSerializedColBatch(
+        input,
+        conf.sessionLocalTimeZone,
+        StructType(
+          schema.map(att =>
+            StructField(
+              name = att.name,
+              dataType = att.dataType,
+              nullable = att.nullable,
+              metadata = att.metadata
+            )
           )
-        )
-      ),
-      VeColBatchConverters.getNumRows(input.sparkContext, conf)
-    )
-    .map { ui =>
-      CachedVeBatch(ui.colBatch)
-    }
+        ),
+        VeColBatchConverters.getNumRows(input.sparkContext, conf)
+      )
+      .map { ui =>
+        CachedVeBatch(ui.colBatch)
+      }
+  else
+    VeColBatchConverters
+      .internalRowToVeColBatch(
+        input,
+        conf.sessionLocalTimeZone,
+        StructType(
+          schema.map(att =>
+            StructField(
+              name = att.name,
+              dataType = att.dataType,
+              nullable = att.nullable,
+              metadata = att.metadata
+            )
+          )
+        ),
+        VeColBatchConverters.getNumRows(input.sparkContext, conf)
+      )
+      .map { ui =>
+        CachedVeBatch(ui.colBatch)
+      }
 
   override def convertColumnarBatchToCachedBatch(
     input: RDD[ColumnarBatch],
     schema: Seq[Attribute],
     storageLevel: StorageLevel,
     conf: SQLConf
-  ): RDD[CachedBatch] = input.map(cb => {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    val vcb = VeColBatch.fromArrowColumnarBatch(cb)
-    SparkCycloneExecutorPlugin.register(vcb)
-    CachedVeBatch(vcb)
-  })
+  ): RDD[CachedBatch] = input.map { cb =>
+    if (CacheInSpark) {
+      CachedVeBatch.apply(ccv =
+        (0 until cb.numCols())
+          .map(i =>
+            ByteBufferColVector
+              .fromArrowVector(cb.column(i).getArrowValueVector)
+              .toByteArrayColVector()
+          )
+          .toList
+          .map(b => Right(b))
+      )
+    } else {
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+      val vcb = VeColBatch.fromArrowColumnarBatch(cb)
+      SparkCycloneExecutorPlugin.register(vcb)
+      CachedVeBatch(vcb)
+    }
+  }
 
   override def buildFilter(
     predicates: Seq[Expression],

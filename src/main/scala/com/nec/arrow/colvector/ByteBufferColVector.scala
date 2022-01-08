@@ -33,7 +33,7 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
       .map(_.map(bb => veProcess.putBuffer(bb)))
       .copy(source = source)
 
-  def serializeBuffers(): ByteArrayColVector =
+  def toByteArrayColVector(): ByteArrayColVector =
     ByteArrayColVector(
       underlying.copy(
         container = None,

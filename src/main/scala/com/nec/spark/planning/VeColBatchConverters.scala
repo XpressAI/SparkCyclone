@@ -1,7 +1,9 @@
 package com.nec.spark.planning
 
+import com.nec.arrow.colvector.ByteBufferColVector
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.source
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColColumnarVector.{CachedColVector, DualVeBatch}
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
@@ -14,6 +16,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, DualMode}
 import org.apache.spark.{SparkContext, TaskContext}
+
 import scala.collection.JavaConverters.asScalaBufferConverter
 
 object VeColBatchConverters {
@@ -81,6 +84,37 @@ object VeColBatchConverters {
       }
     } else Iterator.empty
   }
+
+  def internalRowToArrowSerializedColBatch(
+    input: RDD[InternalRow],
+    timeZoneId: String,
+    schema: StructType,
+    numRows: Int
+  ): RDD[UnInternalVeColBatch] =
+    input.mapPartitions { iterator =>
+      DualMode.handleIterator(iterator) match {
+        case Left(colBatches) =>
+          colBatches.map(v => UnInternalVeColBatch(colBatch = v))
+        case Right(rowIterator) =>
+          originalInternalRowToArrowColumnarBatches(
+            rowIterator = rowIterator,
+            timeZoneId = timeZoneId,
+            schema = schema,
+            numRows = numRows
+          )
+            .map { cb =>
+              import SparkCycloneExecutorPlugin.veProcess
+
+              UnInternalVeColBatch(colBatch = (0 until cb.numCols()).map { colNo =>
+                Right(
+                  ByteBufferColVector
+                    .fromArrowVector(cb.column(colNo).getArrowValueVector)
+                    .toByteArrayColVector()
+                )
+              }.toList)
+            }
+      }
+    }
 
   def internalRowToVeColBatch(
     input: RDD[InternalRow],

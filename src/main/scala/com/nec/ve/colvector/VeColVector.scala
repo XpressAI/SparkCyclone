@@ -50,7 +50,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
     val totalSize = bufferSizes.sum
     val resultingArray = toByteBufferVector()
-      .serializeBuffers()
+      .toByteArrayColVector()
       .serialize()
 
     assert(
