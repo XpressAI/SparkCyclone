@@ -20,10 +20,7 @@ object SupportsVeColBatch extends LazyLogging {
     ): Unit
   }
   object DataCleanup {
-    def noCleanup(implicit
-      defnFullName: sourcecode.FullName,
-      defnLine: sourcecode.Line
-    ): DataCleanup = new DataCleanup {
+    def noCleanup(parent: Class[_]): DataCleanup = new DataCleanup {
       override def cleanup(veColBatch: VeColBatch)(implicit
         veProcess: VeProcess,
         processId: VeColVectorSource,
@@ -31,13 +28,10 @@ object SupportsVeColBatch extends LazyLogging {
         line: sourcecode.Line
       ): Unit = logger.debug(
         s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
-          .map(_.containerLocation)} - from ${fullName.value}#${line.value}, directed by ${defnFullName.value}#${defnLine.value}"
+          .map(_.containerLocation)} - from ${fullName.value}#${line.value}, directed by ${parent.getCanonicalName}"
       )
     }
-    def cleanup(implicit
-      defnFullName: sourcecode.FullName,
-      defnLine: sourcecode.Line
-    ): DataCleanup = new DataCleanup {
+    def cleanup(parent: Class[_]): DataCleanup = new DataCleanup {
       override def cleanup(veColBatch: VeColBatch)(implicit
         veProcess: VeProcess,
         processId: VeColVectorSource,
@@ -45,7 +39,7 @@ object SupportsVeColBatch extends LazyLogging {
         line: sourcecode.Line
       ): Unit = {
         logger.debug(
-          s"Requesting to clean up data at ${processId} by ${fullName.value}#${line.value}, directed by ${defnFullName.value}#${defnLine.value}"
+          s"Requesting to clean up data at ${processId} by ${fullName.value}#${line.value}, directed by ${parent.getCanonicalName}"
         )
         cleanUpIfNotCached(veColBatch)(fullName, line)
       }
@@ -61,7 +55,8 @@ trait SupportsVeColBatch { this: SparkPlan =>
    * Decide whether the data produced by [[executeVeColumnar()]]
    * should be cleaned up after usage. This is for Spark usage
    */
-  def dataCleanup: DataCleanup = DataCleanup.Cleanup
+  def dataCleanup: DataCleanup = DataCleanup.cleanup(this.getClass)
+
   def executeVeColumnar(): RDD[VeColBatch]
   final override protected def doExecute(): RDD[InternalRow] =
     sys.error("Cannot execute plan without a VE wrapper")

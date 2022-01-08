@@ -50,5 +50,5 @@ case class VeFetchFromCachePlan(child: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
-  override def dataCleanup: SupportsVeColBatch.DataCleanup = DataCleanup.NoCleanup
+  override def dataCleanup: SupportsVeColBatch.DataCleanup = DataCleanup.noCleanup(this.getClass)
 }

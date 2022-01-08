@@ -15,27 +15,24 @@ object VeRDD extends LazyLogging {
     line: sourcecode.Line
   ): RDD[VeColVector] =
     rdd
-      .mapPartitions(
-        f = iter =>
+      .mapPartitions(f =
+        iter =>
           iter.map { case (p, v) =>
-            try (p, (v.underlying.toUnit, v.serialize()))
-            finally v.free()
-          },
-        preservesPartitioning = true
+            try {
+              (p, (v.underlying.toUnit, v.serialize()))
+            } finally v.free()
+          }
       )
       .repartitionByKey()
-      .mapPartitions(
-        f = iter => iter.map { case (_, (v, ba)) => v.deserialize(ba) },
-        preservesPartitioning = true
-      )
+      .mapPartitions(f = iter => iter.map { case (_, (v, ba)) => v.deserialize(ba) })
 
   def exchangeL(rdd: RDD[(Int, List[VeColVector])], cleanUpInput: Boolean)(implicit
     fullName: sourcecode.FullName,
     line: sourcecode.Line
   ): RDD[List[VeColVector]] =
     rdd
-      .mapPartitions(
-        f = iter =>
+      .mapPartitions(f =
+        iter =>
           iter.map { case (p, v) =>
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             logger.debug(s"Preparing to serialize batch ${v}")
@@ -43,12 +40,11 @@ object VeRDD extends LazyLogging {
             if (cleanUpInput) v.foreach(_.free())
             logger.debug(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
             r
-          },
-        preservesPartitioning = true
+          }
       )
       .repartitionByKey()
-      .mapPartitions(
-        f = iter =>
+      .mapPartitions(f =
+        iter =>
           iter.map { case (_, (v, ba)) =>
             v.zip(ba).map { case (vv, bb) =>
               logger.debug(s"Preparing to deserialize batch ${vv}")
@@ -57,8 +53,7 @@ object VeRDD extends LazyLogging {
               logger.debug(s"Completed deserializing batch ${vv} --> ${res}")
               res
             }
-          },
-        preservesPartitioning = true
+          }
       )
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {

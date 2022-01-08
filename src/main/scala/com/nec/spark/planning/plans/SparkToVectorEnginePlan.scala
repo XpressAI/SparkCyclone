@@ -51,6 +51,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
-  override def dataCleanup: DataCleanup = DataCleanup.Cleanup
+  override def dataCleanup: DataCleanup = DataCleanup.cleanup(this.getClass)
 
 }
