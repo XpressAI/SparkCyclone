@@ -14,6 +14,7 @@ import java.nio.ByteBuffer
  * We use Option[] because the `container` has no ByteBuffer.
  */
 final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuffer]]) {
+
   def toVeColVector()(implicit veProcess: VeProcess, _source: VeColVectorSource): VeColVector =
     VeColVector(
       transferBuffersToVe()
@@ -47,6 +48,16 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
       )
     )
 
+  def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
+    import underlying._
+    buffers.flatten
+      .zip(bufferSizes)
+      .map { case (targetBuf, veBufferSize) =>
+        val dst = Array.fill[Byte](veBufferSize)(-1)
+        targetBuf.get(dst, 0, veBufferSize)
+        dst
+      }
+  }
 }
 
 object ByteBufferColVector {

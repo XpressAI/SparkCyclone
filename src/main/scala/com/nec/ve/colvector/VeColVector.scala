@@ -22,7 +22,6 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.ColumnVector
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
@@ -45,41 +44,14 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
 
-  if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
-
-  /**
-   * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
-   */
-  def bufferSizes: List[Int] = veType match {
-    case v: VeScalarType => List(numItems * v.cSize, Math.ceil(numItems / 64.0).toInt * 8)
-    case VeString =>
-      val offsetBuffSize = (numItems + 1) * 4
-      val validitySize = Math.ceil(numItems / 64.0).toInt * 8
-
-      variableSize.toList ++ List(offsetBuffSize, validitySize)
-  }
-
-  def injectBuffers(newBuffers: List[Array[Byte]])(implicit veProcess: VeProcess): VeColVector =
-    copy(underlying = underlying.copy(buffers = newBuffers.map { ba =>
-      val byteBuffer = ByteBuffer.allocateDirect(ba.length)
-      byteBuffer.put(ba, 0, ba.length)
-      byteBuffer.position(0)
-      veProcess.putBuffer(byteBuffer)
-    }))
-
   /**
    * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
    */
   def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
     val totalSize = bufferSizes.sum
-
-    val extractedBuffers = extractBuffers()
-
-    val resultingArray = Array.ofDim[Byte](totalSize)
-    val bufferStarts = extractedBuffers.map(_.length).scanLeft(0)(_ + _)
-    bufferStarts.zip(extractedBuffers).foreach { case (start, buffer) =>
-      System.arraycopy(buffer, 0, resultingArray, start, buffer.length)
-    }
+    val resultingArray = toByteBufferVector()
+      .serializeBuffers()
+      .serialize()
 
     assert(
       resultingArray.length == totalSize,
@@ -89,32 +61,21 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     resultingArray
   }
 
-  def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
-    buffers
-      .zip(bufferSizes)
-      .map { case (veBufferLocation, veBufferSize) =>
-        val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
-        veProcess.get(veBufferLocation, targetBuf, veBufferSize)
-        val dst = Array.fill[Byte](veBufferSize)(-1)
-        targetBuf.get(dst, 0, veBufferSize)
-        dst
-      }
-  }
-
-  /**
-   * Decompose the Byte Array and allocate into VeProcess. Uses bufferSizes.
-   *
-   * The parent ColVector is a description of the original source vector from another VE that
-   * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
-   */
-  def deserialize(
-    ba: Array[Byte]
-  )(implicit source: VeColVectorSource, veProcess: VeProcess): VeColVector =
-    injectBuffers(newBuffers =
-      bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map { case (bufferStart, bufferSize) =>
-        ba.slice(bufferStart, bufferStart + bufferSize)
-      }
-    ).newContainer()
+  def toByteBufferVector()(implicit veProcess: VeProcess): ByteBufferColVector =
+    ByteBufferColVector(
+      underlying.copy(
+        container = None,
+        buffers = {
+          buffers
+            .zip(bufferSizes)
+            .map { case (veBufferLocation, veBufferSize) =>
+              val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
+              veProcess.get(veBufferLocation, targetBuf, veBufferSize)
+              Option(targetBuf)
+            }
+        }
+      )
+    )
 
   def newContainer()(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
     copy(underlying = {

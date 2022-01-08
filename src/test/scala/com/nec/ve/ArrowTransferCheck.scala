@@ -198,7 +198,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val colVec: VeColVector = VeColVector.fromArrowVector(valueVector)
       val serialized = colVec.serialize()
       val serList = serialized.toList
-      val newColVec = colVec.deserialize(serialized)
+      val newColVec = colVec.underlying.toUnit.deserialize(serialized)
       expect(
         newColVec.containerLocation != colVec.containerLocation,
         newColVec.bufferLocations != colVec.bufferLocations

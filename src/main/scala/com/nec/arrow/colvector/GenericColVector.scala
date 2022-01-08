@@ -12,7 +12,12 @@ final case class GenericColVector[Data](
   container: Data,
   buffers: List[Data]
 ) {
-  def containerLocation = container
+
+  def toUnit: UnitColVector = UnitColVector(map(_ => ()))
+
+  if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
+
+  def containerLocation: Data = container
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty

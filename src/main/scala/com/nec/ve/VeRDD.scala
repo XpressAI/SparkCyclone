@@ -14,7 +14,7 @@ object VeRDD extends LazyLogging {
       .mapPartitions(
         f = iter =>
           iter.map { case (p, v) =>
-            (p, (v, v.serialize()))
+            (p, (v.underlying.toUnit, v.serialize()))
           },
         preservesPartitioning = true
       )
@@ -31,7 +31,7 @@ object VeRDD extends LazyLogging {
           iter.map { case (p, v) =>
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             logger.debug(s"Preparing to serialize batch ${v}")
-            val r = (p, (v, v.map(_.serialize())))
+            val r = (p, (v.map(_.underlying.toUnit), v.map(_.serialize())))
             logger.debug(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
             r
           },
