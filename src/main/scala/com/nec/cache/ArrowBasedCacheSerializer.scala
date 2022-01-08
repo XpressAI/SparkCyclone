@@ -61,12 +61,12 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     schema: Seq[Attribute],
     storageLevel: StorageLevel,
     conf: SQLConf
-  ): RDD[CachedBatch] =
+  ): RDD[CachedBatch] = {
+    implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
     input.mapPartitions(f = internalRows => {
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-      implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,
@@ -74,6 +74,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
           numRows = VeColBatchConverters.getNumRows(input.sparkContext, conf)
         )
     })
+  }
 
   override def convertColumnarBatchToCachedBatch(
     input: RDD[ColumnarBatch],
