@@ -1,9 +1,8 @@
 package com.nec.cache
 
+import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.ByteBufferColVector
-import com.nec.cache.CycloneCacheBase.EncodedTimeZone
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColBatchConverters
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
@@ -12,7 +11,6 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
@@ -33,11 +31,13 @@ object ArrowBasedCacheSerializer {
    */
   def sparkInternalRowsToArrowSerializedColBatch(
     internalRows: Iterator[InternalRow],
-    arrowSchema: Schema,
-    numRows: Int
-  )(implicit bufferAllocator: BufferAllocator): Iterator[CachedVeBatch] =
+    arrowSchema: Schema
+  )(implicit
+    bufferAllocator: BufferAllocator,
+    arrowEncodingSettings: ArrowEncodingSettings
+  ): Iterator[CachedVeBatch] =
     SparkInternalRowsToArrowColumnarBatches
-      .apply(rowIterator = internalRows, arrowSchema = arrowSchema, numRows = numRows)
+      .apply(rowIterator = internalRows, arrowSchema = arrowSchema)
       .map { columnarBatch =>
         import com.nec.spark.SparkCycloneExecutorPlugin.source
 
@@ -62,7 +62,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] = {
-    implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
+    implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(input.sparkContext)
     input.mapPartitions(f = internalRows => {
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
@@ -70,8 +70,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,
-          arrowSchema = CycloneCacheBase.makaArrowSchema(schema),
-          numRows = VeColBatchConverters.getNumRows(input.sparkContext, conf)
+          arrowSchema = CycloneCacheBase.makaArrowSchema(schema)
         )
     })
   }

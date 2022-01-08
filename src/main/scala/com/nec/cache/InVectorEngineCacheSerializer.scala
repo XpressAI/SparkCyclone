@@ -1,8 +1,7 @@
 package com.nec.cache
 
-import com.nec.cache.CycloneCacheBase.EncodedTimeZone
+import com.nec.arrow.ArrowEncodingSettings
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.planning.VeColBatchConverters
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
@@ -29,13 +28,13 @@ object InVectorEngineCacheSerializer {
    *
    * Automatically register it to the Executor's cache registry
    */
-  def internalRowToCachedVeColBatch(
-    rowIterator: Iterator[InternalRow],
-    arrowSchema: Schema,
-    numRows: Int
-  )(implicit bufferAllocator: BufferAllocator): Iterator[CachedVeBatch] = {
+  def internalRowToCachedVeColBatch(rowIterator: Iterator[InternalRow], arrowSchema: Schema)(
+    implicit
+    bufferAllocator: BufferAllocator,
+    arrowEncodingSettings: ArrowEncodingSettings
+  ): Iterator[CachedVeBatch] = {
     SparkInternalRowsToArrowColumnarBatches
-      .apply(rowIterator = rowIterator, arrowSchema = arrowSchema, numRows = numRows)
+      .apply(rowIterator = rowIterator, arrowSchema = arrowSchema)
       .map { columnarBatch =>
         import SparkCycloneExecutorPlugin._
         val veColBatch = VeColBatch.fromArrowColumnarBatch(columnarBatch)
@@ -56,7 +55,7 @@ final class InVectorEngineCacheSerializer extends CycloneCacheBase {
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] = {
-    implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
+    implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(input.sparkContext)
     input.mapPartitions { internalRows =>
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
@@ -64,8 +63,7 @@ final class InVectorEngineCacheSerializer extends CycloneCacheBase {
       InVectorEngineCacheSerializer
         .internalRowToCachedVeColBatch(
           rowIterator = internalRows,
-          arrowSchema = CycloneCacheBase.makaArrowSchema(schema),
-          numRows = VeColBatchConverters.getNumRows(input.sparkContext, conf)
+          arrowSchema = CycloneCacheBase.makaArrowSchema(schema)
         )
     }
   }

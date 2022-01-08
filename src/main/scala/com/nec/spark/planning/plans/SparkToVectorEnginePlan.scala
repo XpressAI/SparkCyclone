@@ -1,11 +1,10 @@
 package com.nec.spark.planning.plans
 
-import com.nec.cache.CycloneCacheBase.EncodedTimeZone
+import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.{CycloneCacheBase, DualMode}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
-import com.nec.spark.planning.VeColBatchConverters.getNumRows
 import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -36,9 +35,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     //      val numOutputBatches = longMetric("numOutputBatches")
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
-    val numRows: Int = getNumRows(sparkContext, conf)
-    logger.info(s"Will make batches of ${numRows} rows...")
-    implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
+    implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
     child.execute().mapPartitions { internalRows =>
       import SparkCycloneExecutorPlugin._
@@ -47,8 +44,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
       DualMode.unwrapDualToVeColBatches(
         possiblyDualModeInternalRows = internalRows,
-        arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-        numRows = numRows
+        arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
       )
     }
   }

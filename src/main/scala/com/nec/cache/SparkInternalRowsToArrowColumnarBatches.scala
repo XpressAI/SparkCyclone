@@ -1,5 +1,6 @@
 package com.nec.cache
 
+import com.nec.arrow.ArrowEncodingSettings
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.pojo.Schema
@@ -9,8 +10,9 @@ import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
 object SparkInternalRowsToArrowColumnarBatches {
-  def apply(rowIterator: Iterator[InternalRow], arrowSchema: Schema, numRows: Int)(implicit
-    bufferAllocator: BufferAllocator
+  def apply(rowIterator: Iterator[InternalRow], arrowSchema: Schema)(implicit
+    bufferAllocator: BufferAllocator,
+    arrowEncodingSettings: ArrowEncodingSettings
   ): Iterator[ColumnarBatch] = {
     if (rowIterator.hasNext) {
       new Iterator[ColumnarBatch] {
@@ -38,7 +40,7 @@ object SparkInternalRowsToArrowColumnarBatches {
           cb.setNumRows(0)
           root.getFieldVectors.asScala.foreach(_.reset())
           var rowCount = 0
-          while (rowCount < numRows && rowIterator.hasNext) {
+          while (rowCount < arrowEncodingSettings.numRows && rowIterator.hasNext) {
             val row = rowIterator.next()
             arrowWriter.write(row)
             arrowWriter.finish()

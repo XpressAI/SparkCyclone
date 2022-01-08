@@ -1,9 +1,8 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.WithTestAllocator
-import com.nec.cache.CycloneCacheBase.EncodedTimeZone
-import com.nec.cache.{CycloneCacheBase, DualMode}
+import com.nec.arrow.{ArrowEncodingSettings, WithTestAllocator}
+import com.nec.cache.CycloneCacheBase
 import com.nec.cache.DualMode.unwrapDualToVeColBatches
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
@@ -12,7 +11,7 @@ import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.RDDSpec.{doubleBatches, exchangeBatches, longBatches, MultiFunctionName}
+import com.nec.ve.RDDSpec.{MultiFunctionName, doubleBatches, exchangeBatches, longBatches}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD
@@ -22,7 +21,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
+import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.apache.spark.{SparkEnv, TaskContext}
@@ -98,12 +97,11 @@ final class RDDSpec
     val result = inputRdd
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
-        implicit val encodedTimeZone = EncodedTimeZone("UTC")
+        implicit val arrowEncodingSettings = ArrowEncodingSettings("UTC", 3)
         unwrapDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =
-            CycloneCacheBase.makaArrowSchema(Seq(AttributeReference("test", IntegerType)())),
-          numRows = 100
+            CycloneCacheBase.makaArrowSchema(Seq(AttributeReference("test", IntegerType)()))
         )
       }
       .mapPartitions { veColBatches =>

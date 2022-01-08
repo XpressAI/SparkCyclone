@@ -1,5 +1,6 @@
 package com.nec.cache
 
+import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -88,12 +89,12 @@ object DualMode {
 
   def unwrapDualToVeColBatches(
     possiblyDualModeInternalRows: Iterator[InternalRow],
-    arrowSchema: Schema,
-    numRows: Int
+    arrowSchema: Schema
   )(implicit
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess,
-    source: VeColVectorSource
+    source: VeColVectorSource,
+    arrowEncodingSettings: ArrowEncodingSettings
   ): Iterator[VeColBatch] =
     DualMode.unwrapInternalRows(possiblyDualModeInternalRows) match {
       case Left(colBatches) =>
@@ -102,7 +103,7 @@ object DualMode {
         )
       case Right(rowIterator) =>
         SparkInternalRowsToArrowColumnarBatches
-          .apply(rowIterator = rowIterator, arrowSchema = arrowSchema, numRows = numRows)
+          .apply(rowIterator = rowIterator, arrowSchema = arrowSchema)
           .map { columnarBatch =>
             /* cleaning up the [[columnarBatch]] is not necessary as the underlying ones does it */
             VeColBatch.fromArrowColumnarBatch(columnarBatch)
