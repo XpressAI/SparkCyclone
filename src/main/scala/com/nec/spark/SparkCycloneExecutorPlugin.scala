@@ -28,6 +28,7 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
+import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -108,7 +109,8 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     if (!cachedBatches.contains(veColBatch))
       veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
 
-  val metrics = new ProcessExecutorMetrics()
+  val metrics = new ProcessExecutorMetrics(AllocationTracker.simple())
+
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
@@ -168,6 +170,22 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
             .take(50)}..., expected to be none."
         )
       )
+
+    val NumToPrint = 5
+    Option(metrics.allocationTracker)
+      .map(_.remaining)
+      .filter(_.nonEmpty)
+      .map(_.take(NumToPrint))
+      .foreach { someAllocations =>
+        logger.error(s"There were some unreleased allocations. First ${NumToPrint}:")
+        someAllocations.foreach { allocation =>
+          val throwable = new Throwable {
+            override def getMessage: String = s"Unreleased allocation found at ${allocation}"
+            override def getStackTrace: Array[StackTraceElement] = allocation.stackTrace.toArray
+          }
+          logger.error(s"Position: ${allocation}", throwable)
+        }
+      }
 
     if (CloseAutomatically) {
       logger.info(s"Closing process: ${_veo_proc}")
