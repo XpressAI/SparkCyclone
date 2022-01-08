@@ -1,15 +1,15 @@
 package com.nec.cache
 
-import org.apache.arrow.memory.BufferAllocator
+import com.nec.cache.DualMode.cachedBatchesToDualModeInternalRows
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import DualMode.cachedBatchesToDualModeInternalRows
 
 /**
  * This base decodes both variations of [[ArrowBasedCacheSerializer]] and [[InVectorEngineCacheSerializer]].
@@ -54,4 +54,26 @@ abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatc
     cachedAttributes: Seq[Attribute]
   ): (Int, Iterator[CachedBatch]) => Iterator[CachedBatch] = (_, ii) => ii
 
+}
+object CycloneCacheBase {
+
+  /** This is done as [[SqlConf]] cannot be serialized. */
+  final case class EncodedTimeZone(value: String)
+  object EncodedTimeZone {
+    def fromConf(conf: SQLConf): EncodedTimeZone = EncodedTimeZone(conf.sessionLocalTimeZone)
+  }
+  def makaArrowSchema(schema: Seq[Attribute])(implicit encodedTimeZone: EncodedTimeZone): Schema =
+    ArrowUtilsExposed.toArrowSchema(
+      schema = StructType(
+        schema.map(att =>
+          StructField(
+            name = att.name,
+            dataType = att.dataType,
+            nullable = att.nullable,
+            metadata = att.metadata
+          )
+        )
+      ),
+      timeZoneId = encodedTimeZone.value
+    )
 }

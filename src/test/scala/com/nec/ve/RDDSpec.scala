@@ -2,7 +2,8 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
-import com.nec.cache.DualMode
+import com.nec.cache.CycloneCacheBase.EncodedTimeZone
+import com.nec.cache.{CycloneCacheBase, DualMode}
 import com.nec.cache.DualMode.unwrapDualToVeColBatches
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
@@ -20,6 +21,7 @@ import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
@@ -96,10 +98,11 @@ final class RDDSpec
     val result = inputRdd
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
+        implicit val encodedTimeZone = EncodedTimeZone("UTC")
         unwrapDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
-          timeZoneId = "UTC",
-          schema = StructType(Array(StructField("test", IntegerType))),
+          arrowSchema =
+            CycloneCacheBase.makaArrowSchema(Seq(AttributeReference("test", IntegerType)())),
           numRows = 100
         )
       }

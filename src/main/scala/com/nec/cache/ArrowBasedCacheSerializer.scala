@@ -1,9 +1,11 @@
 package com.nec.cache
 
 import com.nec.arrow.colvector.ByteBufferColVector
+import com.nec.cache.CycloneCacheBase.EncodedTimeZone
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColBatchConverters
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -31,17 +33,11 @@ object ArrowBasedCacheSerializer {
    */
   def sparkInternalRowsToArrowSerializedColBatch(
     internalRows: Iterator[InternalRow],
-    timeZoneId: String,
-    schema: StructType,
+    arrowSchema: Schema,
     numRows: Int
   )(implicit bufferAllocator: BufferAllocator): Iterator[CachedVeBatch] =
     SparkInternalRowsToArrowColumnarBatches
-      .apply(
-        rowIterator = internalRows,
-        timeZoneId = timeZoneId,
-        schema = schema,
-        numRows = numRows
-      )
+      .apply(rowIterator = internalRows, arrowSchema = arrowSchema, numRows = numRows)
       .map { columnarBatch =>
         import com.nec.spark.SparkCycloneExecutorPlugin.source
 
@@ -70,20 +66,11 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+      implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,
-          timeZoneId = conf.sessionLocalTimeZone,
-          schema = StructType(
-            schema.map(att =>
-              StructField(
-                name = att.name,
-                dataType = att.dataType,
-                nullable = att.nullable,
-                metadata = att.metadata
-              )
-            )
-          ),
+          arrowSchema = CycloneCacheBase.makaArrowSchema(schema),
           numRows = VeColBatchConverters.getNumRows(input.sparkContext, conf)
         )
     })

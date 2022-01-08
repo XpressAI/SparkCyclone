@@ -2,23 +2,18 @@ package com.nec.cache
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.arrow.ArrowWriter
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
 object SparkInternalRowsToArrowColumnarBatches {
-  def apply(
-    rowIterator: Iterator[InternalRow],
-    timeZoneId: String,
-    schema: StructType,
-    numRows: Int
-  )(implicit bufferAllocator: BufferAllocator): Iterator[ColumnarBatch] = {
+  def apply(rowIterator: Iterator[InternalRow], arrowSchema: Schema, numRows: Int)(implicit
+    bufferAllocator: BufferAllocator
+  ): Iterator[ColumnarBatch] = {
     if (rowIterator.hasNext) {
       new Iterator[ColumnarBatch] {
-        private val arrowSchema = ArrowUtilsExposed.toArrowSchema(schema, timeZoneId)
         private val root = VectorSchemaRoot.create(arrowSchema, bufferAllocator)
         import scala.collection.JavaConverters._
         private val cb = new ColumnarBatch(

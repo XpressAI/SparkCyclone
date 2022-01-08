@@ -5,10 +5,10 @@ import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeColBatch, VeProcess}
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.columnar.CachedBatch
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatchRow}
+import org.apache.spark.sql.vectorized.ColumnVector
 
 object DualMode {
 
@@ -88,8 +88,7 @@ object DualMode {
 
   def unwrapDualToVeColBatches(
     possiblyDualModeInternalRows: Iterator[InternalRow],
-    timeZoneId: String,
-    schema: StructType,
+    arrowSchema: Schema,
     numRows: Int
   )(implicit
     bufferAllocator: BufferAllocator,
@@ -103,12 +102,7 @@ object DualMode {
         )
       case Right(rowIterator) =>
         SparkInternalRowsToArrowColumnarBatches
-          .apply(
-            rowIterator = rowIterator,
-            timeZoneId = timeZoneId,
-            schema = schema,
-            numRows = numRows
-          )
+          .apply(rowIterator = rowIterator, arrowSchema = arrowSchema, numRows = numRows)
           .map { columnarBatch =>
             /* cleaning up the [[columnarBatch]] is not necessary as the underlying ones does it */
             VeColBatch.fromArrowColumnarBatch(columnarBatch)

@@ -1,16 +1,17 @@
 package com.nec.cache
 
+import com.nec.cache.CycloneCacheBase.EncodedTimeZone
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.VeColBatchConverters
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
@@ -30,12 +31,11 @@ object InVectorEngineCacheSerializer {
    */
   def internalRowToCachedVeColBatch(
     rowIterator: Iterator[InternalRow],
-    timeZoneId: String,
-    schema: StructType,
+    arrowSchema: Schema,
     numRows: Int
   )(implicit bufferAllocator: BufferAllocator): Iterator[CachedVeBatch] = {
     SparkInternalRowsToArrowColumnarBatches
-      .apply(rowIterator = rowIterator, timeZoneId = timeZoneId, schema = schema, numRows = numRows)
+      .apply(rowIterator = rowIterator, arrowSchema = arrowSchema, numRows = numRows)
       .map { columnarBatch =>
         import SparkCycloneExecutorPlugin._
         val veColBatch = VeColBatch.fromArrowColumnarBatch(columnarBatch)
@@ -60,21 +60,11 @@ final class InVectorEngineCacheSerializer extends CycloneCacheBase {
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-
+      implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
       InVectorEngineCacheSerializer
         .internalRowToCachedVeColBatch(
           rowIterator = internalRows,
-          timeZoneId = conf.sessionLocalTimeZone,
-          schema = StructType(
-            schema.map(att =>
-              StructField(
-                name = att.name,
-                dataType = att.dataType,
-                nullable = att.nullable,
-                metadata = att.metadata
-              )
-            )
-          ),
+          arrowSchema = CycloneCacheBase.makaArrowSchema(schema),
           numRows = VeColBatchConverters.getNumRows(input.sparkContext, conf)
         )
     }

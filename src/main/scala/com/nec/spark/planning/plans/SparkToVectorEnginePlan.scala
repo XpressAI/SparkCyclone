@@ -1,6 +1,7 @@
 package com.nec.spark.planning.plans
 
-import com.nec.cache.DualMode
+import com.nec.cache.CycloneCacheBase.EncodedTimeZone
+import com.nec.cache.{CycloneCacheBase, DualMode}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
@@ -44,7 +45,12 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-      DualMode.unwrapDualToVeColBatches(internalRows, timeZoneId, child.schema, numRows)
+      implicit val encodedTimeZone = EncodedTimeZone.fromConf(conf)
+      DualMode.unwrapDualToVeColBatches(
+        possiblyDualModeInternalRows = internalRows,
+        arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
+        numRows = numRows
+      )
     }
   }
 
