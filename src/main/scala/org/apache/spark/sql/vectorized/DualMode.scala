@@ -33,7 +33,7 @@ object DualMode {
    *
    * This is done as a workaround; see more details on the data that is produced in [[com.nec.cache.CycloneCacheBase]]
    */
-  def handleIterator(
+  def unwrapInternalRows(
     iterator: Iterator[InternalRow]
   ): Either[Iterator[List[CachedColumnVector]], Iterator[InternalRow]] = {
     if (!iterator.hasNext) Right(Iterator.empty)

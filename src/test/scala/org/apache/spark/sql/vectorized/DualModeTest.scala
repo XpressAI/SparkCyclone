@@ -50,7 +50,7 @@ final class DualModeTest extends AnyFreeSpec {
     import scala.collection.JavaConverters._
     val either: Either[Iterator[VeColBatch], Iterator[InternalRow]] =
       DualMode
-        .handleIterator(cb.rowIterator().asScala)
+        .unwrapInternalRows(cb.rowIterator().asScala)
         .left
         .map(_.map(lcv => VeColBatch.fromList(lcv.flatMap(_.left.toSeq))))
     assert(either.isLeft, s"Expecting left-biased result (ve col batches), got ${either}")

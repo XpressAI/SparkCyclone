@@ -92,7 +92,7 @@ object VeColBatchConverters {
     numRows: Int
   ): RDD[CachedColBatchWrapper] =
     input.mapPartitions { iterator =>
-      DualMode.handleIterator(iterator) match {
+      DualMode.unwrapInternalRows(iterator) match {
         case Left(colBatches) =>
           colBatches.map(v => CachedColBatchWrapper(v))
         case Right(rowIterator) =>
@@ -121,7 +121,7 @@ object VeColBatchConverters {
     numRows: Int
   ): RDD[VeColBatch] =
     input.mapPartitions { iterator =>
-      DualMode.handleIterator(iterator) match {
+      DualMode.unwrapInternalRows(iterator) match {
         case Left(colBatches) =>
           import SparkCycloneExecutorPlugin.veProcess
           colBatches.map(cachedColumnVectors =>
@@ -149,7 +149,7 @@ object VeColBatchConverters {
     numRows: Int
   ): RDD[CachedColBatchWrapper] =
     input.mapPartitions { iterator =>
-      DualMode.handleIterator(iterator) match {
+      DualMode.unwrapInternalRows(iterator) match {
         case Left(colBatches) =>
           colBatches.map(cachedColumnVectors => CachedColBatchWrapper(vecs = cachedColumnVectors))
         case Right(rowIterator) =>
