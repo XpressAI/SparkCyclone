@@ -16,7 +16,16 @@ object GitHubInput {
     "query" -> Choice("Query to use", Some("1"), (1 to 22).map(_.toString).toList ++ List("all")),
     "use-cyclone" -> OnOrOff("Enable Spark Cyclone plugin?", default = true),
     "scale" -> Choice("Scale", Some("1"), List("1", "10", "20")),
-    "serializer" -> OnOrOff("Use Serializer", default = true),
+    "serializer" -> Choice(
+      description = "Serializer",
+      default = Some("-"),
+      options = List(
+        "-",
+        "com.nec.spark.planning.VeCachedBatchSerializer",
+        "com.nec.cache.ArrowBasedCacheSerializer",
+        "com.nec.cache.InVectorEngineCacheSerializer"
+      )
+    ),
     "ve-log-debug" -> OnOrOff("Debug VE logs", default = false),
     "extra" -> Input("Extra command line arguments to add to Spark"),
     "pass-through-project" -> OnOrOff("Pass-through in projection", default = false),

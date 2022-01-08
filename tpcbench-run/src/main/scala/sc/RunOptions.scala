@@ -23,7 +23,7 @@ final case class RunOptions(
   scale: String,
   offHeapEnabled: Boolean,
   columnBatchSize: Int,
-  serializerOn: Boolean,
+  serializerOn: Option[String],
   veLogDebug: Boolean,
   codeDebug: Boolean,
   extras: Option[String],
@@ -84,7 +84,7 @@ final case class RunOptions(
       case ("scale", newScale)                             => copy(scale = newScale)
       case ("name", newName)                               => copy(name = Some(newName))
       case ("extra", e)                                    => includeExtra(e)
-      case ("serializer", v)                               => copy(serializerOn = v == "on" || v == "true")
+      case ("serializer", v) if v.length > 5               => copy(serializerOn = Some(v))
       case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
       case ("pass-through-project", v)                     => copy(passThroughProject = v == "on" || v == "true")
       case ("fail-fast", v)                                => copy(failFast = v == "on" || v == "true")
@@ -159,8 +159,9 @@ final case class RunOptions(
       .filter(_.nonEmpty) ++ kernelDirectory.toList.flatMap(kd =>
       List("--conf", s"spark.com.nec.spark.kernel.directory=${kd}")
     ) ++ {
-      if (serializerOn && useCyclone)
-        List("--conf", "spark.sql.cache.serializer=com.nec.spark.planning.VeCachedBatchSerializer")
+      if (useCyclone) serializerOn.toList.flatMap { name =>
+        List("--conf", s"spark.sql.cache.serializer=${name}")
+      }
       else Nil
     } ++ name.toList.flatMap(n => List("--name", n)) ++ List(packageJar) ++ List(
       s"hdfs://localhost:9000/user/github/dbgen${scale}"
@@ -197,7 +198,7 @@ object RunOptions {
     scale = "1",
     offHeapEnabled = true,
     columnBatchSize = 50000,
-    serializerOn = true,
+    serializerOn = None,
     queryNo = 1,
     name = None,
     gitCommitSha = {
