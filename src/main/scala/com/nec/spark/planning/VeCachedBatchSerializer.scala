@@ -81,7 +81,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     import ByteBufferVeColVector._
     import com.nec.spark.SparkCycloneExecutorPlugin.source
     ArrowSerializedCachedBatch(
-      numRows = ???,
+      numRows = cb.numRows(),
       cols = (0 until cb.numCols())
         .map(c =>
           ByteBufferVeColVector
