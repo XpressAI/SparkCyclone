@@ -139,7 +139,24 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
     expect(result == expected)
   }
 
-  "Exchange data across partitions in cluster mode" in withSparkSession2(
+  "Exchange data across partitions in local mode (ExchangeLocal)" in withSparkSession2(
+    DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
+  ) { sparkSession =>
+    val result =
+      compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr(MultiFunctionName).cCode) {
+        path =>
+          val pathStr = path.toString
+          exchangeBatches(sparkSession, pathStr)
+            .collect()
+            .toList
+            .toSet
+      }
+
+    val expected = List[Double](199, 299, 399, 500).toSet
+    expect(result == expected)
+  }
+
+  "Exchange data across partitions in cluster mode (ExchangeCluster)" in withSparkSession2(
     VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
     val result =
