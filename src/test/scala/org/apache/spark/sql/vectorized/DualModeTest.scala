@@ -1,13 +1,13 @@
 package org.apache.spark.sql.vectorized
 
-import com.nec.cache.VeColColumnarVector
+import com.nec.cache.{DualMode, VeColColumnarVector}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeType}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType
-import org.apache.spark.sql.vectorized.DualMode.RichIterator
+import com.nec.cache.DualMode.RichIterator
 import org.scalatest.freespec.AnyFreeSpec
 
 final class DualModeTest extends AnyFreeSpec {

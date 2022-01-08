@@ -3,12 +3,15 @@ package com.nec.cache
 import com.nec.arrow.colvector.ByteBufferColVector
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeColBatchConverters
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
@@ -20,6 +23,41 @@ import org.apache.spark.storage.StorageLevel
  *
  * The alternate approach is [[InVectorEngineCacheSerializer]].
  */
+object ArrowBasedCacheSerializer {
+
+  /**
+   * Convert plain Spark internal rows to Arrow Col Batches, and then ByteArray vectors.
+   * Closing the Arrow items is not necessary because they are closed in the underlying iterator.
+   */
+  def sparkInternalRowsToArrowSerializedColBatch(
+    internalRows: Iterator[InternalRow],
+    timeZoneId: String,
+    schema: StructType,
+    numRows: Int
+  )(implicit bufferAllocator: BufferAllocator): Iterator[CachedVeBatch] =
+    SparkInternalRowsToArrowColumnarBatches
+      .apply(
+        rowIterator = internalRows,
+        timeZoneId = timeZoneId,
+        schema = schema,
+        numRows = numRows
+      )
+      .map { columnarBatch =>
+        import com.nec.spark.SparkCycloneExecutorPlugin.source
+
+        CachedVeBatch(DualColumnarBatchContainer(vecs = (0 until columnarBatch.numCols()).map {
+          colNo =>
+            Right(
+              ByteBufferColVector
+                .fromArrowVector(columnarBatch.column(colNo).getArrowValueVector)
+                .toByteArrayColVector()
+            )
+        }.toList))
+      }
+
+}
+
+/** Non-final as we extend from this */
 class ArrowBasedCacheSerializer extends CycloneCacheBase {
 
   override def convertInternalRowToCachedBatch(
@@ -28,42 +66,44 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] =
-    VeColBatchConverters
-      .internalRowToArrowSerializedColBatch(
-        input,
-        conf.sessionLocalTimeZone,
-        StructType(
-          schema.map(att =>
-            StructField(
-              name = att.name,
-              dataType = att.dataType,
-              nullable = att.nullable,
-              metadata = att.metadata
+    input.mapPartitions(f = internalRows => {
+      implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+        .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
+      TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+      ArrowBasedCacheSerializer
+        .sparkInternalRowsToArrowSerializedColBatch(
+          internalRows = internalRows,
+          timeZoneId = conf.sessionLocalTimeZone,
+          schema = StructType(
+            schema.map(att =>
+              StructField(
+                name = att.name,
+                dataType = att.dataType,
+                nullable = att.nullable,
+                metadata = att.metadata
+              )
             )
-          )
-        ),
-        VeColBatchConverters.getNumRows(input.sparkContext, conf)
-      )
-      .map { cachedColBatchWrapper =>
-        CachedVeBatch(cachedColBatchWrapper)
-      }
+          ),
+          numRows = VeColBatchConverters.getNumRows(input.sparkContext, conf)
+        )
+    })
 
   override def convertColumnarBatchToCachedBatch(
     input: RDD[ColumnarBatch],
     schema: Seq[Attribute],
     storageLevel: StorageLevel,
     conf: SQLConf
-  ): RDD[CachedBatch] = input.map { cb =>
+  ): RDD[CachedBatch] = input.map { columnarBatch =>
     import com.nec.spark.SparkCycloneExecutorPlugin._
-    CachedVeBatch.apply(ccv =
-      (0 until cb.numCols())
+    CachedVeBatch.apply(cachedColumnVectors =
+      (0 until columnarBatch.numCols())
         .map(i =>
           ByteBufferColVector
-            .fromArrowVector(cb.column(i).getArrowValueVector)
+            .fromArrowVector(columnarBatch.column(i).getArrowValueVector)
             .toByteArrayColVector()
         )
         .toList
-        .map(b => Right(b))
+        .map(byteArrayColVector => Right(byteArrayColVector))
     )
   }
 

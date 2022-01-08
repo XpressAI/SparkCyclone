@@ -1,14 +1,20 @@
 package com.nec.spark.planning.plans
 
+import com.nec.cache.DualMode
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
-import com.nec.spark.planning.VeColBatchConverters.{getNumRows, internalRowToVeColBatch}
+import com.nec.spark.planning.VeColBatchConverters.getNumRows
 import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.util.ArrowUtilsExposed
 
+object SparkToVectorEnginePlan {}
 case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   extends UnaryExecNode
   with LazyLogging
@@ -33,7 +39,13 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     logger.info(s"Will make batches of ${numRows} rows...")
     val timeZoneId = conf.sessionLocalTimeZone
 
-    internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
+    child.execute().mapPartitions { internalRows =>
+      import SparkCycloneExecutorPlugin._
+      implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+        .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
+      TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+      DualMode.unwrapDualToVeColBatches(internalRows, timeZoneId, child.schema, numRows)
+    }
   }
 
   override def output: Seq[Attribute] = child.output

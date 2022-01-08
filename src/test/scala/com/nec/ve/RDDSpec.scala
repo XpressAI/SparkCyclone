@@ -2,10 +2,11 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.cache.DualMode
+import com.nec.cache.DualMode.unwrapDualToVeColBatches
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColBatchConverters.internalRowToVeColBatch
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
@@ -18,6 +19,7 @@ import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
@@ -81,27 +83,34 @@ final class RDDSpec
       vec2.setSafe(3, 90)
       new ColumnarBatch(Array(new ArrowColumnVector(vec2)), 4)
     }
-    val result = internalRowToVeColBatch(
-      input = sparkSession.sparkContext
-        .makeRDD(Seq(1, 2))
-        .repartition(1)
-        .map(int =>
-          VeColBatch.fromArrowColumnarBatch(
-            if (int == 1) makeColumnarBatch1()
-            else makeColumnarBatch2()
-          )
+    val inputRdd: RDD[InternalRow] = sparkSession.sparkContext
+      .makeRDD(Seq(1, 2))
+      .repartition(1)
+      .map(int =>
+        VeColBatch.fromArrowColumnarBatch(
+          if (int == 1) makeColumnarBatch1()
+          else makeColumnarBatch2()
         )
-        .mapPartitions(it => it.flatMap(_.toInternalColumnarBatch().rowIterator().asScala)),
-      timeZoneId = "UTC",
-      schema = StructType(Array(StructField("test", IntegerType))),
-      numRows = 100
-    ).mapPartitions { veColBatches =>
-      implicit val rootAllocator: RootAllocator = new RootAllocator()
-      veColBatches
-        .map(_.toArrowColumnarBatch())
-        .map(cb => cb.column(0).getArrowValueVector)
-        .flatMap(fv => (0 until fv.getValueCount).map(idx => fv.asInstanceOf[IntVector].get(idx)))
-    }.collect()
+      )
+      .mapPartitions(it => it.flatMap(_.toInternalColumnarBatch().rowIterator().asScala))
+    val result = inputRdd
+      .mapPartitions { iteratorRows =>
+        implicit val rootAllocator: RootAllocator = new RootAllocator()
+        unwrapDualToVeColBatches(
+          possiblyDualModeInternalRows = iteratorRows,
+          timeZoneId = "UTC",
+          schema = StructType(Array(StructField("test", IntegerType))),
+          numRows = 100
+        )
+      }
+      .mapPartitions { veColBatches =>
+        implicit val rootAllocator: RootAllocator = new RootAllocator()
+        veColBatches
+          .map(_.toArrowColumnarBatch())
+          .map(cb => cb.column(0).getArrowValueVector)
+          .flatMap(fv => (0 until fv.getValueCount).map(idx => fv.asInstanceOf[IntVector].get(idx)))
+      }
+      .collect()
       .toList
       .sorted
 

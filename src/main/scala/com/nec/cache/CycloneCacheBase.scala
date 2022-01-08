@@ -9,7 +9,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.vectorized.DualMode.cachedBatchesToDualModeInternalRows
+import DualMode.cachedBatchesToDualModeInternalRows
 
 /**
  * This base decodes both variations of [[ArrowBasedCacheSerializer]] and [[InVectorEngineCacheSerializer]].

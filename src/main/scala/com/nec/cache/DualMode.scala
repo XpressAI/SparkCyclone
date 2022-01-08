@@ -1,12 +1,14 @@
-package org.apache.spark.sql.vectorized
+package com.nec.cache
 
-import com.nec.cache.{CachedVeBatch, VeColColumnarVector}
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.{VeColBatch, VeProcess}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.columnar.CachedBatch
-import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatchRow}
 
 object DualMode {
 
@@ -25,6 +27,9 @@ object DualMode {
     }
   }
 
+  /** We have to use the name, because this class is not accessible to us by default */
+  val SparkColumnarBatchRowClassName = "ColumnarBatchRow"
+
   /**
    * Enable the pass-through of [[CachedColumnVector]]s through [[InternalRow]].
    *
@@ -39,11 +44,11 @@ object DualMode {
     if (!iterator.hasNext) Right(Iterator.empty)
     else {
       iterator.next() match {
-        case cbr if cbr.toString.contains(classOf[ColumnarBatchRow].getSimpleName) =>
+        case cbr if cbr.toString.contains(SparkColumnarBatchRowClassName) =>
           Left {
             (Iterator(cbr) ++ iterator)
               .map {
-                case cbr if cbr.toString.contains(classOf[ColumnarBatchRow].getSimpleName) =>
+                case cbr if cbr.toString.contains(SparkColumnarBatchRowClassName) =>
                   cbr
                 case other =>
                   sys.error(s"Not expected anything other than ColumnarBatchRow, got ${other}")
@@ -80,5 +85,34 @@ object DualMode {
       .take(1)
       .flatten
   }
+
+  def unwrapDualToVeColBatches(
+    possiblyDualModeInternalRows: Iterator[InternalRow],
+    timeZoneId: String,
+    schema: StructType,
+    numRows: Int
+  )(implicit
+    bufferAllocator: BufferAllocator,
+    veProcess: VeProcess,
+    source: VeColVectorSource
+  ): Iterator[VeColBatch] =
+    DualMode.unwrapInternalRows(possiblyDualModeInternalRows) match {
+      case Left(colBatches) =>
+        colBatches.map(cachedColumnVectors =>
+          DualColumnarBatchContainer(vecs = cachedColumnVectors).toVEColBatch()
+        )
+      case Right(rowIterator) =>
+        SparkInternalRowsToArrowColumnarBatches
+          .apply(
+            rowIterator = rowIterator,
+            timeZoneId = timeZoneId,
+            schema = schema,
+            numRows = numRows
+          )
+          .map { columnarBatch =>
+            /* cleaning up the [[columnarBatch]] is not necessary as the underlying ones does it */
+            VeColBatch.fromArrowColumnarBatch(columnarBatch)
+          }
+    }
 
 }
