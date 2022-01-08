@@ -95,17 +95,13 @@ final class RDDSpec
       timeZoneId = "UTC",
       schema = StructType(Array(StructField("test", IntegerType))),
       numRows = 100
-    ).mapPartitions(vcbi => {
+    ).mapPartitions { veColBatches =>
       implicit val rootAllocator: RootAllocator = new RootAllocator()
-      vcbi
-        .map(vcb => {
-          println(vcb)
-          vcb.toVEColBatch()
-        })
+      veColBatches
         .map(_.toArrowColumnarBatch())
         .map(cb => cb.column(0).getArrowValueVector)
         .flatMap(fv => (0 until fv.getValueCount).map(idx => fv.asInstanceOf[IntVector].get(idx)))
-    }).collect()
+    }.collect()
       .toList
       .sorted
 

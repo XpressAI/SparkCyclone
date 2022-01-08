@@ -21,6 +21,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override def child: SparkPlan = {
     childPlan
   }
+
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
@@ -33,10 +34,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     val timeZoneId = conf.sessionLocalTimeZone
 
     internalRowToVeColBatch(child.execute(), timeZoneId, child.schema, numRows)
-      .map { unInternal =>
-        import com.nec.spark.SparkCycloneExecutorPlugin._
-        unInternal.toVEColBatch()
-      }
   }
 
   override def output: Seq[Attribute] = child.output

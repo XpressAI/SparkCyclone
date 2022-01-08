@@ -119,6 +119,34 @@ object VeColBatchConverters {
     timeZoneId: String,
     schema: StructType,
     numRows: Int
+  ): RDD[VeColBatch] =
+    input.mapPartitions { iterator =>
+      DualMode.handleIterator(iterator) match {
+        case Left(colBatches) =>
+          import SparkCycloneExecutorPlugin.veProcess
+          colBatches.map(cachedColumnVectors =>
+            CachedColBatchWrapper(vecs = cachedColumnVectors).toVEColBatch()
+          )
+        case Right(rowIterator) =>
+          originalInternalRowToArrowColumnarBatches(
+            rowIterator = rowIterator,
+            timeZoneId = timeZoneId,
+            schema = schema,
+            numRows = numRows
+          )
+            .map { columnarBatch =>
+              import SparkCycloneExecutorPlugin.veProcess
+              try VeColBatch.fromArrowColumnarBatch(columnarBatch)
+              finally columnarBatch.close()
+            }
+      }
+    }
+
+  def internalRowToCachedVeColBatch(
+    input: RDD[InternalRow],
+    timeZoneId: String,
+    schema: StructType,
+    numRows: Int
   ): RDD[CachedColBatchWrapper] =
     input.mapPartitions { iterator =>
       DualMode.handleIterator(iterator) match {

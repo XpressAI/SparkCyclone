@@ -9,6 +9,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.DualMode.cachedBatchesToDualModeInternalRows
 
 /**
  * This base decodes both variations of [[ArrowBasedCacheSerializer]] and [[InVectorEngineCacheSerializer]].
@@ -22,39 +23,22 @@ abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatc
 
   override def supportsColumnarInput(schema: Seq[Attribute]): Boolean = true
 
+  /**
+   * Create an 'internal columnarBatch', and then use a 'rowIterator' which emits 'ColumnarBatchRow' which,
+   * when consumed, will contain the original columnar batch.
+   *
+   * This is done in order to allow the reading of cache through the InMemoryExec, as that
+   * does not always seem to support a ColumnarBatch approach.
+   *
+   * Effectively, this is a hack-around.
+   */
   override def convertCachedBatchToInternalRow(
     input: RDD[CachedBatch],
     cacheAttributes: Seq[Attribute],
     selectedAttributes: Seq[Attribute],
     conf: SQLConf
   ): RDD[InternalRow] =
-    input.mapPartitions(
-      preservesPartitioning = true,
-      f = { cachedBatchesIter: Iterator[CachedBatch] =>
-        lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-          .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
-
-        Iterator
-          .continually {
-            import scala.collection.JavaConverters._
-            cachedBatchesIter
-              .map(_.asInstanceOf[CachedVeBatch].dualVeBatch.toEither)
-              .flatMap {
-                case Left(veColBatch) =>
-                  veColBatch.toInternalColumnarBatch().rowIterator().asScala
-                case Right(byteArrayColBatch) =>
-                  byteArrayColBatch.toInternalColumnarBatch().rowIterator().asScala
-              }
-          }
-          .take(1)
-          .flatten
-      }
-    )
-
-  override def buildFilter(
-    predicates: Seq[Expression],
-    cachedAttributes: Seq[Attribute]
-  ): (Int, Iterator[CachedBatch]) => Iterator[CachedBatch] = (_, ii) => ii
+    input.mapPartitions(preservesPartitioning = true, f = cachedBatchesToDualModeInternalRows)
 
   override def convertCachedBatchToColumnarBatch(
     input: RDD[CachedBatch],
@@ -64,5 +48,10 @@ abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatc
   ): RDD[ColumnarBatch] = input.map { cachedBatch =>
     cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toInternalColumnarBatch()
   }
+
+  override def buildFilter(
+    predicates: Seq[Expression],
+    cachedAttributes: Seq[Attribute]
+  ): (Int, Iterator[CachedBatch]) => Iterator[CachedBatch] = (_, ii) => ii
 
 }

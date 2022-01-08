@@ -180,10 +180,11 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
         logger.error(s"There were some unreleased allocations. First ${NumToPrint}:")
         someAllocations.foreach { allocation =>
           val throwable = new Throwable {
-            override def getMessage: String = s"Unreleased allocation found at ${allocation.position}"
+            override def getMessage: String =
+              s"Unreleased allocation found at ${allocation.position}"
             override def getStackTrace: Array[StackTraceElement] = allocation.stackTrace.toArray
           }
-          logger.error(s"Position: ${allocation}", throwable)
+          logger.error(s"Position: ${allocation.position}", throwable)
         }
       }
 

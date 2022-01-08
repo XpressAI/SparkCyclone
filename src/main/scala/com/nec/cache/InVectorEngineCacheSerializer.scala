@@ -26,7 +26,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
     conf: SQLConf
   ): RDD[CachedBatch] =
     VeColBatchConverters
-      .internalRowToVeColBatch(
+      .internalRowToCachedVeColBatch(
         input,
         conf.sessionLocalTimeZone,
         StructType(
