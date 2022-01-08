@@ -35,7 +35,6 @@ object DetectVectorEngineSpec {
     List(
       "/classes/",
       "/test-classes/",
-      "/ve/",
       "scala-logging",
       "veoffload",
       "javacpp",
@@ -50,6 +49,7 @@ object DetectVectorEngineSpec {
       .getURLs
       .filter(item => ExpectedClassPathItems.exists(expected => item.toString.contains(expected)))
       .map(item => item.toString.replaceAllLiterally("file:/", "/"))
+      .toList
 
   val VeClusterConfig: SparkSession.Builder => SparkSession.Builder =
     _.config("spark.executor.resource.ve.amount", "1")
