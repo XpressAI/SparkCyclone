@@ -9,9 +9,10 @@ final case class GenericColVector[Data](
   name: String,
   variableSize: Option[Int],
   veType: VeType,
-  containerLocation: Data,
+  container: Data,
   buffers: List[Data]
 ) {
+  def containerLocation = container
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
@@ -33,6 +34,6 @@ final case class GenericColVector[Data](
   def containerSize: Int = veType.containerSize
 
   def map[Other](f: Data => Other): GenericColVector[Other] =
-    copy(containerLocation = f(containerLocation), buffers = buffers.map(f))
+    copy(container = f(containerLocation), buffers = buffers.map(f))
 
 }

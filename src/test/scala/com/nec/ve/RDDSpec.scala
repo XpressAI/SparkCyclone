@@ -120,7 +120,7 @@ final class RDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
           sparkSession.sparkContext
             .range(start = 1, end = 500, step = 1, numSlices = 4)
             .map(_.toDouble)
-        }.map(arrowVec => VeColVector.fromFloat8Vector(arrowVec))
+        }.map(arrowVec => VeColVector.fromArrowVector(arrowVec))
           .map(ve => veProc.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
           .map(vectors => {
             WithTestAllocator { implicit alloc =>
@@ -175,7 +175,7 @@ object RDDSpec {
           veIterator
             .map(arrowVec => {
               import SparkCycloneExecutorPlugin.source
-              try VeColVector.fromFloat8Vector(arrowVec)
+              try VeColVector.fromArrowVector(arrowVec)
               finally arrowVec.close()
             })
             .flatMap(veColVector => {
