@@ -1,10 +1,11 @@
 package com.nec.spark.planning
 
 import com.nec.arrow.colvector.ByteBufferColVector
+import com.nec.cache.DualColumnarBatchContainer
+import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColColumnarVector.{CachedColVector, DualVeBatch}
 import com.nec.ve.VeColBatch
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -34,8 +35,8 @@ object VeColBatchConverters {
     }
   }
 
-  final case class UnInternalVeColBatch(colBatch: List[CachedColVector]) {
-    def toDualVeBatch: DualVeBatch = DualVeBatch(colBatch)
+  final case class UnInternalVeColBatch(colBatch: List[CachedColumnVector]) {
+    def toDualVeBatch: DualColumnarBatchContainer = DualColumnarBatchContainer(colBatch)
   }
 
   def originalInternalRowToArrowColumnarBatches(

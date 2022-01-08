@@ -1,9 +1,8 @@
 package org.apache.spark.sql.vectorized
 
+import com.nec.cache.VeColColumnarVector
+import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
-import com.nec.spark.planning.VeColColumnarVector
-import com.nec.spark.planning.VeColColumnarVector.CachedColVector
-import com.nec.ve.VeColBatch
 import org.apache.spark.sql.catalyst.InternalRow
 
 object DualMode {
@@ -25,7 +24,7 @@ object DualMode {
 
   def handleIterator(
     iterator: Iterator[InternalRow]
-  ): Either[Iterator[List[CachedColVector]], Iterator[InternalRow]] = {
+  ): Either[Iterator[List[CachedColumnVector]], Iterator[InternalRow]] = {
     if (!iterator.hasNext) Right(Iterator.empty)
     else {
       iterator.next() match {

@@ -1,8 +1,9 @@
 package com.nec.spark.planning.plans
 
 import com.nec.arrow.colvector.ByteArrayColVector
+import com.nec.cache.VeColColumnarVector
 import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
-import com.nec.spark.planning.{SupportsVeColBatch, VeCachedBatchSerializer, VeColColumnarVector}
+import com.nec.spark.planning.{SupportsVeColBatch, VeCachedBatchSerializer}
 import com.nec.ve.VeColBatch
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging

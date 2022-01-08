@@ -1,7 +1,7 @@
 package com.nec.arrow.colvector
 
+import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
-import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeProcess
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.sql.vectorized.ColumnVector

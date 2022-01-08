@@ -1,22 +1,12 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.ArrowTransferStructures.{
-  nullable_bigint_vector,
-  nullable_double_vector,
-  nullable_int_vector,
-  nullable_varchar_vector
-}
-import com.nec.arrow.VeArrowTransfers.{
-  nullableBigintVectorToByteBuffer,
-  nullableDoubleVectorToByteBuffer,
-  nullableIntVectorToByteBuffer,
-  nullableVarCharVectorVectorToByteBuffer
-}
+import com.nec.arrow.ArrowTransferStructures.{nullable_bigint_vector, nullable_double_vector, nullable_int_vector, nullable_varchar_vector}
+import com.nec.arrow.VeArrowTransfers.{nullableBigintVectorToByteBuffer, nullableDoubleVectorToByteBuffer, nullableIntVectorToByteBuffer, nullableVarCharVectorVectorToByteBuffer}
 import com.nec.arrow.colvector.{ByteBufferColVector, GenericColVector}
+import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeProcess
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector.getUnsafe
