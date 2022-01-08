@@ -2,7 +2,6 @@ package com.nec.spark.planning
 
 import com.nec.arrow.colvector.ByteBufferColVector
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.planning.VeCachedBatchSerializer.{CacheInSpark, CachedVeBatch, ShortCircuit}
@@ -98,6 +97,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] = input.map { cb =>
+    import com.nec.spark.SparkCycloneExecutorPlugin._
     if (CacheInSpark) {
       CachedVeBatch.apply(ccv =
         (0 until cb.numCols())
@@ -110,7 +110,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
           .map(b => Right(b))
       )
     } else {
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+
       val vcb = VeColBatch.fromArrowColumnarBatch(cb)
       SparkCycloneExecutorPlugin.register(vcb)
       CachedVeBatch(vcb)
@@ -120,7 +120,7 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
   override def buildFilter(
     predicates: Seq[Expression],
     cachedAttributes: Seq[Attribute]
-  ): (Int, Iterator[CachedBatch]) => Iterator[CachedBatch] = (i, ii) => ii
+  ): (Int, Iterator[CachedBatch]) => Iterator[CachedBatch] = (_, ii) => ii
 
   override def convertCachedBatchToColumnarBatch(
     input: RDD[CachedBatch],
@@ -146,19 +146,28 @@ class VeCachedBatchSerializer extends org.apache.spark.sql.columnar.CachedBatchS
     conf: SQLConf
   ): RDD[InternalRow] =
     if (ShortCircuit)
-      input.flatMap { cachedBatch =>
-        Iterator
-          .continually {
-            import SparkCycloneExecutorPlugin._
-            lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-              .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
-            mapBatchToRow(
-              cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toArrowColumnarBatch()
-            )
-          }
-          .take(1)
-          .flatten
-      }
+      input.mapPartitions(
+        preservesPartitioning = true,
+        f = { cachedBatchesIter: Iterator[CachedBatch] =>
+          lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for cache collector (Arrow)", 0, Long.MaxValue)
+
+          Iterator
+            .continually {
+              import scala.collection.JavaConverters._
+              cachedBatchesIter
+                .map(_.asInstanceOf[CachedVeBatch].dualVeBatch.toEither)
+                .flatMap {
+                  case Left(veColBatch) =>
+                    veColBatch.toInternalColumnarBatch().rowIterator().asScala
+                  case Right(byteArrayColBatch) =>
+                    byteArrayColBatch.toInternalColumnarBatch().rowIterator().asScala
+                }
+            }
+            .take(1)
+            .flatten
+        }
+      )
     else
       convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
         .mapPartitions(columnarBatchIterator => columnarBatchIterator.flatMap(mapBatchToRow))

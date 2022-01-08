@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.arrow.colvector.ByteArrayColVector
+import com.nec.arrow.colvector.{ByteArrayColBatch, ByteArrayColVector, GenericColBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.VeColColumnarVector.CachedColVector
@@ -71,10 +71,22 @@ object VeColColumnarVector {
 
   type CachedColVector = Either[VeColVector, ByteArrayColVector]
   final case class DualVeBatch(vecs: List[CachedColVector]) {
+
+    def toEither: Either[VeColBatch, ByteArrayColBatch] = {
+      Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
+        case Some(vecs) => Left(VeColBatch.fromList(vecs))
+        case None =>
+          val cols = vecs.flatMap(_.right.toSeq)
+          Right(
+            ByteArrayColBatch(GenericColBatch(numRows = cols.head.underlying.numItems, cols = cols))
+          )
+      }
+    }
+
     def toArrowColumnarBatch()(implicit
       bufferAllocator: BufferAllocator,
       veProcess: VeProcess
-    ): ColumnarBatch =
+    ): ColumnarBatch = {
       Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
         case Some(vecs) => VeColBatch.fromList(vecs).toArrowColumnarBatch()
         case None =>
@@ -86,6 +98,7 @@ object VeColColumnarVector {
           cb.setNumRows(vecs.head.fold(_.numItems, _.underlying.numItems))
           cb
       }
+    }
 
     def toVEColBatch()(implicit
       veProcess: VeProcess,
