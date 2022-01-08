@@ -3,8 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.{CycloneCacheBase, DualMode}
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.planning.SupportsVeColBatch
-import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
+import com.nec.spark.planning.{DataCleanup, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
@@ -15,7 +14,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
-object SparkToVectorEnginePlan {}
 case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   extends UnaryExecNode
   with LazyLogging

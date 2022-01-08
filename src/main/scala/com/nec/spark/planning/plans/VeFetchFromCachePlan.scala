@@ -2,8 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.arrow.colvector.ByteArrayColVector
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.planning.SupportsVeColBatch
-import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
+import com.nec.spark.planning.{DataCleanup, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVector
@@ -54,5 +53,5 @@ case class VeFetchFromCachePlan(child: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
-  override def dataCleanup: SupportsVeColBatch.DataCleanup = DataCleanup.noCleanup(this.getClass)
+  override def dataCleanup: DataCleanup = DataCleanup.noCleanup(this.getClass)
 }

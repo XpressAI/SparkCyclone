@@ -42,7 +42,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { iterator =>
-        import SparkCycloneExecutorPlugin.veProcess
+        import SparkCycloneExecutorPlugin._
         lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
@@ -58,7 +58,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
                   val res = veColBatch.toArrowColumnarBatch()
                   logger.debug(s"Finished mapping ${veColBatch}")
                   res
-                } finally cleanUpIfNotCached(veColBatch)
+                } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
           }
       }

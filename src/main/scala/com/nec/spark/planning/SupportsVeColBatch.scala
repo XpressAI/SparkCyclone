@@ -1,50 +1,13 @@
 package com.nec.spark.planning
 
-import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
-import com.nec.spark.planning.SupportsVeColBatch.DataCleanup
-import com.nec.ve.VeColBatch.VeColVectorSource
-import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object SupportsVeColBatch extends LazyLogging {
-  trait DataCleanup {
-    def cleanup(veColBatch: VeColBatch)(implicit
-      veProcess: VeProcess,
-      processId: VeColVectorSource,
-      originalCallingContext: OriginalCallingContext
-    ): Unit
-  }
-  object DataCleanup {
-    def noCleanup(parent: Class[_]): DataCleanup = new DataCleanup {
-      override def cleanup(veColBatch: VeColBatch)(implicit
-        veProcess: VeProcess,
-        processId: VeColVectorSource,
-        originalCallingContext: OriginalCallingContext
-      ): Unit = logger.debug(
-        s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
-          .map(_.containerLocation)} - from ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
-      )
-    }
-    def cleanup(parent: Class[_]): DataCleanup = new DataCleanup {
-      override def cleanup(veColBatch: VeColBatch)(implicit
-        veProcess: VeProcess,
-        processId: VeColVectorSource,
-        originalCallingContext: OriginalCallingContext
-      ): Unit = {
-        logger.debug(
-          s"Requesting to clean up data at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
-        )
-        cleanUpIfNotCached(veColBatch)
-      }
-    }
-
-  }
-}
+object SupportsVeColBatch extends LazyLogging {}
 
 trait SupportsVeColBatch { this: SparkPlan =>
   final override def supportsColumnar: Boolean = true
