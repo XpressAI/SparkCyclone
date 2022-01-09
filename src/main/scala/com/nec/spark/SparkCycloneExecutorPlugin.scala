@@ -54,7 +54,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
 
   implicit def source: VeColVectorSource = VeColVectorSource(
-    s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
+    s"Process ${Option(_veo_proc)}, executor ${Option(SparkEnv.get).flatMap(se => Option(se.executorId))}"
   )
 
   /**
