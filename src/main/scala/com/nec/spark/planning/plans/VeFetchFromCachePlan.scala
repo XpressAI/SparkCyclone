@@ -38,19 +38,8 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
       import OriginalCallingContext.Automatic._
 
       val res = VeColBatch.fromList(unwrapBatch(cb).map {
-        case Left(veColVector) => veColVector
-        case Right(byteArrayColVector) =>
-          val colVec = byteArrayColVector.transferToByteBuffers().toVeColVector()
-
-          /* If we derived it from the byte-array cache, then clean up the inputs at the end.
-           * For VE-cached data, don't clean it up - this is done by the Executor instead. */
-          import OriginalCallingContext.Automatic._
-
-          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-            colVec.free()
-          }
-
-          colVec
+        case Left(veColVector)         => veColVector
+        case Right(byteArrayColVector) => byteArrayColVector.transferToByteBuffers().toVeColVector()
       })
       logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
       res
