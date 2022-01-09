@@ -32,7 +32,7 @@ final class VeColColumnarVector(val dualVeBatch: CachedColumnVector, dataType: D
   override def close(): Unit = {
     import OriginalCallingContext.Automatic._
 
-    dualVeBatch.left.foreach(SparkCycloneExecutorPlugin.freeCol)
+    dualVeBatch.left.foreach(SparkCycloneExecutorPlugin.freeCachedCol)
   }
 
   override def hasNull: Boolean = VeColColumnarVector.unsupported()

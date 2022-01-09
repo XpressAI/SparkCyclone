@@ -30,6 +30,7 @@ import sun.nio.ch.DirectBuffer
 import java.nio.ByteBuffer
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
+  def allAllocations = containerLocation :: bufferLocations
   def bufferLocations = underlying.buffers
   def containerLocation = underlying.containerLocation
   def source = underlying.source
@@ -241,7 +242,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       veColVectorSource == source,
       s"Intended to `free` in ${source}, but got ${veColVectorSource} context."
     )
-    (containerLocation :: buffers).foreach(veProcess.free)
+    allAllocations.foreach(veProcess.free)
   }
 
 }

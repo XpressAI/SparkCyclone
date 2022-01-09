@@ -31,7 +31,8 @@ object DataCleanup extends LazyLogging {
       originalCallingContext: OriginalCallingContext
     ): Unit = {
       logger.debug(
-        s"Requesting to clean up data at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
+        s"Requesting to clean up data of ${veColBatch.underlying.cols
+          .map(_.containerLocation)} at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
       )
       cleanUpIfNotCached(veColBatch)
     }

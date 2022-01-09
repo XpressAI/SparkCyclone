@@ -83,14 +83,16 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   @transient private val cachedCols: scala.collection.mutable.Set[VeColVector] =
     scala.collection.mutable.Set.empty
 
-  def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
+  private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
     cachedBatches.toList.foreach { colBatch =>
       cachedBatches.remove(colBatch)
-      colBatch.cols.foreach(freeCol)
+      colBatch.cols.foreach(freeCachedCol)
     }
   }
 
-  def freeCol(col: VeColVector)(implicit originalCallingContext: OriginalCallingContext): Unit = {
+  private def freeCachedCol(
+    col: VeColVector
+  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
     if (cachedCols.contains(col)) {
       cachedCols.remove(col)
       col.free()
@@ -112,10 +114,14 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
         s"Data at ${veColBatch.cols
           .map(_.containerLocation)} will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
       )
-    else
-      veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
+    else {
+      val (cached, notCached) = veColBatch.cols.partition(cachedCols.contains)
+      logger.debug(s"Will clean up data for ${cached
+        .map(_.bufferLocations)}, and not clean up for ${notCached.map(_.allAllocations)}")
+      notCached.foreach(_.free())
+    }
 
-  val metrics = new ProcessExecutorMetrics(AllocationTracker.simple())
+  private val metrics = new ProcessExecutorMetrics(AllocationTracker.simple())
 
 }
 
