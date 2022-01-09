@@ -79,8 +79,36 @@ object GroupingFunction {
     )
   )
 
-  def groupData(data: List[DataDescription], totalBuckets: Int): CFunction2 = {
+  def groupDataNoOp(data: List[DataDescription]): CFunction2 = {
+    val inputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
+      veType.makeCVector(s"${isKey.renderValue}_${idx}")
+    }
 
+    val outputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
+      veType.makeCVector(s"output_${isKey.renderValue}_${idx}")
+    }
+
+    val arguments = inputs.map(PointerPointer(_)) ++
+      List(CFunctionArgument.Raw("int* sets")) ++
+      outputs.map(PointerPointer(_))
+
+    val copyPointerLines = (inputs, outputs).zipped.map { case (in, out) =>
+      // Make the output pointers point to the input data structures
+      s"*${out.name} = ${in.name}[0];"
+    }.toList
+
+    CFunction2(arguments, CodeLines.from(s"sets[0] = 1;", copyPointerLines))
+  }
+
+  def groupData(data: List[DataDescription], totalBuckets: Int) = {
+    if (data.count(_.keyOrValue.isKey) <= 0) {
+      groupDataNoOp(data)
+    } else {
+      groupDataImpl(data, totalBuckets)
+    }
+  }
+
+  def groupDataImpl(data: List[DataDescription], totalBuckets: Int): CFunction2 = {
     val inputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
       veType.makeCVector(s"${isKey.renderValue}_$idx")
     }
@@ -89,12 +117,12 @@ object GroupingFunction {
       veType.makeCVector(s"output_${isKey.renderValue}_$idx")
     }
 
+    val arguments = inputs.map(PointerPointer(_)) ++
+      List(CFunctionArgument.Raw("int* sets")) ++
+      outputs.map(PointerPointer(_))
+
     CFunction2(
-      arguments = List(
-        inputs.map(cVector => PointerPointer(cVector)),
-        List(CFunctionArgument.Raw("int* sets")),
-        outputs.map(cVector => PointerPointer(cVector))
-      ).flatten,
+      arguments = arguments,
       body = CodeLines
         .from(
           computeBuckets(
@@ -160,15 +188,13 @@ object GroupingFunction {
                         ),
                         "int o = 0;",
                         CodeLines.forLoop("i", s"idToBucket.size()") {
-                          CodeLines.from(
-                            CodeLines.ifStatement("b == idToBucket[i]")(
-                              CodeLines.from(
-                                s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
-                                s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
-                                "o++;"
-                              )
+                          CodeLines.ifStatement("b == idToBucket[i]") {
+                            List(
+                              s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
+                              s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
+                              "o++;"
                             )
-                          )
+                          }
                         }
                       )
                   }

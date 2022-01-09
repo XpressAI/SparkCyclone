@@ -26,6 +26,7 @@ import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalactic.TolerantNumerics
 import org.scalactic.source.Position
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
@@ -41,6 +42,8 @@ abstract class TPCHSqlCSpec
   with Matchers
   with LazyLogging
   with BeforeAndAfterAllConfigMap {
+
+  implicit val doubleEq = TolerantNumerics.tolerantDoubleEquality(1e-6f)
 
   private def condMarkup(mkp: String)(implicit pos: Position): Unit = {
     if (printMarkup) markup(mkp)
@@ -1000,7 +1003,7 @@ abstract class TPCHSqlCSpec
       )
     }
   }
-  //Fails
+
   withTpchViews("Query 14", configuration) { sparkSession =>
     import sparkSession.implicits._
     val date = "1995-09-01"
@@ -1023,8 +1026,13 @@ abstract class TPCHSqlCSpec
         and l_shipdate < date '$date' + interval '1' month
     """
 
+    val expected = List(16.38077862639553)
+
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[Double].collect.toList.sorted === List(16.38077862639553)) //  16.3.sorted8
+      val results = ds.as[Double].collect.toList.sorted
+
+      assert(results.size === expected.size)
+      (results, expected).zipped.map { case (x, y) => assert(x === y) } //  16.3.sorted8
     }
   }
   withTpchViews("Query 15", configuration) { sparkSession =>
