@@ -90,7 +90,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     }
   }
 
-  private def freeCachedCol(
+  def freeCachedCol(
     col: VeColVector
   )(implicit originalCallingContext: OriginalCallingContext): Unit = {
     if (cachedCols.contains(col)) {
