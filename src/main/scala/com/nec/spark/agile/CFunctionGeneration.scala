@@ -28,11 +28,7 @@ import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableLong
 }
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringProducer.{
-  FrovedisCopyStringProducer,
-  FrovedisStringProducer,
-  ImperativeStringProducer
-}
+import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -804,14 +800,6 @@ object CFunctionGeneration {
             s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
             s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
           )
-        case (Left(NamedStringExpression(name, stringProducer: ImperativeStringProducer)), idx) =>
-          StringProducer
-            .produceVarChar(
-              inputCount = "input_0->count",
-              outputName = name,
-              stringProducer = stringProducer
-            )
-            .block
         case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
           StringProducer
             .produceVarChar(
