@@ -125,7 +125,7 @@ object VeProcess {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
-      logger.debug(
+      logger.trace(
         s"Allocating ${size} bytes ==> ${ptr} in ${context.fullName.value}#${context.line.value}"
       )
       veProcessMetrics.registerAllocation(size, ptr)
@@ -136,7 +136,7 @@ object VeProcess {
       def register()(implicit context: OriginalCallingContext): VeColVector = {
         veColVector.bufferLocations.zip(veColVector.underlying.bufferSizes).foreach {
           case (location, size) =>
-            logger.debug(
+            logger.trace(
               s"Registering allocation of ${size} at ${location}; original source is ${context.fullName.value}#${context.line.value}"
             )
             veProcessMetrics.registerAllocation(size, location)
@@ -165,7 +165,7 @@ object VeProcess {
 
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
-      logger.debug(
+      logger.trace(
         s"Deallocating ptr ${memoryLocation} (in ${context.fullName.value}#${context.line.value})"
       )
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
