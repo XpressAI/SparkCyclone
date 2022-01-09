@@ -243,6 +243,7 @@ object RDDSpec {
           .continually {
             vectorIter.flatMap { vector =>
               WithTestAllocator { implicit alloc =>
+                import SparkCycloneExecutorPlugin._
                 try {
                   val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
                   val vl = vec.toList
