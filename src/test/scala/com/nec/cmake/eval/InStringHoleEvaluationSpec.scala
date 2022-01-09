@@ -14,12 +14,12 @@ import com.nec.util.RichVectors.RichIntVector
 import org.scalatest.flatspec.AnyFlatSpec
 
 final class InStringHoleEvaluationSpec extends AnyFlatSpec {
-  "It" should  "correctly filter out input set" in {
+  "It" should "correctly filter out input set" in {
     val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
     val toMatchList = List("Dog", "Cat", "Fox")
-    val expectedResults = list.collect{
-      case elem if(toMatchList.contains(elem)) => 1
-      case _ => 0
+    val expectedResults = list.collect {
+      case elem if (toMatchList.contains(elem)) => 1
+      case _                                    => 0
     }
     val evaluation = InStringHoleEvaluation("strings", toMatchList)
 
@@ -28,12 +28,12 @@ final class InStringHoleEvaluationSpec extends AnyFlatSpec {
     assert(results == expectedResults)
   }
 
-  "It" should  "correctly filter out input set if no matches are preset" in {
+  "It" should "correctly filter out input set if no matches are preset" in {
     val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
-    val toMatchList = List("not", "here","Has")
-    val expectedResults = list.collect{
-      case elem if(toMatchList.contains(elem)) => 1
-      case _ => 0
+    val toMatchList = List("not", "here", "Has")
+    val expectedResults = list.collect {
+      case elem if (toMatchList.contains(elem)) => 1
+      case _                                    => 0
     }
     val evaluation = InStringHoleEvaluation("strings", toMatchList)
 
@@ -42,12 +42,12 @@ final class InStringHoleEvaluationSpec extends AnyFlatSpec {
     assert(results == expectedResults)
   }
 
-  "It" should  "correctly filter out input set if all words match" in {
+  "It" should "correctly filter out input set if all words match" in {
     val list = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
     val toMatchList = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
-    val expectedResults = list.collect{
-      case elem if(toMatchList.contains(elem)) => 1
-      case _ => 0
+    val expectedResults = list.collect {
+      case elem if (toMatchList.contains(elem)) => 1
+      case _                                    => 0
     }
     val evaluation = InStringHoleEvaluation("strings", toMatchList)
 
@@ -56,12 +56,12 @@ final class InStringHoleEvaluationSpec extends AnyFlatSpec {
     assert(results == expectedResults)
   }
 
-  "It" should  "correctly filter out input set with more complex matches" in {
+  "It" should "correctly filter out input set with more complex matches" in {
     val list = List("Fox", "Dog", "CatFox", "SparkCyclone")
     val toMatchList = List("Dog", "Cat", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
-    val expectedResults = list.collect{
-      case elem if(toMatchList.contains(elem)) => 1
-      case _ => 0
+    val expectedResults = list.collect {
+      case elem if (toMatchList.contains(elem)) => 1
+      case _                                    => 0
     }
     val evaluation = InStringHoleEvaluation("strings", toMatchList)
 
@@ -71,14 +71,12 @@ final class InStringHoleEvaluationSpec extends AnyFlatSpec {
   }
 }
 
-
-
 object InStringHoleEvaluationSpec {
 
   def executeHoleEvaluation(
-                             input: List[String],
-                             stringHoleEvaluation: StringHoleEvaluation
-                           ): List[Int] = {
+    input: List[String],
+    stringHoleEvaluation: StringHoleEvaluation
+  ): List[Int] = {
 
     val cLib = CMakeBuilder.buildCLogging(
       List(
@@ -120,5 +118,3 @@ object InStringHoleEvaluationSpec {
   }
 
 }
-
-

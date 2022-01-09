@@ -22,10 +22,32 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{NotNullEvaluator, SlowEvaluator}
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, InStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluation, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{
+  NotNullEvaluator,
+  SlowEvaluator
+}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{
+  DateCastStringHoleEvaluation,
+  InStringHoleEvaluation,
+  LikeStringHoleEvaluation,
+  SlowEvaluation,
+  SlowEvaluator
+}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Contains, EndsWith, EqualTo, Expression, In, IsNotNull, LeafExpression, Literal, StartsWith, Unevaluable}
+import org.apache.spark.sql.catalyst.expressions.{
+  AttributeReference,
+  Cast,
+  Contains,
+  EndsWith,
+  EqualTo,
+  Expression,
+  In,
+  IsNotNull,
+  LeafExpression,
+  Literal,
+  StartsWith,
+  Unevaluable
+}
 import org.apache.spark.sql.types.{DataType, DateType, StringType}
 
 /**
@@ -60,8 +82,8 @@ object StringHole {
       }
     }
 
-    final case class InStringHoleEvaluation(refName: String, valueList: Seq[String]) extends
-        StringHoleEvaluation {
+    final case class InStringHoleEvaluation(refName: String, valueList: Seq[String])
+      extends StringHoleEvaluation {
       val valuesWords = s"in_values_${Math.abs(hashCode())}"
       val toCheckWords = s"in_toCheck_${Math.abs(hashCode())}"
       val filteredIds = s"in_filtered_${Math.abs(hashCode())}"
@@ -70,7 +92,7 @@ object StringHole {
       val words = valueList.mkString(" ").map(_.toInt).mkString(",")
 
       override def computeVector: CodeLines = CodeLines.from(
-    s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
+        s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
         s"vector<int> values{ ${words} };",
         s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
         "auto NOT_FOUND = numeric_limits<size_t>::max();",
@@ -79,13 +101,9 @@ object StringHole {
         s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
         CodeLines.from(
           s"if($matchingIds[i] != NOT_FOUND) {",
-            CodeLines.from(
-              s"${filteredIds}[i] = 1;"
-            ).indented,
+          CodeLines.from(s"${filteredIds}[i] = 1;").indented,
           "} else {",
-          CodeLines.from(
-            s"${filteredIds}[i] = 0;"
-          ).indented,
+          CodeLines.from(s"${filteredIds}[i] = 0;").indented,
           "}"
         ),
         "}"
@@ -108,9 +126,11 @@ object StringHole {
           s"std::vector<int> $finalVectorName($refName->count);",
           "datetime_t epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);",
           s"for(int i = 0; i < $refName->count; i++) {",
-          CodeLines.from(
-            s"$finalVectorName[i] = frovedis::datetime_diff_day($dateTimeVectorName[i], epoch);"
-          ).indented,
+          CodeLines
+            .from(
+              s"$finalVectorName[i] = frovedis::datetime_diff_day($dateTimeVectorName[i], epoch);"
+            )
+            .indented,
           "}"
         )
       }
@@ -255,10 +275,10 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
-    case Cast(expr: AttributeReference, DateType, Some(_)) => DateCastStringHoleEvaluation(expr.name)
-    case In(expr: AttributeReference, exprlist: Seq[Literal])  => InStringHoleEvaluation(
-      expr.name, exprlist.map(_.toString())
-    )
+    case Cast(expr: AttributeReference, DateType, Some(_)) =>
+      DateCastStringHoleEvaluation(expr.name)
+    case In(expr: AttributeReference, exprlist: Seq[Literal]) =>
+      InStringHoleEvaluation(expr.name, exprlist.map(_.toString()))
 
   }
 
