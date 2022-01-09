@@ -3,7 +3,6 @@ package com.nec.ve
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.CycloneCacheBase
 import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
-import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeColBatch.VeColVectorSource
@@ -16,7 +15,6 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-import org.bytedeco.veoffload.global.veo
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -29,16 +27,6 @@ final class DualModeVESpec
   with BeforeAndAfterAll {
 
   import OriginalCallingContext.Automatic._
-
-  override protected def beforeAll(): Unit = {
-    CloseAutomatically = false
-    super.beforeAll()
-  }
-
-  override protected def afterAll(): Unit = {
-    Option(SparkCycloneExecutorPlugin._veo_proc).foreach(veo.veo_proc_destroy)
-    super.afterAll()
-  }
 
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
