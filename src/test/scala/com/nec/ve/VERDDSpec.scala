@@ -2,22 +2,20 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.PureVeFunctions.DoublingFunction
 import com.nec.ve.VERDDSpec.{doubleBatches, longBatches}
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
-import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}
+import com.nec.ve.VeColBatch.VeColVector
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, Float8Vector}
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.util.ArrowUtilsExposed
-import org.apache.spark.{SparkEnv, TaskContext}
-import org.bytedeco.veoffload.global.veo
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -40,23 +38,16 @@ final class VERDDSpec
   "We can perform a VE call on Arrow things" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
-    implicit val source: VeColVectorSource = VeColVectorSource(
-      s"Process ${SparkCycloneExecutorPlugin._veo_proc}, executor ${SparkEnv.get.executorId}"
-    )
-
-    implicit val veProc: VeProcess =
-      DeferredVeProcess(() =>
-        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
-      )
+    import SparkCycloneExecutorPlugin._
     val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
       path =>
-        val ref = veProc.loadLibrary(path)
+        val ref = veProcess.loadLibrary(path)
         doubleBatches {
           sparkSession.sparkContext
             .range(start = 1, end = 500, step = 1, numSlices = 4)
             .map(_.toDouble)
         }.map(arrowVec => VeColVector.fromArrowVector(arrowVec))
-          .map(ve => veProc.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
+          .map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
           .map(vectors => {
             WithTestAllocator { implicit alloc =>
               val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
