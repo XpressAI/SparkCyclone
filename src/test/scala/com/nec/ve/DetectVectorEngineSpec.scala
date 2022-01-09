@@ -40,7 +40,8 @@ object DetectVectorEngineSpec {
       "javacpp",
       "jna",
       "commons-io",
-      "reflections"
+      "reflections",
+      "haoyi"
     )
 
   private lazy val ExtraClassPath =
@@ -49,6 +50,7 @@ object DetectVectorEngineSpec {
       .getURLs
       .filter(item => ExpectedClassPathItems.exists(expected => item.toString.contains(expected)))
       .map(item => item.toString.replaceAllLiterally("file:/", "/"))
+      .toList
 
   val VeClusterConfig: SparkSession.Builder => SparkSession.Builder =
     _.config("spark.executor.resource.ve.amount", "1")
@@ -88,12 +90,12 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
 
   "Our extra classpath" - {
     ExpectedClassPathItems.foreach { name =>
-      s"Has ${name}" in {
+      s"Classpath: Has ${name}" in {
         expect(ExtraClassPath.exists(_.contains(name)))
       }
     }
 
-    "All items begin with /, ie absolute paths" in {
+    "Classpath: All items begin with /, ie absolute paths" in {
       expect(ExtraClassPath.forall(_.startsWith("/")))
     }
   }

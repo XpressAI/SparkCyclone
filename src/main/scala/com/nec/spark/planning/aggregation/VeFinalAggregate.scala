@@ -3,6 +3,8 @@ package com.nec.spark.planning.aggregation
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeProcess.OriginalCallingContext
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
@@ -15,7 +17,8 @@ case class VeFinalAggregate(
 ) extends UnaryExecNode
   with SupportsVeColBatch
   with Logging
-  with PlanCallsVeFunction {
+  with PlanCallsVeFunction
+  with LazyLogging {
 
   require(
     expectedOutputs.size == finalFunction.results.size,
@@ -28,20 +31,21 @@ case class VeFinalAggregate(
     .executeVeColumnar()
     .mapPartitions { veColBatches =>
       withVeLibrary { libRef =>
-        veColBatches.map { veColBatch =>
-          logInfo(s"Preparing to final-aggregate a batch... ${veColBatch}")
+        veColBatches.map { inputColBatch =>
+          logger.debug(s"Preparing to final-aggregate a batch... ${inputColBatch}")
+          import OriginalCallingContext.Automatic._
 
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           VeColBatch.fromList {
             try veProcess.execute(
               libraryReference = libRef,
               functionName = finalFunction.functionName,
-              cols = veColBatch.cols,
+              cols = inputColBatch.cols,
               results = finalFunction.results
             )
             finally {
-              logInfo("Completed a final-aggregate of  a batch...")
-              child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+              logger.debug("Completed a final-aggregate of a batch...")
+              child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputColBatch)
             }
           }
         }

@@ -1,7 +1,11 @@
 package com.nec.arrow.colvector
 
+import com.nec.cache.VeColColumnarVector
+import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.ve.VeProcess
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import org.apache.spark.sql.vectorized.ColumnVector
 
 import java.nio.ByteBuffer
 
@@ -10,10 +14,16 @@ import java.nio.ByteBuffer
  * We use Option[] because the `container` has no location, only the buffers.
  */
 final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[Byte]]]) {
+
   import underlying._
+
+  def toInternalVector(): ColumnVector =
+    new VeColColumnarVector(Right(this), likelySparkType(veType))
+
   def transferBuffersToVe()(implicit
     veProcess: VeProcess,
-    source: VeColVectorSource
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
   ): GenericColVector[Option[Long]] =
     underlying.copy(
       buffers = buffers.map { maybeBa =>

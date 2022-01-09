@@ -4,6 +4,8 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeBatchOfBatches
+import com.nec.ve.VeProcess.OriginalCallingContext
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -13,7 +15,8 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
   with SupportsVeColBatch
   with Logging
-  with PlanCallsVeFunction {
+  with PlanCallsVeFunction
+  with LazyLogging {
 
   require(
     output.size == flattenFunction.results.size,
@@ -29,12 +32,14 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
           .continually {
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             val inputBatches = veColBatches.toList
-            logInfo(s"Fetched all the data: ${inputBatches}")
+            logger.debug(s"Fetched all the data: ${inputBatches}")
             inputBatches match {
               case one :: Nil => Iterator(one)
               case Nil        => Iterator.empty
               case _ =>
                 Iterator {
+                  import OriginalCallingContext.Automatic._
+
                   VeColBatch.fromList(
                     try veProcess.executeMultiIn(
                       libraryReference = libRefExchange,
@@ -43,7 +48,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                       results = flattenFunction.results
                     )
                     finally {
-                      logInfo("Transformed input.")
+                      logger.debug("Transformed input.")
                       inputBatches
                         .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
                     }

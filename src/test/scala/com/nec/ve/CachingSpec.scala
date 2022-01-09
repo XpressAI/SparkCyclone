@@ -8,7 +8,7 @@ import com.nec.tpc.TPCHVESqlSpec
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.CachingSpec.SampleStructure
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.RDDSpec.{doubleBatches, longBatches}
+import com.nec.ve.VERDDSpec.{doubleBatches, longBatches}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
 import com.nec.ve.VeRDD.RichKeyedRDD

@@ -24,6 +24,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -64,8 +65,10 @@ final case class ProjectEvaluationPlan(
         val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
         veColBatches.map { veColBatch =>
           import SparkCycloneExecutorPlugin.veProcess
+          import OriginalCallingContext.Automatic._
           try {
             val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
+
             val cols =
               if (canPassThroughall) Nil
               else

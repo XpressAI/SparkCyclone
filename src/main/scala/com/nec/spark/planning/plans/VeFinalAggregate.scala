@@ -3,6 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
@@ -32,7 +33,8 @@ case class VeFinalAggregate(
           logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
 
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          VeColBatch.fromList {
+          VeColBatch.fromList {              import OriginalCallingContext.Automatic._
+
             try veProcess.execute(
               libraryReference = libRef,
               functionName = finalFunction.functionName,

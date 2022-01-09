@@ -13,11 +13,12 @@ import com.nec.arrow.VeArrowTransfers.{
   nullableVarCharVectorVectorToByteBuffer
 }
 import com.nec.arrow.colvector.{ByteBufferColVector, GenericColVector}
+import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.VeColColumnarVector
 import com.nec.ve.VeProcess
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
@@ -29,6 +30,7 @@ import sun.nio.ch.DirectBuffer
 import java.nio.ByteBuffer
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
+  def allAllocations = containerLocation :: bufferLocations
   def bufferLocations = underlying.buffers
   def containerLocation = underlying.containerLocation
   def source = underlying.source
@@ -39,7 +41,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def buffers = underlying.buffers
 
   import underlying._
-  def toInternalVector(): ColumnVector = new VeColColumnarVector(this, likelySparkType(veType))
+  def toInternalVector(): ColumnVector =
+    new VeColColumnarVector(Left(this), likelySparkType(veType))
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
@@ -50,7 +53,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
     val totalSize = bufferSizes.sum
     val resultingArray = toByteBufferVector()
-      .serializeBuffers()
+      .toByteArrayColVector()
       .serialize()
 
     assert(
@@ -77,7 +80,11 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       )
     )
 
-  def newContainer()(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
+  def newContainer()(implicit
+    veProcess: VeProcess,
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     copy(underlying = {
       veType match {
         case VeScalarType.VeNullableDouble =>
@@ -226,12 +233,16 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case other => sys.error(s"Not supported for conversion to arrow vector: $other")
   }
 
-  def free()(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): Unit = {
+  def free()(implicit
+    veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): Unit = {
     require(
       veColVectorSource == source,
       s"Intended to `free` in ${source}, but got ${veColVectorSource} context."
     )
-    (containerLocation :: buffers).foreach(veProcess.free)
+    allAllocations.foreach(veProcess.free)
   }
 
 }
@@ -259,7 +270,7 @@ object VeColVector {
     )
   )
 
-  private def getUnsafe: Unsafe = {
+  def getUnsafe: Unsafe = {
     val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
     theUnsafe.setAccessible(true)
     theUnsafe.get(null).asInstanceOf[Unsafe]
@@ -267,12 +278,15 @@ object VeColVector {
 
   def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
     veProcess: VeProcess,
-    _source: VeColVectorSource
+    _source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
   ): VeColVector = fromArrowVector(source.getArrowValueVector)
 
-  def fromArrowVector(
-    valueVector: ValueVector
-  )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColVector =
+  def fromArrowVector(valueVector: ValueVector)(implicit
+    veProcess: VeProcess,
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     ByteBufferColVector
       .fromArrowVector(valueVector)
       .toVeColVector()

@@ -24,6 +24,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, Tracer, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
@@ -47,8 +48,6 @@ final case class OneStageEvaluationPlan(
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
-  private val copiedRefs = outputExpressions.filter(_.isInstanceOf[AttributeReference])
-
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
@@ -61,22 +60,24 @@ final case class OneStageEvaluationPlan(
         Spanner(debug, tracer.mappedSparkEnv(SparkEnv.get)).spanIterator("map col batches") {
           withVeLibrary { libRef =>
             logger.info(s"Will map batches with function ${veFunction}")
-            veColBatches.map { veColBatch =>
+            import OriginalCallingContext.Automatic._
+            veColBatches.map { inputBatch =>
               try {
-                logger.debug(s"Mapping batch ${veColBatch}")
+                logger.debug(s"Mapping batch ${inputBatch}")
+
                 val cols = veProcess.execute(
                   libraryReference = libRef,
                   functionName = veFunction.functionName,
-                  cols = veColBatch.cols,
+                  cols = inputBatch.cols,
                   results = veFunction.results
                 )
-                logger.debug(s"Completed mapping ${veColBatch}, got ${cols}")
+                logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
 
                 val outBatch = VeColBatch.fromList(cols)
-                if (veColBatch.numRows < outBatch.numRows)
-                  logger.error(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+                if (inputBatch.numRows < outBatch.numRows)
+                  logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
                 outBatch
-              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
             }
           }
         }

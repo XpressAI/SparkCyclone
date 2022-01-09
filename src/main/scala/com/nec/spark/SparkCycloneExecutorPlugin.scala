@@ -21,13 +21,14 @@ package com.nec.spark
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
-import com.nec.ve.VeProcess.LibraryReference
+import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
+import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -53,7 +54,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
 
   implicit def source: VeColVectorSource = VeColVectorSource(
-    s"Process ${_veo_proc}, executor ${SparkEnv.get.executorId}"
+    s"Process ${Option(_veo_proc)}, executor ${Option(SparkEnv.get).flatMap(se => Option(se.executorId))}"
   )
 
   /**
@@ -76,39 +77,52 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var DefaultVeNodeId = 0
 
-  @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
+  @transient private val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
 
-  @transient val cachedCols: scala.collection.mutable.Set[VeColVector] =
+  @transient private val cachedCols: scala.collection.mutable.Set[VeColVector] =
     scala.collection.mutable.Set.empty
 
-  def cleanCache(): Unit = {
+  private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
     cachedBatches.toList.foreach { colBatch =>
       cachedBatches.remove(colBatch)
-      colBatch.cols.foreach(freeCol)
+      colBatch.cols.foreach(freeCachedCol)
     }
   }
 
-  def freeCol(col: VeColVector): Unit = {
+  def freeCachedCol(
+    col: VeColVector
+  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
     if (cachedCols.contains(col)) {
-      logger.debug(s"Freeing column ${col}... in ${source}")
       cachedCols.remove(col)
       col.free()
     }
   }
 
-  def register(cb: VeColBatch): Unit = {
+  def registerCachedBatch(cb: VeColBatch): Unit = {
     cachedBatches.add(cb)
     cb.cols.foreach(cachedCols.add)
   }
 
   var CleanUpCache: Boolean = true
 
-  def cleanUpIfNotCached(veColBatch: VeColBatch): Unit =
-    if (!cachedBatches.contains(veColBatch))
-      veColBatch.cols.filterNot(cachedCols.contains).foreach(freeCol)
+  def cleanUpIfNotCached(
+    veColBatch: VeColBatch
+  )(implicit originalCallingContext: OriginalCallingContext): Unit =
+    if (cachedBatches.contains(veColBatch))
+      logger.trace(
+        s"Data at ${veColBatch.cols
+          .map(_.containerLocation)} will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
+      )
+    else {
+      val (cached, notCached) = veColBatch.cols.partition(cachedCols.contains)
+      logger.trace(s"Will clean up data for ${cached
+        .map(_.bufferLocations)}, and not clean up for ${notCached.map(_.allAllocations)}")
+      notCached.foreach(_.free())
+    }
 
-  val metrics = new ProcessExecutorMetrics()
+  private val metrics = new ProcessExecutorMetrics(AllocationTracker.noOp)
+
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
@@ -154,6 +168,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
   override def shutdown(): Unit = {
     if (SparkCycloneExecutorPlugin.CleanUpCache) {
+      import OriginalCallingContext.Automatic._
+
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
@@ -168,6 +184,23 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
             .take(50)}..., expected to be none."
         )
       )
+
+    val NumToPrint = 5
+    Option(metrics.allocationTracker)
+      .map(_.remaining)
+      .filter(_.nonEmpty)
+      .map(_.take(NumToPrint))
+      .foreach { someAllocations =>
+        logger.error(s"There were some unreleased allocations. First ${NumToPrint}:")
+        someAllocations.foreach { allocation =>
+          val throwable = new Throwable {
+            override def getMessage: String =
+              s"Unreleased allocation found at ${allocation.position}"
+            override def getStackTrace: Array[StackTraceElement] = allocation.stackTrace.toArray
+          }
+          logger.error(s"Position: ${allocation.position}", throwable)
+        }
+      }
 
     if (CloseAutomatically) {
       logger.info(s"Closing process: ${_veo_proc}")

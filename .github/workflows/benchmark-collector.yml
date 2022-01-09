@@ -65,9 +65,14 @@ env:
         - "20"
         default: "1"
       serializer:
-        type: "boolean"
-        description: "Use Serializer"
-        default: "true"
+        type: "choice"
+        description: "Serializer"
+        options:
+        - "-"
+        - "com.nec.spark.planning.VeCachedBatchSerializer"
+        - "com.nec.cache.ArrowBasedCacheSerializer"
+        - "com.nec.cache.InVectorEngineCacheSerializer"
+        default: "-"
       use-cyclone:
         type: "boolean"
         description: "Enable Spark Cyclone plugin?"
