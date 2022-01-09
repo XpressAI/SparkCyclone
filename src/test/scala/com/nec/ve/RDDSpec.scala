@@ -44,7 +44,7 @@ final class RDDSpec
   }
 
   override protected def afterAll(): Unit = {
-    veo.veo_proc_destroy(SparkCycloneExecutorPlugin._veo_proc)
+    Option(SparkCycloneExecutorPlugin._veo_proc).foreach(veo.veo_proc_destroy)
     super.afterAll()
   }
 
