@@ -413,10 +413,10 @@ lazy val `tpcbench-run` = project
       .dependsOn((root / VectorEngine / compile))
       .evaluated,
     run / javaOptions ++= List(
-      s"-Dve.package=${(tpchbench / Compile / _root_.sbt.Keys.`assembly`).value.absolutePath}",
+      s"-Dve.package=${(tpchbench / assembly).value.absolutePath}",
       s"-Dve.cyclone_jar=${(root / assembly).value.absolutePath}"
     ),
-    reStart / envVars += "PACKAGE" -> (tpchbench / Compile / _root_.sbt.Keys.`assembly`).value.absolutePath,
+    reStart / envVars += "PACKAGE" -> (tpchbench / assembly).value.absolutePath,
     reStart / envVars += "CYCLONE_JAR" -> (root / assembly).value.absolutePath,
     reStart := reStart
       .dependsOn((Test / testQuick).toTask(""))
