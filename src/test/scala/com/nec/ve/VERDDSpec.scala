@@ -26,17 +26,8 @@ final class VERDDSpec
   with SparkAdditions
   with VeKernelInfra
   with BeforeAndAfterAll {
+
   import OriginalCallingContext.Automatic._
-
-  override protected def beforeAll(): Unit = {
-    CloseAutomatically = false
-    super.beforeAll()
-  }
-
-  override protected def afterAll(): Unit = {
-    Option(SparkCycloneExecutorPlugin._veo_proc).foreach(veo.veo_proc_destroy)
-    super.afterAll()
-  }
 
   "We can pass around some Arrow things" in withSparkSession2(identity) { sparkSession =>
     longBatches {
