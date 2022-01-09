@@ -40,7 +40,8 @@ object DetectVectorEngineSpec {
       "javacpp",
       "jna",
       "commons-io",
-      "reflections"
+      "reflections",
+      "haoyi"
     )
 
   private lazy val ExtraClassPath =
