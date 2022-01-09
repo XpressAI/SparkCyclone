@@ -40,7 +40,7 @@ object StringProducer {
 
   final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
-    with CopyStringProducer {
+      with CopyStringProducer {
 
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
     def frovedisLens(outputName: String) = s"${outputName}_lens"
@@ -91,7 +91,7 @@ object StringProducer {
         s"""int ${outputName}_otherwise_len = ${outputName}_chars.size();""",
         s"""${outputName}_chars.insert(${outputName}_chars.end(), ${outputName}_otherwise.begin(), ${outputName}_otherwise.end());""",
         s"""std::vector<size_t> ${outputName}_starts();""", // the length of this should be known...
-        s"""std::vector<size_t> ${outputName}_lens();""" // same here.
+        s"""std::vector<size_t> ${outputName}_lens();""",   // same here.
       )
     }
     def produce(outputName: String, outputIdx: String): CodeLines = {
@@ -99,12 +99,12 @@ object StringProducer {
         s"if (${condition.cCode}) {",
         CodeLines.from(
           s"${outputName}_starts[i] = ${outputName}_if_true_pos;",
-          s"${outputName}_lens[i] = ${outputName}_if_true_len;"
+          s"${outputName}_lens[i] = ${outputName}_if_true_len;",
         ),
         "} else {",
         CodeLines.from(
           s"${outputName}_starts[i] = ${outputName}_otherwise_pos;",
-          s"${outputName}_lens[i] = ${outputName}_otherwise_len;"
+          s"${outputName}_lens[i] = ${outputName}_otherwise_len;",
         ),
         "}"
       )
@@ -114,7 +114,7 @@ object StringProducer {
         s"frovedis::words ${outputName}_words;",
         s"${outputName}_words.chars.swap(${outputName}_chars);",
         s"${outputName}_words.starts.swap(${outputName}_starts);",
-        s"${outputName}_words.lens.swap(${outputName}_lens);"
+        s"${outputName}_words.lens.swap(${outputName}_lens);",
       )
     }
   }
