@@ -4,11 +4,6 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.StringProducer.{
-  FilteringProducer,
-  FrovedisCopyStringProducer,
-  ImpCopyStringProducer
-}
 import com.nec.spark.agile.groupby.GroupByOutline
 
 object MergerFunction {
