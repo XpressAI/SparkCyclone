@@ -94,4 +94,5 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     )
   }
 
+  override def requiresCleanUp: Boolean = true
 }

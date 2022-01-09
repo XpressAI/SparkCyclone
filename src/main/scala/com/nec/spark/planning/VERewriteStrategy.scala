@@ -25,7 +25,12 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
-import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
+import com.nec.spark.agile.groupby.{
+  ConvertNamedExpression,
+  GroupByOutline,
+  GroupByPartialGenerator,
+  GroupByPartialToFinalGenerator
+}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
@@ -35,8 +40,17 @@ import com.nec.spark.planning.plans._
 import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  HyperLogLogPlusPlus
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  AttributeReference,
+  Expression,
+  NamedExpression,
+  SortOrder
+}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
@@ -86,7 +100,17 @@ final case class VERewriteStrategy(
               .isInstanceOf[CycloneCacheBase] =>
           SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
-            .flatMap(sp => List(VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+            .flatMap(sp =>
+              List(
+                VectorEngineToSparkPlan(
+                  VeFetchFromCachePlan(
+                    sp,
+                    cb.serializer
+                      .asInstanceOf[CycloneCacheBase]
+                  )
+                )
+              )
+            )
             .toList
 
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
@@ -143,7 +167,18 @@ final case class VERewriteStrategy(
           SparkSession.active.sessionState.planner.InMemoryScans
             .apply(imr)
             .flatMap(sp =>
-              List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+              List(
+                FilterExec(
+                  cond,
+                  VectorEngineToSparkPlan(
+                    VeFetchFromCachePlan(
+                      sp,
+                      cb.serializer
+                        .asInstanceOf[CycloneCacheBase]
+                    )
+                  )
+                )
+              )
             )
             .toList
 
@@ -514,7 +549,18 @@ final case class VERewriteStrategy(
                 SparkSession.active.sessionState.planner.InMemoryScans
                   .apply(imr)
                   .flatMap(sp =>
-                    List(FilterExec(cond, VectorEngineToSparkPlan(VeFetchFromCachePlan(sp))))
+                    List(
+                      FilterExec(
+                        cond,
+                        VectorEngineToSparkPlan(
+                          VeFetchFromCachePlan(
+                            sp,
+                            cb.serializer
+                              .asInstanceOf[CycloneCacheBase]
+                          )
+                        )
+                      )
+                    )
                   )
                   .toList
               case _ => Nil

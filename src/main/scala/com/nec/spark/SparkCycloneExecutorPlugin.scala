@@ -77,10 +77,10 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var DefaultVeNodeId = 0
 
-  @transient val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
+  @transient private val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
 
-  @transient val cachedCols: scala.collection.mutable.Set[VeColVector] =
+  @transient private val cachedCols: scala.collection.mutable.Set[VeColVector] =
     scala.collection.mutable.Set.empty
 
   def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {

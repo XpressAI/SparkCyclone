@@ -56,6 +56,8 @@ abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatc
     cachedAttributes: Seq[Attribute]
   ): (Int, Iterator[CachedBatch]) => Iterator[CachedBatch] = (_, ii) => ii
 
+  def requiresCleanUp: Boolean
+
 }
 object CycloneCacheBase {
 

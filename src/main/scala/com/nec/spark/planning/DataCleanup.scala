@@ -1,7 +1,6 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
-import com.nec.spark.planning.SupportsVeColBatch.logger
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource

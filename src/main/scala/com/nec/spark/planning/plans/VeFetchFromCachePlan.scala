@@ -1,7 +1,7 @@
 package com.nec.spark.planning.plans
 
 import com.nec.arrow.colvector.ByteArrayColVector
-import com.nec.cache.VeColColumnarVector
+import com.nec.cache.{CycloneCacheBase, VeColColumnarVector}
 import com.nec.spark.planning.{DataCleanup, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -13,7 +13,12 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class VeFetchFromCachePlan(child: SparkPlan)
+object VeFetchFromCachePlan {
+  def apply(child: SparkPlan, serializer: CycloneCacheBase): VeFetchFromCachePlan =
+    VeFetchFromCachePlan(child, requiresCleanup = serializer.requiresCleanUp)
+}
+
+case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
   extends UnaryExecNode
   with SupportsVeColBatch
   with LazyLogging {
@@ -53,5 +58,8 @@ case class VeFetchFromCachePlan(child: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
-  override def dataCleanup: DataCleanup = DataCleanup.noCleanup(this.getClass)
+  override def dataCleanup: DataCleanup = {
+    if (requiresCleanup) DataCleanup.cleanup(this.getClass)
+    else DataCleanup.noCleanup(this.getClass)
+  }
 }

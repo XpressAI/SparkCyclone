@@ -49,7 +49,7 @@ object InVectorEngineCacheSerializer {
 }
 
 /** Non-final as we extend from this */
-final class InVectorEngineCacheSerializer extends CycloneCacheBase {
+class InVectorEngineCacheSerializer extends CycloneCacheBase {
 
   override def convertInternalRowToCachedBatch(
     input: RDD[InternalRow],
@@ -85,5 +85,7 @@ final class InVectorEngineCacheSerializer extends CycloneCacheBase {
     SparkCycloneExecutorPlugin.registerCachedBatch(veColBatch)
     CachedVeBatch(veColBatch)
   }
+
+  override def requiresCleanUp: Boolean = false
 
 }
