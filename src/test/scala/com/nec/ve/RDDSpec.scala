@@ -243,10 +243,12 @@ object RDDSpec {
           .continually {
             vectorIter.flatMap { vector =>
               WithTestAllocator { implicit alloc =>
-                val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
-                val vl = vec.toList
-                try if (vl.isEmpty) None else Some(vl.max)
-                finally vec.close()
+                try {
+                  val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
+                  val vl = vec.toList
+                  try if (vl.isEmpty) None else Some(vl.max)
+                  finally vec.close()
+                } finally vector.free()
               }
             }.max
           }
