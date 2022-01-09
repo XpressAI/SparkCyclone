@@ -3,7 +3,6 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
