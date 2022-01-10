@@ -5,7 +5,9 @@ import com.nec.ve.VeColBatch
 import org.apache.spark.sql.columnar.CachedBatch
 
 object CachedVeBatch {
-  def apply(cachedColumnVectors: List[CachedColumnVector]): CachedVeBatch = CachedVeBatch(DualColumnarBatchContainer(cachedColumnVectors))
+  def apply(cachedColumnVectors: List[CachedColumnVector]): CachedVeBatch = CachedVeBatch(
+    DualColumnarBatchContainer(cachedColumnVectors)
+  )
   def apply(veColBatch: VeColBatch): CachedVeBatch = CachedVeBatch(
     DualColumnarBatchContainer(veColBatch.cols.map(vcv => Left(vcv)))
   )

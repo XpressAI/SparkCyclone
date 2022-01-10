@@ -379,11 +379,9 @@ final case class VERewriteStrategy(
                   s"Expected to have distinct outputs from a PF, got: ${partialCFunction.outputs}"
                 )
             ff = groupByPartialGenerator.finalGenerator.createFinal
-            partialName = s"partial_$functionPrefix"
-            finalName = s"final_$functionPrefix"
-            exchangeName = s"exchange_$functionPrefix"
-            exchangeFunction = {
-              val gd = child.output.map { expx =>
+
+            dataDescriptions = {
+              child.output.map { expx =>
                 val contained =
                   groupingExpressions.exists(exp =>
                     exp == expx || exp.collect { case `expx` => exp }.nonEmpty
@@ -399,9 +397,13 @@ final case class VERewriteStrategy(
                     if (contained) DataDescription.KeyOrValue.Key
                     else DataDescription.KeyOrValue.Value
                 )
-              }.toList
-              GroupingFunction.groupData(data = gd, totalBuckets = 16)
+              }
             }
+            exchangeName = s"exchange_$functionPrefix"
+            exchangeFunction = GroupingFunction.groupData(dataDescriptions.toList, 16)
+
+            partialName = s"partial_$functionPrefix"
+            finalName = s"final_$functionPrefix"
             mergeFunction = s"merge_$functionPrefix"
             code = CodeLines
               .from(
@@ -415,9 +417,14 @@ final case class VERewriteStrategy(
               )
 
           } yield {
-
             val exchangePlan =
-              if (options.exchangeOnVe)
+              /*
+                TODO: Optimize in the future so that we don't need to copy the
+                input to output vectors at all if:
+
+                  dataDescriptions.count(_.keyOrValue.isKey) <= 0
+              */
+              if (options.exchangeOnVe) {
                 VeHashExchange(
                   exchangeFunction = VeFunction(
                     veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
@@ -426,7 +433,7 @@ final case class VERewriteStrategy(
                   ),
                   child = SparkToVectorEnginePlan(planLater(child))
                 )
-              else
+              } else {
                 SparkToVectorEnginePlan(
                   ShuffleExchangeExec(
                     outputPartitioning =
@@ -435,6 +442,8 @@ final case class VERewriteStrategy(
                     shuffleOrigin = REPARTITION
                   )
                 )
+              }
+
             val pag = VePartialAggregate(
               partialFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
@@ -454,6 +463,7 @@ final case class VERewriteStrategy(
                   )
                 }
             )
+
             val flt = VeFlattenPartition(
               flattenFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
@@ -462,6 +472,7 @@ final case class VERewriteStrategy(
               ),
               child = pag
             )
+
             VectorEngineToSparkPlan(
               VeFinalAggregate(
                 expectedOutputs = aggregateExpressions,
