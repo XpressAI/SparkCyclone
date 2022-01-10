@@ -279,7 +279,6 @@ object StringHole {
       DateCastStringHoleEvaluation(expr.name)
     case In(expr: AttributeReference, exprlist: Seq[Literal]) =>
       InStringHoleEvaluation(expr.name, exprlist.map(_.toString()))
-
   }
 
   def transform: PartialFunction[Expression, Expression] = Function

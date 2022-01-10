@@ -417,25 +417,32 @@ final case class VERewriteStrategy(
               )
 
           } yield {
-            val exchangePlan = if (options.exchangeOnVe && dataDescriptions.count(_.keyOrValue.isKey) > 0) {
-              VeHashExchange(
-                exchangeFunction = VeFunction(
-                  veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                  functionName = exchangeName,
-                  results = partialCFunction.inputs.map(_.veType)
-                ),
-                child = SparkToVectorEnginePlan(planLater(child))
-              )
-            } else {
-              SparkToVectorEnginePlan(
-                ShuffleExchangeExec(
-                  outputPartitioning =
-                    HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-                  child = planLater(child),
-                  shuffleOrigin = REPARTITION
+            val exchangePlan =
+              /*
+                TODO: Optimize in the future so that we don't need to copy the
+                input to output vectors at all if:
+
+                  dataDescriptions.count(_.keyOrValue.isKey) <= 0
+              */
+              if (options.exchangeOnVe) {
+                VeHashExchange(
+                  exchangeFunction = VeFunction(
+                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                    functionName = exchangeName,
+                    results = partialCFunction.inputs.map(_.veType)
+                  ),
+                  child = SparkToVectorEnginePlan(planLater(child))
                 )
-              )
-            }
+              } else {
+                SparkToVectorEnginePlan(
+                  ShuffleExchangeExec(
+                    outputPartitioning =
+                      HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                    child = planLater(child),
+                    shuffleOrigin = REPARTITION
+                  )
+                )
+              }
 
             val pag = VePartialAggregate(
               partialFunction = VeFunction(

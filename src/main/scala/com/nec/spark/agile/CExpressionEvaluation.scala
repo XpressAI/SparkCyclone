@@ -240,14 +240,20 @@ object CExpressionEvaluation {
 
     def ifStatement(condition: String)(sub: => CodeLines): CodeLines =
       CodeLines.from(s"if ($condition) { ", sub.indented, "}")
+
     def ifElseStatement(condition: String)(sub: => CodeLines)(other: CodeLines): CodeLines =
       CodeLines.from(s"if ($condition) { ", sub.indented, "} else {", other.indented, "}")
+
     def forLoop(counterName: String, until: String)(sub: => CodeLines): CodeLines =
       CodeLines.from(
         s"for ( int $counterName = 0; $counterName < $until; $counterName++ ) {",
         sub.indented,
         s"}"
       )
+
+    def scoped(sub: CodeLines): CodeLines = {
+      CodeLines.from("{", sub.indented, "}")
+    }
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))
 
