@@ -21,7 +21,12 @@ package com.nec.spark.agile
 
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
+  VeNullableDouble,
+  VeNullableFloat,
+  VeNullableInt,
+  VeNullableLong
+}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline

@@ -22,10 +22,32 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{NotNullEvaluator, SlowEvaluator}
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{DateCastStringHoleEvaluation, LikeStringHoleEvaluation, SlowEvaluation, SlowEvaluator}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{
+  NotNullEvaluator,
+  SlowEvaluator
+}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.{
+  DateCastStringHoleEvaluation,
+  InStringHoleEvaluation,
+  LikeStringHoleEvaluation,
+  SlowEvaluation,
+  SlowEvaluator
+}
 
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Contains, EndsWith, EqualTo, Expression, IsNotNull, LeafExpression, Literal, StartsWith, Unevaluable}
+import org.apache.spark.sql.catalyst.expressions.{
+  AttributeReference,
+  Cast,
+  Contains,
+  EndsWith,
+  EqualTo,
+  Expression,
+  In,
+  IsNotNull,
+  LeafExpression,
+  Literal,
+  StartsWith,
+  Unevaluable
+}
 import org.apache.spark.sql.types.{DataType, DateType, StringType}
 
 /**
@@ -60,6 +82,38 @@ object StringHole {
       }
     }
 
+    final case class InStringHoleEvaluation(refName: String, valueList: Seq[String])
+      extends StringHoleEvaluation {
+      val valuesWords = s"in_values_${Math.abs(hashCode())}"
+      val toCheckWords = s"in_toCheck_${Math.abs(hashCode())}"
+      val filteredIds = s"in_filtered_${Math.abs(hashCode())}"
+      val matchingIds = s"in_matches_${Math.abs(hashCode())}"
+
+      val words = valueList.mkString(" ").map(_.toInt).mkString(",")
+
+      override def computeVector: CodeLines = CodeLines.from(
+        s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
+        s"vector<int> values{ ${words} };",
+        s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
+        "auto NOT_FOUND = numeric_limits<size_t>::max();",
+        s"std::vector<size_t> ${matchingIds} = filter_words_dict(${valuesWords}, ${toCheckWords});",
+        s"std::vector<size_t> ${filteredIds}(${refName}->count);",
+        s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
+        CodeLines.from(
+          s"if($matchingIds[i] != NOT_FOUND) {",
+          CodeLines.from(s"${filteredIds}[i] = 1;").indented,
+          "} else {",
+          CodeLines.from(s"${filteredIds}[i] = 0;").indented,
+          "}"
+        ),
+        "}"
+      )
+
+      override def deallocData: CodeLines = CodeLines.empty
+
+      override def fetchResult: CExpression = CExpression(s"${filteredIds}[i]", None)
+    }
+
     final case class DateCastStringHoleEvaluation(refName: String) extends StringHoleEvaluation {
       val finalVectorName = s"stringCasting_${Math.abs(hashCode())}"
       val myIdWords = s"stringCasting_words_${Math.abs(hashCode())}"
@@ -72,9 +126,11 @@ object StringHole {
           s"std::vector<int> $finalVectorName($refName->count);",
           "datetime_t epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);",
           s"for(int i = 0; i < $refName->count; i++) {",
-          CodeLines.from(
-            s"$finalVectorName[i] = frovedis::datetime_diff_day($dateTimeVectorName[i], epoch);"
-          ).indented,
+          CodeLines
+            .from(
+              s"$finalVectorName[i] = frovedis::datetime_diff_day($dateTimeVectorName[i], epoch);"
+            )
+            .indented,
           "}"
         )
       }
@@ -219,7 +275,10 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       SlowEvaluation(item.name, NotNullEvaluator)
-    case Cast(expr: AttributeReference, DateType, Some(zoneId)) => DateCastStringHoleEvaluation(expr.name)
+    case Cast(expr: AttributeReference, DateType, Some(_)) =>
+      DateCastStringHoleEvaluation(expr.name)
+    case In(expr: AttributeReference, exprlist: Seq[Literal]) =>
+      InStringHoleEvaluation(expr.name, exprlist.map(_.toString()))
   }
 
   def transform: PartialFunction[Expression, Expression] = Function

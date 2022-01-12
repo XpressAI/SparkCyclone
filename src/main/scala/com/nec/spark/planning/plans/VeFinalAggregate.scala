@@ -33,7 +33,8 @@ case class VeFinalAggregate(
           logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
 
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          VeColBatch.fromList {              import OriginalCallingContext.Automatic._
+          VeColBatch.fromList {
+            import OriginalCallingContext.Automatic._
 
             try veProcess.execute(
               libraryReference = libRef,
