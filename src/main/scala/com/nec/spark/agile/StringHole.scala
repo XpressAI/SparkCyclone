@@ -44,6 +44,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   In,
   IsNotNull,
   LeafExpression,
+  Like,
   Literal,
   StartsWith,
   Unevaluable
@@ -143,27 +144,23 @@ object StringHole {
     /** Vectorized evaluation */
     final case class LikeStringHoleEvaluation(refName: String, likeString: String)
       extends StringHoleEvaluation {
-      val myId = s"slowStringEvaluation_${Math.abs(hashCode())}"
-      val myIdWords = s"slowStringEvaluation_words_${Math.abs(hashCode())}"
-      val matchingIds = s"slowStringEvaluation_matching_ids_${Math.abs(hashCode())}"
+      val myId = s"output_${Math.abs(hashCode())}"
+      val myIdWords = s"input_words_${Math.abs(hashCode())}"
+      val matchingIds = s"matching_ids_${Math.abs(hashCode())}"
+
       override def computeVector: CodeLines =
         CodeLines.from(
           CodeLines.debugHere,
           s"std::vector<int> $myId($refName->count);",
           s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
-          s"std::vector<size_t> $matchingIds = frovedis::like($myIdWords.chars," +
-            s"(const vector<size_t>&)($myIdWords.starts),",
-          s"(const vector<size_t>&)($myIdWords.lens),",
-          s""""$likeString");""",
+          s"""std::vector<size_t> ${matchingIds} = frovedis::like(${myIdWords}, "${likeString}");""",
           CodeLines.debugHere,
-          s"for ( int i = 0; i < $refName->count; i++) { ",
-          CodeLines
-            .from(s"$myId[i] = 0;")
-            .indented,
-          "}",
-          s"for(int i = 0; i < $matchingIds.size(); i++) {",
-          CodeLines.from(s"$myId[$matchingIds[i]] = 1;"),
-          "}"
+          CodeLines.forLoop("i", s"${refName}->count") {
+            s"${myId}[i] = 0;"
+          },
+          CodeLines.forLoop("i", s"${matchingIds}.size()") {
+            s"${myId}[${matchingIds}[i]] = 1;"
+          },
         )
 
       override def deallocData: CodeLines = CodeLines.empty
@@ -265,6 +262,8 @@ object StringHole {
     if (UseFastMethod) processSubExpressionFast else processSubExpressionSlow
 
   def processSubExpressionFast: PartialFunction[Expression, StringHoleEvaluation] = {
+    case Like(left: AttributeReference, Literal(v, StringType), _) =>
+      LikeStringHoleEvaluation(left.name, v.toString)
     case StartsWith(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).startsWith
     case EndsWith(left: AttributeReference, Literal(v, StringType)) =>
