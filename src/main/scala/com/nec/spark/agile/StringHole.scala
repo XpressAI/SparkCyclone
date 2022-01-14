@@ -80,7 +80,6 @@ object StringHole {
         def endsWith: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject")
         def contains: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject%")
         def equalsTo: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject")
-        def like: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, subject)
       }
     }
 
@@ -184,7 +183,7 @@ object StringHole {
           },
           CodeLines.forLoop("i", s"${matchingIds}.size()") {
             s"${myId}[${matchingIds}[i]] = 1;"
-          }
+          },
         )
 
       override def deallocData: CodeLines = CodeLines.empty
@@ -292,8 +291,6 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).endsWith
     case Contains(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).contains
-    case Like(left: AttributeReference, Literal(v, StringType), _) =>
-      LikeStringHoleEvaluation.Like(left.name, v.toString).like
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
