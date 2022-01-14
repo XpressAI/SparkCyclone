@@ -40,6 +40,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   IsNull,
   KnownFloatingPointNormalized,
   Least,
+  Like,
   Literal,
   Not,
   SortDirection,
@@ -325,6 +326,7 @@ object SparkExpressionToCExpression {
           cCode = s"(${p.cCode}) ? (${t.cCode}) : (${f.cCode})",
           isNotNullCode = None
         )
+
       case Literal(null, d) =>
         Right {
           CExpression(cCode = s"0", isNotNullCode = Some("0"))

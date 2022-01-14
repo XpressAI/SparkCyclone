@@ -1049,7 +1049,8 @@ abstract class TPCHSqlCSpec
       val results = ds.as[Double].collect.toList.sorted
 
       assert(results.size === expected.size)
-      (results, expected).zipped.map { case (x, y) => assert(x === y) } //  16.3.sorted8
+      // Tests with numerical tolerance need to be performed element-wise
+      (results, expected).zipped.foreach { case (x, y) => assert(x === y) } //  16.3.sorted8
     }
   }
 
