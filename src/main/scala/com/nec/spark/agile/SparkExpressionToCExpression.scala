@@ -20,39 +20,10 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
-
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  BinaryOperator,
-  CaseWhen,
-  Cast,
-  Coalesce,
-  Contains,
-  Divide,
-  EndsWith,
-  EqualTo,
-  ExprId,
-  Expression,
-  Greatest,
-  If,
-  IsNaN,
-  IsNotNull,
-  IsNull,
-  KnownFloatingPointNormalized,
-  Least,
-  Literal,
-  Not,
-  SortDirection,
-  SortOrder,
-  Sqrt,
-  StartsWith
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, SortDirection, Sqrt}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.catalyst.plans.logical.Sort
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -167,6 +138,9 @@ object SparkExpressionToCExpression {
         }
       case AttributeReference(name, StringType, _, _) =>
         Right(StringProducer.copyString(name))
+      case Alias(AttributeReference(_, StringType, _, _), name) =>
+        Right(StringProducer.copyString(name))
+
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
