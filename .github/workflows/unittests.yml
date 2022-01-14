@@ -1,4 +1,4 @@
-name: CI
+name: Unit tests (JVM)
 
 on:
   workflow_dispatch:
@@ -9,7 +9,9 @@ on:
       - verdd
       - 'cit/**'
       - 'ci/**'
-
+  pull_request:
+    types:
+      - ready_for_review
 jobs:
   build:
     runs-on: ubuntu-20.04
