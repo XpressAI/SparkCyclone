@@ -25,3 +25,8 @@ jobs:
           distribution: temurin
       - name: Run unit tests in the key projects
         run: sbt -v test "tpcbench-run / test" "tracing / test"
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
