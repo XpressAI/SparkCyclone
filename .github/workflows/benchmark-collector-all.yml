@@ -5,7 +5,6 @@ env:
   INPUT_fail-fast: "${{ github.event.inputs.fail-fast }}"
   INPUT_filter-on-ve: "${{ github.event.inputs.filter-on-ve }}"
   INPUT_pass-through-project: "${{ github.event.inputs.pass-through-project }}"
-  INPUT_query: "${{ matrix.query }}"
   INPUT_scale: "${{ github.event.inputs.scale }}"
   INPUT_serializer: "${{ github.event.inputs.serializer }}"
   INPUT_use-cyclone: "${{ github.event.inputs.use-cyclone }}"
