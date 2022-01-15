@@ -29,7 +29,15 @@ import com.typesafe.scalalogging.LazyLogging
 import java.nio.file._
 import org.apache.spark.SparkConf
 
-import java.nio.file.attribute.PosixFilePermission.{GROUP_EXECUTE, GROUP_READ, OTHERS_EXECUTE, OTHERS_READ, OWNER_EXECUTE, OWNER_READ, OWNER_WRITE}
+import java.nio.file.attribute.PosixFilePermission.{
+  GROUP_EXECUTE,
+  GROUP_READ,
+  OTHERS_EXECUTE,
+  OTHERS_READ,
+  OWNER_EXECUTE,
+  OWNER_READ,
+  OWNER_WRITE
+}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util
 
@@ -45,9 +53,7 @@ object VeKernelCompiler {
     OTHERS_READ,
     OTHERS_EXECUTE
   ).asJava
-  val FileAttributes = PosixFilePermissions.asFileAttribute(
-    PosixPermissions
-  )
+  val FileAttributes = PosixFilePermissions.asFileAttribute(PosixPermissions)
 
   lazy val DefaultIncludes = {
     Set("cpp", "cpp/frovedis", "cpp/frovedis/dataframe", "")

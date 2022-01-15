@@ -79,8 +79,104 @@ object GroupingFunction {
     )
   )
 
-  def groupData(data: List[DataDescription], totalBuckets: Int): CFunction2 = {
+  def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
+    require(
+      output.veType == input.veType,
+      "Cannot clone cVector - input and output VeTypes are not the same!"
+    )
 
+    output.veType match {
+      case CFunctionGeneration.VeString =>
+        CodeLines.scoped {
+          List(
+            // Declare count and dsize
+            s"auto count = ${input.name}[0]->count;",
+            s"auto dsize = ${input.name}[0]->dataSize;",
+            "",
+            // Allocate the nullable_T_vector[] with size 1
+            s"*${output.name} = (${output.veType.cVectorType}*) malloc(sizeof(void *));",
+            // Allocate the nullable_T_vector at [0]
+            s"${output.name}[0] = (${output.veType.cVectorType}*) malloc(sizeof(${output.veType.cVectorType}));",
+            // Set count and dataSize
+            s"${output.name}[0]->count = count;",
+            s"${output.name}[0]->dataSize = dsize;",
+            "",
+            // Set data - allocate and then copy over
+            s"${output.name}[0]->data = (char*)malloc(dsize);",
+            s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dsize);",
+            "",
+            // Set offsets - allocate and then copy over
+            s"auto obytes_count = (count + 1) * sizeof(int32_t);",
+            s"${output.name}[0]->offsets = (int32_t*) malloc(obytes_count);",
+            s"memcpy(${output.name}[0]->offsets, ${input.name}[0]->offsets, obytes_count);",
+            "",
+            // Set validityBuffer - allocate set it all to 1
+            s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
+            s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
+            s"memset(${output.name}[0]->validityBuffer, 255, vbytes_count);"
+          )
+        }
+
+      case scalar: VeScalarType =>
+        CodeLines.scoped {
+          List(
+            // Declare count
+            s"auto count = ${input.name}[0]->count;",
+            "",
+            // Allocate the nullable_T_vector[] with size 1
+            s"*${output.name} = (${output.veType.cVectorType}*) malloc(sizeof(void *));",
+            // Allocate the nullable_T_vector at [0]
+            s"${output.name}[0] = (${output.veType.cVectorType}*) malloc(sizeof(${output.veType.cVectorType}));",
+            // Set count
+            s"${output.name}[0]->count = count;",
+            "",
+            // Set data - allocate and then copy over
+            s"auto dbytes_count = count * sizeof(${scalar.cScalarType});",
+            s"${output.name}[0]->data = (${scalar.cScalarType}*) malloc(dbytes_count);",
+            s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dbytes_count);",
+            "",
+            // Set validityBuffer - allocate set it all to 1
+            s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
+            s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
+            s"memset(${output.name}[0]->validityBuffer, 255, vbytes_count);"
+          )
+        }
+    }
+  }
+
+  def groupData(data: List[DataDescription], totalBuckets: Int) = {
+    if (data.count(_.keyOrValue.isKey) <= 0) {
+      /*
+        In the case where there are no input key columns, we simply clone the
+        input data to the output pointers.
+       */
+      groupDataNoKeyColumns(data)
+
+    } else {
+      groupDataNormal(data, totalBuckets)
+    }
+  }
+
+  def groupDataNoKeyColumns(data: List[DataDescription]): CFunction2 = {
+    val inputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
+      veType.makeCVector(s"${isKey.renderValue}_${idx}")
+    }
+
+    val outputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
+      veType.makeCVector(s"output_${isKey.renderValue}_${idx}")
+    }
+
+    val arguments = inputs.map(PointerPointer(_)) ++
+      List(CFunctionArgument.Raw("int* sets")) ++
+      outputs.map(PointerPointer(_))
+
+    CFunction2(
+      arguments,
+      CodeLines.from(s"sets[0] = 1;", (outputs, inputs).zipped.map(cloneCVecStmt(_, _)))
+    )
+  }
+
+  def groupDataNormal(data: List[DataDescription], totalBuckets: Int): CFunction2 = {
     val inputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
       veType.makeCVector(s"${isKey.renderValue}_$idx")
     }
@@ -89,12 +185,12 @@ object GroupingFunction {
       veType.makeCVector(s"output_${isKey.renderValue}_$idx")
     }
 
+    val arguments = inputs.map(PointerPointer(_)) ++
+      List(CFunctionArgument.Raw("int* sets")) ++
+      outputs.map(PointerPointer(_))
+
     CFunction2(
-      arguments = List(
-        inputs.map(cVector => PointerPointer(cVector)),
-        List(CFunctionArgument.Raw("int* sets")),
-        outputs.map(cVector => PointerPointer(cVector))
-      ).flatten,
+      arguments = arguments,
       body = CodeLines
         .from(
           computeBuckets(
@@ -160,15 +256,13 @@ object GroupingFunction {
                         ),
                         "int o = 0;",
                         CodeLines.forLoop("i", s"idToBucket.size()") {
-                          CodeLines.from(
-                            CodeLines.ifStatement("b == idToBucket[i]")(
-                              CodeLines.from(
-                                s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
-                                s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
-                                "o++;"
-                              )
+                          CodeLines.ifStatement("b == idToBucket[i]") {
+                            List(
+                              s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
+                              s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
+                              "o++;"
                             )
-                          )
+                          }
                         }
                       )
                   }
