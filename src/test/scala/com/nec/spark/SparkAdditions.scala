@@ -55,11 +55,11 @@ trait SparkAdditions {
   protected def withSparkSession2[T](
     configure: SparkSession.Builder => SparkSession.Builder
   )(f: SparkSession => T): T = {
-    VERewriteStrategy.failFast = true
     val conf = new SparkConf()
     conf.setMaster("local")
     conf.setAppName("local-test")
-    conf.set("spark.ui.enabled", "false")
+    conf.set("spark.com.nec.spark.fail-fast", "true")
+    // conf.set("spark.ui.enabled", "false")
     val sparkSession = configure(SparkSession.builder().config(conf)).getOrCreate()
     try f(sparkSession)
     finally sparkSession.stop()

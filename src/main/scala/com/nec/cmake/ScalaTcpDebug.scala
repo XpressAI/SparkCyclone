@@ -19,28 +19,40 @@
  */
 package com.nec.cmake
 
-import com.nec.ve.VeKernelCompiler.ProfileTarget
+import com.nec.spark.planning.Tracer.{Launched, Mapped}
+import com.nec.ve.VeKernelCompiler.{ProfileTarget, VeCompilerConfig}
+import org.apache.spark.SparkEnv
 
-import java.net.{DatagramPacket, DatagramSocket, InetAddress, Socket}
+import java.net.{InetAddress, Socket}
 import java.time.Instant
 
-trait ScalaTcpDebug {
+trait ScalaTcpDebug extends Serializable {
   def span[T](context: String, name: String)(
     f: => T
   )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): T
 
-  def spanIterator[T](context: String, name: String)(
+  def spanIterator[T](mapped: Mapped, name: String)(
     f: => Iterator[T]
   )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Iterator[T]
+
+  final def toSpanner(launched: Launched): Spanner = {
+    Spanner(this, launched.mappedSparkEnv(SparkEnv.get))
+  }
 }
 
 object ScalaTcpDebug {
+
+  def apply(veCompilerConfig: VeCompilerConfig): ScalaTcpDebug = {
+    veCompilerConfig.maybeProfileTarget
+      .map(pt => ScalaTcpDebug.TcpTarget(pt))
+      .getOrElse(ScalaTcpDebug.NoOp)
+  }
   object NoOp extends ScalaTcpDebug with Serializable {
     override def span[T](context: String, name: String)(
       f: => T
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): T = f
 
-    override def spanIterator[T](context: String, name: String)(
+    override def spanIterator[T](mapped: Mapped, name: String)(
       f: => Iterator[T]
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Iterator[T] = f
   }
@@ -70,11 +82,12 @@ object ScalaTcpDebug {
       } finally dsocket.close()
     }
 
-    override def spanIterator[T](context: String, name: String)(
+    override def spanIterator[T](mapped: Mapped, name: String)(
       f: => Iterator[T]
     )(implicit fullName: sourcecode.FullName, line: sourcecode.Line): Iterator[T] = {
       val dsocket = new Socket(hostName, port)
 
+      val context = mapped.uniqueId
       val suffix = s"${name}:${fullName.value}#${line.value}"
       List(
         Iterator

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<apps>
+    <app>
+        <id>application_1638487109505_0002</id>
+        <user>github</user>
+        <name>TPC-H_VE_dbgen1</name>
+        <queue>default</queue>
+        <trackingUrl>http://cluster:8088/proxy/application_1638487109505_0002/</trackingUrl>
+        <amContainerLogs>
+            http://cluster:8042/node/containerlogs/container_1638487109505_0001_01_000001/github
+        </amContainerLogs>
+    </app>
+</apps>

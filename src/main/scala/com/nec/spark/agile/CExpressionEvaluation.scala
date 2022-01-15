@@ -22,13 +22,12 @@ package com.nec.spark.agile
 import com.nec.cmake.TcpDebug
 import com.nec.spark.planning.Tracer
 import com.nec.spark.planning.Tracer.{TracerDefName, TracerOutput}
-
-import scala.language.implicitConversions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 
 object CExpressionEvaluation {
 
@@ -62,15 +61,6 @@ object CExpressionEvaluation {
           case (idx, DoubleType | FloatType | LongType | IntegerType | ShortType) =>
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
-        }
-      case expr @ NamedExpression(
-            name,
-            DoubleType | FloatType | LongType | IntegerType | ShortType
-          ) =>
-        input.indexWhere(_.exprId == expr.exprId) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx => s"input_${idx}->data[i]"
         }
       case Cast(child, dataType, _) =>
         val expr = evaluateExpression(input, child)
@@ -198,6 +188,18 @@ object CExpressionEvaluation {
           .from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
       )
 
+    def printLabel(label: String): CodeLines = {
+      val parts = s""""$label"""" :: Nil
+      CodeLines
+        .from(s"std::cout << ${parts.mkString(" << \" \" << ")} << std::endl << std::flush;")
+    }
+
+    def printValue(label: String)(names: String*): CodeLines = {
+      val parts = s""""$label"""" :: names.toList
+      CodeLines
+        .from(s"std::cout << ${parts.mkString(" << \" \" << ")} << std::endl << std::flush;")
+    }
+
     def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
       val startdebug: List[String] = List("utcnanotime().c_str()", """" $ """")
       val enddebug: List[String] =
@@ -225,6 +227,23 @@ object CExpressionEvaluation {
       )
 
     def from(str: CodeLines*): CodeLines = CodeLines(lines = str.flatMap(_.lines).toList)
+
+    def ifStatement(condition: String)(sub: => CodeLines): CodeLines =
+      CodeLines.from(s"if ($condition) { ", sub.indented, "}")
+
+    def ifElseStatement(condition: String)(sub: => CodeLines)(other: CodeLines): CodeLines =
+      CodeLines.from(s"if ($condition) { ", sub.indented, "} else {", other.indented, "}")
+
+    def forLoop(counterName: String, until: String)(sub: => CodeLines): CodeLines =
+      CodeLines.from(
+        s"for ( int $counterName = 0; $counterName < $until; $counterName++ ) {",
+        sub.indented,
+        s"}"
+      )
+
+    def scoped(sub: CodeLines): CodeLines = {
+      CodeLines.from("{", sub.indented, "}")
+    }
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))
 

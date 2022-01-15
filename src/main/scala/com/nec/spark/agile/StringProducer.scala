@@ -42,7 +42,7 @@ object StringProducer {
 
   final case class ImpCopyStringProducer(inputName: String)
     extends ImperativeStringProducer
-      with CopyStringProducer {
+    with CopyStringProducer {
 
     override def produceTo(tsn: String, iln: String): CodeLines = {
       CodeLines.from(
@@ -59,10 +59,9 @@ object StringProducer {
 
   final case class FrovedisCopyStringProducer(inputName: String)
     extends FrovedisStringProducer
-      with CopyStringProducer {
+    with CopyStringProducer {
 
     def frovedisStarts(outputName: String) = s"${outputName}_starts"
-
     def frovedisLens(outputName: String) = s"${outputName}_lens"
 
     def wordName(outputName: String) = s"${outputName}_input_words"
@@ -172,10 +171,10 @@ object StringProducer {
   }
 
   def produceVarChar(
-                      inputCount: String,
-                      outputName: String,
-                      stringProducer: ImperativeStringProducer
-                    ): CodeLines = {
+    inputCount: String,
+    outputName: String,
+    stringProducer: ImperativeStringProducer
+  ): CodeLines = {
     val fp = FilteringProducer(outputName, stringProducer)
     CodeLines.from(
       fp.setup,
@@ -190,12 +189,12 @@ object StringProducer {
   }
 
   def produceVarChar(
-                      inputCount: String,
-                      outputName: String,
-                      stringProducer: FrovedisStringProducer,
-                      outputCount: String,
-                      outputIdx: String
-                    ): CodeLines = {
+    inputCount: String,
+    outputName: String,
+    stringProducer: FrovedisStringProducer,
+    outputCount: String,
+    outputIdx: String
+  ): CodeLines = {
     CodeLines.from(
       stringProducer.init(outputName, outputCount),
       s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",

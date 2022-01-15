@@ -19,6 +19,8 @@
  */
 package com.nec.cmake.eval
 
+import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Resource}
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument
@@ -27,28 +29,27 @@ import com.nec.arrow.ArrowVectorBuilders.{
   withArrowStringVector,
   withDirectBigIntVector,
   withDirectFloat8Vector,
-  withDirectIntVector,
   withNullableArrowStringVector
 }
 import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
+import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
-import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
-import com.nec.spark.agile.CFunctionGeneration.{TypedGroupByExpression, _}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.planning.{StringCExpressionEvaluation, Tracer}
+import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
+import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
+import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Average, Corr, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -76,11 +77,20 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  /*
   "We can transform a column to a String and a Double" in {
+
+    def expr_to_string(cExpression: CExpression): ImperativeStringProducer =
+      (tsn, iln) =>
+        CodeLines
+          .from(
+            s"std::string len_str = std::to_string(${cExpression.cCode});",
+            s"${tsn}.append(len_str);",
+            s"${iln} += len_str.size();"
+          )
     assert(
       evalProject(List[Double](90.0, 1.0, 2, 19, 14))(
-        StringCExpressionEvaluation
-          .expr_to_string(CExpression("2 * input_0->data[i]", None)): StringProducer,
+        expr_to_string(CExpression("2 * input_0->data[i]", None)): StringProducer,
         TypedCExpression[Double](CExpression("2 + input_0->data[i]", None))
       ) == List[(String, Double)](
         ("180.000000", 92.0),
@@ -91,6 +101,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       )
     )
   }
+   */
 
   "We can project a null-column (ProjectNull)" in {
     expect(
@@ -109,6 +120,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )
   }
 
+  /*
   "We can transform a String column to a Double" in {
     expect(
       evalProject(List[String]("90.0", "1.0", "2", "19", "14"))(
@@ -121,6 +133,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       ) == List[Double](92.0, 3.0, 4.0, 21.0, 16.0)
     )
   }
+   */
 
   "We can transform a null-column" in {
     expect(
@@ -606,6 +619,205 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       result ==
         List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
     )
+  }
+
+  "Join" - {
+
+    val left = List[(String, Long, Int)](
+      ("foo", 42, 43),
+      ("test", 123, 456),
+      ("test2", 123, 4567),
+      ("test2", 12, 45678),
+      ("test3", 12, 456789),
+      ("test3", 123, 4567890)
+    )
+
+    val right = List[(String, Long, Double)](
+      ("foo", 42, 43),
+      ("test2", 123, 654),
+      ("test2", 123, 761),
+      ("test3", 12, 456),
+      ("bar", 0, 0)
+    )
+
+    "We can get indices of join (JoinOnlyIndices)" in {
+      val inputsLeft =
+        List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
+      val inputsRight =
+        List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
+      val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
+      val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
+
+      val evaluationResource = for {
+        allocator <- WithTestAllocator.resource
+        vb = CatsArrowVectorBuilders(cats.effect.Ref.unsafe[IO, Int](0))(allocator)
+
+        x_a <- vb.stringVector(left.map(_._1))
+        x_b <- vb.longVector(left.map(_._2))
+        x_c <- vb.intVector(left.map(_._3))
+
+        y_a <- vb.stringVector(right.map(_._1))
+        y_b <- vb.longVector(right.map(_._2))
+        y_c <- vb.doubleVector(right.map(_._3))
+
+        idx_left <- vb.intVector(Seq.empty)
+        idx_right <- vb.intVector(Seq.empty)
+
+        cLib <- Resource.eval {
+          IO.delay {
+            CMakeBuilder.buildCLogging(
+              List(
+                TransferDefinitionsSourceCode,
+                "\n\n",
+                GenericJoiner.printVec.cCode, {
+                  val inputsLeft =
+                    List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
+                  val inputsRight =
+                    List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
+                  val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
+                  val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
+                  JoinByEquality(
+                    inputsLeft = inputsLeft,
+                    inputsRight = inputsRight,
+                    joins = List(firstJoin, secondJoin)
+                  ).produceIndices(fName = "adv_join").cCode
+                }
+              )
+                .mkString("\n\n")
+            )
+          }
+        }
+
+        nativeInterface = new CArrowNativeInterface(cLib.toString)
+        _ <- Resource.eval {
+          IO.delay {
+            nativeInterface.callFunctionWrapped(
+              name = "adv_join",
+              arguments = List(
+                NativeArgument.input(x_a),
+                NativeArgument.input(x_b),
+                NativeArgument.input(x_c),
+                NativeArgument.input(y_a),
+                NativeArgument.input(y_b),
+                NativeArgument.input(y_c),
+                NativeArgument.output(idx_left),
+                NativeArgument.output(idx_right)
+              )
+            )
+          }
+        }
+      } yield (idx_left.toList, idx_right.toList)
+
+      val evaluation = evaluationResource.use { case (output_idx_left, output_idx_right) =>
+        IO.delay {
+          expect(output_idx_left == List(0, 2, 2, 4), output_idx_right == List(0, 1, 2, 3))
+        }
+      }
+
+      evaluation.unsafeRunSync()
+
+    }
+
+    "We can join by String & Long (JoinByString)" in {
+
+      /**
+       * SELECT X.A, X.C, Y.C FROM X LEFT JOIN Y ON X.A = Y.A AND X.B = Y.B
+       * X = [A: String, B: Long, C: Int]
+       * Y = [A: String, B: Long, C: Double]
+       */
+
+      val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
+        /** two inner join entries on RHS */
+        (("foo", 42, 43), ("foo", 42, 43)),
+        (("test2", 123, 4567), ("test2", 123, 654)),
+        (("test2", 123, 4567), ("test2", 123, 761)),
+        (("test3", 12, 456789), ("test3", 12, 456))
+      )
+
+      val joinSelectOnlyIntDouble = List[(String, Int, Double)](
+        ("foo", 43, 43),
+        ("test2", 4567, 654),
+        ("test2", 4567, 761),
+        ("test3", 456789, 456)
+      )
+
+      val evaluationResource = for {
+        allocator <- WithTestAllocator.resource
+        vb = CatsArrowVectorBuilders(cats.effect.Ref.unsafe[IO, Int](0))(allocator)
+        x_a <- vb.stringVector(left.map(_._1))
+        x_b <- vb.longVector(left.map(_._2))
+        x_c <- vb.intVector(left.map(_._3))
+        y_a <- vb.stringVector(right.map(_._1))
+        y_b <- vb.longVector(right.map(_._2))
+        y_c <- vb.doubleVector(right.map(_._3))
+        o_a <- vb.stringVector(Seq.empty)
+        o_b <- vb.intVector(Seq.empty)
+        o_c <- vb.doubleVector(Seq.empty)
+
+        cLib <- Resource.eval {
+          IO.delay {
+            CMakeBuilder.buildCLogging(
+              List(
+                TransferDefinitionsSourceCode,
+                "\n\n",
+                GenericJoiner.printVec.cCode, {
+                  val inputsLeft =
+                    List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
+                  val inputsRight =
+                    List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
+                  val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
+                  val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
+                  GenericJoiner(
+                    inputsLeft = inputsLeft,
+                    inputsRight = inputsRight,
+                    joins = List(firstJoin, secondJoin),
+                    outputs = List(
+                      FilteredOutput("o_a", inputsLeft(0)),
+                      FilteredOutput("o_b", inputsLeft(2)),
+                      FilteredOutput("o_c", inputsRight(2))
+                    )
+                  ).produce(fName = "adv_join").cCode
+
+                }
+              )
+                .mkString("\n\n")
+            )
+          }
+        }
+
+        nativeInterface = new CArrowNativeInterface(cLib.toString)
+        _ <- Resource.eval {
+          IO.delay {
+            nativeInterface.callFunctionWrapped(
+              name = "adv_join",
+              arguments = List(
+                NativeArgument.input(x_a),
+                NativeArgument.input(x_b),
+                NativeArgument.input(x_c),
+                NativeArgument.input(y_a),
+                NativeArgument.input(y_b),
+                NativeArgument.input(y_c),
+                NativeArgument.output(o_a),
+                NativeArgument.output(o_b),
+                NativeArgument.output(o_c)
+              )
+            )
+          }
+        }
+      } yield (o_a.toList, o_b.toList, o_c.toList)
+
+      val evaluation = evaluationResource.use { case (output_a, output_b, output_c) =>
+        IO.delay {
+          val expected_a = joinSelectOnlyIntDouble.map(_._1)
+          val expected_b = joinSelectOnlyIntDouble.map(_._2)
+          val expected_c = joinSelectOnlyIntDouble.map(_._3)
+          expect(output_a == expected_a, output_b == expected_b, output_c == expected_c)
+        }
+      }
+
+      evaluation.unsafeRunSync()
+
+    }
   }
 
 }

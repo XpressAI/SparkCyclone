@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: gpu
+    runs-on: "ve"
 
     steps:
       - uses: actions/checkout@v2
@@ -26,13 +26,16 @@ jobs:
         run: sbt "clean" "deploy local"
       
       - name: Compile TPC-H Benchmark
-        run: cd tests/tpchbench && sbt package
+        run: sbt tpcbench/package
 
       - name: Run TPC-H@1
         run: cd tests/tpchbench && sh run_ve.sh dbgen1 0 && sh run_ve.sh dbgen1 0
+        if: success()
 
       - name: Run TPC-H@10
         run: cd tests/tpchbench && sh run_ve.sh dbgen10 0 && sh run_ve.sh dbgen10 0
+        if: success()
 
       - name: Run TPC-H@20
         run: cd tests/tpchbench && sh run_ve.sh dbgen20 0 && sh run_ve.sh dbgen20 0
+        if: success()

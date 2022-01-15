@@ -1,18 +1,14 @@
 #ifndef PARSEDATETIME_HPP
 #define PARSEDATETIME_HPP
 
-#include <cstdint>
-#include "parseint.hpp"
+#include "words.hpp"
 
-typedef uint64_t datetime_t;
+typedef int64_t datetime_t;
 
 /*
   only supports %Y(year), %m(month), %d(day), %H(hour), %M(minute), %S(second)
   and %b(abbreviated month name: Jan, Feb...)
-  result is 64bit unsigned integer.
-  each bytes are: |0|Y|Y|m|d|H|M|S|
-  This is similar to Oracle's DATETIME format
-  We do not use time_t, since it makes things difficult (e.g. locale, timezone)
+  result is 64bit signed integer, which is nano second from unix epoch
 */
 
 namespace frovedis {
@@ -29,10 +25,5 @@ parsedatetime(const words& w, const std::string& format);
 datetime_t parsedatetime(const std::string& datetime,
                          const std::string& format);
 
-datetime_t makedatetime(int year, int month, int day,
-                        int hour = 0, int minute = 0, int second = 0);
-
 }
 #endif
-
-

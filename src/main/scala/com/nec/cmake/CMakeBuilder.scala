@@ -96,7 +96,7 @@ object CMakeBuilder extends LazyLogging {
       buildC(cSource, debug)
     } catch {
       case e: Exception =>
-        logger.info(s"Could not compile code due to error: ${e}", e)
+        logger.debug(s"Could not compile code due to error: ${e}", e)
         e.toString
           .split("\r?\n")
           .find(_.contains(": error "))

@@ -19,35 +19,27 @@
  */
 package com.nec.spark.planning
 
-import com.nec.native.NativeEvaluator
-import com.nec.spark.SparkCycloneDriverPlugin
-import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
-import com.nec.spark.agile.SparkExpressionToCExpression.{
-  eval,
-  evalString,
-  replaceReferences,
-  sparkSortDirectionToSortOrdering,
-  sparkTypeToScalarVeType,
-  sparkTypeToVeType,
-  EvalFallback
-}
+import com.nec.cache.CycloneCacheBase
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
-import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedProjection}
+import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
 import com.nec.spark.agile.groupby.{
   ConvertNamedExpression,
   GroupByOutline,
   GroupByPartialGenerator,
   GroupByPartialToFinalGenerator
 }
-import com.nec.spark.planning.NativeAggregationEvaluationPlan.EvaluationMode
-import com.nec.spark.planning.VERewriteStrategy.{
-  GroupPrefix,
-  InputPrefix,
-  SequenceList,
-  VeRewriteStrategyOptions
-}
+import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
+import com.nec.spark.planning.TransformUtil.RichTreeNode
+import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
+import com.nec.spark.planning.VeFunction.VeFunctionStatus
+import com.nec.spark.planning.aggregation.VeHashExchange
+import com.nec.spark.planning.plans._
+import com.nec.ve.GroupingFunction.DataDescription
+import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   HyperLogLogPlusPlus
@@ -62,49 +54,17 @@ import org.apache.spark.sql.catalyst.expressions.{
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
+import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.{SparkSession, Strategy}
 
 import scala.collection.immutable
 import scala.util.Try
-import com.nec.spark.agile.CFunctionGeneration.{
-  renderFilter,
-  renderProjection,
-  CExpression,
-  CScalarVector,
-  NamedStringExpression,
-  NamedTypedCExpression,
-  TypedCExpression2,
-  VeFilter,
-  VeProjection,
-  VeSort,
-  VeSortExpression
-}
-import com.nec.spark.planning.NativeSortEvaluationPlan.SortingMode.Coalesced
-import com.nec.spark.planning.OneStageEvaluationPlan.VeFunction
-import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VeColBatchConverters.{SparkToVectorEngine, VectorEngineToSpark}
-import org.apache.spark.sql.types.StringType
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
-  var failFast: Boolean = false
-  final case class VeRewriteStrategyOptions(
-    preShufflePartitions: Option[Int],
-    enableVeSorting: Boolean,
-    projectOnVe: Boolean,
-    filterOnVe: Boolean
-  )
-  object VeRewriteStrategyOptions {
-    val default: VeRewriteStrategyOptions =
-      VeRewriteStrategyOptions(
-        preShufflePartitions = None,
-        enableVeSorting = false,
-        projectOnVe = true,
-        filterOnVe = true
-      )
-  }
-
   implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
       case Some(error) => Left(error)
@@ -118,7 +78,6 @@ object VERewriteStrategy {
 }
 
 final case class VERewriteStrategy(
-  nativeEvaluator: NativeEvaluator,
   options: VeRewriteStrategyOptions = VeRewriteStrategyOptions.default
 ) extends Strategy
   with LazyLogging {
@@ -129,14 +88,31 @@ final case class VERewriteStrategy(
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
-    val failFast = VERewriteStrategy.failFast
-
     if (VERewriteStrategy._enabled) {
       log.debug(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}"
+        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output
+          .map(_.dataType)}; options = ${options}"
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
+        case imr @ InMemoryRelation(_, cb, oo)
+            if cb.serializer
+              .isInstanceOf[CycloneCacheBase] =>
+          SparkSession.active.sessionState.planner.InMemoryScans
+            .apply(imr)
+            .flatMap(sp =>
+              List(
+                VectorEngineToSparkPlan(
+                  VeFetchFromCachePlan(
+                    sp,
+                    cb.serializer
+                      .asInstanceOf[CycloneCacheBase]
+                  )
+                )
+              )
+            )
+            .toList
+
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
@@ -161,20 +137,17 @@ final case class VERewriteStrategy(
               )
             )
 
-            val libPath =
-              SparkCycloneDriverPlugin.currentCompiler.forCode(
-                cFunction.toCodeLinesSPtr(functionName).cCode
-              )
             List(
-              VectorEngineToSpark(
+              VectorEngineToSparkPlan(
                 OneStageEvaluationPlan(
                   outputExpressions = f.output,
                   veFunction = VeFunction(
-                    libraryPath = libPath.toString,
+                    veFunctionStatus =
+                      VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
                     functionName = functionName,
                     results = cFunction.outputs.map(_.veType)
                   ),
-                  child = SparkToVectorEngine(planLater(child))
+                  child = SparkToVectorEnginePlan(planLater(child))
                 )
               )
             )
@@ -188,12 +161,36 @@ final case class VERewriteStrategy(
               ),
             identity
           )
+        case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
+            if cb.serializer
+              .isInstanceOf[CycloneCacheBase] =>
+          SparkSession.active.sessionState.planner.InMemoryScans
+            .apply(imr)
+            .flatMap(sp =>
+              List(
+                FilterExec(
+                  cond,
+                  VectorEngineToSparkPlan(
+                    VeFetchFromCachePlan(
+                      sp,
+                      cb.serializer
+                        .asInstanceOf[CycloneCacheBase]
+                    )
+                  )
+                )
+              )
+            )
+            .toList
 
         case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
+          val nonIdentityProjections =
+            if (options.passThroughProject)
+              projectList.filter(_.isInstanceOf[AttributeReference])
+            else projectList
 
           val planE = for {
-            outputs <- projectList.toList.zipWithIndex.map { case (att, idx) =>
+            outputs <- nonIdentityProjections.toList.zipWithIndex.map { case (att, idx) =>
               val referenced = replaceReferences(InputPrefix, plan.inputSet.toList, att)
               if (referenced.dataType == StringType)
                 evalString(referenced).map(stringProducer =>
@@ -222,21 +219,27 @@ final case class VERewriteStrategy(
                 outputs = outputs
               )
             )
-            val libPath =
-              SparkCycloneDriverPlugin.currentCompiler.forCode(cF.toCodeLinesSPtr(fName).cCode)
-            List(
-              VectorEngineToSpark(
-                OneStageEvaluationPlan(
-                  outputExpressions = projectList,
-                  veFunction = VeFunction(
-                    libraryPath = libPath.toString,
-                    functionName = fName,
-                    results = cF.outputs.map(_.veType)
-                  ),
-                  child = SparkToVectorEngine(planLater(child))
-                )
+            List(VectorEngineToSparkPlan(if (options.passThroughProject) {
+              ProjectEvaluationPlan(
+                outputExpressions = projectList,
+                veFunction = VeFunction(
+                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
+                  functionName = fName,
+                  results = cF.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEnginePlan(planLater(child))
               )
-            )
+            } else {
+              OneStageEvaluationPlan(
+                outputExpressions = projectList,
+                veFunction = VeFunction(
+                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
+                  functionName = fName,
+                  results = cF.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEnginePlan(planLater(child))
+              )
+            }))
           }
 
           planE.fold(e => sys.error(s"Could not map ${e}"), identity)
@@ -251,7 +254,7 @@ final case class VERewriteStrategy(
                   .asInstanceOf[AggregateExpression]
                   .aggregateFunction
                   .isInstanceOf[HyperLogLogPlusPlus]
-              ).getOrElse(false) && false =>
+              ).getOrElse(false) =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
@@ -340,7 +343,6 @@ final case class VERewriteStrategy(
               groupingKeys = groupingExpressionsKeys.map { case (gk, _) => gk },
               finalOutputs = finalOutputs
             )
-            _ = logInfo(s"stagedGroupBy = ${stagedGroupBy}")
             computedGroupingKeys <-
               groupingExpressionsKeys.map { case (gk, exp) =>
                 mapGroupingExpression(exp, referenceReplacer)
@@ -377,46 +379,120 @@ final case class VERewriteStrategy(
                   s"Expected to have distinct outputs from a PF, got: ${partialCFunction.outputs}"
                 )
             ff = groupByPartialGenerator.finalGenerator.createFinal
-            fullFunction =
-              groupByPartialGenerator.createFull(inputs = inputsList)
-          } yield {
-            options.preShufflePartitions match {
-              case Some(n) if groupingExpressions.nonEmpty =>
-                ArrowColumnarToRowPlan(
-                  NativeAggregationEvaluationPlan(
-                    outputExpressions = aggregateExpressions,
-                    functionPrefix = functionPrefix,
-                    evaluationMode = EvaluationMode.PrePartitioned(fullFunction),
-                    child = new RowToArrowColumnarPlan(
-                      ShuffleExchangeExec(
-                        outputPartitioning =
-                          HashPartitioning(expressions = groupingExpressions, numPartitions = n),
-                        child = planLater(child),
-                        shuffleOrigin = REPARTITION
-                      )
-                    ),
-                    supportsColumnar = true,
-                    nativeEvaluator = nativeEvaluator
-                  )
+
+            dataDescriptions = {
+              child.output.map { expx =>
+                val contained =
+                  groupingExpressions.exists(exp =>
+                    exp == expx || exp.collect { case `expx` => exp }.nonEmpty
+                  ) ||
+                    groupingExpressions
+                      .collect { case ar: AttributeReference => ar.exprId }
+                      .toSet
+                      .contains(expx.exprId)
+
+                DataDescription(
+                  veType = sparkTypeToVeType(expx.dataType),
+                  keyOrValue =
+                    if (contained) DataDescription.KeyOrValue.Key
+                    else DataDescription.KeyOrValue.Value
                 )
-              case _ =>
-                ArrowColumnarToRowPlan(
-                  NativeAggregationEvaluationPlan(
-                    outputExpressions = aggregateExpressions,
-                    functionPrefix = functionPrefix,
-                    evaluationMode = EvaluationMode.PartialThenCoalesce(partialCFunction, ff),
-                    child = RowToArrowColumnarPlan(planLater(child)),
-                    supportsColumnar = true,
-                    nativeEvaluator = nativeEvaluator
-                  )
-                )
+              }
             }
+            exchangeName = s"exchange_$functionPrefix"
+            exchangeFunction = GroupingFunction.groupData(dataDescriptions.toList, 16)
+
+            partialName = s"partial_$functionPrefix"
+            finalName = s"final_$functionPrefix"
+            mergeFunction = s"merge_$functionPrefix"
+            code = CodeLines
+              .from(
+                partialCFunction.toCodeLinesSPtr(partialName),
+                ff.toCodeLinesNoHeaderOutPtr2(finalName),
+                exchangeFunction.toCodeLines(exchangeName),
+                MergerFunction
+                  .merge(types = partialCFunction.outputs.map(_.veType))
+                  .toCodeLines(mergeFunction)
+                  .cCode
+              )
+
+          } yield {
+            val exchangePlan =
+              /*
+                TODO: Optimize in the future so that we don't need to copy the
+                input to output vectors at all if:
+
+                  dataDescriptions.count(_.keyOrValue.isKey) <= 0
+              */
+              if (options.exchangeOnVe) {
+                VeHashExchange(
+                  exchangeFunction = VeFunction(
+                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                    functionName = exchangeName,
+                    results = partialCFunction.inputs.map(_.veType)
+                  ),
+                  child = SparkToVectorEnginePlan(planLater(child))
+                )
+              } else {
+                SparkToVectorEnginePlan(
+                  ShuffleExchangeExec(
+                    outputPartitioning =
+                      HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                    child = planLater(child),
+                    shuffleOrigin = REPARTITION
+                  )
+                )
+              }
+
+            val pag = VePartialAggregate(
+              partialFunction = VeFunction(
+                veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                functionName = partialName,
+                results = partialCFunction.outputs.map(_.veType)
+              ),
+              child = exchangePlan,
+              expectedOutputs = partialCFunction.outputs
+                .map(_.veType)
+                .zipWithIndex
+                .map { case (veType, i) =>
+                  import org.apache.spark.sql.catalyst.expressions._
+                  // quick hack before doing something more proper
+                  PrettyAttribute(
+                    s"${veType}_${i}",
+                    SparkExpressionToCExpression.likelySparkType(veType)
+                  )
+                }
+            )
+
+            val flt = VeFlattenPartition(
+              flattenFunction = VeFunction(
+                veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                functionName = mergeFunction,
+                results = partialCFunction.outputs.map(_.veType)
+              ),
+              child = pag
+            )
+
+            VectorEngineToSparkPlan(
+              VeFinalAggregate(
+                expectedOutputs = aggregateExpressions,
+                finalFunction = VeFunction(
+                  veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                  functionName = finalName,
+                  results = ff.outputs.map(_.veType)
+                ),
+                child = flt
+              )
+            )
           }
 
           val evaluationPlan = evaluationPlanE.fold(sys.error, identity)
-          logger.info(s"Plan is: ${evaluationPlan}")
           List(evaluationPlan)
-        case Sort(orders, global, child) if options.enableVeSorting => {
+        case s @ Sort(orders, global, child)
+            if options.enableVeSorting && !child.output
+              .map(_.dataType)
+              .toSet
+              .contains(StringType) /* String is not supported by Sort yet */ => {
           val inputsList = child.output.zipWithIndex.map { case (att, id) =>
             sparkTypeToScalarVeType(att.dataType)
               .makeCVector(s"${InputPrefix}${id}")
@@ -444,25 +520,62 @@ final case class VERewriteStrategy(
 
           val veSort = VeSort(inputsList, orderingExpressions)
           val code = CFunctionGeneration.renderSort(veSort)
-          val sortPlan = new NativeSortEvaluationPlan(
-            outputExpressions = plan.output,
-            functionPrefix = functionPrefix,
-            Coalesced(code),
-            new RowToArrowColumnarPlan(planLater(child)),
-            nativeEvaluator = nativeEvaluator
+
+          val sortFName = s"sort_${functionPrefix}"
+
+          List(
+            VectorEngineToSparkPlan(
+              OneStageEvaluationPlan(
+                outputExpressions = s.output,
+                veFunction = VeFunction(
+                  veFunctionStatus =
+                    VeFunctionStatus.SourceCode(code.toCodeLinesSPtr(sortFName).cCode),
+                  functionName = sortFName,
+                  results = code.outputs.map(_.veType)
+                ),
+                child = SparkToVectorEnginePlan(planLater(child))
+              )
+            )
           )
-          List(new ArrowColumnarToRowPlan(sortPlan))
         }
         case _ => Nil
       }
 
-      if (failFast) res
-      else {
+      if (options.failFast) {
+        val x = res
+        if (x.isEmpty)
+          logger.debug(s"Didn't rewrite")
+        else
+          logger.debug(s"Rewrote it to ==> ${x}")
+        x
+      } else {
         try res
         catch {
           case e: Throwable =>
             logger.error(s"Could not map plan ${plan} because of: ${e}", e)
-            Nil
+            plan match {
+              case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
+                  if cb.serializer
+                    .isInstanceOf[CycloneCacheBase] =>
+                SparkSession.active.sessionState.planner.InMemoryScans
+                  .apply(imr)
+                  .flatMap(sp =>
+                    List(
+                      FilterExec(
+                        cond,
+                        VectorEngineToSparkPlan(
+                          VeFetchFromCachePlan(
+                            sp,
+                            cb.serializer
+                              .asInstanceOf[CycloneCacheBase]
+                          )
+                        )
+                      )
+                    )
+                  )
+                  .toList
+              case _ => Nil
+            }
         }
       }
     } else Nil

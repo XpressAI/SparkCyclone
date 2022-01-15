@@ -28,13 +28,17 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
+#include "dict.cc"
+#include "dict.hpp"
 #include "words.hpp"
 #include "words.cc"
 #include "char_int_conv.hpp"
 #include "char_int_conv.cc"
 #include "parsefloat.hpp"
 #include "parsefloat.cc"
-
+#include "parsedatetime.hpp"
+#include "parsedatetime.cc"
+#include "datetime_utility.hpp"
 
 #ifndef VE_TD_DEFS
 typedef struct
@@ -181,53 +185,61 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
     #endif
 
     out->count = in.lens.size();
+
     #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->count " << out->count << std::endl << std::flush;
-    #endif
-    out->dataSize = in.chars.size();
-    #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->dataSize " << out->dataSize << std::endl << std::flush;
+    std::cout << "out->count = " << out->count << std::endl;
     #endif
 
-    out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
-    if (!out->offsets) {
-        std::cout << "Failed to malloc " << in.starts.size() + 1 << " * sizeof(int32_t)." << std::endl;
-        return;
+    int32_t totalChars = 0;
+    for (size_t i = 0; i < in.lens.size(); i++) {
+        totalChars += in.lens[i];
     }
-    for (int i = 0; i < in.starts.size(); i++) {
-        out->offsets[i] = in.starts[i];
-    }
+    out->dataSize = totalChars;
 
     #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "here  " << out->dataSize << std::endl << std::flush;
-        std::cout << utcnanotime().c_str() << " $$ " << "sze1  " << in.starts.size() << std::endl << std::flush;
-        std::cout << utcnanotime().c_str() << " $$ " << "sze2  " << in.lens.size() << std::endl << std::flush;
+    std::cout << "out->dataSize = " << out->dataSize << std::endl;
     #endif
 
-    int lastOffset;
-    if (in.starts.size() == 0) {
-        lastOffset = 0;
-    } else {
-        int lastEl = in.starts.size() - 1;
-        lastOffset = in.starts[lastEl] + in.lens[lastEl];
-    }
-
-    #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "here 2 " << out->dataSize << std::endl << std::flush;
-    #endif
-
-    out->offsets[in.starts.size()] = lastOffset;
-    #ifdef DEBUG
-        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector out->offsets[0] " << out->offsets[0] << std::endl << std::flush;
-    #endif
-
-    out->data = (char *)malloc(out->dataSize * sizeof(char));
+    out->data = (char *)malloc(totalChars * sizeof(char));
     if (out->data == NULL) {
         std::cout << "Failed to malloc " << out->dataSize << " * sizeof(char)." << std::endl;
         return;
     }
-    frovedis::int_to_char(in.chars.data(), in.chars.size(), out->data);
+    std::vector<size_t> lastChars(in.lens.size() + 1);
+    size_t sum = 0;
+    for (int i = 0; i < in.lens.size(); i++) {
+        lastChars[i] = sum;
+        sum += in.lens[i];
+    }
+
+    for (int i = 0; i < out->count; i++) {
+        size_t lastChar = lastChars[i];
+        size_t wordStart = in.starts[i];
+        size_t wordEnd = wordStart + in.lens[i];
+        for (int j = wordStart; j < wordEnd; j++) {
+            out->data[lastChar++] = (char)in.chars[j];
+        }
+    }
+
+    out->offsets = (int32_t *)malloc((in.starts.size() + 1) * sizeof(int32_t));
+    out->offsets[0] = 0;
+    for (int i = 1; i < in.starts.size() + 1; i++) {
+        out->offsets[i] = lastChars[i];
+    }
+    out->offsets[in.starts.size()] = totalChars;
+
     #ifdef DEBUG
+        std::cout << "data: '";
+        for (int i = 0; i < totalChars; i++) {
+            std::cout << out->data[i];
+        }
+        std::cout << "'" << std::endl;
+
+        std::cout << "offsets: ";
+        for (int i = 0; i < out->count + 1; i++) {
+            std::cout << out->offsets[i] << ", ";
+        }
+        std::cout << std::endl;
     #endif
 
     size_t validity_count = ceil(out->count / 64.0);
@@ -260,6 +272,49 @@ void debug_words(frovedis::words &in) {
         std::cout << (char)in.chars[start + i];
     }
     std::cout << "'" << std::endl;
+}
+
+std::vector<size_t> idx_to_std(nullable_int_vector *idx) {
+    std::vector<size_t> ret;
+    for ( int i = 0; i < idx->count; i++ ) {
+        ret.push_back(idx->data[i]);
+    }
+    return ret;
+}
+
+void print_indices(std::vector<size_t> vec) {
+    std::cout << "vec:" << std::endl << std::flush;
+    for ( int i = 0; i < vec.size(); i++ ) {
+        std::cout << "["<< i << "] = " << vec[i] << std::endl << std::flush;
+    }
+    std::cout << "/vec" << std::endl << std::flush;
+}
+
+frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select) {
+    frovedis::words nw;
+    std::vector<size_t> new_starts(to_select.size());
+    std::vector<size_t> new_lens(to_select.size());
+    for (size_t i = 0; i < to_select.size(); i++) {
+        new_starts[i] = in_words.starts[to_select[i]];
+        new_lens[i] = in_words.lens[to_select[i]];
+    }
+
+    nw.chars.swap(in_words.chars);
+    nw.starts.swap(new_starts);
+    nw.lens.swap(new_lens);
+    const frovedis::words fww = nw;
+    auto cw = make_compressed_words(fww);
+    auto dct = make_dict_from_words(fww);
+    auto new_indices = dct.lookup(cw);
+    return dct.index_to_words(new_indices);
+}
+
+std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set) {
+    auto compressed_words = make_compressed_words(input_words);
+    auto dct = make_dict_from_words(filtering_set);
+    auto new_indices = dct.lookup(compressed_words);
+
+    return new_indices;
 }
 
 #define VE_TD_DEFS 1

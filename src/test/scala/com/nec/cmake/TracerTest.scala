@@ -20,12 +20,12 @@
 package com.nec.cmake
 
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.WithTestAllocator
 import com.nec.native.NativeEvaluator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.planning.Tracer
+import com.nec.spark.planning.Tracer.Mapped
 import org.scalatest.freespec.AnyFreeSpec
 
 class TracerTest extends AnyFreeSpec {
@@ -53,7 +53,7 @@ class TracerTest extends AnyFreeSpec {
         .cCode
     )
     WithTestAllocator { implicit allocator =>
-      val inVec = Tracer.Launched("launchId").map("mappingId")
+      val inVec = Mapped(Tracer.Launched("launchId"), "mappingId")
       val vec = inVec.createVector()
       try {
         ani.callFunctionWrapped(functionName, List(NativeArgument.input(vec)))

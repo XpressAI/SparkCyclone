@@ -1,0 +1,40 @@
+name: Unit tests (Vector Engine)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - ready_for_review
+jobs:
+  build:
+    runs-on: "ve"
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Check User
+        run: whoami
+        
+      - name: Check Path
+        run: pwd
+        
+      - name: Check Access to VE
+        run: /opt/nec/ve/bin/vecmd info
+
+      - name: Branch Ref
+        run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Generate TPC-H Data
+        run: pushd src/test/resources/dbgen/ && make && ./dbgen && popd
+
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y%m%d%H%M%S')"
+
+      - name: Run Vector Engine Tests
+        run: SBT_OPTS="-Xmx16g" sbt "set debugToHtml := true" "VectorEngine / testQuick"
+
+      - name: Copying to sparkcyclone.io
+        if: always()
+        run: rsync -r -v target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/${{ steps.date.outputs.date }}
+

@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <utility>
-
+#include "../core/find_condition.hpp"
 #include "../core/set_operations.hpp"
 #include "../core/radix_sort.hpp"
 #include "../core/lower_bound.hpp"

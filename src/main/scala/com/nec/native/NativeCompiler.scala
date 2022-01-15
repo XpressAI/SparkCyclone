@@ -23,17 +23,19 @@ import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file.Paths
 import com.nec.cmake.CMakeBuilder
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import org.apache.spark.SparkConf
 
 import java.nio.file.Files
 import java.nio.file.Path
 import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
+import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
 
 trait NativeCompiler extends Serializable {
 
   /** Location of the compiled kernel library */
   def forCode(code: String): Path
+  def forCode(codeLines: CodeLines): Path = forCode(codeLines.cCode)
   protected def combinedCode(code: String): String =
     List(TransferDefinitions.TransferDefinitionsSourceCode, code).mkString("\n\n")
 }
@@ -55,7 +57,7 @@ object NativeCompiler extends LazyLogging {
   }
 
   def fromTemporaryDirectory(compilerConfig: VeCompilerConfig): (Path, NativeCompiler) = {
-    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp")
+    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp", FileAttributes)
     (tmpBuildDir, OnDemandCompilation(tmpBuildDir.toAbsolutePath.toString, compilerConfig))
   }
 
@@ -66,7 +68,7 @@ object NativeCompiler extends LazyLogging {
     with LazyLogging {
 
     /** Location of the compiled kernel library */
-    override def forCode(code: String): Path = this.synchronized {
+    override def forCode(code: String): Path = {
       cache.get(code) match {
         case None =>
           logger.debug(s"Cache miss for compilation.")

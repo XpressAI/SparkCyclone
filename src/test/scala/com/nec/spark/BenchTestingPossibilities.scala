@@ -22,7 +22,7 @@ package com.nec.spark
 import com.nec.native.NativeEvaluator
 import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.planning.{GroupBySumPlanSpec, JoinPlanSpec, VERewriteStrategy}
+import com.nec.spark.planning.{JoinPlanSpec, VERewriteStrategy}
 import com.nec.testing.SampleSource.{SampleColA, SampleColB, SharedName}
 import com.nec.testing.{SampleSource, Testing}
 import com.nec.testing.Testing.{DataSize, TestingTarget}
@@ -181,9 +181,7 @@ object BenchTestingPossibilities extends LazyLogging {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .withExtensions(sse =>
-              sse.injectPlannerStrategy(_ => VERewriteStrategy(CNativeEvaluator))
-            )
+            .withExtensions(sse => sse.injectPlannerStrategy(_ => VERewriteStrategy()))
             .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)
@@ -206,14 +204,7 @@ object BenchTestingPossibilities extends LazyLogging {
           csvStrategy = None
         )
       ),
-      JoinPlanSpec.OurTesting,
-      GroupBySumPlanSpec.OurTesting,
-      /** Ignored: because emitting Strings is not currently supported. */
-      /* List(StringGroupByTesting(isVe = true), StringGroupByTesting(isVe = false)) */
-      List(DateTesting(isVe = false)),
-      List(DateTesting(isVe = true)),
-      List(DateDeeperTesting(isVe = true)),
-      List(DateDeeperTesting(isVe = false))
+      JoinPlanSpec.OurTesting
     ).flatten
 
   trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>
@@ -237,8 +228,6 @@ object BenchTestingPossibilities extends LazyLogging {
 }
 
 final class BenchTestingPossibilities extends AnyFreeSpec with BenchTestAdditions {
-
-  VERewriteStrategy.failFast = true
 
   /** TODO We could also generate Spark plan details from here for easy cross-referencing, as well as codegen */
   BenchTestingPossibilities.possibilities.filter(_.testingTarget.isPlainSpark).foreach(runTestCase)

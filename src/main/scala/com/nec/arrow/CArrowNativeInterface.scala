@@ -46,6 +46,7 @@ import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorOutputNativeArgum
 import com.sun.jna.Library
 import com.nec.arrow.ArrowNativeInterface._
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper._
+import com.nec.ve.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.vector.TimeStampMicroTZVector
 
