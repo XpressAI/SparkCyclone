@@ -183,7 +183,7 @@ object StringHole {
           },
           CodeLines.forLoop("i", s"${matchingIds}.size()") {
             s"${myId}[${matchingIds}[i]] = 1;"
-          },
+          }
         )
 
       override def deallocData: CodeLines = CodeLines.empty
