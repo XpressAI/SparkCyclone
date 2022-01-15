@@ -22,13 +22,12 @@ package com.nec.spark.agile
 import com.nec.cmake.TcpDebug
 import com.nec.spark.planning.Tracer
 import com.nec.spark.planning.Tracer.{TracerDefName, TracerOutput}
-
-import scala.language.implicitConversions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 
 object CExpressionEvaluation {
 
@@ -62,15 +61,6 @@ object CExpressionEvaluation {
           case (idx, DoubleType | FloatType | LongType | IntegerType | ShortType) =>
             s"input_${idx}->data[i]"
           case (idx, actualType) => sys.error(s"'${expression}' has unsupported type: ${typeName}")
-        }
-      case expr @ NamedExpression(
-            name,
-            DoubleType | FloatType | LongType | IntegerType | ShortType
-          ) =>
-        input.indexWhere(_.exprId == expr.exprId) match {
-          case -1 =>
-            sys.error(s"Could not find a reference for '${expression}' from set of: ${input}")
-          case idx => s"input_${idx}->data[i]"
         }
       case Cast(child, dataType, _) =>
         val expr = evaluateExpression(input, child)
