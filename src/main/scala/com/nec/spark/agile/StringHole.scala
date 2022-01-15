@@ -160,7 +160,7 @@ object StringHole {
           },
           CodeLines.forLoop("i", s"${matchingIds}.size()") {
             s"${myId}[${matchingIds}[i]] = 1;"
-          },
+          }
         )
 
       override def deallocData: CodeLines = CodeLines.empty
@@ -176,11 +176,9 @@ object StringHole {
         CodeLines.from(
           CodeLines.debugHere,
           s"std::vector<int> $myId($refName->count);",
-          s"for ( int i = 0; i < $refName->count; i++) { ",
-          CodeLines
-            .from(s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};")
-            .indented,
-          "}"
+          CodeLines.forLoop("i", s"${refName}->count") {
+            s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};"
+          }
         )
 
       override def deallocData: CodeLines = CodeLines.empty

@@ -34,6 +34,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
+import org.aopalliance.reflect.Code
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
@@ -686,66 +687,62 @@ object CFunctionGeneration {
       inputs = filter.data,
       outputs = filterOutput,
       body = CodeLines.from(
-        filter.stringVectorComputations.distinct.map(_.computeVector),
         s"std::vector<size_t> matching_ids;",
-        s"for ( long i = 0; i < input_0->count; i++) {",
-        CodeLines
-          .from(filter.condition.isNotNullCode match {
-            case None =>
-              CodeLines.from(
-                s"if ( ${filter.condition.cCode} ) {",
-                CodeLines.from("matching_ids.push_back(i);").indented,
-                "}"
-              )
-            case Some(notNullCondition) =>
-              CodeLines.from(
-                s"if ( (${notNullCondition} && ${filter.condition.cCode}) ) {",
-                CodeLines.from("matching_ids.push_back(i);").indented,
-                "}"
-              )
-          })
-          .indented,
-        "}",
+        "",
+        CodeLines.scoped {
+          CodeLines.from(
+            "// STEP: Perform string vector computation (ILIKE, CONTAINS, etc)",
+            filter.stringVectorComputations.distinct.map(_.computeVector),
+            CodeLines.forLoop("i", "input_0->count") {
+              val condition = filter.condition.isNotNullCode match {
+                case Some(x) =>
+                  s"${x} && ${filter.condition.cCode}"
+                case None =>
+                  filter.condition.cCode
+              }
+              CodeLines.ifStatement(condition) {
+                "matching_ids.push_back(i);"
+              }
+            }
+          )
+        },
         filter.stringVectorComputations.distinct.map(_.deallocData),
         filter.data.zipWithIndex.map {
           case (cv @ CVarChar(name), idx) =>
             val varName = cv.replaceName("input", "output").name
-            val fp: FrovedisStringProducer =
-              FrovedisCopyStringProducer(name)
-            CodeLines.from(
-              fp.init(varName, "matching_ids.size()"),
-              "for ( int g = 0; g < matching_ids.size(); g++ ) {",
-              CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g")).indented,
-              "}",
-              fp.complete(varName)
-            )
+            val fp = FrovedisCopyStringProducer(name)
+            CodeLines.scoped {
+              CodeLines.from(
+                s"// STEP: Populate ${varName}",
+                fp.init(varName, "matching_ids.size()"),
+                CodeLines.forLoop("g", "matching_ids.size()") {
+                  CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g")).indented
+                },
+                fp.complete(varName)
+              )
+            }
           case (cVector @ CScalarVector(_, tpe), idx) =>
             val varName = cVector.replaceName("input", "output").name
-            CodeLines.from(
-              CodeLines.debugHere,
-              GroupByOutline.initializeScalarVector(
-                veScalarType = tpe,
-                variableName = varName,
-                countExpression = s"matching_ids.size()"
-              ),
-              "for ( int o = 0; o < matching_ids.size(); o++ ) {",
-              CodeLines
-                .from(
-                  "int i = matching_ids[o];",
-                  s"if(check_valid(${cVector.name}->validityBuffer, i)) {",
-                  CodeLines
-                    .from(
-                      s"${varName}->data[o] = ${cVector.name}->data[i];",
-                      s"set_validity($varName->validityBuffer, o, 1);"
-                    )
-                    .indented,
-                  "} else {",
-                  CodeLines.from(s"set_validity($varName->validityBuffer, o, 0);").indented,
-                  "}"
-                )
-                .indented,
-              "}"
-            )
+            CodeLines.scoped {
+              CodeLines.from(
+                s"// STEP: Populate ${varName}",
+                CodeLines.debugHere,
+                GroupByOutline.initializeScalarVector(tpe, varName, s"matching_ids.size()"),
+                CodeLines.forLoop("o", "matching_ids.size()") {
+                  CodeLines.from(
+                    "int i = matching_ids[o];",
+                    CodeLines.ifElseStatement(s"check_valid(${cVector.name}->validityBuffer, i)") {
+                      List(
+                        s"${varName}->data[o] = ${cVector.name}->data[i];",
+                        s"set_validity($varName->validityBuffer, o, 1);"
+                      )
+                    } {
+                      s"set_validity($varName->validityBuffer, o, 0);"
+                    }
+                  )
+                }
+              )
+            }
         }
       )
     )
