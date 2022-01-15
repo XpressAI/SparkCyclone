@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.net.SocketAppender
 import ch.qos.logback.core.ConsoleAppender
-import com.comcast.ip4s.{Host, Port}
+import com.comcast.ip4s.Host
 import fs2.concurrent.SignallingRef
 import fs2.io.net.Network
 import org.scalatest.freespec.AnyFreeSpec
@@ -14,10 +14,10 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.duration.DurationInt
 
 final class LogbackOverSocketTest extends AnyFreeSpec {
-  "It works" in {
-    import ch.qos.logback.classic.{Logger, LoggerContext}
+  "It works" ignore {
     import ch.qos.logback.classic.encoder.PatternLayoutEncoder
     import ch.qos.logback.classic.spi.ILoggingEvent
+    import ch.qos.logback.classic.{Logger, LoggerContext}
 
     val lc = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
     val ple = new PatternLayoutEncoder
