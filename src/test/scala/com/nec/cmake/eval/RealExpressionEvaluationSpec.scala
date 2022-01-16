@@ -31,7 +31,6 @@ import com.nec.arrow.ArrowVectorBuilders.{
   withDirectFloat8Vector,
   withNullableArrowStringVector
 }
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.StaticTypingTestAdditions._
@@ -667,7 +666,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
           IO.delay {
             CMakeBuilder.buildCLogging(
               List(
-                TransferDefinitionsSourceCode,
                 "\n\n",
                 GenericJoiner.printVec.cCode, {
                   val inputsLeft =
@@ -758,7 +756,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
           IO.delay {
             CMakeBuilder.buildCLogging(
               List(
-                TransferDefinitionsSourceCode,
                 "\n\n",
                 GenericJoiner.printVec.cCode, {
                   val inputsLeft =
@@ -843,7 +840,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -889,7 +886,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -943,7 +940,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -986,7 +983,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -1029,7 +1026,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     logger.debug(s"Generated code: ${generatedSource.cCode}")
 
     val cLib = CMakeBuilder.buildCLogging(cSource =
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -1067,7 +1064,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       ).toCodeLinesPF(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List(generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -1106,7 +1103,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         .toCodeLinesPF(functionName)
 
     val cLib = CMakeBuilder.buildCLogging(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -1139,7 +1136,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         .toCodeLinesS(functionName)
 
     val cLib = CMakeBuilder.buildC(
-      List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+      List("\n\n", generatedSource.cCode)
         .mkString("\n\n")
     )
 
@@ -1196,7 +1193,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       logger.debug(s"Generated code: ${generatedSource.cCode}")
 
       val cLib = CMakeBuilder.buildCLogging(
-        List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        List(generatedSource.cCode)
           .mkString("\n\n")
       )
 
@@ -1236,7 +1233,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       logger.debug(s"Generated code: ${generatedSource.cCode}")
 
       val cLib = CMakeBuilder.buildCLogging(
-        List(TransferDefinitionsSourceCode, "\n\n", generatedSource.cCode)
+        List("\n\n", generatedSource.cCode)
           .mkString("\n\n")
       )
 

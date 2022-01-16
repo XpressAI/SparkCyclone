@@ -441,6 +441,19 @@ object CFunctionGeneration {
         new BigIntVector(cVector.name, bufferAllocator)
     }
 
+  val KeyHeaders = CodeLines.from(
+    """#include "transfer-definitions.hpp"""",
+    """#include "cyclone.hpp"""",
+    "#include <cmath>",
+    "#include <bitset>",
+    "#include <string>",
+    "#include <iostream>",
+    "#include <tuple>",
+    "#include \"tuple_hash.hpp\"",
+    """#include "frovedis/dataframe/join.hpp"""",
+    """#include "frovedis/core/set_operations.hpp""""
+  )
+
   final case class CFunction(
     inputs: List[CVector],
     outputs: List[CVector],
@@ -448,20 +461,25 @@ object CFunctionGeneration {
     hasSets: Boolean = false
   ) {
     def toCodeLinesSPtr(functionName: String): CodeLines = CodeLines.from(
+      """#include "transfer-definitions.hpp"""",
+      """#include "cyclone.hpp"""",
       "#include <cmath>",
       "#include <bitset>",
       "#include <string>",
+      "#include <vector>",
       "#include <iostream>",
       "#include <tuple>",
       "#include \"tuple_hash.hpp\"",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/dataframe/join.cc"""",
       """#include "frovedis/core/set_operations.hpp"""",
       TcpDebug.conditional.headers,
       toCodeLinesNoHeaderOutPtr2(functionName)
     )
+
     def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
+      """#include "transfer-definitions.hpp"""",
+      """#include "cyclone.hpp"""",
       "#include <cmath>",
       "#include <bitset>",
       "#include <string>",
@@ -470,7 +488,6 @@ object CFunctionGeneration {
       "#include \"tuple_hash.hpp\"",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/dataframe/join.cc"""",
       """#include "frovedis/core/set_operations.hpp"""",
       TcpDebug.conditional.headers,
       toCodeLinesNoHeader(functionName)
@@ -480,6 +497,8 @@ object CFunctionGeneration {
 
     def toCodeLinesPF(functionName: String): CodeLines = {
       CodeLines.from(
+        """#include "transfer-definitions.hpp"""",
+        """#include "cyclone.hpp"""",
         "#include <cmath>",
         "#include <bitset>",
         "#include <string>",
@@ -488,8 +507,11 @@ object CFunctionGeneration {
         toCodeLinesNoHeader(functionName)
       )
     }
+
     def toCodeLinesG(functionName: String): CodeLines = {
       CodeLines.from(
+        """#include "transfer-definitions.hpp"""",
+        """#include "cyclone.hpp"""",
         "#include <cmath>",
         "#include <bitset>",
         "#include <string>",
@@ -502,12 +524,13 @@ object CFunctionGeneration {
     }
     def toCodeLinesJ(functionName: String): CodeLines = {
       CodeLines.from(
+        """#include "transfer-definitions.hpp"""",
+        """#include "cyclone.hpp"""",
         "#include <cmath>",
         "#include <bitset>",
         "#include <string>",
         "#include <iostream>",
         """#include "frovedis/dataframe/join.hpp"""",
-        """#include "frovedis/dataframe/join.cc"""",
         """#include "frovedis/core/set_operations.hpp"""",
         TcpDebug.conditional.headers,
         toCodeLinesNoHeader(functionName)
@@ -528,6 +551,10 @@ object CFunctionGeneration {
         "  return 0;",
         "};"
       )
+    }
+
+    def toCodeLinesHeaderPtr(functionName: String): CodeLines = {
+      CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutPtr(functionName))
     }
 
     def toCodeLinesNoHeaderOutPtr(functionName: String): CodeLines = {

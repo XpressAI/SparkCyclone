@@ -1,7 +1,13 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeScalarType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CFunction,
+  CScalarVector,
+  CVarChar,
+  CVector,
+  VeScalarType
+}
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.join.GenericJoiner.{
   computeNumJoin,
@@ -40,22 +46,10 @@ final case class JoinByEquality(
   def ioO: List[CVector] = List(out_left, out_right)
   def io: List[CVector] = ioWo ++ ioO
 
-  def produceIndices(fName: String): CodeLines = CodeLines.from(
-    """#include "frovedis/core/radix_sort.hpp"""",
-    """#include "frovedis/dataframe/join.hpp"""",
-    """#include "frovedis/dataframe/join.cc"""",
-    """#include "frovedis/text/words.hpp"""",
-    """#include "frovedis/text/words.cc"""",
-    """#include "frovedis/text/dict.hpp"""",
-    """#include "frovedis/text/dict.cc"""",
-    """#include <iostream>""",
-    """#include <vector>""",
-    """#include <cmath>""",
-    s"""extern "C" long ${fName}(""",
-    io
-      .map(_.declarePointer)
-      .mkString(",\n"),
-    ") {",
+  def produceIndices(fName: String): CodeLines =
+    CFunction(inputs = ioWo, outputs = ioO, body = functionBody).toCodeLinesS(fName)
+
+  def functionBody = CodeLines.from(
     joins.map {
       case Join(CVarChar(left), CVarChar(right)) =>
         val pairing = EqualityPairing(
@@ -129,9 +123,7 @@ final case class JoinByEquality(
               )
           })
         )
-    },
-    "return 0;",
-    "}"
+    }
   )
 
 }

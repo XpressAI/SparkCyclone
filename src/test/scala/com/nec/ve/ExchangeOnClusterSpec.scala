@@ -18,13 +18,12 @@ final class ExchangeOnClusterSpec
     VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
     val result =
-      compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr(MultiFunctionName).cCode) {
-        path =>
-          val pathStr = path.toString
-          exchangeBatches(sparkSession, pathStr)
-            .collect()
-            .toList
-            .toSet
+      compiledWithHeaders(PartitioningFunction, MultiFunctionName) { path =>
+        val pathStr = path.toString
+        exchangeBatches(sparkSession, pathStr)
+          .collect()
+          .toList
+          .toSet
       }
 
     val expected = List[Double](199, 299, 399, 500).toSet

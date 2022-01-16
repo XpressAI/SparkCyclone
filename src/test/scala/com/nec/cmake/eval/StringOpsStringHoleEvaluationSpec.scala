@@ -2,7 +2,6 @@ package com.nec.cmake.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.util.RichVectors.RichIntVector
@@ -91,7 +90,6 @@ object StringOpsStringHoleEvaluationSpec {
 
     val cLib = CMakeBuilder.buildCLogging(
       List(
-        TransferDefinitionsSourceCode,
         "\n\n",
         CFunction(
           inputs = List(CVector.varChar("strings")),

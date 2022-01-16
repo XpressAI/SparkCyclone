@@ -196,4 +196,5 @@ src/test/resources/dbgen/dbgen
 
 *.log
 test.db
+cyclone.so
 .DS_Store

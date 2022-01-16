@@ -75,7 +75,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   }
 
   "Execute our function" in {
-    compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) { path =>
+    compiledWithHeaders(DoublingFunction, "f") { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
@@ -97,7 +97,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   }
 
   "Execute multi-function" in {
-    compiledWithHeaders(PartitioningFunction.toCodeLinesNoHeaderOutPtr("f").cCode) { path =>
+    compiledWithHeaders(PartitioningFunction, "f") { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(95, 99, 105, 500, 501)) { f8v =>
@@ -138,9 +138,8 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Value)
           ),
           totalBuckets = 2
-        )
-        .toCodeLines("f")
-        .cCode
+        ),
+      "f"
     ) { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
@@ -272,45 +271,43 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
   "We can merge multiple VeColBatches" in {
     val fName = "merger"
+    compiledWithHeaders(MergerFunction.merge(types = List(VeNullableDouble, VeString)), fName) {
+      path =>
+        val lib = veProcess.loadLibrary(path)
+        WithTestAllocator { implicit alloc =>
+          withArrowFloat8VectorI(List(1, 2, 3, -1)) { f8v =>
+            withArrowStringVector(Seq("a", "b", "c", "x")) { sv =>
+              withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
+                withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
+                  val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
+                  val colVec2: VeColVector = VeColVector.fromArrowVector(f8v2)
+                  val sVec: VeColVector = VeColVector.fromArrowVector(sv)
+                  val sVec2: VeColVector = VeColVector.fromArrowVector(sv2)
+                  val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
+                  val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
+                  val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
+                  val r: List[VeColVector] = veProcess.executeMultiIn(
+                    libraryReference = lib,
+                    functionName = fName,
+                    batches = bg,
+                    results = colBatch1.cols.map(_.veType)
+                  )
 
-    compiledWithHeaders(
-      MergerFunction.merge(types = List(VeNullableDouble, VeString)).toCodeLines(fName).cCode
-    ) { path =>
-      val lib = veProcess.loadLibrary(path)
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List(1, 2, 3, -1)) { f8v =>
-          withArrowStringVector(Seq("a", "b", "c", "x")) { sv =>
-            withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
-              withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
-                val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-                val colVec2: VeColVector = VeColVector.fromArrowVector(f8v2)
-                val sVec: VeColVector = VeColVector.fromArrowVector(sv)
-                val sVec2: VeColVector = VeColVector.fromArrowVector(sv2)
-                val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
-                val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
-                val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
-                val r: List[VeColVector] = veProcess.executeMultiIn(
-                  libraryReference = lib,
-                  functionName = fName,
-                  batches = bg,
-                  results = colBatch1.cols.map(_.veType)
-                )
+                  val resultVecs: List[FieldVector] = r.map(_.toArrowVector())
 
-                val resultVecs: List[FieldVector] = r.map(_.toArrowVector())
+                  try {
+                    val nums = resultVecs(0).asInstanceOf[Float8Vector].toListSafe
+                    val strs = resultVecs(1).asInstanceOf[VarCharVector].toList
 
-                try {
-                  val nums = resultVecs(0).asInstanceOf[Float8Vector].toListSafe
-                  val strs = resultVecs(1).asInstanceOf[VarCharVector].toList
-
-                  val expected = List(1, 2, 3, -1, 2, 3, 4).map(v => Option(v))
-                  val expectedStrs = Seq("a", "b", "c", "x", "d", "e", "f")
-                  expect(nums == expected, strs == expectedStrs)
-                } finally resultVecs.foreach(_.close())
+                    val expected = List(1, 2, 3, -1, 2, 3, 4).map(v => Option(v))
+                    val expectedStrs = Seq("a", "b", "c", "x", "d", "e", "f")
+                    expect(nums == expected, strs == expectedStrs)
+                  } finally resultVecs.foreach(_.close())
+                }
               }
             }
           }
         }
-      }
     }
   }
 }

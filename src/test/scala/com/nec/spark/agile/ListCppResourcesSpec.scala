@@ -26,7 +26,10 @@ import org.scalatest.freespec.AnyFreeSpec
 import java.nio.file.Files
 
 object ListCppResourcesSpec {
-  val LowerBound = CppResource("cpp/frovedis/core/lower_bound.hpp")
+  val LowerBound = CppResource(
+    "frovedis/core/lower_bound.hpp",
+    "/com/nec/cyclone/cpp/frovedis/core/lower_bound.hpp"
+  )
 }
 
 final class ListCppResourcesSpec extends AnyFreeSpec {

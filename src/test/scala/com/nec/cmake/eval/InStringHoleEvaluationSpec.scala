@@ -1,7 +1,6 @@
 package com.nec.cmake.eval
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.DateCastStringHoleEvaluationSpec.executeHoleEvaluation
@@ -80,8 +79,6 @@ object InStringHoleEvaluationSpec {
 
     val cLib = CMakeBuilder.buildCLogging(
       List(
-        TransferDefinitionsSourceCode,
-        "\n\n",
         CFunction(
           inputs = List(CVector.varChar("strings")),
           outputs = List(CVector.int("bools")),

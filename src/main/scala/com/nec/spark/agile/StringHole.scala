@@ -93,9 +93,9 @@ object StringHole {
 
       override def computeVector: CodeLines = CodeLines.from(
         s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
-        s"vector<int> values{ ${words} };",
+        s"std::vector<int> values{ ${words} };",
         s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
-        "auto NOT_FOUND = numeric_limits<size_t>::max();",
+        "auto NOT_FOUND = std::numeric_limits<size_t>::max();",
         s"std::vector<size_t> ${matchingIds} = filter_words_dict(${valuesWords}, ${toCheckWords});",
         s"std::vector<size_t> ${filteredIds}(${refName}->count);",
         s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
@@ -152,8 +152,8 @@ object StringHole {
           s"std::vector<int> $myId($refName->count);",
           s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
           s"std::vector<size_t> $matchingIds = frovedis::like($myIdWords.chars," +
-            s"(const vector<size_t>&)($myIdWords.starts),",
-          s"(const vector<size_t>&)($myIdWords.lens),",
+            s"(const std::vector<size_t>&)($myIdWords.starts),",
+          s"(const std::vector<size_t>&)($myIdWords.lens),",
           s""""$likeString");""",
           CodeLines.debugHere,
           s"for ( int i = 0; i < $refName->count; i++) { ",

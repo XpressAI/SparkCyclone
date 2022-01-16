@@ -47,7 +47,7 @@ class TracerTest extends AnyFreeSpec {
               if (includeUdp) TcpDebug.default.close else CodeLines.empty
             )
           )
-            .toCodeLinesNoHeader(functionName)
+            .toCodeLinesJ(functionName)
             .cCode
         )
         .cCode

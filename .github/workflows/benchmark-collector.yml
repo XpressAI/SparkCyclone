@@ -101,4 +101,3 @@ jobs:
     - name: "Copying to sparkcyclone.io"
       if: "always()"
       run: "rsync -r -v tpcbench-run/target/tpc-html/ egonzalez@xpressai.jp:/var/www/sparkcyclone.io/tpc-html/summary"
-
