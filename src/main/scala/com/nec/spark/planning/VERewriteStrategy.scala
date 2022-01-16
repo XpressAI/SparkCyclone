@@ -143,7 +143,7 @@ final case class VERewriteStrategy(
                   outputExpressions = f.output,
                   veFunction = VeFunction(
                     veFunctionStatus =
-                      VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
+                      VeFunctionStatus.SourceCode(cFunction.toCodeLinesPF(functionName).cCode),
                     functionName = functionName,
                     results = cFunction.outputs.map(_.veType)
                   ),
@@ -223,7 +223,7 @@ final case class VERewriteStrategy(
               ProjectEvaluationPlan(
                 outputExpressions = projectList,
                 veFunction = VeFunction(
-                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
+                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesPF(fName).cCode),
                   functionName = fName,
                   results = cF.outputs.map(_.veType)
                 ),
@@ -233,7 +233,7 @@ final case class VERewriteStrategy(
               OneStageEvaluationPlan(
                 outputExpressions = projectList,
                 veFunction = VeFunction(
-                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
+                  veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesPF(fName).cCode),
                   functionName = fName,
                   results = cF.outputs.map(_.veType)
                 ),
@@ -423,7 +423,7 @@ final case class VERewriteStrategy(
                 input to output vectors at all if:
 
                   dataDescriptions.count(_.keyOrValue.isKey) <= 0
-              */
+               */
               if (options.exchangeOnVe) {
                 VeHashExchange(
                   exchangeFunction = VeFunction(
