@@ -20,6 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
+import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
@@ -31,27 +32,33 @@ import com.nec.spark.agile.groupby.{
   GroupByPartialGenerator,
   GroupByPartialToFinalGenerator
 }
+import com.nec.spark.agile.join.GenericJoiner
+import com.nec.spark.agile.join.GenericJoiner.FilteredOutput
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
-import com.nec.spark.planning.aggregation.VeHashExchange
+import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.plans._
 import com.nec.ve.GroupingFunction.DataDescription
+import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
+import io.netty.handler.codec.DefaultHeaders
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   HyperLogLogPlusPlus
 }
+import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   AttributeReference,
+  EqualTo,
   Expression,
   NamedExpression,
   SortOrder
 }
-import org.apache.spark.sql.catalyst.plans.logical
+import org.apache.spark.sql.catalyst.plans.{logical, Inner, JoinType}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
@@ -113,6 +120,136 @@ final case class VERewriteStrategy(
             )
             .toList
 
+        case j @ logical.Join(
+              leftChild,
+              rightChild,
+              Inner,
+              Some(
+                condition @ EqualTo(
+                  ar1 @ AttributeReference(_, _, _, _),
+                  ar2 @ AttributeReference(_, _, _, _)
+                )
+              ),
+              _
+            ) if options.joinOnVe =>
+          val inputsLeft = leftChild.output.toList.zipWithIndex.map { case (att, idx) =>
+            sparkTypeToVeType(att.dataType).makeCVector(s"l_$InputPrefix$idx")
+          }
+          val inputsRight = rightChild.output.toList.zipWithIndex.map { case (att, idx) =>
+            sparkTypeToVeType(att.dataType).makeCVector(s"r_$InputPrefix$idx")
+          }
+          val joins =
+            try {
+              List(
+                GenericJoiner.Join(
+                  left = inputsLeft(
+                    leftChild.output.indexWhere(attr =>
+                      List(ar1, ar2).exists(_.exprId == attr.exprId)
+                    )
+                  ),
+                  right = inputsRight(
+                    rightChild.output.indexWhere(attr =>
+                      List(ar1, ar2).exists(_.exprId == attr.exprId)
+                    )
+                  )
+                )
+              )
+            } catch {
+              case e: Throwable =>
+                throw new RuntimeException(s"Condition: ${condition}; ${e}", e)
+            }
+          val genericJoiner =
+            try {
+              GenericJoiner(
+                inputsLeft = inputsLeft,
+                inputsRight = inputsRight,
+                joins = joins,
+                outputs = (inputsLeft ++ inputsRight).map(cv => FilteredOutput(s"o_${cv.name}", cv))
+              )
+            } catch {
+              case e: Throwable =>
+                throw new RuntimeException(s"Condition: ${condition}; ${e}", e)
+            }
+
+          val functionName = s"join_${functionPrefix}"
+
+          val exchangeNameL = s"exchange_l_$functionPrefix"
+          val exchangeNameR = s"exchange_r_$functionPrefix"
+          val exchangeFunctionL = {
+            GroupingFunction.groupData(
+              data = inputsLeft.map(leftVector =>
+                DataDescription(
+                  veType = leftVector.veType,
+                  keyOrValue =
+                    if (joins.flatMap(_.vecs).contains(leftVector)) KeyOrValue.Key
+                    else KeyOrValue.Value
+                )
+              ),
+              totalBuckets = 16
+            )
+          }
+          val exchangeFunctionR = {
+            GroupingFunction.groupData(
+              data = inputsRight.map(rightVector =>
+                DataDescription(
+                  veType = rightVector.veType,
+                  keyOrValue =
+                    if (joins.flatMap(_.vecs).contains(rightVector)) KeyOrValue.Key
+                    else KeyOrValue.Value
+                )
+              ),
+              totalBuckets = 16
+            )
+          }
+
+          val code = CodeLines
+            .from(
+              exchangeFunctionL.toCodeLines(exchangeNameL),
+              exchangeFunctionR.toCodeLines(exchangeNameR)
+            )
+
+          List(
+            VectorEngineToSparkPlan(
+              VectorEngineJoinPlan(
+                outputExpressions = leftChild.output ++ rightChild.output,
+                joinFunction = VeFunction(
+                  veFunctionStatus = {
+                    val produceIndicesFName = s"produce_indices_${functionName}"
+                    VeFunctionStatus.SourceCode(
+                      CodeLines
+                        .from(
+                          CFunction.DefaultHeaders,
+                          TcpDebug.conditional.headers,
+                          genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
+                          genericJoiner
+                            .cFunction(produceIndicesFName)
+                            toCodeLinesNoHeaderOutPtr2 (functionName)
+                        )
+                        .cCode
+                    )
+                  },
+                  functionName = functionName,
+                  namedResults = genericJoiner.outputs.map(_.cVector)
+                ),
+                left = VeHashExchangePlan(
+                  exchangeFunction = VeFunction(
+                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                    functionName = exchangeNameL,
+                    namedResults = inputsLeft
+                  ),
+                  child = SparkToVectorEnginePlan(planLater(leftChild))
+                ),
+                right = VeHashExchangePlan(
+                  exchangeFunction = VeFunction(
+                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                    functionName = exchangeNameR,
+                    namedResults = inputsRight
+                  ),
+                  child = SparkToVectorEnginePlan(planLater(rightChild))
+                )
+              )
+            )
+          )
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 
@@ -145,7 +282,7 @@ final case class VERewriteStrategy(
                     veFunctionStatus =
                       VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
                     functionName = functionName,
-                    results = cFunction.outputs.map(_.veType)
+                    namedResults = cFunction.outputs
                   ),
                   child = SparkToVectorEnginePlan(planLater(child))
                 )
@@ -225,7 +362,7 @@ final case class VERewriteStrategy(
                 veFunction = VeFunction(
                   veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
                   functionName = fName,
-                  results = cF.outputs.map(_.veType)
+                  namedResults = cF.outputs
                 ),
                 child = SparkToVectorEnginePlan(planLater(child))
               )
@@ -235,7 +372,7 @@ final case class VERewriteStrategy(
                 veFunction = VeFunction(
                   veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
                   functionName = fName,
-                  results = cF.outputs.map(_.veType)
+                  namedResults = cF.outputs
                 ),
                 child = SparkToVectorEnginePlan(planLater(child))
               )
@@ -425,11 +562,11 @@ final case class VERewriteStrategy(
                   dataDescriptions.count(_.keyOrValue.isKey) <= 0
                */
               if (options.exchangeOnVe) {
-                VeHashExchange(
+                VeHashExchangePlan(
                   exchangeFunction = VeFunction(
                     veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
                     functionName = exchangeName,
-                    results = partialCFunction.inputs.map(_.veType)
+                    namedResults = partialCFunction.inputs
                   ),
                   child = SparkToVectorEnginePlan(planLater(child))
                 )
@@ -448,7 +585,7 @@ final case class VERewriteStrategy(
               partialFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
                 functionName = partialName,
-                results = partialCFunction.outputs.map(_.veType)
+                namedResults = partialCFunction.outputs
               ),
               child = exchangePlan,
               expectedOutputs = partialCFunction.outputs
@@ -468,7 +605,7 @@ final case class VERewriteStrategy(
               flattenFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
                 functionName = mergeFunction,
-                results = partialCFunction.outputs.map(_.veType)
+                namedResults = partialCFunction.outputs
               ),
               child = pag
             )
@@ -479,7 +616,7 @@ final case class VERewriteStrategy(
                 finalFunction = VeFunction(
                   veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
                   functionName = finalName,
-                  results = ff.outputs.map(_.veType)
+                  namedResults = ff.outputs
                 ),
                 child = flt
               )
@@ -531,7 +668,7 @@ final case class VERewriteStrategy(
                   veFunctionStatus =
                     VeFunctionStatus.SourceCode(code.toCodeLinesSPtr(sortFName).cCode),
                   functionName = sortFName,
-                  results = code.outputs.map(_.veType)
+                  namedResults = code.outputs
                 ),
                 child = SparkToVectorEnginePlan(planLater(child))
               )

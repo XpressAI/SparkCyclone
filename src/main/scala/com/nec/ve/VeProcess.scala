@@ -2,7 +2,14 @@ package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CScalarVector,
+  CVarChar,
+  CVector,
+  VeScalarType,
+  VeString,
+  VeType
+}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
@@ -34,7 +41,7 @@ trait VeProcess {
     libraryReference: LibraryReference,
     functionName: String,
     cols: List[VeColVector],
-    results: List[VeType]
+    results: List[CVector]
   )(implicit context: OriginalCallingContext): List[VeColVector]
 
   /** Return multiple datasets - eg for sorting/exchanges */
@@ -42,14 +49,14 @@ trait VeProcess {
     libraryReference: LibraryReference,
     functionName: String,
     cols: List[VeColVector],
-    results: List[VeType]
+    results: List[CVector]
   )(implicit context: OriginalCallingContext): List[(Int, List[VeColVector])]
 
   def executeMultiIn(
     libraryReference: LibraryReference,
     functionName: String,
     batches: VeBatchOfBatches,
-    results: List[VeType]
+    results: List[CVector]
   )(implicit context: OriginalCallingContext): List[VeColVector]
 
 }
@@ -93,7 +100,7 @@ object VeProcess {
       libraryReference: LibraryReference,
       functionName: String,
       cols: List[VeColVector],
-      results: List[VeType]
+      results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().execute(libraryReference, functionName, cols, results)
 
@@ -102,7 +109,7 @@ object VeProcess {
       libraryReference: LibraryReference,
       functionName: String,
       cols: List[VeColVector],
-      results: List[VeType]
+      results: List[CVector]
     )(implicit context: OriginalCallingContext): List[(Int, List[VeColVector])] =
       f().executeMulti(libraryReference, functionName, cols, results)
 
@@ -110,7 +117,7 @@ object VeProcess {
       libraryReference: LibraryReference,
       functionName: String,
       batches: VeBatchOfBatches,
-      results: List[VeType]
+      results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
 
@@ -185,7 +192,7 @@ object VeProcess {
       libraryReference: LibraryReference,
       functionName: String,
       cols: List[VeColVector],
-      results: List[VeType]
+      results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] = {
       validateVectors(cols)
       val our_args = veo.veo_args_alloc()
@@ -223,7 +230,7 @@ object VeProcess {
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
       outPointers.zip(results).map {
-        case (outPointer, scalar: VeScalarType) =>
+        case (outPointer, CScalarVector(name, scalar)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -231,13 +238,13 @@ object VeProcess {
           VeColVector(
             source = source,
             numItems = byteBuffer.getInt(16),
-            name = "output",
+            name = name,
             veType = scalar,
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
           ).register()
-        case (outPointer, VeString) =>
+        case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -245,7 +252,7 @@ object VeProcess {
           VeColVector(
             source = source,
             numItems = byteBuffer.getInt(28),
-            name = "output",
+            name = name,
             variableSize = Some(byteBuffer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,
@@ -277,7 +284,7 @@ object VeProcess {
       libraryReference: LibraryReference,
       functionName: String,
       cols: List[VeColVector],
-      results: List[VeType]
+      results: List[CVector]
     )(implicit context: OriginalCallingContext): List[(Int, List[VeColVector])] = {
 
       validateVectors(cols)
@@ -326,7 +333,7 @@ object VeProcess {
 
       (0 until gotCounts).toList.map { set =>
         set -> outPointers.zip(results).map {
-          case (outPointer, VeString) =>
+          case (outPointer, CVarChar(name)) =>
             val outContainerLocation = outPointer.get(set)
             require(
               outContainerLocation > 0,
@@ -338,14 +345,14 @@ object VeProcess {
             VeColVector(
               source = source,
               numItems = byteBuffer.getInt(28),
-              name = "output",
+              name = name,
               veType = VeString,
               containerLocation = outContainerLocation,
               bufferLocations =
                 List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16)),
               variableSize = Some(byteBuffer.getInt(24))
             ).register()
-          case (outPointer, r: VeScalarType) =>
+          case (outPointer, CScalarVector(name, r)) =>
             val outContainerLocation = outPointer.get(set)
             require(
               outContainerLocation > 0,
@@ -357,7 +364,7 @@ object VeProcess {
             VeColVector(
               source = source,
               numItems = byteBuffer.getInt(16),
-              name = "output",
+              name = name,
               veType = r,
               containerLocation = outContainerLocation,
               bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
@@ -371,7 +378,7 @@ object VeProcess {
       libraryReference: LibraryReference,
       functionName: String,
       batches: VeBatchOfBatches,
-      results: List[VeType]
+      results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] = {
 
       batches.batches.foreach(batch => validateVectors(batch.cols))
@@ -418,7 +425,7 @@ object VeProcess {
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
       outPointers.zip(results).map {
-        case (outPointer, scalar: VeScalarType) =>
+        case (outPointer, CScalarVector(name, scalar)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -426,13 +433,13 @@ object VeProcess {
           VeColVector(
             source = source,
             numItems = byteBuffer.getInt(16),
-            name = "output",
+            name = name,
             veType = scalar,
             containerLocation = outContainerLocation,
             bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
             variableSize = None
           ).register()
-        case (outPointer, VeString) =>
+        case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
           byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
@@ -440,7 +447,7 @@ object VeProcess {
           VeColVector(
             source = source,
             numItems = byteBuffer.getInt(28),
-            name = "output",
+            name = name,
             variableSize = Some(byteBuffer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,

@@ -1,7 +1,12 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.planning.{
+  PlanCallsVeFunction,
+  SupportsKeyedVeColBatch,
+  SupportsVeColBatch,
+  VeFunction
+}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDD.RichKeyedRDDL
@@ -12,11 +17,12 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 import java.time.{Duration, Instant}
 
-case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
+case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
   with SupportsVeColBatch
   with LazyLogging
-  with PlanCallsVeFunction {
+  with PlanCallsVeFunction
+  with SupportsKeyedVeColBatch {
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   import OriginalCallingContext.Automatic._
@@ -36,7 +42,7 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
               libraryReference = libRefExchange,
               functionName = exchangeFunction.functionName,
               cols = veColBatch.cols,
-              results = exchangeFunction.results
+              results = exchangeFunction.namedResults
             )
             logger.debug(s"Mapped to ${multiBatches} completed.")
 
@@ -59,4 +65,36 @@ case class VeHashExchange(exchangeFunction: VeFunction, child: SparkPlan)
     copy(exchangeFunction = f(exchangeFunction))
 
   override def veFunction: VeFunction = exchangeFunction
+
+  override def executeVeColumnarKeyed(): RDD[(Int, VeColBatch)] = child
+    .asInstanceOf[SupportsVeColBatch]
+    .executeVeColumnar()
+    .mapPartitions { veColBatches =>
+      withVeLibrary { libRefExchange =>
+        logger.info(s"Will map multiple col batches for hash exchange.")
+        veColBatches.flatMap { veColBatch =>
+          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+          try {
+            if (veColBatch.nonEmpty) {
+              logger.debug(s"Mapping ${veColBatch} for exchange")
+              val multiBatches = veProcess.executeMulti(
+                libraryReference = libRefExchange,
+                functionName = exchangeFunction.functionName,
+                cols = veColBatch.cols,
+                results = exchangeFunction.namedResults
+              )
+              logger.debug(s"Mapped to ${multiBatches} completed.")
+
+              multiBatches.map { case (n, l) => n -> VeColBatch.fromList(l) }
+            } else {
+              logger.debug(s"${veColBatch} was empty.")
+              Nil
+            }
+          } finally {
+            child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+          }
+        }
+      }
+    }
+
 }

@@ -45,7 +45,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                         libraryReference = libRefExchange,
                         functionName = flattenFunction.functionName,
                         batches = VeBatchOfBatches.fromVeColBatches(inputBatches),
-                        results = flattenFunction.results
+                        results = flattenFunction.namedResults
                       )
                     logger.info(s"Transformed input, got ${res}")
                     res

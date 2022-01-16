@@ -81,7 +81,7 @@ final case class ProjectEvaluationPlan(
                     libraryReference = libRef,
                     functionName = veFunction.functionName,
                     cols = veColBatch.cols,
-                    results = veFunction.results
+                    results = veFunction.namedResults
                   )
                 )(registerFunctionCallTime(_, veFunction.functionName))
 

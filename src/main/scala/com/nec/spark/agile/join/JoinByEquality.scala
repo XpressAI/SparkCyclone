@@ -46,84 +46,99 @@ final case class JoinByEquality(
   def ioO: List[CVector] = List(out_left, out_right)
   def io: List[CVector] = ioWo ++ ioO
 
-  def produceIndices(fName: String): CodeLines =
-    CFunction(inputs = ioWo, outputs = ioO, body = functionBody).toCodeLinesS(fName)
-
-  def functionBody = CodeLines.from(
-    joins.map {
-      case Join(CVarChar(left), CVarChar(right)) =>
-        val pairing = EqualityPairing(
-          indexOfFirstColumn = s"index_${left}",
-          indexOfSecondColumn = s"index_${right}"
-        )
-        val left_words = s"${left}_words"
-        val left_dict = s"${left}_dict"
-        val left_dict_indices = s"${left}_dict_indices"
-        CodeLines.from(
-          CodeLines
-            .from(
-              s"frovedis::words ${left_words} = varchar_vector_to_words(${left});",
-              s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
-            ),
-          computeStringJoin(
-            leftDictIndices = left_dict_indices,
+  def produceIndices: CFunction = CFunction(
+    inputs = ioWo,
+    outputs = ioO,
+    body = CodeLines.from(
+      ioWo.map { vec =>
+        CodeLines.debugValue(s""""${vec.name}->count = """", s"${vec.name}->count")
+      },
+      joins.map {
+        case Join(CVarChar(left), CVarChar(right)) =>
+          val pairing = EqualityPairing(
+            indexOfFirstColumn = s"index_${left}",
+            indexOfSecondColumn = s"index_${right}"
+          )
+          val left_words = s"${left}_words"
+          val left_dict = s"${left}_dict"
+          val left_dict_indices = s"${left}_dict_indices"
+          CodeLines.from(
+            CodeLines.debugHere,
+            CodeLines
+              .from(
+                s"frovedis::words ${left_words} = varchar_vector_to_words(${left});",
+                s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
+              ),
+            computeStringJoin(
+              leftDictIndices = left_dict_indices,
+              outMatchingIndicesLeft = pairing.indexOfFirstColumn,
+              outMatchingIndicesRight = pairing.indexOfSecondColumn,
+              inLeftDict = left_dict,
+              inLeftWords = left_words,
+              inRightVarChar = right
+            )
+          )
+        case Join(CScalarVector(left, _), CScalarVector(right, _)) =>
+          val pairing = EqualityPairing(
+            indexOfFirstColumn = s"index_${left}",
+            indexOfSecondColumn = s"index_${right}"
+          )
+          computeNumJoin(
             outMatchingIndicesLeft = pairing.indexOfFirstColumn,
             outMatchingIndicesRight = pairing.indexOfSecondColumn,
-            inLeftDict = left_dict,
-            inLeftWords = left_words,
-            inRightVarChar = right
+            inLeft = left,
+            inRight = right
           )
-        )
-      case Join(CScalarVector(left, _), CScalarVector(right, _)) =>
-        val pairing = EqualityPairing(
-          indexOfFirstColumn = s"index_${left}",
-          indexOfSecondColumn = s"index_${right}"
-        )
-        computeNumJoin(
-          outMatchingIndicesLeft = pairing.indexOfFirstColumn,
-          outMatchingIndicesRight = pairing.indexOfSecondColumn,
-          inLeft = left,
-          inRight = right
-        )
-      case other =>
-        sys.error(s"Unmatched join: ${other}")
-    },
-    pairings match {
-      case one :: Nil =>
-        CodeLines.from(
-          List("left", "right").zip(List(one.indexOfFirstColumn, one.indexOfSecondColumn)).map {
-            case (nme, in) =>
-              CodeLines.from(
-                initializeScalarVector(VeScalarType.veNullableInt, s"${nme}_idx", s"${in}.size()"),
-                CodeLines.forLoop("i", s"${in}.size()")(
-                  CodeLines.from(
-                    s"${nme}_idx->data[i] = ${in}[i];",
-                    s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+        case other =>
+          sys.error(s"Unmatched join: ${other}")
+      },
+      pairings match {
+        case one :: Nil =>
+          CodeLines.from(
+            List("left", "right").zip(List(one.indexOfFirstColumn, one.indexOfSecondColumn)).map {
+              case (nme, in) =>
+                CodeLines.from(
+                  CodeLines.debugHere,
+                  initializeScalarVector(
+                    VeScalarType.veNullableInt,
+                    s"${nme}_idx",
+                    s"${in}.size()"
+                  ),
+                  CodeLines.debugHere,
+                  CodeLines.forLoop("i", s"${in}.size()")(
+                    CodeLines.from(
+                      s"${nme}_idx->data[i] = ${in}[i];",
+                      s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+                    )
                   )
                 )
-              )
-          }
-        )
+            }
+          )
 
-      case moreThanOne =>
-        CodeLines.from(
-          s"std::vector<size_t> left_idx_vec;",
-          s"std::vector<size_t> right_idx_vec;",
-          Conjunction(moreThanOne).compute("left_idx_vec", "right_idx_vec"),
-          CodeLines.from(List("left", "right").zip(List("left_idx_vec", "right_idx_vec")).map {
-            case (nme, in) =>
-              CodeLines.from(
-                initializeScalarVector(VeScalarType.veNullableInt, s"${nme}_idx", s"${in}.size()"),
-                CodeLines.forLoop("i", s"${in}.size()")(
-                  CodeLines.from(
-                    s"${nme}_idx->data[i] = ${in}[i];",
-                    s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+        case moreThanOne =>
+          CodeLines.from(
+            s"std::vector<size_t> left_idx_vec;",
+            s"std::vector<size_t> right_idx_vec;",
+            Conjunction(moreThanOne).compute("left_idx_vec", "right_idx_vec"),
+            CodeLines.from(List("left", "right").zip(List("left_idx_vec", "right_idx_vec")).map {
+              case (nme, in) =>
+                CodeLines.from(
+                  initializeScalarVector(
+                    VeScalarType.veNullableInt,
+                    s"${nme}_idx",
+                    s"${in}.size()"
+                  ),
+                  CodeLines.forLoop("i", s"${in}.size()")(
+                    CodeLines.from(
+                      s"${nme}_idx->data[i] = ${in}[i];",
+                      s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+                    )
                   )
                 )
-              )
-          })
-        )
-    }
+            })
+          )
+      }
+    )
   )
 
 }

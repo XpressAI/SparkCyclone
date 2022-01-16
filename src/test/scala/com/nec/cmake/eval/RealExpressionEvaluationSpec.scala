@@ -41,10 +41,10 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.{CppResource, DeclarativeAggregationConverter, StringProducer}
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
+import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -678,7 +678,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                     inputsLeft = inputsLeft,
                     inputsRight = inputsRight,
                     joins = List(firstJoin, secondJoin)
-                  ).produceIndices(fName = "adv_join").cCode
+                  ).produceIndices.toCodeLinesS("adv_join").cCode
                 }
               )
                 .mkString("\n\n")
@@ -764,7 +764,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                     List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
                   val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
                   val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
-                  GenericJoiner(
+                  val genericJoiner = GenericJoiner(
                     inputsLeft = inputsLeft,
                     inputsRight = inputsRight,
                     joins = List(firstJoin, secondJoin),
@@ -773,8 +773,18 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                       FilteredOutput("o_b", inputsLeft(2)),
                       FilteredOutput("o_c", inputsRight(2))
                     )
-                  ).produce(fName = "adv_join").cCode
-
+                  )
+                  val functionName = "adv_join"
+                  val produceIndicesFName = s"indices_${functionName}"
+                  CodeLines
+                    .from(
+                      CFunction.DefaultHeaders,
+                      genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
+                      genericJoiner
+                        .cFunction(produceIndicesFName)
+                        .toCodeLinesNoHeader(functionName)
+                    )
+                    .cCode
                 }
               )
                 .mkString("\n\n")

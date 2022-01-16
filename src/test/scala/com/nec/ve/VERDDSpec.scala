@@ -96,7 +96,7 @@ object VERDDSpec {
                     ref,
                     MultiFunctionName,
                     List(veColVector),
-                    List(CFunctionGeneration.VeScalarType.veNullableDouble)
+                    List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
                   )
                   .map { case (k, vs) => (k, vs.head) }
               } finally veColVector.free()
