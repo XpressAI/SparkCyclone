@@ -23,6 +23,7 @@ import com.nec.spark.agile.CppResource.CppPrefixPath
 import java.nio.file.Files
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
+import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException
 import org.reflections.scanners.ResourcesScanner
 
 import java.net.URL
@@ -30,7 +31,7 @@ import java.nio.file.Path
 import java.util.regex.Pattern
 
 object CppResource {
-  val CppPrefix = "com.nec.arrow.functions"
+  val CppPrefix = "com.nec.cyclone.cpp"
   val CppPrefixPath: String = CppPrefix.replace('.', '/')
 
   final case class CppResources(all: Set[CppResource]) {
@@ -48,17 +49,40 @@ object CppResource {
         .getResources(Pattern.compile(".*"))
         .asScala
         .toList
-        .map(_.drop(CppPrefix.length).drop(1))
-        .map(r => CppResource(r))
+        .map(nom => {
+          val nam = nom.drop(CppPrefix.length).drop(1)
+          CppResource(nam, s"/$nom")
+        })
         .toSet
     })
+    lazy val cycloneVeResources = {
+      import org.reflections.Reflections
+      val reflections = new Reflections("cycloneve", new ResourcesScanner)
+      import scala.collection.JavaConverters._
+      reflections
+        .getResources(Pattern.compile(".*\\.so"))
+        .asScala
+        .toList
+        .collect {
+          case name if name.contains(".so") =>
+            CppResource(name = name.drop("cycloneve".length + 1), fullPath = s"/$name")
+        }
+        .toSet
+    }
+    lazy val AllVe: CppResources = CppResources(cycloneVeResources ++ All.all)
   }
 
 }
 
-final case class CppResource(name: String) {
+final case class CppResource(name: String, fullPath: String) {
   def readString: String = IOUtils.toString(resourceUrl.openStream(), "UTF-8")
-  def resourceUrl: URL = this.getClass.getResource(s"/${CppPrefixPath}/${name}")
+  def resourceUrl: URL = {
+    try this.getClass.getResource(fullPath)
+    catch {
+      case npe: NullPointerException =>
+        throw new ResourceNotFoundException(s"Not found: ${name} // '${fullPath}'")
+    }
+  }
   def resourceFile(inRoot: Path): Path = inRoot.resolve(name)
   def containingDir(inRoot: Path): Path = resourceFile(inRoot).getParent
   def copyTo(destRoot: Path): Unit = {

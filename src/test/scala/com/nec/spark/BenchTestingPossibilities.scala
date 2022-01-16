@@ -19,18 +19,16 @@
  */
 package com.nec.spark
 
-import com.nec.native.NativeEvaluator
-import com.nec.native.NativeEvaluator.CNativeEvaluator
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import com.nec.spark.planning.{JoinPlanSpec, VERewriteStrategy}
+import com.nec.spark.planning.VERewriteStrategy
 import com.nec.testing.SampleSource.{SampleColA, SampleColB, SharedName}
-import com.nec.testing.{SampleSource, Testing}
 import com.nec.testing.Testing.{DataSize, TestingTarget}
+import com.nec.testing.{SampleSource, Testing}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.apache.spark.sql.internal.StaticSQLConf.CODEGEN_COMMENTS
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.freespec.AnyFreeSpec
 
 object BenchTestingPossibilities extends LazyLogging {
@@ -203,8 +201,7 @@ object BenchTestingPossibilities extends LazyLogging {
           offHeapMode = None,
           csvStrategy = None
         )
-      ),
-      JoinPlanSpec.OurTesting
+      )
     ).flatten
 
   trait BenchTestAdditions extends LazyLogging { this: AnyFreeSpec =>

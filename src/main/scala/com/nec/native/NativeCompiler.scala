@@ -18,7 +18,6 @@
  *
  */
 package com.nec.native
-import com.nec.arrow.TransferDefinitions
 import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file.Paths
@@ -37,7 +36,7 @@ trait NativeCompiler extends Serializable {
   def forCode(code: String): Path
   def forCode(codeLines: CodeLines): Path = forCode(codeLines.cCode)
   protected def combinedCode(code: String): String =
-    List(TransferDefinitions.TransferDefinitionsSourceCode, code).mkString("\n\n")
+    List(code).mkString("\n\n")
 }
 
 object NativeCompiler extends LazyLogging {
@@ -122,7 +121,7 @@ object NativeCompiler extends LazyLogging {
   object CNativeCompiler extends NativeCompiler {
     override def forCode(code: String): Path = {
       CMakeBuilder.buildCLogging(
-        List(TransferDefinitions.TransferDefinitionsSourceCode, code)
+        List(code)
           .mkString("\n\n")
       )
     }
@@ -131,7 +130,7 @@ object NativeCompiler extends LazyLogging {
   object CNativeCompilerDebug extends NativeCompiler {
     override def forCode(code: String): Path = {
       CMakeBuilder.buildCLogging(
-        cSource = List(TransferDefinitions.TransferDefinitionsSourceCode, code)
+        cSource = List(code)
           .mkString("\n\n"),
         debug = true
       )

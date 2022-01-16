@@ -19,11 +19,9 @@
  */
 package com.nec.ve
 
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
-import com.nec.arrow.functions.Join.JoinSourceCode
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CppResource.CppResources
-import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
+import com.nec.ve.VeKernelCompiler.{FileAttributes, PlatformLibrarySoName, VeCompilerConfig}
 import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file._
@@ -54,10 +52,6 @@ object VeKernelCompiler {
     OTHERS_EXECUTE
   ).asJava
   val FileAttributes = PosixFilePermissions.asFileAttribute(PosixPermissions)
-
-  lazy val DefaultIncludes = {
-    Set("cpp", "cpp/frovedis", "cpp/frovedis/dataframe", "")
-  }
 
   import VeCompilerConfig.ExtraArgumentPrefix
   final case class ProfileTarget(host: String, port: Int)
@@ -144,14 +138,6 @@ object VeKernelCompiler {
     }
   }
 
-  def compile_c(buildDir: Path = Paths.get("_ve_build"), config: VeCompilerConfig): Path = {
-    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
-      .compile_c(
-        List(TransferDefinitionsSourceCode, JoinSourceCode)
-          .mkString("\n\n\n")
-      )
-  }
-
   def compile_cpp(
     buildDir: Path = Paths.get("_ve_build"),
     config: VeCompilerConfig,
@@ -160,6 +146,8 @@ object VeKernelCompiler {
     VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
       .compile_c(code)
   }
+
+  val PlatformLibrarySoName = "cyclone-ve.so"
 
 }
 
@@ -170,48 +158,28 @@ final case class VeKernelCompiler(
 ) extends LazyLogging {
   require(buildDir.toAbsolutePath == buildDir, "Build dir should be absolute")
 
-  import scala.sys.process._
-
-  def runHopeOk(process: ProcessBuilder): Unit = {
-    var res = ""
-    var resErr = ""
-    val io = new ProcessIO(
-      stdin => { stdin.close() },
-      stdout => {
-        val src = scala.io.Source.fromInputStream(stdout)
-        try res = src.mkString
-        finally stdout.close()
-      },
-      stderr => {
-        val src = scala.io.Source.fromInputStream(stderr)
-        try resErr = src.mkString
-        finally stderr.close()
-      }
-    )
-    val proc = process.run(io)
-    val ev = proc.exitValue()
-    if (config.doDebug) {
-      logger.debug(s"NCC output: \n${res}; \n${resErr}")
-    }
-    assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
-  }
-
   def compile_c(sourceCode: String): Path = {
     if (!Files.exists(buildDir)) {
-      import PosixFilePermission._
 
       Files.createDirectories(buildDir, FileAttributes)
     }
     val cSource = buildDir.resolve(s"${compilationPrefix}.c")
 
     val sourcesDir = buildDir.resolve("sources")
-    CppResources.All.copyTo(sourcesDir)
+    CppResources.AllVe.copyTo(sourcesDir)
     val includes: List[String] = {
-      CppResources.All.all
+      CppResources.AllVe.all
         .map(_.containingDir(sourcesDir))
         .toList
         .map(i => i.toUri.toString.drop(sourcesDir.getParent.toUri.toString.length))
     }
+    val linkSos =
+      CppResources.AllVe.all.filter(_.name.endsWith(".so"))
+
+    assert(
+      linkSos.nonEmpty,
+      s"Expected to have at least 1 .so file, found nond. Source: ${CppResources.AllVe}"
+    )
     Files.write(cSource, sourceCode.getBytes())
     try {
       val oFile = buildDir.resolve(s"${compilationPrefix}.o")
@@ -222,6 +190,7 @@ final case class VeKernelCompiler(
       val command: Seq[String] =
         Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
           "-xc++",
+          "-Isources/",
           "-c",
           cSource.toString,
           "-o",
@@ -229,17 +198,27 @@ final case class VeKernelCompiler(
         )
       logger.info(s"Compilation command = ${command}")
 
-      runHopeOk(Process(command = command, cwd = buildDir.toFile))
-      // make sure everyone an read this
-      runHopeOk(Process(command = List("chmod", "777", oFile.toString), cwd = buildDir.toFile))
+      ProcessRunner.runHopeOk(
+        Process(command = command, cwd = buildDir.toFile),
+        doDebug = config.doDebug
+      )
+      // make sure everyone can read this
+      ProcessRunner.runHopeOk(
+        Process(command = List("chmod", "777", oFile.toString), cwd = buildDir.toFile),
+        doDebug = config.doDebug
+      )
 
-      val command2 =
+      val command2: Seq[String] = {
         Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
           "-o",
           soFile.toString,
           oFile.toString
-        )
-      runHopeOk(Process(command = command2, cwd = buildDir.toFile))
+        ) ++ linkSos.toList.map(_.name).map(sourcesDir.resolve(_)).map(_.toString)
+      }
+      ProcessRunner.runHopeOk(
+        Process(command = command2, cwd = buildDir.toFile),
+        doDebug = config.doDebug
+      )
 
       soFile
     } catch {

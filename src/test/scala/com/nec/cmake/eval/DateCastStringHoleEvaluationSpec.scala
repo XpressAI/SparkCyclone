@@ -4,7 +4,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.DateCastStringHoleEvaluationSpec.executeHoleEvaluation
@@ -17,9 +16,10 @@ import com.nec.util.RichVectors.RichIntVector
 import org.scalatest.flatspec.AnyFlatSpec
 
 final class DateCastStringHoleEvaluationSpec extends AnyFlatSpec {
-  "It" should  "correctly map string to date" in {
+  "It" should "correctly map string to date" in {
     val list = List("1970-01-01", "2000-01-01", "1960-01-01", "2022-12-31")
-    val expectedResults = list.map(LocalDate.parse(_, DateTimeFormatter.ISO_DATE))
+    val expectedResults = list
+      .map(LocalDate.parse(_, DateTimeFormatter.ISO_DATE))
       .map(_.toEpochDay)
     val evaluation = DateCastStringHoleEvaluation("strings")
 
@@ -32,14 +32,12 @@ final class DateCastStringHoleEvaluationSpec extends AnyFlatSpec {
 object DateCastStringHoleEvaluationSpec {
 
   def executeHoleEvaluation(
-                             input: List[String],
-                             stringHoleEvaluation: StringHoleEvaluation
-                           ): List[Int] = {
+    input: List[String],
+    stringHoleEvaluation: StringHoleEvaluation
+  ): List[Int] = {
 
     val cLib = CMakeBuilder.buildCLogging(
       List(
-        TransferDefinitionsSourceCode,
-        "\n\n",
         CFunction(
           inputs = List(CVector.varChar("strings")),
           outputs = List(CVector.int("dates")),

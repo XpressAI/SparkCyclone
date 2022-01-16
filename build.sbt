@@ -2,7 +2,7 @@ import sbt.Def.spaceDelimited
 import sbt.Keys.envVars
 
 import java.lang.management.ManagementFactory
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 
 val CMake = config("cmake") extend Test
 val TPC = config("tpc") extend Test
@@ -157,14 +157,30 @@ Test / parallelExecution := false
 inConfig(Test)(Defaults.testTasks)
 
 /** To do things more cleanly */
-CMake / parallelExecution := false
-
+CMake / parallelExecution := true
+/**
+ * Make each test suite run independently
+ * https://stackoverflow.com/questions/61072140/forking-each-scalatest-suite-with-sbt
+ */
+CMake / testGrouping := (CMake / definedTests).value.map { suite =>
+  import sbt.Tests._
+  Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
+}
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false
 inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
 VectorEngine / run / fork := false
+
+/**
+ * Make each test suite run independently
+ * https://stackoverflow.com/questions/61072140/forking-each-scalatest-suite-with-sbt
+ */
+VectorEngine / testGrouping := (VectorEngine / definedTests).value.map { suite =>
+  import sbt.Tests._
+  Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
+}
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
 VectorEngine / run / javaOptions ++= {
@@ -208,7 +224,7 @@ TPC / testOptions := {
 /** CMake specific configuration */
 inConfig(CMake)(Defaults.testTasks)
 def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
-CMake / fork := false
+CMake / fork := true
 CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
 Global / cancelable := true
@@ -420,9 +436,70 @@ lazy val `tpcbench-run` = project
     reStart / envVars += "CYCLONE_JAR" -> (root / assembly).value.absolutePath,
     reStart := reStart
       .dependsOn((Test / testQuick).toTask(""))
-      .dependsOn((root / Test / compile))
+      .dependsOn(root / Test / compile)
       .dependsOn((root / VectorEngine / compile))
       .evaluated,
     Test / fork := true
   )
   .dependsOn(tracing)
+
+lazy val buildVeLibrary = settingKey[Boolean]("Build VE library")
+
+buildVeLibrary := Files.exists(Paths.get("/opt/nec/ve/bin/ncc"))
+
+Compile / resourceGenerators += Def.taskDyn {
+  if (buildVeLibrary.value) cycloneVeLibrary.toTask
+  else Def.task(Seq.empty[File])
+}.taskValue
+
+lazy val cycloneVeLibrary = taskKey[Seq[File]]("Cyclone VE library")
+lazy val cycloneVeLibrarySources = taskKey[Seq[File]]("Cyclone VE library sources")
+
+cycloneVeLibrarySources :=
+  sbt.nio.file.FileTreeView.default
+    .list(
+      Seq(
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/*.hpp"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/*.cc"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/core/*"),
+        Glob(
+          (Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/dataframe/*"
+        ),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/text/*"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/Makefile")
+      )
+    )
+    .map(_._1.toFile)
+
+cycloneVeLibrary := {
+  val s = streams.value
+  val cachedFun = FileFunction.cached(s.cacheDirectory / "cpp") { (in: Set[File]) =>
+    val logger = s.log
+    import scala.sys.process._
+    in.find(_.toString.contains("Makefile")) match {
+      case Some(makefile) =>
+        Process(command = Seq("make", "cyclone-ve.so"), cwd = makefile.getParentFile) ! logger
+        val cycloneVeLibraryDir = (Compile / resourceManaged).value / "cycloneve"
+        val filesToCopy = {
+          in.filter(fs =>
+            fs.toString.endsWith(".hpp") || fs.toString.endsWith(".incl")
+          ) + (new File(makefile.getParentFile, "cyclone-ve.so"))
+        }
+        IO.createDirectory(cycloneVeLibraryDir)
+        filesToCopy.flatMap { sourceFile =>
+          Path
+            .rebase(makefile.getParentFile, cycloneVeLibraryDir)
+            .apply(sourceFile)
+            .map { targetFile =>
+              IO.copyFile(sourceFile, targetFile)
+              targetFile
+            }
+        }
+      case None =>
+        sys.error("Could not find a Makefile")
+    }
+  }
+  cachedFun(cycloneVeLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
+}
+
+cycloneVeLibrary / logBuffered := false

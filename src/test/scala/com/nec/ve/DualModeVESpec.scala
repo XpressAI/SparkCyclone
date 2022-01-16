@@ -20,6 +20,7 @@ import org.scalatest.freespec.AnyFreeSpec
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
+@org.scalatest.Ignore()
 final class DualModeVESpec
   extends AnyFreeSpec
   with SparkAdditions

@@ -39,26 +39,25 @@ final class VERDDSpec
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
     import SparkCycloneExecutorPlugin._
-    val result = compiledWithHeaders(DoublingFunction.toCodeLinesNoHeaderOutPtr("f").cCode) {
-      path =>
-        val ref = veProcess.loadLibrary(path)
-        doubleBatches {
-          sparkSession.sparkContext
-            .range(start = 1, end = 500, step = 1, numSlices = 4)
-            .map(_.toDouble)
-        }.map(arrowVec => VeColVector.fromArrowVector(arrowVec))
-          .map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
-          .map(vectors => {
-            WithTestAllocator { implicit alloc =>
-              val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
-              try vec.toList
-              finally vec.close()
-            }
-          })
-          .collect()
-          .toList
-          .flatten
-          .sorted
+    val result = compiledWithHeaders(DoublingFunction, "f") { path =>
+      val ref = veProcess.loadLibrary(path)
+      doubleBatches {
+        sparkSession.sparkContext
+          .range(start = 1, end = 500, step = 1, numSlices = 4)
+          .map(_.toDouble)
+      }.map(arrowVec => VeColVector.fromArrowVector(arrowVec))
+        .map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
+        .map(vectors => {
+          WithTestAllocator { implicit alloc =>
+            val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
+            try vec.toList
+            finally vec.close()
+          }
+        })
+        .collect()
+        .toList
+        .flatten
+        .sorted
     }
 
     val expected = List.range(1, 500).map(_.toDouble).map(_ * 2)

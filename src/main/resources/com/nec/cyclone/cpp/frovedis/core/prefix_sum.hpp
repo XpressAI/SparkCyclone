@@ -2,7 +2,6 @@
 #define PREFIX_SUM_HPP
 
 #include <vector>
-#include "utility.cc"
 #include "utility.hpp"
 
 #define PREFIX_SUM_VLEN 256

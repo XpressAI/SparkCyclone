@@ -1,7 +1,6 @@
 package com.nec.cmake.functions
 
 import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.util.RichVectors._
@@ -19,7 +18,6 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
 
     val cLib = CMakeBuilder.buildCLogging(
       List(
-        TransferDefinitionsSourceCode,
         "\n\n",
         CFunction(
           inputs = List(CVector.varChar("input_0")),
@@ -59,7 +57,6 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
     val prod = FrovedisCopyStringProducer("input_0")
     val cLib = CMakeBuilder.buildCLogging(
       cSource = List(
-        TransferDefinitionsSourceCode,
         "\n\n",
         CFunction(
           inputs = List(CVector.varChar("input_0")),

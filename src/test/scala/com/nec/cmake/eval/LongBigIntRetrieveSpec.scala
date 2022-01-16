@@ -20,7 +20,6 @@
 package com.nec.cmake.eval
 
 import com.nec.arrow.ArrowNativeInterface.NativeArgument
-import com.nec.arrow.TransferDefinitions.TransferDefinitionsSourceCode
 import com.nec.arrow.{CArrowNativeInterface, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.util.RichVectors.RichBigIntVector
@@ -35,7 +34,8 @@ final class LongBigIntRetrieveSpec extends AnyFreeSpec {
 
       val cLib = CMakeBuilder.buildC(
         List(
-          TransferDefinitionsSourceCode,
+          """#include "transfer-definitions.hpp"""",
+          """#include "cyclone.hpp"""",
           "\n\n",
           CodeLines
             .from(

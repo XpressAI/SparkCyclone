@@ -4,7 +4,8 @@
 #include "../core/prefix_sum.hpp"
 #include "../dataframe/hashtable.hpp"
 #include <stdexcept>
-
+#include <iostream>
+#include <vector>
 #include "words.hpp"
 
 using namespace std;
