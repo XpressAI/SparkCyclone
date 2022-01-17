@@ -87,7 +87,6 @@ object VeRDD extends LazyLogging {
 
       leftPts
         .join(rightPts)
-        .repartitionByKey()
         .filter { case (_, ((v1, _), (v2, _))) =>
           v1.nonEmpty && v2.nonEmpty
         }

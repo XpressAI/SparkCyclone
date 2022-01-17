@@ -36,7 +36,12 @@ import com.nec.spark.agile.join.GenericJoiner
 import com.nec.spark.agile.join.GenericJoiner.FilteredOutput
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, InputPrefix, SequenceList}
+import com.nec.spark.planning.VERewriteStrategy.{
+  GroupPrefix,
+  HashExchangeBuckets,
+  InputPrefix,
+  SequenceList
+}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.plans._
@@ -82,6 +87,8 @@ object VERewriteStrategy {
   val AggPrefix = "agg_"
   val InputPrefix: String = "input_"
   val GroupPrefix: String = "group_"
+
+  val HashExchangeBuckets: Int = 8
 }
 
 final case class VERewriteStrategy(
@@ -185,7 +192,7 @@ final case class VERewriteStrategy(
                     else KeyOrValue.Value
                 )
               ),
-              totalBuckets = 16
+              totalBuckets = HashExchangeBuckets
             )
           }
           val exchangeFunctionR = {
@@ -198,12 +205,13 @@ final case class VERewriteStrategy(
                     else KeyOrValue.Value
                 )
               ),
-              totalBuckets = 16
+              totalBuckets = HashExchangeBuckets
             )
           }
 
           val code = CodeLines
             .from(
+              CFunctionGeneration.KeyHeaders,
               exchangeFunctionL.toCodeLines(exchangeNameL),
               exchangeFunctionR.toCodeLines(exchangeNameR)
             )
@@ -218,11 +226,12 @@ final case class VERewriteStrategy(
                     VeFunctionStatus.SourceCode(
                       CodeLines
                         .from(
+                          CFunctionGeneration.KeyHeaders,
                           TcpDebug.conditional.headers,
                           genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
                           genericJoiner
                             .cFunction(produceIndicesFName)
-                            toCodeLinesNoHeaderOutPtr2 (functionName)
+                            .toCodeLinesNoHeaderOutPtr2(functionName)
                         )
                         .cCode
                     )
@@ -536,8 +545,10 @@ final case class VERewriteStrategy(
               }
             }
             exchangeName = s"exchange_$functionPrefix"
-            exchangeFunction = GroupingFunction.groupData(dataDescriptions.toList, 16)
-
+            exchangeFunction = GroupingFunction.groupData(
+              data = dataDescriptions.toList,
+              totalBuckets = HashExchangeBuckets
+            )
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
             mergeFunction = s"merge_$functionPrefix"
