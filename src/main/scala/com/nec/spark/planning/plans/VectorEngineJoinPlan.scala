@@ -13,6 +13,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{registerFunctionCallTime, measureRunningTime}
 
 case class VectorEngineJoinPlan(
   outputExpressions: Seq[NamedExpression],
@@ -41,13 +42,16 @@ case class VectorEngineJoinPlan(
           logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =
-            try veProcess.execute(
-              libraryReference = libRefJoin,
-              functionName = joinFunction.functionName,
-              cols = leftColBatch.cols ++ rightColBatch.cols,
-              results = joinFunction.namedResults
-            )
-            finally {
+            try {
+              measureRunningTime(
+                veProcess.execute(
+                  libraryReference = libRefJoin,
+                  functionName = joinFunction.functionName,
+                  cols = leftColBatch.cols ++ rightColBatch.cols,
+                  results = joinFunction.namedResults
+                )
+              )(registerFunctionCallTime(_, veFunction.functionName))
+            } finally {
               dataCleanup.cleanup(leftColBatch)
               dataCleanup.cleanup(rightColBatch)
             }

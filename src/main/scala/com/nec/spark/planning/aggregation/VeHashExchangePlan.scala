@@ -9,6 +9,7 @@ import com.nec.spark.planning.{
 }
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -36,19 +37,19 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
         veColBatches.flatMap { veColBatch =>
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           try {
-            val startTime = Instant.now()
             logger.debug(s"Mapping ${veColBatch} for exchange")
-            val multiBatches = veProcess.executeMulti(
-              libraryReference = libRefExchange,
-              functionName = exchangeFunction.functionName,
-              cols = veColBatch.cols,
-              results = exchangeFunction.namedResults
-            )
+            val multiBatches = measureRunningTime(
+              veProcess.executeMulti(
+                libraryReference = libRefExchange,
+                functionName = exchangeFunction.functionName,
+                cols = veColBatch.cols,
+                results = exchangeFunction.namedResults
+              )
+            )(registerFunctionCallTime(_, veFunction.functionName))
             logger.debug(s"Mapped to ${multiBatches} completed.")
 
             val (filled, unfilled) = multiBatches.partition(_._2.head.nonEmpty)
             unfilled.flatMap(_._2).foreach(vcv => vcv.free())
-            val timeTaken = Duration.between(startTime, Instant.now())
             filled
           } finally {
             child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
