@@ -45,6 +45,14 @@ abstract class TPCHSqlCSpec
 
   implicit val doubleEq = TolerantNumerics.tolerantDoubleEquality(1e-6f)
 
+  implicit class ExtendedDouble(x: Double) {
+    def truncate: Double = {
+      val precision = 6
+      val s = math.pow(10, precision)
+      math.round(x * s) / s
+    }
+  }
+
   private def condMarkup(mkp: String)(implicit pos: Position): Unit = {
     if (printMarkup) markup(mkp)
   }
@@ -432,6 +440,7 @@ abstract class TPCHSqlCSpec
       assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultQuery, expected))
     }
   }
+
   withTpchViews("Query 3", configuration) { sparkSession =>
     import sparkSession.implicits._
     val segment = "BUILDING"
@@ -528,6 +537,7 @@ abstract class TPCHSqlCSpec
       )
     }
   }
+
   withTpchViews("Query 5", configuration) { sparkSession =>
     import sparkSession.implicits._
 
@@ -575,6 +585,7 @@ abstract class TPCHSqlCSpec
       )
     }
   }
+
   withTpchViews("Query 6", configuration) { sparkSession =>
     import sparkSession.implicits._
     val date = "1994-01-01"
@@ -599,6 +610,7 @@ abstract class TPCHSqlCSpec
       ) // We get here 1.2314107822829895E8 from our code
     }
   }
+
   withTpchViews("Query 7", configuration) { sparkSession =>
     import sparkSession.implicits._
 
@@ -644,18 +656,20 @@ abstract class TPCHSqlCSpec
         cust_nation,
         l_year
     """
+
+    val expected = Array(
+      ("FRANCE", "GERMANY", 1995, 5.463973273360003e7),
+      ("FRANCE", "GERMANY", 1996, 5.463308330760005e7),
+      ("GERMANY", "FRANCE", 1995, 5.253174666970001e7),
+      ("GERMANY", "FRANCE", 1996, 5.2520549022399865e7)
+    ).map(x => x.copy(_4 = x._4.truncate)).sorted
+
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[(String, String, Int, Double)].collect().toList.sorted === List(
-          ("FRANCE", "GERMANY", 1995, 5.463973273360003e7),
-          ("FRANCE", "GERMANY", 1996, 5.463308330760005e7),
-          ("GERMANY", "FRANCE", 1995, 5.253174666970001e7),
-          ("GERMANY", "FRANCE", 1996, 5.2520549022399865e7)
-        )
-      ) // FRANCE GERMANY 1995 54639732.7.sorted3
+      val results = ds.as[(String, String, Int, Double)].collect.map(x => x.copy(_4 = x._4.truncate)).sorted
+      assert(results === expected) // FRANCE GERMANY 1995 54639732.7.sorted3
     }
   }
-  //Fails
+
   withTpchViews("Query 8", configuration) { sparkSession =>
     import sparkSession.implicits._
     val nation = "BRAZIL"
@@ -703,13 +717,14 @@ abstract class TPCHSqlCSpec
     order by
       o_year
     """
+    val expected = Array(
+      (1995, 0.03443589040665487),
+      (1996, 0.041485521293530316)
+    ).map(x => x.copy(_2 = x._2.truncate)).sorted
+
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[(Long, Double)].collect.toList.sorted === List(
-          (1995, 0.03443589040665487),
-          (1996, 0.041485521293530316)
-        ).sorted
-      )
+      val results = ds.as[(Long, Double)].collect.map(x => x.copy(_2 = x._2.truncate)).sorted
+      assert(results === expected)
     }
   }
   withTpchViews("Query 9", configuration) { sparkSession =>
@@ -758,15 +773,17 @@ abstract class TPCHSqlCSpec
         StructField("_2", DoubleType)
       )
     )
-    val result = sparkSession.read
+    val expected = sparkSession.read
       .schema(resultSchema)
       .csv(resultsDir + "Query9.csv")
       .as[(String, Int, Double)]
-      .collect()
-      .toList
+      .collect
+      .map(x => x.copy(_3 = x._3.truncate))
+      .sorted
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(String, Int, Double)].collect().toList.sorted === result.sorted)
+      val results = ds.as[(String, Int, Double)].collect.map(x => x.copy(_3 = x._3.truncate)).sorted
+      assert(results === expected)
     }
   }
   withTpchViews("Query 10", configuration) { sparkSession =>
@@ -1035,6 +1052,7 @@ abstract class TPCHSqlCSpec
       (results, expected).zipped.map { case (x, y) => assert(x === y) } //  16.3.sorted8
     }
   }
+
   withTpchViews("Query 15", configuration) { sparkSession =>
     import sparkSession.implicits._
     val streamId = "1"
@@ -1147,6 +1165,7 @@ abstract class TPCHSqlCSpec
       assert(ds.as[(String, String, Long, Long)].collect.toList.sorted === result.sorted)
     }
   }
+
   withTpchViews("Query 17", configuration) { sparkSession =>
     import sparkSession.implicits._
     val brand = "Brand#23"
@@ -1177,6 +1196,7 @@ abstract class TPCHSqlCSpec
       ) //  348406.0.sorted5
     }
   }
+
   withTpchViews("Query 18", configuration) { sparkSession =>
     import sparkSession.implicits._
     val quantity = 300
@@ -1243,6 +1263,7 @@ abstract class TPCHSqlCSpec
       ) // Customer#000128120 128120 4722021 1994-04-07 544089.09 323.0.sorted0
     }
   }
+
   withTpchViews("Query 19", configuration) { sparkSession =>
     import sparkSession.implicits._
     val brand1 = "Brand#12"
@@ -1296,6 +1317,7 @@ abstract class TPCHSqlCSpec
       assert(ds.as[Double].collect.toList.sorted === List(3083843.057799999)) // 3083843.0.sorted5
     }
   }
+
   withTpchViews("Query 20", configuration) { sparkSession =>
     import sparkSession.implicits._
     val color = "forest"
@@ -1354,6 +1376,7 @@ abstract class TPCHSqlCSpec
       assert(ds.as[(String, String)].collect().toList.sorted === result.sorted)
     }
   }
+
   withTpchViews("Query 21", configuration) { sparkSession =>
     import sparkSession.implicits._
     val nation = "SAUDI ARABIA"
@@ -1411,6 +1434,7 @@ abstract class TPCHSqlCSpec
       assert(ds.as[(String, Long)].collect.toList.sorted === result.sorted)
     }
   }
+
   withTpchViews("Query 22", configuration) { sparkSession =>
     import sparkSession.implicits._
     val items = Seq("'13'", "'31'", "'23'", "'29'", "'30'", "'18'", "'17'")

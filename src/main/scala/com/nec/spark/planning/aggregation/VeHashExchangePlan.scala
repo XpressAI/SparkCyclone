@@ -9,7 +9,10 @@ import com.nec.spark.planning.{
 }
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
+  measureRunningTime,
+  registerFunctionCallTime
+}
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD

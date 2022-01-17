@@ -13,7 +13,10 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{registerFunctionCallTime, measureRunningTime}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
+  measureRunningTime,
+  registerFunctionCallTime
+}
 
 case class VectorEngineJoinPlan(
   outputExpressions: Seq[NamedExpression],
