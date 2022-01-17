@@ -84,30 +84,50 @@ object StringHole {
 
     final case class InStringHoleEvaluation(refName: String, valueList: Seq[String])
       extends StringHoleEvaluation {
-      val valuesWords = s"in_values_${Math.abs(hashCode())}"
-      val toCheckWords = s"in_toCheck_${Math.abs(hashCode())}"
-      val filteredIds = s"in_filtered_${Math.abs(hashCode())}"
-      val matchingIds = s"in_matches_${Math.abs(hashCode())}"
+      val inputWords = s"input_words_${Math.abs(hashCode())}"
+      val values = s"values_${Math.abs(hashCode())}"
+      val filteringSet = s"filtering_set_${Math.abs(hashCode())}"
+      val matchingIds = s"matching_ids_${Math.abs(hashCode())}"
+      val filteredIds = s"filtered_ids_${Math.abs(hashCode())}"
+      val notFound = s"NOT_FOUND_${Math.abs(hashCode())}"
+      val delimiter = {
+        /*
+          Use an ASCII character that is not present in any of the strings in
+          the IN query valueList and is not \0.  This avoids incorrect
+          tokenization of filter words in frovedis::split_to_words() when one
+          of the strings in the IN query valueList contains the delimiter
+          character.
+        */
+        val chars = valueList.mkString("")
+        1.to(255).find(x => !chars.contains(x.toChar)) match {
+          case Some(d) => d
+          case None => throw new IllegalArgumentException("Cannot find a unique ASCII char to use as delimiter")
+        }
+      }
+      val words = valueList.mkString(delimiter.toChar.toString).map(_.toInt).mkString(",")
 
-      val words = valueList.mkString(" ").map(_.toInt).mkString(",")
-
-      override def computeVector: CodeLines = CodeLines.from(
-        s"frovedis::words $valuesWords = varchar_vector_to_words($refName);",
-        s"std::vector<int> values{ ${words} };",
-        s"""frovedis::words ${toCheckWords} = frovedis::split_to_words(values, " ");""",
-        "auto NOT_FOUND = std::numeric_limits<size_t>::max();",
-        s"std::vector<size_t> ${matchingIds} = filter_words_dict(${valuesWords}, ${toCheckWords});",
-        s"std::vector<size_t> ${filteredIds}(${refName}->count);",
-        s"for(int i = 0; i < ${matchingIds}.size(); i++) {",
+      override def computeVector: CodeLines = {
         CodeLines.from(
-          s"if($matchingIds[i] != NOT_FOUND) {",
-          CodeLines.from(s"${filteredIds}[i] = 1;").indented,
-          "} else {",
-          CodeLines.from(s"${filteredIds}[i] = 0;").indented,
-          "}"
-        ),
-        "}"
-      )
+          s"std::vector<size_t> ${filteredIds}(${refName}->count);",
+          CodeLines.scoped {
+            CodeLines.from(
+              s"// STEP: Filter ${refName} to values of the given set",
+              s"frovedis::words $inputWords = varchar_vector_to_words($refName);",
+              s"std::vector<int> ${values} { ${words} };",
+              s"""frovedis::words ${filteringSet} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",
+              s"auto ${notFound} = std::numeric_limits<size_t>::max();",
+              s"std::vector<size_t> ${matchingIds} = filter_words_dict(${inputWords}, ${filteringSet});",
+              CodeLines.forLoop("i", s"${matchingIds}.size()") {
+                CodeLines.ifElseStatement(s"$matchingIds[i] != ${notFound}") {
+                  s"${filteredIds}[i] = 1;"
+                } {
+                  s"${filteredIds}[i] = 0;"
+                }
+              }
+            )
+          }
+        )
+      }
 
       override def deallocData: CodeLines = CodeLines.empty
 
