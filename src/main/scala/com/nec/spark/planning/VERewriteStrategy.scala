@@ -218,7 +218,6 @@ final case class VERewriteStrategy(
                     VeFunctionStatus.SourceCode(
                       CodeLines
                         .from(
-                          CFunction.DefaultHeaders,
                           TcpDebug.conditional.headers,
                           genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
                           genericJoiner

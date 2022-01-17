@@ -21,7 +21,6 @@ package com.nec.spark.agile
 
 import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.CFunction.DefaultHeaders
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableDouble,
   VeNullableFloat,

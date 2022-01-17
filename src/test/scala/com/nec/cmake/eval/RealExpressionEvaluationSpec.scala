@@ -778,7 +778,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                   val produceIndicesFName = s"indices_${functionName}"
                   CodeLines
                     .from(
-                      CFunction.DefaultHeaders,
                       genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
                       genericJoiner
                         .cFunction(produceIndicesFName)
