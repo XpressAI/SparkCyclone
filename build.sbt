@@ -171,7 +171,7 @@ VectorEngine / parallelExecution := false
 inConfig(VectorEngine)(Defaults.testTasks)
 def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
 VectorEngine / fork := true
-VectorEngine / run / fork := false
+VectorEngine / run / fork := true
 
 /**
  * Make each test suite run independently

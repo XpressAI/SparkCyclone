@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 
 object VeFunction {
@@ -16,8 +16,9 @@ object VeFunction {
 final case class VeFunction(
   veFunctionStatus: VeFunctionStatus,
   functionName: String,
-  results: List[VeType]
+  namedResults: List[CVector]
 ) {
+  def results: List[VeType] = namedResults.map(_.veType)
   def isCompiled: Boolean = veFunctionStatus match {
     case VeFunctionStatus.SourceCode(_) => false
     case VeFunctionStatus.Compiled(_)   => true

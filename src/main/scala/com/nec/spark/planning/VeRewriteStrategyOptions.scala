@@ -9,7 +9,8 @@ final case class VeRewriteStrategyOptions(
   filterOnVe: Boolean,
   exchangeOnVe: Boolean,
   passThroughProject: Boolean,
-  failFast: Boolean
+  failFast: Boolean,
+  joinOnVe: Boolean
 ) {}
 
 object VeRewriteStrategyOptions {
@@ -43,7 +44,11 @@ object VeRewriteStrategyOptions {
       failFast = sparkConf
         .getOption(key = "spark.com.nec.spark.fail-fast")
         .map(_.toBoolean)
-        .getOrElse(default.failFast)
+        .getOrElse(default.failFast),
+      joinOnVe = sparkConf
+        .getOption(key = "spark.com.nec.spark.join-on-ve")
+        .map(_.toBoolean)
+        .getOrElse(default.joinOnVe)
     )
   }
 
@@ -55,6 +60,7 @@ object VeRewriteStrategyOptions {
       aggregateOnVe = true,
       exchangeOnVe = true,
       passThroughProject = false,
-      failFast = false
+      failFast = false,
+      joinOnVe = false
     )
 }

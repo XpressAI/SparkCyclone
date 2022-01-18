@@ -46,7 +46,7 @@ final class VERDDSpec
           .range(start = 1, end = 500, step = 1, numSlices = 4)
           .map(_.toDouble)
       }.map(arrowVec => VeColVector.fromArrowVector(arrowVec))
-        .map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs.map(_.veType)))
+        .map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs))
         .map(vectors => {
           WithTestAllocator { implicit alloc =>
             val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
@@ -96,7 +96,7 @@ object VERDDSpec {
                     ref,
                     MultiFunctionName,
                     List(veColVector),
-                    List(CFunctionGeneration.VeScalarType.veNullableDouble)
+                    List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
                   )
                   .map { case (k, vs) => (k, vs.head) }
               } finally veColVector.free()

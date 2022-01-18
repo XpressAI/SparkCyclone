@@ -73,7 +73,7 @@ final case class OneStageEvaluationPlan(
                     libraryReference = libRef,
                     functionName = veFunction.functionName,
                     cols = inputBatch.cols,
-                    results = veFunction.results
+                    results = veFunction.namedResults
                   )
                 )(registerFunctionCallTime(_, veFunction.functionName))
 

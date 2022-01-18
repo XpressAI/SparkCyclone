@@ -45,7 +45,7 @@ case class VeFinalAggregate(
                 libraryReference = libRef,
                 functionName = finalFunction.functionName,
                 cols = veColBatch.cols,
-                results = finalFunction.results
+                results = finalFunction.namedResults
               )
             )(registerFunctionCallTime(_, veFunction.functionName))
             finally {

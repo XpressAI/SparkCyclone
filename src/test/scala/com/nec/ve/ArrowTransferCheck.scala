@@ -84,7 +84,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             libraryReference = lib,
             functionName = "f",
             cols = List(colVec),
-            results = List(VeScalarType.veNullableDouble)
+            results = List(VeScalarType.veNullableDouble.makeCVector("outd"))
           )
           expect(results.size == 1)
           val vec = results.head.toArrowVector().asInstanceOf[Float8Vector]
@@ -106,7 +106,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             libraryReference = lib,
             functionName = "f",
             cols = List(colVec),
-            results = List(VeScalarType.veNullableDouble)
+            results = List(VeScalarType.veNullableDouble.makeCVector("outd"))
           )
 
           val plainResults: List[(Int, Option[Double])] = results.map { case (index, vecs) =>
@@ -154,8 +154,11 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                 libraryReference = lib,
                 functionName = "f",
                 cols = List(colVec, colVecS, colVec2),
-                results =
-                  List(VeScalarType.veNullableDouble, VeString, VeScalarType.veNullableDouble)
+                results = List(
+                  VeScalarType.veNullableDouble,
+                  VeString,
+                  VeScalarType.veNullableDouble
+                ).zipWithIndex.map { case (vt, i) => vt.makeCVector(s"out_${i}") }
               )
 
               val plainResultsD: List[(Int, List[(Double, String, Double)])] = results.map {
@@ -271,6 +274,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
   "We can merge multiple VeColBatches" in {
     val fName = "merger"
+
     compiledWithHeaders(MergerFunction.merge(types = List(VeNullableDouble, VeString)), fName) {
       path =>
         val lib = veProcess.loadLibrary(path)
@@ -290,7 +294,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                     libraryReference = lib,
                     functionName = fName,
                     batches = bg,
-                    results = colBatch1.cols.map(_.veType)
+                    results = colBatch1.cols.zipWithIndex.map { case (vcv, idx) =>
+                      vcv.veType.makeCVector(s"o_${idx}")
+                    }
                   )
 
                   val resultVecs: List[FieldVector] = r.map(_.toArrowVector())

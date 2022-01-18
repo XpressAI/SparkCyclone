@@ -36,6 +36,7 @@ object TPCHVESqlSpec {
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
+      .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
       .config(
         key = "spark.sql.cache.serializer",
         value = "com.nec.spark.planning.VeCachedBatchSerializer"
@@ -45,7 +46,9 @@ object TPCHVESqlSpec {
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
       .withExtensions { sse =>
         sse.injectPlannerStrategy(_ => {
-          new VERewriteStrategy(VeRewriteStrategyOptions.default.copy(failFast = true))
+          new VERewriteStrategy(
+            VeRewriteStrategyOptions.default.copy(failFast = true, joinOnVe = false)
+          )
         })
         sse.injectColumnar(compilerRule)
         sse.injectColumnar(_ => new VeColumnarRule)
@@ -80,6 +83,6 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
     super.beforeAll(configMap)
   }
 
-  override def timeLimit: Span = Span(5, Minutes)
+  override def timeLimit: Span = Span(35, Minutes)
 
 }

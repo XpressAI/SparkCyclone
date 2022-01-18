@@ -77,7 +77,7 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
     val byteBuffersAddresses = buffers.flatten.map(_.asInstanceOf[DirectBuffer].address())
     veType match {
       case VeScalarType.VeNullableDouble =>
-        val float8Vector = new Float8Vector("output", bufferAllocator)
+        val float8Vector = new Float8Vector(underlying.name, bufferAllocator)
         if (numItems > 0) {
           val dataSize = numItems * 8
           float8Vector.setValueCount(numItems)
@@ -90,7 +90,7 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
         }
         float8Vector
       case VeScalarType.VeNullableLong =>
-        val bigIntVector = new BigIntVector("output", bufferAllocator)
+        val bigIntVector = new BigIntVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
           val dataSize = numItems * 8
           bigIntVector.setValueCount(numItems)
@@ -103,7 +103,7 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
         }
         bigIntVector
       case VeScalarType.VeNullableInt =>
-        val intVector = new IntVector("output", bufferAllocator)
+        val intVector = new IntVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
           val dataSize = numItems * 4
           intVector.setValueCount(numItems)
@@ -116,7 +116,7 @@ final case class ByteBufferColVector(underlying: GenericColVector[Option[ByteBuf
         }
         intVector
       case VeString =>
-        val vcvr = new VarCharVector("output", bufferAllocator)
+        val vcvr = new VarCharVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
           val offsetsSize = (numItems + 1) * 4
           val lastOffsetIndex = numItems * 4

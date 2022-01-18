@@ -11,6 +11,8 @@ import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+  def nonEmpty: Boolean = underlying.nonEmpty
+
   def numRows = underlying.numRows
   def cols = underlying.cols
 

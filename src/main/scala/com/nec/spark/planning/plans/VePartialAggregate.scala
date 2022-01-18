@@ -44,7 +44,7 @@ case class VePartialAggregate(
                   libraryReference = libRef,
                   functionName = partialFunction.functionName,
                   cols = veColBatch.cols,
-                  results = partialFunction.results
+                  results = partialFunction.namedResults
                 )
               )(registerFunctionCallTime(_, veFunction.functionName))
               logger.debug(s"Mapped $veColBatch to $result")

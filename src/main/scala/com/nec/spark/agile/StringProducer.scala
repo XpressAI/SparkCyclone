@@ -134,7 +134,6 @@ object StringProducer {
         case imperative: ImperativeStringProducer =>
           CodeLines
             .from(
-              CodeLines.debugHere,
               "int len = 0;",
               imperative.produceTo(s"$tmpString", "len"),
               s"""${tmpOffsets}.push_back(${tmpCurrentOffset});""",
