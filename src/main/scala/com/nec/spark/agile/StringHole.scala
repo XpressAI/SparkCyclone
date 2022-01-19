@@ -44,6 +44,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   In,
   IsNotNull,
   LeafExpression,
+  Like,
   Literal,
   StartsWith,
   Unevaluable
@@ -79,6 +80,7 @@ object StringHole {
         def endsWith: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject")
         def contains: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject%")
         def equalsTo: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject")
+        def like: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, subject)
       }
     }
 
@@ -294,6 +296,8 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).endsWith
     case Contains(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).contains
+    case Like(left: AttributeReference, Literal(v, StringType), _) =>
+      LikeStringHoleEvaluation.Like(left.name, v.toString).like
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
