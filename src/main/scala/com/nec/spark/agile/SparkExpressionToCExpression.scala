@@ -66,6 +66,9 @@ object SparkExpressionToCExpression {
         ar.withName(s"${prefix}${idx}")
       case idx =>
         ar.withName(s"${prefix}${idx}->data[i]")
+      case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
+        "Could not match ${inputs.indexWhere(_.exprId == ar.exprId)}, " +
+        "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
 
@@ -79,6 +82,9 @@ object SparkExpressionToCExpression {
             ar.withName(s"output_${idx}")
           else
             ar.withName(s"output_${idx}->data[i]")
+        case _ => sys.error(s"SparkExpressionToCExpression.referenceOutputReplacer: " +
+          "Could not match ${inputs.indexWhere(_.exprId == ar.exprId)}, " +
+          "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
       }
   }
 
@@ -94,6 +100,9 @@ object SparkExpressionToCExpression {
         ar.withName(s"input_${idx}->data[left_out[i]]")
       case idx if (rightIds.contains(ar.exprId)) =>
         ar.withName(s"input_${idx}->data[right_out[i]]")
+      case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
+        "Could not match ${inputs.indexWhere(_.exprId == ar.exprId)}, " +
+        "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
 
@@ -163,7 +172,9 @@ object SparkExpressionToCExpression {
         Right(StringProducer.copyString(name))
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
-
+      case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
+        "Could not match ${expression}, " +
+        "class ${expression.getClass}")
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
@@ -446,6 +457,9 @@ object SparkExpressionToCExpression {
         }
       case fallback(result) => Right(result)
       case other            => Left(other)
+      case _ => sys.error(s"SparkExpressionToCExpression.eval: " +
+        "Could not match ${expression}, " +
+        "class ${expression.getClass}")
     }
   }
 
@@ -458,6 +472,9 @@ object SparkExpressionToCExpression {
       case DateType      => VeScalarType.veNullableInt
       case BooleanType   => VeScalarType.veNullableInt
       case TimestampType => VeScalarType.veNullableLong
+      case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToScalarVeType: " +
+        "Could not match ${dataType}, " +
+        "class ${dataType.getClass}")
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
@@ -470,12 +487,18 @@ object SparkExpressionToCExpression {
       case BooleanType   => VeScalarType.veNullableInt
       case StringType    => VeString
       case TimestampType => VeScalarType.veNullableLong
+      case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToVeType: " +
+        "Could not match ${dataType}, " +
+        "class ${dataType.getClass}")
     }
   }
   def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
     sortDirection match {
       case expressions.Ascending  => Ascending
       case expressions.Descending => Descending
+      case _ => sys.error(s"SparkExpressionToCExpression.sparkSortDirectionToSortOrdering: " +
+        "Could not match ${sortDirection}, " +
+        "class ${sortDirection.getClass}")
     }
   }
 
@@ -486,6 +509,9 @@ object SparkExpressionToCExpression {
       case VeScalarType.VeNullableInt    => IntegerType
       case VeScalarType.VeNullableLong   => LongType
       case VeString                      => StringType
+      case _ => sys.error(s"SparkExpressionToCExpression.likelySparkType: " +
+        "Could not match ${veType}, " +
+        "class ${veType.getClass}")
     }
   }
 }
