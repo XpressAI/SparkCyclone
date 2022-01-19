@@ -97,11 +97,14 @@ object StringHole {
           tokenization of filter words in frovedis::split_to_words() when one
           of the strings in the IN query valueList contains the delimiter
           character.
-        */
+         */
         val chars = valueList.mkString("")
         1.to(255).find(x => !chars.contains(x.toChar)) match {
           case Some(d) => d
-          case None => throw new IllegalArgumentException("Cannot find a unique ASCII char to use as delimiter")
+          case None =>
+            throw new IllegalArgumentException(
+              "Cannot find a unique ASCII char to use as delimiter"
+            )
         }
       }
       val words = valueList.mkString(delimiter.toChar.toString).map(_.toInt).mkString(",")

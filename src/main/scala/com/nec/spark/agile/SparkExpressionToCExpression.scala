@@ -22,7 +22,30 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, SortDirection, Sqrt}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  Attribute,
+  AttributeReference,
+  BinaryOperator,
+  CaseWhen,
+  Cast,
+  Coalesce,
+  Divide,
+  ExprId,
+  Expression,
+  Greatest,
+  If,
+  IsNaN,
+  IsNotNull,
+  IsNull,
+  KnownFloatingPointNormalized,
+  Least,
+  Literal,
+  Not,
+  SortDirection,
+  Sqrt,
+  Year
+}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -138,7 +161,7 @@ object SparkExpressionToCExpression {
         }
       case AttributeReference(name, StringType, _, _) =>
         Right(StringProducer.copyString(name))
-      case Alias(AttributeReference(_, StringType, _, _), name) =>
+      case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
 
     }
@@ -397,6 +420,30 @@ object SparkExpressionToCExpression {
         }
       case CaseWhen(Seq((caseExp, valueExp), xs @ _*), Some(elseValue)) =>
         eval(CaseWhen(Seq((caseExp, valueExp)), CaseWhen(xs, elseValue)))
+      case Year(child) =>
+        for {
+          childEx <- eval(child)
+        } yield {
+          child.dataType match {
+            case DateType =>
+              /*
+                Since Dates are day (integer) offsets from 1970-01-01, we
+                multiply by nanoseconds per day to get the timestamp.
+               */
+              CExpression(
+                s"frovedis::year_from_datetime(${childEx.cCode} * int64_t(86400000000000))",
+                None
+              )
+
+            case TimestampType =>
+              CExpression(s"frovedis::year_from_datetime(${childEx.cCode})", None)
+
+            case other =>
+              throw new IllegalArgumentException(
+                s"Cannot generate year extraction code for datatype: ${other}"
+              )
+          }
+        }
       case fallback(result) => Right(result)
       case other            => Left(other)
     }
