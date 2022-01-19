@@ -66,9 +66,6 @@ object SparkExpressionToCExpression {
         ar.withName(s"${prefix}${idx}")
       case idx =>
         ar.withName(s"${prefix}${idx}->data[i]")
-      case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
-        "Could not match ${inputs.indexWhere(_.exprId == ar.exprId)}, " +
-        "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
 
@@ -82,9 +79,6 @@ object SparkExpressionToCExpression {
             ar.withName(s"output_${idx}")
           else
             ar.withName(s"output_${idx}->data[i]")
-        case _ => sys.error(s"SparkExpressionToCExpression.referenceOutputReplacer: " +
-          "Could not match ${inputs.indexWhere(_.exprId == ar.exprId)}, " +
-          "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
       }
   }
 
@@ -457,9 +451,6 @@ object SparkExpressionToCExpression {
         }
       case fallback(result) => Right(result)
       case other            => Left(other)
-      case _ => sys.error(s"SparkExpressionToCExpression.eval: " +
-        "Could not match ${expression}, " +
-        "class ${expression.getClass}")
     }
   }
 
