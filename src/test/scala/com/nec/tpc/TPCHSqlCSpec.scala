@@ -1435,6 +1435,68 @@ abstract class TPCHSqlCSpec
     }
   }
 
+
+
+
+
+
+
+
+  withTpchViews("Query 221", configuration) { sparkSession =>
+    import sparkSession.implicits._
+    val nation = "SAUDI ARABIA"
+
+    val sql = s"""
+      select
+        s_name,
+        count(*) as numwait
+      from
+        supplier,
+        lineitem l1,
+        orders,
+        nation
+      where
+        s_suppkey = l1.l_suppkey
+        and s_nationkey = n_nationkey
+        and o_orderkey = l1.l_orderkey
+        and o_orderstatus = 'F'
+        and l1.l_receiptdate > l1.l_commitdate
+        and n_name = '$nation'
+        and l1.l_shipdate between date '1995-01-01' and date '1996-01-01'
+      group by
+        s_name
+      order by
+        numwait desc,
+        s_name
+    """
+
+    val resultSchema = StructType(
+      Seq(StructField("_0", DataTypes.StringType), StructField("_1", DataTypes.LongType))
+    )
+
+    val result = sparkSession.read
+      .schema(resultSchema)
+      .csv(resultsDir + "Query21.csv")
+      .as[(String, Long)]
+      .collect()
+      .toList
+
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      ds.as[(String, Long)].collect.foreach { x =>
+        println(s"${x}")
+      }
+    }
+  }
+
+
+
+
+
+
+
+
+
+
   withTpchViews("Query 22", configuration) { sparkSession =>
     import sparkSession.implicits._
     val items = Seq("'13'", "'31'", "'23'", "'29'", "'30'", "'18'", "'17'")
