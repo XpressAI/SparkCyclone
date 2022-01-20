@@ -487,9 +487,6 @@ object SparkExpressionToCExpression {
     sortDirection match {
       case expressions.Ascending  => Ascending
       case expressions.Descending => Descending
-      case _ => sys.error(s"SparkExpressionToCExpression.sparkSortDirectionToSortOrdering: " +
-        "Could not match ${sortDirection}, " +
-        "class ${sortDirection.getClass}")
     }
   }
 
@@ -500,9 +497,6 @@ object SparkExpressionToCExpression {
       case VeScalarType.VeNullableInt    => IntegerType
       case VeScalarType.VeNullableLong   => LongType
       case VeString                      => StringType
-      case _ => sys.error(s"SparkExpressionToCExpression.likelySparkType: " +
-        "Could not match ${veType}, " +
-        "class ${veType.getClass}")
     }
   }
 }
