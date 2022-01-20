@@ -44,7 +44,7 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
 import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.{CFunctionGeneration, DeclarativeAggregationConverter, StringProducer}
 import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -778,6 +778,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
                   val produceIndicesFName = s"indices_${functionName}"
                   CodeLines
                     .from(
+                      CFunctionGeneration.KeyHeaders,
                       genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
                       genericJoiner
                         .cFunction(produceIndicesFName)
