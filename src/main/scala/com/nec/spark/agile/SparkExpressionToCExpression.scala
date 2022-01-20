@@ -44,11 +44,14 @@ import org.apache.spark.sql.catalyst.expressions.{
   Not,
   SortDirection,
   Sqrt,
+  Substring,
   Year
 }
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
+
+import scala.util.Try
 
 /**
  * Utility to convert from Spark's expressions to CExpressions for scalars
@@ -94,6 +97,9 @@ object SparkExpressionToCExpression {
         ar.withName(s"input_${idx}->data[left_out[i]]")
       case idx if (rightIds.contains(ar.exprId)) =>
         ar.withName(s"input_${idx}->data[right_out[i]]")
+      case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
+        s"Could not match ${Try(inputs.indexWhere(_.exprId == ar.exprId).toString)}, " +
+        s"type ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
 
@@ -163,7 +169,11 @@ object SparkExpressionToCExpression {
         Right(StringProducer.copyString(name))
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
-
+      case Alias(Substring(name, pos, len), _) if name.dataType == StringType =>
+        Right(StringProducer.copyString(Substring(name, pos, len).nullSafeEval(name, pos, len).toString))
+      case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
+        s"Could not match ${Try(expression.toString)}, " +
+        s"type ${expression.getClass}")
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
