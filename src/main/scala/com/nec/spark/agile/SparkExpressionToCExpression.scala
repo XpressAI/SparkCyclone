@@ -72,8 +72,8 @@ object SparkExpressionToCExpression {
       case idx if (rightIds.contains(ar.exprId)) =>
         ar.withName(s"input_${idx}->data[right_out[i]]")
       case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
-        "Could not match ${Try(inputs.indexWhere(_.exprId == ar.exprId).toString)}, " +
-        "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
+        s"Could not match ${Try(inputs.indexWhere(_.exprId == ar.exprId).toString)}, " +
+        s"class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
 
@@ -144,8 +144,8 @@ object SparkExpressionToCExpression {
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
       case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
-        "Could not match ${Try(expression.toString)}, " +
-        "class ${expression.getClass}")
+        s"Could not match ${Try(expression.toString)}, " +
+        s"class ${expression.getClass}")
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
@@ -441,8 +441,8 @@ object SparkExpressionToCExpression {
       case BooleanType   => VeScalarType.veNullableInt
       case TimestampType => VeScalarType.veNullableLong
       case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToScalarVeType: " +
-        "Could not match ${Try(dataType.toString)}, " +
-        "class ${dataType.getClass}")
+        s"Could not match ${Try(dataType.toString)}, " +
+        s"class ${dataType.getClass}")
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
@@ -456,8 +456,8 @@ object SparkExpressionToCExpression {
       case StringType    => VeString
       case TimestampType => VeScalarType.veNullableLong
       case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToVeType: " +
-        "Could not match ${Try(dataType.toString)}, " +
-        "class ${dataType.getClass}")
+        s"Could not match ${Try(dataType.toString)}, " +
+        s"class ${dataType.getClass}")
     }
   }
   def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
