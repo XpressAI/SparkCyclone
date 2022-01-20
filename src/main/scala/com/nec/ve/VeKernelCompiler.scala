@@ -209,7 +209,7 @@ final case class VeKernelCompiler(
       )
 
       val command2: Seq[String] = {
-        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
+        Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ , "-fopenmp", "-mparallel") ++ Seq(
           "-o",
           soFile.toString,
           oFile.toString

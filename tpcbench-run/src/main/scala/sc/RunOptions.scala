@@ -195,7 +195,7 @@ object RunOptions {
     )
 
   lazy val default: RunOptions = RunOptions(
-    numExecutors = 8,
+    numExecutors = 1,
     executorCores = 1,
     executorMemory = "8G",
     scale = "1",
@@ -229,7 +229,7 @@ object RunOptions {
     useCyclone = true,
     passThroughProject = false,
     failFast = true,
-    joinOnVe = false
+    joinOnVe = true
   )
 
   import scala.collection.JavaConverters._
