@@ -15,7 +15,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.com.nec.spark.ve.columnBatchSize=500000 \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
-    --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
+    --conf spark.executorEnv.VE_OMP_NUM_THREADS=8 \
     --conf spark.com.nec.spark.sort-on-ve=true \
     --conf spark.com.nec.spark.filter-on-ve=true \
     --conf spark.com.nec.spark.project-on-ve=true \
