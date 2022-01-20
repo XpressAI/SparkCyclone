@@ -169,8 +169,8 @@ object SparkExpressionToCExpression {
         Right(StringProducer.copyString(name))
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
-      case Alias(Substring(name, pos, len), _) if name.dataType == StringType =>
-        Right(StringProducer.copyString(Substring(name, pos, len).nullSafeEval(name, pos, len).toString))
+      case Alias(Substring(AttributeReference(name, StringType, _, _), pos, len), _) =>
+        Right(StringProducer.copyString(name))
       case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
         s"Could not match ${Try(expression.toString)}, " +
         s"type ${expression.getClass}")
