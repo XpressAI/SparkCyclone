@@ -95,7 +95,7 @@ object SparkExpressionToCExpression {
       case idx if (rightIds.contains(ar.exprId)) =>
         ar.withName(s"input_${idx}->data[right_out[i]]")
       case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
-        "Could not match ${inputs.indexWhere(_.exprId == ar.exprId)}, " +
+        "Could not match ${inputs.indexWhere(_.exprId == ar.exprId).toString}, " +
         "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
@@ -167,7 +167,7 @@ object SparkExpressionToCExpression {
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
       case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
-        "Could not match ${expression}, " +
+        "Could not match ${expression.toString}, " +
         "class ${expression.getClass}")
     }
 
@@ -464,7 +464,7 @@ object SparkExpressionToCExpression {
       case BooleanType   => VeScalarType.veNullableInt
       case TimestampType => VeScalarType.veNullableLong
       case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToScalarVeType: " +
-        "Could not match ${dataType}, " +
+        "Could not match ${dataType.toString}, " +
         "class ${dataType.getClass}")
     }
   }
@@ -479,7 +479,7 @@ object SparkExpressionToCExpression {
       case StringType    => VeString
       case TimestampType => VeScalarType.veNullableLong
       case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToVeType: " +
-        "Could not match ${dataType}, " +
+        "Could not match ${dataType.toString}, " +
         "class ${dataType.getClass}")
     }
   }
