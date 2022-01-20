@@ -34,14 +34,15 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode, VeSubQueryExec}
 
 import scala.language.dynamics
 
 final case class OneStageEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
   veFunction: VeFunction,
-  child: SparkPlan
+  child: SparkPlan,
+  auxiliarySubQueryData: Option[VeSubQueryExec]
 ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
@@ -68,11 +69,12 @@ final case class OneStageEvaluationPlan(
             veColBatches.map { inputBatch =>
               try {
                 logger.debug(s"Mapping batch ${inputBatch}")
+                val maybeAuxData = auxiliarySubQueryData.map(_.executeCollectVe())
                 val cols = measureRunningTime(
                   veProcess.execute(
                     libraryReference = libRef,
                     functionName = veFunction.functionName,
-                    cols = inputBatch.cols,
+                    cols = inputBatch.cols ++ maybeAuxData.toList.flatMap(_.cols),
                     results = veFunction.namedResults
                   )
                 )(registerFunctionCallTime(_, veFunction.functionName))
