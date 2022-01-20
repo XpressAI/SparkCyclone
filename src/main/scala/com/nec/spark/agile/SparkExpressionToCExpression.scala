@@ -22,30 +22,7 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CFunctionGeneration._
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  Attribute,
-  AttributeReference,
-  BinaryOperator,
-  CaseWhen,
-  Cast,
-  Coalesce,
-  Divide,
-  ExprId,
-  Expression,
-  Greatest,
-  If,
-  IsNaN,
-  IsNotNull,
-  IsNull,
-  KnownFloatingPointNormalized,
-  Least,
-  Literal,
-  Not,
-  SortDirection,
-  Sqrt,
-  Year
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, SortDirection, Sqrt, Year}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -95,7 +72,7 @@ object SparkExpressionToCExpression {
       case idx if (rightIds.contains(ar.exprId)) =>
         ar.withName(s"input_${idx}->data[right_out[i]]")
       case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
-        "Could not match ${inputs.indexWhere(_.exprId == ar.exprId).toString}, " +
+        "Could not match ${Try(inputs.indexWhere(_.exprId == ar.exprId).toString)}, " +
         "class ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
     }
   }
@@ -167,7 +144,7 @@ object SparkExpressionToCExpression {
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
       case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
-        "Could not match ${expression.toString}, " +
+        "Could not match ${Try(expression.toString)}, " +
         "class ${expression.getClass}")
     }
 
@@ -464,7 +441,7 @@ object SparkExpressionToCExpression {
       case BooleanType   => VeScalarType.veNullableInt
       case TimestampType => VeScalarType.veNullableLong
       case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToScalarVeType: " +
-        "Could not match ${dataType.toString}, " +
+        "Could not match ${Try(dataType.toString)}, " +
         "class ${dataType.getClass}")
     }
   }
@@ -479,7 +456,7 @@ object SparkExpressionToCExpression {
       case StringType    => VeString
       case TimestampType => VeScalarType.veNullableLong
       case _ => sys.error(s"SparkExpressionToCExpression.sparkTypeToVeType: " +
-        "Could not match ${dataType.toString}, " +
+        "Could not match ${Try(dataType.toString)}, " +
         "class ${dataType.getClass}")
     }
   }
