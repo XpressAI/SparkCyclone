@@ -5,13 +5,13 @@
  */
 package io.mappedbus;
 
+import sun.misc.Unsafe;
+import sun.nio.ch.FileChannelImpl;
+
 import java.io.RandomAccessFile;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.channels.FileChannel;
-
-import sun.nio.ch.FileChannelImpl;
-import sun.misc.Unsafe;
 
 /**
  * Class for direct access to a memory mapped file.
@@ -48,12 +48,12 @@ public class MemoryMappedFile {
     public MemoryMappedFile(final String loc, long len) throws Exception {
         this.loc = loc;
         this.size = roundTo4096(len);
-        final RandomAccessFile backingFile = new RandomAccessFile(this.loc, "rw");
-        backingFile.setLength(this.size);
-        final FileChannel ch = backingFile.getChannel();
-        this.addr = (long) mmap.invoke(ch, 1, 0L, this.size);
-        ch.close();
-        backingFile.close();
+        try (final RandomAccessFile backingFile = new RandomAccessFile(this.loc, "rw")) {
+            backingFile.setLength(this.size);
+            final FileChannel ch = backingFile.getChannel();
+            this.addr = (long) mmap.invoke(ch, 1, 0L, this.size);
+            ch.close();
+        }
     }
 
     public void unmap() throws Exception {
