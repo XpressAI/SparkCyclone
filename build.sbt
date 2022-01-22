@@ -472,33 +472,40 @@ cycloneVeLibrarySources :=
     .map(_._1.toFile)
 
 cycloneVeLibrary := {
-  val s = streams.value
-  val cachedFun = FileFunction.cached(s.cacheDirectory / "cpp") { (in: Set[File]) =>
-    val logger = s.log
-    import scala.sys.process._
+  import scala.sys.process._
+  val logger = streams.value.log
+
+  val cachedFun = FileFunction.cached(streams.value.cacheDirectory / "cpp") { (in: Set[File]) =>
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
-        Process(command = Seq("make", "cyclone-ve.so"), cwd = makefile.getParentFile) ! logger
-        val cycloneVeLibraryDir = (Compile / resourceManaged).value / "cycloneve"
-        val filesToCopy = {
-          in.filter(fs =>
-            fs.toString.endsWith(".hpp") || fs.toString.endsWith(".incl")
-          ) + (new File(makefile.getParentFile, "cyclone-ve.so"))
+        logger.info("Building cyclone-ve.so...")
+        val exitcode = Process(command = Seq("make", "cyclone-ve.so"), cwd = makefile.getParentFile) ! logger
+
+        if (exitcode != 0) {
+          sys.error("Failed to build cyclone-ve.so; please check the compiler logs.")
         }
-        IO.createDirectory(cycloneVeLibraryDir)
+
+        val cycloneVeDir = (Compile / resourceManaged).value / "cycloneve"
+        IO.createDirectory(cycloneVeDir)
+
+        val filesToCopy = in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
+          (new File(makefile.getParentFile, "cyclone-ve.so"))
+
         filesToCopy.flatMap { sourceFile =>
           Path
-            .rebase(makefile.getParentFile, cycloneVeLibraryDir)
+            .rebase(makefile.getParentFile, cycloneVeDir)
             .apply(sourceFile)
             .map { targetFile =>
               IO.copyFile(sourceFile, targetFile)
               targetFile
             }
         }
+
       case None =>
         sys.error("Could not find a Makefile")
     }
   }
+
   cachedFun(cycloneVeLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
 }
 
