@@ -49,6 +49,10 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
   private val deserializationHist = new Histogram(new UniformReservoir())
   private val perFunctionHistograms: scala.collection.mutable.Map[String, Histogram] =
     mutable.Map.empty
+  private val shmReadHist = new Histogram(new UniformReservoir())
+  private val shmWriteHist = new Histogram(new UniformReservoir())
+  private val shmWriteElemCountHist = new Histogram(new UniformReservoir())
+  private val shmReadElemCountHist = new Histogram(new UniformReservoir())
 
   def measureRunningTime[T](toMeasure: => T)(registerTime: Long => Unit): T = {
     val start = System.currentTimeMillis()
@@ -73,6 +77,15 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
     totalTransferTime += timeTaken
   }
 
+
+  override def registerSHMWriteCount(count: Long): Unit = {
+    shmWriteElemCountHist.update(count)
+  }
+
+  override def registerSHMReadCount(count: Long): Unit = {
+    shmReadElemCountHist.update(count)
+  }
+
   override def registerSerializationTime(timeTaken: Long): Unit = {
     serializationHist.update(timeTaken)
   }
@@ -86,14 +99,25 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
     allocationTracker.untrack(position)
   }
 
+
+  override def registerSHMWriteTime(timeTaken: Long): Unit = {
+    shmWriteHist.update(timeTaken)
+  }
+
+  override def registerSHMReadTime(timeTaken: Long): Unit = {
+    shmReadHist.update(timeTaken)
+  }
+
   override def registerFunctionCallTime(timeTaken: Long, functionName: String): Unit = {
-    perFunctionHistograms.get(functionName) match {
-      case Some(hist) => hist.update(timeTaken)
-      case None => {
-        val hist = new Histogram(new UniformReservoir())
-        metricRegistry.register(MetricRegistry.name("ve", s"veCallTimeHist_${functionName}"), hist)
-        perFunctionHistograms.put(functionName, hist)
-        hist.update(timeTaken)
+    synchronized {
+      perFunctionHistograms.get(functionName) match {
+        case Some(hist) => hist.update(timeTaken)
+        case None => {
+          val hist = new Histogram(new UniformReservoir())
+          metricRegistry.register(MetricRegistry.name("ve", s"veCallTimeHist_${functionName}"), hist)
+          perFunctionHistograms.put(functionName, hist)
+          hist.update(timeTaken)
+        }
       }
     }
   }
@@ -121,6 +145,10 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
   metricRegistry.register(MetricRegistry.name("ve", "arrowConversionTimeHist"), arrowConversionHist)
   metricRegistry.register(MetricRegistry.name("ve", "serializationTime"), serializationHist)
   metricRegistry.register(MetricRegistry.name("ve", "deserializationTime"), deserializationHist)
+  metricRegistry.register(MetricRegistry.name("ve", "shmWriteTime"), shmWriteHist)
+  metricRegistry.register(MetricRegistry.name("ve", "shmReadTime"), shmReadHist)
+  metricRegistry.register(MetricRegistry.name("ve", "shmWriteElemsCount"), shmWriteElemCountHist)
+  metricRegistry.register(MetricRegistry.name("ve", "shmReadElemsCount"), shmReadElemCountHist)
 
   metricRegistry.register(
     MetricRegistry.name("ve", "transferTime"),

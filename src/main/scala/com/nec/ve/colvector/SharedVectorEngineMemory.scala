@@ -8,6 +8,7 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging
 import io.mappedbus.MemoryMappedFile
 import sun.nio.ch.DirectBuffer
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerSHMReadTime, registerSHMWriteTime, registerSHMReadCount, registerSHMWriteCount}
 
 import java.nio.ByteBuffer
 
@@ -22,20 +23,24 @@ final class SharedVectorEngineMemory(mappedFile: MemoryMappedFile, myOffset: Lon
   }
   def copy(from: Long, bytes: Long): Long = {
     val tgt: Long = availableOffset
-    MemoryMappedFile.unsafe.copyMemory(from, mappedFile.addr + tgt, bytes)
-    logger.trace(s"Copy: From ${from}, ${bytes} bytes, tgt is ${tgt}")
-    availableOffset += bytes
-    tgt
+    measureRunningTime {
+      MemoryMappedFile.unsafe.copyMemory(from, mappedFile.addr + tgt, bytes)
+      logger.trace(s"Copy: From ${from}, ${bytes} bytes, tgt is ${tgt}")
+      availableOffset += bytes
+      tgt
+    }(registerSHMWriteTime)
   }
   def read(from: Long, bytes: Long): ByteBuffer = {
     logger.trace(s"Reading ${bytes} bytes from ${from}")
-    val byteBuffer = ByteBuffer.allocateDirect(bytes.toInt)
-    MemoryMappedFile.unsafe.copyMemory(
-      mappedFile.addr + from,
-      byteBuffer.asInstanceOf[DirectBuffer].address(),
-      bytes
-    )
-    byteBuffer
+    measureRunningTime {
+      val byteBuffer = ByteBuffer.allocateDirect(bytes.toInt)
+      MemoryMappedFile.unsafe.copyMemory(
+        mappedFile.addr + from,
+        byteBuffer.asInstanceOf[DirectBuffer].address(),
+        bytes
+      )
+      byteBuffer
+    }(registerSHMReadTime)
   }
   def close(): Unit = ()
 }
@@ -65,8 +70,10 @@ object SharedVectorEngineMemory {
           container = None,
           buffers =
             byteBufferVector.underlying.buffers.zip(byteBufferVector.underlying.bufferSizes).map {
-              case (Some(byteBuffer: DirectBuffer), size) =>
+              case (Some(byteBuffer: DirectBuffer), size) => {
+                registerSHMWriteCount(size)
                 Option(SharedLocation(sharedVectorEngine.copy(byteBuffer, size), size))
+              }
               case _ => None
             }
         )
@@ -83,9 +90,10 @@ object SharedVectorEngineMemory {
     ): VeColVector = {
       ByteBufferColVector(
         underlying.map(
-          _.map(sharedLocation =>
+          _.map(sharedLocation =>{
+            registerSHMReadCount(underlying.numItems)
             sharedVectorEngine.read(sharedLocation.location, sharedLocation.size)
-          )
+          })
         )
       ).toVeColVector()
     }

@@ -9,7 +9,10 @@ trait VeProcessMetrics {
   def registerSerializationTime(timeTaken: Long): Unit
   def registerDeserializationTime(timeTaken: Long): Unit
   def registerFunctionCallTime(timeTaken: Long, functionName: String): Unit
-
+  def registerSHMWriteTime(timeTaken: Long): Unit
+  def registerSHMReadTime(timeTaken: Long): Unit
+  def registerSHMWriteCount(count: Long): Unit
+  def registerSHMReadCount(count: Long): Unit
 }
 
 object VeProcessMetrics {
@@ -22,5 +25,9 @@ object VeProcessMetrics {
     override def registerFunctionCallTime(timeTaken: Long, functionName: String): Unit = ()
     override def registerSerializationTime(timeTaken: Long): Unit = ()
     override def registerDeserializationTime(timeTaken: Long): Unit = ()
+    override def registerSHMWriteTime(timeTaken: Long): Unit = ()
+    override def registerSHMReadTime(timeTaken: Long): Unit = ()
+    override def registerSHMWriteCount(count: Long): Unit = ()
+    override def registerSHMReadCount(count: Long): Unit = ()
   }
 }
