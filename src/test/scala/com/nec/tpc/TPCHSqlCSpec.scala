@@ -220,7 +220,7 @@ abstract class TPCHSqlCSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
-      logger.info(s"Plan is: ${dataSet.queryExecution}")
+      println(s"Plan is: ${dataSet.queryExecution}")
       import _root_.scalatags.Text.all._
       condMarkup(details(summary("Plan"), pre(dataSet.queryExecution.toString())).render)
       condMarkup("<hr/>")
@@ -1446,7 +1446,181 @@ abstract class TPCHSqlCSpec
     import sparkSession.implicits._
     val nation = "SAUDI ARABIA"
 
-    val sql = s"""
+    val sql0 = s"""
+      select
+        s_name,
+        l_orderkey
+      from
+        supplier,
+        lineitem l1,
+        orders,
+        nation
+      where
+        s_suppkey = l1.l_suppkey
+        and o_orderkey = l1.l_orderkey
+        and o_orderstatus = 'F'
+        and l1.l_receiptdate > l1.l_commitdate
+        and exists (
+          select *
+          from
+            lineitem l2
+          where
+            l2.l_orderkey = l1.l_orderkey
+            and l2.l_suppkey <> l1.l_suppkey
+        )
+        and not exists (
+          select *
+          from
+            lineitem l3
+          where
+            l3.l_orderkey = l1.l_orderkey
+            and l3.l_suppkey <> l1.l_suppkey
+            and l3.l_receiptdate > l3.l_commitdate
+        )
+        and s_nationkey = n_nationkey
+        and n_name = '$nation'
+        and l1.l_shipdate between date '1995-01-01' and date '1996-01-01'
+    """
+
+
+    val sql1 = s"""
+      select
+        s_name,
+        first(l_orderkey)
+      from
+        supplier,
+        lineitem l1,
+        orders,
+        nation
+      where
+        s_suppkey = l1.l_suppkey
+        and o_orderkey = l1.l_orderkey
+        and o_orderstatus = 'F'
+        and l1.l_receiptdate > l1.l_commitdate
+        and exists (
+          select *
+          from
+            lineitem l2
+          where
+            l2.l_orderkey = l1.l_orderkey
+            and l2.l_suppkey <> l1.l_suppkey
+        )
+        and not exists (
+          select *
+          from
+            lineitem l3
+          where
+            l3.l_orderkey = l1.l_orderkey
+            and l3.l_suppkey <> l1.l_suppkey
+            and l3.l_receiptdate > l3.l_commitdate
+        )
+        and s_nationkey = n_nationkey
+        and n_name = '$nation'
+        and l1.l_shipdate between date '1995-01-01' and date '1996-01-01'
+      group by
+        s_name
+    """
+
+
+    val sql2a = s"""
+      select
+        s_name,
+        l_orderkey
+      from
+        supplier,
+        lineitem l1
+      where
+        s_suppkey = l1.l_suppkey
+        and l1.l_shipdate between date '1995-01-01' and date '1995-01-02'
+    """
+
+    val sql2b = s"""
+       select
+        s_name,
+        first(l_orderkey)
+      from
+        supplier,
+        lineitem l1
+      where
+        s_suppkey = l1.l_suppkey
+        and l1.l_shipdate between date '1995-01-01' and date '1995-01-02'
+      group by
+        s_name
+    """
+        // and l1.l_receiptdate > l1.l_commitdate
+        // and s_nationkey = n_nationkey
+        // and n_name = '$nation'
+
+
+
+    val sql3a = s"""
+       select
+        l_comment,
+        l_orderkey
+      from
+        lineitem
+      where
+        l_shipdate = date '1995-01-01'
+        and l_commitdate = date '1995-01-01'
+        and l_receiptdate = date '1995-01-01'
+    """
+
+    val sql3b = s"""
+      select
+        l_shipmode
+      from
+        lineitem
+      where
+        l_shipdate = date '1995-01-01'
+        and l_commitdate = date '1995-01-01'
+        and l_receiptdate = date '1995-01-01'
+      group by
+        l_shipmode
+    """
+        // first(l_orderkey)   # remove
+
+    val sql3c = s"""
+       select
+        first(l_orderkey),
+        l_suppkey
+      from
+        lineitem l1
+      where
+        l1.l_shipdate = date '1995-01-01'
+      group by
+        l_suppkey
+    """
+
+    val sql3d = s"""
+      select
+        n_name, n_regionkey
+      from
+        nation
+    """
+
+    sparkSession.sql(sql3a).debugSqlHere { ds =>
+      val results = ds.as[(String, Long)].collect
+      println(s"NUM RESULTS: ${results.size}")
+    }
+
+    sparkSession.sql(sql3b).debugSqlHere { ds =>
+      val results = ds.as[(String)].collect
+      results.foreach(println)
+      println(s"NUM RESULTS: ${results.size}")
+    }
+
+    // sparkSession.sql(sql3c).debugSqlHere { ds =>
+    //   val results = ds.as[(String, Long)].collect
+    //   println(s"NUM RESULTS: ${results.size}")
+    // }
+
+    // sparkSession.sql(sql3d).debugSqlHere { ds =>
+    //   val results = ds.as[(String, String)].collect
+    //   results.foreach(println)
+    //   println(s"NUM RESULTS: ${results.size}")
+    // }
+
+    val sql4a = s"""
       select
         s_name,
         count(*) as numwait
@@ -1457,35 +1631,75 @@ abstract class TPCHSqlCSpec
         nation
       where
         s_suppkey = l1.l_suppkey
-        and s_nationkey = n_nationkey
         and o_orderkey = l1.l_orderkey
         and o_orderstatus = 'F'
         and l1.l_receiptdate > l1.l_commitdate
+        and s_nationkey = n_nationkey
         and n_name = '$nation'
-        and l1.l_shipdate between date '1995-01-01' and date '1996-01-01'
+        and l1.l_shipdate between date '1995-01-01' and date '1995-01-02'
       group by
-        s_name
-      order by
-        numwait desc,
         s_name
     """
 
-    val resultSchema = StructType(
-      Seq(StructField("_0", DataTypes.StringType), StructField("_1", DataTypes.LongType))
-    )
+    val sql4b = s"""
+      select
+        o_orderkey,
+        count(*) as numwait
+      from
+        supplier,
+        lineitem l1,
+        orders,
+        nation
+      where
+        s_suppkey = l1.l_suppkey
+        and o_orderkey = l1.l_orderkey
+        and o_orderstatus = 'F'
+        and l1.l_receiptdate > l1.l_commitdate
+        and s_nationkey = n_nationkey
+        and n_name = '$nation'
+        and l1.l_shipdate between date '1995-01-01' and date '1995-01-02'
+      group by
+        o_orderkey
+    """
 
-    val result = sparkSession.read
-      .schema(resultSchema)
-      .csv(resultsDir + "Query21.csv")
-      .as[(String, Long)]
-      .collect()
-      .toList
+    // sparkSession.sql(sql4a).debugSqlHere { ds =>
+    //   val results = ds.as[(String, Long)].collect
+    //   results.sorted.foreach(println)
+    //   println(s"NUM RESULTS: ${results.size}")
+    // }
 
-    sparkSession.sql(sql).debugSqlHere { ds =>
-      ds.as[(String, Long)].collect.foreach { x =>
-        println(s"${x}")
-      }
-    }
+    // sparkSession.sql(sql4b).debugSqlHere { ds =>
+    //   val results = ds.as[(Long, Long)].collect
+    //   results.sorted.foreach(println)
+    //   println(s"NUM RESULTS: ${results.size}")
+    // }
+
+    val sql4c = s"""
+      select
+        n_name,
+        count(*) as numwait
+      from
+        supplier,
+        lineitem l1,
+        orders,
+        nation
+      where
+        s_suppkey = l1.l_suppkey
+        and o_orderkey = l1.l_orderkey
+        and o_orderstatus = 'F'
+        and l1.l_receiptdate > l1.l_commitdate
+        and s_nationkey = n_nationkey
+        and l1.l_shipdate between date '1995-01-01' and date '1995-01-02'
+      group by
+        n_name
+    """
+
+
+    // sparkSession.sql(sql4c).debugSqlHere { ds =>
+    //   val results = ds.as[(String, Long)].collect
+    //   results.sorted.foreach(println)
+    //   println(s"NUM RESULTS: ${results.size}")
+    // }
   }
 
 

@@ -59,7 +59,7 @@ final case class GroupingCodeGenerator(
           "}"
         )
       },
-      CodeLines.debugHere,
+      // CodeLines.debugHere,
       s"for ( long i = 0; i < ${count}; i++ ) {",
       CodeLines
         .from(
@@ -74,7 +74,7 @@ final case class GroupingCodeGenerator(
         )
         .indented,
       s"}",
-      CodeLines.debugHere,
+      // CodeLines.debugHere,
       tupleTypes.zipWithIndex.reverse.collect { case (t, idx) =>
         CodeLines.from(
           s"{",
@@ -102,7 +102,7 @@ final case class GroupingCodeGenerator(
         )
         .indented,
       s"}",
-      CodeLines.debugHere,
+      // CodeLines.debugHere,
       s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
       s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
     )

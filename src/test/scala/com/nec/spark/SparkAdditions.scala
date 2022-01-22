@@ -59,6 +59,8 @@ trait SparkAdditions {
     conf.setMaster("local")
     conf.setAppName("local-test")
     conf.set("spark.com.nec.spark.fail-fast", "true")
+    conf.set("spark.com.nec.spark.kernel.directory", "/home/bm/SparkCyclone/work")
+    conf.set("spark.com.nec.spark.ncc.debug", "1")
     // conf.set("spark.ui.enabled", "false")
     val sparkSession = configure(SparkSession.builder().config(conf)).getOrCreate()
     try f(sparkSession)

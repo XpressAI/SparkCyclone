@@ -413,6 +413,8 @@ final case class VERewriteStrategy(
               )
             }.toList
 
+          println(s"GROUPING EXPRESSIONS: ${groupingExpressions}")
+
           val referenceReplacer =
             SparkExpressionToCExpression.referenceReplacer(
               prefix = InputPrefix,

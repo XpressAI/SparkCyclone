@@ -70,19 +70,18 @@ final case class GroupByPartialGenerator(
         TcpDebug.conditional.createSock,
         CodeLines
           .from(
-            performGrouping(count = s"${inputs.head.name}->count")
-              .time("Grouping"),
-            stringVectorComputations.map(_.computeVector).time("Compute String vectors"),
-            computeGroupingKeysPerGroup.block.time("Compute grouping keys per group"),
+            performGrouping(count = s"${inputs.head.name}->count")//.time("Grouping"),
+            stringVectorComputations.map(_.computeVector),//.time("Compute String vectors"),
+            computeGroupingKeysPerGroup.block,//.time("Compute grouping keys per group"),
             computedProjections.map { case (sp, e) =>
-              computeProjectionsPerGroup(sp, e).time(s"Compute projection ${sp.name}")
+              computeProjectionsPerGroup(sp, e)//.time(s"Compute projection ${sp.name}")
             },
             computedAggregates.map { case (a, ag) =>
-              computeAggregatePartialsPerGroup(a, ag).time(s"Compute aggregate ${a.name}")
+              computeAggregatePartialsPerGroup(a, ag)//.time(s"Compute aggregate ${a.name}")
             },
-            stringVectorComputations.map(_.deallocData).time("Compute String vectors")
-          )
-          .time("Execution of Partial"),
+            stringVectorComputations.map(_.deallocData)//.time("Compute String vectors")
+          ),
+          //.time("Execution of Partial"),
         TcpDebug.conditional.close
       )
     )
