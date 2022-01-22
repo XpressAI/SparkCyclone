@@ -8,6 +8,7 @@ import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.JoinRDDSpec.testJoin
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.exchange.join.VeJoinStrategy
 import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
@@ -20,7 +21,7 @@ final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
         VeClusterConfig
           .andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
       ) { sparkSession =>
-        testJoin(sparkSession)
+        testJoin(sparkSession, VeJoinStrategy.sparkBasedJoin)
       }.sortBy(_._1.head)
 
     val expected: List[(List[Double], List[Double])] =
@@ -36,14 +37,17 @@ final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
 
 object JoinRDDSpec {
 
-  def testJoin(sparkSession: SparkSession): List[(List[Double], List[Double])] = {
+  def testJoin(
+    sparkSession: SparkSession,
+    joinStrategy: VeJoinStrategy
+  ): List[(List[Double], List[Double])] = {
 
     val partsL: List[(Int, List[Double])] =
       List(1 -> List(3, 4, 5), 2 -> List(5, 6, 7))
     val partsR: List[(Int, List[Double])] =
       List(1 -> List(5, 6, 7), 2 -> List(8, 8, 7), 3 -> List(9, 6, 7))
     import SparkCycloneExecutorPlugin._
-    VeRDD
+    joinStrategy
       .joinExchangeLB(
         sparkSession.sparkContext.makeRDD(partsL).map { case (i, l) =>
           import OriginalCallingContext.Automatic._

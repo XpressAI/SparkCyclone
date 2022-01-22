@@ -138,7 +138,9 @@ final case class VERewriteStrategy(
                 )
               ),
               _
-            ) if options.joinOnVe =>
+            ) if options.joinStrategy.isDefined && options.exchangeStrategy.isDefined =>
+          val veExchangeStrategy = options.exchangeStrategy.get
+          val veJoinStrategy = options.joinStrategy.get
           val inputsLeft = leftChild.output.toList.zipWithIndex.map { case (att, idx) =>
             sparkTypeToVeType(att.dataType).makeCVector(s"l_$InputPrefix$idx")
           }
@@ -245,7 +247,8 @@ final case class VERewriteStrategy(
                     functionName = exchangeNameL,
                     namedResults = inputsLeft
                   ),
-                  child = SparkToVectorEnginePlan(planLater(leftChild))
+                  child = SparkToVectorEnginePlan(planLater(leftChild)),
+                  veExchangeStrategy = veExchangeStrategy
                 ),
                 right = VeHashExchangePlan(
                   exchangeFunction = VeFunction(
@@ -253,8 +256,10 @@ final case class VERewriteStrategy(
                     functionName = exchangeNameR,
                     namedResults = inputsRight
                   ),
-                  child = SparkToVectorEnginePlan(planLater(rightChild))
-                )
+                  child = SparkToVectorEnginePlan(planLater(rightChild)),
+                  veExchangeStrategy = veExchangeStrategy
+                ),
+                veJoinStrategy = veJoinStrategy
               )
             )
           )
@@ -571,24 +576,26 @@ final case class VERewriteStrategy(
 
                   dataDescriptions.count(_.keyOrValue.isKey) <= 0
                */
-              if (options.exchangeOnVe) {
-                VeHashExchangePlan(
-                  exchangeFunction = VeFunction(
-                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                    functionName = exchangeName,
-                    namedResults = partialCFunction.inputs
-                  ),
-                  child = SparkToVectorEnginePlan(planLater(child))
-                )
-              } else {
-                SparkToVectorEnginePlan(
-                  ShuffleExchangeExec(
-                    outputPartitioning =
-                      HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-                    child = planLater(child),
-                    shuffleOrigin = REPARTITION
+              options.exchangeStrategy match {
+                case Some(veExchangeStrategy) =>
+                  VeHashExchangePlan(
+                    exchangeFunction = VeFunction(
+                      veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                      functionName = exchangeName,
+                      namedResults = partialCFunction.inputs
+                    ),
+                    child = SparkToVectorEnginePlan(planLater(child)),
+                    veExchangeStrategy = veExchangeStrategy
                   )
-                )
+                case None =>
+                  SparkToVectorEnginePlan(
+                    ShuffleExchangeExec(
+                      outputPartitioning =
+                        HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
+                      child = planLater(child),
+                      shuffleOrigin = REPARTITION
+                    )
+                  )
               }
 
             val pag = VePartialAggregate(

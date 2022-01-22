@@ -47,7 +47,7 @@ object TPCHVESqlSpec {
       .withExtensions { sse =>
         sse.injectPlannerStrategy(_ => {
           new VERewriteStrategy(
-            VeRewriteStrategyOptions.default.copy(failFast = true, joinOnVe = false)
+            VeRewriteStrategyOptions.default.copy(failFast = true, joinStrategy = None)
           )
         })
         sse.injectColumnar(compilerRule)
