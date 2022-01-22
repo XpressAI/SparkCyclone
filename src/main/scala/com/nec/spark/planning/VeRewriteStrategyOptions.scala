@@ -1,5 +1,7 @@
 package com.nec.spark.planning
 
+import com.nec.ve.exchange.VeExchangeStrategy
+import com.nec.ve.exchange.join.VeJoinStrategy
 import org.apache.spark.SparkConf
 
 final case class VeRewriteStrategyOptions(
@@ -7,10 +9,10 @@ final case class VeRewriteStrategyOptions(
   enableVeSorting: Boolean,
   projectOnVe: Boolean,
   filterOnVe: Boolean,
-  exchangeOnVe: Boolean,
+  exchangeStrategy: Option[VeExchangeStrategy],
   passThroughProject: Boolean,
   failFast: Boolean,
-  joinOnVe: Boolean
+  joinStrategy: Option[VeJoinStrategy]
 ) {}
 
 object VeRewriteStrategyOptions {
@@ -33,10 +35,11 @@ object VeRewriteStrategyOptions {
         .getOption(key = "spark.com.nec.spark.filter-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.filterOnVe),
-      exchangeOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.exchange-on-ve")
-        .map(_.toBoolean)
-        .getOrElse(default.exchangeOnVe),
+      exchangeStrategy = sparkConf
+        .getOption(key = "spark.com.nec.spark.exchange-strategy") match {
+        case Some("none") => None
+        case other        => other.flatMap(VeExchangeStrategy.fromString).orElse(default.exchangeStrategy)
+      },
       passThroughProject = sparkConf
         .getOption(key = "spark.com.nec.spark.pass-through-project")
         .map(_.toBoolean)
@@ -45,10 +48,10 @@ object VeRewriteStrategyOptions {
         .getOption(key = "spark.com.nec.spark.fail-fast")
         .map(_.toBoolean)
         .getOrElse(default.failFast),
-      joinOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.join-on-ve")
-        .map(_.toBoolean)
-        .getOrElse(default.joinOnVe)
+      joinStrategy = sparkConf
+        .getOption(key = "spark.com.nec.spark.join-strategy")
+        .flatMap(VeJoinStrategy.fromString)
+        .orElse(default.joinStrategy)
     )
   }
 
@@ -58,9 +61,9 @@ object VeRewriteStrategyOptions {
       projectOnVe = true,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = true,
+      exchangeStrategy = Option(VeExchangeStrategy.sparkShuffleBased),
       passThroughProject = false,
       failFast = false,
-      joinOnVe = false
+      joinStrategy = None
     )
 }

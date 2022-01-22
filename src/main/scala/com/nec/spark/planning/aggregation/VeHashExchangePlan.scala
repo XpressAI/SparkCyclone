@@ -13,16 +13,17 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerFunctionCallTime
 }
-import com.nec.ve.VeRDD.RichKeyedRDDL
+import com.nec.ve.exchange.VeExchangeStrategy
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-import java.time.{Duration, Instant}
-
-case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
-  extends UnaryExecNode
+case class VeHashExchangePlan(
+  exchangeFunction: VeFunction,
+  child: SparkPlan,
+  veExchangeStrategy: VeExchangeStrategy
+) extends UnaryExecNode
   with SupportsVeColBatch
   with LazyLogging
   with PlanCallsVeFunction
@@ -30,6 +31,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   import OriginalCallingContext.Automatic._
+  import veExchangeStrategy.Implicits._
 
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]

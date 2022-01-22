@@ -33,8 +33,8 @@ final case class RunOptions(
   filterOnVe: Boolean,
   passThroughProject: Boolean,
   failFast: Boolean,
-  joinOnVe: Boolean,
-  exchangeOnVe: Boolean
+  joinStrategy: Option[String],
+  exchangeStrategy: Option[String]
 ) {
 
   def enhanceWithEnv(env: Map[String, String]): RunOptions = env
@@ -65,9 +65,7 @@ final case class RunOptions(
       ("spark.com.nec.spark.pass-through-project", passThroughProject),
       ("spark.com.nec.spark.project-on-ve", projectOnVe),
       ("spark.com.nec.spark.filter-on-ve", filterOnVe),
-      ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe),
-      ("spark.com.nec.spark.fail-fast", failFast),
-      ("spark.com.nec.spark.join-on-ve", joinOnVe)
+      ("spark.com.nec.spark.fail-fast", failFast)
     ).map { case (k, v) => (k, v.toString) }
   }
 
@@ -90,9 +88,12 @@ final case class RunOptions(
       case ("ve-log-debug", v)                             => copy(veLogDebug = v == "on" || v == "true")
       case ("pass-through-project", v)                     => copy(passThroughProject = v == "on" || v == "true")
       case ("fail-fast", v)                                => copy(failFast = v == "on" || v == "true")
-      case ("join-on-ve", v)                               => copy(joinOnVe = v == "on" || v == "true")
-      case ("filter-on-ve", v)                             => copy(filterOnVe = v == "on" || v == "true")
-      case ("kernel-directory", newkd)                     => copy(kernelDirectory = Some(newkd))
+      case ("join-strategy", v) =>
+        copy(joinStrategy = Option(v).filter(_ != "-").filter(_.nonEmpty))
+      case ("exchange-strategy", v) =>
+        copy(exchangeStrategy = Option(v).filter(_ != "-").filter(_.nonEmpty))
+      case ("filter-on-ve", v)         => copy(filterOnVe = v == "on" || v == "true")
+      case ("kernel-directory", newkd) => copy(kernelDirectory = Some(newkd))
     }
   }
 
@@ -154,6 +155,14 @@ final case class RunOptions(
       "--conf",
       "spark.executorEnv.VE_OMP_NUM_THREADS=1"
     ) ++ {
+      joinStrategy.toList.flatMap { str =>
+        List("--conf", s"spark.com.nec.spark.join-strategy=${str}")
+      }
+    } ++ {
+      exchangeStrategy.toList.flatMap { str =>
+        List("--conf", s"spark.com.nec.spark.exchange-strategy=${str}")
+      }
+    } ++ {
       if (codeDebug)
         List("--conf", "spark.com.nec.spark.ncc.debug=true")
       else Nil
@@ -224,12 +233,12 @@ object RunOptions {
     enableVeSorting = true,
     projectOnVe = true,
     filterOnVe = true,
-    exchangeOnVe = true,
+    exchangeStrategy = None,
     codeDebug = false,
     useCyclone = true,
     passThroughProject = false,
     failFast = true,
-    joinOnVe = false
+    joinStrategy = None
   )
 
   import scala.collection.JavaConverters._

@@ -22,6 +22,7 @@ package com.nec.spark
 import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
+import com.nec.ve.colvector.SharedVectorEngineMemory
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
@@ -29,6 +30,7 @@ import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
+import org.apache.spark.sql.catalyst.util.StringUtils
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -122,6 +124,17 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     }
 
   val metrics = new ProcessExecutorMetrics(AllocationTracker.noOp)
+
+  implicit lazy val shared = {
+
+    /** Leave enough space for the data... */
+    val myOffset: Long =
+      Option(SparkEnv.get.executorId.filter(Character.isDigit))
+        .filter(_.nonEmpty)
+        .getOrElse("0")
+        .toInt * SharedVectorEngineMemory.Terabyte
+    SharedVectorEngineMemory.makeDefault(myOffset)
+  }
 
 }
 
