@@ -29,7 +29,9 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
+#ifdef __ve__
 #include <vedma.h>
+#endif
 #include <vhshm.h>
 #include <unistd.h>
 #include <sys/ipc.h>
@@ -235,6 +237,8 @@ std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::wo
     return new_indices;
 }
 
+#ifdef __ve__
+
 static uint64_t ve_register_mem_to_dmaatb_unaligned(void *vemva, size_t size) {
     uint64_t align = sysconf(_SC_PAGESIZE);
     uint64_t addr = (uint64_t)vemva;
@@ -309,3 +313,5 @@ extern "C" int dettach_vh_shm(void *p, uint64_t data_vehva) {
 
     return 0;
 }
+
+#endif
