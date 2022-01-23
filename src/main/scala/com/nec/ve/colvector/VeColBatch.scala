@@ -39,6 +39,8 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     cb.setNumRows(underlying.numRows)
     cb
   }
+
+  def totalBufferSize: Int = underlying.cols.flatMap(_.underlying.bufferSizes).sum
 }
 
 object VeColBatch {

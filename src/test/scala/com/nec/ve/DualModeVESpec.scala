@@ -81,7 +81,8 @@ final class DualModeVESpec
     val result = inputRdd
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
-        implicit val arrowEncodingSettings = ArrowEncodingSettings("UTC", 3)
+        implicit val arrowEncodingSettings: ArrowEncodingSettings =
+          ArrowEncodingSettings("UTC", 3, 10)
         unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =

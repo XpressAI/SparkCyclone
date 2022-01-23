@@ -9,10 +9,18 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerConversionTime}
-object SparkInternalRowsToArrowColumnarBatches {
-  def apply(rowIterator: Iterator[InternalRow], arrowSchema: Schema)(implicit
+import com.nec.ve.VeProcess.OriginalCallingContext
+import com.typesafe.scalalogging.LazyLogging
+
+object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
+  def apply(
+    rowIterator: Iterator[InternalRow],
+    arrowSchema: Schema,
+    completeInSpark: Boolean = true
+  )(implicit
     bufferAllocator: BufferAllocator,
-    arrowEncodingSettings: ArrowEncodingSettings
+    arrowEncodingSettings: ArrowEncodingSettings,
+    originalCallingContext: OriginalCallingContext
   ): Iterator[ColumnarBatch] = {
     if (rowIterator.hasNext) {
       new Iterator[ColumnarBatch] {
@@ -25,14 +33,21 @@ object SparkInternalRowsToArrowColumnarBatches {
           root.getRowCount
         )
 
+        private lazy val fv = root.getFieldVectors.asScala.flatMap(_.getFieldBuffers.asScala).toList
+
+        def totalVectorSize: Long = fv.foldLeft(0L) { case (s, ab) => s + ab.capacity() }
+
         private val arrowWriter = ArrowWriter.create(root)
         arrowWriter.finish()
-        TaskContext.get().addTaskCompletionListener[Unit] { _ =>
-          cb.close()
-        }
 
         override def hasNext: Boolean = {
           rowIterator.hasNext
+        }
+
+        if (completeInSpark) {
+          TaskContext.get().addTaskCompletionListener[Unit] { _ =>
+            cb.close()
+          }
         }
 
         override def next(): ColumnarBatch = {
@@ -41,13 +56,21 @@ object SparkInternalRowsToArrowColumnarBatches {
             cb.setNumRows(0)
             root.getFieldVectors.asScala.foreach(_.reset())
             var rowCount = 0
-            while (rowCount < arrowEncodingSettings.numRows && rowIterator.hasNext) {
+
+            /** We try to fill up as much as possible either if the row count is too small or if the total size is too small */
+            def tryToAddMore: Boolean =
+              rowCount < arrowEncodingSettings.numRows || totalVectorSize < arrowEncodingSettings.batchSizeTargetBytes.toLong
+
+            while (tryToAddMore && rowIterator.hasNext) {
               val row = rowIterator.next()
               arrowWriter.write(row)
               arrowWriter.finish()
               rowCount += 1
             }
             cb.setNumRows(rowCount)
+            logger.debug(
+              s"Emitted batch of size ${totalVectorSize} bytes (${rowCount} rows); requested from ${originalCallingContext.renderString}."
+            )
             cb
           }(registerConversionTime)
         }
