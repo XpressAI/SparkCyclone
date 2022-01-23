@@ -34,7 +34,9 @@ object SystemVSharedMemory {
       )
 
     if (shmId < 0) {
-      throw new RuntimeException(s"Unable to get or create Shared Memory Segment at $path")
+      throw new RuntimeException(
+        s"Unable to get or create Shared Memory Segment at $path (result = ${shmId})"
+      )
     }
 
     val p = linux.shmat(shmId, null, 0)
