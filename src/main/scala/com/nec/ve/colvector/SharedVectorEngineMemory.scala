@@ -11,8 +11,7 @@ import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
-final class SharedVectorEngineMemory(mappedFile: SharedMemory, myOffset: Long)
-  extends LazyLogging {
+final class SharedVectorEngineMemory(mappedFile: SharedMemory, myOffset: Long) extends LazyLogging {
   var availableOffset: Long = myOffset
 
   logger.error(s"Launching mapped file with my offset ${myOffset}")
@@ -43,6 +42,7 @@ final class SharedVectorEngineMemory(mappedFile: SharedMemory, myOffset: Long)
 object SharedVectorEngineMemory {
 
   val Terabyte: Long = Math.pow(1024, 4).toLong
+  val Gigabyte: Long = Math.pow(1024, 3).toLong
 
   val ExpectedNumExecutors: Int = 16
 

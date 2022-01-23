@@ -192,7 +192,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       val scratch = SystemVSharedMemory.createSharedMemory(
         id = ctx.executorID(),
         name = name,
-        shmSize = SharedVectorEngineMemory.ExpectedNumExecutors * SharedVectorEngineMemory.Terabyte,
+        shmSize = SharedVectorEngineMemory.ExpectedNumExecutors * SharedVectorEngineMemory.Gigabyte,
         isFirst = Set("1", "driver").contains(ctx.executorID())
       )
       sharedMemories ::= scratch
