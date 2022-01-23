@@ -25,7 +25,7 @@ import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.{SharedVectorEngineMemory, SystemVSharedMemory}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
-import io.mappedbus.SharedMemory
+import io.mappedbus.{MemoryMappedFile, SharedMemory}
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
@@ -139,7 +139,14 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
         .filter(_.nonEmpty)
         .getOrElse("0")
         .toInt * SharedVectorEngineMemory.Terabyte
-    SharedVectorEngineMemory.makeDefault(myOffset)
+    new SharedVectorEngineMemory(
+      mappedFile = sharedMemories.headOption.getOrElse(
+        sys.error(
+          "Expected to find a shared-memory, but did not. Did the Executor initialize successfully?"
+        )
+      ),
+      myOffset = myOffset
+    )
   }
 
 }
