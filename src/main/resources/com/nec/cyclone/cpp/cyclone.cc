@@ -31,8 +31,8 @@
 #include <algorithm>
 #ifdef __ve__
 #include <vedma.h>
-#endif
 #include <vhshm.h>
+#endif
 #include <unistd.h>
 #include <sys/ipc.h>
 #include "cyclone.hpp"
