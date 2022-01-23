@@ -147,7 +147,7 @@ object VeKernelCompiler {
       .compile_c(code)
   }
 
-  val PlatformLibrarySoName = "cyclone-ve.so"
+  val PlatformLibrarySoName = "libcyclone.so"
 
 }
 
