@@ -14,41 +14,14 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
   val FILE_SIZE = 1000L
 
   def testFlow(writerM: => SharedMemory, readerM: => SharedMemory): Unit = {
-    val LIMIT = 0
-    val COMMIT = 8
-    val DATA = 16
     val wM: SharedMemory = writerM
-    wM.putLongVolatile(LIMIT, 1)
-    wM.putLong(DATA, 2)
-    wM.putLongVolatile(COMMIT, 1)
-
-    val m: SharedMemory = readerM
-    var limit = m.getLong(LIMIT)
-    assert(limit == 0)
-    var break = false
-    while (!break) {
-      limit = m.getLongVolatile(LIMIT)
-      if (limit != 0) {
-        assert(limit == 1)
-        break = true
-      }
-    }
-    var commit = m.getLongVolatile(COMMIT)
-    var data = m.getLong(DATA)
-    assert(commit == 0)
-    assert(data == 0)
-    break = false
-    while (!break) {
-      commit = m.getLongVolatile(COMMIT)
-      if (commit != 0) {
-        assert(commit == 1)
-        break = true
-      }
-    }
-    data = m.getLong(DATA)
-    try assert(data == 2)
-    finally {
-      m.unmap()
+    wM.putLong(0, 9)
+    val rM: SharedMemory = readerM
+    try {
+      val res = rM.getLong(0)
+      assert(res == 9)
+    } finally {
+      rM.unmap()
       wM.unmap()
     }
   }
