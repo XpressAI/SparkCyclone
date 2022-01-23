@@ -17,7 +17,7 @@ import java.nio.channels.FileChannel;
  * Class for direct access to a memory mapped file.
  */
 @SuppressWarnings("restriction")
-public class MemoryMappedFile {
+public class MemoryMappedFile implements SharedMemory {
 
     public static final Unsafe unsafe;
     private static final Method mmap;
@@ -74,5 +74,10 @@ public class MemoryMappedFile {
 
     public void putLongVolatile(long pos, long val) {
         unsafe.putLongVolatile(null, pos + addr, val);
+    }
+
+    @Override
+    public long addr() {
+        return addr;
     }
 }

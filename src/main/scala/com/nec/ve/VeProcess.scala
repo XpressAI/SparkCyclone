@@ -2,24 +2,17 @@ package com.nec.ve
 
 import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CFunctionGeneration.{
-  CScalarVector,
-  CVarChar,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
+import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
-import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
-import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
+import java.nio.{ByteBuffer, ByteOrder}
 
 trait VeProcess {
 
@@ -120,7 +113,6 @@ object VeProcess {
       results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
-
   }
 
   final case class WrappingVeo(
@@ -456,6 +448,5 @@ object VeProcess {
           ).register()
       }
     }
-
   }
 }

@@ -125,6 +125,8 @@ libraryDependencies ++= Seq(
   "org.bytedeco" % "javacpp" % "1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",
+  "org.bytedeco" % "systems" % "1.5.7-SNAPSHOT",
+  "org.bytedeco" % "systems" % "1.5.7-SNAPSHOT" classifier "linux-x86_64",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",

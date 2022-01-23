@@ -19,18 +19,18 @@
  */
 package com.nec.spark
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
+import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, launched, params, sharedMemories}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
-import com.nec.ve.colvector.SharedVectorEngineMemory
+import com.nec.ve.colvector.{SharedVectorEngineMemory, SystemVSharedMemory}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
+import io.mappedbus.SharedMemory
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
-import org.apache.spark.sql.catalyst.util.StringUtils
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
@@ -46,6 +46,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
+  var sharedMemories: List[SharedMemory] = Nil
   @transient val libsPerProcess: scala.collection.mutable.Map[
     veo_proc_handle,
     scala.collection.mutable.Map[String, LibraryReference]
@@ -73,6 +74,9 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   var CloseAutomatically: Boolean = true
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
+      for (memory <- sharedMemories) {
+        memory.unmap()
+      }
       veo.veo_proc_destroy(_veo_proc)
     }
   }
@@ -173,6 +177,12 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       )
       require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
       logger.info(s"Opened process: ${_veo_proc}")
+
+      val name = "scratch"
+      logger.info(s"Creating shared memory: $name")
+      val scratch = SystemVSharedMemory.createSharedMemory(ctx.executorID(), name, 64)
+      sharedMemories ::= scratch
+      logger.info(s"Shared Memory ${name} created with ID: ${scratch.shmId}")
     }
     logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
@@ -186,9 +196,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.metrics
-    import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
-    import com.nec.spark.SparkCycloneExecutorPlugin.closeProcAndCtx
+    import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx, metrics}
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>

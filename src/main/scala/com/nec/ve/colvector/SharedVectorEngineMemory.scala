@@ -6,12 +6,12 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.SharedVectorEngineMemory.SharedColVector.SharedLocation
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging
-import io.mappedbus.MemoryMappedFile
+import io.mappedbus.{MemoryMappedFile, SharedMemory}
 import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
-final class SharedVectorEngineMemory(mappedFile: MemoryMappedFile, myOffset: Long)
+final class SharedVectorEngineMemory(mappedFile: SharedMemory, myOffset: Long)
   extends LazyLogging {
   var availableOffset: Long = myOffset
 
@@ -90,5 +90,4 @@ object SharedVectorEngineMemory {
       ).toVeColVector()
     }
   }
-
 }

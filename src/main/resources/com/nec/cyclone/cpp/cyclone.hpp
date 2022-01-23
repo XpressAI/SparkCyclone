@@ -64,3 +64,6 @@ std::vector<size_t> idx_to_std(nullable_int_vector *idx);
 void print_indices(std::vector<size_t> vec);
 frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select);
 std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set);
+extern "C" int attach_vh_shm(char *path, int32_t id, size_t size_mb, void **out_p, uint64_t *out_data_vehva);
+extern "C" int dettach_vh_shm(void *p, uint64_t data_vehva);
+
