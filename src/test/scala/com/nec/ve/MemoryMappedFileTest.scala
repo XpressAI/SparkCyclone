@@ -18,17 +18,15 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
       val LIMIT = 0;
       val COMMIT = 8;
       val DATA = 16;
-      var wM: SharedMemory = null
+      var wM: SharedMemory = writerM
       val writer = new Thread() {
         override def run(): Unit = {
           try {
-            val m: SharedMemory = writerM
-            wM = m
             Thread.sleep(500)
-            m.putLongVolatile(LIMIT, 1)
+            wM.putLongVolatile(LIMIT, 1)
             Thread.sleep(500)
-            m.putLong(DATA, 2)
-            m.putLongVolatile(COMMIT, 1)
+            wM.putLong(DATA, 2)
+            wM.putLongVolatile(COMMIT, 1)
           } catch {
             case e: Throwable =>
               e.printStackTrace()
