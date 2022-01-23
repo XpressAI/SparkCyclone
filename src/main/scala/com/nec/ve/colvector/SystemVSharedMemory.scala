@@ -17,7 +17,7 @@ object SystemVSharedMemory {
 
     val shmSize = sizeInMb * 1024 * 1024;
     val perms = 511 // 0777
-    val shmId = if (id == "2") { // First executor.
+    val shmId = if (id == "1") { // First executor.
       linux.shmget(key, shmSize, linux.IPC_CREAT | linux.SHM_HUGETLB | perms)
     } else {
       linux.shmget(key, shmSize, linux.SHM_HUGETLB)
@@ -45,10 +45,7 @@ case class SystemVSharedMemory(id: String, shmId: Int, pointer: BadPointer) exte
 
   def unmap(): Unit = {
     // Mark to be cleaned up automatically.
-    if (id == "2") {
-      linux.shmctl(shmId, linux.IPC_RMID, null)
-    }
-
+    linux.shmctl(shmId, linux.IPC_RMID, null)
     linux.shmdt(pointer)
   }
 
