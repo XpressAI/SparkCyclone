@@ -63,7 +63,10 @@ trait VeProcess {
 
 object VeProcess {
 
-  final case class OriginalCallingContext(fullName: sourcecode.FullName, line: sourcecode.Line)
+  final case class OriginalCallingContext(fullName: sourcecode.FullName, line: sourcecode.Line) {
+    def renderString: String = s"${fullName.value}#${line.value}"
+  }
+
   object OriginalCallingContext {
     def make(implicit
       fullName: sourcecode.FullName,
