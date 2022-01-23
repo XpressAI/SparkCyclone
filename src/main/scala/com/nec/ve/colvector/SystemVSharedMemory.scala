@@ -31,14 +31,17 @@ object SystemVSharedMemory {
       throw new RuntimeException("Unable to attach to shared memory.")
     }
 
-    val longPointer = new LongPointer(p)
-    longPointer.put(0, 1234);
-
-    SystemVSharedMemory(id, shmId, p)
+    SystemVSharedMemory(id, shmId, new BadPointer(p))
   }
 }
-case class SystemVSharedMemory(id: String, shmId: Int, addr: Pointer) extends SharedMemory {
-  val longPointer = new LongPointer(addr)
+
+class BadPointer(pointer: Pointer) extends Pointer(pointer) {
+  def addr(): Long = address
+}
+
+case class SystemVSharedMemory(id: String, shmId: Int, pointer: BadPointer) extends SharedMemory {
+  val longPointer = new LongPointer(pointer)
+  def addr(): Long = pointer.addr()
 
   def unmap(): Unit = {
     // Mark to be cleaned up automatically.
@@ -46,7 +49,7 @@ case class SystemVSharedMemory(id: String, shmId: Int, addr: Pointer) extends Sh
       linux.shmctl(shmId, linux.IPC_RMID, null)
     }
 
-    linux.shmdt(addr);
+    linux.shmdt(pointer)
   }
 
   def getLong(pos: Long): Long = {
