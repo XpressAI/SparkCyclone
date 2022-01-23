@@ -282,18 +282,41 @@ final case class VERewriteStrategy(
               )
             )
 
+            val amplifyFunction = s"amplify_${functionName}"
+
+            val filterPlan = OneStageEvaluationPlan(
+              outputExpressions = f.output,
+              veFunction = VeFunction(
+                veFunctionStatus =
+                  VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
+                functionName = functionName,
+                namedResults = cFunction.outputs
+              ),
+              child = SparkToVectorEnginePlan(planLater(child))
+            )
+
             List(
               VectorEngineToSparkPlan(
-                OneStageEvaluationPlan(
-                  outputExpressions = f.output,
-                  veFunction = VeFunction(
-                    veFunctionStatus =
-                      VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
-                    functionName = functionName,
-                    namedResults = cFunction.outputs
-                  ),
-                  child = SparkToVectorEnginePlan(planLater(child))
-                )
+                if (options.amplifyBatches)
+                  VeAmplifyBatchesPlan(
+                    amplifyFunction = VeFunction(
+                      veFunctionStatus = VeFunctionStatus
+                        .SourceCode(
+                          CodeLines
+                            .from(
+                              CFunctionGeneration.KeyHeaders,
+                              MergerFunction
+                                .merge(types = data.map(_.veType))
+                                .toCodeLines(amplifyFunction)
+                            )
+                            .cCode
+                        ),
+                      functionName = amplifyFunction,
+                      namedResults = data
+                    ),
+                    child = filterPlan
+                  )
+                else filterPlan
               )
             )
           }
@@ -552,6 +575,7 @@ final case class VERewriteStrategy(
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
             mergeFunction = s"merge_$functionPrefix"
+            amplifyFunction = s"amplify_${functionPrefix}"
             code = CodeLines
               .from(
                 partialCFunction.toCodeLinesSPtr(partialName),
@@ -560,7 +584,12 @@ final case class VERewriteStrategy(
                 MergerFunction
                   .merge(types = partialCFunction.outputs.map(_.veType))
                   .toCodeLines(mergeFunction)
-                  .cCode
+                  .cCode,
+                if (options.amplifyBatches)
+                  MergerFunction
+                    .merge(types = ff.outputs.map(_.veType))
+                    .toCodeLines(amplifyFunction)
+                else CodeLines.empty
               )
 
           } yield {
@@ -620,16 +649,29 @@ final case class VERewriteStrategy(
               child = pag
             )
 
+            val finalAggregate = VeFinalAggregate(
+              expectedOutputs = aggregateExpressions,
+              finalFunction = VeFunction(
+                veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                functionName = finalName,
+                namedResults = ff.outputs
+              ),
+              child = flt
+            )
+
             VectorEngineToSparkPlan(
-              VeFinalAggregate(
-                expectedOutputs = aggregateExpressions,
-                finalFunction = VeFunction(
-                  veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                  functionName = finalName,
-                  namedResults = ff.outputs
-                ),
-                child = flt
-              )
+              if (options.amplifyBatches)
+                VeAmplifyBatchesPlan(
+                  amplifyFunction = VeFunction(
+                    veFunctionStatus = VeFunctionStatus
+                      .SourceCode(code.cCode),
+                    functionName = amplifyFunction,
+                    namedResults = ff.outputs
+                  ),
+                  child = finalAggregate
+                )
+              else
+                finalAggregate
             )
           }
 
