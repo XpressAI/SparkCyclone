@@ -26,6 +26,7 @@ object SystemVSharedMemory {
     val systemVIPCKey = linux.ftok(path, 1)
 
     val shmSize = sizeInMb * Megabyte
+
     val shmId =
       linux.shmget(
         systemVIPCKey,
@@ -35,7 +36,7 @@ object SystemVSharedMemory {
 
     if (shmId < 0) {
       throw new RuntimeException(
-        s"Unable to get or create Shared Memory Segment at $path (result = ${shmId})"
+        s"Unable to get or create Shared Memory Segment at $path (result = ${shmId}, errno = ${linux.errno()})"
       )
     }
 
