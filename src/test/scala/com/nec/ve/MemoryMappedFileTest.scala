@@ -13,7 +13,7 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
   val FILE_NAME_SYSV = "/tmp/sysv"
   val FILE_SIZE = 1000L
 
-  def testFlow(writer: => SharedMemory, reader: => SharedMemory): Unit = {
+  def testFlow(writerM: => SharedMemory, readerM: => SharedMemory): Unit = {
     try {
       val LIMIT = 0;
       val COMMIT = 8;
@@ -21,7 +21,7 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
       val writer = new Thread() {
         override def run(): Unit = {
           try {
-            val m: SharedMemory = writer
+            val m: SharedMemory = writerM
             Thread.sleep(500)
             m.putLongVolatile(LIMIT, 1)
             Thread.sleep(500)
@@ -37,7 +37,7 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
       writer.start()
 
       try {
-        val m: SharedMemory = reader
+        val m: SharedMemory = readerM
         var limit = m.getLong(LIMIT)
         assert(limit == 0)
         var break = false
@@ -75,14 +75,14 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
     fl.delete()
 
     testFlow(
-      writer = new MemoryMappedFile(FILE_NAME_SHM, FILE_SIZE),
-      reader = new MemoryMappedFile(FILE_NAME_SHM, FILE_SIZE)
+      writerM = new MemoryMappedFile(FILE_NAME_SHM, FILE_SIZE),
+      readerM = new MemoryMappedFile(FILE_NAME_SHM, FILE_SIZE)
     )
   }
   "It works with SystemV" in {
     testFlow(
-      writer = SystemVSharedMemory.createSharedMemory("x", "y", 1024, isFirst = true),
-      reader = SystemVSharedMemory.createSharedMemory("x", "y", 1024, isFirst = false)
+      writerM = SystemVSharedMemory.createSharedMemory("x", "y", 1024, isFirst = true),
+      readerM = SystemVSharedMemory.createSharedMemory("x", "y", 1024, isFirst = false)
     )
   }
 }
