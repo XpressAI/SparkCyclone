@@ -186,7 +186,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
         id = ctx.executorID(),
         name = name,
         sizeInMb = 64,
-        isFirst = ctx.executorID() == "1"
+        isFirst = Set("1", "driver").contains(ctx.executorID())
       )
       sharedMemories ::= scratch
       logger.info(s"Shared Memory ${name} created with ID: ${scratch.shmId}")
