@@ -19,7 +19,7 @@
  */
 package com.nec.spark
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, launched, params, sharedMemories}
+import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, sharedMemories, DefaultVeNodeId}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.{SharedVectorEngineMemory, SystemVSharedMemory}
@@ -46,7 +46,9 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
+
   var sharedMemories: List[SharedMemory] = Nil
+
   @transient val libsPerProcess: scala.collection.mutable.Map[
     veo_proc_handle,
     scala.collection.mutable.Map[String, LibraryReference]
@@ -180,7 +182,12 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
       val name = "scratch"
       logger.info(s"Creating shared memory: $name")
-      val scratch = SystemVSharedMemory.createSharedMemory(ctx.executorID(), name, 64)
+      val scratch = SystemVSharedMemory.createSharedMemory(
+        id = ctx.executorID(),
+        name = name,
+        sizeInMb = 64,
+        isFirst = ctx.executorID() == "1"
+      )
       sharedMemories ::= scratch
       logger.info(s"Shared Memory ${name} created with ID: ${scratch.shmId}")
     }
@@ -196,7 +203,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx, metrics}
+    import com.nec.spark.SparkCycloneExecutorPlugin.{closeProcAndCtx, metrics, CloseAutomatically}
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>

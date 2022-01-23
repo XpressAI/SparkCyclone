@@ -1,6 +1,7 @@
 package com.nec.ve
 
-import io.mappedbus.MemoryMappedFile
+import com.nec.ve.colvector.SystemVSharedMemory
+import io.mappedbus.{MemoryMappedFile, SharedMemory}
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.io.File
@@ -8,13 +9,11 @@ import java.io.File
 /** Including here, as this can only work on Linux. */
 final class MemoryMappedFileTest extends AnyFreeSpec {
 
-  val FILE_NAME = "/dev/shm/memorymappedfile-test"
+  val FILE_NAME_SHM = "/dev/shm/memorymappedfile-test"
+  val FILE_NAME_SYSV = "/tmp/sysv"
   val FILE_SIZE = 1000L
 
-  "It works" in {
-    val fl = new File(FILE_NAME)
-
-    fl.delete()
+  def testFlow(writer: => SharedMemory, reader: => SharedMemory): Unit = {
     try {
       val LIMIT = 0;
       val COMMIT = 8;
@@ -22,7 +21,7 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
       val writer = new Thread() {
         override def run(): Unit = {
           try {
-            val m = new MemoryMappedFile(FILE_NAME, FILE_SIZE)
+            val m: SharedMemory = writer
             Thread.sleep(500)
             m.putLongVolatile(LIMIT, 1)
             Thread.sleep(500)
@@ -38,7 +37,7 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
       writer.start()
 
       try {
-        val m = new MemoryMappedFile(FILE_NAME, FILE_SIZE)
+        val m: SharedMemory = reader
         var limit = m.getLong(LIMIT)
         assert(limit == 0)
         var break = false
@@ -68,5 +67,22 @@ final class MemoryMappedFileTest extends AnyFreeSpec {
         writer.join()
       }
     }
+  }
+
+  "It works with SHM" in {
+    val fl = new File(FILE_NAME_SHM)
+
+    fl.delete()
+
+    testFlow(
+      writer = new MemoryMappedFile(FILE_NAME_SHM, FILE_SIZE),
+      reader = new MemoryMappedFile(FILE_NAME_SHM, FILE_SIZE)
+    )
+  }
+  "It works with SystemV" in {
+    testFlow(
+      writer = SystemVSharedMemory.createSharedMemory("x", "y", 1024, isFirst = true),
+      reader = SystemVSharedMemory.createSharedMemory("x", "y", 1024, isFirst = false)
+    )
   }
 }
