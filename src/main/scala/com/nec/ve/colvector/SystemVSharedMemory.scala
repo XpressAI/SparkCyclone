@@ -9,12 +9,11 @@ import java.io.{File, FileOutputStream}
 
 object SystemVSharedMemory {
   val DefaultShmPerms = 511 // 0777
-  val Megabyte = 1024 * 1024
 
   def createSharedMemory(
     id: String,
     name: String,
-    sizeInMb: Int,
+    shmSize: Long,
     isFirst: Boolean
   ): SystemVSharedMemory = {
     val path = s"/tmp/cyclone-${name}"
@@ -24,8 +23,6 @@ object SystemVSharedMemory {
     }
 
     val systemVIPCKey = linux.ftok(path, 1)
-
-    val shmSize = sizeInMb * Megabyte
 
     val shmId =
       linux.shmget(
