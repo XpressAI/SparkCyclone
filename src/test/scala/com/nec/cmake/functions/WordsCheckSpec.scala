@@ -66,7 +66,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
             s"int size = input_0->count % 2 == 0 ? (input_0->count) / 2 : ((1 + input_0->count) / 2);",
             CodeLines.debugValue(""""input_0->count"""", "input_0->count"),
             CodeLines.debugValue(""""size"""", "size"),
-            prod.init("output_0", "size"),
+            prod.init("output_0", "size", "0"),
             CodeLines.debugHere,
             "int g = 0;",
             "for(int i = 0; i < input_0->count; i++) {",

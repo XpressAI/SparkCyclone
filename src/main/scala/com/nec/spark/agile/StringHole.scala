@@ -113,9 +113,8 @@ object StringHole {
       override def computeVector: CodeLines = {
         CodeLines.from(
           s"std::vector<size_t> ${filteredIds}(${refName}->count);",
-          CodeLines.scoped {
+          CodeLines.scoped(s"Filter ${refName} to values of the given set") {
             CodeLines.from(
-              s"// STEP: Filter ${refName} to values of the given set",
               s"frovedis::words $inputWords = varchar_vector_to_words($refName);",
               s"std::vector<int> ${values} { ${words} };",
               s"""frovedis::words ${filteringSet} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",

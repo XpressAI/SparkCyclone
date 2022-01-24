@@ -27,9 +27,10 @@ sealed trait StringProducer extends Serializable {}
 object StringProducer {
 
   trait FrovedisStringProducer extends StringProducer {
-    def init(outputName: String, size: String): CodeLines
+    def init(outputName: String, size: String, capacity: String): CodeLines
     def produce(outputName: String, outputIdx: String): CodeLines
     def complete(outputName: String): CodeLines
+    def copyValidityBuffer(outputName: String, subsetIndexes: Option[String]): CodeLines
   }
 
   def copyString(inputName: String): StringProducer = FrovedisCopyStringProducer(inputName)
@@ -55,11 +56,13 @@ object StringProducer {
         s"${frovedisLens(outputName)}[$outputIdx] = ${wordName(outputName)}.lens[i];"
       )
 
-    override def init(outputName: String, size: String): CodeLines =
+    override def init(outputName: String, size: String, capacity: String): CodeLines =
       CodeLines.from(
         s"frovedis::words ${wordName(outputName)} = varchar_vector_to_words(${inputName});",
         s"""std::vector<size_t> ${frovedisStarts(outputName)}(${size});""",
-        s"""std::vector<size_t> ${frovedisLens(outputName)}(${size});"""
+        s"""std::vector<size_t> ${frovedisLens(outputName)}(${size});""",
+        s"${frovedisStarts(outputName)}.reserve(${capacity});",
+        s"${frovedisLens(outputName)}.reserve(${capacity});"
       )
 
     override def complete(outputName: String): CodeLines = CodeLines.from(
@@ -77,11 +80,30 @@ object StringProducer {
       s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
     )
 
+    override def copyValidityBuffer(
+      outputName: String,
+      subsetIndexes: Option[String]
+    ): CodeLines = {
+      subsetIndexes match {
+        case Some(subset) =>
+          CodeLines.forLoop("g", s"${subset}.size()") {
+            List(
+              s"int i = ${subset}[g];",
+              s"set_validity(${outputName}->validityBuffer, g, check_valid(${inputName}->validityBuffer, i));"
+            )
+          }
+
+        case None =>
+          CodeLines.forLoop("i", s"${outputName}->count") {
+            s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, i));"
+          }
+      }
+    }
   }
 
   final case class StringChooser(condition: CExpression, ifTrue: String, otherwise: String)
     extends FrovedisStringProducer {
-    def init(outputName: String, size: String): CodeLines = {
+    def init(outputName: String, size: String, capacity: String): CodeLines = {
       CodeLines.from(
         s"""std::vector<int> ${outputName}_chars = frovedis::char_to_int("${ifTrue}a");""",
         s"""int ${outputName}_if_true_pos = 0;""",
@@ -117,6 +139,10 @@ object StringProducer {
         s"${outputName}_words.lens.swap(${outputName}_lens);"
       )
     }
+
+    def copyValidityBuffer(outputName: String, subsetIndexes: Option[String]): CodeLines = {
+      CodeLines.empty
+    }
   }
 
   final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
@@ -125,10 +151,10 @@ object StringProducer {
     val tmpCurrentOffset = s"${outputName}_tmp_current_offset"
     val tmpCount = s"${outputName}_tmp_count"
 
-    def setup(size: String = "groups_count"): CodeLines =
+    def setup(size: String = "groups_count", capacity: String = "0"): CodeLines =
       stringProducer match {
         case f: FrovedisStringProducer =>
-          CodeLines.from(CodeLines.debugHere, f.init(outputName, size))
+          CodeLines.from(CodeLines.debugHere, f.init(outputName, size, capacity))
       }
 
     def forEach(outputIdx: String): CodeLines = {
@@ -156,11 +182,12 @@ object StringProducer {
     outputIdx: String
   ): CodeLines = {
     CodeLines.from(
-      stringProducer.init(outputName, outputCount),
-      s"""for ( int32_t i = 0; i < $inputCount; i++ ) {""",
-      stringProducer.produce(outputName, outputIdx).indented,
-      "}",
-      stringProducer.complete(outputName)
+      stringProducer.init(outputName, outputCount, "0"),
+      CodeLines.forLoop("i", inputCount) {
+        stringProducer.produce(outputName, outputIdx)
+      },
+      stringProducer.complete(outputName),
+      stringProducer.copyValidityBuffer(outputName, None)
     )
   }
 }

@@ -5,7 +5,6 @@ import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline
-import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.{CFunction2, CFunctionGeneration, StringProducer}
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 
@@ -46,16 +45,17 @@ object GroupingFunction {
   ): CodeLines = {
     require(cVectors.nonEmpty, "cVectors is empty - perhaps an issue in checking the groups?")
     CodeLines.from(
+      s"// Compute the index -> bucket mapping",
       s"std::vector<int> $groupingIdentifiers;",
       CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
         CodeLines.from(
           s"int hash = 1;",
-          cVectors.map(cVector =>
+          cVectors.map { cVector =>
             CodeLines.from(
               if (cVector.veType.isString) addStringHashing(s"${cVector.name}[0]", "i", "hash")
               else CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")
             )
-          ),
+          },
           s"$groupingIdentifiers.push_back(hash % ${totalBuckets});"
         )
       }
@@ -66,18 +66,23 @@ object GroupingFunction {
     groupingIdentifiers: String,
     bucketToCount: String,
     totalBuckets: Int
-  ): CodeLines = CodeLines.from(
-    s"std::vector<int> $bucketToCount;",
-    CodeLines.forLoop("g", s"$totalBuckets")(
-      CodeLines.from(
-        s"int cnt = 0;",
-        CodeLines.forLoop("i", s"${groupingIdentifiers}.size()")(
-          CodeLines.ifStatement(s"${groupingIdentifiers}[i] == g")(CodeLines.from("cnt++;"))
-        ),
-        s"$bucketToCount.push_back(cnt);"
-      )
+  ): CodeLines = {
+    CodeLines.from(
+      s"// Compute the value counts for each bucket",
+      s"std::vector<int> $bucketToCount;",
+      CodeLines.forLoop("g", s"$totalBuckets") {
+        CodeLines.from(
+          s"int cnt = 0;",
+          CodeLines.forLoop("i", s"${groupingIdentifiers}.size()") {
+            CodeLines.ifStatement(s"${groupingIdentifiers}[i] == g") {
+              "cnt++;"
+            }
+          },
+          s"$bucketToCount.push_back(cnt);"
+        )
+      }
     )
-  )
+  }
 
   def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
     require(
@@ -87,15 +92,15 @@ object GroupingFunction {
 
     output.veType match {
       case CFunctionGeneration.VeString =>
-        CodeLines.scoped {
+        CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
           List(
             // Declare count and dsize
             s"auto count = ${input.name}[0]->count;",
             s"auto dsize = ${input.name}[0]->dataSize;",
             "",
-            // Allocate the nullable_T_vector[] with size 1
+            // Allocate the nullable_varchar_vector[] with size 1
             s"*${output.name} = (${output.veType.cVectorType}*) malloc(sizeof(void *));",
-            // Allocate the nullable_T_vector at [0]
+            // Allocate the nullable_varchar_vector at [0]
             s"${output.name}[0] = (${output.veType.cVectorType}*) malloc(sizeof(${output.veType.cVectorType}));",
             // Set count and dataSize
             s"${output.name}[0]->count = count;",
@@ -110,15 +115,15 @@ object GroupingFunction {
             s"${output.name}[0]->offsets = (int32_t*) malloc(obytes_count);",
             s"memcpy(${output.name}[0]->offsets, ${input.name}[0]->offsets, obytes_count);",
             "",
-            // Set validityBuffer - allocate set it all to 1
+            // Set validityBuffer - preserve the validity bits
             s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
             s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
-            s"memset(${output.name}[0]->validityBuffer, 255, vbytes_count);"
+            s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
           )
         }
 
       case scalar: VeScalarType =>
-        CodeLines.scoped {
+        CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
           List(
             // Declare count
             s"auto count = ${input.name}[0]->count;",
@@ -135,10 +140,10 @@ object GroupingFunction {
             s"${output.name}[0]->data = (${scalar.cScalarType}*) malloc(dbytes_count);",
             s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dbytes_count);",
             "",
-            // Set validityBuffer - allocate set it all to 1
+            // Set validityBuffer - preserve the validity bits
             s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
             s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
-            s"memset(${output.name}[0]->validityBuffer, 255, vbytes_count);"
+            s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
           )
         }
     }
@@ -172,8 +177,100 @@ object GroupingFunction {
 
     CFunction2(
       arguments,
-      CodeLines.from(s"sets[0] = 1;", (outputs, inputs).zipped.map(cloneCVecStmt(_, _)))
+      CodeLines.from(
+        "// Write out the number of buckets",
+        s"sets[0] = 1;",
+        "",
+        (outputs, inputs).zipped.map(cloneCVecStmt(_, _))
+      )
     )
+  }
+
+  def copyVecToBucketsStmt(
+    output: CVector,
+    input: CVector,
+    buckets: Int,
+    idToBucket: String,
+    bucketToCount: String
+  ): CodeLines = {
+    val copyStmt = output.veType match {
+      case CFunctionGeneration.VeString =>
+        val outName = s"${output.name}_current"
+        val fcsp = StringProducer.FrovedisCopyStringProducer(s"${input.name}[0]")
+
+        CodeLines.from(
+          // Point to the current nullable_varchar_vector
+          s"${output.veType.cVectorType} *${outName} = ${output.name}[b];",
+          // Currently a no-op
+          GroupByOutline.initializeStringVector(outName),
+          "",
+          // Set starts and lens vectors to zero but with capacity equal to the count in the bucket
+          fcsp.init(outName, "0", s"${bucketToCount}[b]"),
+          "",
+          // Construct the starts and lens vectors
+          CodeLines.forLoop("i", s"${idToBucket}.size()") {
+            CodeLines.ifStatement(s"b == ${idToBucket}[i]") {
+              List(
+                s"${fcsp.frovedisStarts(outName)}.emplace_back(${fcsp.wordName(outName)}.starts[i]);",
+                s"${fcsp.frovedisLens(outName)}.emplace_back(${fcsp.wordName(outName)}.lens[i]);"
+              )
+            }
+          },
+          "",
+          // Construct the output nullable_varchar_vector using the word components
+          fcsp.complete(outName),
+          "",
+          "auto o = 0;",
+          CodeLines.forLoop("i", s"${idToBucket}.size()") {
+            CodeLines.ifStatement(s"b == ${idToBucket}[i]") {
+              // Preserve the validity bit values across bucketing
+              s"set_validity(${outName}->validityBuffer, o++, check_valid(${input.name}[0]->validityBuffer, i));",
+            }
+          }
+        )
+
+      case other: VeScalarType =>
+        CodeLines.from(
+          // Initialize the values in the nullable_T_vector
+          GroupByOutline.initializeScalarVector(
+            veScalarType = other,
+            variableName = s"${output.name}[b]",
+            countExpression = s"${bucketToCount}[b]"
+          ),
+          "",
+          "auto o = 0;",
+          CodeLines.forLoop("i", s"${idToBucket}.size()") {
+            // If element is in the current bucket
+            CodeLines.ifStatement(s"b == ${idToBucket}[i]") {
+              List(
+                // Copy the value over
+                s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
+                // Preserve the validity bit values across bucketing
+                s"set_validity(${output.name}[b]->validityBuffer, o++, check_valid(${input.name}[0]->validityBuffer, i));"
+              )
+            }
+          }
+        )
+    }
+
+    CodeLines.scoped(
+      s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
+    ) {
+      CodeLines.from(
+        // Allocate the nullable_T_vector[] with size buckets
+        s"*${output.name} = (${output.veType.cVectorType}*)malloc(sizeof(void *) * ${buckets});",
+        "",
+        // Loop over each bucket
+        CodeLines.forLoop("b", s"${buckets}") {
+          CodeLines.from(
+            // Allocate the nullable_T_vector at [0]
+            s"${output.name}[b] = (${output.veType.cVectorType}*)malloc(sizeof(${output.veType.cVectorType}));",
+            // Perform the copy based on type T (scalar or varchar)
+            copyStmt
+          )
+        }
+      )
+    }
   }
 
   def groupDataNormal(data: List[DataDescription], totalBuckets: Int): CFunction2 = {
@@ -191,86 +288,29 @@ object GroupingFunction {
 
     CFunction2(
       arguments = arguments,
-      body = CodeLines
-        .from(
-          computeBuckets(
-            cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
-            groupingIdentifiers = "idToBucket",
-            totalBuckets = totalBuckets
-          ),
-          computeBucketSizes(
-            groupingIdentifiers = "idToBucket",
-            bucketToCount = "bucketToCount",
-            totalBuckets = totalBuckets
-          ),
-          /** For each bucket, initialize each output vector */
-          s"sets[0] = ${totalBuckets};",
-          data.zip(inputs).zip(outputs).map { case ((dataDesc, input), output) =>
-            CodeLines.from(
-              s"*${output.name} = (${output.veType.cVectorType}*)malloc(sizeof(void *) * ${totalBuckets});",
-              CodeLines.forLoop("b", s"${totalBuckets}") {
-                CodeLines.from(
-                  s"${output.name}[b] = (${output.veType.cVectorType}*)malloc(sizeof(${output.veType.cVectorType}));",
-                  output.veType match {
-                    case CFunctionGeneration.VeString =>
-                      val outName = s"${output.name}_current"
-                      val fp =
-                        StringProducer.FilteringProducer(
-                          outName,
-                          StringProducer.copyString(s"${input.name}[0]")
-                        )
-                      CodeLines
-                        .from(
-                          s"${output.veType.cVectorType} * $outName = ${output.name}[b];",
-                          CodeLines.debugHere,
-                          GroupByOutline.initializeStringVector(outName),
-                          CodeLines.debugHere,
-                          fp.setup(size = "idToBucket.size()"),
-                          CodeLines.debugHere,
-                          "int o = 0;",
-                          CodeLines.forLoop("i", s"idToBucket.size()") {
-                            CodeLines.from(
-                              CodeLines.ifStatement("b == idToBucket[i]")(
-                                CodeLines.from(fp.forEach("i"), "o++;")
-                              )
-                            )
-                          },
-                          fp.complete,
-                          "o = 0;",
-                          CodeLines.forLoop("i", s"idToBucket.size()") {
-                            CodeLines.from(
-                              CodeLines.ifStatement("b == idToBucket[i]")(
-                                CodeLines.from(fp.validityForEach("o"), "o++;")
-                              )
-                            )
-                          }
-                        )
-                        .blockCommented("String")
-
-                    case other: VeScalarType =>
-                      CodeLines.from(
-                        initializeScalarVector(
-                          veScalarType = other,
-                          variableName = s"${output.name}[b]",
-                          countExpression = s"bucketToCount[b]"
-                        ),
-                        "int o = 0;",
-                        CodeLines.forLoop("i", s"idToBucket.size()") {
-                          CodeLines.ifStatement("b == idToBucket[i]") {
-                            List(
-                              s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
-                              s"set_validity(${output.name}[b]->validityBuffer, o, 1);",
-                              "o++;"
-                            )
-                          }
-                        }
-                      )
-                  }
-                )
-              }
-            )
-          }
+      body = CodeLines.from(
+        // Compute the bucket assignments
+        computeBuckets(
+          cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
+          groupingIdentifiers = "idToBucket",
+          totalBuckets = totalBuckets
+        ),
+        "",
+        // Compute the bucket sizes
+        computeBucketSizes(
+          groupingIdentifiers = "idToBucket",
+          bucketToCount = "bucketToCount",
+          totalBuckets = totalBuckets
+        ),
+        "",
+        "// Write out the number of buckets",
+        s"sets[0] = ${totalBuckets};",
+        "",
+        // Copy the elements to their respective buckets
+        (outputs, inputs).zipped.map(
+          copyVecToBucketsStmt(_, _, totalBuckets, "idToBucket", "bucketToCount")
         )
+      )
     )
   }
 }
