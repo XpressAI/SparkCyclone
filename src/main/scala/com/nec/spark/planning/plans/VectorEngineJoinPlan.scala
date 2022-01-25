@@ -1,43 +1,44 @@
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerFunctionCallTime
-}
 import com.nec.spark.planning.{
   PlanCallsVeFunction,
   SupportsKeyedVeColBatch,
   SupportsVeColBatch,
   VeFunction
 }
-import com.nec.ve.VeColBatch
-import com.nec.ve.exchange.join.VeJoinStrategy
+import com.nec.ve.{VeColBatch, VeRDD}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.arrow.memory.RootAllocator
+import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
-import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
+  measureRunningTime,
+  registerFunctionCallTime
+}
 
 case class VectorEngineJoinPlan(
   outputExpressions: Seq[NamedExpression],
   joinFunction: VeFunction,
   left: SparkPlan,
-  right: SparkPlan,
-  veJoinStrategy: VeJoinStrategy
+  right: SparkPlan
 ) extends SparkPlan
   with BinaryExecNode
   with LazyLogging
   with SupportsVeColBatch
   with PlanCallsVeFunction {
 
-  override def executeVeColumnar(): RDD[VeColBatch] = {
-    veJoinStrategy
+  override def executeVeColumnar(): RDD[VeColBatch] =
+    VeRDD
       .joinExchangeLB(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         cleanUpInput = true
       )
       .map { case (leftListVcv, rightListVcv) =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        import com.nec.spark.SparkCycloneExecutorPlugin.source
         withVeLibrary { libRefJoin =>
           val leftColBatch = VeColBatch.fromList(leftListVcv)
           val rightColBatch = VeColBatch.fromList(rightListVcv)
@@ -61,7 +62,6 @@ case class VectorEngineJoinPlan(
           VeColBatch.fromList(batch)
         }
       }
-  }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(joinFunction = f(joinFunction))
