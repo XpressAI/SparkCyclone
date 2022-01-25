@@ -49,7 +49,7 @@ object VeRewriteStrategyOptions {
       joinOnVe = sparkConf
         .getOption(key = "spark.com.nec.spark.join-on-ve")
         .map(_.toBoolean)
-        .getOrElse(default.joinOnVe)
+        .getOrElse(default.joinOnVe),
       amplifyBatches = sparkConf
         .getOption(key = "spark.com.nec.spark.amplify-batches")
         .map(_.toBoolean)
@@ -66,7 +66,7 @@ object VeRewriteStrategyOptions {
       exchangeOnVe = true,
       passThroughProject = false,
       failFast = false,
-      joinOnVe = false
+      joinOnVe = false,
       amplifyBatches = true
     )
 }
