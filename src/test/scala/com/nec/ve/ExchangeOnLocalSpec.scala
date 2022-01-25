@@ -1,10 +1,9 @@
-package com.nec.ve.exchange
+package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.SparkAdditions
 import com.nec.ve.PureVeFunctions.PartitioningFunction
-import ExchangeBatches._
-import com.nec.ve.{DynamicVeSqlExpressionEvaluationSpec, VeKernelInfra}
+import com.nec.ve.VERDDSpec.{exchangeBatches, MultiFunctionName}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 

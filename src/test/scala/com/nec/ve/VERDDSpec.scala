@@ -2,16 +2,19 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.PureVeFunctions.DoublingFunction
 import com.nec.ve.VERDDSpec.{doubleBatches, longBatches}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeRDD.RichKeyedRDD
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, Float8Vector}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
@@ -63,6 +66,62 @@ final class VERDDSpec
 }
 
 object VERDDSpec {
+  val MultiFunctionName = "f_multi"
+  import OriginalCallingContext.Automatic._
+
+  def exchangeBatches(sparkSession: SparkSession, pathStr: String): RDD[Double] = {
+
+    import SparkCycloneExecutorPlugin.{veProcess => veProc}
+
+    doubleBatches {
+      sparkSession.sparkContext
+        .range(start = 1, end = 501, step = 1, numSlices = 4)
+        .map(_.toDouble)
+    }
+      .mapPartitions(
+        f = veIterator =>
+          veIterator
+            .map(arrowVec => {
+              import SparkCycloneExecutorPlugin.source
+              try VeColVector.fromArrowVector(arrowVec)
+              finally arrowVec.close()
+            })
+            .flatMap(veColVector => {
+              import SparkCycloneExecutorPlugin.source
+              try {
+                val ref = veProc.loadLibrary(java.nio.file.Paths.get(pathStr))
+
+                veProc
+                  .executeMulti(
+                    ref,
+                    MultiFunctionName,
+                    List(veColVector),
+                    List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
+                  )
+                  .map { case (k, vs) => (k, vs.head) }
+              } finally veColVector.free()
+            }),
+        preservesPartitioning = true
+      )
+      .exchangeBetweenVEs()
+      .mapPartitions(vectorIter =>
+        Iterator
+          .continually {
+            vectorIter.flatMap { vector =>
+              WithTestAllocator { implicit alloc =>
+                import SparkCycloneExecutorPlugin.source
+                try {
+                  val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
+                  val vl = vec.toList
+                  try if (vl.isEmpty) None else Some(vl.max)
+                  finally vec.close()
+                } finally vector.free()
+              }
+            }.max
+          }
+          .take(1)
+      )
+  }
 
   final case class NativeFunction(name: String)
 

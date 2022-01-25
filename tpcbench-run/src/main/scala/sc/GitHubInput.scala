@@ -12,7 +12,6 @@ sealed trait GitHubInput {
 
 object GitHubInput {
 
-  /** Limit of 10 */
   val DefaultList: SortedMap[String, GitHubInput] = SortedMap(
     "query" -> Choice("Query to use", Some("1"), (1 to 22).map(_.toString).toList ++ List("all")),
     "use-cyclone" -> OnOrOff("Enable Spark Cyclone plugin?", default = true),
@@ -29,17 +28,10 @@ object GitHubInput {
     ),
     "ve-log-debug" -> OnOrOff("Debug VE logs", default = false),
     "extra" -> Input("Extra command line arguments to add to Spark"),
+    "pass-through-project" -> OnOrOff("Pass-through in projection", default = false),
     "fail-fast" -> OnOrOff("Fail Fast", default = true),
-    "join-strategy" -> Choice(
-      description = "Join strategy",
-      default = Some("-"),
-      options = List("-", "host", "spark")
-    ),
-    "exchange-strategy" -> Choice(
-      description = "Exchange strategy",
-      default = Some("spark"),
-      options = List("spark", "vector-host", "none")
-    )
+    "join-on-ve" -> OnOrOff("Join on VE", default = false),
+    "filter-on-ve" -> OnOrOff("Filter on VE", default = true)
   )
 
   final case class Choice(description: String, default: Option[String], options: List[String])
