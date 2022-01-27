@@ -6,6 +6,7 @@ import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.sql.vectorized.ColumnVector
+import org.bytedeco.javacpp.BytePointer
 
 import java.nio.ByteBuffer
 
@@ -29,7 +30,7 @@ final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[By
       buffers = buffers.map { maybeBa =>
         maybeBa.map { ba =>
           /** VE can only take direct byte buffers at the moment */
-          val byteBuffer = ByteBuffer.allocateDirect(ba.length)
+          val byteBuffer = (new BytePointer(ba.length)).asBuffer
           byteBuffer.put(ba, 0, ba.length)
           byteBuffer.position(0)
           veProcess.putBuffer(byteBuffer)
@@ -42,7 +43,7 @@ final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[By
   def transferToByteBuffers(): ByteBufferColVector =
     ByteBufferColVector(underlying.map { baM =>
       baM.map { ba =>
-        val byteBuffer = ByteBuffer.allocateDirect(ba.length)
+        val byteBuffer = (new BytePointer(ba.length)).asBuffer
         byteBuffer.put(ba, 0, ba.length)
         byteBuffer.position(0)
         byteBuffer

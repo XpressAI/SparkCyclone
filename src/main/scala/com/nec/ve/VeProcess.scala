@@ -24,7 +24,7 @@ import java.nio.file.Path
 trait VeProcess {
 
   final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
-    val bb = ByteBuffer.allocateDirect(containerSize)
+    val bb = (new BytePointer(containerSize)).asBuffer
     get(containerLocation, bb, containerSize)
     bb
   }
@@ -236,7 +236,6 @@ object VeProcess {
         case (outPointer, CScalarVector(name, scalar)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
             source = source,
@@ -250,7 +249,6 @@ object VeProcess {
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
             source = source,
@@ -343,7 +341,6 @@ object VeProcess {
               s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
             )
             val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
               source = source,
@@ -362,7 +359,6 @@ object VeProcess {
               s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
             )
             val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
             VeColVector(
               source = source,
@@ -431,7 +427,6 @@ object VeProcess {
         case (outPointer, CScalarVector(name, scalar)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
             source = source,
@@ -445,7 +440,6 @@ object VeProcess {
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
           val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
-          byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
           VeColVector(
             source = source,

@@ -22,6 +22,7 @@ package com.nec.arrow
 import com.nec.arrow.ArrowTransferStructures._
 import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed
+import org.bytedeco.javacpp.BytePointer
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
@@ -69,8 +70,7 @@ object ArrowInterfaces {
 
   def c_bounded_string(string: String): non_null_c_bounded_string = {
     val vc = new non_null_c_bounded_string()
-    vc.data = ByteBuffer
-      .allocateDirect(string.length)
+    vc.data =  (new BytePointer(string.length)).asBuffer
       .put(string.getBytes())
       .asInstanceOf[DirectBuffer]
       .address()
@@ -83,7 +83,7 @@ object ArrowInterfaces {
     vc.data = byteBuffer match {
       case direct: DirectBuffer => direct.address()
       case other =>
-        val direct = ByteBuffer.allocateDirect(bufSize)
+        val direct = (new BytePointer(bufSize)).asBuffer
         direct.put(byteBuffer)
         direct.asInstanceOf[DirectBuffer].address()
     }
