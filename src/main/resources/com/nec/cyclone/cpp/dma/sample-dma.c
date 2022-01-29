@@ -4,6 +4,7 @@
  * This example ataches a VESHM registered by sample-owner.c.
  *
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 
 #define PG_64MB (64*1024*1024)
 
+
 #define usage "-p pid -v address -o offset -m size(MB) "\
 	"[-h]\n\
 	-p : PID of VESHM owner \n \
@@ -24,6 +26,7 @@
 	-m : VESHM memory size (Byte) (Default=0x200000Byte)\n\
 	[other] \n\
 	-h : help"
+
 int main(int argc, char *argv[])
 {
 	int i;
@@ -78,6 +81,7 @@ int main(int argc, char *argv[])
 	printf ("VESHM offset   : 0x%"PRIx64"\n", opt_remote_offset);
 	printf ("Memory size    : %#x(Byte)\n", shared_size);
 
+
 	/* Make mode_flag_attach */
 	mode_flag_attach = (VE_REGISTER_VEHVA   /* flag of remote VESHM */
 			    | VE_REGISTER_PCI); /* flag for this process */
@@ -85,7 +89,9 @@ int main(int argc, char *argv[])
 	/* Make mode_flag_detach */
 	mode_flag_detach = VE_REGISTER_VEHVA;
 
+
 	/* ---------- Checking options END--------------------------- */
+
 
 	/* Set up local VESHM */
 
@@ -108,6 +114,7 @@ int main(int argc, char *argv[])
 		free (area);
 		return 1;
 	}
+
 
 	/* Attach a remote VESHM */
 	remote_vehva = ve_shared_mem_attach(opt_owner_pid,
@@ -136,6 +143,7 @@ int main(int argc, char *argv[])
 			       sizeof(long long));
 	printf("ve_dma_post_wait(read): ret=%d\n", ret);
 	printf("%ld\n", *(long long *)area);
+
 
 	/* Detach VESHMs */
 
