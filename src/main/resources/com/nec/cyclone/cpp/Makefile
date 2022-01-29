@@ -1,5 +1,16 @@
 NCC = $(shell ls /opt/nec/ve/bin/ncc 2>/dev/null || echo gcc)
-NCC_OPTS = -xc++
+NCC_OPTS = -xc++ \
+	-O4 \
+	-shared \
+	-fpic \
+	-pthread \
+	-fno-defer-inline-template-instantiation \
+	-finline-functions \
+	-finline-max-depth=10 \
+	-msched-block \
+	-pthread \
+	-report-all \
+	-fdiag-vector=2
 ALL = cyclone.so
 all: $(ALL)
 .PHONY: clean
@@ -56,7 +67,7 @@ SOURCES = cyclone.cc \
 	frovedis/text/words.cc \
 	
 cyclone-ve.so: $(DEPS)
-	$(NCC) $(NCC_OPTS) -shared -fpic -pthread -o cyclone-ve.so $(SOURCES)
+	$(NCC) $(NCC_OPTS) -o cyclone-ve.so $(SOURCES)
 
 clean:
 	rm -f cyclone-ve.so
