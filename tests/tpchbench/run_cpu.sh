@@ -8,5 +8,5 @@ time $SPARK_HOME/bin/spark-submit \
     --deploy-mode cluster \
     --name TPC-H_CPU_$1 \
     --conf spark.sql.codegen.wholeStage=false \
-    target/scala-2.12/tpchbench_2.12-0.0.1.jar \
+    target/scala-2.12/tpchbench-assembly-0.0.1.jar \
     $1 $2

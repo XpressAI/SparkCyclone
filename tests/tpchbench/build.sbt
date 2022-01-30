@@ -22,7 +22,7 @@ Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 // JAR file settings
 
 // don't include Scala in the JAR file
-//assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
+assembly / assemblyOption  := (assembly / assemblyOption).value.withIncludeScala(false)
 
 // Add the JAR file naming conventions described here: https://github.com/MrPowers/spark-style-guide#jar-files
 // You can add the JAR file naming conventions by running the shell script

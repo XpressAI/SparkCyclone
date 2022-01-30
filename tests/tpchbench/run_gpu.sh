@@ -21,5 +21,5 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.rapids.sql.castFloatToString.enabled=true \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.rapids.sql.metrics.level=ESSENTIAL \
-    target/scala-2.12/tpchbench_2.12-0.0.1.jar \
+    target/scala-2.12/tpchbench-assembly-0.0.1.jar \
     $1 $2
