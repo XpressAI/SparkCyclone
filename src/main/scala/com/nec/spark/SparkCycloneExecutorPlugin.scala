@@ -25,7 +25,7 @@ import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.{SharedVectorEngineMemory, SystemVSharedMemory}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
-import io.mappedbus.{MemoryMappedFile, SharedMemory}
+import io.mappedbus.SharedMemory
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
@@ -179,7 +179,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       val scratch = SystemVSharedMemory.createSharedMemory(
         id = ctx.executorID(),
         name = name,
-        shmSize = SharedVectorEngineMemory.ExpectedNumExecutors * SharedVectorEngineMemory.Gigabyte,
+        shmSize = 1 * SharedVectorEngineMemory.Gigabyte,
         isFirst = Set("1", "driver").contains(ctx.executorID())
       )
       sharedMemories ::= scratch
@@ -197,7 +197,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.{closeProcAndCtx, metrics, CloseAutomatically}
+    import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx, metrics}
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>

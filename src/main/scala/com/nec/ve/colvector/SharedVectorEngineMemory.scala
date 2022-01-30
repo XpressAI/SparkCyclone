@@ -44,7 +44,7 @@ object SharedVectorEngineMemory {
   val Terabyte: Long = Math.pow(1024, 4).toLong
   val Gigabyte: Long = Math.pow(1024, 3).toLong
 
-  val ExpectedNumExecutors: Int = 16
+  val ExpectedNumExecutors: Int = 8
 
   def makeDefault(myOffset: Long): SharedVectorEngineMemory =
     make(path = "/dev/shm/x", myOffset = myOffset, size = ExpectedNumExecutors * Terabyte)

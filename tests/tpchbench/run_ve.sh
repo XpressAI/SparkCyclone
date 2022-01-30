@@ -20,5 +20,6 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.com.nec.spark.sort-on-ve=false \
     --conf spark.com.nec.spark.filter-on-ve=false \
     --conf spark.com.nec.spark.project-on-ve=false \
+    --conf spark.com.nec.spark.join-on-ve=false \
     target/scala-2.12/tpchbench_2.12-0.0.1.jar \
     $1 $2

@@ -33,8 +33,8 @@ object SystemVSharedMemory {
 
     if (shmId < 0) {
       throw new RuntimeException(
-        s"Unable to get or create Shared Memory Segment at $path (result = ${shmId}, errno = ${linux
-          .errno()}; id is ${id})"
+        s"Unable to get or create Shared Memory Segment of size: ${shmSize} at $path (result = ${shmId}, errno = ${linux
+          .errno()} (${linux.strerror(linux.errno()).getString}); id is ${id})"
       )
     }
 
