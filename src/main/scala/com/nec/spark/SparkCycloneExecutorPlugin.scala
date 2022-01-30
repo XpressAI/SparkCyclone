@@ -19,7 +19,7 @@
  */
 package com.nec.spark
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, sharedMemories, DefaultVeNodeId}
+import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, launched, params, sharedMemories}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.{SharedVectorEngineMemory, SystemVSharedMemory}
@@ -74,6 +74,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
    * *
    */
   var CloseAutomatically: Boolean = true
+
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
       for (memory <- sharedMemories) {
@@ -119,35 +120,21 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   )(implicit originalCallingContext: OriginalCallingContext): Unit =
     if (cachedBatches.contains(veColBatch))
       logger.trace(
-        s"Data at ${veColBatch.cols
-          .map(_.containerLocation)} will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
+        s"Data at ${
+          veColBatch.cols
+            .map(_.containerLocation)
+        } will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
       )
     else {
       val (cached, notCached) = veColBatch.cols.partition(cachedCols.contains)
-      logger.trace(s"Will clean up data for ${cached
-        .map(_.bufferLocations)}, and not clean up for ${notCached.map(_.allAllocations)}")
+      logger.trace(s"Will clean up data for ${
+        cached
+          .map(_.bufferLocations)
+      }, and not clean up for ${notCached.map(_.allAllocations)}")
       notCached.foreach(_.free())
     }
 
   val metrics = new ProcessExecutorMetrics(AllocationTracker.noOp)
-
-  implicit lazy val shared = {
-
-    /** Leave enough space for the data... */
-    val myOffset: Long =
-      Option(SparkEnv.get.executorId.filter(Character.isDigit))
-        .filter(_.nonEmpty)
-        .getOrElse("0")
-        .toInt * SharedVectorEngineMemory.Terabyte
-    new SharedVectorEngineMemory(
-      mappedFile = sharedMemories.headOption.getOrElse(
-        sys.error(
-          "Expected to find a shared-memory, but did not. Did the Executor initialize successfully?"
-        )
-      ),
-      myOffset = myOffset
-    )
-  }
 
 }
 
