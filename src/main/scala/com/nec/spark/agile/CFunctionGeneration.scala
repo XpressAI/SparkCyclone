@@ -716,9 +716,8 @@ object CFunctionGeneration {
       body = CodeLines.from(
         s"std::vector<size_t> matching_ids;",
         "",
-        CodeLines.scoped {
+        CodeLines.scoped("Perform the filter operation") {
           CodeLines.from(
-            "// STEP: Perform string vector computation (ILIKE, CONTAINS, etc)",
             filter.stringVectorComputations.distinct.map(_.computeVector),
             CodeLines.forLoop("i", "input_0->count") {
               val condition = filter.condition.isNotNullCode match {
@@ -738,22 +737,20 @@ object CFunctionGeneration {
           case (cv @ CVarChar(name), idx) =>
             val varName = cv.replaceName("input", "output").name
             val fp = FrovedisCopyStringProducer(name)
-            CodeLines.scoped {
+            CodeLines.scoped(s"Populate ${varName} based on filter results") {
               CodeLines.from(
-                s"// STEP: Populate ${varName}",
-                fp.init(varName, "matching_ids.size()"),
+                fp.init(varName, "matching_ids.size()", "0"),
                 CodeLines.forLoop("g", "matching_ids.size()") {
-                  CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g")).indented
+                  CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g"))
                 },
-                fp.complete(varName)
+                fp.complete(varName),
+                fp.copyValidityBuffer(varName, Some("matching_ids"))
               )
             }
           case (cVector @ CScalarVector(_, tpe), idx) =>
             val varName = cVector.replaceName("input", "output").name
-            CodeLines.scoped {
+            CodeLines.scoped(s"Populate ${varName} based on filter results") {
               CodeLines.from(
-                s"// STEP: Populate ${varName}",
-                CodeLines.debugHere,
                 GroupByOutline.initializeScalarVector(tpe, varName, s"matching_ids.size()"),
                 CodeLines.forLoop("o", "matching_ids.size()") {
                   CodeLines.from(

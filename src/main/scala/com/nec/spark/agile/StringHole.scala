@@ -80,7 +80,6 @@ object StringHole {
         def endsWith: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject")
         def contains: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"%$subject%")
         def equalsTo: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, s"$subject")
-        def like: LikeStringHoleEvaluation = LikeStringHoleEvaluation(refName, subject)
       }
     }
 
@@ -114,9 +113,8 @@ object StringHole {
       override def computeVector: CodeLines = {
         CodeLines.from(
           s"std::vector<size_t> ${filteredIds}(${refName}->count);",
-          CodeLines.scoped {
+          CodeLines.scoped(s"Filter ${refName} to values of the given set") {
             CodeLines.from(
-              s"// STEP: Filter ${refName} to values of the given set",
               s"frovedis::words $inputWords = varchar_vector_to_words($refName);",
               s"std::vector<int> ${values} { ${words} };",
               s"""frovedis::words ${filteringSet} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",
@@ -292,8 +290,6 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).endsWith
     case Contains(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).contains
-    case Like(left: AttributeReference, Literal(v, StringType), _) =>
-      LikeStringHoleEvaluation.Like(left.name, v.toString).like
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>

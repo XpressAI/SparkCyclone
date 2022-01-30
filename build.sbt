@@ -478,18 +478,18 @@ cycloneVeLibrary := {
   val cachedFun = FileFunction.cached(streams.value.cacheDirectory / "cpp") { (in: Set[File]) =>
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
-        logger.info("Building cyclone-ve.so...")
-        val exitcode = Process(command = Seq("make", "cyclone-ve.so"), cwd = makefile.getParentFile) ! logger
+        logger.info("Building libcyclone.so...")
+        val exitcode = Process(command = Seq("make", "clean", "libcyclone"), cwd = makefile.getParentFile) ! logger
 
         if (exitcode != 0) {
-          sys.error("Failed to build cyclone-ve.so; please check the compiler logs.")
+          sys.error("Failed to build libcyclone.so; please check the compiler logs.")
         }
 
         val cycloneVeDir = (Compile / resourceManaged).value / "cycloneve"
         IO.createDirectory(cycloneVeDir)
 
         val filesToCopy = in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
-          (new File(makefile.getParentFile, "cyclone-ve.so"))
+          (new File(makefile.getParentFile, "libcyclone.so"))
 
         filesToCopy.flatMap { sourceFile =>
           Path

@@ -1,8 +1,12 @@
-NCC = $(shell ls /opt/nec/ve/bin/ncc 2>/dev/null || echo gcc)
-NCC_OPTS = -xc++
-ALL = cyclone.so
+CPP = $(shell ls /opt/nec/ve/bin/nc++ 2>/dev/null || echo c++)
+CPP_OPTS = -std=c++17
+
+ALL = libcyclone
+
 all: $(ALL)
+
 .PHONY: clean
+
 DEPS = cyclone.cc \
 	cyclone.hpp \
 	frovedis/core/conditions_for_find.hpp \
@@ -54,9 +58,13 @@ SOURCES = cyclone.cc \
 	frovedis/text/parsedatetime.cc \
 	frovedis/text/parsefloat.cc \
 	frovedis/text/words.cc \
-	
-cyclone-ve.so: $(DEPS)
-	$(NCC) $(NCC_OPTS) -shared -fpic -pthread -o cyclone-ve.so $(SOURCES)
+
+libcyclone: $(DEPS)
+	$(CPP) $(CPP_OPTS) -shared -fPIC -pthread -o libcyclone.so $(SOURCES)
+
+test: libcyclone
+	$(CPP) $(CPP_OPTS) -c test.cpp
+	$(CPP) $(CPP_OPTS) -o test.out test.o -L. -lcyclone
 
 clean:
-	rm -f cyclone-ve.so
+	rm -f *.o *.so *.out
