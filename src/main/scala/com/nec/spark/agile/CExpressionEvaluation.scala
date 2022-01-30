@@ -243,7 +243,7 @@ object CExpressionEvaluation {
       )
 
     def scoped(label: String)(sub: CodeLines): CodeLines = {
-      CodeLines.from("{", s"// CODE BLOCK: ${label}".indented, sub.indented, "}", "")
+      CodeLines.from(s"{ // CODE BLOCK: ${label}", "", sub.indented, "}", "")
     }
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))
