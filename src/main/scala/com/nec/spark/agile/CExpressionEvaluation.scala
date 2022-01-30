@@ -181,6 +181,7 @@ object CExpressionEvaluation {
   }
 
   object CodeLines {
+    def parse(sourceCode: String): CodeLines = CodeLines.from(sourceCode.split("\\r?\\n").toList)
 
     def debugValue(names: String*): CodeLines =
       TcpDebug.conditionOn("DEBUG")(
