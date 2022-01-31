@@ -1,5 +1,13 @@
 CPP = $(shell ls /opt/nec/ve/bin/nc++ 2>/dev/null || echo c++)
-CPP_OPTS = -std=c++17
+CPP_OPTS = -std=c++17 \
+	-O4 \
+	-fno-defer-inline-template-instantiation \
+	-finline-functions \
+	-finline-max-depth=10 \
+	-msched-block \
+	-pthread \
+	-report-all \
+	-fdiag-vector=2
 
 ALL = libcyclone
 
