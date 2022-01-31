@@ -715,10 +715,10 @@ object CFunctionGeneration {
       outputs = filterOutput,
       body = CodeLines.from(
         s"std::vector<size_t> matching_ids;",
-        "",
         CodeLines.scoped("Perform the filter operation") {
           CodeLines.from(
             filter.stringVectorComputations.distinct.map(_.computeVector),
+            "// Combine all filters to matching_ids",
             CodeLines.forLoop("i", "input_0->count") {
               val condition = filter.condition.isNotNullCode match {
                 case Some(x) =>

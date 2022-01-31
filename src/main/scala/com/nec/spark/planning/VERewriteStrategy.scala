@@ -247,6 +247,12 @@ final case class VERewriteStrategy(
               sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}$idx")
             }
           } yield {
+            println(s"CONDITION: ${condition}")
+            println(s"child.output.toList: ${child.output.toList}")
+            println(s"condition.transform(replacer): ${condition.transform(replacer)}")
+            println(s"StringHole.process: ${StringHole.process(condition.transform(replacer))}")
+            println(s"cond: ${cond}")
+
             val functionName = s"flt_${functionPrefix}"
             val cFunction = renderFilter(
               VeFilter(
