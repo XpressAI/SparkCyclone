@@ -278,9 +278,60 @@ void bucket_grouping_test_pass() {
   return;
 }
 
+void merge_test_pass() {
+  // nullable_varchar_vector 1
+  std::vector<std::string> data1 { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
+  auto *input1 = from_vec(data1);
+  set_validity(input1->validityBuffer, 3, 0);
+
+  // nullable_varchar_vector 2
+  std::vector<std::string> data2 { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+  auto *input2 = from_vec(data2);
+  set_validity(input2->validityBuffer, 1, 0);
+  set_validity(input2->validityBuffer, 4, 0);
+  set_validity(input2->validityBuffer, 10, 0);
+
+  // output nullable_varchar_vector
+  auto * output_0 = new nullable_varchar_vector;
+
+  auto batches = 2;
+  nullable_varchar_vector **input_0_g = new nullable_varchar_vector* [batches];
+  input_0_g[0] = input1;
+  input_0_g[1] = input2;
+
+  // Construct std::vector<frovedis::words>
+  std::vector<frovedis::words> output_0_multi_words(2);
+  for (int b = 0; b < batches; b++) {
+    output_0_multi_words[b] = varchar_vector_to_words(input_0_g[b]);
+  }
+
+  // Merge
+  frovedis::words output_0_merged = frovedis::merge_multi_words(output_0_multi_words);
+  words_to_varchar_vector(output_0_merged, output_0);
+
+  // Preserve validity buffers
+  auto o = 0;
+  for (int b = 0; b < batches; b++) {
+    for (int i = 0; i < input_0_g[b]->count; i++) {
+      set_validity(output_0->validityBuffer, o++, check_valid(input_0_g[b]->validityBuffer, i));
+    }
+  }
+
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "MERGE MULTI WORDS (PASSING?)\n" << std::endl;
+
+  debug_nullable_varchar_vector(input1);
+  debug_nullable_varchar_vector(input2);
+  debug_nullable_varchar_vector(output_0);
+
+  std::cout << "================================================================================" << std::endl;
+  return;
+}
+
 int main() {
-  // projection_test();
-  // filter_test();
+  projection_test();
+  filter_test();
   bucket_grouping_test_fail();
   bucket_grouping_test_pass();
+  merge_test_pass();
 }
