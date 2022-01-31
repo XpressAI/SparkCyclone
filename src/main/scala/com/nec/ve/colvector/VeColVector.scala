@@ -145,8 +145,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val dataSize = numItems * 8
         float8Vector.setValueCount(numItems)
-        val vhTarget = (new BytePointer(dataSize)).asBuffer
-        val validityTarget = (new BytePointer(numItems)).asBuffer
+        val vhTarget = ByteBuffer.allocateDirect(dataSize)
+        val validityTarget = ByteBuffer.allocateDirect(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         veProcess.get(buffers(1), validityTarget, validityTarget.limit())
         getUnsafe.copyMemory(
@@ -166,8 +166,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val dataSize = numItems * 8
         bigIntVector.setValueCount(numItems)
-        val vhTarget = (new BytePointer(dataSize)).asBuffer
-        val validityTarget = (new BytePointer(numItems)).asBuffer
+        val vhTarget = ByteBuffer.allocateDirect(dataSize)
+        val validityTarget = ByteBuffer.allocateDirect(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         veProcess.get(buffers(1), validityTarget, validityTarget.limit())
         getUnsafe.copyMemory(
@@ -187,8 +187,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val dataSize = numItems * 4
         intVector.setValueCount(numItems)
-        val vhTarget = (new BytePointer(dataSize)).asBuffer
-        val validityTarget = (new BytePointer(numItems)).asBuffer
+        val vhTarget = ByteBuffer.allocateDirect(dataSize)
+        val validityTarget = ByteBuffer.allocateDirect(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         veProcess.get(buffers(1), validityTarget, validityTarget.limit())
         getUnsafe.copyMemory(
@@ -208,13 +208,14 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val offsetsSize = (numItems + 1) * 4
         val lastOffsetIndex = numItems * 4
-        val offTarget = (new BytePointer(offsetsSize)).asBuffer
-        val validityTarget = (new BytePointer(numItems)).asBuffer
+        val offTarget = ByteBuffer.allocateDirect(offsetsSize)
+        val validityTarget = ByteBuffer.allocateDirect(numItems)
 
         veProcess.get(buffers(1), offTarget, offTarget.limit())
         veProcess.get(buffers(2), validityTarget, validityTarget.limit())
         val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
-        val vhTarget = (new BytePointer(dataSize)).asBuffer
+        val vhTarget = ByteBuffer.allocateDirect(dataSize)
+          //(new BytePointer(dataSize)).asBuffer
 
         offTarget.rewind()
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
