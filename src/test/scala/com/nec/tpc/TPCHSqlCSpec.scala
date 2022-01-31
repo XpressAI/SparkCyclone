@@ -809,7 +809,7 @@ abstract class TPCHSqlCSpec
         c_custkey = o_custkey
         and l_orderkey = o_orderkey
         and o_orderdate >= date '$date'
-        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 'R'
+        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 82
         and c_nationkey = n_nationkey
       group by
         c_custkey,
@@ -844,10 +844,13 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(
-        ds.as[(Long, String, Double, Double, String, String, String, String)]
-          .collect()
-          .toList
-          .sorted === result.sorted
+        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
+          ds.as[(Long, String, Double, Double, String, String, String, String)]
+            .collect()
+            .toList
+            .sorted,
+          result.sorted
+        )
       )
     }
   }
@@ -895,7 +898,7 @@ abstract class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double)].collect().toList.sorted === result.sorted)
+    assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(ds.as[(Long, Double)].collect().toList.sorted, result.sorted))
     }
   }
   //This doesn't work.
