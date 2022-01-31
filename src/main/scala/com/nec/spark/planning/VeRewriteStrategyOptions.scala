@@ -12,7 +12,7 @@ final case class VeRewriteStrategyOptions(
   failFast: Boolean,
   joinOnVe: Boolean,
   amplifyBatches: Boolean
-) {}
+)
 
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
@@ -42,10 +42,12 @@ object VeRewriteStrategyOptions {
         .getOption(key = "spark.com.nec.spark.pass-through-project")
         .map(_.toBoolean)
         .getOrElse(default.passThroughProject),
-      failFast = sparkConf
-        .getOption(key = "spark.com.nec.spark.fail-fast")
-        .map(_.toBoolean)
-        .getOrElse(default.failFast),
+      failFast = {
+        sparkConf
+          .getOption(key = "spark.com.nec.spark.fail-fast")
+          .map(_.toBoolean)
+          .getOrElse(default.failFast)
+      },
       joinOnVe = sparkConf
         .getOption(key = "spark.com.nec.spark.join-on-ve")
         .map(_.toBoolean)

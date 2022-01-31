@@ -91,9 +91,8 @@ object VERewriteStrategy {
   val HashExchangeBuckets: Int = 8
 }
 
-final case class VERewriteStrategy(
-  options: VeRewriteStrategyOptions = VeRewriteStrategyOptions.default
-) extends Strategy
+final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
+  extends Strategy
   with LazyLogging {
 
   import com.github.ghik.silencer.silent
