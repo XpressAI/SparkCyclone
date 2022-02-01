@@ -116,12 +116,22 @@ more performant due to avoiding a coalesce/shuffle afterwards.
 --conf spark.com.nec.spark.preshuffle-partitions=8
 ```
 
-## Sorting on Ve
+## Configuration options
 
-By default all sorting is done on CPU, however there exists possibility to enable sorting on VE.
+Note, _default specified in the `=`_
 
 ```
---conf spark.com.nec.spark.sort-on-ve=true
+--conf spark.com.nec.spark.aggregate-on-ve=true
+--conf spark.com.nec.spark.sort-on-ve=false
+--conf spark.com.nec.spark.project-on-ve=true
+--conf spark.com.nec.spark.filter-on-ve=true
+--conf spark.com.nec.spark.exchange-on-ve=true
+--conf spark.com.nec.spark.pass-through-project=false
+--conf spark.com.nec.spark.fail-fast=false
+--conf spark.com.nec.spark.join-on-ve=false
+--conf spark.com.nec.spark.amplify-batches=true
+--conf spark.com.nec.spark.ve.columnBatchSize=<spark col batch size>
+--conf spark.com.nec.spark.ve.targetBatchSizeMb=64
 ```
 
 ## Benchmarking
