@@ -32,7 +32,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
 import scalatags.Text.tags2.{details, summary}
-
+import com.nec.testing.ProductListEquivalenceCheck.shouldContainTheSameProducts
 import java.time.LocalDate
 
 abstract class TPCHSqlCSpec
@@ -293,12 +293,10 @@ abstract class TPCHSqlCSpec
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
       val result = ds
-        .limit(1)
         .as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
         .collect()
         .toList
         .sortBy(v => (v._1, v._2))
-        .head
 
       val expected = List[Tpe](
         (
@@ -350,13 +348,9 @@ abstract class TPCHSqlCSpec
           1478870
         )
       ).sortBy(v => (v._1, v._2))
-      assert(
-        expected
-          .exists(e =>
-            com.nec.testing.ProductListEquivalenceCheck.twoProductsEq.areEqual(result, e)
-          ),
-        s"$result did not match anything expected from $expected"
-      )
+
+      result should shouldContainTheSameProducts(expected)
+
     }
   }
 
@@ -438,7 +432,7 @@ abstract class TPCHSqlCSpec
           .sorted
 
       val expected = result.sorted
-      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultQuery, expected))
+      resultQuery should shouldContainTheSameProducts(expected)
     }
   }
 
@@ -491,8 +485,8 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       val resultCompute = ds.as[(Long, Double, String, Long)].collect().toList.sorted
-      val expected = result.toList.sorted
-      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultCompute, expected))
+      val expected = result.sorted
+      resultCompute should shouldContainTheSameProducts(expected)
     }
   }
 
@@ -524,18 +518,13 @@ abstract class TPCHSqlCSpec
         o_orderpriority;
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
-          ds.as[(String, Long)].collect().toList.sorted,
-          List(
+      ds.as[(String, Long)].collect().sorted shouldBe List(
             ("1-URGENT", 10594),
             ("2-HIGH", 10476),
             ("3-MEDIUM", 10410),
             ("4-NOT SPECIFIED", 10556),
             ("5-LOW", 10487)
           ).sorted
-        )
-      )
     }
   }
 
@@ -572,9 +561,7 @@ abstract class TPCHSqlCSpec
         revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
-          ds.as[(String, Double)].collect().toList.sorted,
+          ds.as[(String, Double)].collect().toList.sorted should  shouldContainTheSameProducts(
           List(
             ("INDONESIA", 5.5502041169699915e7),
             ("VIETNAM", 5.529508699669991e7),
@@ -582,7 +569,6 @@ abstract class TPCHSqlCSpec
             ("INDIA", 5.2035512000199996e7),
             ("JAPAN", 4.5410175695400015e7)
           ).sorted
-        )
       )
     }
   }
@@ -844,15 +830,10 @@ abstract class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
-          ds.as[(Long, String, Double, Double, String, String, String, String)]
+      ds.as[(Long, String, Double, Double, String, String, String, String)]
             .collect()
             .toList
-            .sorted,
-          result.sorted
-        )
-      )
+            .sorted should shouldContainTheSameProducts(result.sorted)
     }
   }
   withTpchViews("Query 11", configuration) { sparkSession =>
@@ -899,7 +880,7 @@ abstract class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-    assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(ds.as[(Long, Double)].collect().toList.sorted, result.sorted))
+      ds.as[(Long, Double)].collect().toList.sorted should shouldContainTheSameProducts(result.sorted)
     }
   }
   //This doesn't work.
