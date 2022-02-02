@@ -1,9 +1,9 @@
 package com.nec.util
 
 object BatchAmplifier {
-  def amplify[T](i: Iterator[T])(limit: Int, f: T => Int): Iterator[Vector[T]] = {
+  def amplify[T](i: Iterator[T])(limit: Long, f: T => Long): Iterator[Vector[T]] = {
     val buffer = scala.collection.mutable.Buffer.empty[T]
-    var accumulated: Int = 0
+    var accumulated: Long = 0
     new scala.Iterator[Vector[T]] {
       override def hasNext: Boolean = {
         var hasNext = i.hasNext
@@ -33,7 +33,7 @@ object BatchAmplifier {
 
   object Implicits {
     final implicit class RichIterator[T](i: Iterator[T]) {
-      def amplify(limit: Int, f: T => Int): Iterator[Vector[T]] =
+      def amplify(limit: Long, f: T => Long): Iterator[Vector[T]] =
         BatchAmplifier.amplify(i)(limit, f)
     }
   }

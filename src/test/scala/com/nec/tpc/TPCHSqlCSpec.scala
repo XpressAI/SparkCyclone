@@ -59,11 +59,12 @@ abstract class TPCHSqlCSpec
 
   private var printMarkup = false
 
+  protected var failFast = false
+
   protected override def beforeAll(configMap: ConfigMap): Unit = {
     printMarkup = configMap.getOptional[String]("markup").contains("true")
+    failFast = configMap.getOptional[String]("failFast").contains("true")
   }
-
-  private var initialized = false
 
   def configuration: SparkSession.Builder => SparkSession.Builder
   val resultsDir = "src/test/resources/com/nec/spark/results/"

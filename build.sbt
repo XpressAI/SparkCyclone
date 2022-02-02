@@ -158,6 +158,7 @@ inConfig(Test)(Defaults.testTasks)
 
 /** To do things more cleanly */
 CMake / parallelExecution := true
+
 /**
  * Make each test suite run independently
  * https://stackoverflow.com/questions/61072140/forking-each-scalatest-suite-with-sbt
@@ -166,6 +167,7 @@ CMake / testGrouping := (CMake / definedTests).value.map { suite =>
   import sbt.Tests._
   Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
 }
+
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false
 inConfig(VectorEngine)(Defaults.testTasks)
@@ -211,14 +213,22 @@ TPC / sourceDirectory := baseDirectory.value / "src" / "test"
 val debugToHtml = SettingKey[Boolean]("debugToHtml")
 debugToHtml := false
 
+val failFast = SettingKey[Boolean]("failFast")
+failFast := false
+
 TPC / testOptions := {
-  if ((TPC / debugToHtml).value)
-    Seq(
-      Tests.Filter(tpcFilter),
-      Tests.Argument("-C", "org.scalatest.tools.TrueHtmlReporter"),
-      Tests.Argument("-Dmarkup=true")
-    )
-  else Seq(Tests.Filter(tpcFilter))
+  {
+    if ((TPC / debugToHtml).value)
+      Seq(
+        Tests.Filter(tpcFilter),
+        Tests.Argument("-C", "org.scalatest.tools.TrueHtmlReporter"),
+        Tests.Argument("-Dmarkup=true")
+      )
+    else Seq(Tests.Filter(tpcFilter))
+  } ++ {
+    val doFailFast = (TPC / failFast).value
+    Seq(Tests.Argument(s"-Dfailfast=${doFailFast}"))
+  }
 }
 
 /** CMake specific configuration */

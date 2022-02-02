@@ -59,7 +59,7 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
 
             /** We try to fill up as much as possible either if the row count is too small or if the total size is too small */
             def tryToAddMore: Boolean =
-              rowCount < arrowEncodingSettings.numRows || totalVectorSize < arrowEncodingSettings.batchSizeTargetBytes.toLong
+              rowCount < arrowEncodingSettings.numRows || totalVectorSize < arrowEncodingSettings.batchSizeTargetBytes
 
             while (tryToAddMore && rowIterator.hasNext) {
               val row = rowIterator.next()
