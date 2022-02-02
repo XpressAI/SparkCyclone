@@ -1053,7 +1053,8 @@ abstract class TPCHSqlCSpec
       val results = ds.as[Double].collect.toList.sorted
 
       assert(results.size === expected.size)
-      (results, expected).zipped.map { case (x, y) => assert(x === y) } //  16.3.sorted8
+      // Tests with numerical tolerance need to be performed element-wise
+      (results, expected).zipped.foreach { case (x, y) => assert(x === y) } //  16.3.sorted8
     }
   }
 
@@ -1378,6 +1379,29 @@ abstract class TPCHSqlCSpec
       .toList
     sparkSession.sql(sql).debugSqlHere { ds =>
       assert(ds.as[(String, String)].collect().toList.sorted === result.sorted)
+    }
+  }
+
+  withTpchViews("Query 21.minimal", configuration) { sparkSession =>
+    import sparkSession.implicits._
+    val nation = "SAUDI ARABIA"
+
+    val sql = s"""
+      select
+        l_shipmode
+      from
+        lineitem
+      where
+        l_shipdate = date '1995-01-01'
+        and l_commitdate = date '1995-01-01'
+      group by
+        l_shipmode
+    """
+
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      val results = ds.as[(String)].collect
+      results.foreach(x => println(s"ROW: ${x}"))
+      println(s"NUM RESULTS: ${results.size}")
     }
   }
 

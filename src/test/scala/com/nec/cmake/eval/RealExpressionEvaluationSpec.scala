@@ -284,10 +284,12 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
   }
 
   "We can aggregate / group by a String value (GroupByString)" in {
+    val input = List[(String, Double)](("x", 1.0), ("yy", 2.0), ("ax", 3.0), ("x", -1.0))
+    val expected = input.groupBy(_._1).mapValues(_.map(_._2).sum).toList
 
     /** SELECT a, SUM(b) group by a, b*b */
     val result =
-      evalGroupBySumStr(List[(String, Double)](("x", 1.0), ("yy", 2.0), ("ax", 3.0), ("x", -1.0)))(
+      evalGroupBySumStr(input)(
         (
           StringGrouping("input_0"),
           TypedCExpression2(
@@ -304,8 +306,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
         )
       )
 
-    val expected = List[(String, Double)](("x", 0), ("ax", 3.0), ("yy", 2.0))
-    assert(result.asInstanceOf[List[(String, Double)]] == expected)
+    assert(result.asInstanceOf[List[(String, Double)]].sorted == expected.sorted)
   }
 
   "We can aggregate / group by with NULL input check values" in {

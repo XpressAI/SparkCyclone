@@ -237,13 +237,13 @@ object CExpressionEvaluation {
 
     def forLoop(counterName: String, until: String)(sub: => CodeLines): CodeLines =
       CodeLines.from(
-        s"for ( int $counterName = 0; $counterName < $until; $counterName++ ) {",
+        s"for (int $counterName = 0; $counterName < $until; $counterName++) {",
         sub.indented,
         s"}"
       )
 
-    def scoped(sub: CodeLines): CodeLines = {
-      CodeLines.from("{", sub.indented, "}")
+    def scoped(label: String)(sub: CodeLines): CodeLines = {
+      CodeLines.from(s"{ // CODE BLOCK: ${label}", "", sub.indented, "}", "")
     }
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))

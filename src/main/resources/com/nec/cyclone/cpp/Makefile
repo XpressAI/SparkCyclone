@@ -1,9 +1,6 @@
-NCC = $(shell ls /opt/nec/ve/bin/ncc 2>/dev/null || echo gcc)
-NCC_OPTS = -xc++ \
+CPP = $(shell ls /opt/nec/ve/bin/nc++ 2>/dev/null || echo c++)
+CPP_OPTS = -std=c++17 \
 	-O4 \
-	-shared \
-	-fpic \
-	-pthread \
 	-fno-defer-inline-template-instantiation \
 	-finline-functions \
 	-finline-max-depth=10 \
@@ -11,9 +8,13 @@ NCC_OPTS = -xc++ \
 	-pthread \
 	-report-all \
 	-fdiag-vector=2
-ALL = cyclone.so
+
+ALL = libcyclone.so
+
 all: $(ALL)
+
 .PHONY: clean
+
 DEPS = cyclone.cc \
 	cyclone.hpp \
 	frovedis/core/conditions_for_find.hpp \
@@ -65,9 +66,13 @@ SOURCES = cyclone.cc \
 	frovedis/text/parsedatetime.cc \
 	frovedis/text/parsefloat.cc \
 	frovedis/text/words.cc \
-	
-cyclone-ve.so: $(DEPS)
-	$(NCC) $(NCC_OPTS) -o cyclone-ve.so $(SOURCES)
+
+libcyclone.so: $(DEPS)
+	$(CPP) $(CPP_OPTS) -shared -fPIC -pthread -o libcyclone.so $(SOURCES)
+
+test: libcyclone.so
+	$(CPP) $(CPP_OPTS) -c test.cpp -S test.S
+	$(CPP) $(CPP_OPTS) -o test.out test.o -L. -lcyclone
 
 clean:
-	rm -f cyclone-ve.so
+	rm -f *.o *.so *.out
