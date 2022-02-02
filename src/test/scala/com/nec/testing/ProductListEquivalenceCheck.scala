@@ -31,9 +31,9 @@ final class ProductListEquivalenceCheck extends AnyFreeSpec {
 object ProductListEquivalenceCheck {
   class ContainsTheSameElementsAsWithDoubleTolerance[A  <: Product](expected: Seq[A]) extends Matcher[Seq[A]] {
     def apply(left: Seq[A]): MatchResult = {
-      val notEqual = left.zipAll(expected, null, null).filter{
-        case (elem, expect) if(elem == null || expect == null) => false
-        case (elem: Product, expect: Product) => twoProductsEq.areEqual(elem, expect)
+      val notEqual = left.zipAll(expected, null, null).filter {
+        case (elem, expect) if(elem == null || expect == null) => true
+        case (elem: Product, expect: Product) => !twoProductsEq.areEqual(elem, expect)
       }
       val message = notEqual.map{
         case (null, expect) => s"Expected ${expect} but value was missing."
