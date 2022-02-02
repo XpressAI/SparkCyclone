@@ -619,7 +619,6 @@ object CFunctionGeneration {
   }
 
   def renderSort(sort: VeSort[CScalarVector, VeSortExpression]): CFunction = {
-
     val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
       CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
@@ -703,71 +702,105 @@ object CFunctionGeneration {
   }
 
   def renderFilter(filter: VeFilter[CVector, CExpression]): CFunction = {
-    val filterOutput = filter.data.map {
+    // Output variables
+    val outputs = filter.data.map {
       case CScalarVector(name, veType) =>
         CScalarVector(name.replaceAllLiterally("input", "output"), veType)
       case CVarChar(name) =>
         CVarChar(name.replaceAllLiterally("input", "output"))
     }
 
-    CFunction(
-      inputs = filter.data,
-      outputs = filterOutput,
-      body = CodeLines.from(
-        s"std::vector<size_t> matching_ids;",
-        CodeLines.scoped("Perform the filter operation") {
+    // Final filter condition that is the AND of individual C expressions and output of *Hole evaluations
+    val filterCondition = filter.condition.isNotNullCode match {
+      case Some(x) =>
+        s"${x} && ${filter.condition.cCode}"
+      case None =>
+        filter.condition.cCode
+    }
+
+    val filterStmt = CodeLines.from(
+      s"std::vector<size_t> matching_ids;",
+      CodeLines.scoped("Perform the filter operation") {
+        CodeLines.from(
+          // Execute *Hole evaluations
+          filter.stringVectorComputations.distinct.map(_.computeVector),
+          CodeLines.scoped("Combined the sub-filter results to matching_ids") {
+            CodeLines.from(
+              // Generate mask array
+              "// Combine all filters to a mask array",
+              s"std::vector<size_t> mask(input_0->count);",
+              CodeLines.forLoop("i", "input_0->count") {
+                s"mask[i] = ${filterCondition};"
+              },
+              "",
+              "// Count the bits with value of 1",
+              "size_t m_count = 0;",
+              CodeLines.forLoop("i", "mask.size()") {
+                "m_count += mask[i];"
+              },
+              "",
+              "// Add the indices of the 1's to the matching_ids",
+              "matching_ids.resize(m_count);",
+              "size_t mz = 0;",
+              // Add #pragma to guide vectorization
+              "#pragma _NEC vector",
+              CodeLines.forLoop("i", "mask.size()") {
+                CodeLines.ifStatement("mask[i]") {
+                  "matching_ids[mz++] = i;"
+                }
+              }
+            )
+          }
+        )
+      }
+    )
+
+    val copyStmts = filter.data.zipWithIndex.map {
+      case (cv @ CVarChar(name), idx) =>
+        val varName = cv.replaceName("input", "output").name
+        val fp = FrovedisCopyStringProducer(name)
+        CodeLines.scoped(s"Populate ${varName} based on filter results") {
           CodeLines.from(
-            filter.stringVectorComputations.distinct.map(_.computeVector),
-            "// Combine all filters to matching_ids",
-            CodeLines.forLoop("i", "input_0->count") {
-              val condition = filter.condition.isNotNullCode match {
-                case Some(x) =>
-                  s"${x} && ${filter.condition.cCode}"
-                case None =>
-                  filter.condition.cCode
-              }
-              CodeLines.ifStatement(condition) {
-                "matching_ids.push_back(i);"
-              }
-            }
+            fp.init(varName, "matching_ids.size()", "0"),
+            CodeLines.forLoop("g", "matching_ids.size()") {
+              CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g"))
+            },
+            fp.complete(varName),
+            fp.copyValidityBuffer(varName, Some("matching_ids"))
           )
-        },
-        filter.stringVectorComputations.distinct.map(_.deallocData),
-        filter.data.zipWithIndex.map {
-          case (cv @ CVarChar(name), idx) =>
-            val varName = cv.replaceName("input", "output").name
-            val fp = FrovedisCopyStringProducer(name)
-            CodeLines.scoped(s"Populate ${varName} based on filter results") {
+        }
+      case (cVector @ CScalarVector(_, tpe), idx) =>
+        val varName = cVector.replaceName("input", "output").name
+        CodeLines.scoped(s"Populate ${varName} based on filter results") {
+          CodeLines.from(
+            GroupByOutline.initializeScalarVector(tpe, varName, s"matching_ids.size()"),
+            CodeLines.forLoop("o", "matching_ids.size()") {
               CodeLines.from(
-                fp.init(varName, "matching_ids.size()", "0"),
-                CodeLines.forLoop("g", "matching_ids.size()") {
-                  CodeLines.from("int i = matching_ids[g];", fp.produce(varName, "g"))
-                },
-                fp.complete(varName),
-                fp.copyValidityBuffer(varName, Some("matching_ids"))
-              )
-            }
-          case (cVector @ CScalarVector(_, tpe), idx) =>
-            val varName = cVector.replaceName("input", "output").name
-            CodeLines.scoped(s"Populate ${varName} based on filter results") {
-              CodeLines.from(
-                GroupByOutline.initializeScalarVector(tpe, varName, s"matching_ids.size()"),
-                CodeLines.forLoop("o", "matching_ids.size()") {
-                  CodeLines.from(
-                    "int i = matching_ids[o];",
-                    CodeLines.ifElseStatement(s"check_valid(${cVector.name}->validityBuffer, i)") {
-                      List(
-                        s"${varName}->data[o] = ${cVector.name}->data[i];",
-                        s"set_validity($varName->validityBuffer, o, 1);"
-                      )
-                    } {
-                      s"set_validity($varName->validityBuffer, o, 0);"
-                    }
+                "int i = matching_ids[o];",
+                CodeLines.ifElseStatement(s"check_valid(${cVector.name}->validityBuffer, i)") {
+                  List(
+                    s"${varName}->data[o] = ${cVector.name}->data[i];",
+                    s"set_validity($varName->validityBuffer, o, 1);"
                   )
+                } {
+                  s"set_validity($varName->validityBuffer, o, 0);"
                 }
               )
             }
+          )
         }
+    }
+
+    CFunction(
+      inputs = filter.data,
+      outputs = outputs,
+      body = CodeLines.from(
+        // Perform the filter
+        filterStmt,
+        // Deallocate data used for the string vector computations
+        filter.stringVectorComputations.distinct.map(_.deallocData),
+        // Copy elements over to the output based on the matching_ids
+        copyStmts
       )
     )
   }

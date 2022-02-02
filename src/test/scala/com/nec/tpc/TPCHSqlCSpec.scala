@@ -220,7 +220,7 @@ abstract class TPCHSqlCSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
-      println(s"Plan is: ${dataSet.queryExecution}")
+      logger.info(s"Plan is: ${dataSet.queryExecution}")
       import _root_.scalatags.Text.all._
       condMarkup(details(summary("Plan"), pre(dataSet.queryExecution.toString())).render)
       condMarkup("<hr/>")

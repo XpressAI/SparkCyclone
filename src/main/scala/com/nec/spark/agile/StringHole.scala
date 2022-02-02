@@ -335,9 +335,15 @@ object StringHole {
     case Cast(expr: AttributeReference, DateType, Some(_)) =>
       DateCastStringHoleEvaluation(expr.name)
     case In(expr: AttributeReference, values: Seq[Literal]) if expr.dataType == StringType =>
-      println(s"expr: ${expr}")  // expr.dataType == LongType
       InStringHoleEvaluation(expr.name, values.map(_.toString))
     case In(expr: AttributeReference, values: Seq[Literal]) =>
+      /*
+        NOTE: The ad-hoc removal of `->data[i]` is a workaround.  The real fix is
+        to update `SparkExpressionToCExpression.referenceReplacer`, but since the
+        rest of the `VERewriteStrategy` and `SparkExpressionToCExpression.eval`
+        uses the output of that function, it is preferable to make the necessary
+        changes in a future dedicated PR.
+      */
       ScalarInExpHoleEvaluation(expr.name.replace("->data[i]", ""), expr.dataType, values.map(_.toString))
   }
 
