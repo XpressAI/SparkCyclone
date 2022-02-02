@@ -9,7 +9,7 @@ CPP_OPTS = -std=c++17 \
 	-report-all \
 	-fdiag-vector=2
 
-ALL = libcyclone
+ALL = libcyclone.so
 
 all: $(ALL)
 
@@ -67,11 +67,11 @@ SOURCES = cyclone.cc \
 	frovedis/text/parsefloat.cc \
 	frovedis/text/words.cc \
 
-libcyclone: $(DEPS)
+libcyclone.so: $(DEPS)
 	$(CPP) $(CPP_OPTS) -shared -fPIC -pthread -o libcyclone.so $(SOURCES)
 
-test: libcyclone
-	$(CPP) $(CPP_OPTS) -c test.cpp
+test: libcyclone.so
+	$(CPP) $(CPP_OPTS) -c test.cpp -S test.S
 	$(CPP) $(CPP_OPTS) -o test.out test.o -L. -lcyclone
 
 clean:
