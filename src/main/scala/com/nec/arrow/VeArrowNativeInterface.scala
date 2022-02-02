@@ -21,6 +21,7 @@ package com.nec.arrow
 
 import com.nec.arrow.ArrowNativeInterface._
 import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.LongPointer
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
@@ -97,20 +98,20 @@ object VeArrowNativeInterface extends LazyLogging {
     }
   }
 
-  def copyBufferToVe(proc: veo_proc_handle, byteBuffer: ByteBuffer, len: Option[Long] = None)(
+  def copyPointerToVe(proc: veo_proc_handle, bytePointer: BytePointer, len: Option[Long] = None)(
     implicit cleanup: Cleanup
   ): Long = {
     val veInputPointer = new LongPointer(1)
 
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
-    val size = len.getOrElse(byteBuffer.capacity().toLong)
+    val size = len.getOrElse(bytePointer.capacity().toLong)
     requireOk(veo.veo_alloc_mem(proc, veInputPointer, size))
     requireOk(
       veo.veo_write_mem(
         proc,
         /** after allocating, this pointer now contains a value of the VE storage address * */
         veInputPointer.get(),
-        new org.bytedeco.javacpp.Pointer(byteBuffer),
+        bytePointer,
         size
       )
     )

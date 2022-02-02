@@ -30,23 +30,23 @@ final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[By
       buffers = buffers.map { maybeBa =>
         maybeBa.map { ba =>
           /** VE can only take direct byte buffers at the moment */
-          val byteBuffer = (new BytePointer(ba.length)).asBuffer
-          byteBuffer.put(ba, 0, ba.length)
-          byteBuffer.position(0)
-          veProcess.putBuffer(byteBuffer)
+          val bytePointer = new BytePointer(ba.length)
+          bytePointer.put(ba, 0, ba.length)
+          bytePointer.position(0)
+          veProcess.putPointer(bytePointer)
         }
       },
       container = None,
       source = source
     )
 
-  def transferToByteBuffers(): ByteBufferColVector =
-    ByteBufferColVector(underlying.map { baM =>
+  def transferToBytePointers(): BytePointerColVector =
+    BytePointerColVector(underlying.map { baM =>
       baM.map { ba =>
-        val byteBuffer = (new BytePointer(ba.length)).asBuffer
-        byteBuffer.put(ba, 0, ba.length)
-        byteBuffer.position(0)
-        byteBuffer
+        val bytePointer = new BytePointer(ba.length)
+        bytePointer.put(ba, 0, ba.length)
+        bytePointer.position(0)
+        bytePointer
       }
     })
 

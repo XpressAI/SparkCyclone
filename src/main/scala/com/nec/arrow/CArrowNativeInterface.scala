@@ -25,7 +25,7 @@ import com.nec.arrow.ArrowInterfaces._
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{
   BigIntVectorInputWrapper,
   BitVectorInputWrapper,
-  ByteBufferInputWrapper,
+  BytePointerInputWrapper,
   DateDayVectorInputWrapper,
   Float8VectorInputWrapper,
   IntVectorInputWrapper,
@@ -74,8 +74,8 @@ object CArrowNativeInterface extends LazyLogging {
     val invokeArgs: Array[java.lang.Object] = arguments.map {
       case NativeArgument.ScalarInputNativeArgument(ScalarInput.ForInt(int)) =>
         java.lang.Integer.valueOf(int)
-      case NativeArgument.VectorInputNativeArgument(ByteBufferInputWrapper(buffer, size)) =>
-        c_bounded_data(buffer, size)
+      case NativeArgument.VectorInputNativeArgument(BytePointerInputWrapper(pointer, size)) =>
+        c_bounded_data(pointer.asBuffer, size)
       case NativeArgument.VectorInputNativeArgument(StringInputWrapper(str)) =>
         c_bounded_string(str)
       case NativeArgument.VectorInputNativeArgument(Float8VectorInputWrapper(vcv)) =>

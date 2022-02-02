@@ -24,6 +24,7 @@ import com.nec.util.RichVectors._
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
+import org.bytedeco.javacpp.BytePointer
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -45,9 +46,7 @@ final class ArrowInterfacesTest extends AnyFreeSpec {
         try {
           val ndv = new non_null_double_vector
           ndv.count = list.size
-          val bb = ByteBuffer
-            .allocateDirect(list.size * 8)
-            .order(ByteOrder.LITTLE_ENDIAN)
+          val bb = new BytePointer(list.size * 8).asBuffer
 
           list.foreach(bb.putDouble)
 

@@ -29,7 +29,7 @@ import org.apache.arrow.vector._
 import com.nec.arrow.ArrowNativeInterface._
 import com.typesafe.scalalogging.LazyLogging
 
-import java.nio.ByteBuffer
+import org.bytedeco.javacpp.BytePointer
 import scala.language.implicitConversions
 
 trait ArrowNativeInterface extends Serializable with LazyLogging {
@@ -139,7 +139,7 @@ object ArrowNativeInterface {
           extends InputArrowVectorWrapper {
           override def valueVector: ValueVector = varCharVector
         }
-        final case class ByteBufferInputWrapper(byteBuffer: ByteBuffer, size: Int)
+        final case class BytePointerInputWrapper(byteBuffer: BytePointer, size: Int)
           extends InputVectorWrapper
         final case class Float8VectorInputWrapper(float8Vector: Float8Vector)
           extends InputArrowVectorWrapper {
