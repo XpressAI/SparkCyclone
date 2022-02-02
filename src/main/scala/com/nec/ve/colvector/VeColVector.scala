@@ -206,12 +206,12 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val offsetsSize = (numItems + 1) * 4
         val lastOffsetIndex = numItems * 4
-        val offTarget = ByteBuffer.allocateDirect(offsetsSize)
+        val offTarget = new BytePointer(ByteBuffer.allocateDirect(offsetsSize))
         val validityTarget = new BytePointer(ByteBuffer.allocateDirect(numItems))
 
         veProcess.get(buffers(1), new BytePointer(offTarget), offTarget.limit())
         veProcess.get(buffers(2), validityTarget, validityTarget.limit())
-        val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
+        val dataSize = offTarget.getInt(lastOffsetIndex)
         val vhTarget = new BytePointer(ByteBuffer.allocateDirect(dataSize))
 
         offTarget.position(0)
@@ -225,7 +225,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           Math.ceil(numItems / 64.0).toInt * 8
         )
         getUnsafe.copyMemory(
-          offTarget.asInstanceOf[sun.nio.ch.DirectBuffer].address(),
+          offTarget.address(),
           vcvr.getOffsetBufferAddress,
           offsetsSize
         )

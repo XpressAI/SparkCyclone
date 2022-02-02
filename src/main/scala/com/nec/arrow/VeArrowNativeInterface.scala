@@ -27,7 +27,6 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
 import java.io.FileNotFoundException
-import java.nio.ByteBuffer
 import java.nio.file.{Files, Paths}
 
 final class VeArrowNativeInterface(proc: veo_proc_handle, lib: Long) extends ArrowNativeInterface {

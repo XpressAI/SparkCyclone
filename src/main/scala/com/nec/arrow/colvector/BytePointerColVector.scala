@@ -120,7 +120,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           val offsetsSize = (numItems + 1) * 4
           val lastOffsetIndex = numItems * 4
           val offTarget = buffers(1).get
-          val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
+          val dataSize = offTarget.getInt(lastOffsetIndex)
           offTarget.position(0)
           vcvr.allocateNew(dataSize, numItems)
           vcvr.setValueCount(numItems)

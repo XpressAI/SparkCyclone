@@ -75,7 +75,7 @@ object CArrowNativeInterface extends LazyLogging {
       case NativeArgument.ScalarInputNativeArgument(ScalarInput.ForInt(int)) =>
         java.lang.Integer.valueOf(int)
       case NativeArgument.VectorInputNativeArgument(BytePointerInputWrapper(pointer, size)) =>
-        c_bounded_data(pointer.asBuffer, size)
+        c_bounded_data(pointer, size)
       case NativeArgument.VectorInputNativeArgument(StringInputWrapper(str)) =>
         c_bounded_string(str)
       case NativeArgument.VectorInputNativeArgument(Float8VectorInputWrapper(vcv)) =>

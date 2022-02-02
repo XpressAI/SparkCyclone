@@ -12,7 +12,7 @@ val VectorEngine = config("ve") extend Test
  * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
  * are very slow
  */
-ThisBuild / scalaVersion := "2.12.10"
+ThisBuild / scalaVersion := "2.12.15"
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
@@ -97,7 +97,7 @@ lazy val `fun-bench` = project
       }
   )
 
-crossScalaVersions := Seq("2.12.10", "2.11.12")
+crossScalaVersions := Seq("2.12.15", "2.11.12")
 
 val sparkVersion = SettingKey[String]("sparkVersion")
 
@@ -106,7 +106,7 @@ ThisBuild / sparkVersion := {
   if (scalaV.startsWith("2.12")) "3.1.2" else "2.3.2"
 }
 
-val silencerVersion = "1.6.0"
+val silencerVersion = "1.7.8"
 
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 

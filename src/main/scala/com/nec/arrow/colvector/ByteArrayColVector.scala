@@ -8,8 +8,6 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 
-import java.nio.ByteBuffer
-
 /**
  * Storage of a col vector as serialized Arrow buffers
  * We use Option[] because the `container` has no location, only the buffers.

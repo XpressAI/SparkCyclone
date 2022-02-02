@@ -24,9 +24,6 @@ import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.bytedeco.javacpp.BytePointer
 import sun.misc.Unsafe
-import sun.nio.ch.DirectBuffer
-
-import java.nio.ByteBuffer
 
 object ArrowInterfaces {
 
@@ -43,7 +40,7 @@ object ArrowInterfaces {
 
   def c_double_vector(float8Vector: Float8Vector): non_null_double_vector = {
     val vc = new non_null_double_vector()
-    vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = float8Vector.getDataBufferAddress()
 
     vc.count = float8Vector.getValueCount
     vc
@@ -51,7 +48,7 @@ object ArrowInterfaces {
 
   def c_nullable_double_vector(float8Vector: Float8Vector): nullable_double_vector = {
     val vc = new nullable_double_vector()
-    vc.data = float8Vector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = float8Vector.getDataBufferAddress()
     vc.validityBuffer = float8Vector.getValidityBufferAddress
     vc.count = float8Vector.getValueCount
     vc
@@ -59,10 +56,10 @@ object ArrowInterfaces {
 
   def c_nullable_varchar_vector(varCharVector: VarCharVector): nullable_varchar_vector = {
     val vc = new nullable_varchar_vector()
-    vc.data = varCharVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.offsets = varCharVector.getOffsetBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = varCharVector.getDataBufferAddress()
+    vc.offsets = varCharVector.getOffsetBufferAddress()
     vc.validityBuffer =
-      varCharVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+      varCharVector.getValidityBufferAddress()
     vc.count = varCharVector.getValueCount
     vc.dataSize = varCharVector.sizeOfValueBuffer()
     vc
@@ -70,38 +67,31 @@ object ArrowInterfaces {
 
   def c_bounded_string(string: String): non_null_c_bounded_string = {
     val vc = new non_null_c_bounded_string()
-    vc.data =  (new BytePointer(string.length)).asBuffer
-      .put(string.getBytes())
-      .asInstanceOf[DirectBuffer]
+    vc.data =  (new BytePointer(string.length))
+      .put(string.getBytes(): _*)
       .address()
     vc.length = string.length
     vc
   }
 
-  def c_bounded_data(byteBuffer: ByteBuffer, bufSize: Int): non_null_c_bounded_string = {
+  def c_bounded_data(bytePointer: BytePointer, bufSize: Int): non_null_c_bounded_string = {
     val vc = new non_null_c_bounded_string()
-    vc.data = byteBuffer match {
-      case direct: DirectBuffer => direct.address()
-      case other =>
-        val direct = (new BytePointer(bufSize)).asBuffer
-        direct.put(byteBuffer)
-        direct.asInstanceOf[DirectBuffer].address()
-    }
+    vc.data = bytePointer.address()
     vc.length = bufSize
     vc
   }
 
   def c_int2_vector(intVector: IntVector): non_null_int2_vector = {
     val vc = new non_null_int2_vector()
-    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = intVector.getDataBufferAddress()
     vc.count = intVector.getValueCount
     vc
   }
 
   def c_nullable_int_vector(intVector: IntVector): nullable_int_vector = {
     val vc = new nullable_int_vector()
-    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer = intVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = intVector.getDataBufferAddress()
+    vc.validityBuffer = intVector.getValidityBufferAddress()
     vc.count = intVector.getValueCount
     vc
   }
@@ -115,8 +105,8 @@ object ArrowInterfaces {
       case idx if (!bitVector.isNull(idx)) => intVector.set(idx, bitVector.get(idx))
       case idx                             => intVector.setNull(idx)
     }
-    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer = bitVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = intVector.getDataBufferAddress()
+    vc.validityBuffer = bitVector.getValidityBufferAddress()
     vc.count = bitVector.getValueCount
     vc
   }
@@ -132,35 +122,35 @@ object ArrowInterfaces {
           intVector.set(idx, smallIntVector.get(idx).toInt)
         case idx => intVector.setNull(idx)
       }
-    vc.data = intVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = intVector.getDataBufferAddress()
     vc.validityBuffer =
-      smallIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+      smallIntVector.getValidityBufferAddress()
     vc.count = smallIntVector.getValueCount
     vc
   }
 
   def c_nullable_bigint_vector(tzVector: TimeStampMicroTZVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
-    vc.data = tzVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
-    vc.validityBuffer = tzVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = tzVector.getDataBufferAddress()
+    vc.validityBuffer = tzVector.getValidityBufferAddress()
     vc.count = tzVector.getValueCount
     vc
   }
 
   def c_nullable_bigint_vector(bigIntVector: BigIntVector): nullable_bigint_vector = {
     val vc = new nullable_bigint_vector()
-    vc.data = bigIntVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = bigIntVector.getDataBufferAddress()
     vc.validityBuffer =
-      bigIntVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+      bigIntVector.getValidityBufferAddress()
     vc.count = bigIntVector.getValueCount
     vc
   }
 
   def c_nullable_date_vector(dateDayVector: DateDayVector): nullable_int_vector = {
     val vc = new nullable_int_vector()
-    vc.data = dateDayVector.getDataBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+    vc.data = dateDayVector.getDataBufferAddress()
     vc.validityBuffer =
-      dateDayVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
+      dateDayVector.getValidityBufferAddress()
     vc.count = dateDayVector.getValueCount
     vc
   }
