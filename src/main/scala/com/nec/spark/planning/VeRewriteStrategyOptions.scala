@@ -65,7 +65,8 @@ object VeRewriteStrategyOptions {
       projectOnVe = true,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = true,
+      /** Disabled by default as there appears to be a fault here **/
+      exchangeOnVe = false,
       passThroughProject = false,
       failFast = false,
       joinOnVe = false,
