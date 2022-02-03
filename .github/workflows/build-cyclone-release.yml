@@ -24,6 +24,7 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "target/scala-2.12/spark-cyclone-sql-plugin-assembly-*.jar"
-          body: "Spark Cyclone release ${{GITHUB_REF#refs/heads/}}"
+          release_name: Release ${{ github.ref }}
+          body: "Spark Cyclone release ${{ github.ref }}."
           token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: true
