@@ -28,6 +28,7 @@ import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
+import org.bytedeco.javacpp.BytePointer
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
@@ -79,7 +80,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           buffers
             .zip(bufferSizes)
             .map { case (veBufferLocation, veBufferSize) =>
-              val targetBuf = ByteBuffer.allocateDirect(veBufferSize)
+              val targetBuf = (new BytePointer(veBufferSize)).asBuffer
               veProcess.get(veBufferLocation, targetBuf, veBufferSize)
               Option(targetBuf)
             }
@@ -214,6 +215,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
         veProcess.get(buffers(2), validityTarget, validityTarget.limit())
         val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
         val vhTarget = ByteBuffer.allocateDirect(dataSize)
+          //(new BytePointer(dataSize)).asBuffer
 
         offTarget.rewind()
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
