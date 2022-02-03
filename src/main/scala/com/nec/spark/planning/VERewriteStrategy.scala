@@ -392,15 +392,19 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
             if child.output.nonEmpty &&
               aggregateExpressions.nonEmpty &&
-              !Try(
-                aggregateExpressions.head
-                  .asInstanceOf[Alias]
-                  .child
-                  .asInstanceOf[AggregateExpression]
-                  .aggregateFunction
-                  .isInstanceOf[HyperLogLogPlusPlus]
-              ).getOrElse(false) =>
+              ! {
+                aggregateExpressions
+                  .collect {
+                    case ae: AggregateExpression           => ae
+                    case Alias(ae: AggregateExpression, _) => ae
+                  }
+                  .exists { ae =>
+                    /** HyperLogLog++ or Distinct not supported **/
+                    ae.aggregateFunction.isInstanceOf[HyperLogLogPlusPlus] || ae.isDistinct
+                  }
+              } =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
+
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
             groupingExpressions.zipWithIndex.map { case (e, i) =>
