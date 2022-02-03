@@ -32,7 +32,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
 import scalatags.Text.tags2.{details, summary}
-import com.nec.testing.ProductListEquivalenceCheck.shouldContainTheSameProducts
+import com.nec.testing.ProductListEquivalenceCheck.containTheSameProducts
 import java.time.LocalDate
 
 abstract class TPCHSqlCSpec
@@ -349,7 +349,7 @@ abstract class TPCHSqlCSpec
         )
       ).sortBy(v => (v._1, v._2))
 
-      result should shouldContainTheSameProducts(expected)
+      result should containTheSameProducts(expected)
 
     }
   }
@@ -432,7 +432,7 @@ abstract class TPCHSqlCSpec
           .sorted
 
       val expected = result.sorted
-      resultQuery should shouldContainTheSameProducts(expected)
+      resultQuery should containTheSameProducts(expected)
     }
   }
 
@@ -486,7 +486,7 @@ abstract class TPCHSqlCSpec
     sparkSession.sql(sql).debugSqlHere { ds =>
       val resultCompute = ds.as[(Long, Double, String, Long)].collect().toList.sorted
       val expected = result.sorted
-      resultCompute should shouldContainTheSameProducts(expected)
+      resultCompute should containTheSameProducts(expected)
     }
   }
 
@@ -561,7 +561,7 @@ abstract class TPCHSqlCSpec
         revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-          ds.as[(String, Double)].collect().toList.sorted should  shouldContainTheSameProducts(
+          ds.as[(String, Double)].collect().toList.sorted should  containTheSameProducts(
           List(
             ("INDONESIA", 5.5502041169699915e7),
             ("VIETNAM", 5.529508699669991e7),
@@ -833,7 +833,7 @@ abstract class TPCHSqlCSpec
       ds.as[(Long, String, Double, Double, String, String, String, String)]
             .collect()
             .toList
-            .sorted should shouldContainTheSameProducts(result.sorted)
+            .sorted should containTheSameProducts(result.sorted)
     }
   }
   withTpchViews("Query 11", configuration) { sparkSession =>
@@ -880,7 +880,7 @@ abstract class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      ds.as[(Long, Double)].collect().toList.sorted should shouldContainTheSameProducts(result.sorted)
+      ds.as[(Long, Double)].collect().toList.sorted should containTheSameProducts(result.sorted)
     }
   }
   //This doesn't work.
@@ -1083,11 +1083,8 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql1).show()
     sparkSession.sql(sql2).debugSqlHere { ds =>
-      assert(
-        ds.as[(Long, String, String, String, Double)].collect.toList.sorted === List(
-          (8449, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003)
-        ).sorted
-      )
+      val expected = Seq((8449L, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003))
+      ds.as[(Long, String, String, String, Double)].collect.toList.sorted should containTheSameProducts(expected)
     }
     sparkSession.sql(sql3).show()
   }
@@ -1177,9 +1174,7 @@ abstract class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[Double].collect().toList.sorted === List(348406.05428571434)
-      ) //  348406.0.sorted5
+      ds.as[Double].collect().toList.sorted.map(Tuple1(_)) should containTheSameProducts(Seq(Tuple1(348406.05428571434))) //  348406.0.sorted5
     }
   }
 
@@ -1484,16 +1479,16 @@ abstract class TPCHSqlCSpec
         cntrycode
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[(String, Long, Double)].collect.toList.sorted === List(
-          ("13", 888, 6737713.989999999),
-          ("17", 861, 6460573.719999993),
-          ("18", 964, 7236687.399999998),
-          ("23", 892, 6701457.950000002),
-          ("29", 948, 7158866.629999999),
-          ("30", 909, 6808436.129999996),
-          ("31", 922, 6806670.179999999)
-        )
+      ds.as[(String, Long, Double)].collect.toList.sorted should containTheSameProducts(
+        List(
+          ("13", 888L, 6737713.989999999),
+          ("17", 861L, 6460573.719999993),
+          ("18", 964L, 7236687.399999998),
+          ("23", 892L, 6701457.950000002),
+          ("29", 948L, 7158866.629999999),
+          ("30", 909L, 6808436.129999996),
+          ("31", 922L, 6806670.179999999)
+        ).sorted
       ) // 13 888 6737713.9.sorted9
     }
   }
