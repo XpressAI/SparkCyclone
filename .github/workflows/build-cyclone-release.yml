@@ -1,0 +1,28 @@
+name: Build Cyclone Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: "ve"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check Access to VE
+        run: /opt/nec/ve/bin/vecmd info
+
+      - name: Branch Ref
+        run: echo ${GITHUB_REF#refs/heads/}
+
+      - name: Run unit tests in the key projects
+        run: sbt assembly
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "target/scala-2.12/spark-cyclone-sql-plugin-assembly-*.jar"
+          body: "Spark Cyclone release ${GITHUB_REF#refs/heads/}"
+          token: ${{ secrets.GITHUB_TOKEN }}
