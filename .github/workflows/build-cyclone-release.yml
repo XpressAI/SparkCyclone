@@ -26,3 +26,4 @@ jobs:
           artifacts: "target/scala-2.12/spark-cyclone-sql-plugin-assembly-*.jar"
           body: "Spark Cyclone release ${GITHUB_REF#refs/heads/}"
           token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
