@@ -434,11 +434,11 @@ object SparkExpressionToCExpression {
                */
               CExpression(
                 s"frovedis::year_from_datetime(${childEx.cCode} * int64_t(86400000000000))",
-                None
+                childEx.isNotNullCode
               )
 
             case TimestampType =>
-              CExpression(s"frovedis::year_from_datetime(${childEx.cCode})", None)
+              CExpression(s"frovedis::year_from_datetime(${childEx.cCode})", childEx.isNotNullCode)
 
             case other =>
               throw new IllegalArgumentException(
