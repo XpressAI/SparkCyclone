@@ -21,6 +21,9 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
+  .settings(
+    version := "0.9.0"
+  )
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
