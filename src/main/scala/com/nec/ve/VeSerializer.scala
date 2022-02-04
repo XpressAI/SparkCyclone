@@ -2,13 +2,8 @@ package com.nec.ve
 
 import com.nec.ve.VeSerializer.VeSerializerInstance
 import org.apache.spark.SparkConf
-import org.apache.spark.serializer.{
-  DeserializationStream,
-  JavaSerializer,
-  SerializationStream,
-  Serializer,
-  SerializerInstance
-}
+import org.apache.spark.internal.Logging
+import org.apache.spark.serializer.{DeserializationStream, JavaSerializer, SerializationStream, Serializer, SerializerInstance}
 
 import java.io.{Externalizable, InputStream, ObjectInput, ObjectOutput, OutputStream}
 import java.nio.ByteBuffer
@@ -28,21 +23,21 @@ class VeSerializer(conf: SparkConf) extends Serializer with Externalizable {
 
 object VeSerializer {
 
-  class VeSerializerInstance(parent: SerializerInstance) extends SerializerInstance {
+  class VeSerializerInstance(parent: SerializerInstance) extends SerializerInstance with Logging {
     override def serialize[T](t: T)(implicit evidence$1: ClassTag[T]): ByteBuffer = {
-      println(s"Serializing: ${evidence$1} ${t.getClass.getCanonicalName}")
+      logError(s"Serializing: ${evidence$1} ${t.getClass.getCanonicalName}")
       parent.serialize(t)
     }
 
     override def deserialize[T](bytes: ByteBuffer)(implicit evidence$2: ClassTag[T]): T = {
-      println(s"Deserializing: ${evidence$2}")
+      logError(s"Deserializing: ${evidence$2}")
       parent.deserialize(bytes)
     }
 
     override def deserialize[T](bytes: ByteBuffer, loader: ClassLoader)(implicit
       evidence$3: ClassTag[T]
     ): T = {
-      println(s"Deserializing: ${evidence$3}")
+      logError(s"Deserializing: ${evidence$3}")
       parent.deserialize(bytes, loader)
     }
 
