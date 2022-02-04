@@ -215,7 +215,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
         veProcess.get(buffers(2), validityTarget, validityTarget.limit())
         val dataSize = Integer.reverseBytes(offTarget.getInt(lastOffsetIndex))
         val vhTarget = ByteBuffer.allocateDirect(dataSize)
-          //(new BytePointer(dataSize)).asBuffer
 
         offTarget.rewind()
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())

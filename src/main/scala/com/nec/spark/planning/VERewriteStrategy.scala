@@ -20,18 +20,27 @@
 package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
-import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
-import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
+import com.nec.spark.agile.groupby.{
+  ConvertNamedExpression,
+  GroupByOutline,
+  GroupByPartialGenerator,
+  GroupByPartialToFinalGenerator
+}
 import com.nec.spark.agile.join.GenericJoiner
 import com.nec.spark.agile.join.GenericJoiner.FilteredOutput
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
+import com.nec.spark.planning.VERewriteStrategy.{
+  GroupPrefix,
+  HashExchangeBuckets,
+  InputPrefix,
+  SequenceList
+}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.plans._
@@ -39,9 +48,19 @@ import com.nec.ve.GroupingFunction.DataDescription
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, EqualTo, Expression, NamedExpression, SortOrder}
-import org.apache.spark.sql.catalyst.plans.{Inner, logical}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  HyperLogLogPlusPlus
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  AttributeReference,
+  EqualTo,
+  Expression,
+  NamedExpression,
+  SortOrder
+}
+import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -204,7 +223,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                       CodeLines
                         .from(
                           CFunctionGeneration.KeyHeaders,
-                          TcpDebug.conditional.headers,
                           genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
                           genericJoiner
                             .cFunction(produceIndicesFName)
@@ -399,12 +417,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                     case Alias(ae: AggregateExpression, _) => ae
                   }
                   .exists { ae =>
-                    /** HyperLogLog++ or Distinct not supported **/
+                    /** HyperLogLog++ or Distinct not supported * */
                     ae.aggregateFunction.isInstanceOf[HyperLogLogPlusPlus] || ae.isDistinct
                   }
               } =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
-
 
           val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
             groupingExpressions.zipWithIndex.map { case (e, i) =>
