@@ -17,11 +17,11 @@ object VeRDD extends LazyLogging {
     rdd
       .map { case (p, v) =>
         try {
-          (p, v)
+          (p, (v.underlying.toUnit, v.serialize()))
         } finally v.free()
       }
       .repartitionByKey()
-      .map { case (_, v) => v }
+      .map { case (_, (v, ba)) => v.deserialize(ba) }
 
   def exchangeL(rdd: RDD[(Int, List[VeColVector])], cleanUpInput: Boolean)(implicit
     originalCallingContext: OriginalCallingContext
