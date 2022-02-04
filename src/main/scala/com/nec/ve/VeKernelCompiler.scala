@@ -65,7 +65,7 @@ object VeKernelCompiler {
   }
 
   final case class VeCompilerConfig(
-    nccPath: String = "/opt/nec/ve/bin/ncc",
+    nccPath: String = "/opt/nec/ve/bin/nc++",
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
     maybeProfileTarget: Option[ProfileTarget] = None,
@@ -76,6 +76,7 @@ object VeKernelCompiler {
       // Optimizations used in frovedis: -fno-defer-inline-template-instantiation -finline-functions -finline-max-depth = 10 -msched-block
       val ret = List(
         s"-O$optimizationLevel",
+        "-std=gnu++17",
         "-fpic",
         "-fno-defer-inline-template-instantiation",
         "-finline-functions",
