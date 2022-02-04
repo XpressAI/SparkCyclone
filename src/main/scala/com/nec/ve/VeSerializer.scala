@@ -30,7 +30,7 @@ object VeSerializer {
 
   class VeSerializerInstance(parent: SerializerInstance) extends SerializerInstance {
     override def serialize[T](t: T)(implicit evidence$1: ClassTag[T]): ByteBuffer = {
-      println(s"Serializing: ${evidence$1}")
+      println(s"Serializing: ${evidence$1} ${t.getClass}")
       parent.serialize(t)
     }
 
