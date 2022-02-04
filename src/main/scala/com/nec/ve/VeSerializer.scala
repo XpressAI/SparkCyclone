@@ -3,7 +3,13 @@ package com.nec.ve
 import com.nec.ve.VeSerializer.VeSerializerInstance
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.{DeserializationStream, JavaSerializer, SerializationStream, Serializer, SerializerInstance}
+import org.apache.spark.serializer.{
+  DeserializationStream,
+  JavaSerializer,
+  SerializationStream,
+  Serializer,
+  SerializerInstance
+}
 
 import java.io.{Externalizable, InputStream, ObjectInput, ObjectOutput, OutputStream}
 import java.nio.ByteBuffer
@@ -41,9 +47,36 @@ object VeSerializer {
       parent.deserialize(bytes, loader)
     }
 
-    override def serializeStream(s: OutputStream): SerializationStream = parent.serializeStream(s)
+    override def serializeStream(s: OutputStream): SerializationStream = new VeSerializationStream(
+      parent.serializeStream(s)
+    )
 
     override def deserializeStream(s: InputStream): DeserializationStream =
-      parent.deserializeStream(s)
+      new VeDeserializationStream(parent.deserializeStream(s))
+
+  }
+
+  class VeSerializationStream(parent: SerializationStream)
+    extends SerializationStream
+    with Logging {
+    override def writeObject[T](t: T)(implicit evidence$4: ClassTag[T]): SerializationStream = {
+      logError(s"Will write object ${t.getClass}; ${evidence$4}")
+      parent.writeObject(t)
+    }
+
+    override def flush(): Unit = parent.flush()
+
+    override def close(): Unit = parent.close()
+  }
+
+  class VeDeserializationStream(parent: DeserializationStream)
+    extends DeserializationStream
+    with Logging {
+    override def readObject[T]()(implicit evidence$8: ClassTag[T]): T = {
+      logError(s"ReadObj ${evidence$8}")
+      parent.readObject[T]()
+    }
+
+    override def close(): Unit = parent.close()
   }
 }
