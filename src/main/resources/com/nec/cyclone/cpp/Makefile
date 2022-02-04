@@ -1,5 +1,5 @@
 CPP = $(shell ls /opt/nec/ve/bin/nc++ 2>/dev/null || echo c++)
-CPP_OPTS = -std=c++17 \
+CPP_OPTS = -std=gnu++17 \
 	-O4 \
 	-fno-defer-inline-template-instantiation \
 	-finline-functions \
