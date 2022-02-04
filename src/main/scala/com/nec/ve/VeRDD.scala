@@ -125,8 +125,11 @@ object VeRDD extends LazyLogging {
   }
 
   private implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
-    def repartitionByKey(): RDD[(Int, V)] =
-      new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
+    def repartitionByKey(): RDD[(Int, V)] = {
+      val srdd = new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
+      srdd.setSerializer(new VeSerializer(rdd.sparkContext.getConf))
+      srdd
+    }
   }
   implicit class RichKeyedRDDL(rdd: RDD[(Int, List[VeColVector])]) {
     def exchangeBetweenVEs(cleanUpInput: Boolean)(implicit
