@@ -25,11 +25,12 @@ class VeSerializer(conf: SparkConf) extends Serializer with Externalizable {
 
   override def readExternal(in: ObjectInput): Unit = js.readExternal(in)
 }
+
 object VeSerializer {
 
   class VeSerializerInstance(parent: SerializerInstance) extends SerializerInstance {
     override def serialize[T](t: T)(implicit evidence$1: ClassTag[T]): ByteBuffer = {
-      println(s"Serializing: ${t}")
+      println(s"Serializing: ${evidence$1}")
       parent.serialize(t)
     }
 
