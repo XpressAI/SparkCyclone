@@ -1,18 +1,11 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
-import com.nec.spark.planning.{
-  PlanCallsVeFunction,
-  SupportsKeyedVeColBatch,
-  SupportsVeColBatch,
-  VeFunction
-}
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerFunctionCallTime
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
+import com.nec.spark.planning.VERewriteStrategy.HashExchangeBuckets
 import com.nec.ve.VeRDD.RichKeyedRDD
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -58,7 +51,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
         }
       }
     }
-    .exchangeBetweenVEs(cleanUpInput = true)
+    .exchangeBetweenVEs(cleanUpInput = true, partitions = HashExchangeBuckets)
 
   override def output: Seq[Attribute] = child.output
 

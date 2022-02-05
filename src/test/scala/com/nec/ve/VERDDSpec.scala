@@ -73,7 +73,7 @@ object VERDDSpec {
 
     import SparkCycloneExecutorPlugin.{veProcess => veProc}
 
-    doubleBatches {
+    val rddA = doubleBatches {
       sparkSession.sparkContext
         .range(start = 1, end = 501, step = 1, numSlices = 4)
         .map(_.toDouble)
@@ -103,7 +103,9 @@ object VERDDSpec {
             }),
         preservesPartitioning = true
       )
-      .exchangeBetweenVEs(cleanUpInput = true)
+
+    rddA
+      .exchangeBetweenVEs(cleanUpInput = true, partitions = rddA.getNumPartitions)
       .mapPartitions((cbIter: Iterator[VeColBatch]) =>
         Iterator
           .continually {

@@ -18,8 +18,8 @@ import org.apache.spark.serializer.Serializer
 import scala.reflect.ClassTag
 
 object VeRDD extends LazyLogging {
-  private def exchangeFast(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
-    originalCallingContext: OriginalCallingContext
+  private def exchangeFast(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean, partitions: Int)(
+    implicit originalCallingContext: OriginalCallingContext
   ): RDD[VeColBatch] =
     rdd
       .map { case (p, v) =>
@@ -32,7 +32,7 @@ object VeRDD extends LazyLogging {
           }
         }
       }
-      .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)))
+      .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)), partitions)
       .map { case (_, vb) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
         vb match {
@@ -45,8 +45,8 @@ object VeRDD extends LazyLogging {
         }
       }
 
-  private def exchangeSafe(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
-    originalCallingContext: OriginalCallingContext
+  private def exchangeSafe(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean, partitions: Int)(
+    implicit originalCallingContext: OriginalCallingContext
   ): RDD[VeColBatch] =
     rdd
       .map { case (p, v) =>
@@ -57,7 +57,7 @@ object VeRDD extends LazyLogging {
           if (cleanUpInput) v.free()
         }
       }
-      .repartitionByKey(None)
+      .repartitionByKey(None, partitions)
       .map { case (_, vb) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
 
@@ -100,8 +100,8 @@ object VeRDD extends LazyLogging {
   }
 
   private implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
-    def repartitionByKey(ser: Option[Serializer]): RDD[(Int, V)] = {
-      val srdd = new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
+    def repartitionByKey(ser: Option[Serializer], partitions: Int): RDD[(Int, V)] = {
+      val srdd = new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(partitions))
       ser.foreach(srdd.setSerializer)
       srdd
     }
@@ -110,9 +110,10 @@ object VeRDD extends LazyLogging {
   private val UseSafe = false
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColBatch)]) {
     def exchangeBetweenVEs(
-      cleanUpInput: Boolean
+      cleanUpInput: Boolean,
+      partitions: Int
     )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
-      if (UseSafe) exchangeSafe(rdd, cleanUpInput)
-      else exchangeFast(rdd, cleanUpInput)
+      if (UseSafe) exchangeSafe(rdd, cleanUpInput, partitions)
+      else exchangeFast(rdd, cleanUpInput, partitions)
   }
 }
