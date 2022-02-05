@@ -466,12 +466,12 @@ object VeProcess {
     }
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
-      val buf = new BytePointer(bufLen).asBuffer
-      get(bufPos, buf, bufLen)
+      val buf = new BytePointer(bufLen)
+      veo.veo_read_mem(veo_proc_handle, buf, bufPos, bufLen)
       buf.position(0)
       var i = 0
       while (i < bufLen) {
-        outStream.write(buf.get())
+        outStream.write(buf.get(i))
         i = i + 1
       }
     }
