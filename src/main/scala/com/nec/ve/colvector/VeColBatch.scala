@@ -114,8 +114,8 @@ object VeColBatch {
         val arr = Array.fill[Byte](descLength)(-1)
         in.read(arr)
         val unitColVector = UnitColVector.fromBytes(arr)
-        val payloadLength = in.readInt()
         ensureId(in.readInt(), PayloadBytesLengthId)
+        val payloadLength = in.readInt()
 
         val arrPayload = Array.fill[Byte](payloadLength)(-1)
         ensureId(in.readInt(), PayloadBytesId)
