@@ -50,9 +50,6 @@ final case class JoinByEquality(
     inputs = ioWo,
     outputs = ioO,
     body = CodeLines.from(
-      ioWo.map { vec =>
-        CodeLines.debugValue(s""""${vec.name}->count = """", s"${vec.name}->count")
-      },
       joins.map {
         case Join(CVarChar(left), CVarChar(right)) =>
           val pairing = EqualityPairing(
@@ -63,12 +60,8 @@ final case class JoinByEquality(
           val left_dict = s"${left}_dict"
           val left_dict_indices = s"${left}_dict_indices"
           CodeLines.from(
-            CodeLines.debugHere,
-            CodeLines
-              .from(
-                s"frovedis::words ${left_words} = varchar_vector_to_words(${left});",
-                s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});"
-              ),
+            s"frovedis::words ${left_words} = varchar_vector_to_words(${left});",
+            s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});",
             computeStringJoin(
               leftDictIndices = left_dict_indices,
               outMatchingIndicesLeft = pairing.indexOfFirstColumn,
@@ -98,19 +91,17 @@ final case class JoinByEquality(
             List("left", "right").zip(List(one.indexOfFirstColumn, one.indexOfSecondColumn)).map {
               case (nme, in) =>
                 CodeLines.from(
-                  CodeLines.debugHere,
                   initializeScalarVector(
                     VeScalarType.veNullableInt,
                     s"${nme}_idx",
                     s"${in}.size()"
                   ),
-                  CodeLines.debugHere,
-                  CodeLines.forLoop("i", s"${in}.size()")(
+                  CodeLines.forLoop("i", s"${in}.size()") {
                     CodeLines.from(
                       s"${nme}_idx->data[i] = ${in}[i];",
                       s"set_validity(${nme}_idx->validityBuffer, i, 1);"
                     )
-                  )
+                  }
                 )
             }
           )

@@ -1,10 +1,9 @@
 package com.nec.spark.planning.plans
 
-import com.nec.cmake.ScalaTcpDebug
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
-import com.nec.spark.planning.{SupportsVeColBatch, Tracer}
+import com.nec.spark.planning.SupportsVeColBatch
 import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
@@ -22,22 +21,12 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   override def supportsColumnar: Boolean = true
 
   override def doExecute(): RDD[InternalRow] = {
-    val tcpDebug = ScalaTcpDebug(VeCompilerConfig.fromSparkConf(sparkContext.getConf))
-    val tracer = Tracer.Launched.fromSparkContext(sparkContext)
     doExecuteColumnar().mapPartitions(columnarBatchIterator =>
-      tcpDebug
-        .toSpanner(tracer)
-        .spanIterator("map batch to internal row") {
-          columnarBatchIterator.flatMap(mapBatchToRow)
-        }
+      columnarBatchIterator.flatMap(mapBatchToRow)
     )
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-
-    val tcpDebug = ScalaTcpDebug(VeCompilerConfig.fromSparkConf(sparkContext.getConf))
-    val tracer = Tracer.Launched.fromSparkContext(sparkContext)
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -46,21 +35,16 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
         lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-        tcpDebug
-          .toSpanner(tracer)
-          .spanIterator("map ve batch to arrow columnar batch") {
-            iterator
-              .map { veColBatch =>
-                import OriginalCallingContext.Automatic._
+        iterator.map { veColBatch =>
+          import OriginalCallingContext.Automatic._
 
-                try {
-                  logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
-                  val res = veColBatch.toArrowColumnarBatch()
-                  logger.debug(s"Finished mapping ${veColBatch}")
-                  res
-                } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
-              }
-          }
+          try {
+            logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
+            val res = veColBatch.toArrowColumnarBatch()
+            logger.debug(s"Finished mapping ${veColBatch}")
+            res
+          } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+        }
       }
   }
 

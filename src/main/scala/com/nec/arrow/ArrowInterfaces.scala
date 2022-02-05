@@ -70,7 +70,7 @@ object ArrowInterfaces {
 
   def c_bounded_string(string: String): non_null_c_bounded_string = {
     val vc = new non_null_c_bounded_string()
-    vc.data =  (new BytePointer(string.length)).asBuffer
+    vc.data = (new BytePointer(string.length)).asBuffer
       .put(string.getBytes())
       .asInstanceOf[DirectBuffer]
       .address()
