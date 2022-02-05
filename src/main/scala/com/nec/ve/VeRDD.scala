@@ -119,7 +119,7 @@ object VeRDD extends LazyLogging {
     }
   }
 
-  private val UseSafe = true
+  private val UseSafe = false
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColBatch)]) {
     def exchangeBetweenVEs(
       cleanUpInput: Boolean
