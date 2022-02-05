@@ -1,7 +1,12 @@
 package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.ve.VeSerializer.VeSerializedContainer.{CbTag, IntTag, VeColBatchToSerialize}
+import com.nec.ve.VeSerializer.VeSerializedContainer.{
+  CbTag,
+  IntTag,
+  VeColBatchDeserialized,
+  VeColBatchToSerialize
+}
 import com.nec.ve.VeSerializer.VeSerializerInstance
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.SparkConf
@@ -47,9 +52,7 @@ object VeSerializer {
   object VeSerializedContainer {
     val CbTag = 91
     val IntTag = 92
-    sealed trait VeColBatchHolder extends VeSerializedContainer {
-
-    }
+    sealed trait VeColBatchHolder extends VeSerializedContainer {}
     final case class VeColBatchToSerialize(totalData: Array[Byte]) extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
@@ -83,6 +86,8 @@ object VeSerializer {
           dataOutputStream.writeInt(totalData.length)
           dataOutputStream.write(totalData)
         case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
+        case VeColBatchDeserialized(_) =>
+          sys.error("Should not get to this state.")
       }
 
       this
