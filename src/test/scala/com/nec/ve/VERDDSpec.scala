@@ -98,15 +98,16 @@ object VERDDSpec {
                     List(veColVector),
                     List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
                   )
-                  .map { case (k, vs) => (k, vs.head) }
+                  .map { case (k, vs) => (k, VeColBatch.fromList(vs)) }
               } finally veColVector.free()
             }),
         preservesPartitioning = true
       )
       .exchangeBetweenVEs()
-      .mapPartitions(vectorIter =>
+      .mapPartitions((cbIter: Iterator[VeColBatch]) =>
         Iterator
           .continually {
+            val vectorIter = cbIter.map(_.cols.head)
             vectorIter.flatMap { vector =>
               WithTestAllocator { implicit alloc =>
                 import SparkCycloneExecutorPlugin.source

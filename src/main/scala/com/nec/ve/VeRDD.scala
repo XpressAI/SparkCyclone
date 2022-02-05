@@ -3,6 +3,7 @@ package com.nec.ve
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeSerializer.VeSerializedContainer.VeColBatchToSerialize
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
@@ -10,18 +11,18 @@ import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import scala.reflect.ClassTag
 
 object VeRDD extends LazyLogging {
-  def exchange(rdd: RDD[(Int, VeColVector)])(implicit
+  def exchange(rdd: RDD[(Int, VeColBatch)])(implicit
     veProcess: VeProcess,
     originalCallingContext: OriginalCallingContext
-  ): RDD[VeColVector] =
+  ): RDD[VeColBatch] =
     rdd
       .map { case (p, v) =>
         try {
-          (p, (v.underlying.toUnit, v.serialize()))
+          (p, VeColBatchToSerialize(v))
         } finally v.free()
       }
       .repartitionByKey()
-      .map { case (_, (v, ba)) => v.deserialize(ba) }
+      .map { case (_, vb) => vb.veColBatch }
 
   def exchangeL(rdd: RDD[(Int, List[VeColVector])], cleanUpInput: Boolean)(implicit
     originalCallingContext: OriginalCallingContext
@@ -117,11 +118,11 @@ object VeRDD extends LazyLogging {
     veProcess: VeProcess
   ): RDD[List[VeColVector]] = rdd.repartitionByKey().map(_._2)
 
-  implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
+  implicit class RichKeyedRDD(rdd: RDD[(Int, VeColBatch)]) {
     def exchangeBetweenVEs()(implicit
       veProcess: VeProcess,
       originalCallingContext: OriginalCallingContext
-    ): RDD[VeColVector] = exchange(rdd)
+    ): RDD[VeColBatch] = exchange(rdd)
   }
 
   private implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
