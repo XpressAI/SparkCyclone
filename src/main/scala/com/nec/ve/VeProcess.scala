@@ -479,12 +479,16 @@ object VeProcess {
     override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
       context: OriginalCallingContext
     ): Long = {
-      val byteBuffer = ByteBuffer.allocateDirect(bytes)
-      val tmpBuf = Array.fill[Byte](bytes)(-1)
-      inputStream.read(tmpBuf)
-      byteBuffer.put(tmpBuf, 0, bytes)
-      byteBuffer.position(0)
-      putBuffer(byteBuffer)
+      val memoryLocation = allocate(bytes.toLong)
+      val bp = new BytePointer(bytes.toLong)
+      var i = 0
+      while (i < bytes) {
+        val r: Byte = inputStream.read().toByte
+        bp.put(i, r)
+        i = i + 1
+      }
+      requireOk(veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong))
+      memoryLocation
     }
   }
 }
