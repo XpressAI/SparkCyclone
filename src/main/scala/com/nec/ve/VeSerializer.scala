@@ -53,7 +53,7 @@ object VeSerializer {
     val CbTag = 91
     val IntTag = 92
     sealed trait VeColBatchHolder extends VeSerializedContainer {}
-    final case class VeColBatchToSerialize(totalData: Array[Byte]) extends VeColBatchHolder {
+    final case class VeColBatchToSerialize(veColBatch: VeColBatch) extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
     final case class VeColBatchDeserialized(veColBatch: VeColBatch) extends VeColBatchHolder {
@@ -83,8 +83,8 @@ object VeSerializer {
 
       e match {
         case VeColBatchToSerialize(totalData) =>
-          dataOutputStream.writeInt(totalData.length)
-          dataOutputStream.write(totalData)
+          dataOutputStream.writeInt(93)
+          totalData.writeToStream(dataOutputStream)
         case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
         case VeColBatchDeserialized(_) =>
           sys.error("Should not get to this state.")
