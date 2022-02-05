@@ -62,20 +62,16 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
 
   def deserializeFromStream(
     inStream: InputStream
-  )(implicit veProcess: VeProcess, originalCallingContext: OriginalCallingContext): VeColVector =
-    VeColVector(
-      ByteArrayColVector(
-        underlying.copy(
-          container = None,
-          buffers = bufferSizes.map { bufferSize =>
-            val tmpArr = Array.fill[Byte](bufferSize)(-1)
-            inStream.read(tmpArr)
-            Option(tmpArr)
-          }
-        )
-      ).transferBuffersToVe()
-        .map(_.getOrElse(-1))
+  )(implicit veProcess: VeProcess, originalCallingContext: OriginalCallingContext): VeColVector = {
+    VeColVector(underlying =
+      underlying.copy(
+        container = -1,
+        buffers = bufferSizes.map { bufSize =>
+          veProcess.putFromStream(inStream, bufSize)
+        }
+      )
     ).newContainer()
+  }
 }
 
 object UnitColVector {

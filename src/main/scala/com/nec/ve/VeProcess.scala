@@ -18,7 +18,7 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
-import java.io.OutputStream
+import java.io.{InputStream, OutputStream}
 import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
 
@@ -35,6 +35,9 @@ trait VeProcess {
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
   def putBuffer(byteBuffer: ByteBuffer)(implicit context: OriginalCallingContext): Long
+  def putFromStream(inputStream: InputStream, bytes: Int)(implicit
+    context: OriginalCallingContext
+  ): Long
   def get(from: Long, to: ByteBuffer, size: Long): Unit
   def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit
 
@@ -128,6 +131,10 @@ object VeProcess {
 
     override def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
       f().copyToStream(outStream, bufPos, bufLen)
+
+    override def putFromStream(inputStream: InputStream, bytes: Int)(implicit
+      context: OriginalCallingContext
+    ): Long = f().putFromStream(inputStream, bytes)
   }
 
   final case class WrappingVeo(
@@ -464,6 +471,17 @@ object VeProcess {
       buf.position(0)
       buf.get(tmpArr)
       outStream.write(tmpArr)
+    }
+
+    override def putFromStream(inputStream: InputStream, bytes: Int)(implicit
+      context: OriginalCallingContext
+    ): Long = {
+      val byteBuffer = ByteBuffer.allocateDirect(bytes)
+      val tmpBuf = Array.fill[Byte](bytes)(-1)
+      inputStream.read(tmpBuf)
+      byteBuffer.put(tmpBuf, 0, bytes)
+      byteBuffer.position(0)
+      putBuffer(byteBuffer)
     }
   }
 }
