@@ -81,13 +81,12 @@ object VERDDSpec {
       .mapPartitions(
         f = veIterator =>
           veIterator
-            .map(arrowVec => {
+            .flatMap(arrowVec => {
               import SparkCycloneExecutorPlugin.source
-              try VeColVector.fromArrowVector(arrowVec)
-              finally arrowVec.close()
-            })
-            .flatMap(veColVector => {
-              import SparkCycloneExecutorPlugin.source
+              val avcStr = arrowVec.toString
+              val veColVector =
+                try VeColVector.fromArrowVector(arrowVec)
+                finally arrowVec.close()
               try {
                 val ref = veProc.loadLibrary(java.nio.file.Paths.get(pathStr))
 
@@ -99,7 +98,7 @@ object VERDDSpec {
                     List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
                   )
                   .map { case (k, vs) =>
-                    println(s"Vector size => ${vs.head.numItems}")
+                    println(s"Vector size => ${vs.head.numItems}; will be ${avcStr}")
 
                     (k, VeColBatch.fromList(vs))
                   }

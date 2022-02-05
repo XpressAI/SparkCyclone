@@ -100,7 +100,7 @@ object VeRDD extends LazyLogging {
   }
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColBatch)]) {
     def exchangeBetweenVEs(cleanUpInput: Boolean)(implicit
-      originalCallingContext: OriginalCallingContext,
+      originalCallingContext: OriginalCallingContext
     ): RDD[VeColBatch] =
       exchange(rdd, cleanUpInput)
   }
