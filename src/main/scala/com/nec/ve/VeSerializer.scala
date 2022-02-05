@@ -148,6 +148,8 @@ object VeSerializer {
           val arr = Array.fill[Byte](size)(-1)
           din.read(arr)
           VeSerializedContainer.VeColBatchToSerialize(arr)
+        case -1 =>
+          throw new EOFException()
         case other =>
           sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
       }
