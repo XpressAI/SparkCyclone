@@ -7,11 +7,12 @@ import com.nec.ve.VeSerializer.VeSerializedContainer.VeColBatchToSerialize
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
+import org.apache.spark.serializer.Serializer
 
 import scala.reflect.ClassTag
 
 object VeRDD extends LazyLogging {
-  def exchange(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
+  private def exchangeFast(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
     originalCallingContext: OriginalCallingContext
   ): RDD[VeColBatch] =
     rdd
@@ -21,8 +22,25 @@ object VeRDD extends LazyLogging {
           (p, VeColBatchToSerialize(v))
         } finally v.free()
       }
-      .repartitionByKey(cleanUpInput)
+      .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)))
       .map { case (_, vb) => vb.veColBatch }
+
+  private def exchangeSafe(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
+    originalCallingContext: OriginalCallingContext
+  ): RDD[VeColBatch] =
+    rdd
+      .map { case (p, v) =>
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+        try {
+          (p, v.serializeToBytes())
+        } finally v.free()
+      }
+      .repartitionByKey(None)
+      .map { case (_, vb) =>
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+
+        VeColBatch.readFromBytes(vb)
+      }
 
   def joinExchangeLB(
     left: RDD[(Int, VeColBatch)],
@@ -92,9 +110,9 @@ object VeRDD extends LazyLogging {
   }
 
   private implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {
-    def repartitionByKey(cleanUpInput: Boolean): RDD[(Int, V)] = {
+    def repartitionByKey(ser: Option[Serializer]): RDD[(Int, V)] = {
       val srdd = new ShuffledRDD[Int, V, V](rdd, new HashPartitioner(rdd.partitions.length))
-      srdd.setSerializer(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput))
+      ser.foreach(srdd.setSerializer)
       srdd
     }
   }
@@ -102,6 +120,7 @@ object VeRDD extends LazyLogging {
     def exchangeBetweenVEs(cleanUpInput: Boolean)(implicit
       originalCallingContext: OriginalCallingContext
     ): RDD[VeColBatch] =
-      exchange(rdd, cleanUpInput)
+      exchangeSafe(rdd, cleanUpInput)
+//      exchangeFast(rdd, cleanUpInput)
   }
 }
