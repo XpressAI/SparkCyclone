@@ -21,6 +21,9 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
+  .settings(
+    version := "0.9.0"
+  )
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
@@ -158,6 +161,7 @@ inConfig(Test)(Defaults.testTasks)
 
 /** To do things more cleanly */
 CMake / parallelExecution := true
+
 /**
  * Make each test suite run independently
  * https://stackoverflow.com/questions/61072140/forking-each-scalatest-suite-with-sbt
@@ -166,6 +170,7 @@ CMake / testGrouping := (CMake / definedTests).value.map { suite =>
   import sbt.Tests._
   Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
 }
+
 /** Vector Engine specific configuration */
 VectorEngine / parallelExecution := false
 inConfig(VectorEngine)(Defaults.testTasks)
@@ -211,14 +216,22 @@ TPC / sourceDirectory := baseDirectory.value / "src" / "test"
 val debugToHtml = SettingKey[Boolean]("debugToHtml")
 debugToHtml := false
 
+val failFast = SettingKey[Boolean]("failFast")
+failFast := false
+
 TPC / testOptions := {
-  if ((TPC / debugToHtml).value)
-    Seq(
-      Tests.Filter(tpcFilter),
-      Tests.Argument("-C", "org.scalatest.tools.TrueHtmlReporter"),
-      Tests.Argument("-Dmarkup=true")
-    )
-  else Seq(Tests.Filter(tpcFilter))
+  {
+    if ((TPC / debugToHtml).value)
+      Seq(
+        Tests.Filter(tpcFilter),
+        Tests.Argument("-C", "org.scalatest.tools.TrueHtmlReporter"),
+        Tests.Argument("-Dmarkup=true")
+      )
+    else Seq(Tests.Filter(tpcFilter))
+  } ++ {
+    val doFailFast = (TPC / failFast).value
+    Seq(Tests.Argument(s"-Dfailfast=${doFailFast}"))
+  }
 }
 
 /** CMake specific configuration */
@@ -478,18 +491,18 @@ cycloneVeLibrary := {
   val cachedFun = FileFunction.cached(streams.value.cacheDirectory / "cpp") { (in: Set[File]) =>
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
-        logger.info("Building cyclone-ve.so...")
-        val exitcode = Process(command = Seq("make", "cyclone-ve.so"), cwd = makefile.getParentFile) ! logger
+        logger.info("Building libcyclone.so...")
+        val exitcode = Process(command = Seq("make", "clean", "all"), cwd = makefile.getParentFile) ! logger
 
         if (exitcode != 0) {
-          sys.error("Failed to build cyclone-ve.so; please check the compiler logs.")
+          sys.error("Failed to build libcyclone.so; please check the compiler logs.")
         }
 
         val cycloneVeDir = (Compile / resourceManaged).value / "cycloneve"
         IO.createDirectory(cycloneVeDir)
 
         val filesToCopy = in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
-          (new File(makefile.getParentFile, "cyclone-ve.so"))
+          (new File(makefile.getParentFile, "libcyclone.so"))
 
         filesToCopy.flatMap { sourceFile =>
           Path

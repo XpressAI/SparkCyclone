@@ -179,7 +179,6 @@ object BenchTestingPossibilities extends LazyLogging {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .withExtensions(sse => sse.injectPlannerStrategy(_ => VERewriteStrategy()))
             .config(key = "spark.com.nec.spark.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)

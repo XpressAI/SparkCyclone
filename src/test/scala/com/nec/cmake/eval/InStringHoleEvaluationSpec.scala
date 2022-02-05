@@ -96,7 +96,7 @@ final class InStringHoleEvaluationSpec extends AnyWordSpec {
     }
 
     "correctly filter out input set when match words contain spaces or other non-alphanumeric characters" in {
-      val delim = Random.shuffle(1.to(255).filter(!_.toChar.isLetterOrDigit)).head.toChar
+      val delim = Random.shuffle(1.to(127).filter(!_.toChar.isLetterOrDigit)).head.toChar
       val list = List(s"Cat${delim}Dog", "Cow", "Hotel", "Cyclone", "Spark", "Brown", "Fox")
       val toMatchList = List(s"Cat${delim}Dog", "Fox")
       val expected = list.collect {

@@ -12,7 +12,7 @@ final case class VeRewriteStrategyOptions(
   failFast: Boolean,
   joinOnVe: Boolean,
   amplifyBatches: Boolean
-) {}
+)
 
 object VeRewriteStrategyOptions {
   //noinspection MapGetOrElseBoolean
@@ -42,10 +42,12 @@ object VeRewriteStrategyOptions {
         .getOption(key = "spark.com.nec.spark.pass-through-project")
         .map(_.toBoolean)
         .getOrElse(default.passThroughProject),
-      failFast = sparkConf
-        .getOption(key = "spark.com.nec.spark.fail-fast")
-        .map(_.toBoolean)
-        .getOrElse(default.failFast),
+      failFast = {
+        sparkConf
+          .getOption(key = "spark.com.nec.spark.fail-fast")
+          .map(_.toBoolean)
+          .getOrElse(default.failFast)
+      },
       joinOnVe = sparkConf
         .getOption(key = "spark.com.nec.spark.join-on-ve")
         .map(_.toBoolean)
@@ -63,7 +65,8 @@ object VeRewriteStrategyOptions {
       projectOnVe = true,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = true,
+      /** Disabled by default as there appears to be a fault here **/
+      exchangeOnVe = false,
       passThroughProject = false,
       failFast = false,
       joinOnVe = false,

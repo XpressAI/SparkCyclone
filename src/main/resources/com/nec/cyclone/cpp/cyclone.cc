@@ -230,3 +230,24 @@ std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::wo
 
     return new_indices;
 }
+
+void debug_nullable_varchar_vector(const nullable_varchar_vector *v) {
+    std::cout << "COUNT: " << v->count << "\n";
+    std::cout << "VALUES: [ ";
+    for (auto i = 0; i < v->count; i++) {
+        if (check_valid(v->validityBuffer, i)) {
+            std::cout << std::string(v->data,  v->offsets[i], v->offsets[i+1] - v->offsets[i]) << ", ";
+        } else {
+            std::cout << "#, ";
+        }
+    }
+    std::cout << "]\nOFFSETS: [";
+    for (auto i = 0; i < v->count + 1; i++) {
+        std::cout << v->offsets[i] << ", ";
+    }
+    std::cout << "]\nVALIDITY: [";
+    for (auto i = 0; i < v->count; i++) {
+        std::cout << check_valid(v->validityBuffer, i) << ", ";
+    }
+    std::cout << "]\nDATA: [" << std::string(v->data, v->dataSize) << "]\n" << std::endl;
+}
