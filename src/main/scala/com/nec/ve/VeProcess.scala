@@ -23,8 +23,6 @@ import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
 
 trait VeProcess {
-  def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
-
   final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
     val bb = (new BytePointer(containerSize)).asBuffer
     get(containerLocation, bb, containerSize)
@@ -32,10 +30,12 @@ trait VeProcess {
   }
 
   def validateVectors(list: List[VeColVector]): Unit
+
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
   def putBuffer(byteBuffer: ByteBuffer)(implicit context: OriginalCallingContext): Long
-  def putFromStream(inputStream: InputStream, bytes: Int)(implicit
+  def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
+  def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
     context: OriginalCallingContext
   ): Long
   def get(from: Long, to: ByteBuffer, size: Long): Unit
@@ -129,12 +129,12 @@ object VeProcess {
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
 
-    override def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
-      f().copyToStream(outStream, bufPos, bufLen)
+    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
+      f().writeToStream(outStream, bufPos, bufLen)
 
-    override def putFromStream(inputStream: InputStream, bytes: Int)(implicit
+    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
       context: OriginalCallingContext
-    ): Long = f().putFromStream(inputStream, bytes)
+    ): Long = f().loadFromStream(inputStream, bytes)
   }
 
   final case class WrappingVeo(
@@ -465,7 +465,7 @@ object VeProcess {
       }
     }
 
-    override def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
+    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
       val tmpArr = Array.fill[Byte](bufLen)(-1)
       val buf = readAsBuffer(bufPos, bufLen)
       buf.position(0)
@@ -473,7 +473,7 @@ object VeProcess {
       outStream.write(tmpArr)
     }
 
-    override def putFromStream(inputStream: InputStream, bytes: Int)(implicit
+    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
       context: OriginalCallingContext
     ): Long = {
       val byteBuffer = ByteBuffer.allocateDirect(bytes)

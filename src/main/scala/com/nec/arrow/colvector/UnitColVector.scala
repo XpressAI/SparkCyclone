@@ -67,7 +67,7 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
       underlying.copy(
         container = -1,
         buffers = bufferSizes.map { bufSize =>
-          veProcess.putFromStream(inStream, bufSize)
+          veProcess.loadFromStream(inStream, bufSize)
         }
       )
     ).newContainer()
