@@ -56,10 +56,8 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
 }
 
 object UnitColVector {
-  def fromBytes(arr: Array[Byte]): UnitColVector = {
-    try new ObjectInputStream(new ByteArrayInputStream(arr))
-      .readObject()
-      .asInstanceOf[UnitColVector]
+  def fromBytes(arr: Array[Byte]): UnitColVector =
+    try fromStream(new ObjectInputStream(new ByteArrayInputStream(arr)))
     catch {
       case e: Throwable =>
         throw new RuntimeException(
@@ -67,5 +65,10 @@ object UnitColVector {
           e
         )
     }
+
+  def fromStream(objectInputStream: ObjectInputStream): UnitColVector = {
+    objectInputStream
+      .readObject()
+      .asInstanceOf[UnitColVector]
   }
 }

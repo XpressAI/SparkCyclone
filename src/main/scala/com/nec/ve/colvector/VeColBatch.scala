@@ -15,6 +15,7 @@ import java.io.{
   DataInputStream,
   DataOutputStream,
   InputStream,
+  ObjectInputStream,
   OutputStream
 }
 import java.util
@@ -85,7 +86,7 @@ object VeColBatch {
       val descLength = in.readInt()
       val arr = Array.fill[Byte](descLength)(-1)
       in.read(arr)
-      val unitColVector = UnitColVector.fromBytes(arr)
+      val unitColVector = UnitColVector.fromStream(new ObjectInputStream(in))
       val payloadLength = in.readInt()
       val arrPayload = Array.fill[Byte](payloadLength)(-1)
       in.read(arrPayload)
