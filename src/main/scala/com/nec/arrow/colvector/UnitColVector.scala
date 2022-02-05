@@ -27,6 +27,7 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
     val oos = new ObjectOutputStream(baos)
     oos.writeObject(this)
     oos.flush()
+    baos.flush()
     try baos.toByteArray
     finally {
       oos.close()
