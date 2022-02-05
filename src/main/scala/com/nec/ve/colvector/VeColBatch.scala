@@ -86,19 +86,24 @@ object VeColBatch {
   )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
     val numCols = in.readInt()
     val cols = (0 until numCols).map { i =>
-      val descLength = in.readInt()
-      require(
-        descLength > 0,
-        s"Expecting col description to be >0, is ${descLength}; stream is ${in}; there were ${numCols} columns described; we are at the ${i}th"
-      )
-      val arr = Array.fill[Byte](descLength)(-1)
-      in.read(arr)
-      val unitColVector = UnitColVector.fromBytes(arr)
-      val payloadLength = in.readInt()
-      val arrPayload = Array.fill[Byte](payloadLength)(-1)
-      in.read(arrPayload)
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-      unitColVector.deserialize(arrPayload)
+      try {
+        val descLength = in.readInt()
+        require(descLength > 0, s"Expecting col description to be >0, is ${descLength}")
+        val arr = Array.fill[Byte](descLength)(-1)
+        in.read(arr)
+        val unitColVector = UnitColVector.fromBytes(arr)
+        val payloadLength = in.readInt()
+        val arrPayload = Array.fill[Byte](payloadLength)(-1)
+        in.read(arrPayload)
+        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+        unitColVector.deserialize(arrPayload)
+      } catch {
+        case e: Throwable =>
+          throw new RuntimeException(
+            s"Failed to read: stream is ${in}; there were ${numCols} columns described; we are at the ${i}th; error ${e}",
+            e
+          )
+      }
     }
 
     VeColBatch.fromList(cols.toList)
