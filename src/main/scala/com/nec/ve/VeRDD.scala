@@ -3,7 +3,8 @@ package com.nec.ve
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.VeSerializer.VeSerializedContainer.VeColBatchToSerialize
+import com.nec.ve.VeSerializer.VeSerializedContainer
+import com.nec.ve.VeSerializer.VeSerializedContainer.{VeColBatchHolder, VeColBatchToSerialize}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
@@ -19,13 +20,21 @@ object VeRDD extends LazyLogging {
       .map { case (p, v) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
         try {
-          (p, VeColBatchToSerialize(v.serializeToBytes()))
-        } finally v.free()
+          (p, VeColBatchToSerialize(v.serializeToBytes()): VeColBatchHolder)
+        } finally {
+          if (cleanUpInput)
+            v.free()
+        }
       }
       .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)))
       .map { case (_, vb) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
-        VeColBatch.readFromBytes(vb.totalData)
+        vb match {
+          case VeColBatchToSerialize(totalData) =>
+            sys.error("Unexpected situation where we received the total data back")
+          case VeSerializedContainer.VeColBatchDeserialized(veColBatch) =>
+            veColBatch
+        }
       }
 
   private def exchangeSafe(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit

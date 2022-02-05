@@ -47,7 +47,13 @@ object VeSerializer {
   object VeSerializedContainer {
     val CbTag = 91
     val IntTag = 92
-    final case class VeColBatchToSerialize(totalData: Array[Byte]) extends VeSerializedContainer {
+    sealed trait VeColBatchHolder extends VeSerializedContainer {
+
+    }
+    final case class VeColBatchToSerialize(totalData: Array[Byte]) extends VeColBatchHolder {
+      override def tag: Int = CbTag
+    }
+    final case class VeColBatchDeserialized(veColBatch: VeColBatch) extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
     final case class JavaLangInteger(i: Int) extends VeSerializedContainer {
@@ -147,7 +153,7 @@ object VeSerializer {
           val size = din.readInt()
           val arr = Array.fill[Byte](size)(-1)
           din.read(arr)
-          VeSerializedContainer.VeColBatchToSerialize(arr)
+          VeSerializedContainer.VeColBatchDeserialized(VeColBatch.readFromBytes(arr))
         case -1 =>
           throw new EOFException()
         case other =>
