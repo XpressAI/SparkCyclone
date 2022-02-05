@@ -113,7 +113,15 @@ object VERDDSpec {
                 import SparkCycloneExecutorPlugin.source
                 try {
                   val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
-                  val vl = vec.toList
+                  val vl =
+                    try vec.toList
+                    catch {
+                      case e: Throwable =>
+                        throw new RuntimeException(
+                          s"Could not turn into a list, unexpectedly. Vec: ${vec}, err: $e",
+                          e
+                        )
+                    }
                   try if (vl.isEmpty) None else Some(vl.max)
                   finally vec.close()
                 } finally vector.free()
