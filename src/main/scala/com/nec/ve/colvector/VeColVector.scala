@@ -74,12 +74,10 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   }
 
   def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit = {
-    toByteBufferVector()
-      .toByteArrayColVector()
-      .underlying
-      .buffers
-      .flatten
-      .foreach(arr => outStream.write(arr))
+    underlying.buffers.zip(underlying.bufferSizes).foreach {
+      case (bufPos, bufLen) =>
+        veProcess.copyToStream(outStream, bufPos, bufLen)
+    }
   }
 
   def toByteBufferVector()(implicit veProcess: VeProcess): ByteBufferColVector =

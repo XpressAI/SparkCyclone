@@ -18,10 +18,12 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
+import java.io.OutputStream
 import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
 
 trait VeProcess {
+  def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
 
   final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
     val bb = (new BytePointer(containerSize)).asBuffer
@@ -124,6 +126,8 @@ object VeProcess {
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
 
+    override def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
+      f().copyToStream(outStream, bufPos, bufLen)
   }
 
   final case class WrappingVeo(
@@ -454,5 +458,12 @@ object VeProcess {
       }
     }
 
+    override def copyToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
+      val tmpArr = Array.fill[Byte](bufLen)(-1)
+      val buf = readAsBuffer(bufPos, bufLen)
+      buf.position(0)
+      buf.get(tmpArr)
+      outStream.write(tmpArr)
+    }
   }
 }
