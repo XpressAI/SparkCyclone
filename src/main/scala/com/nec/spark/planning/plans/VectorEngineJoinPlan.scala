@@ -8,15 +8,14 @@ import com.nec.spark.planning.{
 }
 import com.nec.ve.{VeColBatch, VeRDD}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.memory.RootAllocator
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
-import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan}
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerFunctionCallTime
 }
+import com.nec.ve.VeProcess.OriginalCallingContext
 
 case class VectorEngineJoinPlan(
   outputExpressions: Seq[NamedExpression],
@@ -31,17 +30,15 @@ case class VectorEngineJoinPlan(
 
   override def executeVeColumnar(): RDD[VeColBatch] =
     VeRDD
-      .joinExchangeLB(
+      .joinExchange(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         cleanUpInput = true
-      )
-      .map { case (leftListVcv, rightListVcv) =>
+      )(OriginalCallingContext.Automatic.originalCallingContext)
+      .map { case (leftColBatch, rightColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         import com.nec.spark.SparkCycloneExecutorPlugin.source
         withVeLibrary { libRefJoin =>
-          val leftColBatch = VeColBatch.fromList(leftListVcv)
-          val rightColBatch = VeColBatch.fromList(rightListVcv)
           logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =

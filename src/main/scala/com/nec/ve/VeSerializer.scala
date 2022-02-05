@@ -4,8 +4,8 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeSerializer.VeSerializedContainer.{
   CbTag,
   IntTag,
-  VeColBatchDeserialized,
-  VeColBatchToSerialize
+  VeColBatchesDeserialized,
+  VeColBatchesToSerialize
 }
 import com.nec.ve.VeSerializer.VeSerializerInstance
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -56,10 +56,12 @@ object VeSerializer {
     val CbTag = 91
     val IntTag = 92
     sealed trait VeColBatchHolder extends VeSerializedContainer {}
-    final case class VeColBatchToSerialize(veColBatch: VeColBatch) extends VeColBatchHolder {
+    final case class VeColBatchesToSerialize(veColBatch: List[VeColBatch])
+      extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
-    final case class VeColBatchDeserialized(veColBatch: VeColBatch) extends VeColBatchHolder {
+    final case class VeColBatchesDeserialized(veColBatch: List[VeColBatch])
+      extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
     final case class JavaLangInteger(i: Int) extends VeSerializedContainer {
@@ -69,7 +71,7 @@ object VeSerializer {
     def unapply(any: Any): Option[VeSerializedContainer] = PartialFunction.condOpt(any) {
       case i: java.lang.Integer =>
         JavaLangInteger(i)
-      case vb: VeColBatchToSerialize =>
+      case vb: VeColBatchesToSerialize =>
         vb
     }
   }
@@ -85,10 +87,11 @@ object VeSerializer {
       out.write(e.tag)
 
       e match {
-        case VeColBatchToSerialize(totalData) =>
-          totalData.writeToStream(dataOutputStream)
+        case VeColBatchesToSerialize(totalData) =>
+          dataOutputStream.writeInt(totalData.length)
+          totalData.foreach(_.writeToStream(dataOutputStream))
         case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
-        case VeColBatchDeserialized(_) =>
+        case VeColBatchesDeserialized(_) =>
           sys.error("Should not get to this state.")
       }
 
@@ -159,7 +162,10 @@ object VeSerializer {
         case VeSerializedContainer.IntTag =>
           VeSerializedContainer.JavaLangInteger(din.readInt())
         case VeSerializedContainer.CbTag =>
-          VeSerializedContainer.VeColBatchDeserialized(VeColBatch.readFromStream(din))
+          val count = din.readInt()
+          VeSerializedContainer.VeColBatchesDeserialized((0 until count).map { _ =>
+            VeColBatch.readFromStream(din)
+          }.toList)
         case -1 =>
           throw new EOFException()
         case other =>

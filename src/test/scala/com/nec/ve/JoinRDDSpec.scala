@@ -44,7 +44,7 @@ object JoinRDDSpec {
       List(1 -> List(5, 6, 7), 2 -> List(8, 8, 7), 3 -> List(9, 6, 7))
     import SparkCycloneExecutorPlugin._
     VeRDD
-      .joinExchangeLB(
+      .joinExchange(
         sparkSession.sparkContext.makeRDD(partsL).map { case (i, l) =>
           import OriginalCallingContext.Automatic._
           i -> VeColBatch.fromList(List(l.toVeColVector()))
@@ -54,9 +54,9 @@ object JoinRDDSpec {
           i -> VeColBatch.fromList(List(l.toVeColVector()))
         },
         cleanUpInput = true
-      )
+      )(OriginalCallingContext.Automatic.originalCallingContext)
       .map { case (la, lb) =>
-        (la.flatMap(_.toList), lb.flatMap(_.toList))
+        (la.cols.flatMap(_.toList), lb.cols.flatMap(_.toList))
       }
       .collect()
       .toList
