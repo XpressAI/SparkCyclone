@@ -107,7 +107,7 @@ object VeSerializer {
 
     override def close(): Unit = {
       dataOutputStream.close()
-      out.flush()
+      out.close()
     }
   }
 
