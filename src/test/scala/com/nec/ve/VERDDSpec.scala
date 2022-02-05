@@ -83,7 +83,6 @@ object VERDDSpec {
           veIterator
             .flatMap(arrowVec => {
               import SparkCycloneExecutorPlugin.source
-              val avcStr = arrowVec.toString
               val veColVector =
                 try VeColVector.fromArrowVector(arrowVec)
                 finally arrowVec.close()
@@ -98,8 +97,11 @@ object VERDDSpec {
                     List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
                   )
                   .map { case (k, vs) =>
-                    println(s"Vector size => ${vs.head.numItems}; will be ${avcStr}")
-
+                    WithTestAllocator { implicit all =>
+                      println(
+                        s"Vector size => ${vs.head.numItems}; will be ${vs.head.toArrowVector()}"
+                      )
+                    }
                     (k, VeColBatch.fromList(vs))
                   }
               } finally veColVector.free()
