@@ -37,8 +37,6 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
       out.write(descByteForm)
       val payloadBytes = colVector.serialize()
       out.writeInt(payloadBytes.length)
-      println(s"Desc to use when writing out ==> ${colVector.underlying.toUnit}")
-      println(s"Payload to use when writing out =>${util.Arrays.toString(payloadBytes)}")
       out.write(payloadBytes)
     }
   }
@@ -91,8 +89,6 @@ object VeColBatch {
       val payloadLength = in.readInt()
       val arrPayload = Array.fill[Byte](payloadLength)(-1)
       in.read(arrPayload)
-      println(s"Desc to use when reading back ==> ${unitColVector}")
-      println(s"Payload to use when reading back: ${util.Arrays.toString(arrPayload)}")
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
       unitColVector.deserialize(arrPayload)
     }
