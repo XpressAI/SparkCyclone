@@ -68,7 +68,7 @@ object VeSerializer {
   ) extends SerializationStream
     with Logging {
     val dataOutputStream = new DataOutputStream(out)
-    logError(s"Outputting to ==> ${out}; ${out.getClass}")
+    logDebug(s"Outputting to ==> ${out}; ${out.getClass}")
     def writeContainer(e: VeSerializedContainer): VeSerializationStream = {
       out.write(e.tag)
 
@@ -114,7 +114,7 @@ object VeSerializer {
   class VeDeserializationStream(in: InputStream)(implicit veProcess: VeProcess)
     extends DeserializationStream
     with Logging {
-    logError(s"Inputting from ==> ${in}; ${in.getClass}")
+    logDebug(s"Inputting from ==> ${in}; ${in.getClass}")
     val din = new DataInputStream(in)
 
     /**
