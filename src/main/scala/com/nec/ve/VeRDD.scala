@@ -116,11 +116,13 @@ object VeRDD extends LazyLogging {
       srdd
     }
   }
+
+  private val UseSafe = true
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColBatch)]) {
-    def exchangeBetweenVEs(cleanUpInput: Boolean)(implicit
-      originalCallingContext: OriginalCallingContext
-    ): RDD[VeColBatch] =
-      exchangeSafe(rdd, cleanUpInput)
-//      exchangeFast(rdd, cleanUpInput)
+    def exchangeBetweenVEs(
+      cleanUpInput: Boolean
+    )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
+      if (UseSafe) exchangeSafe(rdd, cleanUpInput)
+      else exchangeFast(rdd, cleanUpInput)
   }
 }
