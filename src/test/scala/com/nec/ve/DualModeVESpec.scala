@@ -6,7 +6,7 @@ import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeColBatch.VeColVectorSource
-import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}
+import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
 import org.apache.spark.SparkEnv
@@ -37,8 +37,8 @@ final class DualModeVESpec
     )
 
     implicit val veProc: VeProcess =
-      DeferredVeProcess(() =>
-        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
+      VeProcessDeferred(() =>
+        VeProcessVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
       )
 
     def makeColumnarBatch1() = {

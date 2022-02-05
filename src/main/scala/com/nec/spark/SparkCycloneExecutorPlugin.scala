@@ -51,7 +51,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     scala.collection.mutable.Map.empty
 
   implicit def veProcess: VeProcess =
-    VeProcess.DeferredVeProcess(() => VeProcess.WrappingVeo(_veo_proc, source, metrics))
+    VeProcess.deferredVeProcess(() => VeProcess.wrappingVeo(_veo_proc, source, metrics))
 
   implicit def source: VeColVectorSource = VeColVectorSource(
     s"Process ${Option(_veo_proc)}, executor ${Option(SparkEnv.get).flatMap(se => Option(se.executorId))}"
