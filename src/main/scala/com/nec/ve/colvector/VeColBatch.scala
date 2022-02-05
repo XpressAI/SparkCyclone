@@ -87,6 +87,10 @@ object VeColBatch {
     val numCols = in.readInt()
     val cols = (0 until numCols).map { _ =>
       val descLength = in.readInt()
+      require(
+        descLength > 0,
+        s"Expecting col description to be >0, is ${descLength}; stream is ${in}"
+      )
       val arr = Array.fill[Byte](descLength)(-1)
       in.read(arr)
       val unitColVector = UnitColVector.fromBytes(arr)
