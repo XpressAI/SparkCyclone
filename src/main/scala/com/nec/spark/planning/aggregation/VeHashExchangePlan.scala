@@ -13,13 +13,11 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerFunctionCallTime
 }
-import com.nec.ve.VeRDD.RichKeyedRDDL
+import com.nec.ve.VeRDD.RichKeyedRDD
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-
-import java.time.{Duration, Instant}
 
 case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
@@ -53,7 +51,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
 
             val (filled, unfilled) = multiBatches.partition(_._2.head.nonEmpty)
             unfilled.flatMap(_._2).foreach(vcv => vcv.free())
-            filled
+            multiBatches.map { case (i, l) => (i, VeColBatch.fromList(l)) }
           } finally {
             child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
           }
@@ -61,7 +59,6 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
       }
     }
     .exchangeBetweenVEs(cleanUpInput = true)
-    .mapPartitions(f = _.map(lv => VeColBatch.fromList(lv)), preservesPartitioning = true)
 
   override def output: Seq[Attribute] = child.output
 

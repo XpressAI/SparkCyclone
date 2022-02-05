@@ -3,6 +3,7 @@ package com.nec.ve
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeSerializer.VeSerializedContainer.{CbTag, IntTag, VeColBatchToSerialize}
 import com.nec.ve.VeSerializer.VeSerializerInstance
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer._
@@ -11,21 +12,17 @@ import java.io._
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
-class VeSerializer(conf: SparkConf) extends Serializer with Externalizable {
-  private val js = new JavaSerializer(conf)
+class VeSerializer(conf: SparkConf, cleanUpInput: Boolean) extends Serializer with Externalizable {
+  override def newInstance(): SerializerInstance = new VeSerializerInstance(cleanUpInput)
 
-  protected def this() = this(new SparkConf())
+  override def writeExternal(out: ObjectOutput): Unit = sys.error("Should not reach here")
 
-  override def newInstance(): SerializerInstance = new VeSerializerInstance()
-
-  override def writeExternal(out: ObjectOutput): Unit = js.writeExternal(out)
-
-  override def readExternal(in: ObjectInput): Unit = js.readExternal(in)
+  override def readExternal(in: ObjectInput): Unit = sys.error("Should not reach here")
 }
 
 object VeSerializer {
 
-  class VeSerializerInstance() extends SerializerInstance with Logging {
+  class VeSerializerInstance(cleanUpInput: Boolean) extends SerializerInstance with Logging {
     override def serialize[T: ClassTag](t: T): ByteBuffer =
       sys.error("This should not be reached")
 
@@ -35,9 +32,11 @@ object VeSerializer {
     override def deserialize[T: ClassTag](bytes: ByteBuffer, loader: ClassLoader): T =
       sys.error("This should not be reached")
 
-    override def serializeStream(s: OutputStream): SerializationStream = new VeSerializationStream(
-      s
-    )(SparkCycloneExecutorPlugin.veProcess)
+    override def serializeStream(s: OutputStream): SerializationStream =
+      new VeSerializationStream(s, cleanUpInput)(
+        SparkCycloneExecutorPlugin.veProcess,
+        SparkCycloneExecutorPlugin.source
+      )
 
     override def deserializeStream(s: InputStream): DeserializationStream =
       new VeDeserializationStream(s)(SparkCycloneExecutorPlugin.veProcess)
@@ -67,8 +66,10 @@ object VeSerializer {
     }
   }
 
-  class VeSerializationStream(out: OutputStream)(implicit veProcess: VeProcess)
-    extends SerializationStream
+  class VeSerializationStream(out: OutputStream, cleanUpInput: Boolean)(implicit
+    veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource
+  ) extends SerializationStream
     with Logging {
     val dataOutputStream = new DataOutputStream(out)
     logError(s"Outputting to ==> ${out}; ${out.getClass}")
@@ -76,7 +77,11 @@ object VeSerializer {
       out.write(e.tag)
 
       e match {
-        case VeColBatchToSerialize(veColBatch)        => veColBatch.writeToStream(dataOutputStream)
+        case VeColBatchToSerialize(veColBatch) =>
+          veColBatch.writeToStream(dataOutputStream)
+          import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+
+          if (cleanUpInput) veColBatch.free()
         case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
       }
 
