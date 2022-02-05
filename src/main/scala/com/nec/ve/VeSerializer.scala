@@ -75,9 +75,7 @@ object VeSerializer {
       out.write(e.tag)
 
       e match {
-        case VeColBatchToSerialize(veColBatch) =>
-          out.write(e.tag)
-          veColBatch.writeToStream(out)
+        case VeColBatchToSerialize(veColBatch)        => veColBatch.writeToStream(out)
         case VeSerializedContainer.JavaLangInteger(i) => out.write(i)
       }
 
