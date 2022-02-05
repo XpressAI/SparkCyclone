@@ -62,7 +62,7 @@ final class StreamSerializeSpec extends AnyFreeSpec with WithVeProcess with VeKe
         val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
 
         val baos = new ByteArrayOutputStream()
-        val serializationStream = new VeSerializationStream(baos, cleanUpInput = true)
+        val serializationStream = new VeSerializationStream(baos, cleanUpInput = false)
 
         val thingsToWrite = List(
           VeSerializedContainer.JavaLangInteger(1000000),
