@@ -61,6 +61,7 @@ object VeSerializer {
     with Logging {
     override def writeObject[T](t: T)(implicit evidence$4: ClassTag[T]): SerializationStream = {
       logError(s"Will write object ${t.getClass}; ${evidence$4}")
+      new Exception().printStackTrace()
       parent.writeObject(t)
     }
 
@@ -74,6 +75,7 @@ object VeSerializer {
     with Logging {
     override def readObject[T]()(implicit evidence$8: ClassTag[T]): T = {
       logError(s"ReadObj ${evidence$8}")
+      new Exception().printStackTrace()
       parent.readObject[T]()
     }
 
