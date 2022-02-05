@@ -9,10 +9,18 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
-import java.io.{InputStream, OutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, OutputStream}
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+
+  def serializeToBytes()(implicit veProcess: VeProcess): Array[Byte] = {
+    val baos = new ByteArrayOutputStream()
+    writeToStream(baos)
+    baos.flush()
+    try baos.toByteArray
+    finally baos.close()
+  }
   def writeToStream(out: OutputStream)(implicit veProcess: VeProcess): Unit = {
     out.write(cols.length)
     cols.foreach { colVector =>
@@ -58,6 +66,11 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 }
 
 object VeColBatch {
+  def readFromBytes(bytes: Array[Byte])(implicit veProcess: VeProcess): VeColBatch = {
+    val bais = new ByteArrayInputStream(bytes)
+    try readFromStream(bais)
+    finally bais.close()
+  }
   def readFromStream(in: InputStream)(implicit veProcess: VeProcess): VeColBatch = {
     val numCols = in.read()
     val cols = (0 until numCols).map { _ =>
