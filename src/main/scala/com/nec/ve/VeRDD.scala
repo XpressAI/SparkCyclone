@@ -33,7 +33,9 @@ object VeRDD extends LazyLogging {
         import com.nec.spark.SparkCycloneExecutorPlugin._
         try {
           (p, v.serializeToBytes())
-        } finally v.free()
+        } finally {
+          if (cleanUpInput) v.free()
+        }
       }
       .repartitionByKey(None)
       .map { case (_, vb) =>
