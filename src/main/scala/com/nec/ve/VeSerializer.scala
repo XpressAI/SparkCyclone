@@ -1,6 +1,7 @@
 package com.nec.ve
 
-import com.nec.ve.VeSerializer.VeSerializedContainer.VeColBatchToSerialize
+import com.nec.arrow.colvector.UnitColVector
+import com.nec.ve.VeSerializer.VeSerializedContainer.{CbTag, IntTag, VeColBatchToSerialize}
 import com.nec.ve.VeSerializer.{VeSerializedContainer, VeSerializerInstance}
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -49,10 +50,20 @@ object VeSerializer {
 
   }
 
-  sealed trait VeSerializedContainer
+  sealed trait VeSerializedContainer {
+    def tag: Int
+
+  }
+
   object VeSerializedContainer {
-    final case class VeColBatchToSerialize(veColBatch: VeColBatch) extends VeSerializedContainer
-    final case class JavaLangInteger(i: Int) extends VeSerializedContainer
+    val CbTag = 2
+    val IntTag = 1
+    final case class VeColBatchToSerialize(veColBatch: VeColBatch) extends VeSerializedContainer {
+      override def tag: Int = CbTag
+    }
+    final case class JavaLangInteger(i: Int) extends VeSerializedContainer {
+      override def tag: Int = 1
+    }
 
     def unapply(any: Any): Option[VeSerializedContainer] = PartialFunction.condOpt(any) {
       case i: java.lang.Integer =>
@@ -63,7 +74,27 @@ object VeSerializer {
   }
 
   class VeSerializationStream(out: OutputStream) extends SerializationStream with Logging {
-    def writeContainer(e: VeSerializedContainer): VeSerializationStream = ???
+    def writeContainer(e: VeSerializedContainer): VeSerializationStream = {
+      out.write(e.tag)
+
+      e match {
+        case VeColBatchToSerialize(veColBatch) =>
+          out.write(e.tag)
+          out.write(veColBatch.cols.length)
+          import com.nec.spark.SparkCycloneExecutorPlugin._
+          veColBatch.cols.foreach { colVector =>
+            val descByteForm: Array[Byte] = colVector.underlying.toUnit.byteForm
+            out.write(descByteForm.length)
+            out.write(descByteForm)
+            val payloadBytes = colVector.serialize()
+            out.write(payloadBytes.length)
+            out.write(payloadBytes)
+          }
+        case VeSerializedContainer.JavaLangInteger(i) => out.write(i)
+      }
+
+      this
+    }
 
     /**
      * Generally, the call chain looks like:
@@ -112,7 +143,30 @@ object VeSerializer {
     override def readObject[T: ClassTag](): T =
       readOut().asInstanceOf[T]
 
-    def readOut(): VeSerializedContainer = ???
+    def readOut(): VeSerializedContainer = {
+      in.read() match {
+        case VeSerializedContainer.IntTag =>
+          VeSerializedContainer.JavaLangInteger(in.read())
+        case VeSerializedContainer.CbTag =>
+          val numCols = in.read()
+          val cols = (0 until numCols).map { colNum =>
+            val descLength = in.read()
+            val arr = Array.fill[Byte](descLength)(-1)
+            in.read(arr)
+            val unitColVector = UnitColVector.fromBytes(arr)
+            val payloadLength = in.read()
+            val arrPayload = Array.fill[Byte](payloadLength)(-1)
+            in.read(arrPayload)
+            import com.nec.spark.SparkCycloneExecutorPlugin._
+            import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+            unitColVector.deserialize(arrPayload)
+          }
+
+          VeSerializedContainer.VeColBatchToSerialize(VeColBatch.fromList(cols.toList))
+        case other =>
+          sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
+      }
+    }
 
     override def close(): Unit = in.close()
   }

@@ -13,6 +13,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
  * Used as a pure carrier class, to ensure type-wise that we are not trying to transfer data itself.
  */
 final case class UnitColVector(underlying: GenericColVector[Unit]) {
+  def byteForm: Array[Byte] = ???
 
   import underlying._
 
@@ -42,4 +43,8 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
       )
         .newContainer()
     }(registerDeserializationTime)
+}
+
+object UnitColVector {
+  def fromBytes(arr: Array[Byte]): UnitColVector = ???
 }
