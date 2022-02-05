@@ -22,8 +22,6 @@ final case class GenericColVector[Data](
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
 
-  if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
-
   /**
    * Sizes of the underlying buffers --- use veType & combination with numItmes to decide them.
    */

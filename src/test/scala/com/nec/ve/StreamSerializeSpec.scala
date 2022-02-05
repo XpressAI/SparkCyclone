@@ -53,6 +53,24 @@ final class StreamSerializeSpec extends AnyFreeSpec with WithVeProcess with VeKe
       }
     }
   }
+  "StringStreamSerialization works" in {
+    WithTestAllocator { implicit alloc =>
+      val ls = List(None, Some("Xyz"), Some("asbc"))
+      withNullableArrowStringVector(ls) { strVec =>
+        val colVec: VeColVector = VeColVector.fromArrowVector(strVec)
+        val unitVec = colVec.underlying.toUnit
+        val outStream = new ByteArrayOutputStream()
+        colVec.serializeToStream(outStream)
+        outStream.flush()
+        val inStream = new ByteArrayInputStream(outStream.toByteArray)
+        val resVec = unitVec.deserializeFromStream(inStream)
+        val gotVecStr = resVec.toArrowVector().toString
+        val expectedVecStr = strVec.toString
+
+        assert(gotVecStr == expectedVecStr)
+      }
+    }
+  }
 
   "Simple serialization of a batch works" in {
     WithTestAllocator { implicit alloc =>
