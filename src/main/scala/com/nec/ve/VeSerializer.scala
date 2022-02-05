@@ -12,7 +12,7 @@ import java.io._
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
-class VeSerializer(conf: SparkConf, cleanUpInput: Boolean) extends Serializer {
+class VeSerializer(conf: SparkConf, cleanUpInput: Boolean) extends Serializer with Serializable {
   override def newInstance(): SerializerInstance = new VeSerializerInstance(cleanUpInput)
 }
 
