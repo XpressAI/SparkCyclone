@@ -73,7 +73,7 @@ final class StreamSerializeSpec extends AnyFreeSpec with WithVeProcess with VeKe
         )
 
         val expectedResults =
-          List[String](100000.toString, f8v.toString, 9.toString, 10.toString, f8v.toString)
+          List[String](1000000.toString, f8v.toString, 9.toString, 10.toString, f8v.toString)
 
         thingsToWrite.foreach(serializationStream.writeContainer)
         serializationStream.flush()
