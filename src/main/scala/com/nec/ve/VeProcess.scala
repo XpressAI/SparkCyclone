@@ -466,11 +466,14 @@ object VeProcess {
     }
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
-      val tmpArr = Array.fill[Byte](bufLen)(-1)
-      val buf = readAsBuffer(bufPos, bufLen)
+      val buf = new BytePointer(bufLen).asBuffer
+      get(bufPos, buf, bufLen)
       buf.position(0)
-      buf.get(tmpArr)
-      outStream.write(tmpArr)
+      var i = 0
+      while (i < bufLen) {
+        outStream.write(buf.get())
+        i = i + 1
+      }
     }
 
     override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
