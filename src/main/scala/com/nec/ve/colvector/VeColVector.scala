@@ -31,9 +31,11 @@ import org.apache.spark.sql.vectorized.ColumnVector
 import sun.misc.Unsafe
 import sun.nio.ch.DirectBuffer
 
+import java.io.{ByteArrayOutputStream, OutputStream}
 import java.nio.ByteBuffer
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
+
   def allAllocations = containerLocation :: bufferLocations
   def bufferLocations = underlying.buffers
   def containerLocation = underlying.containerLocation
@@ -70,6 +72,9 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
     resultingArray
   }
+
+  def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess) =
+    outStream.write(serialize())
 
   def toByteBufferVector()(implicit veProcess: VeProcess): ByteBufferColVector =
     ByteBufferColVector(

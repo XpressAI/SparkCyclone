@@ -2,19 +2,25 @@ package com.nec.arrow.colvector
 
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerDeserializationTime
 }
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  InputStream,
+  ObjectInputStream,
+  ObjectOutputStream
+}
 
 /**
  * Used as a pure carrier class, to ensure type-wise that we are not trying to transfer data itself.
  */
 final case class UnitColVector(underlying: GenericColVector[Unit]) {
+
   def byteForm: Array[Byte] = {
     val baos = new ByteArrayOutputStream()
     val oos = new ObjectOutputStream(baos)
@@ -53,6 +59,23 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
       )
         .newContainer()
     }(registerDeserializationTime)
+
+  def deserializeFromStream(
+    inStream: InputStream
+  )(implicit veProcess: VeProcess, originalCallingContext: OriginalCallingContext): VeColVector =
+    VeColVector(
+      ByteArrayColVector(
+        underlying.copy(
+          container = None,
+          buffers = bufferSizes.map { bufferSize =>
+            val tmpArr = Array.fill[Byte](bufferSize)(-1)
+            inStream.read(tmpArr)
+            Option(tmpArr)
+          }
+        )
+      ).transferBuffersToVe()
+        .map(_.getOrElse(-1))
+    ).newContainer()
 }
 
 object UnitColVector {
