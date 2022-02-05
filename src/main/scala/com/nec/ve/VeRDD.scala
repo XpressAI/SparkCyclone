@@ -20,7 +20,7 @@ object VeRDD extends LazyLogging {
       .map { case (p, v) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
         try {
-          (p, VeColBatchToSerialize(v.serializeToBytes()): VeColBatchHolder)
+          (p, VeColBatchToSerialize(v): VeColBatchHolder)
         } finally {
           if (cleanUpInput)
             v.free()
