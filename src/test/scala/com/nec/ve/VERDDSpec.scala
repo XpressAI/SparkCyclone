@@ -98,7 +98,11 @@ object VERDDSpec {
                     List(veColVector),
                     List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
                   )
-                  .map { case (k, vs) => (k, VeColBatch.fromList(vs)) }
+                  .map { case (k, vs) =>
+                    println(s"Vector size => ${vs.head.numItems}")
+
+                    (k, VeColBatch.fromList(vs))
+                  }
               } finally veColVector.free()
             }),
         preservesPartitioning = true
@@ -112,6 +116,7 @@ object VERDDSpec {
               WithTestAllocator { implicit alloc =>
                 import SparkCycloneExecutorPlugin.source
                 try {
+                  println(s"Vector size (after exch) => ${vector.numItems}")
                   val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
                   val vl =
                     try vec.toList
