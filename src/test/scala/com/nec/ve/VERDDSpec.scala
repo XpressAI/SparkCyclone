@@ -103,7 +103,7 @@ object VERDDSpec {
             }),
         preservesPartitioning = true
       )
-      .exchangeBetweenVEs(cleanUpInput = true)
+      .exchangeBetweenVEs(cleanUpInput = false)
       .mapPartitions((cbIter: Iterator[VeColBatch]) =>
         Iterator
           .continually {
