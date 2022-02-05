@@ -40,7 +40,10 @@ object VeSerializer {
       )
 
     override def deserializeStream(s: InputStream): DeserializationStream =
-      new VeDeserializationStream(s)(SparkCycloneExecutorPlugin.veProcess)
+      new VeDeserializationStream(s)(
+        SparkCycloneExecutorPlugin.veProcess,
+        SparkCycloneExecutorPlugin.source
+      )
 
   }
 
@@ -119,8 +122,10 @@ object VeSerializer {
     }
   }
 
-  class VeDeserializationStream(in: InputStream)(implicit veProcess: VeProcess)
-    extends DeserializationStream
+  class VeDeserializationStream(in: InputStream)(implicit
+    veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource
+  ) extends DeserializationStream
     with Logging {
     logDebug(s"Inputting from ==> ${in}; ${in.getClass}")
     val din = new DataInputStream(in)

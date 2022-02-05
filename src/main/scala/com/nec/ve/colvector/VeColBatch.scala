@@ -74,12 +74,16 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 }
 
 object VeColBatch {
-  def readFromBytes(bytes: Array[Byte])(implicit veProcess: VeProcess): VeColBatch = {
+  def readFromBytes(
+    bytes: Array[Byte]
+  )(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): VeColBatch = {
     val bais = new ByteArrayInputStream(bytes)
     try readFromStream(new DataInputStream(bais))
     finally bais.close()
   }
-  def readFromStream(in: DataInputStream)(implicit veProcess: VeProcess): VeColBatch = {
+  def readFromStream(
+    in: DataInputStream
+  )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
     val numCols = in.readInt()
     val cols = (0 until numCols).map { _ =>
       val descLength = in.readInt()

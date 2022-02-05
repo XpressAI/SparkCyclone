@@ -74,9 +74,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   }
 
   def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit = {
-    underlying.buffers.zip(underlying.bufferSizes).foreach {
-      case (bufPos, bufLen) =>
-        veProcess.writeToStream(outStream, bufPos, bufLen)
+    underlying.buffers.zip(underlying.bufferSizes).foreach { case (bufPos, bufLen) =>
+      veProcess.writeToStream(outStream, bufPos, bufLen)
     }
   }
 
@@ -98,6 +97,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   def newContainer()(implicit
     veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
     originalCallingContext: OriginalCallingContext
   ): VeColVector =
     copy(underlying = {
@@ -139,7 +139,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           underlying.copy(container = veProcess.putBuffer(byteBuffer))
         case other => sys.error(s"Other $other not supported.")
       }
-    }.copy(source = source))
+    }.copy(source = veColVectorSource))
 
   def containerSize: Int = veType.containerSize
 

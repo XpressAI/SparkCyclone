@@ -7,6 +7,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerDeserializationTime
 }
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 
 import java.io.{
   ByteArrayInputStream,
@@ -41,9 +42,11 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
    * The parent ColVector is a description of the original source vector from another VE that
    * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
    */
-  def deserialize(
-    ba: Array[Byte]
-  )(implicit veProcess: VeProcess, originalCallingContext: OriginalCallingContext): VeColVector =
+  def deserialize(ba: Array[Byte])(implicit
+    veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColVector =
     measureRunningTime {
       VeColVector(
         ByteArrayColVector(
@@ -60,9 +63,11 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
         .newContainer()
     }(registerDeserializationTime)
 
-  def deserializeFromStream(
-    inStream: InputStream
-  )(implicit veProcess: VeProcess, originalCallingContext: OriginalCallingContext): VeColVector = {
+  def deserializeFromStream(inStream: InputStream)(implicit
+    veProcess: VeProcess,
+    originalCallingContext: OriginalCallingContext,
+    veColVectorSource: VeColVectorSource
+  ): VeColVector = {
     VeColVector(underlying =
       underlying.copy(
         container = -1,
