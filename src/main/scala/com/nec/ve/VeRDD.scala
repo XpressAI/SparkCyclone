@@ -4,7 +4,11 @@ import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeSerializer.VeSerializedContainer
-import com.nec.ve.VeSerializer.VeSerializedContainer.{VeColBatchHolder, VeColBatchesToSerialize}
+import com.nec.ve.VeSerializer.VeSerializedContainer.{
+  VeColBatchHolder,
+  VeColBatchesDeserialized,
+  VeColBatchesToSerialize
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.Partitioner.defaultPartitioner
 import org.apache.spark.{HashPartitioner, TaskContext}
@@ -85,9 +89,13 @@ object VeRDD extends LazyLogging {
     val cg = new CoGroupedRDD(Seq(leftPts, rightPts), defaultPartitioner(leftPts, rightPts))
     cg.setSerializer(new VeSerializer(left.sparkContext.getConf, cleanUpInput = false))
     cg.mapValues { case Array(vs, w1s) =>
-      (vs.asInstanceOf[Iterable[VeColBatch]], w1s.asInstanceOf[Iterable[VeColBatch]])
+      (
+        vs.asInstanceOf[Iterable[VeColBatchesDeserialized]],
+        w1s.asInstanceOf[Iterable[VeColBatchesDeserialized]]
+      )
     }.flatMapValues(pair =>
-      for (v <- pair._1.iterator; w <- pair._2.iterator) yield (v: VeColBatch, w: VeColBatch)
+      for (v <- pair._1.iterator; w <- pair._2.iterator)
+        yield (v.veColBatch.head: VeColBatch, w.veColBatch.head: VeColBatch)
     ).map { case (k, v) => v }
   }
 
