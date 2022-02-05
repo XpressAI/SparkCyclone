@@ -16,7 +16,7 @@ class VeSerializer(conf: SparkConf) extends Serializer with Externalizable {
 
   protected def this() = this(new SparkConf())
 
-  override def newInstance(): SerializerInstance = new VeSerializerInstance(js.newInstance())
+  override def newInstance(): SerializerInstance = new VeSerializerInstance()
 
   override def writeExternal(out: ObjectOutput): Unit = js.writeExternal(out)
 
@@ -25,7 +25,7 @@ class VeSerializer(conf: SparkConf) extends Serializer with Externalizable {
 
 object VeSerializer {
 
-  class VeSerializerInstance(parent: SerializerInstance) extends SerializerInstance with Logging {
+  class VeSerializerInstance() extends SerializerInstance with Logging {
     override def serialize[T: ClassTag](t: T): ByteBuffer =
       sys.error("This should not be reached")
 
@@ -70,13 +70,14 @@ object VeSerializer {
   class VeSerializationStream(out: OutputStream)(implicit veProcess: VeProcess)
     extends SerializationStream
     with Logging {
+    val dataOutputStream = new DataOutputStream(out)
     logError(s"Outputting to ==> ${out}; ${out.getClass}")
     def writeContainer(e: VeSerializedContainer): VeSerializationStream = {
       out.write(e.tag)
 
       e match {
-        case VeColBatchToSerialize(veColBatch)        => veColBatch.writeToStream(out)
-        case VeSerializedContainer.JavaLangInteger(i) => out.write(i)
+        case VeColBatchToSerialize(veColBatch)        => veColBatch.writeToStream(dataOutputStream)
+        case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
       }
 
       this
@@ -98,15 +99,22 @@ object VeSerializer {
       }
     }
 
-    override def flush(): Unit = out.flush()
+    override def flush(): Unit = {
+      dataOutputStream.flush()
+      out.flush()
+    }
 
-    override def close(): Unit = out.close()
+    override def close(): Unit = {
+      dataOutputStream.close()
+      out.flush()
+    }
   }
 
   class VeDeserializationStream(in: InputStream)(implicit veProcess: VeProcess)
     extends DeserializationStream
     with Logging {
     logError(s"Inputting from ==> ${in}; ${in.getClass}")
+    val din = new DataInputStream(in)
 
     /**
      * Generally, the call chain looks like:
@@ -133,16 +141,18 @@ object VeSerializer {
       readOut().asInstanceOf[T]
 
     def readOut(): VeSerializedContainer = {
-      in.read() match {
+      din.read() match {
         case VeSerializedContainer.IntTag =>
-          VeSerializedContainer.JavaLangInteger(in.read())
+          VeSerializedContainer.JavaLangInteger(din.readInt())
         case VeSerializedContainer.CbTag =>
-          VeSerializedContainer.VeColBatchToSerialize(VeColBatch.readFromStream(in))
+          VeSerializedContainer.VeColBatchToSerialize(VeColBatch.readFromStream(din))
         case other =>
           sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
       }
     }
 
-    override def close(): Unit = in.close()
+    override def close(): Unit =
+      try din.close()
+      finally in.close()
   }
 }

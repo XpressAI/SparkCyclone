@@ -9,26 +9,33 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, OutputStream}
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  DataInputStream,
+  DataOutputStream,
+  InputStream,
+  OutputStream
+}
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 
   def serializeToBytes()(implicit veProcess: VeProcess): Array[Byte] = {
     val baos = new ByteArrayOutputStream()
-    writeToStream(baos)
+    writeToStream(new DataOutputStream(baos))
     baos.flush()
     try baos.toByteArray
     finally baos.close()
   }
-  def writeToStream(out: OutputStream)(implicit veProcess: VeProcess): Unit = {
-    out.write(cols.length)
+  def writeToStream(out: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
+    out.writeInt(cols.length)
     cols.foreach { colVector =>
       val descByteForm: Array[Byte] = colVector.underlying.toUnit.byteForm
-      out.write(descByteForm.length)
+      out.writeInt(descByteForm.length)
       out.write(descByteForm)
       val payloadBytes = colVector.serialize()
-      out.write(payloadBytes.length)
+      out.writeInt(payloadBytes.length)
       out.write(payloadBytes)
     }
   }
@@ -68,17 +75,17 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 object VeColBatch {
   def readFromBytes(bytes: Array[Byte])(implicit veProcess: VeProcess): VeColBatch = {
     val bais = new ByteArrayInputStream(bytes)
-    try readFromStream(bais)
+    try readFromStream(new DataInputStream(bais))
     finally bais.close()
   }
-  def readFromStream(in: InputStream)(implicit veProcess: VeProcess): VeColBatch = {
-    val numCols = in.read()
+  def readFromStream(in: DataInputStream)(implicit veProcess: VeProcess): VeColBatch = {
+    val numCols = in.readInt()
     val cols = (0 until numCols).map { _ =>
-      val descLength = in.read()
+      val descLength = in.readInt()
       val arr = Array.fill[Byte](descLength)(-1)
       in.read(arr)
       val unitColVector = UnitColVector.fromBytes(arr)
-      val payloadLength = in.read()
+      val payloadLength = in.readInt()
       val arrPayload = Array.fill[Byte](payloadLength)(-1)
       in.read(arrPayload)
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
