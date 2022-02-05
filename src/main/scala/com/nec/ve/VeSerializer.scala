@@ -29,7 +29,7 @@ object VeSerializer {
       sys.error("This should not be reached")
 
     override def serializeStream(s: OutputStream): SerializationStream =
-      new VeSerializationStream(s, cleanUpInput)(
+      new VeSerializationStream(s)(
         SparkCycloneExecutorPlugin.veProcess,
         SparkCycloneExecutorPlugin.source
       )
@@ -47,7 +47,7 @@ object VeSerializer {
   object VeSerializedContainer {
     val CbTag = 91
     val IntTag = 92
-    final case class VeColBatchToSerialize(veColBatch: VeColBatch) extends VeSerializedContainer {
+    final case class VeColBatchToSerialize(totalData: Array[Byte]) extends VeSerializedContainer {
       override def tag: Int = CbTag
     }
     final case class JavaLangInteger(i: Int) extends VeSerializedContainer {
@@ -62,7 +62,7 @@ object VeSerializer {
     }
   }
 
-  class VeSerializationStream(out: OutputStream, cleanUpInput: Boolean)(implicit
+  class VeSerializationStream(out: OutputStream)(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource
   ) extends SerializationStream
@@ -73,11 +73,9 @@ object VeSerializer {
       out.write(e.tag)
 
       e match {
-        case VeColBatchToSerialize(veColBatch) =>
-          veColBatch.writeToStream(dataOutputStream)
-          import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-
-          if (cleanUpInput) veColBatch.free()
+        case VeColBatchToSerialize(totalData) =>
+          dataOutputStream.writeInt(totalData.length)
+          dataOutputStream.write(totalData)
         case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
       }
 
@@ -146,7 +144,10 @@ object VeSerializer {
         case VeSerializedContainer.IntTag =>
           VeSerializedContainer.JavaLangInteger(din.readInt())
         case VeSerializedContainer.CbTag =>
-          VeSerializedContainer.VeColBatchToSerialize(VeColBatch.readFromStream(din))
+          val size = din.readInt()
+          val arr = Array.fill[Byte](size)(-1)
+          din.read(arr)
+          VeSerializedContainer.VeColBatchToSerialize(arr)
         case other =>
           sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
       }

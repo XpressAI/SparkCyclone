@@ -19,11 +19,14 @@ object VeRDD extends LazyLogging {
       .map { case (p, v) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
         try {
-          (p, VeColBatchToSerialize(v))
+          (p, VeColBatchToSerialize(v.serializeToBytes()))
         } finally v.free()
       }
       .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)))
-      .map { case (_, vb) => vb.veColBatch }
+      .map { case (_, vb) =>
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+        VeColBatch.readFromBytes(vb.totalData)
+      }
 
   private def exchangeSafe(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
     originalCallingContext: OriginalCallingContext
