@@ -6,7 +6,7 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeSerializer.VeSerializedContainer
 import com.nec.ve.VeSerializer.VeSerializedContainer.{VeColBatchHolder, VeColBatchToSerialize}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.HashPartitioner
+import org.apache.spark.{HashPartitioner, TaskContext}
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.serializer.Serializer
 
@@ -22,8 +22,9 @@ object VeRDD extends LazyLogging {
         try {
           (p, VeColBatchToSerialize(v): VeColBatchHolder)
         } finally {
-          if (cleanUpInput)
-            v.free()
+          if (cleanUpInput) {
+            TaskContext.get().addTaskCompletionListener[Unit](_ => v.free())
+          }
         }
       }
       .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)))
