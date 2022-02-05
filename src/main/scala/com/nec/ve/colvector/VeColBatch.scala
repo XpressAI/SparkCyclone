@@ -18,6 +18,7 @@ import java.io.{
   OutputStream
 }
 import java.util
+import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
@@ -125,8 +126,10 @@ object VeColBatch {
         unitColVector.deserialize(arrPayload)
       } catch {
         case e: Throwable =>
+          val stuffAfter =
+            (0 until 12).map(_ => Try(in.read()).toOption.fold("-")(_.toString)).toList
           throw new RuntimeException(
-            s"Failed to read: stream is ${in}; there were ${numCols} columns described; we are at the ${i}th; error ${e}",
+            s"Failed to read: stream is ${in}; there were ${numCols} columns described; we are at the ${i}th; error ${e}; bytes after = ${stuffAfter}",
             e
           )
       }
