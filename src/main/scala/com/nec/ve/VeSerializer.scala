@@ -12,12 +12,8 @@ import java.io._
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
-class VeSerializer(conf: SparkConf, cleanUpInput: Boolean) extends Serializer with Externalizable {
+class VeSerializer(conf: SparkConf, cleanUpInput: Boolean) extends Serializer {
   override def newInstance(): SerializerInstance = new VeSerializerInstance(cleanUpInput)
-
-  override def writeExternal(out: ObjectOutput): Unit = sys.error("Should not reach here")
-
-  override def readExternal(in: ObjectInput): Unit = sys.error("Should not reach here")
 }
 
 object VeSerializer {
