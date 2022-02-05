@@ -50,8 +50,8 @@ object VeSerializer {
   }
 
   object VeSerializedContainer {
-    val CbTag = 2
-    val IntTag = 1
+    val CbTag = 91
+    val IntTag = 92
     final case class VeColBatchToSerialize(veColBatch: VeColBatch) extends VeSerializedContainer {
       override def tag: Int = CbTag
     }
