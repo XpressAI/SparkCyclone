@@ -1,16 +1,30 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.colvector.GenericColBatch
+import com.nec.arrow.colvector.{GenericColBatch, UnitColVector}
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve
-import com.nec.ve.VeProcess
+import com.nec.ve.{VeProcess, VeSerializer}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
+import java.io.{InputStream, OutputStream}
+
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+  def writeToStream(out: OutputStream)(implicit veProcess: VeProcess): Unit = {
+    out.write(cols.length)
+    cols.foreach { colVector =>
+      val descByteForm: Array[Byte] = colVector.underlying.toUnit.byteForm
+      out.write(descByteForm.length)
+      out.write(descByteForm)
+      val payloadBytes = colVector.serialize()
+      out.write(payloadBytes.length)
+      out.write(payloadBytes)
+    }
+  }
+
   def nonEmpty: Boolean = underlying.nonEmpty
 
   def numRows = underlying.numRows
@@ -44,6 +58,24 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 }
 
 object VeColBatch {
+  def readFromStream(in: InputStream): VeColBatch = {
+    val numCols = in.read()
+    val cols = (0 until numCols).map { _ =>
+      val descLength = in.read()
+      val arr = Array.fill[Byte](descLength)(-1)
+      in.read(arr)
+      val unitColVector = UnitColVector.fromBytes(arr)
+      val payloadLength = in.read()
+      val arrPayload = Array.fill[Byte](payloadLength)(-1)
+      in.read(arrPayload)
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+      unitColVector.deserialize(arrPayload)
+    }
+
+    VeColBatch.fromList(cols.toList)
+  }
+
   type VeColVector = com.nec.ve.colvector.VeColVector
   val VeColVector = com.nec.ve.colvector.VeColVector
 

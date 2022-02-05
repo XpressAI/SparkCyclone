@@ -9,11 +9,23 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   registerDeserializationTime
 }
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+
 /**
  * Used as a pure carrier class, to ensure type-wise that we are not trying to transfer data itself.
  */
 final case class UnitColVector(underlying: GenericColVector[Unit]) {
-  def byteForm: Array[Byte] = ???
+  def byteForm: Array[Byte] = {
+    val baos = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(baos)
+    oos.writeObject(this)
+    oos.flush()
+    try baos.toByteArray
+    finally {
+      oos.close()
+      baos.close()
+    }
+  }
 
   import underlying._
 
@@ -46,5 +58,7 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
 }
 
 object UnitColVector {
-  def fromBytes(arr: Array[Byte]): UnitColVector = ???
+  def fromBytes(arr: Array[Byte]): UnitColVector = {
+    new ObjectInputStream(new ByteArrayInputStream(arr)).readObject().asInstanceOf[UnitColVector]
+  }
 }

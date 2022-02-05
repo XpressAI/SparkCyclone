@@ -3,6 +3,8 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.colvector.{GenericColVector, UnitColVector}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeSerializer.{
@@ -16,6 +18,15 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 final class StreamSerializeSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
   import OriginalCallingContext.Automatic._
+
+  "Unit vec can be serialized/deserialized" in {
+    val ucv = UnitColVector(
+      GenericColVector(source, 9, "test", Some(123), VeNullableInt, (), buffers = List((), ()))
+    )
+    val ucvBytes = ucv.byteForm
+    val gotBackUcv = UnitColVector.fromBytes(ucvBytes)
+    assert(gotBackUcv == ucv)
+  }
 
   "We can serialize and deserialize a VeColBatch" in {
     WithTestAllocator { implicit alloc =>
