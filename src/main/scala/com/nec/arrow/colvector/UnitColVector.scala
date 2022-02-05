@@ -35,10 +35,9 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
    * The parent ColVector is a description of the original source vector from another VE that
    * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
    */
-  def deserialize(ba: Array[Byte])(implicit
-    veProcess: VeProcess,
-    originalCallingContext: OriginalCallingContext
-  ): VeColVector =
+  def deserialize(
+    ba: Array[Byte]
+  )(implicit veProcess: VeProcess, originalCallingContext: OriginalCallingContext): VeColVector =
     measureRunningTime {
       VeColVector(
         ByteArrayColVector(
@@ -58,6 +57,15 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
 
 object UnitColVector {
   def fromBytes(arr: Array[Byte]): UnitColVector = {
-    new ObjectInputStream(new ByteArrayInputStream(arr)).readObject().asInstanceOf[UnitColVector]
+    try new ObjectInputStream(new ByteArrayInputStream(arr))
+      .readObject()
+      .asInstanceOf[UnitColVector]
+    catch {
+      case e: Throwable =>
+        throw new RuntimeException(
+          s"Could not deserialize; stream for reading was of size ${arr.size}; ${e}",
+          e
+        )
+    }
   }
 }
