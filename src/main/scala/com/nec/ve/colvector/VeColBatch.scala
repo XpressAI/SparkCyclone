@@ -30,13 +30,19 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     finally baos.close()
   }
   def writeToStream(out: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
+    import VeColBatch._
+    out.writeInt(ColLengthsId)
     out.writeInt(cols.length)
     cols.foreach { colVector =>
       val descByteForm: Array[Byte] = colVector.underlying.toUnit.byteForm
+      out.writeInt(DescLengthId)
       out.writeInt(descByteForm.length)
+      out.writeInt(DescDataId)
       out.write(descByteForm)
       val payloadBytes = colVector.serialize()
+      out.writeInt(PayloadBytesLengthId)
       out.writeInt(payloadBytes.length)
+      out.writeInt(PayloadBytesId)
       out.write(payloadBytes)
     }
   }
@@ -74,6 +80,17 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 }
 
 object VeColBatch {
+
+  val ColLengthsId = 199
+  val DescLengthId = 198
+  val DescDataId = 197
+  val PayloadBytesLengthId = 196
+  val PayloadBytesId = 195
+
+  def ensureId(v: Int, e: Int): Unit = {
+    require(v == e, s"Expected id ${e}, got ${v}")
+  }
+
   def readFromBytes(
     bytes: Array[Byte]
   )(implicit veProcess: VeProcess, veColVectorSource: VeColVectorSource): VeColBatch = {
@@ -84,16 +101,25 @@ object VeColBatch {
   def readFromStream(
     in: DataInputStream
   )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
+    ensureId(in.readInt(), ColLengthsId)
+
     val numCols = in.readInt()
     val cols = (0 until numCols).map { i =>
       try {
+        ensureId(in.readInt(), DescLengthId)
+
         val descLength = in.readInt()
+        ensureId(in.readInt(), DescDataId)
         require(descLength > 0, s"Expecting col description to be >0, is ${descLength}")
         val arr = Array.fill[Byte](descLength)(-1)
         in.read(arr)
         val unitColVector = UnitColVector.fromBytes(arr)
         val payloadLength = in.readInt()
+        ensureId(in.readInt(), PayloadBytesLengthId)
+
         val arrPayload = Array.fill[Byte](payloadLength)(-1)
+        ensureId(in.readInt(), PayloadBytesId)
+
         in.read(arrPayload)
         import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
         unitColVector.deserialize(arrPayload)
