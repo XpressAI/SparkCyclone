@@ -1,19 +1,13 @@
 package com.nec.ve
 
-import com.nec.arrow.colvector.UnitColVector
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeSerializer.VeSerializedContainer.{CbTag, IntTag, VeColBatchToSerialize}
-import com.nec.ve.VeSerializer.{VeSerializedContainer, VeSerializerInstance}
+import com.nec.ve.VeSerializer.VeSerializerInstance
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.{
-  DeserializationStream,
-  JavaSerializer,
-  SerializationStream,
-  Serializer,
-  SerializerInstance
-}
+import org.apache.spark.serializer._
 
-import java.io.{Externalizable, InputStream, ObjectInput, ObjectOutput, OutputStream}
+import java.io._
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
@@ -43,10 +37,10 @@ object VeSerializer {
 
     override def serializeStream(s: OutputStream): SerializationStream = new VeSerializationStream(
       s
-    )
+    )(SparkCycloneExecutorPlugin.veProcess)
 
     override def deserializeStream(s: InputStream): DeserializationStream =
-      new VeDeserializationStream(s)
+      new VeDeserializationStream(s)(SparkCycloneExecutorPlugin.veProcess)
 
   }
 
@@ -73,14 +67,16 @@ object VeSerializer {
     }
   }
 
-  class VeSerializationStream(out: OutputStream) extends SerializationStream with Logging {
+  class VeSerializationStream(out: OutputStream)(implicit veProcess: VeProcess)
+    extends SerializationStream
+    with Logging {
+    logError(s"Outputting to ==> ${out}; ${out.getClass}")
     def writeContainer(e: VeSerializedContainer): VeSerializationStream = {
       out.write(e.tag)
 
       e match {
         case VeColBatchToSerialize(veColBatch) =>
           out.write(e.tag)
-          import com.nec.spark.SparkCycloneExecutorPlugin._
           veColBatch.writeToStream(out)
         case VeSerializedContainer.JavaLangInteger(i) => out.write(i)
       }
@@ -109,7 +105,10 @@ object VeSerializer {
     override def close(): Unit = out.close()
   }
 
-  class VeDeserializationStream(in: InputStream) extends DeserializationStream with Logging {
+  class VeDeserializationStream(in: InputStream)(implicit veProcess: VeProcess)
+    extends DeserializationStream
+    with Logging {
+    logError(s"Inputting from ==> ${in}; ${in.getClass}")
 
     /**
      * Generally, the call chain looks like:

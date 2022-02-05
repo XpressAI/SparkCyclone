@@ -58,7 +58,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 }
 
 object VeColBatch {
-  def readFromStream(in: InputStream): VeColBatch = {
+  def readFromStream(in: InputStream)(implicit veProcess: VeProcess): VeColBatch = {
     val numCols = in.read()
     val cols = (0 until numCols).map { _ =>
       val descLength = in.read()
@@ -68,7 +68,6 @@ object VeColBatch {
       val payloadLength = in.read()
       val arrPayload = Array.fill[Byte](payloadLength)(-1)
       in.read(arrPayload)
-      import com.nec.spark.SparkCycloneExecutorPlugin._
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
       unitColVector.deserialize(arrPayload)
     }

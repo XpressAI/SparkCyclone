@@ -22,7 +22,6 @@ final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[By
 
   def transferBuffersToVe()(implicit
                             veProcess: VeProcess,
-                            source: VeColVectorSource,
                             originalCallingContext: OriginalCallingContext
   ): GenericColVector[Option[Long]] =
     underlying.copy(

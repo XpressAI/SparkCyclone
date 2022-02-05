@@ -89,7 +89,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   def newContainer()(implicit
     veProcess: VeProcess,
-    source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext
   ): VeColVector =
     copy(underlying = {

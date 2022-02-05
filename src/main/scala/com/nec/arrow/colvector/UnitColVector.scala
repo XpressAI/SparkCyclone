@@ -36,7 +36,6 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
    * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
    */
   def deserialize(ba: Array[Byte])(implicit
-    source: VeColVectorSource,
     veProcess: VeProcess,
     originalCallingContext: OriginalCallingContext
   ): VeColVector =
