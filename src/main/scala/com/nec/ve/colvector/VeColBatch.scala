@@ -17,6 +17,7 @@ import java.io.{
   InputStream,
   OutputStream
 }
+import java.util
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
@@ -36,6 +37,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
       out.write(descByteForm)
       val payloadBytes = colVector.serialize()
       out.writeInt(payloadBytes.length)
+      println(s"Payload to use when writing out =>${util.Arrays.toString(payloadBytes)}")
       out.write(payloadBytes)
     }
   }
@@ -88,6 +90,7 @@ object VeColBatch {
       val payloadLength = in.readInt()
       val arrPayload = Array.fill[Byte](payloadLength)(-1)
       in.read(arrPayload)
+      println(s"Payload to use when reading back: ${util.Arrays.toString(arrPayload)}")
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
       unitColVector.deserialize(arrPayload)
     }
