@@ -156,9 +156,7 @@ object VeSerializer {
           VeSerializedContainer.JavaLangInteger(din.readInt())
         case VeSerializedContainer.CbTag =>
           val size = din.readInt()
-          val arr = Array.fill[Byte](size)(-1)
-          din.read(arr)
-          VeSerializedContainer.VeColBatchDeserialized(VeColBatch.readFromBytes(arr))
+          VeSerializedContainer.VeColBatchDeserialized(VeColBatch.readFromStream(din))
         case -1 =>
           throw new EOFException()
         case other =>
