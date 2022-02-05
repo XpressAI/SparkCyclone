@@ -83,7 +83,6 @@ object VeSerializer {
 
       e match {
         case VeColBatchToSerialize(totalData) =>
-          dataOutputStream.writeInt(93)
           totalData.writeToStream(dataOutputStream)
         case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
         case VeColBatchDeserialized(_) =>
@@ -155,7 +154,6 @@ object VeSerializer {
         case VeSerializedContainer.IntTag =>
           VeSerializedContainer.JavaLangInteger(din.readInt())
         case VeSerializedContainer.CbTag =>
-          val size = din.readInt()
           VeSerializedContainer.VeColBatchDeserialized(VeColBatch.readFromStream(din))
         case -1 =>
           throw new EOFException()
