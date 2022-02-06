@@ -13,6 +13,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 
 import java.io.{InputStream, OutputStream}
 import java.nio.ByteBuffer
+import java.nio.channels.Channels
 import java.nio.file.Path
 
 private[ve] final case class VeProcessVeo(
@@ -344,12 +345,7 @@ private[ve] final case class VeProcessVeo(
   override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
     val buf = new BytePointer(bufLen)
     veo.veo_read_mem(veo_proc_handle, buf, bufPos, bufLen)
-    buf.position(0)
-    var i = 0
-    while (i < bufLen) {
-      outStream.write(buf.get(i))
-      i = i + 1
-    }
+    Channels.newChannel(outStream).write(buf.asBuffer())
   }
 
   override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
@@ -357,12 +353,7 @@ private[ve] final case class VeProcessVeo(
   ): Long = {
     val memoryLocation = allocate(bytes.toLong)
     val bp = new BytePointer(bytes.toLong)
-    var i = 0
-    while (i < bytes) {
-      val r: Byte = inputStream.read().toByte
-      bp.put(i, r)
-      i = i + 1
-    }
+    Channels.newChannel(inputStream).read(bp.asBuffer())
     requireOk(veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong))
     memoryLocation
   }
