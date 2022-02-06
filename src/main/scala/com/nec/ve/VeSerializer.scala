@@ -169,6 +169,7 @@ object VeSerializer {
             val size = din.readInt()
             val arr = Array.fill[Byte](size)(-1)
             din.read(arr)
+            println(arr.toList)
             VeSerializedContainer.VeColBatchesDeserialized(VeColBatch.readFromBytes(arr))
           case -1 =>
             throw new EOFException()
