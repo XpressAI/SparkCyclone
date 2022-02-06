@@ -7,11 +7,14 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerDeserializationTime
 }
+import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 
 import java.io.{
   ByteArrayInputStream,
   ByteArrayOutputStream,
+  DataInputStream,
+  DataOutputStream,
   InputStream,
   ObjectInputStream,
   ObjectOutputStream
@@ -78,9 +81,23 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
       )
     ).newContainer()
   }
+
+  def toStreamFast(dataOutputStream: DataOutputStream): Unit = {
+    dataOutputStream.writeInt(underlying.source.identifier.length)
+    dataOutputStream.writeBytes(underlying.source.identifier)
+    dataOutputStream.writeInt(underlying.numItems)
+    dataOutputStream.writeInt(underlying.name.length)
+    dataOutputStream.writeBytes(underlying.name)
+    dataOutputStream.writeInt(underlying.variableSize.getOrElse(-1))
+    dataOutputStream.writeInt(UnitColVector.veTypeToTag(underlying.veType))
+  }
 }
 
 object UnitColVector {
+
+  val veTypeToTag: Map[VeType, Int] = VeType.All.zipWithIndex.toMap
+  val veTagToType: Map[Int, VeType] = veTypeToTag.map(_.swap)
+
   def fromBytes(arr: Array[Byte]): UnitColVector =
     try fromStream(new ObjectInputStream(new ByteArrayInputStream(arr)))
     catch {
@@ -95,5 +112,28 @@ object UnitColVector {
     objectInputStream
       .readObject()
       .asInstanceOf[UnitColVector]
+  }
+
+  def fromStreamFast(dataInputStream: DataInputStream): UnitColVector = {
+    val sourceLen = dataInputStream.readInt()
+    val sourceIdBa = Array.fill[Byte](sourceLen)(-1)
+    dataInputStream.readFully(sourceIdBa)
+    val numItems = dataInputStream.readInt()
+    val nameLen = dataInputStream.readInt()
+    val nameBa = Array.fill[Byte](nameLen)(-1)
+    dataInputStream.readFully(nameBa)
+    val varSize = Option(dataInputStream.readInt()).filter(_ >= 0)
+    val veType = veTagToType(dataInputStream.readInt())
+    UnitColVector(underlying =
+      GenericColVector(
+        source = VeColVectorSource(new String(sourceIdBa)),
+        numItems = numItems,
+        name = new String(nameBa),
+        variableSize = varSize,
+        veType = veType,
+        container = (),
+        buffers = List.fill(GenericColVector.bufCount(veType))(())
+      )
+    )
   }
 }

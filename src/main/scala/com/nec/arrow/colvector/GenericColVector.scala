@@ -40,3 +40,10 @@ final case class GenericColVector[Data](
     copy(container = f(containerLocation), buffers = buffers.map(f))
 
 }
+
+object GenericColVector {
+  def bufCount(veType: VeType): Int = veType match {
+    case VeString => 3
+    case _ => 2
+  }
+}

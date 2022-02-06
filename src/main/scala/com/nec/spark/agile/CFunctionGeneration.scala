@@ -134,7 +134,7 @@ object CFunctionGeneration {
   }
 
   object VeType {
-    val All: Set[VeType] = Set(VeString) ++ VeScalarType.All
+    val All: List[VeType] = VeString :: VeScalarType.All
   }
 
   case object VeString extends VeType {
@@ -160,8 +160,8 @@ object CFunctionGeneration {
   }
 
   object VeScalarType {
-    val All: Set[VeScalarType] =
-      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong)
+    val All: List[VeScalarType] =
+      List(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong)
     case object VeNullableDouble extends VeScalarType {
 
       def cScalarType: String = "double"
