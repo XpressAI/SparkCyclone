@@ -16,7 +16,6 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerFunctionCallTime
 }
-import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.spark.TaskContext
 
 case class VectorEngineJoinPlan(
