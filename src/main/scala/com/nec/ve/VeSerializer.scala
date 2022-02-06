@@ -56,12 +56,10 @@ object VeSerializer {
     val CbTag = 91
     val IntTag = 92
     sealed trait VeColBatchHolder extends VeSerializedContainer {}
-    final case class VeColBatchesToSerialize(veColBatch: List[VeColBatch])
-      extends VeColBatchHolder {
+    final case class VeColBatchesToSerialize(veColBatch: VeColBatch) extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
-    final case class VeColBatchesDeserialized(veColBatch: List[VeColBatch])
-      extends VeColBatchHolder {
+    final case class VeColBatchesDeserialized(veColBatch: VeColBatch) extends VeColBatchHolder {
       override def tag: Int = CbTag
     }
     final case class JavaLangInteger(i: Int) extends VeSerializedContainer {
@@ -89,9 +87,10 @@ object VeSerializer {
         out.write(e.tag)
 
         e match {
-          case VeColBatchesToSerialize(totalData) =>
-            dataOutputStream.writeInt(totalData.length)
-            totalData.foreach(_.writeToStream(dataOutputStream))
+          case VeColBatchesToSerialize(veColBatch) =>
+            val serialized = veColBatch.serializeToBytes()
+            dataOutputStream.writeInt(serialized.length)
+            dataOutputStream.write(serialized)
           case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
           case VeColBatchesDeserialized(_) =>
             sys.error("Should not get to this state.")
@@ -167,10 +166,10 @@ object VeSerializer {
           case VeSerializedContainer.IntTag =>
             VeSerializedContainer.JavaLangInteger(din.readInt())
           case VeSerializedContainer.CbTag =>
-            val count = din.readInt()
-            VeSerializedContainer.VeColBatchesDeserialized((0 until count).map { _ =>
-              VeColBatch.readFromStream(din)
-            }.toList)
+            val size = din.readInt()
+            val arr = Array.fill[Byte](size)(-1)
+            din.read(arr)
+            VeSerializedContainer.VeColBatchesDeserialized(VeColBatch.readFromBytes(arr))
           case -1 =>
             throw new EOFException()
           case other =>

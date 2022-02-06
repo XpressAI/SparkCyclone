@@ -25,7 +25,7 @@ object VeRDD extends LazyLogging {
       .map { case (p, v) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
         try {
-          (p, VeColBatchesToSerialize(List(v)): VeColBatchHolder)
+          (p, VeColBatchesToSerialize(v): VeColBatchHolder)
         } finally {
           if (cleanUpInput) {
             TaskContext.get().addTaskCompletionListener[Unit](_ => v.free())
@@ -36,7 +36,7 @@ object VeRDD extends LazyLogging {
       .map { case (_, vb) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
         vb match {
-          case VeSerializedContainer.VeColBatchesDeserialized(veColBatch :: Nil) =>
+          case VeSerializedContainer.VeColBatchesDeserialized(veColBatch) =>
             veColBatch
           case other =>
             sys.error(
@@ -75,7 +75,7 @@ object VeRDD extends LazyLogging {
           import com.nec.spark.SparkCycloneExecutorPlugin._
           TaskContext.get().addTaskCompletionListener[Unit](_ => v.free())
         }
-        (p, VeColBatchesToSerialize(List(v)): VeColBatchHolder)
+        (p, VeColBatchesToSerialize(v): VeColBatchHolder)
       }
     val rightPts: RDD[(Int, VeColBatchHolder)] = right
       .map { case (p, v) =>
@@ -83,7 +83,7 @@ object VeRDD extends LazyLogging {
           import com.nec.spark.SparkCycloneExecutorPlugin._
           TaskContext.get().addTaskCompletionListener[Unit](_ => v.free())
         }
-        (p, VeColBatchesToSerialize(List(v)): VeColBatchHolder)
+        (p, VeColBatchesToSerialize(v): VeColBatchHolder)
       }
 
     val cg = new CoGroupedRDD(Seq(leftPts, rightPts), defaultPartitioner(leftPts, rightPts))
@@ -95,7 +95,7 @@ object VeRDD extends LazyLogging {
       )
     }.flatMapValues(pair =>
       for (v <- pair._1.iterator; w <- pair._2.iterator)
-        yield (v.veColBatch.head: VeColBatch, w.veColBatch.head: VeColBatch)
+        yield (v.veColBatch: VeColBatch, w.veColBatch: VeColBatch)
     ).map { case (k, v) => v }
   }
 
@@ -109,10 +109,9 @@ object VeRDD extends LazyLogging {
 
   private val UseSafe = false
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColBatch)]) {
-    def exchangeBetweenVEs(
-      cleanUpInput: Boolean,
-      partitions: Int
-    )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
+    def exchangeBetweenVEs(cleanUpInput: Boolean, partitions: Int)(implicit
+      originalCallingContext: OriginalCallingContext
+    ): RDD[VeColBatch] =
       if (UseSafe) exchangeSafe(rdd, cleanUpInput, partitions)
       else exchangeFast(rdd, cleanUpInput, partitions)
   }

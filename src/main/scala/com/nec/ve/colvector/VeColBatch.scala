@@ -30,7 +30,8 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     try baos.toByteArray
     finally baos.close()
   }
-  def writeToStream(out: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
+
+  private def writeToStream(out: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
     import VeColBatch._
     out.writeInt(ColLengthsId)
     out.writeInt(cols.length)
@@ -100,7 +101,8 @@ object VeColBatch {
     try readFromStream(new DataInputStream(bais))
     finally bais.close()
   }
-  def readFromStream(
+
+  private def readFromStream(
     in: DataInputStream
   )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
     ensureId(in.readInt(), ColLengthsId)
