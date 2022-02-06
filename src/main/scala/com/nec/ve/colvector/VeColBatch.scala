@@ -41,11 +41,11 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
       out.writeInt(descByteForm.length)
       out.writeInt(DescDataId)
       out.write(descByteForm)
-      val payloadBytes = colVector.serialize()
       out.writeInt(PayloadBytesLengthId)
-      out.writeInt(payloadBytes.length)
+      // no bytes length as it's a stream here
+      out.writeInt(-1)
       out.writeInt(PayloadBytesId)
-      out.write(payloadBytes)
+      colVector.serializeToStream(out)
     }
   }
 
@@ -118,11 +118,9 @@ object VeColBatch {
         in.readFully(arr)
         val unitColVector = UnitColVector.fromBytes(arr)
         ensureId(in.readInt(), PayloadBytesLengthId)
+        // ignored here, because we read stream-based
         val payloadLength = in.readInt()
-
         ensureId(in.readInt(), PayloadBytesId)
-
-//        in.readFully(arrPayload)
         import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
         unitColVector.deserializeFromStream(in)
       } catch {
