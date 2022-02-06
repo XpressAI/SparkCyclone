@@ -119,12 +119,10 @@ object VeSerializer {
 
     override def flush(): Unit = {
       dataOutputStream.flush()
-      out.flush()
     }
 
     override def close(): Unit = {
       dataOutputStream.close()
-      out.close()
     }
   }
 
@@ -182,7 +180,6 @@ object VeSerializer {
     }
 
     override def close(): Unit =
-      try din.close()
-      finally in.close()
+      din.close()
   }
 }
