@@ -167,7 +167,7 @@ object VeSerializer {
           case VeSerializedContainer.CbTag =>
             val size = din.readInt()
             val arr = Array.fill[Byte](size)(-1)
-            val br = din.read(arr)
+            val br = din.readFully(arr)
             println(s"Expected ${size} items, got ${br}")
             println(arr.toList.take(900))
             VeSerializedContainer.VeColBatchesDeserialized(VeColBatch.readFromBytes(arr))
