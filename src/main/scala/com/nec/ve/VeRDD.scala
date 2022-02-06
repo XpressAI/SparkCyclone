@@ -27,7 +27,7 @@ object VeRDD extends LazyLogging {
         try {
           (p, VeColBatchesToSerialize(v): VeColBatchHolder)
         } finally {
-          if (cleanUpInput && false) {
+          if (cleanUpInput) {
             TaskContext.get().addTaskCompletionListener[Unit](_ => v.free())
           }
         }

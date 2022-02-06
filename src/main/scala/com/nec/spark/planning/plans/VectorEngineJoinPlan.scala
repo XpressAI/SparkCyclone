@@ -16,6 +16,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerFunctionCallTime
 }
+import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.spark.TaskContext
 
 case class VectorEngineJoinPlan(
@@ -29,46 +30,40 @@ case class VectorEngineJoinPlan(
   with SupportsVeColBatch
   with PlanCallsVeFunction {
 
-  override def executeVeColumnar(): RDD[VeColBatch] =
-    left
-      .asInstanceOf[SupportsKeyedVeColBatch]
-      .executeVeColumnar()
-      .zipPartitions(
-        right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnar(),
-        preservesPartitioning = true
-      ) { case (iteratorLeft, iteratorRight) =>
-        val leftItems = iteratorLeft.toList
-        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-
+  override def executeVeColumnar(): RDD[VeColBatch] = {
+    VeRDD
+      .joinExchange(
+        left = left
+          .asInstanceOf[SupportsKeyedVeColBatch]
+          .executeVeColumnarKeyed(),
+        right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
+        cleanUpInput = false
+      )(OriginalCallingContext.Automatic.originalCallingContext)
+      .map { case (leftColBatch, rightColBatch) =>
+        import OriginalCallingContext.Automatic._
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         import com.nec.spark.SparkCycloneExecutorPlugin.source
-        TaskContext
-          .get()
-          .addTaskCompletionListener[Unit](_ => leftItems.foreach(dataCleanup.cleanup))
+        withVeLibrary { libRefJoin =>
+          logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
 
-        iteratorRight.flatMap { rightColBatch =>
-          leftItems.map { leftColBatch =>
-            withVeLibrary { libRefJoin =>
-              logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
-              val batch =
-                try {
-                  measureRunningTime(
-                    veProcess.execute(
-                      libraryReference = libRefJoin,
-                      functionName = joinFunction.functionName,
-                      cols = leftColBatch.cols ++ rightColBatch.cols,
-                      results = joinFunction.namedResults
-                    )
-                  )(registerFunctionCallTime(_, veFunction.functionName))
-                } finally {
-                  dataCleanup.cleanup(rightColBatch)
-                }
-              logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
-              VeColBatch.fromList(batch)
+          val batch =
+            try {
+              measureRunningTime(
+                veProcess.execute(
+                  libraryReference = libRefJoin,
+                  functionName = joinFunction.functionName,
+                  cols = leftColBatch.cols ++ rightColBatch.cols,
+                  results = joinFunction.namedResults
+                )
+              )(registerFunctionCallTime(_, veFunction.functionName))
+            } finally {
+              dataCleanup.cleanup(rightColBatch)
             }
-          }
+          logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
+          VeColBatch.fromList(batch)
         }
       }
+  }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(joinFunction = f(joinFunction))
