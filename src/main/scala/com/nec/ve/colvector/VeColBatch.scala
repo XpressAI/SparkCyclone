@@ -120,12 +120,11 @@ object VeColBatch {
         ensureId(in.readInt(), PayloadBytesLengthId)
         val payloadLength = in.readInt()
 
-        val arrPayload = Array.fill[Byte](payloadLength)(-1)
         ensureId(in.readInt(), PayloadBytesId)
 
-        in.readFully(arrPayload)
+//        in.readFully(arrPayload)
         import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-        unitColVector.deserialize(arrPayload)
+        unitColVector.deserializeFromStream(in)
       } catch {
         case e: Throwable =>
           val stuffAfter =
