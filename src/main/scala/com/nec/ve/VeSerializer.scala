@@ -84,18 +84,20 @@ object VeSerializer {
     val dataOutputStream = new DataOutputStream(out)
     logDebug(s"Outputting to ==> ${out}; ${out.getClass}")
     def writeContainer(e: VeSerializedContainer): VeSerializationStream = {
-      out.write(e.tag)
+      out.synchronized {
+        out.write(e.tag)
 
-      e match {
-        case VeColBatchesToSerialize(totalData) =>
-          dataOutputStream.writeInt(totalData.length)
-          totalData.foreach(_.writeToStream(dataOutputStream))
-        case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
-        case VeColBatchesDeserialized(_) =>
-          sys.error("Should not get to this state.")
+        e match {
+          case VeColBatchesToSerialize(totalData) =>
+            dataOutputStream.writeInt(totalData.length)
+            totalData.foreach(_.writeToStream(dataOutputStream))
+          case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
+          case VeColBatchesDeserialized(_) =>
+            sys.error("Should not get to this state.")
+        }
+
+        this
       }
-
-      this
     }
 
     /**
@@ -158,18 +160,20 @@ object VeSerializer {
       readOut().asInstanceOf[T]
 
     def readOut(): VeSerializedContainer = {
-      din.read() match {
-        case VeSerializedContainer.IntTag =>
-          VeSerializedContainer.JavaLangInteger(din.readInt())
-        case VeSerializedContainer.CbTag =>
-          val count = din.readInt()
-          VeSerializedContainer.VeColBatchesDeserialized((0 until count).map { _ =>
-            VeColBatch.readFromStream(din)
-          }.toList)
-        case -1 =>
-          throw new EOFException()
-        case other =>
-          sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
+      in.synchronized {
+        din.read() match {
+          case VeSerializedContainer.IntTag =>
+            VeSerializedContainer.JavaLangInteger(din.readInt())
+          case VeSerializedContainer.CbTag =>
+            val count = din.readInt()
+            VeSerializedContainer.VeColBatchesDeserialized((0 until count).map { _ =>
+              VeColBatch.readFromStream(din)
+            }.toList)
+          case -1 =>
+            throw new EOFException()
+          case other =>
+            sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
+        }
       }
     }
 
