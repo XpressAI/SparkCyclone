@@ -83,7 +83,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 
 object VeColBatch {
 
-  val ColLengthsId = 199
+  val ColLengthsId = 193
   val DescLengthId = 198
   val DescDataId = 197
   val PayloadBytesLengthId = 196
