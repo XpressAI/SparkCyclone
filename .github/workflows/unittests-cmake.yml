@@ -11,13 +11,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Check User
         run: whoami
-        
+
       - name: Check Path
         run: pwd
-        
+
       - name: Check Access to VE
         run: /opt/nec/ve/bin/vecmd info
 
@@ -32,4 +32,4 @@ jobs:
         run: echo "::set-output name=date::$(date +'%Y%m%d%H%M%S')"
 
       - name: Run Vector Engine Tests
-        run: SBT_OPTS="-Xmx16g" sbt "CMake / testQuick"
+        run: source /opt/rh/devtoolset-11/enable && SBT_OPTS="-Xmx16g" sbt "CMake / testQuick"

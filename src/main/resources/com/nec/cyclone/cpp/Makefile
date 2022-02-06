@@ -24,8 +24,11 @@ all: $(ALL)
 DEPS = $(shell find frovedis -name \*.cc -o -name \*.hpp) \
 	$(shell find cyclone -name \*.cc -o -name \*.hpp)
 
+# Collect all source files from the frovedis/ and cyclone/ subdirectories
 SOURCES = $(shell find frovedis -name \*.cc) \
 	$(shell find cyclone -name \*.cc)
+
+TEST_SOURCES = $(shell find tests -name \*.cc)
 
 # Build the library
 libcyclone.so: $(DEPS)
@@ -35,15 +38,14 @@ libcyclone.so: $(DEPS)
 # Remove `-fno-defer-inline-template-instantiation` because it breaks compilation of doctest
 test: libcyclone.so
 	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
-	$(CPP) $(CPP_OPTS) -c tests/driver.cpp
-	$(CPP) $(CPP_OPTS) -o run-tests.out driver.o -L. -lcyclone
-	VE_LD_LIBRARY_PATH=. ./run-tests.out
+	$(CPP) $(CPP_OPTS) ${TEST_SOURCES} -o cyclone-tests.out -L. -lcyclone
+	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out
 
 # Build examples
 examples: libcyclone.so
 	$(CPP) $(CPP_OPTS) -c examples.cpp
-	$(CPP) $(CPP_OPTS) -o run-examples.out examples.o -L. -lcyclone
-	VE_LD_LIBRARY_PATH=. ./run-examples.out
+	$(CPP) $(CPP_OPTS) -o cyclone-examples.out examples.o -L. -lcyclone
+	VE_LD_LIBRARY_PATH=. ./cyclone-examples.out
 
 clean:
 	rm -f *.s *.L *.o *.so *.out

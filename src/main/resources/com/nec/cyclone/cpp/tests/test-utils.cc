@@ -19,18 +19,11 @@
  */
 #pragma once
 
-#include "cyclone/example.hpp"
-#include "tests/doctest.h"
+#include <iostream>
 #include "tests/test-utils.hpp"
 
 namespace cyclone::tests {
-  TEST_CASE("Testing the factorial function") {
-    test_util_fn();
-
-    CHECK(factorial(0) == 1);
-    CHECK(factorial(1) == 1);
-    CHECK(factorial(2) == 2);
-    CHECK(factorial(3) == 6);
-    CHECK(factorial(10) == 3628800);
+  void test_util_fn() {
+    std::cout << "Hello from test!" << std::endl;
   }
 }

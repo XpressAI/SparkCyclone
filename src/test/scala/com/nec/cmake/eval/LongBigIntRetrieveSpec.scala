@@ -34,8 +34,9 @@ final class LongBigIntRetrieveSpec extends AnyFreeSpec {
 
       val cLib = CMakeBuilder.buildC(
         List(
-          """#include "transfer-definitions.hpp"""",
-          """#include "cyclone.hpp"""",
+          """#include "cyclone/transfer-definitions.hpp"""",
+          """#include "cyclone/cyclone.hpp"""",
+          """#include <math.h>""",
           "\n\n",
           CodeLines
             .from(
@@ -63,5 +64,4 @@ final class LongBigIntRetrieveSpec extends AnyFreeSpec {
       assert(res == List[Long](123))
     }
   }
-
 }

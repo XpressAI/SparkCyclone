@@ -29,6 +29,7 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
+#include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
 #include "frovedis/text/char_int_conv.hpp"
 #include "frovedis/text/parsefloat.hpp"

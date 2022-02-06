@@ -490,8 +490,8 @@ cycloneVeLibrary := {
   val cachedFun = FileFunction.cached(streams.value.cacheDirectory / "cpp") { (in: Set[File]) =>
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
-        logger.info("Building libcyclone.so...")
-        val exitcode = Process(command = Seq("make", "clean", "all"), cwd = makefile.getParentFile) ! logger
+        logger.info("Building and testing libcyclone.so...")
+        val exitcode = Process(command = Seq("make", "clean", "all", "test"), cwd = makefile.getParentFile) ! logger
 
         if (exitcode != 0) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
