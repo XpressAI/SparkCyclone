@@ -37,8 +37,8 @@ final class DualModeVESpec
     )
 
     implicit val veProc: VeProcess =
-      VeProcessDeferred(() =>
-        VeProcessVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
+      VeProcess.deferredVeProcess(() =>
+        VeProcess.wrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
       )
 
     def makeColumnarBatch1() = {
