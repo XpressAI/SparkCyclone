@@ -188,5 +188,5 @@ object VeSerializer {
       dataInputStream.close()
   }
 
-  private val UseStreamed = false
+  private val UseStreamed = true
 }
