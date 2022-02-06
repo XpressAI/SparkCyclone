@@ -85,6 +85,7 @@ object VeSerializer {
     logDebug(s"Outputting to ==> ${out}; ${out.getClass}")
     def writeContainer(e: VeSerializedContainer): VeSerializationStream = {
       out.synchronized {
+        println(Thread.currentThread())
         out.write(e.tag)
 
         e match {
@@ -161,6 +162,7 @@ object VeSerializer {
 
     def readOut(): VeSerializedContainer = {
       in.synchronized {
+        println(Thread.currentThread())
         din.read() match {
           case VeSerializedContainer.IntTag =>
             VeSerializedContainer.JavaLangInteger(din.readInt())
