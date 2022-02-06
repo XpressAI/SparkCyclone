@@ -38,7 +38,6 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     cols.foreach { colVector =>
       val descByteForm: Array[Byte] = colVector.underlying.toUnit.byteForm
       out.writeInt(DescLengthId)
-      println(s"writing desc length of ${descByteForm.length}")
       out.writeInt(descByteForm.length)
       out.writeInt(DescDataId)
       out.write(descByteForm)
@@ -114,7 +113,6 @@ object VeColBatch {
 
         val descLength = in.readInt()
         ensureId(in.readInt(), DescDataId)
-        println(s"Read desc length of ${descLength}")
         require(descLength > 0, s"Expecting col description to be >0, is ${descLength}")
         val arr = Array.fill[Byte](descLength)(-1)
         in.read(arr)
