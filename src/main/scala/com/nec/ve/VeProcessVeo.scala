@@ -353,10 +353,12 @@ private[ve] final case class VeProcessVeo(
   ): Long = {
     val memoryLocation = allocate(bytes.toLong)
     val bp = new BytePointer(bytes.toLong)
-    var i = 0
-    while (i < bytes) {
-      bp.put(i, inputStream.read().toByte)
-      i = i + 1
+    val buf = bp.asBuffer()
+
+    val channel = Channels.newChannel(inputStream)
+    var bytesRead = 0
+    while (bytesRead < bytes) {
+      bytesRead += channel.read(buf)
     }
     requireOk(veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong))
     memoryLocation
