@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.colvector.{GenericColVector, UnitColVector}
@@ -72,16 +73,22 @@ final class StreamSerializeSpec extends AnyFreeSpec with WithVeProcess with VeKe
     }
   }
 
-  "Simple serialization of a batch works" in {
+  "Simple serialization of a batch of 2 columns works" in {
     WithTestAllocator { implicit alloc =>
       withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-        val colVec: VeColBatch = VeColBatch.fromList(List(VeColVector.fromArrowVector(f8v)))
-        val bytes = colVec.serializeToBytes()
-        val theBatch = VeColBatch.readFromBytes(bytes)
-        val gotVecStr = theBatch.cols.head.toArrowVector().toString
-        val expectedVecStr = f8v.toString
+        withArrowFloat8VectorI(List(-1, -2, -3)) { f8v2 =>
+          val colVec: VeColBatch = VeColBatch.fromList(
+            List(VeColVector.fromArrowVector(f8v), VeColVector.fromArrowVector(f8v2))
+          )
+          val bytes = colVec.serializeToBytes()
+          val theBatch = VeColBatch.readFromBytes(bytes)
+          val gotVecStr = theBatch.cols.head.toArrowVector().toString
+          val gotVecStr2 = theBatch.cols.drop(1).head.toArrowVector().toString
+          val expectedVecStr = f8v.toString
+          val expectedVecStr2 = f8v2.toString
 
-        assert(gotVecStr == expectedVecStr)
+          expect(gotVecStr == expectedVecStr, gotVecStr2 == expectedVecStr2)
+        }
       }
     }
   }
