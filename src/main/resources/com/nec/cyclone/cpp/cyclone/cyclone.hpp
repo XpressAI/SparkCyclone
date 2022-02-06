@@ -17,6 +17,8 @@
  * limitations under the License.
  *
  */
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,13 +30,13 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
-#include "transfer-definitions.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
 #include "frovedis/text/char_int_conv.hpp"
 #include "frovedis/text/parsefloat.hpp"
 #include "frovedis/text/parsedatetime.hpp"
 #include "frovedis/text/datetime_utility.hpp"
+#include "cyclone/transfer-definitions.hpp"
 
 std::string utcnanotime();
 inline void log(std::string msg) {
