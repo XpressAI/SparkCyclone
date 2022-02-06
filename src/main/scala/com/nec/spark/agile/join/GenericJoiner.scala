@@ -30,40 +30,35 @@ final case class GenericJoiner(
     body = CodeLines.from(
       "nullable_int_vector left_idx;",
       "nullable_int_vector right_idx;",
-      CodeLines.debugHere,
       s"${computeIndicesFunctionName}(${{
         joinByEquality.ioWo.map(_.name) ++
           joinByEquality.ioO.map(v => s"&${v.name}")
       }.mkString(", ")});",
-      CodeLines.debugHere,
       s"std::vector<size_t> left_idx_std = idx_to_std(&left_idx);",
       s"std::vector<size_t> right_idx_std = idx_to_std(&right_idx);",
-      CodeLines.debugHere,
-      outputs
-        .map {
-          case FilteredOutput(newName, source @ CScalarVector(name, veType)) =>
-            val isLeft = inputsLeft.contains(source)
-            val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
-            CodeLines.from(
-              CodeLines.debugHere,
-              populateScalar(
-                outputName = newName,
-                inputIndices = indicesName,
-                inputName = name,
-                veScalarType = veType
-              )
+      outputs.map {
+        case FilteredOutput(newName, source @ CScalarVector(name, veType)) =>
+          val isLeft = inputsLeft.contains(source)
+          val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
+          CodeLines.from(
+            populateScalar(
+              outputName = newName,
+              inputIndices = indicesName,
+              inputName = name,
+              veScalarType = veType
             )
-          case FilteredOutput(outName, source @ CVarChar(name)) =>
-            val isLeft = inputsLeft.contains(source)
-            val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
+          )
 
-            CodeLines.from(
-              CodeLines.debugHere,
-              s"auto ${name}_words = varchar_vector_to_words(${name});",
-              s"auto ${name}_filtered_words = filter_words(${name}_words, ${indicesName});",
-              s"words_to_varchar_vector(${name}_filtered_words, ${outName});"
-            )
-        }
+        case FilteredOutput(outName, source @ CVarChar(name)) =>
+          val isLeft = inputsLeft.contains(source)
+          val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
+
+          CodeLines.from(
+            s"auto ${name}_words = varchar_vector_to_words(${name});",
+            s"auto ${name}_filtered_words = filter_words(${name}_words, ${indicesName});",
+            s"words_to_varchar_vector(${name}_filtered_words, ${outName});"
+          )
+      }
     )
   )
 
@@ -109,24 +104,19 @@ object GenericJoiner {
     CodeLines.from(
       s"std::vector<size_t> ${outMatchingIndicesLeft};",
       s"std::vector<size_t> ${outMatchingIndicesRight};",
-      CodeLines.debugHere,
       CodeLines
         .from(
-          CodeLines.debugValue(s"${inLeft}->count", s"${inRight}->count"),
           s"std::vector<int64_t> left(${inLeft}->count);",
           s"std::vector<size_t> left_idx(${inLeft}->count);",
-          s"for (int i = 0; i < ${inLeft}->count; i++) {",
-          CodeLines.from(s"left[i] = ${inLeft}->data[i];", s"left_idx[i] = i;").indented,
-          s"}",
-          CodeLines.debugHere,
+          CodeLines.forLoop("i", s"${inLeft}->count") {
+            List(s"left[i] = ${inLeft}->data[i];", s"left_idx[i] = i;")
+          },
           s"std::vector<int64_t> right(${inRight}->count);",
           s"std::vector<size_t> right_idx(${inRight}->count);",
-          s"for (int i = 0; i < ${inRight}->count; i++) {",
-          CodeLines.from(s"right[i] = ${inRight}->data[i];", s"right_idx[i] = i;").indented,
-          s"}",
-          CodeLines.debugHere,
-          s"frovedis::equi_join(right, right_idx, left, left_idx, $outMatchingIndicesRight, $outMatchingIndicesLeft);",
-          CodeLines.debugHere
+          CodeLines.forLoop("i", s"${inRight}->count") {
+            List(s"right[i] = ${inRight}->data[i];", s"right_idx[i] = i;")
+          },
+          s"frovedis::equi_join(right, right_idx, left, left_idx, $outMatchingIndicesRight, $outMatchingIndicesLeft);"
         )
         .block
     )

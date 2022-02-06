@@ -453,16 +453,12 @@ object VeArrowTransfers extends LazyLogging {
 
     requireOk {
       veo.veo_read_mem(proc, vhTargetPointer, veoPtr, dataSize)
-      veo.veo_read_mem(
-        proc,
-        validityTargetPointer,
-        validityPtr,
-        dataCount
-      )
+      veo.veo_read_mem(proc, validityTargetPointer, validityPtr, dataCount)
     }
     vec.count = dataCount
     vec.data = vhTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    vec.validityBuffer = validityTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+    vec.validityBuffer =
+      validityTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
 
     cleanup.add(veoPtr, dataSize)
     cleanup.add(validityPtr, dataCount)
@@ -485,17 +481,13 @@ object VeArrowTransfers extends LazyLogging {
     val vhValidityTargetPointer = (new BytePointer(dataCount))
     requireOk {
       veo.veo_read_mem(proc, vhTargetPointer, veoPtr, dataSize)
-      veo.veo_read_mem(
-        proc,
-        vhValidityTargetPointer,
-        validityPtr,
-        dataCount
-      )
+      veo.veo_read_mem(proc, vhValidityTargetPointer, validityPtr, dataCount)
 
     }
     vec.count = dataCount
     vec.data = vhTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    vec.validityBuffer = vhValidityTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+    vec.validityBuffer =
+      vhValidityTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
 
     cleanup.add(veoPtr, dataSize)
     cleanup.add(validityPtr, dataSize)
@@ -543,16 +535,12 @@ object VeArrowTransfers extends LazyLogging {
     }
 
     requireOk {
-      veo.veo_read_mem(
-        proc,
-        validityTargetPointer,
-        validityPtr,
-        dataCount
-      )
+      veo.veo_read_mem(proc, validityTargetPointer, validityPtr, dataCount)
     }
     vec.count = dataCount
     vec.data = vhTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
-    vec.validityBuffer = validityTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
+    vec.validityBuffer =
+      validityTargetPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
 
     cleanup.add(veoPtr, dataSize)
     cleanup.add(validityPtr, dataSize)
@@ -582,8 +570,7 @@ object VeArrowTransfers extends LazyLogging {
     requirePositive(dataPtr)
     val vhTargetDataPointer = (new BytePointer(dataSize))
     requireOk {
-      veo
-        .veo_read_mem(proc, vhTargetDataPointer, dataPtr, dataSize)
+      veo.veo_read_mem(proc, vhTargetDataPointer, dataPtr, dataSize)
     }
     vec.data = vhTargetDataPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(dataPtr, dataSize)
@@ -593,13 +580,7 @@ object VeArrowTransfers extends LazyLogging {
     requirePositive(offsetsPtr)
     val vhTargetOffsetsPointer = (new BytePointer((dataCount + 1) * 4))
     requireOk {
-      veo
-        .veo_read_mem(
-          proc,
-          vhTargetOffsetsPointer,
-          offsetsPtr,
-          (dataCount + 1) * 4
-        )
+      veo.veo_read_mem(proc, vhTargetOffsetsPointer, offsetsPtr, (dataCount + 1) * 4)
     }
     vec.offsets = vhTargetOffsetsPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(offsetsPtr, (dataCount + 1) * 4)
@@ -609,13 +590,7 @@ object VeArrowTransfers extends LazyLogging {
     requirePositive(validityPtr)
     val vhValidityPointer = (new BytePointer(Math.ceil(vec.count / 64.0).toInt * 8))
     requireOk {
-      veo
-        .veo_read_mem(
-          proc,
-          vhValidityPointer,
-          validityPtr,
-          Math.ceil(vec.count / 64.0).toInt * 8
-        )
+      veo.veo_read_mem(proc, vhValidityPointer, validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
     }
     vec.validityBuffer = vhValidityPointer.asBuffer.asInstanceOf[sun.nio.ch.DirectBuffer].address()
     cleanup.add(validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)

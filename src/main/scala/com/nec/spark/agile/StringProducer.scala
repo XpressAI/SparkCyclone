@@ -154,20 +154,20 @@ object StringProducer {
     def setup(size: String = "groups_count", capacity: String = "0"): CodeLines =
       stringProducer match {
         case f: FrovedisStringProducer =>
-          CodeLines.from(CodeLines.debugHere, f.init(outputName, size, capacity))
+          f.init(outputName, size, capacity)
       }
 
     def forEach(outputIdx: String): CodeLines = {
       stringProducer match {
         case frovedisStringProducer: FrovedisStringProducer =>
-          CodeLines.from(frovedisStringProducer.produce(outputName, outputIdx))
+          frovedisStringProducer.produce(outputName, outputIdx)
       }
     }
 
     def complete: CodeLines =
       stringProducer match {
         case f: FrovedisStringProducer =>
-          CodeLines.from(CodeLines.debugHere, f.complete(outputName))
+          f.complete(outputName)
       }
 
     def validityForEach(idx: String): CodeLines =

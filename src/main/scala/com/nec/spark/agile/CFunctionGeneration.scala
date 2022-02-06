@@ -19,7 +19,6 @@
  */
 package com.nec.spark.agile
 
-import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
   VeNullableDouble,
@@ -470,7 +469,6 @@ object CFunctionGeneration {
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
       """#include "frovedis/core/set_operations.hpp"""",
-      TcpDebug.conditional.headers,
       toCodeLinesNoHeaderOutPtr2(functionName)
     )
 
@@ -486,7 +484,6 @@ object CFunctionGeneration {
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
       """#include "frovedis/core/set_operations.hpp"""",
-      TcpDebug.conditional.headers,
       toCodeLinesNoHeader(functionName)
     )
 
@@ -500,7 +497,6 @@ object CFunctionGeneration {
         "#include <bitset>",
         "#include <string>",
         "#include <iostream>",
-        TcpDebug.conditional.headers,
         toCodeLinesNoHeader(functionName)
       )
     }
@@ -515,7 +511,6 @@ object CFunctionGeneration {
         "#include <iostream>",
         "#include <tuple>",
         "#include \"tuple_hash.hpp\"",
-        TcpDebug.conditional.headers,
         toCodeLinesNoHeader(functionName)
       )
     }
@@ -529,7 +524,6 @@ object CFunctionGeneration {
         "#include <iostream>",
         """#include "frovedis/dataframe/join.hpp"""",
         """#include "frovedis/core/set_operations.hpp"""",
-        TcpDebug.conditional.headers,
         toCodeLinesNoHeader(functionName)
       )
     }
@@ -594,20 +588,17 @@ object CFunctionGeneration {
         ") {",
         CodeLines
           .from(
-            CodeLines.debugHere,
             inputs.map { cVector =>
               CodeLines.from(
                 s"${cVector.veType.cVectorType}* ${cVector.name} = ${cVector.name}_m[0];"
               )
             },
-            CodeLines.debugHere,
             outputs.map { cVector =>
               CodeLines.from(
                 s"${cVector.veType.cVectorType}* ${cVector.name} = (${cVector.veType.cVectorType} *)malloc(sizeof(${cVector.veType.cVectorType}));",
                 s"*${cVector.name}_mo = ${cVector.name};"
               )
             },
-            CodeLines.debugHere,
             body
           )
           .indented,
@@ -819,7 +810,6 @@ object CFunctionGeneration {
         CVarChar(name)
     },
     body = CodeLines.from(
-      CodeLines.debugHere,
       veDataTransformation.outputs.zipWithIndex.map {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
@@ -838,7 +828,6 @@ object CFunctionGeneration {
             )
             .block
       },
-      CodeLines.debugHere,
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex
         .map {
