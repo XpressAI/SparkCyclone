@@ -89,6 +89,7 @@ object VeSerializer {
         e match {
           case VeColBatchesToSerialize(veColBatch) =>
             val serialized = veColBatch.serializeToBytes()
+            println(s"Will write ${serialized.length} items; last is ${serialized.last}")
             dataOutputStream.writeInt(serialized.length)
             dataOutputStream.write(serialized)
           case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
@@ -168,8 +169,9 @@ object VeSerializer {
           case VeSerializedContainer.CbTag =>
             val size = din.readInt()
             val arr = Array.fill[Byte](size)(-1)
-            din.read(arr)
-            println(arr.toList)
+            val br = din.read(arr)
+            println(s"Expected ${size} items, got ${br}")
+            println(arr.toList.take(900))
             VeSerializedContainer.VeColBatchesDeserialized(VeColBatch.readFromBytes(arr))
           case -1 =>
             throw new EOFException()
