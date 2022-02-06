@@ -87,9 +87,7 @@ object VeSerializer {
 
         e match {
           case VeColBatchesToSerialize(veColBatch) =>
-            val serialized = veColBatch.serializeToBytes()
-            dataOutputStream.writeInt(serialized.length)
-            dataOutputStream.write(serialized)
+            veColBatch.serializeToStream(dataOutputStream)
           case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
           case VeColBatchesDeserialized(_) =>
             sys.error("Should not get to this state.")
@@ -130,7 +128,7 @@ object VeSerializer {
   ) extends DeserializationStream
     with Logging {
     logDebug(s"Inputting from ==> ${in}; ${in.getClass}")
-    val din = new DataInputStream(in)
+    val dataInputStream = new DataInputStream(in)
 
     /**
      * Generally, the call chain looks like:
@@ -158,14 +156,13 @@ object VeSerializer {
 
     def readOut(): VeSerializedContainer = {
       in.synchronized {
-        din.read() match {
+        dataInputStream.read() match {
           case VeSerializedContainer.IntTag =>
-            VeSerializedContainer.JavaLangInteger(din.readInt())
+            VeSerializedContainer.JavaLangInteger(dataInputStream.readInt())
           case VeSerializedContainer.CbTag =>
-            val size = din.readInt()
-            val arr = Array.fill[Byte](size)(-1)
-            val br = din.readFully(arr)
-            VeSerializedContainer.VeColBatchesDeserialized(VeColBatch.readFromBytes(arr))
+            VeSerializedContainer.VeColBatchesDeserialized(
+              VeColBatch.readFromStream(dataInputStream)
+            )
           case -1 =>
             throw new EOFException()
           case other =>
@@ -175,6 +172,6 @@ object VeSerializer {
     }
 
     override def close(): Unit =
-      din.close()
+      dataInputStream.close()
   }
 }
