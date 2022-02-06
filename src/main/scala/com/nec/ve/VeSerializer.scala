@@ -87,7 +87,13 @@ object VeSerializer {
 
         e match {
           case VeColBatchesToSerialize(veColBatch) =>
-            veColBatch.serializeToStream(dataOutputStream)
+            if (UseStreamed)
+              veColBatch.serializeToStream(dataOutputStream)
+            else {
+              val bytes = veColBatch.serializeToBytes()
+              dataOutputStream.writeInt(bytes.length)
+              dataOutputStream.write(bytes)
+            }
           case VeSerializedContainer.JavaLangInteger(i) => dataOutputStream.writeInt(i)
           case VeColBatchesDeserialized(_) =>
             sys.error("Should not get to this state.")
@@ -161,7 +167,14 @@ object VeSerializer {
             VeSerializedContainer.JavaLangInteger(dataInputStream.readInt())
           case VeSerializedContainer.CbTag =>
             VeSerializedContainer.VeColBatchesDeserialized(
-              VeColBatch.readFromStream(dataInputStream)
+              if (UseStreamed)
+                VeColBatch.readFromStream(dataInputStream)
+              else {
+                val size = dataInputStream.readInt()
+                val arr = Array.fill[Byte](size)(-1)
+                dataInputStream.readFully(arr)
+                VeColBatch.readFromBytes(arr)
+              }
             )
           case -1 =>
             throw new EOFException()
@@ -174,4 +187,6 @@ object VeSerializer {
     override def close(): Unit =
       dataInputStream.close()
   }
+
+  private val UseStreamed = false
 }
