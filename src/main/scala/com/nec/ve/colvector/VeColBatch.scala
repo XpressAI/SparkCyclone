@@ -36,11 +36,10 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     out.writeInt(ColLengthsId)
     out.writeInt(cols.length)
     cols.foreach { colVector =>
-      val descByteForm: Array[Byte] = colVector.underlying.toUnit.byteForm
       out.writeInt(DescLengthId)
-      out.writeInt(descByteForm.length)
+      out.writeInt(-1)
       out.writeInt(DescDataId)
-      out.write(descByteForm)
+      colVector.underlying.toUnit.toStreamFast(out)
       out.writeInt(PayloadBytesLengthId)
       // no bytes length as it's a stream here
       out.writeInt(-1)
@@ -102,33 +101,31 @@ object VeColBatch {
   }
 
   def readFromStream(
-    in: DataInputStream
+    din: DataInputStream
   )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
-    ensureId(in.readInt(), ColLengthsId)
+    ensureId(din.readInt(), ColLengthsId)
 
-    val numCols = in.readInt()
+    val numCols = din.readInt()
     val cols = (0 until numCols).map { i =>
       try {
-        ensureId(in.readInt(), DescLengthId)
+        ensureId(din.readInt(), DescLengthId)
 
-        val descLength = in.readInt()
-        ensureId(in.readInt(), DescDataId)
-        require(descLength > 0, s"Expecting col description to be >0, is ${descLength}")
-        val arr = Array.fill[Byte](descLength)(-1)
-        in.readFully(arr)
-        val unitColVector = UnitColVector.fromBytes(arr)
-        ensureId(in.readInt(), PayloadBytesLengthId)
+        // not used, stream based now
+        val descLength = din.readInt()
+        ensureId(din.readInt(), DescDataId)
+        val unitColVector = UnitColVector.fromStreamFast(din)
+        ensureId(din.readInt(), PayloadBytesLengthId)
         // ignored here, because we read stream-based
-        val payloadLength = in.readInt()
-        ensureId(in.readInt(), PayloadBytesId)
+        val payloadLength = din.readInt()
+        ensureId(din.readInt(), PayloadBytesId)
         import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-        unitColVector.deserializeFromStream(in)
+        unitColVector.deserializeFromStream(din)
       } catch {
         case e: Throwable =>
           val stuffAfter =
-            (0 until 12).map(_ => Try(in.read()).toOption.fold("-")(_.toString)).toList
+            (0 until 12).map(_ => Try(din.read()).toOption.fold("-")(_.toString)).toList
           throw new RuntimeException(
-            s"Failed to read: stream is ${in}; there were ${numCols} columns described; we are at the ${i}th; error ${e}; bytes after = ${stuffAfter}",
+            s"Failed to read: stream is ${din}; there were ${numCols} columns described; we are at the ${i}th; error ${e}; bytes after = ${stuffAfter}",
             e
           )
       }
