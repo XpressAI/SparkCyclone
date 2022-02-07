@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.arrow.VeArrowNativeInterface.requireOk
+import com.nec.arrow.VeArrowNativeInterface.{requireOk, requirePositive}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
@@ -151,6 +151,7 @@ object VeProcess {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
+      requirePositive(ptr)
       logger.trace(
         s"Allocating ${size} bytes ==> ${ptr} in ${context.fullName.value}#${context.line.value}"
       )
@@ -487,7 +488,10 @@ object VeProcess {
       while (bytesRead < bytes) {
         bytesRead += channel.read(buf)
       }
-      requireOk(veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong))
+      requireOk(
+        veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong),
+        s"Trying to write to memory location ${memoryLocation}; ${veProcessMetrics.checkTotalUsage()}"
+      )
       memoryLocation
     }
   }

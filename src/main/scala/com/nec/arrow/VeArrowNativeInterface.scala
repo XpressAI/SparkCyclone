@@ -47,6 +47,9 @@ object VeArrowNativeInterface extends LazyLogging {
   def requireOk(result: Int): Unit = {
     require(result >= 0, s"Result should be >=0, got $result")
   }
+  def requireOk(result: Int, extra: => String): Unit = {
+    require(result >= 0, s"Result should be >=0, got $result; ${extra}")
+  }
 
   def requirePositive(result: Long): Unit = {
     require(result > 0, s"Result should be > 0, got $result")
