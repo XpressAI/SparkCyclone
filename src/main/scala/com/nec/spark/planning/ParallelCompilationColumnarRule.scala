@@ -47,7 +47,7 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
         plan.sparkPlan.updateVeFunction {
           case f @ VeFunction(source @ SourceCode(_), _, _) if compiled.contains(source) =>
             f.copy(veFunctionStatus = VeFunctionStatus.Compiled(
-              DistributedLibLocation(compiled(source).toString, source.sourceCode, SparkCycloneExecutorPlugin.pluginContext)
+              DistributedLibLocation(compiled(source).toString, source.sourceCode)
             ))
           case other => other
         }
