@@ -19,7 +19,6 @@
  */
 package com.nec.spark.agile.groupby
 
-import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline.StagedAggregation
@@ -44,15 +43,9 @@ final case class GroupByPartialToFinalGenerator(
           stagedAggregation.finalType.makeCVector(stagedAggregation.name)
       },
       body = CodeLines.from(
-        TcpDebug.conditional.createSock,
-        CodeLines
-          .from(
-            performGroupingOnKeys,
-            computedAggregates.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
-            passProjectionsPerGroup
-          )
-          .time("Execution of Final"),
-        TcpDebug.conditional.close
+        performGroupingOnKeys,
+        computedAggregates.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
+        passProjectionsPerGroup
       )
     )
 
@@ -60,22 +53,17 @@ final case class GroupByPartialToFinalGenerator(
     sa: StagedAggregation,
     aggregation: Aggregation
   ): CodeLines =
-    CodeLines
-      .from(
-        CodeLines.debugHere,
-        GroupByOutline.initializeScalarVector(
-          veScalarType = sa.finalType.asInstanceOf[VeScalarType],
-          variableName = sa.name,
-          countExpression = groupingCodeGenerator.groupsCountOutName
-        ),
-        CodeLines.commentHere("producing aggregate/partials per group"),
-        groupingCodeGenerator.forEachGroupItem(
-          beforeFirst = aggregation.initial(sa.name),
-          perItem = aggregation.merge(sa.name, s"partial_${sa.name}"),
-          afterLast =
-            CodeLines.from(GroupByOutline.storeTo(sa.name, aggregation.fetch(sa.name), "g"))
-        )
+    CodeLines.from(
+      GroupByOutline.initializeScalarVector(
+        veScalarType = sa.finalType.asInstanceOf[VeScalarType],
+        variableName = sa.name,
+        countExpression = groupingCodeGenerator.groupsCountOutName
+      ),
+      CodeLines.commentHere("producing aggregate/partials per group"),
+      groupingCodeGenerator.forEachGroupItem(
+        beforeFirst = aggregation.initial(sa.name),
+        perItem = aggregation.merge(sa.name, s"partial_${sa.name}"),
+        afterLast = CodeLines.from(GroupByOutline.storeTo(sa.name, aggregation.fetch(sa.name), "g"))
       )
-      .time(s"Staged Aggregation ${sa.name}")
-
+    )
 }

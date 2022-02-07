@@ -52,7 +52,7 @@ object MergerFunction {
                 // Copy value over
                 s"${tmp}->data[o] = ${in}[b]->data[i];",
                 // Preserve validity bits across merges
-                s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));",
+                s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
               )
             }
           }
@@ -83,7 +83,10 @@ object MergerFunction {
     }
 
     CFunction2(
-      arguments = List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")) ++ inputs ++ outputs,
+      arguments = List(
+        CFunctionArgument.Raw("int batches"),
+        CFunctionArgument.Raw("int rows")
+      ) ++ inputs ++ outputs,
       body = types.zipWithIndex.map((mergeCVecStmt _).tupled)
     )
   }

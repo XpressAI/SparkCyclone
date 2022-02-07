@@ -19,7 +19,6 @@
  */
 package com.nec.spark.agile.groupby
 
-import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
@@ -61,23 +60,16 @@ final case class GroupByPartialGenerator(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
-        TcpDebug.conditional.createSock,
-        CodeLines
-          .from(
-            performGrouping(count = s"${inputs.head.name}->count")
-              .time("Grouping"),
-            stringVectorComputations.map(_.computeVector).time("Compute String vectors"),
-            computeGroupingKeysPerGroup.block.time("Compute grouping keys per group"),
-            computedProjections.map { case (sp, e) =>
-              computeProjectionsPerGroup(sp, e).time(s"Compute projection ${sp.name}")
-            },
-            computedAggregates.map { case (a, ag) =>
-              computeAggregatePartialsPerGroup(a, ag).time(s"Compute aggregate ${a.name}")
-            },
-            stringVectorComputations.map(_.deallocData).time("Compute String vectors")
-          )
-          .time("Execution of Partial"),
-        TcpDebug.conditional.close
+        performGrouping(count = s"${inputs.head.name}->count") /* .time("Grouping") */,
+        stringVectorComputations.map(_.computeVector) /* .time("Compute String vectors") */,
+        computeGroupingKeysPerGroup.block /* .time("Compute grouping keys per group") */,
+        computedProjections.map { case (sp, e) =>
+          computeProjectionsPerGroup(sp, e) /* .time(s"Compute projection ${sp.name}") */
+        },
+        computedAggregates.map { case (a, ag) =>
+          computeAggregatePartialsPerGroup(a, ag) /* .time(s"Compute aggregate ${a.name}") */
+        },
+        stringVectorComputations.map(_.deallocData) /* .time("Compute String vectors") */
       )
     )
 
@@ -92,7 +84,6 @@ final case class GroupByPartialGenerator(
           StringProducer.copyString(sourceName)
         )
       CodeLines.from(
-        CodeLines.debugHere,
         fp.setup(size = "groups_count"),
         groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach("g"))),
         fp.complete,
@@ -100,13 +91,11 @@ final case class GroupByPartialGenerator(
       )
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
-        CodeLines.debugHere,
-        GroupByOutline
-          .initializeScalarVector(
-            veType,
-            s"partial_${stagedProjection.name}",
-            groupingCodeGenerator.groupsCountOutName
-          ),
+        GroupByOutline.initializeScalarVector(
+          veType,
+          s"partial_${stagedProjection.name}",
+          groupingCodeGenerator.groupsCountOutName
+        ),
         groupingCodeGenerator.forHeadOfEachGroup(
           GroupByOutline.storeTo(s"partial_${stagedProjection.name}", cExpression, "g")
         )
@@ -119,15 +108,13 @@ final case class GroupByPartialGenerator(
   ): CodeLines = {
     val prefix = s"partial_${stagedAggregation.name}"
     CodeLines.from(
-      CodeLines.debugHere,
-      stagedAggregation.attributes.map(attribute =>
+      stagedAggregation.attributes.map { attribute =>
         GroupByOutline.initializeScalarVector(
           veScalarType = attribute.veScalarType,
           variableName = s"partial_${attribute.name}",
           countExpression = groupingCodeGenerator.groupsCountOutName
         )
-      ),
-      CodeLines.debugHere,
+      },
       groupingCodeGenerator.forEachGroupItem(
         beforeFirst = aggregate.initial(prefix),
         perItem = aggregate.iterate(prefix),
@@ -141,7 +128,7 @@ final case class GroupByPartialGenerator(
   }
 
   def performGrouping(count: String): CodeLines =
-    CodeLines.debugHere ++ groupingCodeGenerator.identifyGroups(
+    groupingCodeGenerator.identifyGroups(
       tupleTypes = tupleTypes,
       tupleType = tupleType,
       count = count,
@@ -178,11 +165,8 @@ final case class GroupByPartialGenerator(
     }
 
     CodeLines.from(
-      CodeLines.debugHere,
       initVars.map(_.init),
-      CodeLines.debugHere,
       groupingCodeGenerator.forHeadOfEachGroup(initVars.map(_.forEach)),
-      CodeLines.debugHere,
       initVars.map(_.complete)
     )
   }

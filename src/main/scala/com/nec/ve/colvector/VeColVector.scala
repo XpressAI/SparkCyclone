@@ -30,7 +30,6 @@ import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import sun.misc.Unsafe
-import java.nio.ByteBuffer
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
   def allAllocations = containerLocation :: bufferLocations
@@ -143,8 +142,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val dataSize = numItems * 8
         float8Vector.setValueCount(numItems)
-        val vhTarget = new BytePointer(ByteBuffer.allocateDirect(dataSize))
-        val validityTarget = new BytePointer(ByteBuffer.allocateDirect(numItems))
+        val vhTarget = new BytePointer(dataSize)
+        val validityTarget = new BytePointer(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         veProcess.get(buffers(1), validityTarget, validityTarget.limit())
         getUnsafe.copyMemory(
@@ -164,8 +163,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val dataSize = numItems * 8
         bigIntVector.setValueCount(numItems)
-        val vhTarget = new BytePointer(ByteBuffer.allocateDirect(dataSize))
-        val validityTarget = new BytePointer(ByteBuffer.allocateDirect(numItems))
+        val vhTarget = new BytePointer(dataSize)
+        val validityTarget = new BytePointer(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         veProcess.get(buffers(1), validityTarget, validityTarget.limit())
         getUnsafe.copyMemory(
@@ -185,8 +184,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val dataSize = numItems * 4
         intVector.setValueCount(numItems)
-        val vhTarget = new BytePointer(ByteBuffer.allocateDirect(dataSize))
-        val validityTarget = new BytePointer(ByteBuffer.allocateDirect(numItems))
+        val vhTarget = new BytePointer(dataSize)
+        val validityTarget = new BytePointer(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         veProcess.get(buffers(1), validityTarget, validityTarget.limit())
         getUnsafe.copyMemory(
@@ -206,13 +205,13 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       if (numItems > 0) {
         val offsetsSize = (numItems + 1) * 4
         val lastOffsetIndex = numItems * 4
-        val offTarget = new BytePointer(ByteBuffer.allocateDirect(offsetsSize))
-        val validityTarget = new BytePointer(ByteBuffer.allocateDirect(numItems))
+        val offTarget = new BytePointer(offsetsSize)
+        val validityTarget = new BytePointer(numItems)
 
         veProcess.get(buffers(1), new BytePointer(offTarget), offTarget.limit())
         veProcess.get(buffers(2), validityTarget, validityTarget.limit())
         val dataSize = offTarget.getInt(lastOffsetIndex)
-        val vhTarget = new BytePointer(ByteBuffer.allocateDirect(dataSize))
+        val vhTarget = new BytePointer(dataSize)
 
         offTarget.position(0)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())

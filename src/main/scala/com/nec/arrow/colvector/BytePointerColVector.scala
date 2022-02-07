@@ -1,7 +1,6 @@
 package com.nec.arrow.colvector
 
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
-import com.nec.spark.planning.Tracer.TracerVector.veType
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -17,8 +16,9 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, reg
  * Storage of a col vector as serialized Arrow buffers, that are in BytePointers.
  * We use Option[] because the `container` has no BytePointer.
  */
-final case class BytePointerColVector(underlying: GenericColVector[Option[BytePointer]]) {
 
+final case class BytePointerColVector(underlying: GenericColVector[Option[BytePointer]]) {
+  
   def toVeColVector()(implicit
     veProcess: VeProcess,
     _source: VeColVectorSource,
@@ -74,7 +74,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
   def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
     import underlying.{buffers, numItems}
     val bytePointersAddresses = buffers.flatten.map(_.address())
-    veType match {
+    underlying.veType match {
       case VeScalarType.VeNullableDouble =>
         val float8Vector = new Float8Vector(underlying.name, bufferAllocator)
         if (numItems > 0) {

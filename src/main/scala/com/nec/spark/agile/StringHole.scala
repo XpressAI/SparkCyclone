@@ -120,7 +120,9 @@ object StringHole {
               s"""frovedis::words ${filteringSet} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",
               s"std::vector<size_t> ${matchingIds} = filter_words_dict(${inputWords}, ${filteringSet});",
               CodeLines.forLoop("i", s"${matchingIds}.size()") {
-                CodeLines.ifElseStatement(s"$matchingIds[i] != std::numeric_limits<size_t>::max()") {
+                CodeLines.ifElseStatement(
+                  s"$matchingIds[i] != std::numeric_limits<size_t>::max()"
+                ) {
                   s"${filteredIds}[i] = 1;"
                 } {
                   s"${filteredIds}[i] = 0;"
@@ -136,7 +138,8 @@ object StringHole {
       override def fetchResult: CExpression = CExpression(s"${filteredIds}[i]", None)
     }
 
-    final case class ScalarInExpHoleEvaluation(ref: String, dtype: DataType, values: Seq[String]) extends StringHoleEvaluation {
+    final case class ScalarInExpHoleEvaluation(ref: String, dtype: DataType, values: Seq[String])
+      extends StringHoleEvaluation {
       val filteredIds = s"filtered_ids_${Math.abs(hashCode())}"
       val elements = s"elements_${Math.abs(hashCode())}"
       val ctype = SparkExpressionToCExpression.sparkTypeToScalarVeType(dtype)
@@ -175,7 +178,6 @@ object StringHole {
       val dateTimeVectorName = s"stringCasting_datetime_${Math.abs(hashCode())}"
       override def computeVector: CodeLines = {
         CodeLines.from(
-          CodeLines.debugHere,
           s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
           s"""std::vector<datetime_t> $dateTimeVectorName = frovedis::parsedatetime($myIdWords, std::string("%Y-%m-%d"));""",
           s"std::vector<int> $finalVectorName($refName->count);",
@@ -231,7 +233,6 @@ object StringHole {
       val myId = s"${refName}_sloweval_${Math.abs(hashCode())}"
       override def computeVector: CodeLines = {
         CodeLines.from(
-          CodeLines.debugHere,
           s"std::vector<int> ${myId}(${refName}->count);",
           CodeLines.scoped(s"Populate ${myId} with slow evaluation of ${refName}") {
             CodeLines.forLoop("i", s"${refName}->count") {
@@ -343,8 +344,12 @@ object StringHole {
         rest of the `VERewriteStrategy` and `SparkExpressionToCExpression.eval`
         uses the output of that function, it is preferable to make the necessary
         changes in a future dedicated PR.
-      */
-      ScalarInExpHoleEvaluation(expr.name.replace("->data[i]", ""), expr.dataType, values.map(_.toString))
+       */
+      ScalarInExpHoleEvaluation(
+        expr.name.replace("->data[i]", ""),
+        expr.dataType,
+        values.map(_.toString)
+      )
   }
 
   def transform: PartialFunction[Expression, Expression] = Function

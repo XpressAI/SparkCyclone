@@ -109,7 +109,6 @@ final case class GroupByOutline(
         val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
         CodeLines
           .from(
-            CodeLines.debugHere,
             fp.setup(size = "groups_count"),
             groupingCodeGenerator.forHeadOfEachGroup(fp.forEach("g")),
             fp.complete,
