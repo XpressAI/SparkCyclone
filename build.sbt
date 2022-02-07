@@ -131,7 +131,6 @@ libraryDependencies ++= Seq(
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "org.reflections" % "reflections" % "0.9.12",
   "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve,cmake",
   "commons-io" % "commons-io" % "2.10.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
