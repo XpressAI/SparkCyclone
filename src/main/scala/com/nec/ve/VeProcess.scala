@@ -152,7 +152,7 @@ object VeProcess {
       requireOk(
         result = veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size),
         extra =
-          s"Tried to allocate ${size}; already have ${veProcessMetrics.checkTotalUsage()} allocated"
+          s"Tried to allocate ${size}; already have ${veProcessMetrics.checkTotalUsage()} allocated; proc handle is ${veo_proc_handle}"
       )
       val ptr = veInputPointer.get()
       requirePositive(
