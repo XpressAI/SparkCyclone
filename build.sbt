@@ -22,7 +22,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(TPC)
   .configs(CMake)
   .settings(
-    version := "0.9.0"
+    version := "0.9.1"
   )
 
 lazy val tracing = project
