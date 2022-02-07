@@ -151,7 +151,11 @@ object VeProcess {
       val veInputPointer = new LongPointer(1)
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
-      requirePositive(ptr)
+      requirePositive(
+        result = ptr,
+        extra =
+          s"Tried to allocate ${size}, but got ${ptr}; already have ${veProcessMetrics.checkTotalUsage()} allocated."
+      )
       logger.trace(
         s"Allocating ${size} bytes ==> ${ptr} in ${context.fullName.value}#${context.line.value}"
       )
