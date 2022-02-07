@@ -62,39 +62,20 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
           inputs = List(CVector.varChar("input_0")),
           outputs = List(CVector.varChar("output_0")),
           body = CodeLines.from(
-            CodeLines.debugHere,
             s"int size = input_0->count % 2 == 0 ? (input_0->count) / 2 : ((1 + input_0->count) / 2);",
-            CodeLines.debugValue(""""input_0->count"""", "input_0->count"),
-            CodeLines.debugValue(""""size"""", "size"),
-            prod.init("output_0", "size"),
-            CodeLines.debugHere,
+            prod.init("output_0", "size", "0"),
             "int g = 0;",
             "for(int i = 0; i < input_0->count; i++) {",
-            CodeLines
-              .from(
-                CodeLines.debugValue(""""i"""", "i"),
-                CodeLines.debugHere,
-                s"if ( g < size && i < input_0->count ) {",
-                CodeLines.debugValue(""""sz"""", "output_0_input_words.starts.size()"),
-                CodeLines.debugValue(""""lsz"""", "output_0_input_words.lens.size()"),
-                CodeLines
-                  .from(
-                    CodeLines.debugValue("g"),
-                    CodeLines.debugHere,
-                    prod.produce("output_0", "g")
-                  )
-                  .indented,
-                "}",
-                CodeLines.debugHere,
-                "i++;",
-                "g++;",
-                CodeLines.debugHere
+            CodeLines.from(
+              s"if ( g < size && i < input_0->count ) {",
+              CodeLines.from(prod.produce("output_0", "g")).indented,
+              "}",
+              "i++;",
+              "g++;"
               )
               .indented,
             "}",
-            CodeLines.debugHere,
             prod.complete("output_0"),
-            CodeLines.debugHere,
             "return 0;"
           )
         ).toCodeLinesS("test").cCode

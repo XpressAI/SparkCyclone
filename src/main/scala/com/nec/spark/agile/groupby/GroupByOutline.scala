@@ -22,12 +22,7 @@ package com.nec.spark.agile.groupby
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer.FilteringProducer
-import com.nec.spark.agile.groupby.GroupByOutline.{
-  GroupingKey,
-  StagedAggregation,
-  StagedProjection,
-  StringReference
-}
+import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregation, StagedProjection}
 import com.nec.spark.agile.{GroupingCodeGenerator, StringProducer}
 
 /**
@@ -114,9 +109,8 @@ final case class GroupByOutline(
         val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
         CodeLines
           .from(
-            CodeLines.debugHere,
-            fp.setup,
-            groupingCodeGenerator.forHeadOfEachGroup(fp.forEach),
+            fp.setup(size = "groups_count"),
+            groupingCodeGenerator.forHeadOfEachGroup(fp.forEach("g")),
             fp.complete,
             groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
           )

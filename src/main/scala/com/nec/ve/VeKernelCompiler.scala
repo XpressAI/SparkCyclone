@@ -19,7 +19,6 @@
  */
 package com.nec.ve
 
-import com.nec.cmake.TcpDebug
 import com.nec.spark.agile.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.{FileAttributes, PlatformLibrarySoName, VeCompilerConfig}
 import com.typesafe.scalalogging.LazyLogging
@@ -54,21 +53,11 @@ object VeKernelCompiler {
   val FileAttributes = PosixFilePermissions.asFileAttribute(PosixPermissions)
 
   import VeCompilerConfig.ExtraArgumentPrefix
-  final case class ProfileTarget(host: String, port: Int)
-
-  object ProfileTarget {
-    def parse(value: String): Option[ProfileTarget] = {
-      PartialFunction.condOpt(value.split(':')) { case Array(h, p) =>
-        ProfileTarget(h, p.toInt)
-      }
-    }
-  }
 
   final case class VeCompilerConfig(
-    nccPath: String = "/opt/nec/ve/bin/ncc",
+    nccPath: String = "/opt/nec/ve/bin/nc++",
     optimizationLevel: Int = 4,
     doDebug: Boolean = false,
-    maybeProfileTarget: Option[ProfileTarget] = None,
     additionalOptions: Map[Int, String] = Map.empty,
     useOpenmp: Boolean = false
   ) {
@@ -76,6 +65,7 @@ object VeKernelCompiler {
       // Optimizations used in frovedis: -fno-defer-inline-template-instantiation -finline-functions -finline-max-depth = 10 -msched-block
       val ret = List(
         s"-O$optimizationLevel",
+        "-std=gnu++17",
         "-fpic",
         "-fno-defer-inline-template-instantiation",
         "-finline-functions",
@@ -88,25 +78,16 @@ object VeKernelCompiler {
       ) ++
         List(
           if (doDebug) List("-D", "DEBUG=1") else Nil,
-          if (useOpenmp) List("-fopenmp") else Nil,
-          maybeProfileTarget.toList.flatMap(tgt =>
-            List(
-              "-D",
-              s"""${TcpDebug.default.hostName}="${tgt.host}"""",
-              "-D",
-              s"${TcpDebug.default.port}=${tgt.port}"
-            )
-          )
+          if (useOpenmp) List("-fopenmp") else Nil
         ).flatten ++ additionalOptions.toList.sortBy(_._1).map(_._2)
       ret
     }
 
     def include(key: String, value: String): VeCompilerConfig = key match {
-      case "o"              => copy(optimizationLevel = value.toInt)
-      case "profile-target" => copy(maybeProfileTarget = ProfileTarget.parse(value))
-      case "debug"          => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
-      case "openmp"         => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
-      case "path"           => copy(nccPath = value)
+      case "o"      => copy(optimizationLevel = value.toInt)
+      case "debug"  => copy(doDebug = Set("true", "1").contains(value.toLowerCase))
+      case "openmp" => copy(useOpenmp = Set("true", "1").contains(value.toLowerCase))
+      case "path"   => copy(nccPath = value)
       case key if key.startsWith(ExtraArgumentPrefix) =>
         copy(additionalOptions =
           additionalOptions.updated(key.drop(ExtraArgumentPrefix.length).toInt, value)
@@ -147,8 +128,7 @@ object VeKernelCompiler {
       .compile_c(code)
   }
 
-  val PlatformLibrarySoName = "cyclone-ve.so"
-
+  val PlatformLibrarySoName = "libcyclone.so"
 }
 
 final case class VeKernelCompiler(

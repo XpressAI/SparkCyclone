@@ -33,7 +33,7 @@ import java.io.File
 
 object TPCHVESqlSpec {
 
-  def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
+  def VeConfiguration(failFast: Boolean): SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
@@ -42,17 +42,9 @@ object TPCHVESqlSpec {
         value = "com.nec.spark.planning.VeCachedBatchSerializer"
       )
       .config(key = "spark.ui.enabled", value = true)
+      .config(key = "spark.com.nec.spark.fail-fast", value = failFast)
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
-      .withExtensions { sse =>
-        sse.injectPlannerStrategy(_ => {
-          new VERewriteStrategy(
-            VeRewriteStrategyOptions.default.copy(failFast = true, joinOnVe = false)
-          )
-        })
-        sse.injectColumnar(compilerRule)
-        sse.injectColumnar(_ => new VeColumnarRule)
-      }
   }
 
 }
@@ -60,7 +52,7 @@ object TPCHVESqlSpec {
 final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
-    TPCHVESqlSpec.VeConfiguration
+    TPCHVESqlSpec.VeConfiguration(failFast = failFast)
 
   override protected def afterAll(configMap: ConfigMap): Unit = {
     SparkCycloneExecutorPlugin.closeProcAndCtx()

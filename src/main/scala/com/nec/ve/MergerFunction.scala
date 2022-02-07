@@ -4,74 +4,90 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.StringProducer.{
-  FilteringProducer,
-  FrovedisCopyStringProducer,
-  ImpCopyStringProducer
-}
 import com.nec.spark.agile.groupby.GroupByOutline
 
 object MergerFunction {
+  def mergeCVecStmt(vetype: VeType, index: Int): CodeLines = {
+    val in = s"input_${index}_g"
+    val out = s"output_${index}_g"
+    val tmp = s"output_${index}"
 
-  def merge(types: List[VeType]): CFunction2 = CFunction2(
-    arguments = List(
-      List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")),
-      types.zipWithIndex.map { case (veType, idx) =>
-        CFunctionArgument.PointerPointer(veType.makeCVector(s"input_${idx}_g"))
-      },
-      types.zipWithIndex.map { case (veType, idx) =>
-        CFunctionArgument.PointerPointer(veType.makeCVector(s"output_${idx}_g"))
-      }
-    ).flatten,
-    body = CodeLines.from(types.zipWithIndex.map { case (veT, idx) =>
-      val outputVarName = s"output_${idx}"
+    val mergeStmt = vetype match {
+      case VeString =>
+        CodeLines.from(
+          // Declare std::vector<frovedis::words>
+          s"std::vector<frovedis::words> ${tmp}_multi_words(batches);",
+          // Loop over the batches
+          CodeLines.forLoop("b", "batches") {
+            // Copy each nullable_varchar_vector over
+            s"${tmp}_multi_words[b] = varchar_vector_to_words(${in}[b]);"
+          },
+          "",
+          // Perform merge using frovedis
+          s"frovedis::words ${tmp}_merged = frovedis::merge_multi_words(${tmp}_multi_words);",
+          // Convert back to nullable_varchar_vector
+          s"words_to_varchar_vector(${tmp}_merged, ${tmp});",
+          "",
+          // Initialize index counter
+          "auto o = 0;",
+          CodeLines.forLoop("b", "batches") {
+            CodeLines.forLoop("i", s"${in}[b]->count") {
+              s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
+            }
+          }
+        )
+
+      case scalar: VeScalarType =>
+        CodeLines.from(
+          // Initialize the mullable_T_vector
+          GroupByOutline.initializeScalarVector(scalar, tmp, "rows"),
+          "",
+          // Initialize index counter
+          "auto o = 0;",
+          // Loop over the batches
+          CodeLines.forLoop("b", "batches") {
+            // Loop over all values in each batch
+            CodeLines.forLoop("i", s"${in}[b]->count") {
+              List(
+                // Copy value over
+                s"${tmp}->data[o] = ${in}[b]->data[i];",
+                // Preserve validity bits across merges
+                s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
+              )
+            }
+          }
+        )
+    }
+
+    CodeLines.scoped(s"Merge ${in}[...] into ${out}[0]") {
       CodeLines.from(
-        CodeLines.debugValue(s"$idx", "batches", "rows"),
-        CodeLines.debugHere,
-        GroupByOutline.declare(veT.makeCVector(outputVarName)),
-        CodeLines.debugHere,
-        s"${outputVarName}_g[0] = ${outputVarName};",
-        veT match {
-          case VeString =>
-            CodeLines
-              .from(
-                CodeLines.debugHere,
-                CodeLines.from(
-                  s"std::vector<frovedis::words> ${outputVarName}_multi_words(batches);"
-                ),
-                CodeLines.forLoop("b", "batches")({
-                  s"${outputVarName}_multi_words[b] = varchar_vector_to_words(input_${idx}_g[b]);"
-                }),
-                CodeLines.debugHere,
-                s"frovedis::words ${outputVarName}_merged = frovedis::merge_multi_words(${outputVarName}_multi_words);",
-                s"words_to_varchar_vector(${outputVarName}_merged, ${outputVarName});"
-              )
-              .blockCommented(s"$idx")
-
-          case veScalarType: VeScalarType =>
-            CodeLines
-              .from(
-                GroupByOutline.initializeScalarVector(veScalarType, outputVarName, "rows"),
-                "int o = 0;",
-                CodeLines.forLoop("b", "batches") {
-                  val inputInBatch = s"input_${idx}_g[b]"
-                  val countInBatch = s"$inputInBatch->count"
-                  CodeLines.from(
-                    CodeLines.debugHere,
-                    CodeLines.forLoop("i", countInBatch) {
-                      CodeLines.from(
-                        s"$outputVarName->data[o] = $inputInBatch->data[i];",
-                        s"set_validity($outputVarName->validityBuffer, o, check_valid($inputInBatch->validityBuffer, i));",
-                        "o++;"
-                      )
-                    }
-                  )
-                }
-              )
-              .blockCommented(s"$idx")
-        }
+        // Allocate the nullable_T_vector[]
+        s"*${out} = (${vetype.cVectorType} *) malloc(sizeof(void *));",
+        // Allocate new mullable_T_vector
+        s"${out}[0] = (${vetype.cVectorType} *) malloc(sizeof(${vetype.cVectorType}));",
+        // Set a temporary pointer
+        s"auto *${tmp} = ${out}[0];",
+        "",
+        mergeStmt
       )
-    })
-  )
+    }
+  }
 
+  def merge(types: List[VeType]): CFunction2 = {
+    val inputs = types.zipWithIndex.map { case (veType, idx) =>
+      CFunctionArgument.PointerPointer(veType.makeCVector(s"input_${idx}_g"))
+    }
+
+    val outputs = types.zipWithIndex.map { case (veType, idx) =>
+      CFunctionArgument.PointerPointer(veType.makeCVector(s"output_${idx}_g"))
+    }
+
+    CFunction2(
+      arguments = List(
+        CFunctionArgument.Raw("int batches"),
+        CFunctionArgument.Raw("int rows")
+      ) ++ inputs ++ outputs,
+      body = types.zipWithIndex.map((mergeCVecStmt _).tupled)
+    )
+  }
 }

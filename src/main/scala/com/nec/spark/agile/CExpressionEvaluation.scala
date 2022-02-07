@@ -19,13 +19,9 @@
  */
 package com.nec.spark.agile
 
-import com.nec.cmake.TcpDebug
-import com.nec.spark.planning.Tracer
-import com.nec.spark.planning.Tracer.{TracerDefName, TracerOutput}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
-
 import scala.annotation.tailrec
 import scala.language.implicitConversions
 
@@ -137,32 +133,6 @@ object CExpressionEvaluation {
   }
 
   final case class CodeLines(lines: List[String]) {
-    def time(name: String): CodeLines = {
-      val udpdebug: List[String] =
-        List("utcnanotime().c_str()", """" $ """") ++ TracerOutput ++ List(
-          """" $$ """",
-          s""""S:${name}:L"""",
-          "__LINE__",
-          "std::endl"
-        )
-      val udpdebugE: List[String] =
-        List("utcnanotime().c_str()", """" $ """") ++ TracerOutput ++ List(
-          """" $$ """",
-          s""""E:${name}:L"""",
-          "__LINE__",
-          "std::endl"
-        )
-      CodeLines.from(
-        TcpDebug
-          .Conditional(TracerDefName, TcpDebug.conditional)
-          .send(udpdebug: _*),
-        this,
-        TcpDebug
-          .Conditional(TracerDefName, TcpDebug.conditional)
-          .send(udpdebugE: _*)
-      )
-    }
-
     def ++(other: CodeLines): CodeLines = CodeLines(lines = lines ++ (" " :: other.lines))
 
     def block: CodeLines = CodeLines.from("", "{", this.indented, "}", "")
@@ -181,12 +151,7 @@ object CExpressionEvaluation {
   }
 
   object CodeLines {
-
-    def debugValue(names: String*): CodeLines =
-      TcpDebug.conditionOn("DEBUG")(
-        CodeLines
-          .from(s"std::cout << ${names.mkString(" << \" \" << ")} << std::endl << std::flush;")
-      )
+    def parse(sourceCode: String): CodeLines = CodeLines.from(sourceCode.split("\\r?\\n").toList)
 
     def printLabel(label: String): CodeLines = {
       val parts = s""""$label"""" :: Nil
@@ -198,24 +163,6 @@ object CExpressionEvaluation {
       val parts = s""""$label"""" :: names.toList
       CodeLines
         .from(s"std::cout << ${parts.mkString(" << \" \" << ")} << std::endl << std::flush;")
-    }
-
-    def debugHere(implicit fullName: sourcecode.FullName, line: sourcecode.Line): CodeLines = {
-      val startdebug: List[String] = List("utcnanotime().c_str()", """" $ """")
-      val enddebug: List[String] =
-        List("""" $$ """", s""""${fullName.value}#${line.value}/#"""", "__LINE__", "std::endl")
-
-      val udpdebug: List[String] = startdebug ++ TracerOutput ++ enddebug
-
-      val debugInfo = startdebug ++ enddebug
-      CodeLines.from(
-        TcpDebug
-          .Conditional(TracerDefName, TcpDebug.conditional)
-          .send(udpdebug: _*),
-        TcpDebug.conditionOn("DEBUG")(
-          CodeLines.from(s"""std::cout ${Tracer.concatStr(debugInfo)} << std::flush;""")
-        )
-      )
     }
 
     def commentHere(
@@ -236,13 +183,13 @@ object CExpressionEvaluation {
 
     def forLoop(counterName: String, until: String)(sub: => CodeLines): CodeLines =
       CodeLines.from(
-        s"for ( int $counterName = 0; $counterName < $until; $counterName++ ) {",
+        s"for (int $counterName = 0; $counterName < $until; $counterName++) {",
         sub.indented,
         s"}"
       )
 
-    def scoped(sub: CodeLines): CodeLines = {
-      CodeLines.from("{", sub.indented, "}")
+    def scoped(label: String)(sub: CodeLines): CodeLines = {
+      CodeLines.from(s"{ // CODE BLOCK: ${label}", "", sub.indented, "}", "")
     }
 
     implicit def stringToCodeLines(str: String): CodeLines = CodeLines(List(str))

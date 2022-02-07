@@ -32,7 +32,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAllConfigMap, ConfigMap}
 import scalatags.Text.tags2.{details, summary}
-
+import com.nec.testing.ProductListEquivalenceCheck.containTheSameProducts
 import java.time.LocalDate
 
 abstract class TPCHSqlCSpec
@@ -59,11 +59,12 @@ abstract class TPCHSqlCSpec
 
   private var printMarkup = false
 
+  protected var failFast = false
+
   protected override def beforeAll(configMap: ConfigMap): Unit = {
     printMarkup = configMap.getOptional[String]("markup").contains("true")
+    failFast = configMap.getOptional[String]("failFast").contains("true")
   }
-
-  private var initialized = false
 
   def configuration: SparkSession.Builder => SparkSession.Builder
   val resultsDir = "src/test/resources/com/nec/spark/results/"
@@ -292,12 +293,10 @@ abstract class TPCHSqlCSpec
     sparkSession.sql(sql).debugSqlHere { ds =>
       type Tpe = (Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)
       val result = ds
-        .limit(1)
         .as[(Long, Long, Double, Double, Double, Double, Double, Double, Double, Long)]
         .collect()
         .toList
         .sortBy(v => (v._1, v._2))
-        .head
 
       val expected = List[Tpe](
         (
@@ -349,13 +348,9 @@ abstract class TPCHSqlCSpec
           1478870
         )
       ).sortBy(v => (v._1, v._2))
-      assert(
-        expected
-          .exists(e =>
-            com.nec.testing.ProductListEquivalenceCheck.twoProductsEq.areEqual(result, e)
-          ),
-        s"$result did not match anything expected from $expected"
-      )
+
+      result should containTheSameProducts(expected)
+
     }
   }
 
@@ -437,7 +432,7 @@ abstract class TPCHSqlCSpec
           .sorted
 
       val expected = result.sorted
-      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultQuery, expected))
+      resultQuery should containTheSameProducts(expected)
     }
   }
 
@@ -490,8 +485,8 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       val resultCompute = ds.as[(Long, Double, String, Long)].collect().toList.sorted
-      val expected = result.toList.sorted
-      assert(com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(resultCompute, expected))
+      val expected = result.sorted
+      resultCompute should containTheSameProducts(expected)
     }
   }
 
@@ -523,18 +518,13 @@ abstract class TPCHSqlCSpec
         o_orderpriority;
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
-          ds.as[(String, Long)].collect().toList.sorted,
-          List(
+      ds.as[(String, Long)].collect().sorted shouldBe List(
             ("1-URGENT", 10594),
             ("2-HIGH", 10476),
             ("3-MEDIUM", 10410),
             ("4-NOT SPECIFIED", 10556),
             ("5-LOW", 10487)
           ).sorted
-        )
-      )
     }
   }
 
@@ -571,9 +561,7 @@ abstract class TPCHSqlCSpec
         revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        com.nec.testing.ProductListEquivalenceCheck.listEq.areEqual(
-          ds.as[(String, Double)].collect().toList.sorted,
+          ds.as[(String, Double)].collect().toList.sorted should  containTheSameProducts(
           List(
             ("INDONESIA", 5.5502041169699915e7),
             ("VIETNAM", 5.529508699669991e7),
@@ -581,7 +569,6 @@ abstract class TPCHSqlCSpec
             ("INDIA", 5.2035512000199996e7),
             ("JAPAN", 4.5410175695400015e7)
           ).sorted
-        )
       )
     }
   }
@@ -809,7 +796,7 @@ abstract class TPCHSqlCSpec
         c_custkey = o_custkey
         and l_orderkey = o_orderkey
         and o_orderdate >= date '$date'
-        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 'R'
+        and o_orderdate < date '$date' + interval '3' month and l_returnflag = 82
         and c_nationkey = n_nationkey
       group by
         c_custkey,
@@ -843,12 +830,10 @@ abstract class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[(Long, String, Double, Double, String, String, String, String)]
-          .collect()
-          .toList
-          .sorted === result.sorted
-      )
+      ds.as[(Long, String, Double, Double, String, String, String, String)]
+            .collect()
+            .toList
+            .sorted should containTheSameProducts(result.sorted)
     }
   }
   withTpchViews("Query 11", configuration) { sparkSession =>
@@ -895,7 +880,7 @@ abstract class TPCHSqlCSpec
       .toList
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(ds.as[(Long, Double)].collect().toList.sorted === result.sorted)
+      ds.as[(Long, Double)].collect().toList.sorted should containTheSameProducts(result.sorted)
     }
   }
   //This doesn't work.
@@ -1049,7 +1034,8 @@ abstract class TPCHSqlCSpec
       val results = ds.as[Double].collect.toList.sorted
 
       assert(results.size === expected.size)
-      (results, expected).zipped.map { case (x, y) => assert(x === y) } //  16.3.sorted8
+      // Tests with numerical tolerance need to be performed element-wise
+      (results, expected).zipped.foreach { case (x, y) => assert(x === y) } //  16.3.sorted8
     }
   }
 
@@ -1097,11 +1083,8 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql1).show()
     sparkSession.sql(sql2).debugSqlHere { ds =>
-      assert(
-        ds.as[(Long, String, String, String, Double)].collect.toList.sorted === List(
-          (8449, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003)
-        ).sorted
-      )
+      val expected = Seq((8449L, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003))
+      ds.as[(Long, String, String, String, Double)].collect.toList.sorted should containTheSameProducts(expected)
     }
     sparkSession.sql(sql3).show()
   }
@@ -1191,9 +1174,7 @@ abstract class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[Double].collect().toList.sorted === List(348406.05428571434)
-      ) //  348406.0.sorted5
+      ds.as[Double].collect().toList.sorted.map(Tuple1(_)) should containTheSameProducts(Seq(Tuple1(348406.05428571434))) //  348406.0.sorted5
     }
   }
 
@@ -1377,6 +1358,29 @@ abstract class TPCHSqlCSpec
     }
   }
 
+  withTpchViews("Query 21.minimal", configuration) { sparkSession =>
+    import sparkSession.implicits._
+    val nation = "SAUDI ARABIA"
+
+    val sql = s"""
+      select
+        l_shipmode
+      from
+        lineitem
+      where
+        l_shipdate = date '1995-01-01'
+        and l_commitdate = date '1995-01-01'
+      group by
+        l_shipmode
+    """
+
+    sparkSession.sql(sql).debugSqlHere { ds =>
+      val results = ds.as[(String)].collect
+      results.foreach(x => println(s"ROW: ${x}"))
+      println(s"NUM RESULTS: ${results.size}")
+    }
+  }
+
   withTpchViews("Query 21", configuration) { sparkSession =>
     import sparkSession.implicits._
     val nation = "SAUDI ARABIA"
@@ -1475,16 +1479,16 @@ abstract class TPCHSqlCSpec
         cntrycode
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      assert(
-        ds.as[(String, Long, Double)].collect.toList.sorted === List(
-          ("13", 888, 6737713.989999999),
-          ("17", 861, 6460573.719999993),
-          ("18", 964, 7236687.399999998),
-          ("23", 892, 6701457.950000002),
-          ("29", 948, 7158866.629999999),
-          ("30", 909, 6808436.129999996),
-          ("31", 922, 6806670.179999999)
-        )
+      ds.as[(String, Long, Double)].collect.toList.sorted should containTheSameProducts(
+        List(
+          ("13", 888L, 6737713.989999999),
+          ("17", 861L, 6460573.719999993),
+          ("18", 964L, 7236687.399999998),
+          ("23", 892L, 6701457.950000002),
+          ("29", 948L, 7158866.629999999),
+          ("30", 909L, 6808436.129999996),
+          ("31", 922L, 6806670.179999999)
+        ).sorted
       ) // 13 888 6737713.9.sorted9
     }
   }

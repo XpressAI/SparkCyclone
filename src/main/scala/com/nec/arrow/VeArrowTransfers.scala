@@ -447,12 +447,7 @@ object VeArrowTransfers extends LazyLogging {
 
     requireOk {
       veo.veo_read_mem(proc, vhTargetPointer, veoPtr, dataSize)
-      veo.veo_read_mem(
-        proc,
-        validityTargetPointer,
-        validityPtr,
-        dataCount
-      )
+      veo.veo_read_mem(proc, validityTargetPointer, validityPtr, dataCount)
     }
     val newVec = vec.count(dataCount)
       .data(new DoublePointer(vhTargetPointer))
@@ -479,12 +474,7 @@ object VeArrowTransfers extends LazyLogging {
     val vhValidityTargetPointer = (new BytePointer(dataCount))
     requireOk {
       veo.veo_read_mem(proc, vhTargetPointer, veoPtr, dataSize)
-      veo.veo_read_mem(
-        proc,
-        vhValidityTargetPointer,
-        validityPtr,
-        dataCount
-      )
+      veo.veo_read_mem(proc, vhValidityTargetPointer, validityPtr, dataCount)
 
     }
     val newVec = vec.count(dataCount)
@@ -537,12 +527,7 @@ object VeArrowTransfers extends LazyLogging {
     }
 
     requireOk {
-      veo.veo_read_mem(
-        proc,
-        validityTargetPointer,
-        validityPtr,
-        dataCount
-      )
+      veo.veo_read_mem(proc, validityTargetPointer, validityPtr, dataCount)
     }
     val newVec = vec.count(dataCount)
       .data(new LongPointer(vhTargetPointer))
@@ -575,8 +560,7 @@ object VeArrowTransfers extends LazyLogging {
     requirePositive(dataPtr)
     val vhTargetDataPointer = (new BytePointer(dataSize))
     requireOk {
-      veo
-        .veo_read_mem(proc, vhTargetDataPointer, dataPtr, dataSize)
+      veo.veo_read_mem(proc, vhTargetDataPointer, dataPtr, dataSize)
     }
     val newVec2 = newVec.data(new BytePointer(vhTargetDataPointer))
     cleanup.add(dataPtr, dataSize)
@@ -586,13 +570,7 @@ object VeArrowTransfers extends LazyLogging {
     requirePositive(offsetsPtr)
     val vhTargetOffsetsPointer = (new BytePointer((dataCount + 1) * 4))
     requireOk {
-      veo
-        .veo_read_mem(
-          proc,
-          vhTargetOffsetsPointer,
-          offsetsPtr,
-          (dataCount + 1) * 4
-        )
+      veo.veo_read_mem(proc, vhTargetOffsetsPointer, offsetsPtr, (dataCount + 1) * 4)
     }
     val newVec3 = newVec2.offsets(new IntPointer(vhTargetOffsetsPointer))
     cleanup.add(offsetsPtr, (dataCount + 1) * 4)
@@ -602,13 +580,7 @@ object VeArrowTransfers extends LazyLogging {
     requirePositive(validityPtr)
     val vhValidityPointer = (new BytePointer(Math.ceil(vec.count / 64.0).toInt * 8))
     requireOk {
-      veo
-        .veo_read_mem(
-          proc,
-          vhValidityPointer,
-          validityPtr,
-          Math.ceil(vec.count / 64.0).toInt * 8
-        )
+      veo.veo_read_mem(proc, vhValidityPointer, validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
     }
     val newVec4 = newVec3.validityBuffer(new LongPointer(vhValidityPointer))
     cleanup.add(validityPtr, Math.ceil(vec.count / 64.0).toInt * 8)
