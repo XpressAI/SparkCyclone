@@ -630,7 +630,7 @@ object CFunctionGeneration {
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
+            s"$outputName->validityBuffer = (uint64_t *) calloc(($outputName->count + 63) / 64, sizeof(uint64_t));",
             s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
           )
         },
@@ -815,7 +815,7 @@ object CFunctionGeneration {
           CodeLines.from(
             s"$outputName->count = input_0->count;",
             s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
+            s"$outputName->validityBuffer = (uint64_t *) calloc(($outputName->count + 63) / 64, sizeof(uint64_t));"
           )
         case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
           StringProducer
@@ -900,7 +900,7 @@ object CFunctionGeneration {
             _ =>
               CodeLines.from(
                 s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cScalarType}));",
-                s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
+                s"${outputName}->validityBuffer = (uint64_t *) calloc(validityBuffSize, sizeof(uint64_t));"
               )
           )
         },
@@ -1059,7 +1059,7 @@ object CFunctionGeneration {
               _ =>
                 CodeLines.from(
                   s"${outputName}->data = (${veType.cScalarType}*) malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType}));",
-                  s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
+                  s"${outputName}->validityBuffer = (uint64_t *) calloc(validityBuffSize, sizeof(uint64_t));"
                 )
             )
         },

@@ -200,7 +200,7 @@ object GroupByOutline {
     CodeLines.from(
       s"$variableName->count = ${countExpression};",
       s"$variableName->data = (${veScalarType.cScalarType}*) malloc($variableName->count * sizeof(${veScalarType.cScalarType}));",
-      s"$variableName->validityBuffer = (uint64_t *) malloc(ceil(${countExpression} / 64.0) * sizeof(uint64_t));"
+      s"$variableName->validityBuffer = (uint64_t *) calloc((${countExpression} + 63) / 64, sizeof(uint64_t));"
     )
 
   def scalarVectorFromStdVector(
