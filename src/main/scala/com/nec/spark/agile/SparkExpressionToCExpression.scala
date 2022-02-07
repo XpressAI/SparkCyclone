@@ -169,9 +169,7 @@ object SparkExpressionToCExpression {
         Right(StringProducer.copyString(name))
       case Alias(AttributeReference(name, StringType, _, _), name2) =>
         Right(StringProducer.copyString(name))
-      case _ => sys.error(s"SparkExpressionToCExpression.evalString: " +
-        s"Could not match ${Try(expression.toString)}, " +
-        s"type ${expression.getClass}")
+      case other => Left(other)
     }
 
   /** Enable a fallback in the evaluation, so that we can inject custom mappings where matches are not found. */
