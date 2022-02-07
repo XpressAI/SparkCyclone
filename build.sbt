@@ -146,6 +146,9 @@ libraryDependencies ++= {
   }
 }
 
+
+Test / javaOptions ++= Seq("-Djava.library.path=" + new File("./src/main/resources/transferdefinitions").getAbsolutePath)
+Test / fork := true
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
   .map(path => new File(path))

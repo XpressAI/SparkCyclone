@@ -28,12 +28,6 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
-#include "frovedis/text/dict.hpp"
-#include "frovedis/text/words.hpp"
-#include "frovedis/text/char_int_conv.hpp"
-#include "frovedis/text/parsefloat.hpp"
-#include "frovedis/text/parsedatetime.hpp"
-#include "frovedis/text/datetime_utility.hpp"
 
 #ifndef VE_TD_DEFS
 typedef struct
@@ -66,11 +60,35 @@ typedef struct
 
 typedef struct
 {
+    double *data;
+    int32_t count;
+} non_null_double_vector;
+
+
+typedef struct
+{
     int64_t *data;
     uint64_t *validityBuffer;
     int32_t count;
 } nullable_bigint_vector;
 
+typedef struct
+{
+    int64_t *data;
+    int32_t count;
+} non_null_bigint_vector;
+
+typedef struct
+{
+    int16_t *data;
+    int32_t count;
+} non_null_int2_vector;
+
+typedef struct
+{
+    int32_t *data;
+    int32_t count;
+} non_null_int_vector;
 
 typedef struct
 {

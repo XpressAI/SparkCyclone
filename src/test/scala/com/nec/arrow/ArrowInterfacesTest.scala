@@ -19,7 +19,7 @@
  */
 package com.nec.arrow
 import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
-import com.nec.arrow.ArrowTransferStructures.non_null_double_vector
+import com.nec.arrow.TransferDefinitions.non_null_double_vector
 import com.nec.util.RichVectors._
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.Float8Vector
@@ -41,11 +41,10 @@ final class ArrowInterfacesTest extends AnyFreeSpec {
       try {
         val vector = new Float8Vector("value", alloc)
         try {
-          val ndv = new non_null_double_vector
-          ndv.count = list.size
           val bp = new DoublePointer(list.toArray:_*)
-
-          ndv.data = bp.address()
+          val ndv = new non_null_double_vector()
+            .count(list.size)
+            .data(bp)
           non_null_double_vector_to_float8Vector(ndv, vector)
           assert(vector.toList == list)
         } finally vector.close()
