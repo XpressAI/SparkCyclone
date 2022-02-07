@@ -149,7 +149,11 @@ object VeProcess {
     with LazyLogging {
     override def allocate(size: Long)(implicit context: OriginalCallingContext): Long = {
       val veInputPointer = new LongPointer(1)
-      veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
+      requireOk(
+        result = veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size),
+        extra =
+          s"Tried to allocate ${size}; already have ${veProcessMetrics.checkTotalUsage()} allocated"
+      )
       val ptr = veInputPointer.get()
       requirePositive(
         result = ptr,
