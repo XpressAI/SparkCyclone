@@ -99,25 +99,25 @@ object GroupingFunction {
             s"auto dsize = ${input.name}[0]->dataSize;",
             "",
             // Allocate the nullable_varchar_vector[] with size 1
-            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(nullptr));",
+            s"*${output.name} = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(nullptr)));",
             // Allocate the nullable_varchar_vector at [0]
-            s"${output.name}[0] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
+            s"${output.name}[0] = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(${output.veType.cVectorType})));",
             // Set count and dataSize
             s"${output.name}[0]->count = count;",
             s"${output.name}[0]->dataSize = dsize;",
             "",
             // Set data - allocate and then copy over
-            s"${output.name}[0]->data = (char *) malloc(dsize);",
+            s"${output.name}[0]->data = static_cast<char*>(malloc(dsize));",
             s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dsize);",
             "",
             // Set offsets - allocate and then copy over
             s"auto obytes_count = (count + 1) * sizeof(int32_t);",
-            s"${output.name}[0]->offsets = (int32_t *) malloc(obytes_count);",
+            s"${output.name}[0]->offsets = static_cast<int32_t*>(malloc(obytes_count));",
             s"memcpy(${output.name}[0]->offsets, ${input.name}[0]->offsets, obytes_count);",
             "",
             // Set validityBuffer - preserve the validity bits
             s"auto vbytes_count = ((count + 63) / 64) * sizeof(uint64_t);",
-            s"${output.name}[0]->validityBuffer = (uint64_t *) calloc(vbytes_count, 1);",
+            s"${output.name}[0]->validityBuffer = static_cast<uint64_t*>(calloc(vbytes_count, 1));",
             s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
           )
         }
@@ -129,20 +129,20 @@ object GroupingFunction {
             s"auto count = ${input.name}[0]->count;",
             "",
             // Allocate the nullable_T_vector[] with size 1
-            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(nullptr));",
+            s"*${output.name} = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(nullptr)));",
             // Allocate the nullable_T_vector at [0]
-            s"${output.name}[0] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
+            s"${output.name}[0] = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(${output.veType.cVectorType})));",
             // Set count
             s"${output.name}[0]->count = count;",
             "",
             // Set data - allocate and then copy over
             s"auto dbytes_count = count * sizeof(${scalar.cScalarType});",
-            s"${output.name}[0]->data = (${scalar.cScalarType} *) malloc(dbytes_count);",
+            s"${output.name}[0]->data = static_cast<${scalar.cScalarType}*>(malloc(dbytes_count));",
             s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dbytes_count);",
             "",
             // Set validityBuffer - preserve the validity bits
             s"auto vbytes_count = ((count + 63) / 64) * sizeof(uint64_t);",
-            s"${output.name}[0]->validityBuffer = (uint64_t *) calloc(vbytes_count, 1);",
+            s"${output.name}[0]->validityBuffer = static_cast<uint64_t*>(calloc(vbytes_count, 1));",
             s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
           )
         }
@@ -263,13 +263,13 @@ object GroupingFunction {
     ) {
       CodeLines.from(
         // Allocate the nullable_T_vector[] with size buckets
-        s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(nullptr) * ${buckets});",
+        s"*${output.name} = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(nullptr) * ${buckets}));",
         "",
         // Loop over each bucket
         CodeLines.forLoop("b", s"${buckets}") {
           CodeLines.from(
             // Allocate the nullable_T_vector at [0]
-            s"${output.name}[b] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
+            s"${output.name}[b] = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(${output.veType.cVectorType})));",
             // Perform the copy based on type T (scalar or varchar)
             copyStmt
           )
