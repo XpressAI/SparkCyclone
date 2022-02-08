@@ -12,7 +12,7 @@ object PureVeFunctions {
       .from(
         CodeLines
           .from(
-            "nullable_double_vector* o = (nullable_double_vector *)malloc(sizeof(nullable_double_vector));",
+            "nullable_double_vector* o = static_cast<nullable_double_vector*>(malloc(sizeof(nullable_double_vector)));",
             "*o_p = o;",
             GroupByOutline.initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input[0]->count"),
             "for ( int i = 0; i < input[0]->count; i++ ) {",
@@ -33,7 +33,7 @@ object PureVeFunctions {
       .from(
         "int SETS_TO_DO = 5;",
         "int MAX_SET_ID = SETS_TO_DO - 1;",
-        "*o_p = (nullable_double_vector*) malloc(sizeof(nullptr) * SETS_TO_DO);",
+        "*o_p = static_cast<nullable_double_vector*>(malloc(sizeof(nullptr) * SETS_TO_DO));",
         "for ( int s = 0; s < SETS_TO_DO; s++ ) {",
         CodeLines
           .from(

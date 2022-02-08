@@ -590,7 +590,7 @@ object CFunctionGeneration {
             },
             outputs.map { cVector =>
               CodeLines.from(
-                s"${cVector.veType.cVectorType}* ${cVector.name} = (${cVector.veType.cVectorType} *)malloc(sizeof(${cVector.veType.cVectorType}));",
+                s"${cVector.veType.cVectorType}* ${cVector.name} = static_cast<${cVector.veType.cVectorType}*>(malloc(sizeof(${cVector.veType.cVectorType})));",
                 s"*${cVector.name}_mo = ${cVector.name};"
               )
             },
@@ -625,8 +625,8 @@ object CFunctionGeneration {
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) calloc(($outputName->count + 63) / 64, sizeof(uint64_t));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
+            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(($outputName->count + 63) / 64, sizeof(uint64_t)));",
+            s"$outputName->data = static_cast<${outputVeType.cScalarType}*>(malloc($outputName->count * sizeof(${outputVeType.cScalarType})));"
           )
         },
         "// create an array of indices, which by default are in order, but afterwards are out of order.",
@@ -809,8 +809,8 @@ object CFunctionGeneration {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-            s"$outputName->validityBuffer = (uint64_t *) calloc(($outputName->count + 63) / 64, sizeof(uint64_t));"
+            s"$outputName->data = static_cast<${veType.cScalarType}*>(malloc($outputName->count * sizeof(${veType.cScalarType})));",
+            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(($outputName->count + 63) / 64, sizeof(uint64_t)));"
           )
         case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
           StringProducer
@@ -894,8 +894,8 @@ object CFunctionGeneration {
           joinExpression.fold(whenProj =
             _ =>
               CodeLines.from(
-                s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cScalarType}));",
-                s"${outputName}->validityBuffer = (uint64_t *) calloc(validityBuffSize, sizeof(uint64_t));"
+                s"${outputName}->data = static_cast<${veType.cScalarType}*>(malloc(left_out.size() * sizeof(${veType.cScalarType})));",
+                s"${outputName}->validityBuffer = static_cast<uint64_t*>(calloc(validityBuffSize, sizeof(uint64_t)));"
               )
           )
         },
@@ -1053,8 +1053,8 @@ object CFunctionGeneration {
             joinExpression.fold(whenProj =
               _ =>
                 CodeLines.from(
-                  s"${outputName}->data = (${veType.cScalarType}*) malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType}));",
-                  s"${outputName}->validityBuffer = (uint64_t *) calloc(validityBuffSize, sizeof(uint64_t));"
+                  s"${outputName}->data = static_cast<${veType.cScalarType}*>(malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType})));",
+                  s"${outputName}->validityBuffer = static_cast<uint64_t*>(calloc(validityBuffSize, sizeof(uint64_t)));"
                 )
             )
         },
