@@ -99,7 +99,7 @@ object GroupingFunction {
             s"auto dsize = ${input.name}[0]->dataSize;",
             "",
             // Allocate the nullable_varchar_vector[] with size 1
-            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(void *));",
+            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(nullptr));",
             // Allocate the nullable_varchar_vector at [0]
             s"${output.name}[0] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
             // Set count and dataSize
@@ -129,7 +129,7 @@ object GroupingFunction {
             s"auto count = ${input.name}[0]->count;",
             "",
             // Allocate the nullable_T_vector[] with size 1
-            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(void *));",
+            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(nullptr));",
             // Allocate the nullable_T_vector at [0]
             s"${output.name}[0] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
             // Set count
@@ -263,7 +263,7 @@ object GroupingFunction {
     ) {
       CodeLines.from(
         // Allocate the nullable_T_vector[] with size buckets
-        s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(void *) * ${buckets});",
+        s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(nullptr) * ${buckets});",
         "",
         // Loop over each bucket
         CodeLines.forLoop("b", s"${buckets}") {
