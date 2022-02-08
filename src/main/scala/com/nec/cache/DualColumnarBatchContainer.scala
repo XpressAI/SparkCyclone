@@ -34,7 +34,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
 
         val vecsx =
-          byteArrayColVectors.map(_.transferToByteBuffers().toArrowVector())
+          byteArrayColVectors.map(_.transferToBytePointers().toArrowVector())
         val cb = new ColumnarBatch(vecsx.map(col => new ArrowColumnVector(col)).toArray)
         cb.setNumRows(vecs.head.fold(_.numItems, _.underlying.numItems))
         cb
@@ -50,7 +50,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case Some(vecs) => VeColBatch.fromList(vecs)
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
-        VeColBatch.fromList(byteArrayColVectors.map(_.transferToByteBuffers().toVeColVector()))
+        VeColBatch.fromList(byteArrayColVectors.map(_.transferToBytePointers().toVeColVector()))
     }
   }
 

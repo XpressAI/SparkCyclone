@@ -1,7 +1,7 @@
 package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
-import com.nec.arrow.colvector.ByteBufferColVector
+import com.nec.arrow.colvector.BytePointerColVector
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.arrow.memory.BufferAllocator
@@ -46,7 +46,7 @@ object ArrowBasedCacheSerializer {
         CachedVeBatch(DualColumnarBatchContainer(vecs = (0 until columnarBatch.numCols()).map {
           colNo =>
             Right(
-              ByteBufferColVector
+              BytePointerColVector
                 .fromArrowVector(columnarBatch.column(colNo).getArrowValueVector)
                 .toByteArrayColVector()
             )
@@ -88,7 +88,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     CachedVeBatch.apply(cachedColumnVectors =
       (0 until columnarBatch.numCols())
         .map(i =>
-          ByteBufferColVector
+          BytePointerColVector
             .fromArrowVector(columnarBatch.column(i).getArrowValueVector)
             .toByteArrayColVector()
         )

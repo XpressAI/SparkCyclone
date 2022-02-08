@@ -18,22 +18,21 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
-import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.file.Path
 
 trait VeProcess {
 
-  final def readAsBuffer(containerLocation: Long, containerSize: Int): ByteBuffer = {
-    val bb = (new BytePointer(containerSize)).asBuffer
-    get(containerLocation, bb, containerSize)
-    bb
+  final def readAsPointer(containerLocation: Long, containerSize: Int): BytePointer = {
+    val bp = new BytePointer(containerSize)
+    get(containerLocation, bp, containerSize)
+    bp
   }
 
   def validateVectors(list: List[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
-  def putBuffer(byteBuffer: ByteBuffer)(implicit context: OriginalCallingContext): Long
-  def get(from: Long, to: ByteBuffer, size: Long): Unit
+  def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long
+  def get(from: Long, to: BytePointer, size: Long): Unit
   def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit
 
   /** Return a single dataset */
@@ -91,10 +90,10 @@ object VeProcess {
     override def allocate(size: Long)(implicit context: OriginalCallingContext): Long =
       f().allocate(size)
 
-    override def putBuffer(byteBuffer: ByteBuffer)(implicit context: OriginalCallingContext): Long =
-      f().putBuffer(byteBuffer)
+    override def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long =
+      f().putPointer(bytePointer)
 
-    override def get(from: Long, to: ByteBuffer, size: Long): Unit = f().get(from, to, size)
+    override def get(from: Long, to: BytePointer, size: Long): Unit = f().get(from, to, size)
 
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit =
       f().free(memoryLocation)
@@ -156,23 +155,23 @@ object VeProcess {
       }
     }
 
-    override def putBuffer(
-      byteBuffer: ByteBuffer
+    override def putPointer(
+      bytePointer: BytePointer
     )(implicit context: OriginalCallingContext): Long = {
-      val memoryLocation = allocate(byteBuffer.capacity().toLong)
+      val memoryLocation = allocate(bytePointer.capacity().toLong)
       requireOk(
         veo.veo_write_mem(
           veo_proc_handle,
           memoryLocation,
-          new org.bytedeco.javacpp.Pointer(byteBuffer),
-          byteBuffer.capacity().toLong
+          bytePointer,
+          bytePointer.capacity().toLong
         )
       )
       memoryLocation
     }
 
-    override def get(from: Long, to: ByteBuffer, size: Long): Unit =
-      veo.veo_read_mem(veo_proc_handle, new org.bytedeco.javacpp.Pointer(to), from, size)
+    override def get(from: Long, to: BytePointer, size: Long): Unit =
+      veo.veo_read_mem(veo_proc_handle, to, from, size)
 
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
@@ -235,30 +234,30 @@ object VeProcess {
       outPointers.zip(results).map {
         case (outPointer, CScalarVector(name, scalar)) =>
           val outContainerLocation = outPointer.get()
-          val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
+          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
 
           VeColVector(
             source = source,
-            numItems = byteBuffer.getInt(16),
+            numItems = bytePointer.getInt(16),
             name = name,
             veType = scalar,
             containerLocation = outContainerLocation,
-            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
+            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
             variableSize = None
           ).register()
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
-          val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
 
           VeColVector(
             source = source,
-            numItems = byteBuffer.getInt(28),
+            numItems = bytePointer.getInt(28),
             name = name,
-            variableSize = Some(byteBuffer.getInt(24)),
+            variableSize = Some(bytePointer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,
             bufferLocations =
-              List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+              List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16))
           ).register()
       }
     }
@@ -340,17 +339,17 @@ object VeProcess {
               outContainerLocation > 0,
               s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
             )
-            val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
 
             VeColVector(
               source = source,
-              numItems = byteBuffer.getInt(28),
+              numItems = bytePointer.getInt(28),
               name = name,
               veType = VeString,
               containerLocation = outContainerLocation,
               bufferLocations =
-                List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16)),
-              variableSize = Some(byteBuffer.getInt(24))
+                List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16)),
+              variableSize = Some(bytePointer.getInt(24))
             ).register()
           case (outPointer, CScalarVector(name, r)) =>
             val outContainerLocation = outPointer.get(set)
@@ -358,15 +357,15 @@ object VeProcess {
               outContainerLocation > 0,
               s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
             )
-            val byteBuffer = readAsBuffer(outContainerLocation, r.containerSize)
+            val bytePointer = readAsPointer(outContainerLocation, r.containerSize)
 
             VeColVector(
               source = source,
-              numItems = byteBuffer.getInt(16),
+              numItems = bytePointer.getInt(16),
               name = name,
               veType = r,
               containerLocation = outContainerLocation,
-              bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
+              bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
               variableSize = None
             ).register()
         }
@@ -426,30 +425,30 @@ object VeProcess {
       outPointers.zip(results).map {
         case (outPointer, CScalarVector(name, scalar)) =>
           val outContainerLocation = outPointer.get()
-          val byteBuffer = readAsBuffer(outContainerLocation, scalar.containerSize)
+          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
 
           VeColVector(
             source = source,
-            numItems = byteBuffer.getInt(16),
+            numItems = bytePointer.getInt(16),
             name = name,
             veType = scalar,
             containerLocation = outContainerLocation,
-            bufferLocations = List(byteBuffer.getLong(0), byteBuffer.getLong(8)),
+            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
             variableSize = None
           ).register()
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
-          val byteBuffer = readAsBuffer(outContainerLocation, VeString.containerSize)
+          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
 
           VeColVector(
             source = source,
-            numItems = byteBuffer.getInt(28),
+            numItems = bytePointer.getInt(28),
             name = name,
-            variableSize = Some(byteBuffer.getInt(24)),
+            variableSize = Some(bytePointer.getInt(24)),
             veType = VeString,
             containerLocation = outContainerLocation,
             bufferLocations =
-              List(byteBuffer.getLong(0), byteBuffer.getLong(8), byteBuffer.getLong(16))
+              List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16))
           ).register()
       }
     }
