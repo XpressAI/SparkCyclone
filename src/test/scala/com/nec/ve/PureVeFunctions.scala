@@ -33,7 +33,7 @@ object PureVeFunctions {
       .from(
         "int SETS_TO_DO = 5;",
         "int MAX_SET_ID = SETS_TO_DO - 1;",
-        "*o_p = (nullable_double_vector*)malloc(sizeof (void *) * SETS_TO_DO);",
+        "*o_p = (nullable_double_vector*) malloc(sizeof(nullptr) * SETS_TO_DO);",
         "for ( int s = 0; s < SETS_TO_DO; s++ ) {",
         CodeLines
           .from(
