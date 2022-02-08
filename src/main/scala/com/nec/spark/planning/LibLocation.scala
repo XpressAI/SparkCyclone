@@ -11,16 +11,6 @@ object LibLocation {
     def resolveLocation(): Path
   }
 
-  case class LocalLibLocation(libraryPath: String) extends LibLocation {
-    override def resolveLocation(): Path ={
-      if(Files.exists(Paths.get(libraryPath))) {
-        throw new RuntimeException(s"Expected library to be present in ${libraryPath}, but file does not exist")
-      } else {
-        Paths.get(libraryPath).toAbsolutePath
-      }
-    }
-  }
-
   case class DistributedLibLocation(libraryPath: String, code: String) extends LibLocation {
     override def resolveLocation(): Path = {
       val path = Paths.get(libraryPath)
