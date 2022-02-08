@@ -18,21 +18,63 @@
  *
  */
 package com.nec.spark.agile
-import com.nec.spark.agile.CppResource.CppPrefixPath
 
-import java.nio.file.Files
-import org.apache.commons.io.FileUtils
-import org.apache.commons.io.IOUtils
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException
-import org.reflections.scanners.ResourcesScanner
 
 import java.net.URL
-import java.nio.file.Path
-import java.util.regex.Pattern
+import java.nio.file.{Files, Path}
 
 object CppResource {
   val CppPrefix = "com.nec.cyclone.cpp"
+
   val CppPrefixPath: String = CppPrefix.replace('.', '/')
+
+  val Sources = Seq(
+    "frovedis/core/conditions_for_find.hpp",
+    "frovedis/core/config.hpp",
+    "frovedis/core/find_condition.hpp",
+    "frovedis/core/lower_bound.hpp",
+    "frovedis/core/prefix_sum.hpp",
+    "frovedis/core/radix_sort.hpp",
+    "frovedis/core/radix_sort.incl",
+    "frovedis/core/set_operations.hpp",
+    "frovedis/core/set_operations.incl1",
+    "frovedis/core/set_operations.incl2",
+    "frovedis/core/upper_bound.hpp",
+    "frovedis/core/utility.cc",
+    "frovedis/core/utility.hpp",
+    "frovedis/dataframe/hashtable.hpp",
+    "frovedis/dataframe/join.cc",
+    "frovedis/dataframe/join.hpp",
+    "frovedis/text/char_int_conv.cc",
+    "frovedis/text/char_int_conv.hpp",
+    "frovedis/text/datetime_to_words.cc",
+    "frovedis/text/datetime_to_words.hpp",
+    "frovedis/text/datetime_utility.hpp",
+    "frovedis/text/dict.cc",
+    "frovedis/text/dict.hpp",
+    "frovedis/text/find.cc",
+    "frovedis/text/find.hpp",
+    "frovedis/text/float_to_words.cc",
+    "frovedis/text/float_to_words.hpp",
+    "frovedis/text/int_to_words.cc",
+    "frovedis/text/int_to_words.hpp",
+    "frovedis/text/parsedatetime.cc",
+    "frovedis/text/parsedatetime.hpp",
+    "frovedis/text/parsefloat.cc",
+    "frovedis/text/parsefloat.hpp",
+    "frovedis/text/parseint.hpp",
+    "frovedis/text/words.cc",
+    "frovedis/text/words.hpp",
+    "cyclone.cc",
+    "cyclone.hpp",
+    "Makefile",
+    "test.cpp",
+    "transfer-definitions.hpp",
+    "tuple_hash.hpp",
+    "utility.hpp",
+  )
 
   final case class CppResources(all: Set[CppResource]) {
     def copyTo(destRoot: Path): Unit = {
@@ -42,54 +84,41 @@ object CppResource {
 
   object CppResources {
     lazy val All: CppResources = CppResources({
-      import org.reflections.Reflections
-      val reflections = new Reflections(CppPrefix, new ResourcesScanner)
-      import scala.collection.JavaConverters._
-      reflections
-        .getResources(Pattern.compile(".*"))
-        .asScala
-        .toList
-        .map(nom => {
-          val nam = nom.drop(CppPrefix.length).drop(1)
-          CppResource(nam, s"/$nom")
-        })
-        .toSet
+      Sources.map { filePath =>
+        CppResource(filePath, "/" + CppPrefixPath + "/" + filePath)
+      }.toSet
     })
-    lazy val cycloneVeResources = {
-      import org.reflections.Reflections
-      val reflections = new Reflections("cycloneve", new ResourcesScanner)
-      import scala.collection.JavaConverters._
-      reflections
-        .getResources(Pattern.compile(".*\\.so"))
-        .asScala
-        .toList
-        .collect {
-          case name if name.contains(".so") =>
-            CppResource(name = name.drop("cycloneve".length + 1), fullPath = s"/$name")
-        }
-        .toSet
-    }
+
+    lazy val cycloneVeResources = Set(
+      CppResource(name = "libcyclone.so", fullPath = s"/cycloneve/libcyclone.so")
+    )
+
     lazy val AllVe: CppResources = CppResources(cycloneVeResources ++ All.all)
   }
 
 }
 
 final case class CppResource(name: String, fullPath: String) {
-  def readString: String = IOUtils.toString(resourceUrl.openStream(), "UTF-8")
   def resourceUrl: URL = {
-    try this.getClass.getResource(fullPath)
-    catch {
-      case npe: NullPointerException =>
+    val resource = this.getClass.getResource(fullPath)
+    if (resource == null) {
         throw new ResourceNotFoundException(s"Not found: ${name} // '${fullPath}'")
     }
+    resource
   }
+
+  def readString: String = IOUtils.toString(resourceUrl.openStream(), "UTF-8")
+
   def resourceFile(inRoot: Path): Path = inRoot.resolve(name)
+
   def containingDir(inRoot: Path): Path = resourceFile(inRoot).getParent
+
   def copyTo(destRoot: Path): Unit = {
     val targetFile = resourceFile(destRoot)
     if (!Files.exists(targetFile.getParent)) {
       Files.createDirectories(targetFile.getParent)
     }
+
     FileUtils.copyURLToFile(resourceUrl, targetFile.toFile)
   }
 }

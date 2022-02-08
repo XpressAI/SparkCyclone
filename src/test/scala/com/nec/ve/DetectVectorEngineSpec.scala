@@ -41,7 +41,6 @@ object DetectVectorEngineSpec {
       "javacpp",
       "jna",
       "commons-io",
-      "reflections",
       "haoyi"
     )
 
