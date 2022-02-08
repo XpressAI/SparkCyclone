@@ -87,10 +87,6 @@ frovedis::words data_offsets_to_words(
     return ret;
 }
 
-frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v) {
-    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
-}
-
 frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
     return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
 }

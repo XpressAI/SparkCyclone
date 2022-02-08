@@ -4,7 +4,8 @@ CPP_OPTS = -std=gnu++17 \
 	-I. \
 	-O4 \
 	-finline-functions \
-	-pthread
+	-pthread \
+	-Werror=return-type
 
 # Add extra flags if we're using nc++
 ifeq (${shell ls /opt/nec/ve/bin/nc++ > /dev/null 2>&1 && echo 1 || echo 0}, 1)

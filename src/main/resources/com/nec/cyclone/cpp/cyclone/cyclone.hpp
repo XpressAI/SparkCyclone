@@ -45,8 +45,6 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
 
 frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, const int32_t size, const int32_t count);
 
-frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v);
-
 frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v);
 
 void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out);

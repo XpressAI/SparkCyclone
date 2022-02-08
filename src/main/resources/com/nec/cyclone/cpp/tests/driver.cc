@@ -21,7 +21,8 @@
 #include "tests/doctest.h"
 
 // Include all tests to be run
-#include "tests/example.hpp"
+#include "tests/example-spec.hpp"
+#include "tests/transfer-definitions-spec.hpp"
 
 int main(int argc, char** argv) {
   // Based on: https://github.com/doctest/doctest/blob/master/doc/markdown/main.md
