@@ -116,8 +116,8 @@ object GroupingFunction {
             s"memcpy(${output.name}[0]->offsets, ${input.name}[0]->offsets, obytes_count);",
             "",
             // Set validityBuffer - preserve the validity bits
-            s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
-            s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
+            s"auto vbytes_count = ((count + 63) / 64) * sizeof(uint64_t);",
+            s"${output.name}[0]->validityBuffer = (uint64_t *) calloc(vbytes_count, 1);",
             s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
           )
         }
@@ -141,8 +141,8 @@ object GroupingFunction {
             s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dbytes_count);",
             "",
             // Set validityBuffer - preserve the validity bits
-            s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
-            s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
+            s"auto vbytes_count = ((count + 63) / 64) * sizeof(uint64_t);",
+            s"${output.name}[0]->validityBuffer = (uint64_t *) calloc(vbytes_count, 1);",
             s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
           )
         }
