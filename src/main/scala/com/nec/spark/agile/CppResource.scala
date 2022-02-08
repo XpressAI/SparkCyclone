@@ -67,13 +67,11 @@ object CppResource {
     "frovedis/text/parseint.hpp",
     "frovedis/text/words.cc",
     "frovedis/text/words.hpp",
-    "cyclone.cc",
-    "cyclone.hpp",
+    "cyclone/cyclone.cc",
+    "cyclone/cyclone.hpp",
+    "cyclone/transfer-definitions.hpp",
+    "cyclone/tuple_hash.hpp",
     "Makefile",
-    "test.cpp",
-    "transfer-definitions.hpp",
-    "tuple_hash.hpp",
-    "utility.hpp",
   )
 
   final case class CppResources(all: Set[CppResource]) {
