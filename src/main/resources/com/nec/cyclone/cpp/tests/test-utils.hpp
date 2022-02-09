@@ -19,6 +19,13 @@
  */
 #pragma once
 
+#include "cyclone/transfer-definitions.hpp"
+#include <string>
+#include <vector>
+
 namespace cyclone::tests {
-  void test_util_fn();
+  nullable_varchar_vector * to_nullable_varchar_vector(const std::vector<std::string> &data);
+
+  template <typename T>
+  NullableScalarVec<T> * to_nullable_scalar_vector(const std::vector<T> &data);
 }

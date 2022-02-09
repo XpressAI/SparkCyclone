@@ -1,8 +1,8 @@
 # Cyclone C++ Library
 
-This Cyclone C++ library is and linked to by the Spark Cyclone plugin as it
-generates C++ code to perform Spark SQL queries on the Vector Engine.  The
-library contains the following:
+The Cyclone C++ library is linked to by the Spark Cyclone plugin as it generates
+C++ code to perform Spark SQL queries on the Vector Engine.  The library contains
+the following:
 
 * A subset of the [Frovedis](https://github.com/frovedis/frovedis) library that
   contains vectorizable data structures and algorithms that are used by Spark
@@ -12,12 +12,13 @@ library contains the following:
 * A collection of common functions that are to be called by Spark Cyclone-generated
   C++ code.
 
-This library has been written so that it can be built standalone.  This allows us
-the following:
+This library has been written so that it can be built standalone.  This allows
+for the following:
 
-* To experiment with Frovedis and algorithm optimizations as needed.
-* Enables for C++ code to be tested and benchmarked on its own
-* Reduces the complexity of C++ code generation from the Spark Cyclone plugin,
+* Experiment with the Frovedis API and algorithm optimizations as needed.
+* Test and benchmark the C++ code on its own before integrating it into the Spark
+  Cyclone plugin's code generation.
+* Reduce the complexity of C++ code generation from the Spark Cyclone plugin,
   which for all intents and purposes is not unit-testable.
 
 
@@ -27,7 +28,8 @@ the following:
 ### Building the Library
 
 The Cyclone C++ library is generally portable, and building the library only
-requires `make` and a `c++` compiler that is visible in the `PATH`:
+requires `make` and a `c++` compiler that is visible in the `PATH` and supports
+**C++17** (with GNU extensions):
 
 ```sh
 make
@@ -58,10 +60,19 @@ make examples
 
 ### Adding New Code
 
-New code should be added to the `cyclone/` subdirectory and `cyclone` namespace.
-Corresponding tests should be added to the `tests/` subdirectory as a header
-file and `cyclone::tests` namespace.  **The tests file will then need to be
-`#include`d in `tests/driver.cc` in order to run.**
+The steps for adding new code to the Cyclone library are generally as follows:
 
-See `cyclone/example.cc` and `tests/example.hpp` for examples of adding library
-code and tests, respectively.
+1.  Add the new source and header files to the `cyclone/` subdirectory (e.g.
+    `cyclone/example.hpp` and `cyclone/example.cc`).
+
+1.  Make sure the code is under the `cyclone` namespace, and the `#includes`
+    reference the full path from project root (e.g. `cyclone/cyclone.hpp` instead
+    of `cyclone.hpp`).
+
+1.  Add the corresponding spec as a header file to the `tests/` subdirectory
+    (e.g. `tests/example-spec.hpp`).
+
+1.  `#include` the spec header file inside `tests/driver.cpp`
+    (e.g. `#include "tests/example-spec.hpp"`).
+
+Re-running `make test`should include the newly added tests into the tests executable.

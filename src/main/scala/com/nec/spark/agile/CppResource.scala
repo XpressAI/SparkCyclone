@@ -69,6 +69,7 @@ object CppResource {
     "frovedis/text/words.hpp",
     "cyclone/cyclone.cc",
     "cyclone/cyclone.hpp",
+    "cyclone/transfer-definitions.cc",
     "cyclone/transfer-definitions.hpp",
     "cyclone/tuple_hash.hpp",
     "Makefile",

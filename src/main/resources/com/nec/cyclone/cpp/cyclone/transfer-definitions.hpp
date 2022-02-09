@@ -21,57 +21,58 @@
 
 #ifndef VE_TD_DEFS
 
-#include <stddef.h>
 #include <stdint.h>
+#include <type_traits>
 
-struct data_out {
-    void **data;
-    size_t count;
-    size_t size;
+template<typename T>
+struct NullableScalarVec {
+  // Allow instantiations of this template only for primiitive types T
+  static_assert(std::is_fundamental_v<T>, "NullableScalarVec<T> can only be instantiated with T where T is a primitive type!");
+
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  T         *data;              // The raw data
+  uint64_t  *validityBuffer;    // Bit vector to denote null values
+  int32_t   count;              // Row count (synonymous with size of data array)
+
+  // Returns a deep copy of this NullableScalarVec<T>
+  NullableScalarVec<T> * clone();
+
+  // Value equality check against another NullableScalarVec<T>
+  bool equals(const NullableScalarVec<T> * const other);
 };
 
-struct varchar_vector {
-    char *data;
-    int32_t *offsets;
-    int32_t count;
-};
+// Explicitly instantiate struct template for int32_t
+typedef NullableScalarVec<int32_t> nullable_int_vector;
 
-struct nullable_int_vector {
-    int32_t *data;
-    uint64_t *validityBuffer;
-    int32_t count;
-};
+// Explicitly instantiate struct template for int64_t
+typedef NullableScalarVec<int64_t> nullable_bigint_vector;
 
-struct nullable_double_vector {
-    double *data;
-    uint64_t *validityBuffer;
-    int32_t count;
-};
+// Explicitly instantiate struct template for float
+typedef NullableScalarVec<float> nullable_float_vector;
 
-struct nullable_bigint_vector {
-    int64_t *data;
-    uint64_t *validityBuffer;
-    int32_t count;
-};
-
-struct non_null_varchar_vector {
-    char *data;
-    int32_t *offsets;
-    int32_t dataSize;
-    int32_t count;
-};
+// Explicitly instantiate struct template for double
+typedef NullableScalarVec<double> nullable_double_vector;
 
 struct nullable_varchar_vector {
-    char *data;
-    int32_t *offsets;
-    uint64_t *validityBuffer;
-    int32_t dataSize;
-    int32_t count;
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  char      *data;              // The raw data containing all the varchars concatenated together
+  int32_t   *offsets;           // Offsets to denote varchar start and end positions
+  uint64_t  *validityBuffer;    // Bit vector to denote null values
+  int32_t   dataSize;           // Size of data array
+  int32_t   count;              // The row count
+
+  // Returns a deep copy of this nullable_varchar_vector
+  nullable_varchar_vector * clone();
+
+  // Value equality check against another nullable_varchar_vector
+  bool equals(const nullable_varchar_vector * const other);
 };
 
 struct non_null_c_bounded_string {
-    char *data;
-    int32_t length;
+  char *data;
+  int32_t length;
 };
 
 #define VE_TD_DEFS 1
