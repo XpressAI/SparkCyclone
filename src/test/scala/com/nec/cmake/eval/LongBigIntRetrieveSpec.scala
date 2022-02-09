@@ -43,7 +43,7 @@ final class LongBigIntRetrieveSpec extends AnyFreeSpec {
               """ extern "C" long x(nullable_bigint_vector *v) { """,
               "v->count = 1;",
               "v->data = static_cast<int64_t*>(malloc(v->count * sizeof(int64_t)));",
-              "v->validityBuffer = static_cast<uint64_t*>(calloc((v->count + 63) / 64, sizeof(uint64_t)));",
+              "v->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t(v->count), size_t(64)), sizeof(uint64_t)));",
               "v->data[0] = 123;",
               "set_validity(v->validityBuffer, 0, 1); ",
               "return 0;",

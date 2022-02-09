@@ -29,6 +29,7 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
+#include "frovedis/core/utility.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
 #include "frovedis/text/char_int_conv.hpp"
@@ -157,7 +158,7 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << std::endl;
     #endif
 
-    size_t validity_count = ceil(out->count / 64.0);
+    size_t validity_count = frovedis::ceil_div(out->count, int32_t(64));
     out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
     if (!out->validityBuffer) {
         std::cout << "Failed to malloc " << validity_count << " * sizeof(uint64_t)" << std::endl;
