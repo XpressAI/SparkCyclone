@@ -1,6 +1,6 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.colvector.GenericColBatch
+import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch}
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve
 import com.nec.ve.VeProcess
@@ -9,12 +9,43 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
+import java.io.{
+  ByteArrayInputStream,
+  ByteArrayOutputStream,
+  DataInputStream,
+  DataOutputStream,
+  ObjectInputStream,
+  ObjectOutputStream
+}
+
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+
+  /** TODO rewrite to proper streaming approach (done in Part 2) */
+  def serializeToStream(dataOutputStream: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
+    val ba = serialize()
+    dataOutputStream.writeInt(ba.length)
+    dataOutputStream.write(ba)
+  }
+
+  def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
+    val byteArrayOutputStream = new ByteArrayOutputStream()
+    val objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)
+    objectOutputStream.writeObject(toUnit)
+    objectOutputStream.writeInt(cols.size)
+    underlying.cols.map(_.serialize()).foreach(objectOutputStream.writeObject)
+    objectOutputStream.flush()
+    objectOutputStream.close()
+    byteArrayOutputStream.flush()
+    byteArrayOutputStream.toByteArray
+  }
+
   def nonEmpty: Boolean = underlying.nonEmpty
 
-  def numRows = underlying.numRows
-  def cols = underlying.cols
+  def numRows: Int = underlying.numRows
+  def cols: List[VeColVector] = underlying.cols
+
+  def toUnit: UnitColBatch = UnitColBatch(underlying.map(_.toUnit))
 
   def free()(implicit
     veProcess: VeProcess,
@@ -44,6 +75,34 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 }
 
 object VeColBatch {
+
+  /** TODO rewrite to proper streaming approach (done in Part 2) */
+  def fromStream(dataInputStream: DataInputStream)(implicit
+    veProcess: VeProcess,
+    originalCallingContext: OriginalCallingContext,
+    source: VeColVectorSource
+  ): VeColBatch = {
+    val length = dataInputStream.readInt()
+    val arr = Array.fill[Byte](length)(-1)
+    dataInputStream.readFully(arr)
+    deserialize(arr)
+  }
+
+  def deserialize(data: Array[Byte])(implicit
+    veProcess: VeProcess,
+    originalCallingContext: OriginalCallingContext,
+    source: VeColVectorSource
+  ): VeColBatch = {
+    val byteArrayInputStream = new ByteArrayInputStream(data)
+    val objectInputStream = new ObjectInputStream(byteArrayInputStream)
+    val unitObj = objectInputStream.readObject().asInstanceOf[UnitColBatch]
+    val numCols = objectInputStream.readInt()
+    val seqs = (0 until numCols).map { _ =>
+      objectInputStream.readObject().asInstanceOf[Array[Byte]]
+    }.toList
+    unitObj.deserialize(seqs)
+  }
+
   type VeColVector = com.nec.ve.colvector.VeColVector
   val VeColVector = com.nec.ve.colvector.VeColVector
 

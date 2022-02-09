@@ -36,12 +36,10 @@ case class VectorEngineJoinPlan(
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         cleanUpInput = true
       )
-      .map { case (leftListVcv, rightListVcv) =>
+      .map { case (leftColBatch, rightColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         import com.nec.spark.SparkCycloneExecutorPlugin.source
         withVeLibrary { libRefJoin =>
-          val leftColBatch = VeColBatch.fromList(leftListVcv)
-          val rightColBatch = VeColBatch.fromList(rightListVcv)
           logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =
