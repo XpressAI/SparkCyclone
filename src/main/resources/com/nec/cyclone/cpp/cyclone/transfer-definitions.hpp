@@ -43,16 +43,16 @@ struct NullableScalarVec {
 };
 
 // Explicitly instantiate struct template for int32_t
-// struct nullable_int_vector : NullableScalarVec<int32_t> {};
-typedef NullableScalarVec<int32_t>  nullable_int_vector;
-
-// Explicitly instantiate struct template for double
-// struct nullable_double_vector : NullableScalarVec<double> {};
-typedef NullableScalarVec<double>  nullable_double_vector;
+typedef NullableScalarVec<int32_t> nullable_int_vector;
 
 // Explicitly instantiate struct template for int64_t
-// struct nullable_bigint_vector : NullableScalarVec<int64_t> {};
-typedef NullableScalarVec<int64_t>  nullable_bigint_vector;
+typedef NullableScalarVec<int64_t> nullable_bigint_vector;
+
+// Explicitly instantiate struct template for float
+typedef NullableScalarVec<float> nullable_float_vector;
+
+// Explicitly instantiate struct template for double
+typedef NullableScalarVec<double> nullable_double_vector;
 
 struct nullable_varchar_vector {
   // NOTE: Field declaration order must be maintained to match existing JNA bindings

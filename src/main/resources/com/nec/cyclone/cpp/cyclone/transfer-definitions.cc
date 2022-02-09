@@ -57,8 +57,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() {
 
   // Copy the validity buffer
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
-
-  output->validityBuffer = static_cast<uint64_t *>(malloc(vbytes));
+  output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
   memcpy(output->validityBuffer, validityBuffer, vbytes);
 
   return output;
@@ -102,14 +101,14 @@ nullable_varchar_vector * nullable_varchar_vector::clone() {
   memcpy(output->data, data, output->dataSize);
 
   // Copy the offsets
-  auto obytes_count = (output->count + 1) * sizeof(int32_t);
-  output->offsets = static_cast<int32_t *>(malloc(obytes_count));
-  memcpy(output->offsets, offsets, obytes_count);
+  auto obytes = (output->count + 1) * sizeof(int32_t);
+  output->offsets = static_cast<int32_t *>(malloc(obytes));
+  memcpy(output->offsets, offsets, obytes);
 
   // Copy the validity buffer
-  auto vbytes_count = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
-  output->validityBuffer = static_cast<uint64_t *>(malloc(vbytes_count));
-  memcpy(output->validityBuffer, validityBuffer, vbytes_count);
+  auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
+  output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
+  memcpy(output->validityBuffer, validityBuffer, vbytes);
 
   return output;
 }
@@ -117,5 +116,6 @@ nullable_varchar_vector * nullable_varchar_vector::clone() {
 // Forward declare the class template instantiations to prevent linker errors:
 // https://stackoverflow.com/questions/3008541/template-class-symbols-not-found
 template class NullableScalarVec<int32_t>;
-template class NullableScalarVec<double>;
 template class NullableScalarVec<int64_t>;
+template class NullableScalarVec<float>;
+template class NullableScalarVec<double>;

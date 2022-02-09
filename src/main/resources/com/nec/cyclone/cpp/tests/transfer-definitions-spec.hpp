@@ -27,28 +27,36 @@
 namespace cyclone::tests {
   TEST_SUITE("NullableScalarVec<T>") {
     TEST_CASE("Equality checks work") {
-      // Instantiate with int32_t
+      // Instantiate for int32_t
       std::vector<int32_t> raw1 { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
       auto *input1 = to_nullable_scalar_vector(raw1);
       set_validity(input1->validityBuffer, 1, 0);
       set_validity(input1->validityBuffer, 4, 0);
       set_validity(input1->validityBuffer, 8, 0);
 
-      // Instantiate with int64_t
+      // Instantiate for int64_t
       std::vector<int64_t> raw2 { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
       auto *input2 = to_nullable_scalar_vector(raw2);
       set_validity(input2->validityBuffer, 2, 0);
       set_validity(input2->validityBuffer, 5, 0);
 
-      // Instantiate with double
-      std::vector<double> raw3 { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
+      // Instantiate for float
+      std::vector<float> raw3 { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
       auto *input3 = to_nullable_scalar_vector(raw2);
       set_validity(input3->validityBuffer, 3, 0);
       set_validity(input3->validityBuffer, 7, 0);
 
+      // Instantiate for double
+      std::vector<double> raw4 { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
+      auto *input4 = to_nullable_scalar_vector(raw4);
+      set_validity(input4->validityBuffer, 2, 0);
+      set_validity(input4->validityBuffer, 6, 0);
+      set_validity(input4->validityBuffer, 8, 0);
+
       CHECK(input1->equals(input1));
       CHECK(input2->equals(input2));
       CHECK(input3->equals(input3));
+      CHECK(input4->equals(input4));
     }
 
     TEST_CASE("Clone works") {

@@ -85,7 +85,9 @@ namespace cyclone::tests {
     return vec;
   }
 
+  // Forward declare the function template instantiations to prevent linker errors
   template NullableScalarVec<int32_t> * to_nullable_scalar_vector(const std::vector<int32_t> &data);
-  template NullableScalarVec<double> * to_nullable_scalar_vector(const std::vector<double> &data);
   template NullableScalarVec<int64_t> * to_nullable_scalar_vector(const std::vector<int64_t> &data);
+  template NullableScalarVec<float> * to_nullable_scalar_vector(const std::vector<float> &data);
+  template NullableScalarVec<double> * to_nullable_scalar_vector(const std::vector<double> &data);
 }
