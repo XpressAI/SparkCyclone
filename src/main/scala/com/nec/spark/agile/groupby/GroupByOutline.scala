@@ -200,7 +200,7 @@ object GroupByOutline {
     CodeLines.from(
       s"$variableName->count = ${countExpression};",
       s"$variableName->data = static_cast<${veScalarType.cScalarType}*>(malloc($variableName->count * sizeof(${veScalarType.cScalarType})));",
-      s"$variableName->validityBuffer = static_cast<uint64_t*>(calloc((${countExpression} + 63) / 64, sizeof(uint64_t)));"
+      s"$variableName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t(${countExpression}), size_t(64)), sizeof(uint64_t)));"
     )
 
   def scalarVectorFromStdVector(

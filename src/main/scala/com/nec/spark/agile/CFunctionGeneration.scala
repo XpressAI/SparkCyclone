@@ -625,7 +625,7 @@ object CFunctionGeneration {
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(($outputName->count + 63) / 64, sizeof(uint64_t)));",
+            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t($outputName->count), size_t(64)), sizeof(uint64_t)));",
             s"$outputName->data = static_cast<${outputVeType.cScalarType}*>(malloc($outputName->count * sizeof(${outputVeType.cScalarType})));"
           )
         },
@@ -810,7 +810,7 @@ object CFunctionGeneration {
           CodeLines.from(
             s"$outputName->count = input_0->count;",
             s"$outputName->data = static_cast<${veType.cScalarType}*>(malloc($outputName->count * sizeof(${veType.cScalarType})));",
-            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(($outputName->count + 63) / 64, sizeof(uint64_t)));"
+            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t($outputName->count), size_t(64)), sizeof(uint64_t)));"
           )
         case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
           StringProducer
@@ -889,7 +889,7 @@ object CFunctionGeneration {
         "std::vector<size_t> right_out;",
         "std::vector<size_t> left_out;",
         s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
-        "long validityBuffSize = ceil(left_out.size() / 64.0);",
+        "long validityBuffSize = frovedis::ceil_div(size_t(left_out.size()), size_t(64));",
         veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
           joinExpression.fold(whenProj =
             _ =>
@@ -1047,7 +1047,7 @@ object CFunctionGeneration {
               s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);"
             )
         },
-        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 64.0);"),
+        List("long validityBuffSize = frovedis::ceil_div(size_t(left_out.size() + outer_idx.size()), size_t(64));"),
         veOuterJoin.outputs.map {
           case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
             joinExpression.fold(whenProj =
