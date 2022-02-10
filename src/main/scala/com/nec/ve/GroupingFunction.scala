@@ -56,7 +56,7 @@ object GroupingFunction {
               else CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")
             )
           },
-          s"$groupingIdentifiers.push_back(hash % ${totalBuckets});"
+          s"$groupingIdentifiers.push_back(abs(hash % ${totalBuckets}));"
         )
       }
     )
