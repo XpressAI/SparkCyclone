@@ -58,5 +58,3 @@ void print_indices(std::vector<size_t> vec);
 frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select);
 
 std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set);
-
-void debug_nullable_varchar_vector(const nullable_varchar_vector *v);

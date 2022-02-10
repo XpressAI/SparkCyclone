@@ -129,11 +129,11 @@ void filter_test() {
   std::cout << "FILTER TEST\n" << std::endl;
 
   std::cout << "Original nullable_varchar_vector:" << std::endl;
-  debug_nullable_varchar_vector(input);
+  input->print();
 
   const auto *output = filter_vec(input, matching_ids);
   std::cout << "Filtered nullable_varchar_vector:" << std::endl;
-  debug_nullable_varchar_vector(output);
+  output->print();
 
   std::cout << "================================================================================" << std::endl;
   return;
@@ -149,11 +149,11 @@ void projection_test() {
   std::cout << "PROJECTION TEST\n" << std::endl;
 
   std::cout << "Original nullable_varchar_vector:" << std::endl;
-  debug_nullable_varchar_vector(input);
+  input->print();
 
   auto *output = project_eval(input);
   std::cout << "Cloned nullable_varchar_vector:" << std::endl;
-  debug_nullable_varchar_vector(output);
+  output->print();
 
   std::cout << "================================================================================" << std::endl;
   return;
@@ -204,7 +204,7 @@ void bucket_grouping_test_fail() {
   std::cout << "================================================================================" << std::endl;
   std::cout << "BUCKET GROUPING TEST (FAILING)\n" << std::endl;
 
-  debug_nullable_varchar_vector(input);
+  input->print();
 
   std::cout << "ID_TO_BUCKET: [ ";
   for (auto i = 0; i < id_to_bucket.size(); i++) {
@@ -212,7 +212,7 @@ void bucket_grouping_test_fail() {
   }
   std::cout << "]\n\n";
 
-  debug_nullable_varchar_vector(output_0);
+  output_0->print();
 
   std::cout << "================================================================================" << std::endl;
   return;
@@ -265,7 +265,7 @@ void bucket_grouping_test_pass() {
   std::cout << "================================================================================" << std::endl;
   std::cout << "BUCKET GROUPING TEST (PASSING)\n" << std::endl;
 
-  debug_nullable_varchar_vector(input);
+  input->print();
 
   std::cout << "ID_TO_BUCKET: [ ";
   for (auto i = 0; i < id_to_bucket.size(); i++) {
@@ -273,7 +273,7 @@ void bucket_grouping_test_pass() {
   }
   std::cout << "]\n\n";
 
-  debug_nullable_varchar_vector(output_0);
+  output_0->print();
 
   std::cout << "================================================================================" << std::endl;
   return;
@@ -321,9 +321,9 @@ void merge_test_pass() {
   std::cout << "================================================================================" << std::endl;
   std::cout << "MERGE MULTI WORDS (PASSING?)\n" << std::endl;
 
-  debug_nullable_varchar_vector(input1);
-  debug_nullable_varchar_vector(input2);
-  debug_nullable_varchar_vector(output_0);
+  input1->print();
+  input2->print();
+  output_0->print();
 
   std::cout << "================================================================================" << std::endl;
   return;

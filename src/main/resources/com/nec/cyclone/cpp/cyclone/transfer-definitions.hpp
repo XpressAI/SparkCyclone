@@ -21,8 +21,10 @@
 
 #ifndef VE_TD_DEFS
 
+#include <stddef.h>
 #include <stdint.h>
 #include <type_traits>
+#include <vector>
 
 template<typename T>
 struct NullableScalarVec {
@@ -31,15 +33,28 @@ struct NullableScalarVec {
 
   // NOTE: Field declaration order must be maintained to match existing JNA bindings
 
-  T         *data;              // The raw data
-  uint64_t  *validityBuffer;    // Bit vector to denote null values
-  int32_t   count;              // Row count (synonymous with size of data array)
+  // Initialize fields with defaults
+  T         *data             = nullptr;  // The raw data
+  uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
+  int32_t   count             = 0;        // Row count (synonymous with size of data array)
 
-  // Returns a deep copy of this NullableScalarVec<T>
-  NullableScalarVec<T> * clone();
+  // Print the data structure out for debugging
+  void print() const;
 
   // Value equality check against another NullableScalarVec<T>
-  bool equals(const NullableScalarVec<T> * const other);
+  bool equals(const NullableScalarVec<T> * const other) const;
+
+  // Returns a deep copy of this NullableScalarVec<T>
+  NullableScalarVec<T> * clone() const;
+
+  // Returns a filtered deep copy of the NullableScalarVec<T> that contains only
+  // elements whose original index value is in the matching_ids
+  NullableScalarVec<T> * filter(const std::vector<size_t> &matching_ids) const;
+
+  // Create N new NullableScalarVec<T>'s and copy values over to them based on
+  // the bucket_assignments
+  NullableScalarVec<T> ** bucket(const std::vector<size_t> &bucket_counts,
+                                 const std::vector<size_t> &bucket_assignments) const;
 };
 
 // Explicitly instantiate struct template for int32_t
@@ -57,17 +72,30 @@ typedef NullableScalarVec<double> nullable_double_vector;
 struct nullable_varchar_vector {
   // NOTE: Field declaration order must be maintained to match existing JNA bindings
 
-  char      *data;              // The raw data containing all the varchars concatenated together
-  int32_t   *offsets;           // Offsets to denote varchar start and end positions
-  uint64_t  *validityBuffer;    // Bit vector to denote null values
-  int32_t   dataSize;           // Size of data array
-  int32_t   count;              // The row count
+  // Initialize fields with defaults
+  char      *data             = nullptr;  // The raw data containing all the varchars concatenated together
+  int32_t   *offsets          = nullptr;  // Offsets to denote varchar start and end positions
+  uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
+  int32_t   dataSize          = 0;        // Size of data array
+  int32_t   count             = 0;        // The row count
 
-  // Returns a deep copy of this nullable_varchar_vector
-  nullable_varchar_vector * clone();
+  // Print the data structure out for debugging
+  void print() const;
 
   // Value equality check against another nullable_varchar_vector
-  bool equals(const nullable_varchar_vector * const other);
+  bool equals(const nullable_varchar_vector * const other) const;
+
+  // Returns a deep copy of this nullable_varchar_vector
+  nullable_varchar_vector * clone() const;
+
+  // Returns a filtered deep copy of the NullableScalarVec<T> that contains only
+  // elements whose original index value is in the matching_ids
+  nullable_varchar_vector * filter(const std::vector<size_t> &matching_ids) const;
+
+  // Create N new nullable_varchar_vector's and copy values over to them based
+  // on the bucket_assignments
+  nullable_varchar_vector ** bucket(const std::vector<size_t> &bucket_counts,
+                                    const std::vector<size_t> &bucket_assignments) const;
 };
 
 struct non_null_c_bounded_string {

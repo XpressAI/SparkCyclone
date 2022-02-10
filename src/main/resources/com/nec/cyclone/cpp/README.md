@@ -70,9 +70,9 @@ The steps for adding new code to the Cyclone library are generally as follows:
     of `cyclone.hpp`).
 
 1.  Add the corresponding spec as a header file to the `tests/` subdirectory
-    (e.g. `tests/example-spec.hpp`).
+    (e.g. `tests/example_spec.hpp`).
 
 1.  `#include` the spec header file inside `tests/driver.cpp`
-    (e.g. `#include "tests/example-spec.hpp"`).
+    (e.g. `#include "tests/example_spec.hpp"`).
 
 Re-running `make test`should include the newly added tests into the tests executable.

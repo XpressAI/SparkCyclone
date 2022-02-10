@@ -1,4 +1,3 @@
-#pragma once
 #include "parseint.hpp"
 #include "parsefloat.hpp"
 
@@ -19,7 +18,7 @@ template <> std::vector<long> parsenumber<long>(const words& w) {
 template <> std::vector<long long> parsenumber<long long>(const words& w) {
   return parseint<long long>(w);
 }
-template <> std::vector<unsigned int> 
+template <> std::vector<unsigned int>
 parsenumber<unsigned int>(const words& w) {
   return parseint<unsigned int>(w);
 }
