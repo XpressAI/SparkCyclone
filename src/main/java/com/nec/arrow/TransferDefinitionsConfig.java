@@ -11,9 +11,9 @@ import org.bytedeco.javacpp.tools.*;
 //            "words.hpp",
 //            "char_int_conv.hpp",
 //            "parsefloat.hpp",
-            "transfer-definitions.hpp"
+            "cyclone/transfer-definitions.hpp"
         }
-//	link = "jniTransferDefinitions"
+//	link = "TransferDefinitions"
     ),
     target = "com.nec.arrow.TransferDefinitions"
 )
