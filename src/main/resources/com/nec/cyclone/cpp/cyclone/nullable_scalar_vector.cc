@@ -48,7 +48,7 @@ void NullableScalarVec<T>::print() const {
   }
   stream << "]\n}\n";
 
-  std::cout << stream.rdbuf() << std::endl;
+  std::cout << stream.str() << std::endl;
 }
 
 template <typename T>
@@ -127,10 +127,7 @@ template <typename T>
 NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &bucket_counts,
                                                      const std::vector<size_t> &bucket_assignments) const {
   // Allocate array of NullableScalarVec<T> pointers
-  auto ** output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(nullptr) * bucket_counts.size()));
-
-  // Allocate a bitmask array for multiple use
-  std::vector<size_t> bitmask(bucket_assignments.size());
+  auto ** output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
 
   // Loop over each bucket
   for (int b = 0; b < bucket_counts.size(); b++) {

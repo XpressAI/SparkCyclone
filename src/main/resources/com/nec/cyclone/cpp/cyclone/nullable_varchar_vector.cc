@@ -58,7 +58,7 @@ void nullable_varchar_vector::print() const {
   // Print data
   stream << "]\n  DATA: [" << std::string(data, dataSize) << "]\n}\n";
 
-  std::cout << stream.rdbuf() << std::endl;
+  std::cout << stream.str() << std::endl;
 }
 
 bool nullable_varchar_vector::equals(const nullable_varchar_vector * const other) const {
@@ -167,10 +167,7 @@ nullable_varchar_vector * nullable_varchar_vector::filter(const std::vector<size
 nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<size_t> &bucket_counts,
                                                            const std::vector<size_t> &bucket_assignments) const {
   // Allocate array of nullable_varchar_vector pointers
-  auto ** output = static_cast<nullable_varchar_vector **>(malloc(sizeof(nullptr) * bucket_counts.size()));
-
-  // Allocate a bitmask array for multiple use
-  std::vector<size_t> bitmask(bucket_assignments.size());
+  auto ** output = static_cast<nullable_varchar_vector **>(malloc(sizeof(nullable_varchar_vector *) * bucket_counts.size()));
 
   // Loop over each bucket
   for (int b = 0; b < bucket_counts.size(); b++) {

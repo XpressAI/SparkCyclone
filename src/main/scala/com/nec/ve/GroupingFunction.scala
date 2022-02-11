@@ -152,7 +152,25 @@ object GroupingFunction {
     CodeLines.scoped(
       s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
     ) {
-      s"*${output.name} = *(${input.name}[0]->bucket(${bucketToCount}, ${idToBucket}));"
+      CodeLines.from(
+        // Perform the bucketing and get back T** (array of pointers)
+        s"auto ** tmp = ${input.name}[0]->bucket(${bucketToCount}, ${idToBucket});",
+        /*
+          Allocate the nullable_T_vector[] with size buckets
+
+          NOTE: This cast should not be correct, because we are allocating a T*
+          array (T**) but type-casting it to T*.  However, for some reason,
+          fixing this will lead an invalid free() later on.  Will need to
+          investigate fix this.
+        */
+        s"*${output.name} = static_cast<${output.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${buckets}));",
+        // Copy the pointers over
+        CodeLines.forLoop("b", s"${buckets}") {
+          s"${output.name}[b] = tmp[b];"
+        },
+        // Free the array of pointers (but not the structs themselves)
+        "free(tmp);"
+      )
     }
   }
 
@@ -175,14 +193,14 @@ object GroupingFunction {
         // Compute the bucket assignments
         computeBuckets(
           cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
-          groupingIdentifiers = "bucket_assignment",
+          groupingIdentifiers = "bucket_assignments",
           totalBuckets = totalBuckets
         ),
         "",
         // Compute the bucket sizes
         computeBucketSizes(
-          groupingIdentifiers = "bucket_assignment",
-          bucketToCount = "bucket_count",
+          groupingIdentifiers = "bucket_assignments",
+          bucketToCount = "bucket_counts",
           totalBuckets = totalBuckets
         ),
         "",
@@ -191,7 +209,7 @@ object GroupingFunction {
         "",
         // Copy the elements to their respective buckets
         (outputs, inputs).zipped.map(
-          copyVecToBucketsStmt(_, _, totalBuckets, "bucket_assignment", "bucket_count")
+          copyVecToBucketsStmt(_, _, totalBuckets, "bucket_assignments", "bucket_counts")
         )
       )
     )
