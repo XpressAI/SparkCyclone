@@ -22,7 +22,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(TPC)
   .configs(CMake)
   .settings(
-    version := "0.9.0"
+    version := "0.9.1"
   )
 
 lazy val tracing = project
@@ -131,7 +131,6 @@ libraryDependencies ++= Seq(
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "org.reflections" % "reflections" % "0.9.12",
   "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve,cmake",
   "commons-io" % "commons-io" % "2.10.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
@@ -150,7 +149,6 @@ libraryDependencies ++= {
 }
 
 
-Test / javaOptions ++= Seq("-Djava.library.path=" + new File("./src/main/resources/transferdefinitions").getAbsolutePath)
 Test / fork := true
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
@@ -494,8 +492,8 @@ cycloneVeLibrary := {
   val cachedFun = FileFunction.cached(streams.value.cacheDirectory / "cpp") { (in: Set[File]) =>
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
-        logger.info("Building libcyclone.so...")
-        val exitcode = Process(command = Seq("make", "clean", "all"), cwd = makefile.getParentFile) ! logger
+        logger.info("Building and testing libcyclone.so...")
+        val exitcode = Process(command = Seq("make", "clean", "all", "test"), cwd = makefile.getParentFile) ! logger
 
         if (exitcode != 0) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")

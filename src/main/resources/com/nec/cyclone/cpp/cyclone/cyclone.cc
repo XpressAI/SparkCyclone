@@ -29,13 +29,15 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
-#include "cyclone.hpp"
-#include "transfer-definitions.hpp"
+#include "frovedis/core/utility.hpp"
+#include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
 #include "frovedis/text/char_int_conv.hpp"
 #include "frovedis/text/parsefloat.hpp"
 #include "frovedis/text/parsedatetime.hpp"
 #include "frovedis/text/datetime_utility.hpp"
+#include "cyclone/cyclone.hpp"
+#include "cyclone/transfer-definitions.hpp"
 
 std::string utcnanotime() {
     auto now = std::chrono::system_clock::now();
@@ -83,10 +85,6 @@ frovedis::words data_offsets_to_words(
     frovedis::char_to_int(data, offsets[count], ret.chars.data());
 
     return ret;
-}
-
-frovedis::words varchar_vector_to_words(const non_null_varchar_vector *v) {
-    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->count);
 }
 
 frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
@@ -156,7 +154,7 @@ void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) 
         std::cout << std::endl;
     #endif
 
-    size_t validity_count = ceil(out->count / 64.0);
+    size_t validity_count = frovedis::ceil_div(out->count, int32_t(64));
     out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
     if (!out->validityBuffer) {
         std::cout << "Failed to malloc " << validity_count << " * sizeof(uint64_t)" << std::endl;

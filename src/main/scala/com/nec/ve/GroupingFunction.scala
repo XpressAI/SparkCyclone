@@ -56,7 +56,7 @@ object GroupingFunction {
               else CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")
             )
           },
-          s"$groupingIdentifiers.push_back(hash % ${totalBuckets});"
+          s"$groupingIdentifiers.push_back(abs(hash % ${totalBuckets}));"
         )
       }
     )
@@ -90,62 +90,13 @@ object GroupingFunction {
       "Cannot clone cVector - input and output VeTypes are not the same!"
     )
 
-    output.veType match {
-      case CFunctionGeneration.VeString =>
-        CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
-          List(
-            // Declare count and dsize
-            s"auto count = ${input.name}[0]->count;",
-            s"auto dsize = ${input.name}[0]->dataSize;",
-            "",
-            // Allocate the nullable_varchar_vector[] with size 1
-            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(void *));",
-            // Allocate the nullable_varchar_vector at [0]
-            s"${output.name}[0] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
-            // Set count and dataSize
-            s"${output.name}[0]->count = count;",
-            s"${output.name}[0]->dataSize = dsize;",
-            "",
-            // Set data - allocate and then copy over
-            s"${output.name}[0]->data = (char *) malloc(dsize);",
-            s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dsize);",
-            "",
-            // Set offsets - allocate and then copy over
-            s"auto obytes_count = (count + 1) * sizeof(int32_t);",
-            s"${output.name}[0]->offsets = (int32_t *) malloc(obytes_count);",
-            s"memcpy(${output.name}[0]->offsets, ${input.name}[0]->offsets, obytes_count);",
-            "",
-            // Set validityBuffer - preserve the validity bits
-            s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
-            s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
-            s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
-          )
-        }
-
-      case scalar: VeScalarType =>
-        CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
-          List(
-            // Declare count
-            s"auto count = ${input.name}[0]->count;",
-            "",
-            // Allocate the nullable_T_vector[] with size 1
-            s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(void *));",
-            // Allocate the nullable_T_vector at [0]
-            s"${output.name}[0] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
-            // Set count
-            s"${output.name}[0]->count = count;",
-            "",
-            // Set data - allocate and then copy over
-            s"auto dbytes_count = count * sizeof(${scalar.cScalarType});",
-            s"${output.name}[0]->data = (${scalar.cScalarType} *) malloc(dbytes_count);",
-            s"memcpy(${output.name}[0]->data, ${input.name}[0]->data, dbytes_count);",
-            "",
-            // Set validityBuffer - preserve the validity bits
-            s"auto vbytes_count = ceil(count / 64.0) * sizeof(uint64_t);",
-            s"${output.name}[0]->validityBuffer = (uint64_t *) malloc(vbytes_count);",
-            s"memcpy(${output.name}[0]->validityBuffer, ${input.name}[0]->validityBuffer, vbytes_count);"
-          )
-        }
+    CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
+      List(
+        // Allocate the nullable_T_vector[] with size 1
+        s"*${output.name} = static_cast<${output.veType.cVectorType} *>(malloc(sizeof(nullptr)));",
+        // Clone the input nullable_T_vector to output nullable_T_vector at [0]
+        s"${output.name}[0] = ${input.name}[0]->clone();",
+      )
     }
   }
 
@@ -263,13 +214,13 @@ object GroupingFunction {
     ) {
       CodeLines.from(
         // Allocate the nullable_T_vector[] with size buckets
-        s"*${output.name} = (${output.veType.cVectorType} *) malloc(sizeof(void *) * ${buckets});",
+        s"*${output.name} = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(nullptr) * ${buckets}));",
         "",
         // Loop over each bucket
         CodeLines.forLoop("b", s"${buckets}") {
           CodeLines.from(
             // Allocate the nullable_T_vector at [0]
-            s"${output.name}[b] = (${output.veType.cVectorType} *) malloc(sizeof(${output.veType.cVectorType}));",
+            s"${output.name}[b] = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(${output.veType.cVectorType})));",
             // Perform the copy based on type T (scalar or varchar)
             copyStmt
           )

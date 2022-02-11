@@ -6,7 +6,7 @@ import java.nio.*;
 import org.bytedeco.javacpp.*;
 import org.bytedeco.javacpp.annotation.*;
 
-public class TransferDefinitions extends TransferDefinitionsConfig {
+public class TransferDefinitions extends com.nec.arrow.TransferDefinitionsConfig {
     static { Loader.load(); }
 
 @Name("std::vector<std::string>") public static class StringVector extends Pointer {
@@ -185,63 +185,15 @@ public class TransferDefinitions extends TransferDefinitionsConfig {
  * limitations under the License.
  *
  */
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-// #include <stdint.h>
-// #include <math.h>
-// #include <limits>
-// #include <iostream>
-// #include <vector>
-// #include <chrono>
-// #include <ctime>
-// #include <algorithm>
+// #pragma once
 
 // #ifndef VE_TD_DEFS
-public static class data_out extends Pointer {
-    static { Loader.load(); }
-    /** Default native constructor. */
-    public data_out() { super((Pointer)null); allocate(); }
-    /** Native array allocator. Access with {@link Pointer#position(long)}. */
-    public data_out(long size) { super((Pointer)null); allocateArray(size); }
-    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
-    public data_out(Pointer p) { super(p); }
-    private native void allocate();
-    private native void allocateArray(long size);
-    @Override public data_out position(long position) {
-        return (data_out)super.position(position);
-    }
-    @Override public data_out getPointer(long i) {
-        return new data_out((Pointer)this).offsetAddress(i);
-    }
 
-    public native Pointer data(int i); public native data_out data(int i, Pointer setter);
-    public native @Cast("void**") PointerPointer data(); public native data_out data(PointerPointer setter);
-    public native @Cast("size_t") long count(); public native data_out count(long setter);
-    public native @Cast("size_t") long size(); public native data_out size(long setter);
-}
+// #include <stdint.h>
+// #include <type_traits>
 
-public static class varchar_vector extends Pointer {
-    static { Loader.load(); }
-    /** Default native constructor. */
-    public varchar_vector() { super((Pointer)null); allocate(); }
-    /** Native array allocator. Access with {@link Pointer#position(long)}. */
-    public varchar_vector(long size) { super((Pointer)null); allocateArray(size); }
-    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
-    public varchar_vector(Pointer p) { super(p); }
-    private native void allocate();
-    private native void allocateArray(long size);
-    @Override public varchar_vector position(long position) {
-        return (varchar_vector)super.position(position);
-    }
-    @Override public varchar_vector getPointer(long i) {
-        return new varchar_vector((Pointer)this).offsetAddress(i);
-    }
-
-    public native @Cast("char*") BytePointer data(); public native varchar_vector data(BytePointer setter);
-    public native IntPointer offsets(); public native varchar_vector offsets(IntPointer setter);
-    public native int count(); public native varchar_vector count(int setter);
-}
+// Explicitly instantiate struct template for int32_t
+//typedef NullableScalarVec<int32_t> nullable_int_vector;
 
 public static class nullable_int_vector extends Pointer {
     static { Loader.load(); }
@@ -260,13 +212,95 @@ public static class nullable_int_vector extends Pointer {
         return new nullable_int_vector((Pointer)this).offsetAddress(i);
     }
 
-    public native IntPointer data(); public native nullable_int_vector data(IntPointer setter);
-    public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_int_vector validityBuffer(LongPointer setter);
-    public native int count(); public native nullable_int_vector count(int setter);
-    public int dataSize() {
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  public native IntPointer data(); public native nullable_int_vector data(IntPointer setter);              // The raw data
+  public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_int_vector validityBuffer(LongPointer setter);    // Bit vector to denote null values
+  public native int count(); public native nullable_int_vector count(int setter);              // Row count (synonymous with size of data array)
+  public int dataSize() {
         return count() * 4;
-    }
+  }
+  // Returns a deep copy of this NullableScalarVec<T>
+  public native nullable_int_vector clone();
+
+  // Value equality check against another NullableScalarVec<T>
+  public native @Cast("bool") boolean equals(@Const nullable_int_vector other);
 }
+
+// Explicitly instantiate struct template for int64_t
+//typedef NullableScalarVec<int64_t> nullable_bigint_vector;
+
+public static class nullable_bigint_vector extends Pointer {
+    static { Loader.load(); }
+    /** Default native constructor. */
+    public nullable_bigint_vector() { super((Pointer)null); allocate(); }
+    /** Native array allocator. Access with {@link Pointer#position(long)}. */
+    public nullable_bigint_vector(long size) { super((Pointer)null); allocateArray(size); }
+    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
+    public nullable_bigint_vector(Pointer p) { super(p); }
+    private native void allocate();
+    private native void allocateArray(long size);
+    @Override public nullable_bigint_vector position(long position) {
+        return (nullable_bigint_vector)super.position(position);
+    }
+    @Override public nullable_bigint_vector getPointer(long i) {
+        return new nullable_bigint_vector((Pointer)this).offsetAddress(i);
+    }
+
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  public native @Cast("int64_t*") LongPointer data(); public native nullable_bigint_vector data(LongPointer setter);              // The raw data
+  public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_bigint_vector validityBuffer(LongPointer setter);    // Bit vector to denote null values
+  public native int count(); public native nullable_bigint_vector count(int setter);              // Row count (synonymous with size of data array)
+  public int dataSize() {
+        return count() * 8;
+  }
+  // Returns a deep copy of this NullableScalarVec<T>
+  public native nullable_bigint_vector clone();
+
+  // Value equality check against another NullableScalarVec<T>
+  public native @Cast("bool") boolean equals(@Const nullable_bigint_vector other);
+}
+
+// Explicitly instantiate struct template for float
+//typedef NullableScalarVec<float> nullable_float_vector;
+
+public static class nullable_float_vector extends Pointer {
+    static { Loader.load(); }
+    /** Default native constructor. */
+    public nullable_float_vector() { super((Pointer)null); allocate(); }
+    /** Native array allocator. Access with {@link Pointer#position(long)}. */
+    public nullable_float_vector(long size) { super((Pointer)null); allocateArray(size); }
+    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
+    public nullable_float_vector(Pointer p) { super(p); }
+    private native void allocate();
+    private native void allocateArray(long size);
+    @Override public nullable_float_vector position(long position) {
+        return (nullable_float_vector)super.position(position);
+    }
+    @Override public nullable_float_vector getPointer(long i) {
+        return new nullable_float_vector((Pointer)this).offsetAddress(i);
+    }
+
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  public native FloatPointer data(); public native nullable_float_vector data(FloatPointer setter);              // The raw data
+  public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_float_vector validityBuffer(LongPointer setter);    // Bit vector to denote null values
+  public native int count(); public native nullable_float_vector count(int setter);              // Row count (synonymous with size of data array)
+
+  public int dataSize() {
+        return count() * 4;
+  }
+
+  // Returns a deep copy of this NullableScalarVec<T>
+  public native nullable_float_vector clone();
+
+  // Value equality check against another NullableScalarVec<T>
+  public native @Cast("bool") boolean equals(@Const nullable_float_vector other);
+}
+
+// Explicitly instantiate struct template for double
+//typedef NullableScalarVec<double> nullable_double_vector;
 
 public static class nullable_double_vector extends Pointer {
     static { Loader.load(); }
@@ -285,12 +319,51 @@ public static class nullable_double_vector extends Pointer {
         return new nullable_double_vector((Pointer)this).offsetAddress(i);
     }
 
-    public native DoublePointer data(); public native nullable_double_vector data(DoublePointer setter);
-    public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_double_vector validityBuffer(LongPointer setter);
-    public native int count(); public native nullable_double_vector count(int setter);
-    public int dataSize() {
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  public native DoublePointer data(); public native nullable_double_vector data(DoublePointer setter);              // The raw data
+  public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_double_vector validityBuffer(LongPointer setter);    // Bit vector to denote null values
+  public native int count(); public native nullable_double_vector count(int setter);              // Row count (synonymous with size of data array)
+  public int dataSize() {
         return count() * 8;
+  }
+  // Returns a deep copy of this NullableScalarVec<T>
+  public native nullable_double_vector clone();
+
+  // Value equality check against another NullableScalarVec<T>
+  public native @Cast("bool") boolean equals(@Const nullable_double_vector other);
+}
+
+public static class nullable_varchar_vector extends Pointer {
+    static { Loader.load(); }
+    /** Default native constructor. */
+    public nullable_varchar_vector() { super((Pointer)null); allocate(); }
+    /** Native array allocator. Access with {@link Pointer#position(long)}. */
+    public nullable_varchar_vector(long size) { super((Pointer)null); allocateArray(size); }
+    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
+    public nullable_varchar_vector(Pointer p) { super(p); }
+    private native void allocate();
+    private native void allocateArray(long size);
+    @Override public nullable_varchar_vector position(long position) {
+        return (nullable_varchar_vector)super.position(position);
     }
+    @Override public nullable_varchar_vector getPointer(long i) {
+        return new nullable_varchar_vector((Pointer)this).offsetAddress(i);
+    }
+
+  // NOTE: Field declaration order must be maintained to match existing JNA bindings
+
+  public native @Cast("char*") BytePointer data(); public native nullable_varchar_vector data(BytePointer setter);              // The raw data containing all the varchars concatenated together
+  public native IntPointer offsets(); public native nullable_varchar_vector offsets(IntPointer setter);           // Offsets to denote varchar start and end positions
+  public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_varchar_vector validityBuffer(LongPointer setter);    // Bit vector to denote null values
+  public native int dataSize(); public native nullable_varchar_vector dataSize(int setter);           // Size of data array
+  public native int count(); public native nullable_varchar_vector count(int setter);              // The row count
+
+  // Returns a deep copy of this nullable_varchar_vector
+  public native nullable_varchar_vector clone();
+
+  // Value equality check against another nullable_varchar_vector
+  public native @Cast("bool") boolean equals(@Const nullable_varchar_vector other);
 }
 
 public static class non_null_double_vector extends Pointer {
@@ -312,32 +385,6 @@ public static class non_null_double_vector extends Pointer {
 
     public native DoublePointer data(); public native non_null_double_vector data(DoublePointer setter);
     public native int count(); public native non_null_double_vector count(int setter);
-    public int dataSize() {
-        return count() * 8;
-    }
-}
-
-
-public static class nullable_bigint_vector extends Pointer {
-    static { Loader.load(); }
-    /** Default native constructor. */
-    public nullable_bigint_vector() { super((Pointer)null); allocate(); }
-    /** Native array allocator. Access with {@link Pointer#position(long)}. */
-    public nullable_bigint_vector(long size) { super((Pointer)null); allocateArray(size); }
-    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
-    public nullable_bigint_vector(Pointer p) { super(p); }
-    private native void allocate();
-    private native void allocateArray(long size);
-    @Override public nullable_bigint_vector position(long position) {
-        return (nullable_bigint_vector)super.position(position);
-    }
-    @Override public nullable_bigint_vector getPointer(long i) {
-        return new nullable_bigint_vector((Pointer)this).offsetAddress(i);
-    }
-
-    public native @Cast("int64_t*") LongPointer data(); public native nullable_bigint_vector data(LongPointer setter);
-    public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_bigint_vector validityBuffer(LongPointer setter);
-    public native int count(); public native nullable_bigint_vector count(int setter);
     public int dataSize() {
         return count() * 8;
     }
@@ -412,53 +459,6 @@ public static class non_null_int_vector extends Pointer {
     public native int count(); public native non_null_int_vector count(int setter);
 }
 
-public static class non_null_varchar_vector extends Pointer {
-    static { Loader.load(); }
-    /** Default native constructor. */
-    public non_null_varchar_vector() { super((Pointer)null); allocate(); }
-    /** Native array allocator. Access with {@link Pointer#position(long)}. */
-    public non_null_varchar_vector(long size) { super((Pointer)null); allocateArray(size); }
-    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
-    public non_null_varchar_vector(Pointer p) { super(p); }
-    private native void allocate();
-    private native void allocateArray(long size);
-    @Override public non_null_varchar_vector position(long position) {
-        return (non_null_varchar_vector)super.position(position);
-    }
-    @Override public non_null_varchar_vector getPointer(long i) {
-        return new non_null_varchar_vector((Pointer)this).offsetAddress(i);
-    }
-
-    public native @Cast("char*") BytePointer data(); public native non_null_varchar_vector data(BytePointer setter);
-    public native IntPointer offsets(); public native non_null_varchar_vector offsets(IntPointer setter);
-    public native int dataSize(); public native non_null_varchar_vector dataSize(int setter);
-    public native int count(); public native non_null_varchar_vector count(int setter);
-}
-
-public static class nullable_varchar_vector extends Pointer {
-    static { Loader.load(); }
-    /** Default native constructor. */
-    public nullable_varchar_vector() { super((Pointer)null); allocate(); }
-    /** Native array allocator. Access with {@link Pointer#position(long)}. */
-    public nullable_varchar_vector(long size) { super((Pointer)null); allocateArray(size); }
-    /** Pointer cast constructor. Invokes {@link Pointer#Pointer(Pointer)}. */
-    public nullable_varchar_vector(Pointer p) { super(p); }
-    private native void allocate();
-    private native void allocateArray(long size);
-    @Override public nullable_varchar_vector position(long position) {
-        return (nullable_varchar_vector)super.position(position);
-    }
-    @Override public nullable_varchar_vector getPointer(long i) {
-        return new nullable_varchar_vector((Pointer)this).offsetAddress(i);
-    }
-
-    public native @Cast("char*") BytePointer data(); public native nullable_varchar_vector data(BytePointer setter);
-    public native IntPointer offsets(); public native nullable_varchar_vector offsets(IntPointer setter);
-    public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_varchar_vector validityBuffer(LongPointer setter);
-    public native int dataSize(); public native nullable_varchar_vector dataSize(int setter);
-    public native int count(); public native nullable_varchar_vector count(int setter);
-}
-
 public static class non_null_c_bounded_string extends Pointer {
     static { Loader.load(); }
     /** Default native constructor. */
@@ -476,13 +476,12 @@ public static class non_null_c_bounded_string extends Pointer {
         return new non_null_c_bounded_string((Pointer)this).offsetAddress(i);
     }
 
-    public native @Cast("char*") BytePointer data(); public native non_null_c_bounded_string data(BytePointer setter);
-    public native int length(); public native non_null_c_bounded_string length(int setter);
+  public native @Cast("char*") BytePointer data(); public native non_null_c_bounded_string data(BytePointer setter);
+  public native int length(); public native non_null_c_bounded_string length(int setter);
 }
 
 public static final int VE_TD_DEFS = 1;
 // #endif
-
 
 
 }

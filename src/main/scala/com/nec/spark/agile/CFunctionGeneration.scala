@@ -438,16 +438,17 @@ object CFunctionGeneration {
     }
 
   val KeyHeaders = CodeLines.from(
-    """#include "transfer-definitions.hpp"""",
-    """#include "cyclone.hpp"""",
-    "#include <cmath>",
+    """#include "cyclone/transfer-definitions.hpp"""",
+    """#include "cyclone/cyclone.hpp"""",
+    """#include "cyclone/tuple_hash.hpp"""",
     "#include <bitset>",
     "#include <string>",
     "#include <iostream>",
     "#include <tuple>",
-    "#include \"tuple_hash.hpp\"",
+    "#include <math.h>",
     """#include "frovedis/dataframe/join.hpp"""",
-    """#include "frovedis/core/set_operations.hpp""""
+    """#include "frovedis/core/set_operations.hpp"""",
+    """#include "frovedis/text/datetime_utility.hpp""""
   )
 
   final case class CFunction(
@@ -457,33 +458,37 @@ object CFunctionGeneration {
     hasSets: Boolean = false
   ) {
     def toCodeLinesSPtr(functionName: String): CodeLines = CodeLines.from(
-      """#include "transfer-definitions.hpp"""",
-      """#include "cyclone.hpp"""",
-      "#include <cmath>",
+      """#include "cyclone/cyclone.hpp"""",
+      """#include "cyclone/transfer-definitions.hpp"""",
+      """#include "cyclone/tuple_hash.hpp"""",
+      """#include "frovedis/core/radix_sort.hpp"""",
+      """#include "frovedis/core/set_operations.hpp"""",
+      """#include "frovedis/dataframe/join.hpp"""",
+      """#include "frovedis/text/datetime_utility.hpp"""",
+      """#include "frovedis/text/dict.hpp"""",
       "#include <bitset>",
       "#include <string>",
       "#include <vector>",
       "#include <iostream>",
       "#include <tuple>",
-      "#include \"tuple_hash.hpp\"",
-      """#include "frovedis/core/radix_sort.hpp"""",
-      """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/core/set_operations.hpp"""",
+      "#include <math.h>",
       toCodeLinesNoHeaderOutPtr2(functionName)
     )
 
     def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
-      """#include "transfer-definitions.hpp"""",
-      """#include "cyclone.hpp"""",
-      "#include <cmath>",
+      """#include "cyclone/cyclone.hpp"""",
+      """#include "cyclone/transfer-definitions.hpp"""",
+      """#include "cyclone/tuple_hash.hpp"""",
+      """#include "frovedis/core/radix_sort.hpp"""",
+      """#include "frovedis/core/set_operations.hpp"""",
+      """#include "frovedis/dataframe/join.hpp"""",
+      """#include "frovedis/text/datetime_utility.hpp"""",
+      """#include "frovedis/text/dict.hpp"""",
       "#include <bitset>",
       "#include <string>",
       "#include <iostream>",
       "#include <tuple>",
-      "#include \"tuple_hash.hpp\"",
-      """#include "frovedis/core/radix_sort.hpp"""",
-      """#include "frovedis/dataframe/join.hpp"""",
-      """#include "frovedis/core/set_operations.hpp"""",
+      "#include <math.h>",
       toCodeLinesNoHeader(functionName)
     )
 
@@ -491,39 +496,29 @@ object CFunctionGeneration {
 
     def toCodeLinesPF(functionName: String): CodeLines = {
       CodeLines.from(
-        """#include "transfer-definitions.hpp"""",
-        """#include "cyclone.hpp"""",
-        "#include <cmath>",
+        """#include "cyclone/cyclone.hpp"""",
+        """#include "cyclone/transfer-definitions.hpp"""",
+        """#include "frovedis/text/dict.hpp"""",
         "#include <bitset>",
         "#include <string>",
         "#include <iostream>",
+        "#include <math.h>",
         toCodeLinesNoHeader(functionName)
       )
     }
 
     def toCodeLinesG(functionName: String): CodeLines = {
       CodeLines.from(
-        """#include "transfer-definitions.hpp"""",
-        """#include "cyclone.hpp"""",
-        "#include <cmath>",
+        """#include "cyclone/cyclone.hpp"""",
+        """#include "cyclone/transfer-definitions.hpp"""",
+        """#include "cyclone/tuple_hash.hpp"""",
+        """#include "frovedis/text/datetime_utility.hpp"""",
+        """#include "frovedis/text/dict.hpp"""",
         "#include <bitset>",
         "#include <string>",
         "#include <iostream>",
         "#include <tuple>",
-        "#include \"tuple_hash.hpp\"",
-        toCodeLinesNoHeader(functionName)
-      )
-    }
-    def toCodeLinesJ(functionName: String): CodeLines = {
-      CodeLines.from(
-        """#include "transfer-definitions.hpp"""",
-        """#include "cyclone.hpp"""",
-        "#include <cmath>",
-        "#include <bitset>",
-        "#include <string>",
-        "#include <iostream>",
-        """#include "frovedis/dataframe/join.hpp"""",
-        """#include "frovedis/core/set_operations.hpp"""",
+        "#include <math.h>",
         toCodeLinesNoHeader(functionName)
       )
     }
@@ -595,7 +590,7 @@ object CFunctionGeneration {
             },
             outputs.map { cVector =>
               CodeLines.from(
-                s"${cVector.veType.cVectorType}* ${cVector.name} = (${cVector.veType.cVectorType} *)malloc(sizeof(${cVector.veType.cVectorType}));",
+                s"${cVector.veType.cVectorType}* ${cVector.name} = static_cast<${cVector.veType.cVectorType}*>(malloc(sizeof(${cVector.veType.cVectorType})));",
                 s"*${cVector.name}_mo = ${cVector.name};"
               )
             },
@@ -630,8 +625,8 @@ object CFunctionGeneration {
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));",
-            s"$outputName->data = (${outputVeType.cScalarType}*) malloc($outputName->count * sizeof(${outputVeType.cScalarType}));"
+            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t($outputName->count), size_t(64)), sizeof(uint64_t)));",
+            s"$outputName->data = static_cast<${outputVeType.cScalarType}*>(malloc($outputName->count * sizeof(${outputVeType.cScalarType})));"
           )
         },
         "// create an array of indices, which by default are in order, but afterwards are out of order.",
@@ -814,8 +809,8 @@ object CFunctionGeneration {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(
             s"$outputName->count = input_0->count;",
-            s"$outputName->data = (${veType.cScalarType}*) malloc($outputName->count * sizeof(${veType.cScalarType}));",
-            s"$outputName->validityBuffer = (uint64_t *) malloc(ceil($outputName->count / 64.0) * sizeof(uint64_t));"
+            s"$outputName->data = static_cast<${veType.cScalarType}*>(malloc($outputName->count * sizeof(${veType.cScalarType})));",
+            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t($outputName->count), size_t(64)), sizeof(uint64_t)));"
           )
         case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
           StringProducer
@@ -894,13 +889,13 @@ object CFunctionGeneration {
         "std::vector<size_t> right_out;",
         "std::vector<size_t> left_out;",
         s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
-        "long validityBuffSize = ceil(left_out.size() / 64.0);",
+        "long validityBuffSize = frovedis::ceil_div(size_t(left_out.size()), size_t(64));",
         veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
           joinExpression.fold(whenProj =
             _ =>
               CodeLines.from(
-                s"${outputName}->data = (${veType.cScalarType}*) malloc(left_out.size() * sizeof(${veType.cScalarType}));",
-                s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
+                s"${outputName}->data = static_cast<${veType.cScalarType}*>(malloc(left_out.size() * sizeof(${veType.cScalarType})));",
+                s"${outputName}->validityBuffer = static_cast<uint64_t*>(calloc(validityBuffSize, sizeof(uint64_t)));"
               )
           )
         },
@@ -1052,14 +1047,14 @@ object CFunctionGeneration {
               s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);"
             )
         },
-        List("long validityBuffSize = ceil((left_out.size() + outer_idx.size()) / 64.0);"),
+        List("long validityBuffSize = frovedis::ceil_div(size_t(left_out.size() + outer_idx.size()), size_t(64));"),
         veOuterJoin.outputs.map {
           case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
             joinExpression.fold(whenProj =
               _ =>
                 CodeLines.from(
-                  s"${outputName}->data = (${veType.cScalarType}*) malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType}));",
-                  s"${outputName}->validityBuffer = (uint64_t *) malloc(validityBuffSize * sizeof(uint64_t));"
+                  s"${outputName}->data = static_cast<${veType.cScalarType}*>(malloc((left_out.size() + outer_idx.size()) * sizeof(${veType.cScalarType})));",
+                  s"${outputName}->validityBuffer = static_cast<uint64_t*>(calloc(validityBuffSize, sizeof(uint64_t)));"
                 )
             )
         },

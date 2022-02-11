@@ -62,9 +62,9 @@ object MergerFunction {
     CodeLines.scoped(s"Merge ${in}[...] into ${out}[0]") {
       CodeLines.from(
         // Allocate the nullable_T_vector[]
-        s"*${out} = (${vetype.cVectorType} *) malloc(sizeof(void *));",
+        s"*${out} = static_cast<${vetype.cVectorType}*>(malloc(sizeof(nullptr)));",
         // Allocate new mullable_T_vector
-        s"${out}[0] = (${vetype.cVectorType} *) malloc(sizeof(${vetype.cVectorType}));",
+        s"${out}[0] = static_cast<${vetype.cVectorType}*>(malloc(sizeof(${vetype.cVectorType})));",
         // Set a temporary pointer
         s"auto *${tmp} = ${out}[0];",
         "",

@@ -6,6 +6,7 @@ import org.bytedeco.javacpp.tools.*;
 
 @Properties(
     value = @Platform(
+	compiler = "cpp17",
         include = {
 //            "words.hpp",
 //            "char_int_conv.hpp",
