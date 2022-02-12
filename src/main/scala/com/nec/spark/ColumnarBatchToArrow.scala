@@ -88,7 +88,7 @@ object ColumnarBatchToArrow extends LazyLogging {
               if (theCol.isNullAt(rowId)) {
                 vcv.setNull(putRowId)
               } else {
-                vcv.setSafe(putRowId, theCol.getUTF8String(rowId).getBytes)
+                vcv.setSafe(putRowId, theCol.getUTF8String(rowId).toString.getBytes("UTF-32LE"))
               }
               rowId = rowId + 1
               putRowId = putRowId + 1

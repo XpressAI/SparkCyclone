@@ -22,9 +22,9 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.startsWith("test")) 1 else 0)
 
     expect(
-      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        slowEvaluator = SlowEvaluator.StartsWithEvaluator("test")
+        stringHoleEvaluation = LikeStringHoleEvaluation.Like("strings", "test").startsWith
       ) == testedList
     )
   }
@@ -33,9 +33,9 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.endsWith("d")) 1 else 0)
 
     expect(
-      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        slowEvaluator = SlowEvaluator.EndsWithEvaluator("d")
+        stringHoleEvaluation = LikeStringHoleEvaluation.Like("strings", "d").endsWith
       ) == testedList
     )
   }
@@ -44,9 +44,9 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str.contains("s")) 1 else 0)
 
     expect(
-      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        slowEvaluator = SlowEvaluator.ContainsEvaluator("s")
+        stringHoleEvaluation = LikeStringHoleEvaluation.Like("strings", "s").contains
       ) == testedList
     )
   }
@@ -55,9 +55,9 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
     val testedList = list.map(str => if (str == "test") 1 else 0)
 
     expect(
-      StringOpsStringHoleEvaluationSpec.executeSlowEvaluator(
+      StringOpsStringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        slowEvaluator = SlowEvaluator.EqualsEvaluator("test")
+        stringHoleEvaluation = LikeStringHoleEvaluation.Like("strings", "test").equalsTo
       ) == testedList
     )
   }
@@ -68,7 +68,7 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
     expect(
       StringOpsStringHoleEvaluationSpec.executeHoleEvaluation(
         input = list,
-        stringHoleEvaluation = LikeStringHoleEvaluation(refName = "strings", likeString = "test%")
+        stringHoleEvaluation = LikeStringHoleEvaluation.Like("strings", "test").startsWith
       ) == testedList
     )
   }
@@ -76,12 +76,12 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
 }
 
 object StringOpsStringHoleEvaluationSpec {
-  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
-    executeHoleEvaluation(
-      input = input,
-      stringHoleEvaluation = StringHole.StringHoleEvaluation
-        .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
-    )
+//  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
+//    executeHoleEvaluation(
+//      input = input,
+//      stringHoleEvaluation = StringHole.StringHoleEvaluation
+//        .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
+//    )
 
   def executeHoleEvaluation(
     input: List[String],

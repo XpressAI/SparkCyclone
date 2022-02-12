@@ -49,6 +49,127 @@ std::string utcnanotime() {
     return utc;
 }
 
+frovedis::words data_offsets_to_words(
+    const int32_t *data,
+    const int32_t *offsets,
+    /** size of all the data **/
+    const int32_t size,
+    const int32_t *lengths,
+    /** count of the words **/
+    const int32_t count
+    ) {
+    frovedis::words ret;
+    if (count == 0) {
+        return ret;
+    }
+
+        //TODO: TempFix
+        std::cout << "Count: '" << count;
+//        std::cout << "data: '";
+//        for (int i = 0; i < size; i++) {
+//            std::cout << (char)data[i];
+//        }
+        std::cout << "'" << std::endl;
+
+        std::cout << "offsets: ";
+        for (int i = 0; i < count; i++) {
+            std::cout << offsets[i] << ", ";
+        }
+
+        std::cout << "lengths: ";
+        for (int i = 0; i < count; i++) {
+            std::cout << lengths[i] << ", ";
+        }
+        std::cout << std::endl;
+
+    ret.lens.resize(count);
+    for (int i = 0; i < count; i++) {
+        ret.lens[i] = lengths[i];
+    }
+
+    ret.starts.resize(count);
+    for (int i = 0; i < count; i++) {
+        ret.starts[i] = offsets[i];
+    }
+
+    #ifdef DEBUG
+        std::cout << "size: " << size << std::endl;
+        std::cout << "last offset: " << offsets[count] << std::endl;
+    #endif
+
+    ret.chars.assign(data, data + size);
+    return ret;
+}
+
+frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v) {
+    return data_offsets_to_words(v->data, v->offsets, v->dataSize, v->lengths, v->count);
+}
+
+void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out) {
+    #ifdef DEBUG
+        std::cout << utcnanotime().c_str() << " $$ " << "words_to_varchar_vector" << std::endl << std::flush;
+    #endif
+
+    out->count = in.lens.size();
+
+    #ifdef DEBUG
+    std::cout << "out->count = " << out->count << std::endl;
+    #endif
+
+    out->dataSize = in.chars.size();
+
+    #ifdef DEBUG
+    std::cout << "out->dataSize = " << out->dataSize << std::endl;
+    #endif
+
+    out->data = (int32_t *)malloc(in.chars.size() * sizeof(int32_t));
+    if (out->data == NULL) {
+        std::cout << "Failed to malloc " << out->dataSize << " * sizeof(int32_t)." << std::endl;
+        return;
+    }
+
+    std::copy(in.chars.begin(), in.chars.end(), out->data);
+
+    out->offsets = (int32_t *)malloc((in.starts.size()) * sizeof(int32_t));
+    for (int i = 0; i < in.starts.size(); i++) {
+        out->offsets[i] = in.starts[i];
+    }
+
+    out->lengths = (int32_t *)malloc(in.lens.size() * sizeof(int32_t));
+    for (int i = 0; i < in.lens.size(); i++) {
+        out->lengths[i] = in.lens[i];
+    }
+
+    #ifdef DEBUG
+        std::cout << "data: '";
+        for (int i = 0; i < out->dataSize; i++) {
+            std::cout << (char)out->data[i];
+        }
+        std::cout << "'" << std::endl;
+
+        std::cout << "offsets: ";
+        for (int i = 0; i < out->count; i++) {
+            std::cout << out->offsets[i] << ", ";
+        }
+        std::cout << "lengths: ";
+        for (int i = 0; i < out->count; i++) {
+            std::cout << out->lengths[i] << ", ";
+        }
+        std::cout << std::endl;
+    #endif
+
+    size_t validity_count = frovedis::ceil_div(out->count, int32_t(64));
+    out->validityBuffer = (uint64_t *)malloc(validity_count * sizeof(uint64_t));
+    if (!out->validityBuffer) {
+        std::cout << "Failed to malloc " << validity_count << " * sizeof(uint64_t)" << std::endl;
+        return;
+    }
+    for (int i = 0; i < validity_count; i++) {
+        out->validityBuffer[i] = 0xffffffffffffffff;
+    }
+}
+
+
 void debug_words(frovedis::words &in) {
     std::cout << "words char count: " << in.chars.size() << std::endl;
     std::cout << "words starts count: " << in.starts.size() << std::endl;

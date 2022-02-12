@@ -135,8 +135,9 @@ struct nullable_varchar_vector {
   // NOTE: Field declaration order must be maintained to match existing JNA bindings
 
   // Initialize fields with defaults
-  char      *data             = nullptr;  // The raw data containing all the varchars concatenated together
+  int32_t   *data             = nullptr;  // The raw data containing all the varchars concatenated together
   int32_t   *offsets          = nullptr;  // Offsets to denote varchar start and end positions
+  int32_t   *lengths;         = nullptr;  // Lengths of the words
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   dataSize          = 0;        // Size of data array
   int32_t   count             = 0;        // The row count

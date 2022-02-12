@@ -1,6 +1,13 @@
 package com.nec.util
 
-import org.apache.arrow.vector.{BigIntVector, BitVectorHelper, DateDayVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVectorHelper,
+  DateDayVector,
+  Float8Vector,
+  IntVector,
+  VarCharVector
+}
 
 import java.time.LocalDate
 
@@ -28,16 +35,17 @@ object RichVectors {
   }
 
   implicit class RichVarCharVector(varCharVector: VarCharVector) {
-    def toList: List[String] = (0 until varCharVector.getValueCount).view
-      .map(varCharVector.get)
-      .map(bytes => new String(bytes, "UTF-8"))
-      .toList
+    def toList(charset: String = "UTF-32LE"): List[String] =
+      (0 until varCharVector.getValueCount).view
+        .map(varCharVector.get)
+        .map(bytes => new String(bytes, charset))
+        .toList
 
     def toListSafe: List[Option[String]] =
       (0 until varCharVector.getValueCount)
         .map(idx =>
           if (varCharVector.isNull(idx)) None
-          else Option(new String(varCharVector.get(idx), "UTF-8"))
+          else Option(new String(varCharVector.get(idx), "UTF-32LE"))
         )
         .toList
   }

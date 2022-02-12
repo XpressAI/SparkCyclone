@@ -273,7 +273,7 @@ object StaticTypingTestAdditions {
       new OutputArguments[Option[Double]] {
         override type Result = (Option[Double])
         override def allocateVectors()(implicit
-                                       rootAllocator: RootAllocator
+          rootAllocator: RootAllocator
         ): (List[VectorOutputNativeArgument], () => List[Result]) = {
           val outVector_0 = new Float8Vector("output_0", rootAllocator)
           (List(NativeArgument.output(outVector_0)), () => outVector_0.toListNullable)
@@ -303,7 +303,7 @@ object StaticTypingTestAdditions {
           (
             List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
             () => {
-              outVector_0.toList.zip(outVector_1.toList)
+              outVector_0.toList("UTF-8").zip(outVector_1.toList)
             }
           )
         }
@@ -321,7 +321,7 @@ object StaticTypingTestAdditions {
           (
             List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
             () => {
-              outVector_0.toList.zip(outVector_1.toList)
+              outVector_0.toList("UTF-8").zip(outVector_1.toList)
             }
           )
         }
@@ -338,7 +338,7 @@ object StaticTypingTestAdditions {
           (
             List(NativeArgument.output(outVector_0), NativeArgument.output(outVector_1)),
             () => {
-              outVector_0.toList.zip(outVector_1.toList)
+              outVector_0.toList("UTF-8").zip(outVector_1.toList)
             }
           )
         }

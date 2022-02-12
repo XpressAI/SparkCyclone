@@ -42,7 +42,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
               inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
               outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
             )
-            outVec.toList == list
+            outVec.toList("UTF-8") == list
           }
         }
       })
@@ -66,12 +66,13 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
             prod.init("output_0", "size", "0"),
             "int g = 0;",
             "for(int i = 0; i < input_0->count; i++) {",
-            CodeLines.from(
-              s"if ( g < size && i < input_0->count ) {",
-              CodeLines.from(prod.produce("output_0", "g")).indented,
-              "}",
-              "i++;",
-              "g++;"
+            CodeLines
+              .from(
+                s"if ( g < size && i < input_0->count ) {",
+                CodeLines.from(prod.produce("output_0", "g")).indented,
+                "}",
+                "i++;",
+                "g++;"
               )
               .indented,
             "}",
@@ -95,7 +96,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
               inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
               outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
             )
-            outVec.toList
+            outVec.toList("UTF-8")
           }
         }
 
