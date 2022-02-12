@@ -17,9 +17,7 @@
  * limitations under the License.
  *
  */
-#pragma once
-
-#include "tests/test-utils.hpp"
+#include "tests/test_utils.hpp"
 #include <math.h>
 #include <iostream>
 

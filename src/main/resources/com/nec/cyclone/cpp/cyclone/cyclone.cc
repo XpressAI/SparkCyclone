@@ -45,7 +45,7 @@ std::string utcnanotime() {
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count() % 1000000000;
     char utc[32];
     strftime(utc, 32, "%FT%T", gmtime(&seconds));
-    snprintf(strchr(utc, 0), 32 - strlen(utc), ".%09ldZ", ns);
+    snprintf(strchr(utc, 0), 32 - strlen(utc), ".%09lldZ", ns);
     return utc;
 }
 
@@ -227,25 +227,4 @@ std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::wo
     auto new_indices = dct.lookup(compressed_words);
 
     return new_indices;
-}
-
-void debug_nullable_varchar_vector(const nullable_varchar_vector *v) {
-    std::cout << "COUNT: " << v->count << "\n";
-    std::cout << "VALUES: [ ";
-    for (auto i = 0; i < v->count; i++) {
-        if (check_valid(v->validityBuffer, i)) {
-            std::cout << std::string(v->data,  v->offsets[i], v->offsets[i+1] - v->offsets[i]) << ", ";
-        } else {
-            std::cout << "#, ";
-        }
-    }
-    std::cout << "]\nOFFSETS: [";
-    for (auto i = 0; i < v->count + 1; i++) {
-        std::cout << v->offsets[i] << ", ";
-    }
-    std::cout << "]\nVALIDITY: [";
-    for (auto i = 0; i < v->count; i++) {
-        std::cout << check_valid(v->validityBuffer, i) << ", ";
-    }
-    std::cout << "]\nDATA: [" << std::string(v->data, v->dataSize) << "]\n" << std::endl;
 }
