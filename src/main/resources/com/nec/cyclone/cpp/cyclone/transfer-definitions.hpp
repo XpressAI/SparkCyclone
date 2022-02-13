@@ -21,10 +21,31 @@
 
 #ifndef VE_TD_DEFS
 
+#include "frovedis/text/words.hpp"
 #include <stddef.h>
 #include <stdint.h>
+#include <string>
 #include <type_traits>
 #include <vector>
+
+inline void set_valid_bit(uint64_t * buffer,
+                          const size_t idx,
+                          const uint32_t validity) {
+  auto byte = idx / 64;
+  auto bit_index = idx % 64;
+  if (validity) {
+    buffer[byte] |= (1UL << bit_index);
+  } else {
+    buffer[byte] &= ~(1UL << bit_index);
+  }
+}
+
+inline uint32_t get_valid_bit(const uint64_t * const buffer,
+                              const size_t idx) {
+  auto byte = idx / 64;
+  auto bit_index = idx % 64;
+  return (buffer[byte] >> bit_index) & 1;
+}
 
 template<typename T>
 struct NullableScalarVec {
@@ -38,8 +59,36 @@ struct NullableScalarVec {
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   count             = 0;        // Row count (synonymous with size of data array)
 
+  // Explicitly force the generation of a default constructor
+  NullableScalarVec() = default;
+
+  // Construct from a given std::vector<T>
+  NullableScalarVec(const std::vector<T> &src);
+
+  // C++ destructor (to be called for object instances created by `new`)
+  ~NullableScalarVec() {
+    reset();
+  }
+
+  // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
+  void reset();
+
+  // Returns true if the struct fields have default values
+  bool is_default() const;
+
   // Print the data structure out for debugging
   void print() const;
+
+  // Set the validity value of the vector at the given index
+  inline void set_validity(const size_t idx,
+                           const int32_t validity) {
+    set_valid_bit(validityBuffer, idx, validity);
+  }
+
+  // Fetch the validity value of the vector at the given index
+  inline uint32_t get_validity(const size_t idx) const {
+    return get_valid_bit(validityBuffer, idx);
+  }
 
   // Value equality check against another NullableScalarVec<T>
   bool equals(const NullableScalarVec<T> * const other) const;
@@ -79,8 +128,44 @@ struct nullable_varchar_vector {
   int32_t   dataSize          = 0;        // Size of data array
   int32_t   count             = 0;        // The row count
 
+  static nullable_varchar_vector * from_words(const frovedis::words &src);
+
+  // Explicitly force the generation of a default constructor
+  nullable_varchar_vector() = default;
+
+  // Construct from a given std::vector<std::string>
+  nullable_varchar_vector(const std::vector<std::string> &src);
+
+  // Construct from a given frovedis::words
+  nullable_varchar_vector(const frovedis::words &src);
+
+  // C++ destructor (to be called for object instances created by `new`)
+  ~nullable_varchar_vector() {
+    reset();
+  }
+
+  // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
+  void reset();
+
+  // Returns true if the struct fields have default values
+  bool is_default() const;
+
+  // Print the data structure out for debugging
+  frovedis::words to_words() const;
+
   // Print the data structure out for debugging
   void print() const;
+
+  // Set the validity value of the vector at the given index
+  inline void set_validity(const size_t idx,
+                           const int32_t validity) {
+    set_valid_bit(validityBuffer, idx, validity);
+  }
+
+  // Fetch the validity value of the vector at the given index
+  inline uint32_t get_validity(const size_t idx) const {
+    return get_valid_bit(validityBuffer, idx);
+  }
 
   // Value equality check against another nullable_varchar_vector
   bool equals(const nullable_varchar_vector * const other) const;
@@ -99,8 +184,8 @@ struct nullable_varchar_vector {
 };
 
 struct non_null_c_bounded_string {
-  char *data;
-  int32_t length;
+  char      *data   = nullptr;
+  int32_t   length  = 0;
 };
 
 #define VE_TD_DEFS 1

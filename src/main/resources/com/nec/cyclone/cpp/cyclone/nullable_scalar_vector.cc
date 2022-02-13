@@ -24,6 +24,45 @@
 #include <iostream>
 
 template <typename T>
+NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
+  // Initialize count
+  count = src.size();
+
+  // Copy the data
+  data = static_cast<T *>(malloc(sizeof(T) * src.size()));
+  for (auto i = 0; i < src.size(); i++) {
+    data[i] = src[i];
+  }
+
+  // Set the validityBuffer
+  size_t vcount = ceil(src.size() / 64.0);
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
+  for (auto i = 0; i < vcount; i++) {
+    validityBuffer[i] = 0xffffffffffffffff;
+  }
+}
+
+template <typename T>
+void NullableScalarVec<T>::reset() {
+  // Free the owned memory
+  free(data);
+  free(validityBuffer);
+
+  // Reset the pointers and values
+  data            = nullptr;
+  validityBuffer  = nullptr;
+  count           = 0;
+}
+
+template <typename T>
+bool NullableScalarVec<T>::is_default() const {
+  return data == nullptr &&
+    validityBuffer  == nullptr &&
+    count == 0;
+}
+
+
+template <typename T>
 void NullableScalarVec<T>::print() const {
   std::stringstream stream;
 
@@ -31,28 +70,38 @@ void NullableScalarVec<T>::print() const {
   // Print count
   stream << "  COUNT: " << count << "\n";
 
-  // Print data
-  stream << "  DATA: [ ";
-  for (auto i = 0; i < count; i++) {
-    if (check_valid(validityBuffer, i)) {
-      stream << data[i] << ", ";
-    } else {
-      stream << "#, ";
+  if (count <= 0) {
+    stream << "  DATA: [ ]\n"
+           << "  VALIDITY: [ ]\n";
+  } else {
+    // Print data
+    stream << "  DATA: [ ";
+    for (auto i = 0; i < count; i++) {
+      if (check_valid(validityBuffer, i)) {
+        stream << data[i] << ", ";
+      } else {
+        stream << "#, ";
+      }
     }
+
+    // Print validityBuffer
+    stream << "]\n  VALIDITY: [";
+    for (auto i = 0; i < count; i++) {
+        stream << check_valid(validityBuffer, i) << ", ";
+    }
+    stream << "]\n";
   }
 
-  // Print validityBuffer
-  stream << "]\n  VALIDITY: [";
-  for (auto i = 0; i < count; i++) {
-      stream << check_valid(validityBuffer, i) << ", ";
-  }
-  stream << "]\n}\n";
-
+  stream << "}\n";
   std::cout << stream.str() << std::endl;
 }
 
 template <typename T>
 bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) const {
+  if (is_default() && other->is_default()) {
+    return true;
+  }
+
   // Compare count
   auto output = (count == other->count);
 
@@ -108,6 +157,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &m
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
   output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 
+  // Preserve the validityBuffer across the filter
   #pragma _NEC vector
   for (int o = 0; o < matching_ids.size(); o++) {
     // Fetch the original index
@@ -117,7 +167,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &m
     output->data[o] = data[i];
 
     // Copy the validity buffer
-    set_validity(output->validityBuffer, o, check_valid(validityBuffer, i));
+    output->set_validity(o, get_validity(i));
   }
 
   return output;

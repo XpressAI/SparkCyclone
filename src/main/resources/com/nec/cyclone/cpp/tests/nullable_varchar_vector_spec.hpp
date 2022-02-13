@@ -28,29 +28,59 @@ namespace cyclone::tests {
   TEST_SUITE("nullable_varchar_vector") {
     TEST_CASE("Equality checks work") {
       std::vector<std::string> raw { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
-      auto *vec1 = to_nullable_varchar_vector(raw);
-      set_validity(vec1->validityBuffer, 1, 0);
-      set_validity(vec1->validityBuffer, 4, 0);
-      set_validity(vec1->validityBuffer, 10, 0);
+      auto *vec1 = new nullable_varchar_vector(raw);
+      vec1->set_validity(1, 0);
+      vec1->set_validity(4, 0);
+      vec1->set_validity(10, 0);
 
       // Different content
-      auto *vec2 = to_nullable_varchar_vector(std::vector<std::string> { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" });
+      auto *vec2 = new nullable_varchar_vector(std::vector<std::string> { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" });
 
       // Different validityBuffer
-      auto *vec3 = to_nullable_varchar_vector(raw);
-      set_validity(vec3->validityBuffer, 7, 0);
+      auto *vec3 = new nullable_varchar_vector(raw);
+      vec3->set_validity(7, 0);
 
       CHECK(vec1->equals(vec1));
       CHECK(not vec1->equals(vec2));
       CHECK(not vec1->equals(vec3));
     }
 
+    TEST_CASE("Conversions between nullable_varchar_vector and frovedis::words work (ignoring the validity buffer)") {
+      const auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+      const auto input_as_words = input->to_words();
+
+      auto *output = nullable_varchar_vector::from_words(input_as_words);
+      CHECK(output != input);
+      CHECK(output->equals(input));
+    }
+
+    TEST_CASE("Check default works") {
+      auto *empty = new nullable_varchar_vector;
+      auto *nonempty = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+
+      CHECK(empty->is_default());
+      CHECK(not nonempty->is_default());
+    }
+
+    TEST_CASE("Reset works") {
+      auto *empty = new nullable_varchar_vector;
+
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(10, 0);
+
+      CHECK(not input->equals(empty));
+      input->reset();
+      CHECK(input->equals(empty));
+    }
+
     TEST_CASE("Clone works") {
       // Include empty string value
-      auto *input = to_nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
-      set_validity(input->validityBuffer, 1, 0);
-      set_validity(input->validityBuffer, 4, 0);
-      set_validity(input->validityBuffer, 10, 0);
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(10, 0);
 
       auto *output = input->clone();
       CHECK(output != input);
@@ -59,26 +89,28 @@ namespace cyclone::tests {
 
     TEST_CASE("Filter works") {
       // Include empty string value
-      auto *input = to_nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });
-      set_validity(input->validityBuffer, 1, 0);
-      set_validity(input->validityBuffer, 4, 0);
-      set_validity(input->validityBuffer, 10, 0);
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(10, 0);
 
       const std::vector<size_t> matching_ids { 1, 2, 4, 7, 11 };
 
-      auto *expected = to_nullable_varchar_vector(std::vector<std::string> { "FEB", "MAR", "MAY", "", "DEC" });
-      set_validity(expected->validityBuffer, 0, 0);
-      set_validity(expected->validityBuffer, 2, 0);
+      auto *expected = new nullable_varchar_vector(std::vector<std::string> { "FEB", "MAR", "MAY", "", "DEC" });
+      expected->set_validity(0, 0);
+      expected->set_validity(2, 0);
 
-      CHECK(input->filter(matching_ids)->equals(expected));
+      auto *output = input->filter(matching_ids);
+      CHECK(output != input);
+      CHECK(output->equals(expected));
     }
 
     TEST_CASE("Bucket works") {
       // Include empty string value
-      auto *input = to_nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });
-      set_validity(input->validityBuffer, 1, 0);
-      set_validity(input->validityBuffer, 4, 0);
-      set_validity(input->validityBuffer, 10, 0);
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(10, 0);
 
       const std::vector<size_t> bucket_assignments { 1, 2, 0, 1, 1, 2, 0, 2, 2, 2, 1, 0 };
       const std::vector<size_t> bucket_counts { 3, 4, 5 };

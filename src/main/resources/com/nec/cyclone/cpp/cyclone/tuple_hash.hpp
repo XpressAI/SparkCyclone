@@ -41,7 +41,7 @@ namespace std {
     };
 
     template <class Tuple>
-    struct HashValueImpl<Tuple,0> {
+    struct HashValueImpl<Tuple, 0> {
       static void apply(size_t& seed, Tuple const& tuple) {
         hash_combine(seed, get<0>(tuple));
       }
