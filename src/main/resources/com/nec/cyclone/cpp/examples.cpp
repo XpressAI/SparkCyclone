@@ -14,9 +14,7 @@
 #include <vector>
 
 nullable_varchar_vector * project_eval(const nullable_varchar_vector *input_0)  {
-  auto *output_0 = new nullable_varchar_vector;
-
-  frovedis::words output_0_input_words = input_0->to_words();
+  auto output_0_input_words = input_0->to_words();
   std::vector<size_t> output_0_starts(input_0->count);
   std::vector<size_t> output_0_lens(input_0->count);
 
@@ -37,7 +35,8 @@ nullable_varchar_vector * project_eval(const nullable_varchar_vector *input_0)  
   output_0_input_words.chars = output_0_new_chars;
   output_0_input_words.starts = output_0_new_starts;
   output_0_input_words.lens = output_0_lens;
-  words_to_varchar_vector(output_0_input_words, output_0);
+
+  auto *output_0 = new nullable_varchar_vector(output_0_input_words);
 
   for ( int i = 0; i < output_0->count; i++ ) {
     set_validity(output_0->validityBuffer, i, check_valid(input_0->validityBuffer, i));
@@ -94,8 +93,7 @@ void bucket_grouping_test_fail() {
   const auto *input = new nullable_varchar_vector(data);
   set_validity(input->validityBuffer, 3, 0);
 
-  frovedis::words output_0_input_words = input->to_words();
-  auto * output_0 = new nullable_varchar_vector;
+  auto output_0_input_words = input->to_words();
 
   std::vector<size_t> output_0_starts(id_to_bucket.size());
   std::vector<size_t> output_0_lens(id_to_bucket.size());
@@ -120,7 +118,7 @@ void bucket_grouping_test_fail() {
   output_0_input_words.starts = output_0_new_starts;
   output_0_input_words.lens = output_0_lens;
 
-  words_to_varchar_vector(output_0_input_words, output_0);
+  auto *output_0 = new nullable_varchar_vector(output_0_input_words);
 
   auto o = 0;
   for (auto i = 0; i < id_to_bucket.size(); i++ ) {
@@ -153,8 +151,7 @@ void bucket_grouping_test_pass() {
   const auto *input = new nullable_varchar_vector(data);
   set_validity(input->validityBuffer, 3, 0);
 
-  frovedis::words output_0_input_words = input->to_words();
-  auto * output_0 = new nullable_varchar_vector;
+  auto output_0_input_words = input->to_words();
 
   std::vector<size_t> output_0_starts;
   std::vector<size_t> output_0_lens;
@@ -181,7 +178,7 @@ void bucket_grouping_test_pass() {
   output_0_input_words.starts = output_0_new_starts;
   output_0_input_words.lens = output_0_lens;
 
-  words_to_varchar_vector(output_0_input_words, output_0);
+  auto *output_0 = new nullable_varchar_vector(output_0_input_words);
 
   auto o = 0;
   for (auto i = 0; i < id_to_bucket.size(); i++ ) {
@@ -220,9 +217,6 @@ void merge_test_pass() {
   set_validity(input2->validityBuffer, 4, 0);
   set_validity(input2->validityBuffer, 10, 0);
 
-  // output nullable_varchar_vector
-  auto * output_0 = new nullable_varchar_vector;
-
   auto batches = 2;
   nullable_varchar_vector **input_0_g = new nullable_varchar_vector* [batches];
   input_0_g[0] = input1;
@@ -236,7 +230,7 @@ void merge_test_pass() {
 
   // Merge
   frovedis::words output_0_merged = frovedis::merge_multi_words(output_0_multi_words);
-  words_to_varchar_vector(output_0_merged, output_0);
+  auto *output_0 = new nullable_varchar_vector(output_0_merged);
 
   // Preserve validity buffers
   auto o = 0;

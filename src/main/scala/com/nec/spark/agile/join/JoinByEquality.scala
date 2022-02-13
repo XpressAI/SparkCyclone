@@ -60,7 +60,7 @@ final case class JoinByEquality(
           val left_dict = s"${left}_dict"
           val left_dict_indices = s"${left}_dict_indices"
           CodeLines.from(
-            s"frovedis::words ${left_words} = varchar_vector_to_words(${left});",
+            s"frovedis::words ${left_words} = ${left}->to_words();",
             s"frovedis::dict ${left_dict} = frovedis::make_dict(${left_words});",
             computeStringJoin(
               leftDictIndices = left_dict_indices,
