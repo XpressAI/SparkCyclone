@@ -22,7 +22,6 @@
 #include "cyclone/cyclone.hpp"
 #include "cyclone/transfer-definitions.hpp"
 #include "tests/doctest.h"
-#include "tests/test_utils.hpp"
 
 namespace cyclone::tests {
   TEST_SUITE("nullable_varchar_vector") {

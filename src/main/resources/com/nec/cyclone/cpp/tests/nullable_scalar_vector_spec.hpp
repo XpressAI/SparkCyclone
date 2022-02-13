@@ -22,7 +22,6 @@
 #include "cyclone/cyclone.hpp"
 #include "cyclone/transfer-definitions.hpp"
 #include "tests/doctest.h"
-#include "tests/test_utils.hpp"
 #include <stddef.h>
 
 namespace cyclone::tests {
