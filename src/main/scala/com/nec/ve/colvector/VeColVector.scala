@@ -16,7 +16,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerSerializationTime
 }
-import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector}
+import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
@@ -31,7 +31,16 @@ import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import sun.misc.Unsafe
 
+import java.io.{DataOutputStream, OutputStream}
+
 final case class VeColVector(underlying: GenericColVector[Long]) {
+  def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit = {
+    underlying.buffers.zip(underlying.bufferSizes).foreach { case (bufPos, bufLen) =>
+      veProcess.writeToStream(outStream, bufPos, bufLen)
+    }
+  }
+
+  def toUnit: UnitColVector = underlying.toUnit
   def allAllocations = containerLocation :: bufferLocations
   def bufferLocations = underlying.buffers
   def containerLocation = underlying.containerLocation
@@ -151,11 +160,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           float8Vector.getValidityBufferAddress,
           Math.ceil(numItems / 64.0).toInt * 8
         )
-        getUnsafe.copyMemory(
-          vhTarget.address(),
-          float8Vector.getDataBufferAddress,
-          dataSize
-        )
+        getUnsafe.copyMemory(vhTarget.address(), float8Vector.getDataBufferAddress, dataSize)
       }
       float8Vector
     case VeScalarType.VeNullableLong =>
@@ -172,11 +177,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           bigIntVector.getValidityBufferAddress,
           Math.ceil(numItems / 64.0).toInt * 8
         )
-        getUnsafe.copyMemory(
-          vhTarget.address(),
-          bigIntVector.getDataBufferAddress,
-          dataSize
-        )
+        getUnsafe.copyMemory(vhTarget.address(), bigIntVector.getDataBufferAddress, dataSize)
       }
       bigIntVector
     case VeScalarType.VeNullableInt =>
@@ -193,11 +194,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           intVector.getValidityBufferAddress,
           Math.ceil(numItems / 64.0).toInt * 8
         )
-        getUnsafe.copyMemory(
-          vhTarget.address(),
-          intVector.getDataBufferAddress,
-          dataSize
-        )
+        getUnsafe.copyMemory(vhTarget.address(), intVector.getDataBufferAddress, dataSize)
       }
       intVector
     case VeString =>
@@ -223,16 +220,8 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           vcvr.getValidityBufferAddress,
           Math.ceil(numItems / 64.0).toInt * 8
         )
-        getUnsafe.copyMemory(
-          offTarget.address(),
-          vcvr.getOffsetBufferAddress,
-          offsetsSize
-        )
-        getUnsafe.copyMemory(
-          vhTarget.address(),
-          vcvr.getDataBufferAddress,
-          dataSize
-        )
+        getUnsafe.copyMemory(offTarget.address(), vcvr.getOffsetBufferAddress, offsetsSize)
+        getUnsafe.copyMemory(vhTarget.address(), vcvr.getDataBufferAddress, dataSize)
       }
       vcvr
     case other => sys.error(s"Not supported for conversion to arrow vector: $other")

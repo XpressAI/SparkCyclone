@@ -47,6 +47,9 @@ object VeArrowNativeInterface extends LazyLogging {
   def requireOk(result: Int): Unit = {
     require(result >= 0, s"Result should be >=0, got $result")
   }
+  def requireOk(result: Int, extra: => String): Unit = {
+    require(result >= 0, s"Result should be >=0, got $result; ${extra}")
+  }
 
   def requirePositive(result: Long): Unit = {
     require(result > 0, s"Result should be > 0, got $result")
@@ -103,7 +106,7 @@ object VeArrowNativeInterface extends LazyLogging {
     val veInputPointer = new LongPointer(1)
 
     /** No idea why Arrow in some cases returns a ByteBuffer with 0-capacity, so we have to pass a length explicitly! */
-    val size = len.getOrElse(bytePointer.capacity().toLong)
+    val size = len.getOrElse(bytePointer.limit())
     requireOk(veo.veo_alloc_mem(proc, veInputPointer, size))
     requireOk(
       veo.veo_write_mem(
