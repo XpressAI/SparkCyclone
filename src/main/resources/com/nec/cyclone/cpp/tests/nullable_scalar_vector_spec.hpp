@@ -22,7 +22,6 @@
 #include "cyclone/cyclone.hpp"
 #include "cyclone/transfer-definitions.hpp"
 #include "tests/doctest.h"
-#include "tests/test_utils.hpp"
 #include <stddef.h>
 
 namespace cyclone::tests {
@@ -31,21 +30,21 @@ namespace cyclone::tests {
       // Instantiate for int32_t
       std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
 
-      auto *vec1 = to_nullable_scalar_vector(raw);
-      set_validity(vec1->validityBuffer, 1, 0);
-      set_validity(vec1->validityBuffer, 4, 0);
-      set_validity(vec1->validityBuffer, 8, 0);
+      auto *vec1 = new NullableScalarVec(raw);
+      vec1->set_validity(1, 0);
+      vec1->set_validity(4, 0);
+      vec1->set_validity(8, 0);
 
       // Different count
-      auto *vec2 = to_nullable_scalar_vector(std::vector<T> { 586, 951, 106, 318, 538, 620, 553 });
+      auto *vec2 = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553 });
 
       // Different data
-      auto *vec3 = to_nullable_scalar_vector(raw);
+      auto *vec3 = new NullableScalarVec(raw);
       vec3->data[3] = 184;
 
       // Different validityBuffer
-      auto *vec4 = to_nullable_scalar_vector(raw);
-      set_validity(vec4->validityBuffer, 3, 0);
+      auto *vec4 = new NullableScalarVec(raw);
+      vec4->set_validity(3, 0);
 
       CHECK(vec1->equals(vec1));
       CHECK(not vec1->equals(vec2));
@@ -53,11 +52,32 @@ namespace cyclone::tests {
       CHECK(not vec1->equals(vec4));
     }
 
+    TEST_CASE_TEMPLATE("Check default works for T=", T, int32_t, int64_t, float, double) {
+      auto *empty = new NullableScalarVec<T>;
+      auto *nonempty = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+
+      CHECK(empty->is_default());
+      CHECK(not nonempty->is_default());
+    }
+
+    TEST_CASE_TEMPLATE("Reset works for T=", T, int32_t, int64_t, float, double) {
+      auto *empty = new NullableScalarVec<T>;
+
+      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(8, 0);
+
+      CHECK(not input->equals(empty));
+      input->reset();
+      CHECK(input->equals(empty));
+    }
+
     TEST_CASE_TEMPLATE("Clone works for T=", T, int32_t, int64_t, float, double) {
-      auto *input = to_nullable_scalar_vector(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
-      set_validity(input->validityBuffer, 1, 0);
-      set_validity(input->validityBuffer, 4, 0);
-      set_validity(input->validityBuffer, 8, 0);
+      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(8, 0);
 
       auto *output = input->clone();
       CHECK(output != input);
@@ -65,25 +85,27 @@ namespace cyclone::tests {
     }
 
     TEST_CASE_TEMPLATE("Filter works for T=", T, int32_t, int64_t, float, double) {
-      auto *input = to_nullable_scalar_vector(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
-      set_validity(input->validityBuffer, 1, 0);
-      set_validity(input->validityBuffer, 4, 0);
-      set_validity(input->validityBuffer, 8, 0);
+      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(8, 0);
 
       const std::vector<size_t> matching_ids { 1, 2, 4, 7 };
 
-      auto *expected = to_nullable_scalar_vector(std::vector<T> { 951, 106, 538, 605 });
-      set_validity(expected->validityBuffer, 0, 0);
-      set_validity(expected->validityBuffer, 2, 0);
+      auto *expected = new NullableScalarVec(std::vector<T> { 951, 106, 538, 605 });
+      expected->set_validity(0, 0);
+      expected->set_validity(2, 0);
 
-      CHECK(input->filter(matching_ids)->equals(expected));
+      auto *output = input->filter(matching_ids);
+      CHECK(output != input);
+      CHECK(output->equals(expected));
     }
 
     TEST_CASE_TEMPLATE("Bucket works for T=", T, int32_t, int64_t, float, double) {
-      auto *input = to_nullable_scalar_vector(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
-      set_validity(input->validityBuffer, 1, 0);
-      set_validity(input->validityBuffer, 4, 0);
-      set_validity(input->validityBuffer, 8, 0);
+      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      input->set_validity(8, 0);
 
       const std::vector<size_t> bucket_assignments { 1, 2, 0, 1, 1, 2, 0, 2, 2, 2 };
       const std::vector<size_t> bucket_counts { 2, 3, 5 };

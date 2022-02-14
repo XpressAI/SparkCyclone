@@ -58,7 +58,7 @@ object StringProducer {
 
     override def init(outputName: String, size: String, capacity: String): CodeLines =
       CodeLines.from(
-        s"frovedis::words ${wordName(outputName)} = varchar_vector_to_words(${inputName});",
+        s"frovedis::words ${wordName(outputName)} = ${inputName}->to_words();",
         s"""std::vector<size_t> ${frovedisStarts(outputName)}(${size});""",
         s"""std::vector<size_t> ${frovedisLens(outputName)}(${size});""",
         s"${frovedisStarts(outputName)}.reserve(${capacity});",
@@ -77,7 +77,7 @@ object StringProducer {
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
       s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
       s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",
-      s"words_to_varchar_vector(${wordName(outputName)}, ${outputName});"
+      s"""new (${outputName}) nullable_varchar_vector(${wordName(outputName)});"""
     )
 
     override def copyValidityBuffer(

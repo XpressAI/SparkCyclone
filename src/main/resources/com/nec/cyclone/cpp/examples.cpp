@@ -1,94 +1,20 @@
-#include <cmath>
-#include <bitset>
-#include <string>
-#include <vector>
-#include <iostream>
-#include <tuple>
-#include "frovedis/core/radix_sort.hpp"
-#include "frovedis/core/utility.hpp"
-#include "frovedis/dataframe/join.hpp"
-#include "frovedis/core/set_operations.hpp"
+
 #include "cyclone/cyclone.hpp"
 #include "cyclone/transfer-definitions.hpp"
 #include "cyclone/tuple_hash.hpp"
-
-nullable_varchar_vector * from_vec(const std::vector<std::string> &data) {
-  auto *vec = new nullable_varchar_vector;
-  vec->count = data.size();
-
-  {
-    vec->dataSize = 0;
-    for (auto i = 0; i < data.size(); i++) {
-      vec->dataSize += data[i].size();
-    }
-  }
-
-  {
-    vec->data = new char[vec->dataSize];
-    auto p = 0;
-    for (auto i = 0; i < data.size(); i++) {
-      for (auto j = 0; j < data[i].size(); j++) {
-        vec->data[p++] = data[i][j];
-      }
-    }
-  }
-
-  {
-    vec->offsets = new int32_t[data.size() + 1];
-    vec->offsets[0] = 0;
-    for (auto i = 0; i < data.size(); i++) {
-      vec->offsets[i+1] = vec->offsets[i] + data[i].size();
-    }
-  }
-
-  {
-    size_t vcount = frovedis::ceil_div(data.size(), size_t(64));
-    vec->validityBuffer = new uint64_t[vcount];
-    for (auto i = 0; i < vcount; i++) {
-      vec->validityBuffer[i] = 0xffffffffffffffff;
-    }
-  }
-
-  return vec;
-}
-
-nullable_varchar_vector * filter_vec(const nullable_varchar_vector *input,
-                                      const std::vector<size_t> &matching_ids) {
-  auto *output = new nullable_varchar_vector;
-
-  frovedis::words output_input_words = varchar_vector_to_words(input);
-  std::vector<size_t> output_starts(matching_ids.size());
-  std::vector<size_t> output_lens(matching_ids.size());
-  for ( int g = 0; g < matching_ids.size(); g++ ) {
-    int i = matching_ids[g];
-    output_starts[g] = output_input_words.starts[i];
-    output_lens[g] = output_input_words.lens[i];
-  }
-  std::vector<size_t> output_new_starts;
-  std::vector<int> output_new_chars = frovedis::concat_words(
-    output_input_words.chars,
-    (const std::vector<size_t>&)(output_starts),
-    (const std::vector<size_t>&)(output_lens),
-    "",
-    (std::vector<size_t>&)(output_new_starts)
-  );
-  output_input_words.chars = output_new_chars;
-  output_input_words.starts = output_new_starts;
-  output_input_words.lens = output_lens;
-  words_to_varchar_vector(output_input_words, output);
-
-  for ( int g = 0; g < matching_ids.size(); g++ ) {
-    int i = matching_ids[g];
-    set_validity(output->validityBuffer, g, check_valid(input->validityBuffer, i));
-  }
-
-  return output;
-}
+#include "frovedis/core/radix_sort.hpp"
+#include "frovedis/core/set_operations.hpp"
+#include "frovedis/core/utility.hpp"
+#include "frovedis/dataframe/join.hpp"
+#include <bitset>
+#include <cmath>
+#include <iostream>
+#include <string>
+#include <tuple>
+#include <vector>
 
 nullable_varchar_vector * project_eval(const nullable_varchar_vector *input_0)  {
-  auto *output_0 = new nullable_varchar_vector;
-
-  frovedis::words output_0_input_words = varchar_vector_to_words(input_0);
+  auto output_0_input_words = input_0->to_words();
   std::vector<size_t> output_0_starts(input_0->count);
   std::vector<size_t> output_0_lens(input_0->count);
 
@@ -109,7 +35,8 @@ nullable_varchar_vector * project_eval(const nullable_varchar_vector *input_0)  
   output_0_input_words.chars = output_0_new_chars;
   output_0_input_words.starts = output_0_new_starts;
   output_0_input_words.lens = output_0_lens;
-  words_to_varchar_vector(output_0_input_words, output_0);
+
+  auto *output_0 = new nullable_varchar_vector(output_0_input_words);
 
   for ( int i = 0; i < output_0->count; i++ ) {
     set_validity(output_0->validityBuffer, i, check_valid(input_0->validityBuffer, i));
@@ -122,7 +49,7 @@ void filter_test() {
   std::vector<std::string> data { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
   std::vector<size_t> matching_ids { 1, 3, 5 };
 
-  const auto *input = from_vec(data);
+  const auto *input = new nullable_varchar_vector(data);
   set_validity(input->validityBuffer, 3, 0);
 
   std::cout << "================================================================================" << std::endl;
@@ -131,7 +58,7 @@ void filter_test() {
   std::cout << "Original nullable_varchar_vector:" << std::endl;
   input->print();
 
-  const auto *output = filter_vec(input, matching_ids);
+  const auto *output = input->filter(matching_ids);
   std::cout << "Filtered nullable_varchar_vector:" << std::endl;
   output->print();
 
@@ -142,7 +69,7 @@ void filter_test() {
 void projection_test() {
   std::vector<std::string> data { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
 
-  const auto *input = from_vec(data);
+  const auto *input = new nullable_varchar_vector(data);
   set_validity(input->validityBuffer, 3, 0);
 
   std::cout << "================================================================================" << std::endl;
@@ -163,11 +90,10 @@ void bucket_grouping_test_fail() {
   std::vector<std::string> data { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
   std::vector<size_t> id_to_bucket { 0, 1, 0, 1, 0, 1, 0 };
 
-  const auto *input = from_vec(data);
+  const auto *input = new nullable_varchar_vector(data);
   set_validity(input->validityBuffer, 3, 0);
 
-  frovedis::words output_0_input_words = varchar_vector_to_words(input);
-  auto * output_0 = new nullable_varchar_vector;
+  auto output_0_input_words = input->to_words();
 
   std::vector<size_t> output_0_starts(id_to_bucket.size());
   std::vector<size_t> output_0_lens(id_to_bucket.size());
@@ -192,7 +118,7 @@ void bucket_grouping_test_fail() {
   output_0_input_words.starts = output_0_new_starts;
   output_0_input_words.lens = output_0_lens;
 
-  words_to_varchar_vector(output_0_input_words, output_0);
+  auto *output_0 = new nullable_varchar_vector(output_0_input_words);
 
   auto o = 0;
   for (auto i = 0; i < id_to_bucket.size(); i++ ) {
@@ -222,11 +148,10 @@ void bucket_grouping_test_pass() {
   std::vector<std::string> data { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
   std::vector<size_t> id_to_bucket { 0, 1, 0, 1, 0, 1, 0 };
 
-  const auto *input = from_vec(data);
+  const auto *input = new nullable_varchar_vector(data);
   set_validity(input->validityBuffer, 3, 0);
 
-  frovedis::words output_0_input_words = varchar_vector_to_words(input);
-  auto * output_0 = new nullable_varchar_vector;
+  auto output_0_input_words = input->to_words();
 
   std::vector<size_t> output_0_starts;
   std::vector<size_t> output_0_lens;
@@ -253,7 +178,7 @@ void bucket_grouping_test_pass() {
   output_0_input_words.starts = output_0_new_starts;
   output_0_input_words.lens = output_0_lens;
 
-  words_to_varchar_vector(output_0_input_words, output_0);
+  auto *output_0 = new nullable_varchar_vector(output_0_input_words);
 
   auto o = 0;
   for (auto i = 0; i < id_to_bucket.size(); i++ ) {
@@ -282,18 +207,15 @@ void bucket_grouping_test_pass() {
 void merge_test_pass() {
   // nullable_varchar_vector 1
   std::vector<std::string> data1 { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
-  auto *input1 = from_vec(data1);
+  auto *input1 = new nullable_varchar_vector(data1);
   set_validity(input1->validityBuffer, 3, 0);
 
   // nullable_varchar_vector 2
   std::vector<std::string> data2 { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
-  auto *input2 = from_vec(data2);
+  auto *input2 = new nullable_varchar_vector(data2);
   set_validity(input2->validityBuffer, 1, 0);
   set_validity(input2->validityBuffer, 4, 0);
   set_validity(input2->validityBuffer, 10, 0);
-
-  // output nullable_varchar_vector
-  auto * output_0 = new nullable_varchar_vector;
 
   auto batches = 2;
   nullable_varchar_vector **input_0_g = new nullable_varchar_vector* [batches];
@@ -303,12 +225,12 @@ void merge_test_pass() {
   // Construct std::vector<frovedis::words>
   std::vector<frovedis::words> output_0_multi_words(2);
   for (int b = 0; b < batches; b++) {
-    output_0_multi_words[b] = varchar_vector_to_words(input_0_g[b]);
+    output_0_multi_words[b] = input_0_g[b]->to_words();
   }
 
   // Merge
   frovedis::words output_0_merged = frovedis::merge_multi_words(output_0_multi_words);
-  words_to_varchar_vector(output_0_merged, output_0);
+  auto *output_0 = new nullable_varchar_vector(output_0_merged);
 
   // Preserve validity buffers
   auto o = 0;

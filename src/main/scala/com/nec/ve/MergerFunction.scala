@@ -20,13 +20,13 @@ object MergerFunction {
           // Loop over the batches
           CodeLines.forLoop("b", "batches") {
             // Copy each nullable_varchar_vector over
-            s"${tmp}_multi_words[b] = varchar_vector_to_words(${in}[b]);"
+            s"${tmp}_multi_words[b] = ${in}[b]->to_words();"
           },
           "",
           // Perform merge using frovedis
           s"frovedis::words ${tmp}_merged = frovedis::merge_multi_words(${tmp}_multi_words);",
           // Convert back to nullable_varchar_vector
-          s"words_to_varchar_vector(${tmp}_merged, ${tmp});",
+          s"""new (${tmp}) nullable_varchar_vector(${tmp}_merged);""",
           "",
           // Initialize index counter
           "auto o = 0;",
