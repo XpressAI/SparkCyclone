@@ -19,4 +19,4 @@
  */
 package com.nec.spark
 
-final case class RequestCompiledLibraryForCode(codePath: String) extends Serializable {}
+final case class RequestCompiledLibraryForCode(libraryPath: String) extends Serializable {}

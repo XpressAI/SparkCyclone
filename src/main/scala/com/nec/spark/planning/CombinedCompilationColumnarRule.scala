@@ -47,7 +47,9 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
       val result = plan.transformUp { case UncompiledPlan(plan) =>
         plan.sparkPlan.updateVeFunction {
           case f @ VeFunction(source @ SourceCode(_), _, _) =>
-            f.copy(veFunctionStatus = VeFunctionStatus.Compiled(DistributedLibLocation(compiledPath.toString, combined.cCode)))
+            f.copy(veFunctionStatus =
+              VeFunctionStatus.Compiled(DistributedLibLocation(compiledPath.toString))
+            )
           case other => other
         }
       }

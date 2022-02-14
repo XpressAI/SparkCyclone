@@ -46,9 +46,9 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
       val result = plan.transformUp { case UncompiledPlan(plan) =>
         plan.sparkPlan.updateVeFunction {
           case f @ VeFunction(source @ SourceCode(_), _, _) if compiled.contains(source) =>
-            f.copy(veFunctionStatus = VeFunctionStatus.Compiled(
-              DistributedLibLocation(compiled(source).toString, source.sourceCode)
-            ))
+            f.copy(veFunctionStatus =
+              VeFunctionStatus.Compiled(DistributedLibLocation(compiled(source).toString))
+            )
           case other => other
         }
       }
