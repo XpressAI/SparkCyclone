@@ -56,7 +56,7 @@ object JoinRDDSpec {
         cleanUpInput = true
       )
       .map { case (la, lb) =>
-        (la.flatMap(_.toList), lb.flatMap(_.toList))
+        (la.cols.flatMap(_.toList), lb.cols.flatMap(_.toList))
       }
       .collect()
       .toList

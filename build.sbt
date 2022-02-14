@@ -9,8 +9,8 @@ val TPC = config("tpc") extend Test
 val VectorEngine = config("ve") extend Test
 
 /**
-Do not modify this, Spark uses 2.12.10, upgrading to eg 2.12.15 causes issues because Spark uses some Scala library internals.
-**/
+ * Do not modify this, Spark uses 2.12.10, upgrading to eg 2.12.15 causes issues because Spark uses some Scala library internals.
+ */
 lazy val defaultScalaVersion = "2.12.10"
 ThisBuild / scalaVersion := defaultScalaVersion
 val orcVversion = "1.5.8"
@@ -21,9 +21,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
-  .settings(
-    version := "0.9.1"
-  )
+  .settings(version := "0.9.1")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
@@ -471,8 +469,10 @@ cycloneVeLibrarySources :=
   sbt.nio.file.FileTreeView.default
     .list(
       Seq(
-        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/*.hpp"),
-        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/*.cc"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/cyclone/*.hpp"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/cyclone/*.cc"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/tests/*.hpp"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/tests/*.cc"),
         Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/core/*"),
         Glob(
           (Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/dataframe/*"
@@ -491,7 +491,10 @@ cycloneVeLibrary := {
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
         logger.info("Building and testing libcyclone.so...")
-        val exitcode = Process(command = Seq("make", "clean", "all", "test"), cwd = makefile.getParentFile) ! logger
+        val exitcode = Process(
+          command = Seq("make", "clean", "all", "test"),
+          cwd = makefile.getParentFile
+        ) ! logger
 
         if (exitcode != 0) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
@@ -500,8 +503,9 @@ cycloneVeLibrary := {
         val cycloneVeDir = (Compile / resourceManaged).value / "cycloneve"
         IO.createDirectory(cycloneVeDir)
 
-        val filesToCopy = in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
-          (new File(makefile.getParentFile, "libcyclone.so"))
+        val filesToCopy =
+          in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
+            (new File(makefile.getParentFile, "libcyclone.so"))
 
         filesToCopy.flatMap { sourceFile =>
           Path
