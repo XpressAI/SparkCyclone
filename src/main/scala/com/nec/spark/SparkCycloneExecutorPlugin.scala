@@ -19,11 +19,12 @@
  */
 package com.nec.spark
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{launched, params, DefaultVeNodeId}
+import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, launched, params, pluginContext}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
@@ -31,8 +32,8 @@ import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
-
 import java.util
+
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.util.Try
 
@@ -41,6 +42,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   /** For assumption testing purposes only for now */
   var params: Map[String, String] = Map.empty[String, String]
 
+  var pluginContext: PluginContext = _
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
@@ -164,6 +166,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
+    pluginContext = ctx
   }
 
   override def shutdown(): Unit = {

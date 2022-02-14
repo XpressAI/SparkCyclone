@@ -1,17 +1,19 @@
 package com.nec.spark.planning
 
-import com.nec.spark.SparkCycloneDriverPlugin
+import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CodeStructure
 import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.VeFunction.VeFunctionStatus.SourceCode
 import com.typesafe.scalalogging.LazyLogging
+
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
-
 import java.nio.file.Path
 import java.time.Instant
+
+import com.nec.spark.planning.LibLocation.DistributedLibLocation
 
 object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
   override def preColumnarTransitions: Rule[SparkPlan] = { plan =>
@@ -45,7 +47,9 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
       val result = plan.transformUp { case UncompiledPlan(plan) =>
         plan.sparkPlan.updateVeFunction {
           case f @ VeFunction(source @ SourceCode(_), _, _) =>
-            f.copy(veFunctionStatus = VeFunctionStatus.Compiled(compiledPath.toString))
+            f.copy(veFunctionStatus =
+              VeFunctionStatus.Compiled(DistributedLibLocation(compiledPath.toString))
+            )
           case other => other
         }
       }
