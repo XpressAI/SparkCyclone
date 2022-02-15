@@ -59,6 +59,10 @@ struct NullableScalarVec {
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   count             = 0;        // Row count (synonymous with size of data array)
 
+  // Merge N NullableScalarVec<T>s into 1 NullableScalarVec<T> (order is preserved)
+  static NullableScalarVec<T> * merge(const NullableScalarVec<T> * const * const inputs,
+                                      const size_t batches);
+
   // Explicitly force the generation of a default constructor
   NullableScalarVec() = default;
 
@@ -128,7 +132,12 @@ struct nullable_varchar_vector {
   int32_t   dataSize          = 0;        // Size of data array
   int32_t   count             = 0;        // The row count
 
+  // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);
+
+  // Merge N nullable_varchar_vectors into 1 nullable_varchar_vector
+  static nullable_varchar_vector * merge(const nullable_varchar_vector * const * const inputs,
+                                         const size_t batches);
 
   // Explicitly force the generation of a default constructor
   nullable_varchar_vector() = default;

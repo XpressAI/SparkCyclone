@@ -336,3 +336,28 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
 
   return output;
 }
+
+nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
+                                                         const size_t batches) {
+
+  // Construct std::vector<frovedis::words> from the inputs
+  std::vector<frovedis::words> multi_words(batches);
+  #pragma _NEC vector
+  for (int b = 0; b < batches; b++) {
+    multi_words[b] = inputs[b]->to_words();
+  }
+
+  // Merge using Frovedis and convert back to nullable_varchar_vector
+  auto *output = from_words(frovedis::merge_multi_words(multi_words));
+
+  // Preserve the validityBuffer across the merge
+  auto o = 0;
+  #pragma _NEC ivdep
+  for (int b = 0; b < batches; b++) {
+    for (int i = 0; i < inputs[b]->count; i++) {
+      output->set_validity(o++, inputs[b]->get_validity(i));
+    }
+  }
+
+  return output;
+}

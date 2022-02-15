@@ -36,7 +36,7 @@ NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
 
   // Set the validityBuffer
   size_t vcount = ceil(src.size() / 64.0);
-  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
+  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -123,7 +123,7 @@ bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) cons
 template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
   // Allocate
-  auto * output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
 
   // Copy the count
   output->count = count;
@@ -144,7 +144,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
 template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &matching_ids) const {
   // Allocate
-  auto * output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
 
   // Set the count
   output->count = matching_ids.size();
@@ -177,7 +177,7 @@ template <typename T>
 NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &bucket_counts,
                                                      const std::vector<size_t> &bucket_assignments) const {
   // Allocate array of NullableScalarVec<T> pointers
-  auto ** output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
+  auto **output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
 
   // Loop over each bucket
   for (int b = 0; b < bucket_counts.size(); b++) {
@@ -196,6 +196,37 @@ NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &
 
     // Create a filtered copy based on the list of indexes
     output[b] = this->filter(matching_ids);
+  }
+
+  return output;
+}
+
+template <typename T>
+NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * const * const inputs,
+                                                   const size_t batches) {
+  // Count the total number of elements
+  size_t rows = 0;
+  #pragma _NEC vector
+  for (int b = 0; b < batches; b++) {
+    rows += inputs[b]->count;
+  }
+
+  // Allocate
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+
+  // Set the total count, and allocate data and validityBuffer
+  output->count = rows;
+  output->data = static_cast<T *>(malloc(sizeof(T) * rows));
+  output->validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * frovedis::ceil_div(rows, size_t(64)), 1));
+
+  // Copy the data and preserve the validityBuffer across the merge
+  auto o = 0;
+  #pragma _NEC ivdep
+  for (int b = 0; b < batches; b++) {
+    for (int i = 0; i < inputs[b]->count; i++) {
+      output->data[o] = inputs[b]->data[i];
+      output->set_validity(o++, inputs[b]->get_validity(i));
+    }
   }
 
   return output;

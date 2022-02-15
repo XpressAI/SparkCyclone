@@ -158,17 +158,18 @@ object GroupingFunction {
         /*
           Allocate the nullable_T_vector[] with size buckets
 
-          NOTE: This cast should not be correct, because we are allocating a T*
-          array (T**) but type-casting it to T*.  However, for some reason,
-          fixing this will lead an invalid free() later on.  Will need to
-          investigate fix this.
+          NOTE: This cast is incorrect, because we are allocating a T* array
+          (T**) but type-casting it to T*.  However, for some reason, fixing
+          this will lead an invalid free() later on.  Will need to investigate
+          and fix this in the future.
         */
+        s"// Allocate T*[] but cast to T* (incorrect but required to work correctly until a fix lands)",
         s"*${output.name} = static_cast<${output.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${buckets}));",
         // Copy the pointers over
         CodeLines.forLoop("b", s"${buckets}") {
           s"${output.name}[b] = tmp[b];"
         },
-        // Free the array of pointers (but not the structs themselves)
+        // Free the array of temporary pointers (but not the structs themselves)
         "free(tmp);"
       )
     }

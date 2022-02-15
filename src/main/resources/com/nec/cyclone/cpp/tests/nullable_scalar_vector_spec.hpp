@@ -130,5 +130,29 @@ namespace cyclone::tests {
       CHECK(output[1]->equals(input->filter(matching_ids_1)));
       CHECK(output[2]->equals(input->filter(matching_ids_2)));
     }
+
+    TEST_CASE_TEMPLATE("Merge works for T=", T, int32_t, int64_t, float, double) {
+      std::vector<NullableScalarVec<T> *> inputs(3);
+
+      inputs[0] = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538 });
+      inputs[0]->set_validity(1, 0);
+      inputs[0]->set_validity(4, 0);
+
+      inputs[1] = new NullableScalarVec(std::vector<T> { 620, 553, 605 });
+      inputs[1]->set_validity(2, 0);
+
+      inputs[2] = new NullableScalarVec(std::vector<T> { 46, 726, 563, 515, });
+      inputs[2]->set_validity(3, 0);
+
+      auto *expected = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 46, 726, 563, 515 });
+      expected->set_validity(1, 0);
+      expected->set_validity(4, 0);
+      expected->set_validity(7, 0);
+      expected->set_validity(11, 0);
+
+      const auto *output = NullableScalarVec<T>::merge(&inputs[0], 3);
+      CHECK(output != expected);
+      CHECK(output->equals(expected));
+    }
   }
 }

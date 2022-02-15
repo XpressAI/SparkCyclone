@@ -134,5 +134,29 @@ namespace cyclone::tests {
       CHECK(output[1]->equals(input->filter(matching_ids_1)));
       CHECK(output[2]->equals(input->filter(matching_ids_2)));
     }
+
+    TEST_CASE("Merge works") {
+      std::vector<nullable_varchar_vector *> inputs(3);
+
+      inputs[0] = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY" });
+      inputs[0]->set_validity(1, 0);
+      inputs[0]->set_validity(4, 0);
+
+      inputs[1] = new nullable_varchar_vector(std::vector<std::string> { "MON", "", "WED" });
+      inputs[1]->set_validity(2, 0);
+
+      inputs[2] = new nullable_varchar_vector(std::vector<std::string> { "JUL", "AUG", "", "OCT" });
+      inputs[2]->set_validity(3, 0);
+
+      auto *expected = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "MON", "", "WED", "JUL", "AUG", "", "OCT" });
+      expected->set_validity(1, 0);
+      expected->set_validity(4, 0);
+      expected->set_validity(7, 0);
+      expected->set_validity(11, 0);
+
+      const auto *output = nullable_varchar_vector::merge(&inputs[0], 3);
+      CHECK(output != expected);
+      CHECK(output->equals(expected));
+    }
   }
 }
