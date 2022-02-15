@@ -17,7 +17,7 @@ object PureVeFunctions {
             GroupByOutline.initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input[0]->count"),
             "for ( int i = 0; i < input[0]->count; i++ ) {",
             CodeLines
-              .from("o->data[i] = input[0]->data[i] * 2;", "set_validity(o->validityBuffer, i, 1);")
+              .from("o->data[i] = input[0]->data[i] * 2;", "o->set_validity(i, 1);")
               .indented,
             "}"
           )

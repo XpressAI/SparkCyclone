@@ -32,7 +32,7 @@ object MergerFunction {
           "auto o = 0;",
           CodeLines.forLoop("b", "batches") {
             CodeLines.forLoop("i", s"${in}[b]->count") {
-              s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
+              s"${tmp}->set_validity(o++, ${in}[b]->get_validity(i));"
             }
           }
         )
@@ -52,7 +52,7 @@ object MergerFunction {
                 // Copy value over
                 s"${tmp}->data[o] = ${in}[b]->data[i];",
                 // Preserve validity bits across merges
-                s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
+                s"${tmp}->set_validity(o++, ${in}[b]->get_validity(i));"
               )
             }
           }

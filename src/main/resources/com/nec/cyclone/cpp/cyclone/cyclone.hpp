@@ -26,22 +26,22 @@
 
 std::string utcnanotime();
 
-inline void set_validity(uint64_t *validityBuffer, int32_t idx, int32_t validity) {
-    int32_t byte = idx / 64;
-    int32_t bitIndex = idx % 64;
-    if (validity) {
-        validityBuffer[byte] |= (1UL << bitIndex);
-    } else {
-        validityBuffer[byte] &= ~(1UL << bitIndex);
-    }
-}
+// inline void set_validity(uint64_t *validityBuffer, int32_t idx, int32_t validity) {
+//     int32_t byte = idx / 64;
+//     int32_t bitIndex = idx % 64;
+//     if (validity) {
+//         validityBuffer[byte] |= (1UL << bitIndex);
+//     } else {
+//         validityBuffer[byte] &= ~(1UL << bitIndex);
+//     }
+// }
 
-inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
-    uint64_t byte = idx / 64;
-    uint64_t bitIndex = idx % 64;
-    uint64_t res = (validityBuffer[byte] >> bitIndex) & 1;
-    return res;
-}
+// inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
+//     uint64_t byte = idx / 64;
+//     uint64_t bitIndex = idx % 64;
+//     uint64_t res = (validityBuffer[byte] >> bitIndex) & 1;
+//     return res;
+// }
 
 void debug_words(frovedis::words &in);
 

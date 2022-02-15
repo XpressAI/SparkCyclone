@@ -94,7 +94,7 @@ final case class GroupByOutline(
               Right(
                 CExpression(
                   s"partial_${gk.name}->data[i]",
-                  Some(s"check_valid(partial_${gk.name}->validityBuffer, i)")
+                  Some(s"partial_${gk.name}->get_validity(i)")
                 )
               )
             case VeString => Left(s"partial_str_${gk.name}")
@@ -129,7 +129,7 @@ final case class GroupByOutline(
                 CExpression(
                   cCode = s"partial_${stagedProjection.name}->data[i]",
                   isNotNullCode =
-                    Some(s"check_valid(partial_${stagedProjection.name}->validityBuffer, i)")
+                    Some(s"partial_${stagedProjection.name}->get_validity(i)")
                 ),
                 "g"
               )
@@ -144,13 +144,7 @@ object GroupByOutline {
   def initializeStringVector(variableName: String): CodeLines = CodeLines.empty
 
   def debugVector(name: String): CodeLines = {
-    CodeLines.from(
-      s"for (int i = 0; i < $name->count; i++) {",
-      CodeLines.from(
-        s"""std::cout << "${name}[" << i << "] = " << ${name}->data[i] << " (valid? " << check_valid(${name}->validityBuffer, i) << ")" << std::endl << std::flush; """
-      ),
-      "}"
-    )
+    s"${name}->print();"
   }
 
   def dealloc(cv: CVector): CodeLines = CodeLines.empty
@@ -175,7 +169,7 @@ object GroupByOutline {
       case None =>
         CodeLines.from(
           s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
-          s"set_validity($outputName->validityBuffer, ${idx}, 1);"
+          s"$outputName->set_validity(${idx}, 1);"
         )
       case Some(notNullCheck) =>
         CodeLines.from(
@@ -183,11 +177,11 @@ object GroupByOutline {
           CodeLines
             .from(
               s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
-              s"set_validity($outputName->validityBuffer, ${idx}, 1);"
+              s"$outputName->set_validity(${idx}, 1);"
             )
             .indented,
           "} else {",
-          CodeLines.from(s"set_validity($outputName->validityBuffer, ${idx}, 0);").indented,
+          CodeLines.from(s"$outputName->set_validity(${idx}, 0);").indented,
           "}"
         )
     }
@@ -215,7 +209,7 @@ object GroupByOutline {
       CodeLines
         .from(
           s"$targetName->data[x] = $sourceName[x];",
-          s"set_validity($targetName->validityBuffer, x, 1);"
+          s"$targetName->set_validity(x, 1);"
         )
         .indented,
       "}"

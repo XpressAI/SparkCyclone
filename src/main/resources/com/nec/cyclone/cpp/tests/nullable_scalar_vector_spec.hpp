@@ -26,11 +26,11 @@
 
 namespace cyclone::tests {
   TEST_SUITE("NullableScalarVec<T>") {
-    TEST_CASE_TEMPLATE("Equality checks work for T=", T, int32_t, int64_t, float, double) {
-      // Instantiate for int32_t
-      std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
+    // Instantiate for each template case to be tested
+    template<class T> const std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
 
-      auto *vec1 = new NullableScalarVec(raw);
+    TEST_CASE_TEMPLATE("Equality checks work for T=", T, int32_t, int64_t, float, double) {
+      auto *vec1 = new NullableScalarVec(raw<T>);
       vec1->set_validity(1, 0);
       vec1->set_validity(4, 0);
       vec1->set_validity(8, 0);
@@ -39,11 +39,11 @@ namespace cyclone::tests {
       auto *vec2 = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553 });
 
       // Different data
-      auto *vec3 = new NullableScalarVec(raw);
+      auto *vec3 = new NullableScalarVec(raw<T>);
       vec3->data[3] = 184;
 
       // Different validityBuffer
-      auto *vec4 = new NullableScalarVec(raw);
+      auto *vec4 = new NullableScalarVec(raw<T>);
       vec4->set_validity(3, 0);
 
       CHECK(vec1->equals(vec1));
@@ -54,7 +54,7 @@ namespace cyclone::tests {
 
     TEST_CASE_TEMPLATE("Check default works for T=", T, int32_t, int64_t, float, double) {
       auto *empty = new NullableScalarVec<T>;
-      auto *nonempty = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      auto *nonempty = new NullableScalarVec(raw<T>);
 
       CHECK(empty->is_default());
       CHECK(not nonempty->is_default());
@@ -63,7 +63,7 @@ namespace cyclone::tests {
     TEST_CASE_TEMPLATE("Reset works for T=", T, int32_t, int64_t, float, double) {
       auto *empty = new NullableScalarVec<T>;
 
-      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      auto *input = new NullableScalarVec(raw<T>);
       input->set_validity(1, 0);
       input->set_validity(4, 0);
       input->set_validity(8, 0);
@@ -74,7 +74,7 @@ namespace cyclone::tests {
     }
 
     TEST_CASE_TEMPLATE("Clone works for T=", T, int32_t, int64_t, float, double) {
-      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      auto *input = new NullableScalarVec(raw<T>);
       input->set_validity(1, 0);
       input->set_validity(4, 0);
       input->set_validity(8, 0);
@@ -82,6 +82,16 @@ namespace cyclone::tests {
       auto *output = input->clone();
       CHECK(output != input);
       CHECK(output->equals(input));
+    }
+
+    TEST_CASE_TEMPLATE("Get and Set validity bit works for T=", T, int32_t, int64_t, float, double) {
+      auto *input = new NullableScalarVec(raw<T>);
+
+      input->set_validity(4, 0);
+      CHECK(input->get_validity(4) == 0);
+
+      input->set_validity(4, 1);
+      CHECK(input->get_validity(4) == 1);
     }
 
     TEST_CASE_TEMPLATE("Filter works for T=", T, int32_t, int64_t, float, double) {

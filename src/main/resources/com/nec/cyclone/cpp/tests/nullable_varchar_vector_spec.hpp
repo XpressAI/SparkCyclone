@@ -86,6 +86,16 @@ namespace cyclone::tests {
       CHECK(output->equals(input));
     }
 
+    TEST_CASE("Get and Set validity bit works for T=") {
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+
+      input->set_validity(4, 0);
+      CHECK(input->get_validity(4) == 0);
+
+      input->set_validity(4, 1);
+      CHECK(input->get_validity(4) == 1);
+    }
+
     TEST_CASE("Filter works") {
       // Include empty string value
       auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });

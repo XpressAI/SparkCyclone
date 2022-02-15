@@ -93,7 +93,7 @@ object CFunctionGeneration {
         CodeLines
           .from(
             s"${outputName}->data[i] = ${cCode};",
-            s"set_validity($outputName->validityBuffer, i, 1);"
+            s"$outputName->set_validity(i, 1);"
           )
           .indented
       case Some(nullCheck) =>
@@ -103,11 +103,11 @@ object CFunctionGeneration {
             CodeLines
               .from(
                 s"${outputName}->data[i] = ${cCode};",
-                s"set_validity($outputName->validityBuffer, i, 1);"
+                s"$outputName->set_validity(i, 1);"
               )
               .indented,
             "} else {",
-            CodeLines.from(s"set_validity($outputName->validityBuffer, i, 0);").indented,
+            CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
             "}"
           )
           .indented
@@ -669,15 +669,15 @@ object CFunctionGeneration {
           case (CScalarVector(inName, veType), CScalarVector(outputName, _)) =>
             CodeLines
               .from(
-                s"if(check_valid(${inName}->validityBuffer, idx[i])) {",
+                s"if (${inName}->get_validity(idx[i])) {",
                 CodeLines
                   .from(
                     s"$outputName->data[i] = $inName->data[idx[i]];",
-                    s"set_validity($outputName->validityBuffer, i, 1);"
+                    s"$outputName->set_validity(i, 1);"
                   )
                   .indented,
                 "} else {",
-                CodeLines.from(s"set_validity($outputName->validityBuffer, i, 0);").indented,
+                CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
                 "}"
               )
               .indented
@@ -763,13 +763,13 @@ object CFunctionGeneration {
             CodeLines.forLoop("o", "matching_ids.size()") {
               CodeLines.from(
                 "int i = matching_ids[o];",
-                CodeLines.ifElseStatement(s"check_valid(${cVector.name}->validityBuffer, i)") {
+                CodeLines.ifElseStatement(s"${cVector.name}->get_validity(i)") {
                   List(
                     s"${varName}->data[o] = ${cVector.name}->data[i];",
-                    s"set_validity($varName->validityBuffer, o, 1);"
+                    s"$varName->set_validity(o, 1);"
                   )
                 } {
-                  s"set_validity($varName->validityBuffer, o, 0);"
+                  s"$varName->set_validity(o, 0);"
                 }
               )
             }
@@ -831,15 +831,15 @@ object CFunctionGeneration {
               case None =>
                 CodeLines.from(
                   s"""$outputName->data[i] = ${cExpr.cCode};""",
-                  s"set_validity($outputName->validityBuffer, i, 1);"
+                  s"$outputName->set_validity(i, 1);"
                 )
               case Some(notNullCheck) =>
                 CodeLines.from(
                   s"if ( $notNullCheck ) {",
                   s"""  $outputName->data[i] = ${cExpr.cCode};""",
-                  s"  set_validity($outputName->validityBuffer, i, 1);",
+                  s"  $outputName->set_validity(i, 1);",
                   "} else {",
-                  s"  set_validity($outputName->validityBuffer, i, 0);",
+                  s"  $outputName->set_validity(i, 0);",
                   "}"
                 )
             }
@@ -908,7 +908,7 @@ object CFunctionGeneration {
                   CodeLines
                     .from(
                       s"${outputName}->data[i] = ${ex.cCode};",
-                      s"set_validity($outputName->validityBuffer, i, 1);"
+                      s"$outputName->set_validity(i, 1);"
                     )
                     .indented
                 case Some(nullCheck) =>
@@ -918,11 +918,11 @@ object CFunctionGeneration {
                       CodeLines
                         .from(
                           s"${outputName}->data[i] = ${ex.cCode};",
-                          s"set_validity($outputName->validityBuffer, i, 1);"
+                          s"$outputName->set_validity(i, 1);"
                         )
                         .indented,
                       "} else {",
-                      CodeLines.from(s"set_validity($outputName->validityBuffer, i, 0);").indented,
+                      CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
                       "}"
                     )
                     .indented
@@ -1068,7 +1068,7 @@ object CFunctionGeneration {
                     CodeLines
                       .from(
                         s"${outputName}->data[i] = ${ex.cCode};",
-                        s"set_validity($outputName->validityBuffer, i, 1);"
+                        s"$outputName->set_validity(i, 1);"
                       )
                       .indented
                   case Some(nullCheck) =>
@@ -1076,9 +1076,9 @@ object CFunctionGeneration {
                       .from(
                         s"if( ${nullCheck} ) {",
                         s"${outputName}->data[i] = ${ex.cCode};",
-                        s"set_validity($outputName->validityBuffer, i, 1);",
+                        s"$outputName->set_validity(i, 1);",
                         "} else {",
-                        s"set_validity($outputName->validityBuffer, i, 0);",
+                        s"$outputName->set_validity(i, 0);",
                         "}"
                       )
                       .indented
@@ -1100,7 +1100,7 @@ object CFunctionGeneration {
                     CodeLines
                       .from(
                         s"${outputName}->data[i] = ${ex.cCode};",
-                        s"set_validity($outputName->validityBuffer, i, 1);"
+                        s"$outputName->set_validity(i, 1);"
                       )
                       .indented
                   case Some(nullCheck) =>
@@ -1108,9 +1108,9 @@ object CFunctionGeneration {
                       .from(
                         s"if( ${nullCheck} ) {",
                         s"${outputName}->data[i] = ${ex.cCode};",
-                        s"set_validity($outputName->validityBuffer, i, 1);",
+                        s"$outputName->set_validity(i, 1);",
                         "} else {",
-                        s"set_validity($outputName->validityBuffer, i, 0);",
+                        s"$outputName->set_validity(i, 0);",
                         "}"
                       )
                       .indented

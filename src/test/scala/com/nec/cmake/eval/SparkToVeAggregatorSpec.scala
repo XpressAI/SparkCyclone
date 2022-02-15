@@ -100,13 +100,13 @@ final class SparkToVeAggregatorSpec extends AnyFreeSpec {
           CExpression(
             "((output_attr_sum_nullable) + (input_attr_sum->data[i]))",
             Some(
-              "(output_attr_sum_nullable_is_set && check_valid(input_attr_sum->validityBuffer, i))"
+              "(output_attr_sum_nullable_is_set && input_attr_sum->get_validity(i))"
             )
           ),
           CExpression(
             "((output_attr_count_nullable) + (input_attr_count->data[i]))",
             Some(
-              "(output_attr_count_nullable_is_set && check_valid(input_attr_count->validityBuffer, i))"
+              "(output_attr_count_nullable_is_set && input_attr_count->get_validity(i))"
             )
           )
         )

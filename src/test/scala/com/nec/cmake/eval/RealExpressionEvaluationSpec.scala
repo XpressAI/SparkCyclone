@@ -385,23 +385,23 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (
         TypedCExpression2(
           VeScalarType.veNullableDouble,
-          CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
+          CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
         ),
         TypedCExpression2(
           VeScalarType.veNullableDouble,
-          CExpression("input_1->data[i]", Some("check_valid(input_1->validityBuffer, i)"))
+          CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
         )
       )
     )(
       (
         TypedGroupByExpression[Option[Double]](
           GroupByProjection(
-            CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
+            CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
           )
         ),
         TypedGroupByExpression[Double](
           GroupByProjection(
-            CExpression("input_1->data[i] + 1", Some("check_valid(input_1->validityBuffer, i)"))
+            CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))
           )
         ),
         TypedGroupByExpression[Option[Double]](
@@ -410,7 +410,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
               CExpression(
                 "input_2->data[i] - input_0->data[i]",
                 Some(
-                  "check_valid(input_0->validityBuffer, i) && check_valid(input_2->validityBuffer, i)"
+                  "input_0->get_validity(i) && input_2->get_validity(i)"
                 )
               )
             )

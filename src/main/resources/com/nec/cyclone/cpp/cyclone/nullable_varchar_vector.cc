@@ -178,7 +178,7 @@ void nullable_varchar_vector::print() const {
     // Print string values
     stream << "  VALUES: [ ";
     for (auto i = 0; i < count; i++) {
-      if (check_valid(validityBuffer, i)) {
+      if (get_validity(i)) {
         stream << std::string(data,  offsets[i], offsets[i+1] - offsets[i]) << ", ";
       } else {
         stream << "#, ";
@@ -194,7 +194,7 @@ void nullable_varchar_vector::print() const {
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
     for (auto i = 0; i < count; i++) {
-        stream << check_valid(validityBuffer, i) << ", ";
+        stream << get_validity(i) << ", ";
     }
 
     // Print data
@@ -231,7 +231,7 @@ bool nullable_varchar_vector::equals(const nullable_varchar_vector * const other
   // Compare validityBuffer
   #pragma _NEC ivdep
   for (auto i = 0; i < count; i++) {
-    output = output && (check_valid(validityBuffer, i) == check_valid(other->validityBuffer, i));
+    output = output && (get_validity(i) == other->get_validity(i));
   }
 
   return output;

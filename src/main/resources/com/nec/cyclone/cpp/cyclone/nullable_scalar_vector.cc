@@ -77,7 +77,7 @@ void NullableScalarVec<T>::print() const {
     // Print data
     stream << "  DATA: [ ";
     for (auto i = 0; i < count; i++) {
-      if (check_valid(validityBuffer, i)) {
+      if (get_validity(i)) {
         stream << data[i] << ", ";
       } else {
         stream << "#, ";
@@ -87,7 +87,7 @@ void NullableScalarVec<T>::print() const {
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
     for (auto i = 0; i < count; i++) {
-        stream << check_valid(validityBuffer, i) << ", ";
+        stream << get_validity(i) << ", ";
     }
     stream << "]\n";
   }
@@ -114,7 +114,7 @@ bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) cons
   // Compare validityBuffer
   #pragma _NEC ivdep
   for (auto i = 0; i < count; i++) {
-    output = output && (check_valid(validityBuffer, i) == check_valid(other->validityBuffer, i));
+    output = output && (get_validity(i) == other->get_validity(i));
   }
 
   return output;
