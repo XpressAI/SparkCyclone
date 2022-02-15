@@ -1,5 +1,6 @@
 package com.nec.arrow.colvector
 
+import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.scalatest.freespec.AnyFreeSpec
@@ -30,6 +31,6 @@ final class UnitColVectorSpec extends AnyFreeSpec {
     val bais = new ByteArrayInputStream(bytes)
     val dais = new DataInputStream(bais)
     val ucvOut = UnitColVector.fromStreamFast(dais)
-    assert(ucvOut == ucv)
+    expect(ucvOut == ucv, ucv.streamedSize == bytes.length)
   }
 }

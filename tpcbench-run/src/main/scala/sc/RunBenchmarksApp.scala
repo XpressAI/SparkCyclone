@@ -3,6 +3,7 @@ package sc
 import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp}
+import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEventVO}
 import com.comcast.ip4s.Host
 import com.nec.tracing.SpanProcessor
@@ -26,15 +27,15 @@ import scala.language.higherKinds
 object RunBenchmarksApp extends IOApp {
 
   final case class RunResults(
-                               appUrl: String,
-                               compileTime: Option[String],
-                               queryTime: Option[String],
-                               traceResults: String,
-                               logOutput: String,
-                               containerList: List[String],
-                               metrics: List[String],
-                               maybeFoundPlan: Option[String]
-                             )
+    appUrl: String,
+    compileTime: Option[String],
+    queryTime: Option[String],
+    traceResults: String,
+    logOutput: String,
+    containerList: List[String],
+    metrics: List[String],
+    maybeFoundPlan: Option[String]
+  )
 
   private def getApps: IO[AppsContainer] = {
     BlazeClientBuilder[IO].resource
@@ -84,7 +85,7 @@ object RunBenchmarksApp extends IOApp {
   require(LogbackItemsClasspath.nonEmpty, "Expecting to have logback in classpath.")
 
   private def runCommand(runOptions: RunOptions, doTrace: Boolean)(implicit
-                                                                   runtime: IORuntime
+    runtime: IORuntime
   ): IO[(Int, RunResults)] =
     Network[IO].serverResource(address = Host.fromString("0.0.0.0")).use {
       case (ipAddr, streamOfSockets) =>
@@ -230,11 +231,26 @@ object RunBenchmarksApp extends IOApp {
               RunResults(
                 appUrl = newFoundApp.appUrl,
                 traceResults = analyzeResult.mkString("", "\n", ""),
-                logOutput = outLines.mkString("", "\n", ""),
+                logOutput = Option(outLines.mkString("", "\n", ""))
+                  .filter(_.nonEmpty)
+                  .getOrElse {
+                    loggingEventVoes
+                      .collect {
+                        case m
+                            if m.getMessage != null && m.getLevel
+                              .isGreaterOrEqual(Level.INFO) && !MetricCapture
+                              .matches(m.getMessage) =>
+                          val instant = Instant.ofEpochMilli(m.getTimeStamp)
+                          s"$instant: ${m.getMessage}"
+                      }
+                      .mkString("", "\n", "")
+                  },
                 containerList = containerLogsList.map(_.logUrl).sorted,
                 metrics = loggingEventVoes.collect {
                   case m if m.getMessage != null && MetricCapture.matches(m.getMessage) =>
-                    m.getMessage
+                    val instant = Instant.ofEpochMilli(m.getTimeStamp)
+
+                    s"$instant: ${m.getMessage}"
                 },
                 maybeFoundPlan = loggingEventVoes.collectFirst {
                   case m if m.getMessage.startsWith("Final plan: ") =>

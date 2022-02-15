@@ -32,26 +32,28 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
         import com.nec.util.BatchAmplifier.Implicits._
         veColBatches
           .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
-          .map { inputBatches =>
-            import OriginalCallingContext.Automatic._
-            try {
-              val res =
-                VeColBatch.fromList(
-                  veProcess.executeMultiIn(
-                    libraryReference = libRefExchange,
-                    functionName = amplifyFunction.functionName,
-                    batches = VeBatchOfBatches.fromVeColBatches(inputBatches.toList),
-                    results = amplifyFunction.namedResults
+          .map {
+            case inputBatches if inputBatches.size == 1 => inputBatches.head
+            case inputBatches =>
+              import OriginalCallingContext.Automatic._
+              try {
+                val res =
+                  VeColBatch.fromList(
+                    veProcess.executeMultiIn(
+                      libraryReference = libRefExchange,
+                      functionName = amplifyFunction.functionName,
+                      batches = VeBatchOfBatches.fromVeColBatches(inputBatches.toList),
+                      results = amplifyFunction.namedResults
+                    )
                   )
+                logger.debug(
+                  s"Transformed input, got ${res}; produced a batch of size ${res.totalBufferSize} bytes"
                 )
-              logger.debug(
-                s"Transformed input, got ${res}; produced a batch of size ${res.totalBufferSize} bytes"
-              )
-              res
-            } finally {
-              inputBatches
-                .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
-            }
+                res
+              } finally {
+                inputBatches
+                  .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
+              }
           }
       }
     }

@@ -1,14 +1,17 @@
 package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
+import com.nec.spark.planning.VERewriteStrategy.HashExchangeBuckets
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.serializer.VeSerializer
+import com.nec.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
+import com.nec.ve.serializer.{DualBatchOrBytes, VeSerializer}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.{HashPartitioner, TaskContext}
-import org.apache.spark.rdd.{RDD, ShuffledRDD}
+import org.apache.spark.rdd.{CoGroupedRDD, RDD, ShuffledRDD}
 import org.apache.spark.serializer.Serializer
 
+import java.io.{ByteArrayInputStream, DataInputStream}
 import scala.reflect.ClassTag
 
 object VeRDD extends LazyLogging {
@@ -16,12 +19,12 @@ object VeRDD extends LazyLogging {
     originalCallingContext: OriginalCallingContext
   ): RDD[VeColBatch] =
     rdd
-      .map { case (p, v) =>
+      .map { case (idx, veColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        logger.debug(s"Preparing to serialize batch ${v}")
-        val r = (p, v.serialize())
-        if (cleanUpInput) v.cols.foreach(_.free())
-        logger.debug(s"Completed serializing batch ${v} (${r._2.length} bytes)")
+        logger.debug(s"Preparing to serialize batch ${veColBatch}")
+        val r = (idx, veColBatch.serialize())
+        if (cleanUpInput) veColBatch.cols.foreach(_.free())
+        logger.debug(s"Completed serializing batch ${veColBatch} (${r._2.length} bytes)")
         r
       }
       .repartitionByKey(serializer = None /* default **/ )
@@ -37,78 +40,71 @@ object VeRDD extends LazyLogging {
     implicit originalCallingContext: OriginalCallingContext
   ): RDD[VeColBatch] =
     rdd
-      .map { case (p, v) =>
+      .map { case (idx, veColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
-
+        require(
+          veColBatch.nonEmpty,
+          s"Expected ${veColBatch} to be non-empty (redundant transfers)"
+        )
         if (cleanUpInput) {
-          TaskContext.get().addTaskCompletionListener[Unit](_ => v.free())
+          TaskContext.get().addTaskCompletionListener[Unit](_ => veColBatch.free())
         }
-        (p, v)
+        (idx, veColBatch)
       }
       .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)), partitions)
       .map { case (_, vb) => vb }
 
-  def joinExchangeLB(
+  def joinExchange(
     left: RDD[(Int, VeColBatch)],
     right: RDD[(Int, VeColBatch)],
     cleanUpInput: Boolean
   ): RDD[(VeColBatch, VeColBatch)] = {
-    joinExchangeL(left = left, right = right, cleanUpInput = cleanUpInput)
-  }
 
-  def joinExchangeL(
-    left: RDD[(Int, VeColBatch)],
-    right: RDD[(Int, VeColBatch)],
-    cleanUpInput: Boolean
-  ): RDD[(VeColBatch, VeColBatch)] = {
-    {
-      val leftPts = left
-        .map { case (p, v) =>
-          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          logger.debug(s"Preparing to serialize batch ${v}")
-          val r = (p, (v.cols.map(_.underlying.toUnit), v.cols.map(_.serialize())))
+    val cg = new CoGroupedRDD(
+      Seq(
+        left.map { case (num, vcv) =>
+          require(vcv.nonEmpty, s"Expected ${vcv} to be non-empty (redundant transfers)")
+          import com.nec.spark.SparkCycloneExecutorPlugin._
           import OriginalCallingContext.Automatic._
-          if (cleanUpInput) v.cols.foreach(_.free())
-          logger.debug(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
-          r
-        }
-      val rightPts = right
-        .map { case (p, v) =>
-          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          logger.debug(s"Preparing to serialize batch ${v}")
-          val r = (p, (v.cols.map(_.underlying.toUnit), v.cols.map(_.serialize())))
+          if (cleanUpInput)
+            TaskContext.get().addTaskCompletionListener[Unit](_ => vcv.free())
+          (num, ColBatchWrapper(vcv))
+        },
+        right.map { case (num, vcv) =>
+          require(vcv.nonEmpty, s"Expected ${vcv} to be non-empty (redundant transfers)")
+          import com.nec.spark.SparkCycloneExecutorPlugin._
           import OriginalCallingContext.Automatic._
-          if (cleanUpInput) v.cols.foreach(_.free())
-          logger.debug(s"Completed serializing batch ${v} (${r._2._2.map(_.length)} bytes)")
-          r
+          if (cleanUpInput)
+            TaskContext.get().addTaskCompletionListener[Unit](_ => vcv.free())
+          (num, ColBatchWrapper(vcv))
         }
-
-      leftPts
-        .join(rightPts)
-        .filter { case (_, ((v1, _), (v2, _))) =>
-          v1.nonEmpty && v2.nonEmpty
-        }
-        .map { case (_, ((v1, ba1), (v2, ba2))) =>
-          val first = v1.zip(ba1).map { case (vv, bb) =>
-            logger.debug(s"Preparing to deserialize batch ${vv}")
-            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            import OriginalCallingContext.Automatic._
-            val res = vv.deserialize(bb)
-            logger.debug(s"Completed deserializing batch ${vv} --> ${res}")
-            res
-          }
-          val second = v2.zip(ba2).map { case (vv, bb) =>
-            logger.debug(s"Preparing to deserialize batch ${vv}")
-            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            import OriginalCallingContext.Automatic._
-            val res = vv.deserialize(bb)
-            logger.debug(s"Completed deserializing batch ${vv} --> ${res}")
-            res
-          }
-
-          (VeColBatch.fromList(first), VeColBatch.fromList(second))
-        }
-    }
+      ),
+      new HashPartitioner(HashExchangeBuckets)
+    )
+    cg.setSerializer(new VeSerializer(left.sparkContext.getConf, cleanUpInput))
+    cg.mapValues { case Array(vs, w1s) =>
+      (vs.asInstanceOf[Iterable[DualBatchOrBytes]], w1s.asInstanceOf[Iterable[DualBatchOrBytes]])
+    }.flatMapValues(pair =>
+      for {
+        v <- pair._1.iterator
+        w <- pair._2.iterator
+      } yield {
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+        import OriginalCallingContext.Automatic._
+        (
+          v.fold(
+            bytesOnly =>
+              VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes))),
+            identity
+          ),
+          w.fold(
+            bytesOnly =>
+              VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes))),
+            identity
+          )
+        )
+      }
+    ).map { case (k, (a, b)) => (a, b) }
   }
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {

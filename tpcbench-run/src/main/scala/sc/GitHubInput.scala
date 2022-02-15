@@ -31,7 +31,6 @@ object GitHubInput {
     "pass-through-project" -> OnOrOff("Pass-through in projection", default = false),
     "fail-fast" -> OnOrOff("Fail Fast", default = true),
     "join-on-ve" -> OnOrOff("Join on VE", default = false),
-    "filter-on-ve" -> OnOrOff("Filter on VE", default = true)
   )
 
   final case class Choice(description: String, default: Option[String], options: List[String])

@@ -1,8 +1,10 @@
 package com.nec.ve.serializer
 
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeProcess
 import com.nec.ve.colvector.VeColBatch
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializationStream
 
@@ -36,6 +38,31 @@ class VeSerializationStream(out: OutputStream)(implicit
       case v: VeColBatch =>
         dataOutputStream.writeInt(CbTag)
         v.serializeToStream(dataOutputStream)
+        this
+      case v: BytesOnly =>
+        dataOutputStream.writeInt(MixedCbTagColBatch)
+        println(s"Will write ${v.size} (${v.bytes.size} as MixedBatch")
+        dataOutputStream.writeInt(v.size)
+        dataOutputStream.write(v.bytes)
+        this
+      case v: ColBatchWrapper =>
+        dataOutputStream.writeInt(MixedCbTagColBatch)
+//        println(s"Will write ${v.size} (${v.bytes.size} as MixedBatch")
+        /** for reading out as byte array */
+
+        import SparkCycloneExecutorPlugin.metrics
+        metrics.measureRunningTime {
+          dataOutputStream.writeInt(v.veColBatch.serializeToStreamSize)
+          val startSize = dataOutputStream.size()
+          v.veColBatch.serializeToStream(dataOutputStream)
+          dataOutputStream.flush()
+          val endSize = dataOutputStream.size()
+          val diff = endSize - startSize
+          require(
+            diff == v.veColBatch.serializeToStreamSize,
+            s"Written ${diff} bytes, expected ${v.veColBatch.serializeToStreamSize}"
+          )
+        }(metrics.registerSerializationTime)
         this
       case other =>
         sys.error(s"Not supported here to write item of type ${other.getClass.getCanonicalName}")

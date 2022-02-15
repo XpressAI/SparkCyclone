@@ -23,7 +23,6 @@ import java.nio.channels.Channels
 import java.nio.file.Path
 
 trait VeProcess {
-
   def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
     context: OriginalCallingContext
   ): Long
@@ -90,7 +89,6 @@ object VeProcess {
 
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
-
     override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
@@ -467,7 +465,8 @@ object VeProcess {
       if (bufLen > 1) {
         val buf = new BytePointer(bufLen)
         veo.veo_read_mem(veo_proc_handle, buf, bufPos, bufLen)
-        Channels.newChannel(outStream).write(buf.asBuffer())
+        val numWritten = Channels.newChannel(outStream).write(buf.asBuffer())
+        require(numWritten == bufLen, s"Written ${numWritten}, expected ${bufLen}")
       }
     }
 

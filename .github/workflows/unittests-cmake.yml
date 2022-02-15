@@ -2,34 +2,31 @@ name: Unit tests (CMake)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
   pull_request:
     types:
       - ready_for_review
+
 jobs:
   build:
-    runs-on: "ve"
-
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-
-      - name: Check User
-        run: whoami
-
-      - name: Check Path
-        run: pwd
-
-      - name: Check Access to VE
-        run: /opt/nec/ve/bin/vecmd info
-
-      - name: Branch Ref
-        run: echo ${GITHUB_REF#refs/heads/}
-
+      - name: Coursier cache
+        uses: coursier/cache-action@v6
+      - name: Install G++ 11
+        run: |
+          sudo apt-get -y install g++-11
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
+          g++ -v
+          gcc -v
+      - uses: actions/setup-java@v2
+        with:
+          java-version: 8
+          distribution: temurin
       - name: Generate TPC-H Data
         run: pushd src/test/resources/dbgen/ && make && ./dbgen && popd
-
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y%m%d%H%M%S')"
-
-      - name: Run Vector Engine Tests
-        run: source /opt/rh/devtoolset-11/enable && SBT_OPTS="-Xmx16g" sbt "CMake / testQuick"
+      - name: Run CMake Tests
+        run: sbt "CMake / testQuick"

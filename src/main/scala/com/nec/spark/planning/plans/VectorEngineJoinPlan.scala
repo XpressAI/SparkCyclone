@@ -31,7 +31,7 @@ case class VectorEngineJoinPlan(
 
   override def executeVeColumnar(): RDD[VeColBatch] =
     VeRDD
-      .joinExchangeLB(
+      .joinExchange(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         cleanUpInput = true

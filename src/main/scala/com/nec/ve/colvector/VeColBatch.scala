@@ -21,6 +21,11 @@ import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+  def serializeToStreamSize: Int = {
+    List(4, 4) ++ cols.flatMap { col =>
+      List(4, 4, 4, col.underlying.toUnit.streamedSize, 4, 4, 4, col.serializedSize)
+    }
+  }.sum
 
   def serializeToStream(dataOutputStream: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
     import VeColBatch._
@@ -97,9 +102,11 @@ object VeColBatch {
     require(v == e, s"Expected id ${e}, got ${v}")
   }
 
-  def fromStream(
-    din: DataInputStream
-  )(implicit veProcess: VeProcess, source: VeColVectorSource): VeColBatch = {
+  def fromStream(din: DataInputStream)(implicit
+    veProcess: VeProcess,
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext
+  ): VeColBatch = {
     ensureId(din.readInt(), ColLengthsId)
 
     val numCols = din.readInt()
@@ -115,7 +122,6 @@ object VeColBatch {
         // ignored here, because we read stream-based
         val payloadLength = din.readInt()
         ensureId(din.readInt(), PayloadBytesId)
-        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
         unitColVector.deserializeFromStream(din)
       } catch {
         case e: Throwable =>
