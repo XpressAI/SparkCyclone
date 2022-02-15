@@ -9,15 +9,6 @@ import com.nec.spark.agile.{CFunction2, CFunctionGeneration, StringProducer}
 import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 
 object GroupingFunction {
-
-  def addStringHashing(source: String, index: String, toHash: String): CodeLines = {
-    val stringStart = s"$source->offsets[$index]"
-    val stringLength = s"$source->offsets[$index + 1] - $stringStart"
-    CodeLines.from(CodeLines.forLoop("x", stringLength) {
-      CodeLines.from(s"hash = 31 * hash + ${source}->data[x + $stringStart];")
-    })
-  }
-
   final case class DataDescription(veType: VeType, keyOrValue: KeyOrValue)
 
   object DataDescription {
@@ -44,19 +35,23 @@ object GroupingFunction {
     totalBuckets: Int
   ): CodeLines = {
     require(cVectors.nonEmpty, "cVectors is empty - perhaps an issue in checking the groups?")
+
     CodeLines.from(
-      s"// Compute the index -> bucket mapping",
-      s"std::vector<size_t> $groupingIdentifiers;",
-      CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
+      // Iniitalize the bucket_assignments table
+      s"std::vector<size_t> $groupingIdentifiers(${cVectors.head.name}[0]->count);",
+      CodeLines.scoped("Compute the index -> bucket mapping") {
         CodeLines.from(
-          s"int hash = 1;",
-          cVectors.map { cVector =>
+          "#pragma _NEC vector",
+          CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
             CodeLines.from(
-              if (cVector.veType.isString) addStringHashing(s"${cVector.name}[0]", "i", "hash")
-              else CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")
+              // Initialize the hash
+              s"int hash = 1;",
+              // Compute the hash across all keys
+              cVectors.map { vec => s"hash = ${vec.name}[0]->hash_at(i, hash);" },
+              // Assign the bucket based on the hash
+              s"${groupingIdentifiers}[i] = abs(hash % ${totalBuckets});"
             )
-          },
-          s"$groupingIdentifiers.push_back(abs(hash % ${totalBuckets}));"
+          }
         )
       }
     )
@@ -68,17 +63,20 @@ object GroupingFunction {
     totalBuckets: Int
   ): CodeLines = {
     CodeLines.from(
-      s"// Compute the value counts for each bucket",
-      s"std::vector<size_t> $bucketToCount;",
-      CodeLines.forLoop("g", s"$totalBuckets") {
+      // Iniitalize the bucket_counts table
+      s"std::vector<size_t> $bucketToCount(${totalBuckets});",
+      CodeLines.scoped("Compute the value counts for each bucket") {
         CodeLines.from(
-          s"int cnt = 0;",
-          CodeLines.forLoop("i", s"${groupingIdentifiers}.size()") {
-            CodeLines.ifStatement(s"${groupingIdentifiers}[i] == g") {
-              "cnt++;"
-            }
-          },
-          s"$bucketToCount.push_back(cnt);"
+          "#pragma _NEC vector",
+          CodeLines.forLoop("g", s"${totalBuckets}") {
+            CodeLines.from(
+              s"size_t count = 0;",
+              CodeLines.forLoop("i", s"${groupingIdentifiers}.size()") {
+                s"count += (${groupingIdentifiers}[i] == g);"
+              },
+              s"${bucketToCount}[g] = count;"
+            )
+          }
         )
       }
     )

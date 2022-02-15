@@ -161,8 +161,8 @@ frovedis::words nullable_varchar_vector::to_words() const {
 
 void nullable_varchar_vector::print() const {
   std::stringstream stream;
-
   stream << "nullable_varchar_vector @ " << this << " {\n";
+
   // Print count
   stream << "  COUNT: " << count << "\n";
 

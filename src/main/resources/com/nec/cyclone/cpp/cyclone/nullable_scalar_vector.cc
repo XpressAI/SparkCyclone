@@ -65,8 +65,8 @@ bool NullableScalarVec<T>::is_default() const {
 template <typename T>
 void NullableScalarVec<T>::print() const {
   std::stringstream stream;
-
   stream << "NullableScalarVec<T> @ " << this << " {\n";
+
   // Print count
   stream << "  COUNT: " << count << "\n";
 

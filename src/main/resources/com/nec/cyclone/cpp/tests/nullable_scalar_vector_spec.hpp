@@ -84,6 +84,13 @@ namespace cyclone::tests {
       CHECK(output->equals(input));
     }
 
+    TEST_CASE_TEMPLATE("Hash value works for T=", T, int32_t, int64_t, float, double) {
+      auto *input = new NullableScalarVec(raw<T>);
+
+      const auto output = input->hash_at(3, 42);
+      CHECK(output == 31 * 42 + 318);
+    }
+
     TEST_CASE_TEMPLATE("Get and Set validity bit works for T=", T, int32_t, int64_t, float, double) {
       auto *input = new NullableScalarVec(raw<T>);
 
