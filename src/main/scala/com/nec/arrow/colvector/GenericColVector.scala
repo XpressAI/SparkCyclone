@@ -42,7 +42,7 @@ final case class GenericColVector[Data](
       val lenghtsSize = numItems * 4
       val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
-      variableSize.toList ++ List(offsetBuffSize, validitySize, lenghtsSize)
+      variableSize.toList.map(_ * 4) ++ List(offsetBuffSize, lenghtsSize, validitySize)
   }
 
   def containerSize: Int = veType.containerSize
@@ -54,7 +54,7 @@ final case class GenericColVector[Data](
 
 object GenericColVector {
   def bufCount(veType: VeType): Int = veType match {
-    case VeString => 3
+    case VeString => 4
     case _        => 2
   }
 }

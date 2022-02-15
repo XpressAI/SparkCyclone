@@ -58,8 +58,11 @@ object ArrowInterfaces {
   }
 
   def intCharsFromVarcharVector(buf: VarCharVector): ByteBuffer = {
-    val ret = ByteBuffer.allocateDirect(buf.getBufferSize * 4).order(ByteOrder.LITTLE_ENDIAN)
+    val ret = ByteBuffer
+      .allocateDirect(buf.getDataBuffer.readableBytes().toInt * 4)
+      .order(ByteOrder.LITTLE_ENDIAN)
     val out = ret.asIntBuffer()
+
     for (i <- 0 until buf.getValueCount) {
       val ints = buf.getObject(i).toString.getBytes("UTF-32LE")
       val intBuf = ByteBuffer.wrap(ints).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
@@ -83,6 +86,7 @@ object ArrowInterfaces {
     val starts = ret.asIntBuffer()
     for (i <- 0 until buf.getValueCount) {
       val len = buf.getStartOffset(i)
+
       starts.put(len)
     }
     ret
@@ -90,13 +94,14 @@ object ArrowInterfaces {
 
   def c_nullable_varchar_vector(varCharVector: VarCharVector): nullable_varchar_vector = {
     val vc = new nullable_varchar_vector()
-    vc.data = intCharsFromVarcharVector(varCharVector).asInstanceOf[DirectBuffer].address()
+    val dataBuffer = intCharsFromVarcharVector(varCharVector)
+    vc.data = dataBuffer.asInstanceOf[DirectBuffer].address()
     vc.offsets = startsFromVarcharVector(varCharVector).asInstanceOf[DirectBuffer].address()
     vc.lengths = lengthsFromVarcharVector(varCharVector).asInstanceOf[DirectBuffer].address()
     vc.validityBuffer =
       varCharVector.getValidityBuffer.nioBuffer().asInstanceOf[DirectBuffer].address()
     vc.count = varCharVector.getValueCount
-    vc.dataSize = varCharVector.sizeOfValueBuffer()
+    vc.dataSize = dataBuffer.capacity() / 4
     vc
   }
 

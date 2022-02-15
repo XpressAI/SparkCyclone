@@ -133,10 +133,11 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           vcvr.count = numItems
           vcvr.data = buffers(0)
           vcvr.offsets = buffers(1)
-          vcvr.validityBuffer = buffers(2)
+          vcvr.lengths = buffers(2)
+          vcvr.validityBuffer = buffers(3)
           vcvr.dataSize =
             variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
-          vcvr.lengths = buffers(3)
+
           val bytePointer = nullableVarCharVectorVectorToBytePointer(vcvr)
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
@@ -204,14 +205,15 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case VeString =>
       val vcvr = new VarCharVector("output", bufferAllocator)
       if (numItems > 0) {
+        println(s"NUM ITEMS IN CODE: ${numItems}")
         val buffersSize = numItems * 4
         val lastOffsetIndex = (numItems - 1) * 4
         val lengthTarget = new BytePointer(buffersSize)
         val startsTarget = new BytePointer(buffersSize)
         val validityTarget = new BytePointer(numItems)
-        veProcess.get(buffers(1), startsTarget, startsTarget.limit())
-        veProcess.get(buffers(2), validityTarget, validityTarget.limit())
-        veProcess.get(buffers(3), lengthTarget, lengthTarget.limit())
+        veProcess.get(buffers(1), startsTarget, startsTarget.capacity())
+        veProcess.get(buffers(2), lengthTarget, lengthTarget.capacity())
+        veProcess.get(buffers(3), validityTarget, validityTarget.limit())
 
         val dataSize = (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
         val vhTarget = new BytePointer(dataSize * 4)
@@ -222,17 +224,18 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
         //TODO: tempFix
         val array = new Array[Byte](dataSize * 4)
         vhTarget.get(array)
-        for (i <- 0 until numItems) {
-          println(s"START for idx: ${i} is ${startsTarget.get(i * 4)}")
-          println(s"LENGTHS for idx: ${i} is ${lengthTarget.get(i * 4)}")
-        }
-        println(new String(array))
+//        for (i <- 0 until numItems) {
+//          println(s"START for idx: ${i} is ${startsTarget.getInt(i * 4)}")
+//          println(s"LENGTHS for idx: ${i} is ${lengthTarget.getInt(i * 4)}")
+//        }
+//        println("THE ARRAY:" + new String(array))
         for (i <- 0 until numItems) {
           val start = startsTarget.getInt(i * 4) * 4
           val length = lengthTarget.getInt(i * 4) * 4
-          val str = new String(vhTarget.getStringBytes, start, length, "UTF-32LE")
+//          println(s"ARRAY LENGTH WAS ${array.length}, START ${start} and END ${length}")
+          val str = new String(array, start, length, "UTF-32LE")
           val utf8bytes = str.getBytes
-
+//          println(s"DATA: ${str}")
           vcvr.set(i, utf8bytes)
         }
         getUnsafe.copyMemory(

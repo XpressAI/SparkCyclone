@@ -130,6 +130,7 @@ namespace cyclone::tests {
       expected->set_validity(2, 0);
 
       auto *output = input->filter(matching_ids);
+
       CHECK(output != input);
       CHECK(output->equals(expected));
     }

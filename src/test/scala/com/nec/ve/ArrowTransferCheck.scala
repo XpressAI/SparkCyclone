@@ -300,7 +300,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
                   try {
                     val nums = resultVecs(0).asInstanceOf[Float8Vector].toListSafe
-                    val strs = resultVecs(1).asInstanceOf[VarCharVector].toList()
+                    val strs = resultVecs(1).asInstanceOf[VarCharVector].toList("UTF-8")
 
                     val expected = List(1, 2, 3, -1, 2, 3, 4).map(v => Option(v))
                     val expectedStrs = Seq("a", "b", "c", "x", "d", "e", "f")

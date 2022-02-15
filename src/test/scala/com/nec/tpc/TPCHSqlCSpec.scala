@@ -501,30 +501,17 @@ abstract class TPCHSqlCSpec
         count(*) as order_count
       from
         orders
-      where
-        o_orderdate >= date '$date'
-        and o_orderdate < date '$date' + interval '3' month
-        and exists (
-          select *
-          from
-            lineitem
-          where
-            l_orderkey = o_orderkey
-            and l_commitdate < l_receiptdate
-        )
       group by
         o_orderpriority
-      order by
-        o_orderpriority;
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
       ds.as[(String, Long)].collect().sorted shouldBe List(
-            ("1-URGENT", 10594),
-            ("2-HIGH", 10476),
-            ("3-MEDIUM", 10410),
-            ("4-NOT SPECIFIED", 10556),
-            ("5-LOW", 10487)
-          ).sorted
+        ("1-URGENT", 10594),
+        ("2-HIGH", 10476),
+        ("3-MEDIUM", 10410),
+        ("4-NOT SPECIFIED", 10556),
+        ("5-LOW", 10487)
+      ).sorted
     }
   }
 
@@ -561,14 +548,14 @@ abstract class TPCHSqlCSpec
         revenue desc
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-          ds.as[(String, Double)].collect().toList.sorted should  containTheSameProducts(
-          List(
-            ("INDONESIA", 5.5502041169699915e7),
-            ("VIETNAM", 5.529508699669991e7),
-            ("CHINA", 5.372449425660001e7),
-            ("INDIA", 5.2035512000199996e7),
-            ("JAPAN", 4.5410175695400015e7)
-          ).sorted
+      ds.as[(String, Double)].collect().toList.sorted should containTheSameProducts(
+        List(
+          ("INDONESIA", 5.5502041169699915e7),
+          ("VIETNAM", 5.529508699669991e7),
+          ("CHINA", 5.372449425660001e7),
+          ("INDIA", 5.2035512000199996e7),
+          ("JAPAN", 4.5410175695400015e7)
+        ).sorted
       )
     }
   }
@@ -652,7 +639,8 @@ abstract class TPCHSqlCSpec
     ).map(x => x.copy(_4 = x._4.truncate)).sorted
 
     sparkSession.sql(sql).debugSqlHere { ds =>
-      val results = ds.as[(String, String, Int, Double)].collect.map(x => x.copy(_4 = x._4.truncate)).sorted
+      val results =
+        ds.as[(String, String, Int, Double)].collect.map(x => x.copy(_4 = x._4.truncate)).sorted
       assert(results === expected) // FRANCE GERMANY 1995 54639732.7.sorted3
     }
   }
@@ -704,10 +692,9 @@ abstract class TPCHSqlCSpec
     order by
       o_year
     """
-    val expected = Array(
-      (1995, 0.03443589040665487),
-      (1996, 0.041485521293530316)
-    ).map(x => x.copy(_2 = x._2.truncate)).sorted
+    val expected = Array((1995, 0.03443589040665487), (1996, 0.041485521293530316))
+      .map(x => x.copy(_2 = x._2.truncate))
+      .sorted
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       val results = ds.as[(Long, Double)].collect.map(x => x.copy(_2 = x._2.truncate)).sorted
@@ -831,9 +818,9 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql).debugSqlHere { ds =>
       ds.as[(Long, String, Double, Double, String, String, String, String)]
-            .collect()
-            .toList
-            .sorted should containTheSameProducts(result.sorted)
+        .collect()
+        .toList
+        .sorted should containTheSameProducts(result.sorted)
     }
   }
   withTpchViews("Query 11", configuration) { sparkSession =>
@@ -1031,6 +1018,7 @@ abstract class TPCHSqlCSpec
     val expected = List(16.38077862639553)
 
     sparkSession.sql(sql).debugSqlHere { ds =>
+      println(ds.queryExecution.executedPlan)
       val results = ds.as[Double].collect.toList.sorted
 
       assert(results.size === expected.size)
@@ -1083,8 +1071,13 @@ abstract class TPCHSqlCSpec
 
     sparkSession.sql(sql1).show()
     sparkSession.sql(sql2).debugSqlHere { ds =>
-      val expected = Seq((8449L, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003))
-      ds.as[(Long, String, String, String, Double)].collect.toList.sorted should containTheSameProducts(expected)
+      val expected = Seq(
+        (8449L, "Supplier#000008449", "Wp34zim9qYFbVctdW", "20-469-856-8873", 1772627.2087000003)
+      )
+      ds.as[(Long, String, String, String, Double)]
+        .collect
+        .toList
+        .sorted should containTheSameProducts(expected)
     }
     sparkSession.sql(sql3).show()
   }
@@ -1174,7 +1167,9 @@ abstract class TPCHSqlCSpec
         )
     """
     sparkSession.sql(sql).debugSqlHere { ds =>
-      ds.as[Double].collect().toList.sorted.map(Tuple1(_)) should containTheSameProducts(Seq(Tuple1(348406.05428571434))) //  348406.0.sorted5
+      ds.as[Double].collect().toList.sorted.map(Tuple1(_)) should containTheSameProducts(
+        Seq(Tuple1(348406.05428571434))
+      ) //  348406.0.sorted5
     }
   }
 

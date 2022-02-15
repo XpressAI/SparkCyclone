@@ -370,13 +370,13 @@ object VeArrowTransfers extends LazyLogging {
       "varchar_" + varcharVector.getName + "_" + varcharVector.getDataBuffer.capacity()
 
     logger.debug(s"Copying Buffer to VE for $keyName")
-
+    val dataBuff = intCharsFromVarcharVector(varcharVector)
     val vcvr = new nullable_varchar_vector()
     vcvr.count = varcharVector.getValueCount
-    vcvr.dataSize = varcharVector.getDataBuffer.capacity().toInt
-    val dataBuff = intCharsFromVarcharVector(varcharVector)
+    vcvr.dataSize = dataBuff.capacity() / 4
     val startsBuff = startsFromVarcharVector(varcharVector)
     val lengthsBuff = lengthsFromVarcharVector(varcharVector)
+    println(s"DATA SIZE CODE: ${dataBuff.capacity()}")
 
     vcvr.data = copyPointerToVe(
       proc = proc,
@@ -562,11 +562,11 @@ object VeArrowTransfers extends LazyLogging {
   )(implicit cleanup: Cleanup): Unit = {
 
     /** Get data size */
-    val dataSize = bytePointer.getInt(24)
+    val dataSize = bytePointer.getInt(32)
     vec.dataSize = dataSize
 
     /** Get data count */
-    val dataCount = bytePointer.getInt(28)
+    val dataCount = bytePointer.getInt(36)
     vec.count = dataCount
 
     if (dataCount < 1) {
@@ -665,8 +665,8 @@ object VeArrowTransfers extends LazyLogging {
     v_bb.putLong(8, varchar_vector.offsets)
     v_bb.putLong(16, varchar_vector.lengths)
     v_bb.putLong(24, varchar_vector.validityBuffer)
-    v_bb.putInt(28, varchar_vector.dataSize)
-    v_bb.putInt(32, varchar_vector.count)
+    v_bb.putInt(32, varchar_vector.dataSize)
+    v_bb.putInt(36, varchar_vector.count)
     new BytePointer(v_bb)
   }
 }

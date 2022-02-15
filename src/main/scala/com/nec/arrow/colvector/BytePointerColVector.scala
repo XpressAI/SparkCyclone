@@ -260,7 +260,7 @@ object BytePointerColVector {
     val data = ArrowInterfaces.intCharsFromVarcharVector(varcharVector)
     val starts = ArrowInterfaces.startsFromVarcharVector(varcharVector)
     val lengths = ArrowInterfaces.lengthsFromVarcharVector(varcharVector)
-
+    println(s"DATA SIZE CODE:${data.limit()}")
     BytePointerColVector(
       GenericColVector(
         source = source,
@@ -271,10 +271,10 @@ object BytePointerColVector {
         buffers = List(
           Option(new BytePointer(data)),
           Option(new BytePointer(starts)),
-          Option(new BytePointer(varcharVector.getValidityBuffer.nioBuffer())),
-          Option(new BytePointer(lengths))
+          Option(new BytePointer(lengths)),
+          Option(new BytePointer(varcharVector.getValidityBuffer.nioBuffer()))
         ),
-        variableSize = Some(varcharVector.getDataBuffer.nioBuffer().limit())
+        variableSize = Some(data.limit() / 4)
       )
     )
   }
