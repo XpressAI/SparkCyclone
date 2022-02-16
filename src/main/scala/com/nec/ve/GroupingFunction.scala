@@ -46,7 +46,7 @@ object GroupingFunction {
     require(cVectors.nonEmpty, "cVectors is empty - perhaps an issue in checking the groups?")
     CodeLines.from(
       s"// Compute the index -> bucket mapping",
-      s"std::vector<int> $groupingIdentifiers;",
+      s"std::vector<size_t> $groupingIdentifiers;",
       CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
         CodeLines.from(
           s"int hash = 1;",
@@ -69,7 +69,7 @@ object GroupingFunction {
   ): CodeLines = {
     CodeLines.from(
       s"// Compute the value counts for each bucket",
-      s"std::vector<int> $bucketToCount;",
+      s"std::vector<size_t> $bucketToCount;",
       CodeLines.forLoop("g", s"$totalBuckets") {
         CodeLines.from(
           s"int cnt = 0;",
@@ -149,82 +149,27 @@ object GroupingFunction {
       "Cannot copy cVector values to their buckets - input and output VeTypes are not the same!"
     )
 
-    val copyStmt = output.veType match {
-      case CFunctionGeneration.VeString =>
-        val outName = s"${output.name}_current"
-        val fcsp = StringProducer.FrovedisCopyStringProducer(s"${input.name}[0]")
-
-        CodeLines.from(
-          // Point to the current nullable_varchar_vector
-          s"${output.veType.cVectorType} *${outName} = ${output.name}[b];",
-          // Currently a no-op
-          GroupByOutline.initializeStringVector(outName),
-          "",
-          // Set starts and lens vectors to zero but with capacity equal to the count in the bucket
-          fcsp.init(outName, "0", s"${bucketToCount}[b]"),
-          "",
-          // Construct the starts and lens vectors
-          CodeLines.forLoop("i", s"${idToBucket}.size()") {
-            CodeLines.ifStatement(s"b == ${idToBucket}[i]") {
-              List(
-                s"${fcsp.frovedisStarts(outName)}.emplace_back(${fcsp.wordName(outName)}.starts[i]);",
-                s"${fcsp.frovedisLens(outName)}.emplace_back(${fcsp.wordName(outName)}.lens[i]);"
-              )
-            }
-          },
-          "",
-          // Construct the output nullable_varchar_vector using the word components
-          fcsp.complete(outName),
-          "",
-          "auto o = 0;",
-          CodeLines.forLoop("i", s"${idToBucket}.size()") {
-            CodeLines.ifStatement(s"b == ${idToBucket}[i]") {
-              // Preserve the validity bit values across bucketing
-              s"set_validity(${outName}->validityBuffer, o++, check_valid(${input.name}[0]->validityBuffer, i));",
-            }
-          }
-        )
-
-      case other: VeScalarType =>
-        CodeLines.from(
-          // Initialize the values in the nullable_T_vector
-          GroupByOutline.initializeScalarVector(
-            veScalarType = other,
-            variableName = s"${output.name}[b]",
-            countExpression = s"${bucketToCount}[b]"
-          ),
-          "",
-          "auto o = 0;",
-          CodeLines.forLoop("i", s"${idToBucket}.size()") {
-            // If element is in the current bucket
-            CodeLines.ifStatement(s"b == ${idToBucket}[i]") {
-              List(
-                // Copy the value over
-                s"${output.name}[b]->data[o] = ${input.name}[0]->data[i];",
-                // Preserve the validity bit values across bucketing
-                s"set_validity(${output.name}[b]->validityBuffer, o++, check_valid(${input.name}[0]->validityBuffer, i));"
-              )
-            }
-          }
-        )
-    }
-
     CodeLines.scoped(
       s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
     ) {
       CodeLines.from(
-        // Allocate the nullable_T_vector[] with size buckets
-        s"*${output.name} = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(nullptr) * ${buckets}));",
-        "",
-        // Loop over each bucket
+        // Perform the bucketing and get back T** (array of pointers)
+        s"auto ** tmp = ${input.name}[0]->bucket(${bucketToCount}, ${idToBucket});",
+        /*
+          Allocate the nullable_T_vector[] with size buckets
+
+          NOTE: This cast should not be correct, because we are allocating a T*
+          array (T**) but type-casting it to T*.  However, for some reason,
+          fixing this will lead an invalid free() later on.  Will need to
+          investigate fix this.
+        */
+        s"*${output.name} = static_cast<${output.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${buckets}));",
+        // Copy the pointers over
         CodeLines.forLoop("b", s"${buckets}") {
-          CodeLines.from(
-            // Allocate the nullable_T_vector at [0]
-            s"${output.name}[b] = static_cast<${output.veType.cVectorType}*>(malloc(sizeof(${output.veType.cVectorType})));",
-            // Perform the copy based on type T (scalar or varchar)
-            copyStmt
-          )
-        }
+          s"${output.name}[b] = tmp[b];"
+        },
+        // Free the array of pointers (but not the structs themselves)
+        "free(tmp);"
       )
     }
   }
@@ -248,14 +193,14 @@ object GroupingFunction {
         // Compute the bucket assignments
         computeBuckets(
           cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
-          groupingIdentifiers = "idToBucket",
+          groupingIdentifiers = "bucket_assignments",
           totalBuckets = totalBuckets
         ),
         "",
         // Compute the bucket sizes
         computeBucketSizes(
-          groupingIdentifiers = "idToBucket",
-          bucketToCount = "bucketToCount",
+          groupingIdentifiers = "bucket_assignments",
+          bucketToCount = "bucket_counts",
           totalBuckets = totalBuckets
         ),
         "",
@@ -264,7 +209,7 @@ object GroupingFunction {
         "",
         // Copy the elements to their respective buckets
         (outputs, inputs).zipped.map(
-          copyVecToBucketsStmt(_, _, totalBuckets, "idToBucket", "bucketToCount")
+          copyVecToBucketsStmt(_, _, totalBuckets, "bucket_assignments", "bucket_counts")
         )
       )
     )

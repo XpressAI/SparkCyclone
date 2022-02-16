@@ -14,7 +14,21 @@ import org.scalatest.freespec.AnyFreeSpec
 
 final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
 
-  "Join data across partitioned data" in {
+  "Join data across partitioned data (Local mode)" in {
+    val result =
+      withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration) { sparkSession =>
+        testJoin(sparkSession)
+      }.sortBy(_._1.head)
+
+    val expected: List[(List[Double], List[Double])] =
+      List(
+        List[Double](3, 4, 5) -> List[Double](5, 6, 7),
+        List[Double](5, 6, 7) -> List[Double](8, 8, 7)
+      )
+
+    assert(result == expected)
+  }
+  "Join data across partitioned data (Cluster mode)" in {
     val result =
       withSparkSession2(
         VeClusterConfig
@@ -44,7 +58,7 @@ object JoinRDDSpec {
       List(1 -> List(5, 6, 7), 2 -> List(8, 8, 7), 3 -> List(9, 6, 7))
     import SparkCycloneExecutorPlugin._
     VeRDD
-      .joinExchangeLB(
+      .joinExchange(
         sparkSession.sparkContext.makeRDD(partsL).map { case (i, l) =>
           import OriginalCallingContext.Automatic._
           i -> VeColBatch.fromList(List(l.toVeColVector()))
@@ -56,7 +70,7 @@ object JoinRDDSpec {
         cleanUpInput = true
       )
       .map { case (la, lb) =>
-        (la.flatMap(_.toList), lb.flatMap(_.toList))
+        (la.cols.flatMap(_.toList), lb.cols.flatMap(_.toList))
       }
       .collect()
       .toList

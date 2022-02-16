@@ -62,17 +62,21 @@ object NativeCompiler extends LazyLogging {
 
   final case class CachingNativeCompiler(
     nativeCompiler: NativeCompiler,
-    var cache: Map[String, Path] = Map.empty
+    var cache: Map[Int, Path] = Map.empty
   ) extends NativeCompiler
     with LazyLogging {
 
+    def getCached(codeHash: Int): Option[Path] = {
+      cache.get(codeHash)
+    }
+
     /** Location of the compiled kernel library */
     override def forCode(code: String): Path = {
-      cache.get(code) match {
+      cache.get(code.hashCode) match {
         case None =>
           logger.debug(s"Cache miss for compilation.")
           val compiledPath = nativeCompiler.forCode(code)
-          cache = cache.updated(code, compiledPath)
+          cache = cache.updated(code.hashCode, compiledPath)
           compiledPath
         case Some(path) =>
           logger.debug(s"Cache hit for compilation.")

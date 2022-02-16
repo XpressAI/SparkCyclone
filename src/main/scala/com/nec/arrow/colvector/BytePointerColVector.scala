@@ -18,7 +18,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, reg
  */
 
 final case class BytePointerColVector(underlying: GenericColVector[Option[BytePointer]]) {
-  
+
   def toVeColVector()(implicit
     veProcess: VeProcess,
     _source: VeColVectorSource,
@@ -50,7 +50,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             try bp.asBuffer.array()
             catch {
               case _: UnsupportedOperationException =>
-                val size = bp.capacity()
+                val size = bp.limit()
                 val target: Array[Byte] = Array.fill(size.toInt)(-1)
                 bp.get(target)
                 target
@@ -85,7 +85,11 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             float8Vector.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
           )
-          getUnsafe.copyMemory(bytePointersAddresses(0), float8Vector.getDataBufferAddress, dataSize)
+          getUnsafe.copyMemory(
+            bytePointersAddresses(0),
+            float8Vector.getDataBufferAddress,
+            dataSize
+          )
         }
         float8Vector
       case VeScalarType.VeNullableLong =>
@@ -98,7 +102,11 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             bigIntVector.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
           )
-          getUnsafe.copyMemory(bytePointersAddresses(0), bigIntVector.getDataBufferAddress, dataSize)
+          getUnsafe.copyMemory(
+            bytePointersAddresses(0),
+            bigIntVector.getDataBufferAddress,
+            dataSize
+          )
         }
         bigIntVector
       case VeScalarType.VeNullableInt =>
@@ -259,7 +267,7 @@ object BytePointerColVector {
           Option(new BytePointer(varcharVector.getOffsetBuffer.nioBuffer())),
           Option(new BytePointer(varcharVector.getValidityBuffer.nioBuffer()))
         ),
-        variableSize = Some(varcharVector.getDataBuffer.nioBuffer().capacity())
+        variableSize = Some(varcharVector.getDataBuffer.nioBuffer().limit())
       )
     )
 

@@ -115,7 +115,7 @@ object StringHole {
           s"std::vector<size_t> ${filteredIds}(${refName}->count);",
           CodeLines.scoped(s"Filter ${refName} to values of the given set") {
             CodeLines.from(
-              s"frovedis::words $inputWords = varchar_vector_to_words($refName);",
+              s"frovedis::words $inputWords = $refName->to_words();",
               s"std::vector<int> ${values} { ${words} };",
               s"""frovedis::words ${filteringSet} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",
               s"std::vector<size_t> ${matchingIds} = filter_words_dict(${inputWords}, ${filteringSet});",
@@ -178,7 +178,7 @@ object StringHole {
       val dateTimeVectorName = s"stringCasting_datetime_${Math.abs(hashCode())}"
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"frovedis::words $myIdWords = varchar_vector_to_words($refName);",
+          s"frovedis::words $myIdWords = $refName->to_words();",
           s"""std::vector<datetime_t> $dateTimeVectorName = frovedis::parsedatetime($myIdWords, std::string("%Y-%m-%d"));""",
           s"std::vector<int> $finalVectorName($refName->count);",
           "datetime_t epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);",
@@ -209,7 +209,7 @@ object StringHole {
           s"std::vector<int> ${myId}($refName->count);",
           CodeLines.scoped(s"Populate ${myId} with ${refName} ILIKE '${likeString}'") {
             CodeLines.from(
-              s"frovedis::words $myIdWords = varchar_vector_to_words(${refName});",
+              s"frovedis::words $myIdWords = ${refName}->to_words();",
               s"""std::vector<size_t> ${matchingIds} = frovedis::like(${myIdWords}, "${likeString}");""",
               CodeLines.forLoop("i", s"${refName}->count") {
                 s"${myId}[i] = 0;"

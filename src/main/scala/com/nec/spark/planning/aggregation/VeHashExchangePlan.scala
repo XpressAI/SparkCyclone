@@ -19,8 +19,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-import java.time.{Duration, Instant}
-
 case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
   with SupportsVeColBatch
@@ -51,9 +49,13 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
             )(registerFunctionCallTime(_, veFunction.functionName))
             logger.debug(s"Mapped to ${multiBatches} completed.")
 
-            val (filled, unfilled) = multiBatches.partition(_._2.head.nonEmpty)
-            unfilled.flatMap(_._2).foreach(vcv => vcv.free())
-            filled
+            multiBatches.flatMap {
+              case (n, l) if l.head.nonEmpty =>
+                Option(n -> VeColBatch.fromList(l))
+              case (_, l) =>
+                l.foreach(_.free())
+                None
+            }
           } finally {
             child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
           }
@@ -61,7 +63,6 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
       }
     }
     .exchangeBetweenVEs(cleanUpInput = true)
-    .mapPartitions(f = _.map(lv => VeColBatch.fromList(lv)), preservesPartitioning = true)
 
   override def output: Seq[Attribute] = child.output
 
@@ -89,7 +90,13 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
               )
               logger.debug(s"Mapped to ${multiBatches} completed.")
 
-              multiBatches.map { case (n, l) => n -> VeColBatch.fromList(l) }
+              multiBatches.flatMap {
+                case (n, l) if l.head.nonEmpty =>
+                  Option(n -> VeColBatch.fromList(l))
+                case (_, l) =>
+                  l.foreach(_.free())
+                  None
+              }
             } else {
               logger.debug(s"${veColBatch} was empty.")
               Nil

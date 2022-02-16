@@ -13,9 +13,17 @@ final case class GenericColVector[Data](
   buffers: List[Data]
 ) {
 
+  require(
+    bufferSizes.size == buffers.size,
+    s"Expecting buffersizes to equal buffers in size (${bufferSizes.size} & ${buffers.size})"
+  )
+
   def toUnit: UnitColVector = UnitColVector(map(_ => ()))
 
-  if (veType == VeString) require(variableSize.nonEmpty, "String should come with variable size")
+  require(
+    bufferSizes.size == buffers.size,
+    s"Expecting buffersizes to equal buffers in size (${bufferSizes.size} & ${buffers.size})"
+  )
 
   def containerLocation: Data = container
 
@@ -41,4 +49,11 @@ final case class GenericColVector[Data](
   def map[Other](f: Data => Other): GenericColVector[Other] =
     copy(container = f(containerLocation), buffers = buffers.map(f))
 
+}
+
+object GenericColVector {
+  def bufCount(veType: VeType): Int = veType match {
+    case VeString => 3
+    case _        => 2
+  }
 }

@@ -20,9 +20,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "tests/doctest.h"
 
-// Include all tests to be run
-#include "tests/example-spec.hpp"
-#include "tests/transfer-definitions-spec.hpp"
+// Include all the specs to be run
+#include "tests/example_spec.hpp"
+#include "tests/nullable_scalar_vector_spec.hpp"
+#include "tests/nullable_varchar_vector_spec.hpp"
 
 int main(int argc, char** argv) {
   // Based on: https://github.com/doctest/doctest/blob/master/doc/markdown/main.md

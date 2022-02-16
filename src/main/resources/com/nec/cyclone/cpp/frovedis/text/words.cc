@@ -1,5 +1,3 @@
-#pragma once
-
 #include <iostream>
 #include "words.hpp"
 #include "find.hpp"
@@ -104,7 +102,7 @@ void split_to_words(const int* vp, size_t size, size_t offset,
       lensp[num_words-1] = size + offset - startsp[num_words-1] - 1;
     } else {
       lensp[num_words-1] = size + offset - startsp[num_words-1];
-    }    
+    }
   } else if(delims_size == 1) {
     auto sep = find(vp, size, delims);
     auto sep_size = sep.size();
@@ -162,7 +160,7 @@ void print_words(const vector<int>& v,
 }
 
 
-void trim_head(const int* vp, 
+void trim_head(const int* vp,
                size_t* starts, size_t* lens, size_t num_words,
                const string& to_trim) {
   size_t size = num_words;
@@ -250,7 +248,7 @@ void trim_head(const int* vp,
     }
   }
 }
-               
+
 void trim_head(const vector<int>& v,
                vector<size_t>& starts,
                vector<size_t>& lens,
@@ -261,7 +259,7 @@ void trim_head(const vector<int>& v,
 }
 
 
-void trim_tail(const int* vp, 
+void trim_tail(const int* vp,
                size_t* starts, size_t* lens, size_t num_words,
                const string& to_trim) {
   size_t size = num_words;
@@ -347,7 +345,7 @@ void trim_tail(const int* vp,
     }
   }
 }
-               
+
 void trim_tail(const vector<int>& v,
                vector<size_t>& starts,
                vector<size_t>& lens,
@@ -363,7 +361,7 @@ void trim(const int* vp,
   trim_head(vp, starts, lens, num_words, to_trim);
   trim_tail(vp, starts, lens, num_words, to_trim);
 }
-               
+
 void trim(const vector<int>& v,
           vector<size_t>& starts,
           vector<size_t>& lens,
@@ -373,7 +371,7 @@ void trim(const vector<int>& v,
   trim(v.data(), starts.data(), lens.data(), starts.size(), to_trim);
 }
 
-void trim_noalpha_head(const int* vp, 
+void trim_noalpha_head(const int* vp,
                        size_t* starts, size_t* lens, size_t num_words) {
   size_t size = num_words;
   vector<size_t> crnt(num_words), work(num_words);
@@ -408,7 +406,7 @@ void trim_noalpha_head(const int* vp,
     for(size_t j = 0; j < rest; j++) {
       size_t pos = crntp[j + rest_idx_start];
       auto loaded = vp[starts[pos]];
-      if(lens[pos] > 0 && 
+      if(lens[pos] > 0 &&
          (loaded < 'A' || loaded > 'z' || (loaded < 'a' && loaded > 'Z'))) {
         starts[pos]++;
         lens[pos]--;
@@ -447,7 +445,7 @@ void trim_noalpha_head(const vector<int>& v,
   trim_noalpha_head(v.data(), starts.data(), lens.data(), starts.size());
 }
 
-void trim_noalpha_tail(const int* vp, 
+void trim_noalpha_tail(const int* vp,
                        size_t* starts, size_t* lens, size_t num_words) {
   size_t size = num_words;
   vector<size_t> crnt(num_words), work(num_words);
@@ -469,7 +467,7 @@ void trim_noalpha_tail(const int* vp,
       for(size_t i = 0; i < WORDS_VLEN; i++) {
         auto pos = crntp[j + each * i];
         auto loaded =  vp[starts[pos] + lens[pos]-1];
-        if(lens[pos] > 0 && 
+        if(lens[pos] > 0 &&
            (loaded < 'A' || loaded > 'z' || (loaded < 'a' && loaded > 'Z'))) {
           lens[pos]--;
           workp[out_ridx[i]++] = pos;
@@ -481,7 +479,7 @@ void trim_noalpha_tail(const int* vp,
     for(size_t j = 0; j < rest; j++) {
       size_t pos = crntp[j + rest_idx_start];
       auto loaded =  vp[starts[pos] + lens[pos]-1];
-      if(lens[pos] > 0 && 
+      if(lens[pos] > 0 &&
          (loaded < 'A' || loaded > 'z' || (loaded < 'a' && loaded > 'Z'))) {
         lens[pos]--;
         workp[rest_idx++] = pos;
@@ -510,7 +508,7 @@ void trim_noalpha_tail(const int* vp,
     }
   }
 }
-               
+
 void trim_noalpha_tail(const vector<int>& v,
                        vector<size_t>& starts,
                        vector<size_t>& lens) {
@@ -524,7 +522,7 @@ void trim_noalpha(const int* vp,
   trim_noalpha_head(vp, starts, lens, num_words);
   trim_noalpha_tail(vp, starts, lens, num_words);
 }
-               
+
 void trim_noalpha(const vector<int>& v,
                   vector<size_t>& starts,
                   vector<size_t>& lens) {
@@ -611,7 +609,7 @@ void remove_null(size_t* starts, size_t* lens, size_t& size) {
     }
   }
 }
-               
+
 void remove_null(vector<size_t>& starts,
                  vector<size_t>& lens) {
   if(starts.size() != lens.size())
@@ -668,7 +666,7 @@ void substr(std::vector<size_t>& starts,
             size_t pos, size_t num) {
   substr(starts.data(), lens.data(), starts.size(), pos, num);
 }
-              
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             size_t pos) {
@@ -1177,7 +1175,7 @@ void quote_and_escape(words& ws) {
       auto estart = escape_startsp[i];
       /* -1 is safe because to_escape_size != 0
          (last word is at starts_size) */
-      lensp[estart-1]++; 
+      lensp[estart-1]++;
       auto end = estart;
       for(size_t j = start; j < end; j++) {
         new_startsp[j] += i;
@@ -1323,10 +1321,10 @@ vector<string> words_to_vector_string(const words& ws) {
         auto idx = b * WORDS_VECTOR_BLOCK + i;
         if(posp[idx] * 4 + 3 < lensp[idx]) {
           still_working = true;
-          *(intstrpp[idx] + posp[idx]) = 
-            charsp[startsp[idx] + posp[idx] * 4] + 
-            (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) + 
-            (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) + 
+          *(intstrpp[idx] + posp[idx]) =
+            charsp[startsp[idx] + posp[idx] * 4] +
+            (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) +
+            (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) +
             (charsp[startsp[idx] + posp[idx] * 4 + 3] << 24);
           posp[idx]++;
         }
@@ -1350,10 +1348,10 @@ vector<string> words_to_vector_string(const words& ws) {
       auto idx = num_block * WORDS_VECTOR_BLOCK + i;
       if(posp[idx] * 4 + 3 < lensp[idx]) {
         still_working = true;
-        *(intstrpp[idx] + posp[idx]) = 
-          charsp[startsp[idx] + posp[idx] * 4] + 
-          (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) + 
-          (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) + 
+        *(intstrpp[idx] + posp[idx]) =
+          charsp[startsp[idx] + posp[idx] * 4] +
+          (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) +
+          (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) +
           (charsp[startsp[idx] + posp[idx] * 4 + 3] << 24);
         posp[idx]++;
       }
@@ -1498,7 +1496,7 @@ void replace(const std::vector<int>& chars,
   }
   // separate 1st iteration: num_occurence is always greater than 0
   auto posp = pos.data();
-#pragma _NEC ivdep  
+#pragma _NEC ivdep
   for(size_t i = 0; i < search_idx_size; i++) {
     auto search_pos = search_idxp[i];
     auto crnt_word = idxp[search_pos];
@@ -1543,7 +1541,7 @@ void replace(const std::vector<int>& chars,
     num_occurrence_size = num_occurrence.size();
     num_occurrencep = num_occurrence.data();
     if(search_idx_size == 0) break;
-#pragma _NEC ivdep  
+#pragma _NEC ivdep
     for(size_t i = 0; i < search_idx_size; i++) {
       auto search_pos = search_idxp[i];
       auto crnt_word = idxp[search_pos];
@@ -1559,7 +1557,7 @@ void replace(const std::vector<int>& chars,
     auto zero = find_condition(num_occurrence, is_zero_like());
     auto zero_size = zero.size();
     auto zerop = zero.data();
-#pragma _NEC ivdep  
+#pragma _NEC ivdep
     for(size_t i = 0; i < zero_size; i++) {
       auto search_pos = search_idxp[zerop[i]];
       auto crnt_word = idxp[search_pos];
@@ -1589,7 +1587,7 @@ void replace(const std::vector<int>& chars,
   ret_starts.resize(starts_size);
   auto ret_startsp = ret_starts.data();
   auto new_startsp = new_starts.data();
-#pragma _NEC ivdep  
+#pragma _NEC ivdep
   for(size_t i = 0; i < starts_size; i++) {
     ret_startsp[i] = new_startsp[original_starts_idxp[i]];
   }

@@ -41,7 +41,7 @@ final class DualModeTest extends AnyFreeSpec {
       None,
       VeScalarType.veNullableInt,
       -1,
-      Nil
+      List(1, 2)
     )
     val expectedCb = VeColBatch(numRows = vcv.numItems, cols = List(vcv))
     val cv = new VeColColumnarVector(Left(vcv), IntegerType)

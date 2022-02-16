@@ -152,4 +152,6 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
 
   def getAllocations: Map[Long, Long] = allocations.toMap
 
+  override def checkTotalUsage(): Long = allocations.valuesIterator.sum
+
 }

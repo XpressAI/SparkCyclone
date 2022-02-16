@@ -1,5 +1,3 @@
-#pragma once
-
 #include "char_int_conv.hpp"
 #include <stdexcept>
 #include <iostream>

@@ -28,7 +28,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.DriverPlugin
 import org.apache.spark.api.plugin.PluginContext
 
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 import com.nec.ve.VeKernelCompiler
 import com.nec.ve.VeKernelCompiler.FileAttributes
 import com.typesafe.scalalogging.LazyLogging
@@ -45,12 +45,15 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
   private[spark] var nativeCompiler: NativeCompiler = _
   override def receive(message: Any): AnyRef = {
     message match {
-      case RequestCompiledLibraryForCode(code) =>
-        logger.debug(s"Received request for compiled code: '${code}'")
-        val localLocation = nativeCompiler.forCode(code)
-        logger.info(s"Local compiled location = '${localLocation}'")
-        RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(localLocation): _*))
-      case other => super.receive(message)
+      case RequestCompiledLibraryForCode(codePath) =>
+        logger.debug(s"Received request for compiled code at path: '${codePath}'")
+        val localLocation = Paths.get(codePath)
+        if (Files.exists(localLocation)) {
+          RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(localLocation): _*))
+
+        } else {
+          throw new RuntimeException(s"Received request for code at path ${codePath} but it's not present on driver.")
+        }
     }
   }
 

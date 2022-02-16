@@ -1358,29 +1358,6 @@ abstract class TPCHSqlCSpec
     }
   }
 
-  withTpchViews("Query 21.minimal", configuration) { sparkSession =>
-    import sparkSession.implicits._
-    val nation = "SAUDI ARABIA"
-
-    val sql = s"""
-      select
-        l_shipmode
-      from
-        lineitem
-      where
-        l_shipdate = date '1995-01-01'
-        and l_commitdate = date '1995-01-01'
-      group by
-        l_shipmode
-    """
-
-    sparkSession.sql(sql).debugSqlHere { ds =>
-      val results = ds.as[(String)].collect
-      results.foreach(x => println(s"ROW: ${x}"))
-      println(s"NUM RESULTS: ${results.size}")
-    }
-  }
-
   withTpchViews("Query 21", configuration) { sparkSession =>
     import sparkSession.implicits._
     val nation = "SAUDI ARABIA"

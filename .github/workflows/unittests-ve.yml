@@ -5,6 +5,9 @@ on:
   pull_request:
     types:
       - ready_for_review
+env:
+  SPARK_SCALA_VERSION: 2.12
+  SPARK_HOME: /opt/spark
 jobs:
   build:
     runs-on: "ve"

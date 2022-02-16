@@ -9,10 +9,10 @@ val TPC = config("tpc") extend Test
 val VectorEngine = config("ve") extend Test
 
 /**
- * For fast development purposes, similar to how Spark project does it. Maven's compilation cycles
- * are very slow
+ * Do not modify this, Spark uses 2.12.10, upgrading to eg 2.12.15 causes issues because Spark uses some Scala library internals.
  */
-ThisBuild / scalaVersion := "2.12.15"
+lazy val defaultScalaVersion = "2.12.10"
+ThisBuild / scalaVersion := defaultScalaVersion
 val orcVversion = "1.5.8"
 val slf4jVersion = "1.7.30"
 
@@ -22,13 +22,12 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(TPC)
   .configs(CMake)
   .enablePlugins(SbtJavaCPP4S)
-  .settings(
-    version := "0.9.1"
-  )
+  .settings(version := "0.9.2")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
   .enablePlugins(SystemdPlugin)
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .enablePlugins(RpmPlugin)
   .dependsOn(root % "test->test")
   .settings(
@@ -68,6 +67,7 @@ makeLibraryCommands := Seq(
  */
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .dependsOn(root % "compile->test")
   .settings(
     libraryDependencies ++= Seq(
@@ -117,7 +117,7 @@ lazy val `fun-bench` = project
       }
   )
 
-crossScalaVersions := Seq("2.12.15", "2.11.12")
+crossScalaVersions := Seq(defaultScalaVersion, "2.11.12")
 
 val sparkVersion = SettingKey[String]("sparkVersion")
 
@@ -126,7 +126,7 @@ ThisBuild / sparkVersion := {
   if (scalaV.startsWith("2.12")) "3.1.2" else "2.3.2"
 }
 
-val silencerVersion = "1.7.8"
+val silencerVersion = "1.6.0"
 
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
@@ -142,7 +142,6 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
   "com.lihaoyi" %% "sourcecode" % "0.2.7",
-  "org.bytedeco" % "javacpp" % "1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
@@ -156,6 +155,8 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
   "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve"
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
+
+javaCppVersion := "1.5.7"
 
 libraryDependencies ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
@@ -409,6 +410,7 @@ Test / javaOptions ++= {
 
 lazy val tpchbench = project
   .in(file("tests/tpchbench"))
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .settings(
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
@@ -433,6 +435,7 @@ lazy val tpchbench = project
   )
 
 lazy val `tpcbench-run` = project
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .settings(
     libraryDependencies ++= Seq(
       "org.xerial" % "sqlite-jdbc" % "3.36.0.3",
@@ -491,8 +494,10 @@ cycloneVeLibrarySources :=
   sbt.nio.file.FileTreeView.default
     .list(
       Seq(
-        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/*.hpp"),
-        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/*.cc"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/cyclone/*.hpp"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/cyclone/*.cc"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/tests/*.hpp"),
+        Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/tests/*.cc"),
         Glob((Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/core/*"),
         Glob(
           (Compile / resourceDirectory).value.toString + "/com/nec/cyclone/cpp/frovedis/dataframe/*"
@@ -511,7 +516,10 @@ cycloneVeLibrary := {
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
         logger.info("Building and testing libcyclone.so...")
-        val exitcode = Process(command = Seq("make", "clean", "all", "test"), cwd = makefile.getParentFile) ! logger
+        val exitcode = Process(
+          command = Seq("make", "clean", "all", "test"),
+          cwd = makefile.getParentFile
+        ) ! logger
 
         if (exitcode != 0) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
@@ -520,8 +528,9 @@ cycloneVeLibrary := {
         val cycloneVeDir = (Compile / resourceManaged).value / "cycloneve"
         IO.createDirectory(cycloneVeDir)
 
-        val filesToCopy = in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
-          (new File(makefile.getParentFile, "libcyclone.so"))
+        val filesToCopy =
+          in.filter(fp => fp.toString.endsWith(".hpp") || fp.toString.endsWith(".incl")) +
+            (new File(makefile.getParentFile, "libcyclone.so"))
 
         filesToCopy.flatMap { sourceFile =>
           Path

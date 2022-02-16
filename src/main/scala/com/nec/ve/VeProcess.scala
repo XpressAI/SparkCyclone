@@ -18,9 +18,15 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
+import java.io.{InputStream, OutputStream}
+import java.nio.channels.Channels
 import java.nio.file.Path
 
 trait VeProcess {
+  def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
+    context: OriginalCallingContext
+  ): Long
+  def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
 
   final def readAsPointer(containerLocation: Long, containerSize: Int): BytePointer = {
     val bp = new BytePointer(containerSize)
@@ -83,14 +89,15 @@ object VeProcess {
 
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
-
     override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
     override def allocate(size: Long)(implicit context: OriginalCallingContext): Long =
       f().allocate(size)
 
-    override def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long =
+    override def putPointer(bytePointer: BytePointer)(implicit
+      context: OriginalCallingContext
+    ): Long =
       f().putPointer(bytePointer)
 
     override def get(from: Long, to: BytePointer, size: Long): Unit = f().get(from, to, size)
@@ -123,6 +130,12 @@ object VeProcess {
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
 
+    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
+      f().writeToStream(outStream, bufPos, bufLen)
+
+    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
+      context: OriginalCallingContext
+    ): Long = f().loadFromStream(inputStream, bytes)
   }
 
   final case class WrappingVeo(
@@ -158,14 +171,9 @@ object VeProcess {
     override def putPointer(
       bytePointer: BytePointer
     )(implicit context: OriginalCallingContext): Long = {
-      val memoryLocation = allocate(bytePointer.capacity().toLong)
+      val memoryLocation = allocate(bytePointer.limit())
       requireOk(
-        veo.veo_write_mem(
-          veo_proc_handle,
-          memoryLocation,
-          bytePointer,
-          bytePointer.capacity().toLong
-        )
+        veo.veo_write_mem(veo_proc_handle, memoryLocation, bytePointer, bytePointer.limit())
       )
       memoryLocation
     }
@@ -451,6 +459,34 @@ object VeProcess {
               List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16))
           ).register()
       }
+    }
+
+    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
+      if (bufLen > 1) {
+        val buf = new BytePointer(bufLen)
+        veo.veo_read_mem(veo_proc_handle, buf, bufPos, bufLen)
+        val numWritten = Channels.newChannel(outStream).write(buf.asBuffer())
+        require(numWritten == bufLen, s"Written ${numWritten}, expected ${bufLen}")
+      }
+    }
+
+    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
+      context: OriginalCallingContext
+    ): Long = {
+      val memoryLocation = allocate(bytes.toLong)
+      val bp = new BytePointer(bytes.toLong)
+      val buf = bp.asBuffer()
+
+      val channel = Channels.newChannel(inputStream)
+      var bytesRead = 0
+      while (bytesRead < bytes) {
+        bytesRead += channel.read(buf)
+      }
+      requireOk(
+        veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong),
+        s"Trying to write to memory location ${memoryLocation}; ${veProcessMetrics.checkTotalUsage()}"
+      )
+      memoryLocation
     }
 
   }

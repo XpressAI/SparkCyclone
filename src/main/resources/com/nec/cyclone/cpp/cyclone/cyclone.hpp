@@ -43,12 +43,6 @@ inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
     return res;
 }
 
-frovedis::words data_offsets_to_words(const char *data, const int32_t *offsets, const int32_t size, const int32_t count);
-
-frovedis::words varchar_vector_to_words(const nullable_varchar_vector *v);
-
-void words_to_varchar_vector(frovedis::words& in, nullable_varchar_vector *out);
-
 void debug_words(frovedis::words &in);
 
 std::vector<size_t> idx_to_std(nullable_int_vector *idx);
@@ -58,5 +52,3 @@ void print_indices(std::vector<size_t> vec);
 frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select);
 
 std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set);
-
-void debug_nullable_varchar_vector(const nullable_varchar_vector *v);

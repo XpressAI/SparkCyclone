@@ -54,9 +54,9 @@ final case class GenericJoiner(
           val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
 
           CodeLines.from(
-            s"auto ${name}_words = varchar_vector_to_words(${name});",
+            s"auto ${name}_words = ${name}->to_words();",
             s"auto ${name}_filtered_words = filter_words(${name}_words, ${indicesName});",
-            s"words_to_varchar_vector(${name}_filtered_words, ${outName});"
+            s"""new (${outName}) nullable_varchar_vector(${name}_filtered_words);"""
           )
       }
     )
@@ -139,7 +139,7 @@ object GenericJoiner {
           s"for (int i = 0; i < $leftDictIndices.size(); i++) {",
           s"  left_idx[i] = i;",
           s"}",
-          s"std::vector<size_t> right = $inLeftDict.lookup(frovedis::make_compressed_words(varchar_vector_to_words(${inRightVarChar})));",
+          s"std::vector<size_t> right = $inLeftDict.lookup(frovedis::make_compressed_words(${inRightVarChar}->to_words()));",
           s"std::vector<size_t> right_idx(right.size());",
           s"for (int i = 0; i < right.size(); i++) {",
           s"  right_idx[i] = i;",
