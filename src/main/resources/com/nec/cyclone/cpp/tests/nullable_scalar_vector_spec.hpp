@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -26,11 +26,11 @@
 
 namespace cyclone::tests {
   TEST_SUITE("NullableScalarVec<T>") {
-    TEST_CASE_TEMPLATE("Equality checks work for T=", T, int32_t, int64_t, float, double) {
-      // Instantiate for int32_t
-      std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
+    // Instantiate for each template case to be tested
+    template<typename T> const std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
 
-      auto *vec1 = new NullableScalarVec(raw);
+    TEST_CASE_TEMPLATE("Equality checks work for T=", T, int32_t, int64_t, float, double) {
+      auto *vec1 = new NullableScalarVec(raw<T>);
       vec1->set_validity(1, 0);
       vec1->set_validity(4, 0);
       vec1->set_validity(8, 0);
@@ -39,11 +39,11 @@ namespace cyclone::tests {
       auto *vec2 = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553 });
 
       // Different data
-      auto *vec3 = new NullableScalarVec(raw);
+      auto *vec3 = new NullableScalarVec(raw<T>);
       vec3->data[3] = 184;
 
       // Different validityBuffer
-      auto *vec4 = new NullableScalarVec(raw);
+      auto *vec4 = new NullableScalarVec(raw<T>);
       vec4->set_validity(3, 0);
 
       CHECK(vec1->equals(vec1));
@@ -54,7 +54,7 @@ namespace cyclone::tests {
 
     TEST_CASE_TEMPLATE("Check default works for T=", T, int32_t, int64_t, float, double) {
       auto *empty = new NullableScalarVec<T>;
-      auto *nonempty = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      auto *nonempty = new NullableScalarVec(raw<T>);
 
       CHECK(empty->is_default());
       CHECK(not nonempty->is_default());
@@ -63,7 +63,7 @@ namespace cyclone::tests {
     TEST_CASE_TEMPLATE("Reset works for T=", T, int32_t, int64_t, float, double) {
       auto *empty = new NullableScalarVec<T>;
 
-      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      auto *input = new NullableScalarVec(raw<T>);
       input->set_validity(1, 0);
       input->set_validity(4, 0);
       input->set_validity(8, 0);
@@ -74,7 +74,7 @@ namespace cyclone::tests {
     }
 
     TEST_CASE_TEMPLATE("Clone works for T=", T, int32_t, int64_t, float, double) {
-      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
+      auto *input = new NullableScalarVec(raw<T>);
       input->set_validity(1, 0);
       input->set_validity(4, 0);
       input->set_validity(8, 0);
@@ -82,6 +82,23 @@ namespace cyclone::tests {
       auto *output = input->clone();
       CHECK(output != input);
       CHECK(output->equals(input));
+    }
+
+    TEST_CASE_TEMPLATE("Hash value works for T=", T, int32_t, int64_t, float, double) {
+      auto *input = new NullableScalarVec(raw<T>);
+
+      const auto output = input->hash_at(3, 42);
+      CHECK(output == 31 * 42 + 318);
+    }
+
+    TEST_CASE_TEMPLATE("Get and Set validity bit works for T=", T, int32_t, int64_t, float, double) {
+      auto *input = new NullableScalarVec(raw<T>);
+
+      input->set_validity(4, 0);
+      CHECK(input->get_validity(4) == 0);
+
+      input->set_validity(4, 1);
+      CHECK(input->get_validity(4) == 1);
     }
 
     TEST_CASE_TEMPLATE("Filter works for T=", T, int32_t, int64_t, float, double) {
@@ -119,6 +136,30 @@ namespace cyclone::tests {
       CHECK(output[0]->equals(input->filter(matching_ids_0)));
       CHECK(output[1]->equals(input->filter(matching_ids_1)));
       CHECK(output[2]->equals(input->filter(matching_ids_2)));
+    }
+
+    TEST_CASE_TEMPLATE("Merge works for T=", T, int32_t, int64_t, float, double) {
+      std::vector<NullableScalarVec<T> *> inputs(3);
+
+      inputs[0] = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538 });
+      inputs[0]->set_validity(1, 0);
+      inputs[0]->set_validity(4, 0);
+
+      inputs[1] = new NullableScalarVec(std::vector<T> { 620, 553, 605 });
+      inputs[1]->set_validity(2, 0);
+
+      inputs[2] = new NullableScalarVec(std::vector<T> { 46, 726, 563, 515, });
+      inputs[2]->set_validity(3, 0);
+
+      auto *expected = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 46, 726, 563, 515 });
+      expected->set_validity(1, 0);
+      expected->set_validity(4, 0);
+      expected->set_validity(7, 0);
+      expected->set_validity(11, 0);
+
+      const auto *output = NullableScalarVec<T>::merge(&inputs[0], 3);
+      CHECK(output != expected);
+      CHECK(output->equals(expected));
     }
   }
 }

@@ -230,7 +230,7 @@ object DeclarativeAggregationConverter {
                   CExpression(
                     cCode = s"${inputPrefix}_attr_${targetAttribute.name}->data[i]",
                     isNotNullCode = Some(
-                      s"check_valid(${inputPrefix}_attr_${targetAttribute.name}->validityBuffer, i)"
+                      s"${inputPrefix}_attr_${targetAttribute.name}->get_validity(i)"
                     )
                   )
               }

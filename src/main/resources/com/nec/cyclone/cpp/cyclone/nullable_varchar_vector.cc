@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -61,7 +61,7 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -106,7 +106,7 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -161,8 +161,8 @@ frovedis::words nullable_varchar_vector::to_words() const {
 
 void nullable_varchar_vector::print() const {
   std::stringstream stream;
-
   stream << "nullable_varchar_vector @ " << this << " {\n";
+
   // Print count
   stream << "  COUNT: " << count << "\n";
 
@@ -178,7 +178,7 @@ void nullable_varchar_vector::print() const {
     // Print string values
     stream << "  VALUES: [ ";
     for (auto i = 0; i < count; i++) {
-      if (check_valid(validityBuffer, i)) {
+      if (get_validity(i)) {
         stream << std::string(data,  offsets[i], offsets[i+1] - offsets[i]) << ", ";
       } else {
         stream << "#, ";
@@ -194,7 +194,7 @@ void nullable_varchar_vector::print() const {
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
     for (auto i = 0; i < count; i++) {
-        stream << check_valid(validityBuffer, i) << ", ";
+        stream << get_validity(i) << ", ";
     }
 
     // Print data
@@ -231,7 +231,7 @@ bool nullable_varchar_vector::equals(const nullable_varchar_vector * const other
   // Compare validityBuffer
   #pragma _NEC ivdep
   for (auto i = 0; i < count; i++) {
-    output = output && (check_valid(validityBuffer, i) == check_valid(other->validityBuffer, i));
+    output = output && (get_validity(i) == other->get_validity(i));
   }
 
   return output;
@@ -332,6 +332,31 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
 
     // Create a filtered copy based on the list of indexes
     output[b] = this->filter(matching_ids);
+  }
+
+  return output;
+}
+
+nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
+                                                         const size_t batches) {
+
+  // Construct std::vector<frovedis::words> from the inputs
+  std::vector<frovedis::words> multi_words(batches);
+  #pragma _NEC vector
+  for (int b = 0; b < batches; b++) {
+    multi_words[b] = inputs[b]->to_words();
+  }
+
+  // Merge using Frovedis and convert back to nullable_varchar_vector
+  auto *output = from_words(frovedis::merge_multi_words(multi_words));
+
+  // Preserve the validityBuffer across the merge
+  auto o = 0;
+  #pragma _NEC ivdep
+  for (int b = 0; b < batches; b++) {
+    for (int i = 0; i < inputs[b]->count; i++) {
+      output->set_validity(o++, inputs[b]->get_validity(i));
+    }
   }
 
   return output;

@@ -12,63 +12,21 @@ object MergerFunction {
     val out = s"output_${index}_g"
     val tmp = s"output_${index}"
 
-    val mergeStmt = vetype match {
-      case VeString =>
-        CodeLines.from(
-          // Declare std::vector<frovedis::words>
-          s"std::vector<frovedis::words> ${tmp}_multi_words(batches);",
-          // Loop over the batches
-          CodeLines.forLoop("b", "batches") {
-            // Copy each nullable_varchar_vector over
-            s"${tmp}_multi_words[b] = ${in}[b]->to_words();"
-          },
-          "",
-          // Perform merge using frovedis
-          s"frovedis::words ${tmp}_merged = frovedis::merge_multi_words(${tmp}_multi_words);",
-          // Convert back to nullable_varchar_vector
-          s"""new (${tmp}) nullable_varchar_vector(${tmp}_merged);""",
-          "",
-          // Initialize index counter
-          "auto o = 0;",
-          CodeLines.forLoop("b", "batches") {
-            CodeLines.forLoop("i", s"${in}[b]->count") {
-              s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
-            }
-          }
-        )
-
-      case scalar: VeScalarType =>
-        CodeLines.from(
-          // Initialize the mullable_T_vector
-          GroupByOutline.initializeScalarVector(scalar, tmp, "rows"),
-          "",
-          // Initialize index counter
-          "auto o = 0;",
-          // Loop over the batches
-          CodeLines.forLoop("b", "batches") {
-            // Loop over all values in each batch
-            CodeLines.forLoop("i", s"${in}[b]->count") {
-              List(
-                // Copy value over
-                s"${tmp}->data[o] = ${in}[b]->data[i];",
-                // Preserve validity bits across merges
-                s"set_validity(${tmp}->validityBuffer, o++, check_valid(${in}[b]->validityBuffer, i));"
-              )
-            }
-          }
-        )
-    }
-
     CodeLines.scoped(s"Merge ${in}[...] into ${out}[0]") {
       CodeLines.from(
-        // Allocate the nullable_T_vector[]
+        /*
+          Allocate the nullable_T_vector[] with size buckets
+
+          NOTE: This cast is incorrect, because we are allocating a T* array
+          (T**) but type-casting it to T*.  However, for some reason, fixing
+          this will lead an invalid free() later on - this is likely due to an
+          error in how we define function call from the Spark side.  Will need
+          to investigate and fix this in the future.
+        */
+        s"// Allocate T*[] but cast to T* (incorrect but required to work correctly until a fix lands)",
         s"*${out} = static_cast<${vetype.cVectorType}*>(malloc(sizeof(nullptr)));",
-        // Allocate new mullable_T_vector
-        s"${out}[0] = static_cast<${vetype.cVectorType}*>(malloc(sizeof(${vetype.cVectorType})));",
-        // Set a temporary pointer
-        s"auto *${tmp} = ${out}[0];",
-        "",
-        mergeStmt
+        // Merge inputs and assign output to pointer
+        s"${out}[0] = ${vetype.cVectorType}::merge(${in}, batches);",
       )
     }
   }

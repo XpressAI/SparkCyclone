@@ -1,95 +1,95 @@
 package com.nec.ve
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeType}
-import com.nec.spark.agile.groupby.GroupByOutline
-import com.nec.spark.agile.{CFunction2, CFunctionGeneration, StringProducer}
-import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
+import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 
 object GroupingFunction {
+  val GroupAssignmentsId = "bucket_assignments"
+  val GroupCountsId = "bucket_counts"
 
-  def addStringHashing(source: String, index: String, toHash: String): CodeLines = {
-    val stringStart = s"$source->offsets[$index]"
-    val stringLength = s"$source->offsets[$index + 1] - $stringStart"
-    CodeLines.from(CodeLines.forLoop("x", stringLength) {
-      CodeLines.from(s"hash = 31 * hash + ${source}->data[x + $stringStart];")
-    })
+  sealed trait KeyOrValue {
+    def render: String
   }
 
-  final case class DataDescription(veType: VeType, keyOrValue: KeyOrValue)
-
-  object DataDescription {
-    sealed trait KeyOrValue {
-      def renderValue: String
-      def isKey: Boolean
-      def isValue: Boolean = !isKey
-    }
-    object KeyOrValue {
-      case object Key extends KeyOrValue {
-        override def renderValue: String = "key"
-        override def isKey: Boolean = true
-      }
-      case object Value extends KeyOrValue {
-        override def renderValue: String = "value"
-        override def isKey: Boolean = false
-      }
-    }
+  case object Key extends KeyOrValue {
+    def render: String = "key"
   }
 
-  def computeBuckets(
-    cVectors: List[CVector],
-    groupingIdentifiers: String,
-    totalBuckets: Int
-  ): CodeLines = {
-    require(cVectors.nonEmpty, "cVectors is empty - perhaps an issue in checking the groups?")
+  case object Value extends KeyOrValue {
+    def render: String = "value"
+  }
+
+  final case class DataDescription(veType: VeType, kvType: KeyOrValue)
+}
+
+case class GroupingFunction(name: String,
+                            columns: List[GroupingFunction.DataDescription],
+                            nbuckets: Int) {
+  private[ve] val inputs = columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
+    veType.makeCVector(s"${kvType.render}_${idx}")
+  }
+
+  private[ve] val outputs = columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
+    veType.makeCVector(s"output_${kvType.render}_${idx}")
+  }
+
+  private[ve] val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
+
+  private[ve] def arguments: List[CFunction2.CFunctionArgument] = {
+    inputs.map(PointerPointer(_)) ++
+      List(CFunctionArgument.Raw("int* sets")) ++
+      outputs.map(PointerPointer(_))
+  }
+
+  private[ve] def computeBucketAssignments: CodeLines = {
     CodeLines.from(
-      s"// Compute the index -> bucket mapping",
-      s"std::vector<size_t> $groupingIdentifiers;",
-      CodeLines.forLoop("i", s"${cVectors.head.name}[0]->count") {
+      // Initialize the bucket_assignments table
+      s"std::vector<size_t> ${GroupingFunction.GroupAssignmentsId}(${keycols.head.name}[0]->count);",
+      CodeLines.scoped("Compute the index -> bucket mapping") {
         CodeLines.from(
-          s"int hash = 1;",
-          cVectors.map { cVector =>
+          "#pragma _NEC vector",
+          CodeLines.forLoop("i", s"${keycols.head.name}[0]->count") {
             CodeLines.from(
-              if (cVector.veType.isString) addStringHashing(s"${cVector.name}[0]", "i", "hash")
-              else CodeLines.from(s"hash = 31 * ${cVector.name}[0]->data[i];")
+              // Initialize the hash
+              s"int hash = 1;",
+              // Compute the hash across all keys
+              keycols.map { vec => s"hash = ${vec.name}[0]->hash_at(i, hash);" },
+              // Assign the bucket based on the hash
+              s"${GroupingFunction.GroupAssignmentsId}[i] = abs(hash % ${nbuckets});"
             )
-          },
-          s"$groupingIdentifiers.push_back(abs(hash % ${totalBuckets}));"
+          }
         )
       }
     )
   }
 
-  def computeBucketSizes(
-    groupingIdentifiers: String,
-    bucketToCount: String,
-    totalBuckets: Int
-  ): CodeLines = {
+  private[ve] def computeBucketCounts: CodeLines = {
     CodeLines.from(
-      s"// Compute the value counts for each bucket",
-      s"std::vector<size_t> $bucketToCount;",
-      CodeLines.forLoop("g", s"$totalBuckets") {
+      // Iniitalize the bucket_counts table
+      s"std::vector<size_t> ${GroupingFunction.GroupCountsId}(${nbuckets});",
+      CodeLines.scoped("Compute the value counts for each bucket") {
         CodeLines.from(
-          s"int cnt = 0;",
-          CodeLines.forLoop("i", s"${groupingIdentifiers}.size()") {
-            CodeLines.ifStatement(s"${groupingIdentifiers}[i] == g") {
-              "cnt++;"
-            }
-          },
-          s"$bucketToCount.push_back(cnt);"
+          "#pragma _NEC vector",
+          CodeLines.forLoop("g", s"${nbuckets}") {
+            CodeLines.from(
+              s"size_t count = 0;",
+              // Count the assignments that equal g
+              CodeLines.forLoop("i", s"${GroupingFunction.GroupAssignmentsId}.size()") {
+                s"count += (${GroupingFunction.GroupAssignmentsId}[i] == g);"
+              },
+              // Assign to the counts table
+              s"${GroupingFunction.GroupCountsId}[g] = count;"
+            )
+          }
         )
       }
     )
   }
 
-  def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
-    require(
-      output.veType == input.veType,
-      "Cannot clone cVector - input and output VeTypes are not the same!"
-    )
-
+  private[ve] def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
     CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
       List(
         // Allocate the nullable_T_vector[] with size 1
@@ -100,118 +100,58 @@ object GroupingFunction {
     }
   }
 
-  def groupData(data: List[DataDescription], totalBuckets: Int) = {
-    if (data.count(_.keyOrValue.isKey) <= 0) {
-      /*
-        In the case where there are no input key columns, we simply clone the
-        input data to the output pointers.
-       */
-      groupDataNoKeyColumns(data)
+  private[ve] def copyVecToBucketsStmt(output: CVector, input: CVector): CodeLines = {
+    CodeLines.scoped(
+      s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
+    ) {
+      CodeLines.from(
+        // Perform the bucketing and get back T** (array of pointers)
+        s"auto ** tmp = ${input.name}[0]->bucket(${GroupingFunction.GroupCountsId}, ${GroupingFunction.GroupAssignmentsId});",
+        /*
+          Allocate the nullable_T_vector[] with size buckets
 
-    } else {
-      groupDataNormal(data, totalBuckets)
+          NOTE: This cast is incorrect, because we are allocating a T* array
+          (T**) but type-casting it to T*.  However, for some reason, fixing
+          this will lead an invalid free() later on - this is likely due to an
+          error in how we define function call from the Spark side.  Will need
+          to investigate and fix this in the future.
+        */
+        s"// Allocate T*[] but cast to T* (incorrect but required to work correctly until a fix lands)",
+        s"*${output.name} = static_cast<${output.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${nbuckets}));",
+        // Copy the pointers over
+        CodeLines.forLoop("b", s"${nbuckets}") {
+          s"${output.name}[b] = tmp[b];"
+        },
+        // Free the array of temporary pointers (but not the structs themselves)
+        "free(tmp);"
+      )
     }
   }
 
-  def groupDataNoKeyColumns(data: List[DataDescription]): CFunction2 = {
-    val inputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
-      veType.makeCVector(s"${isKey.renderValue}_${idx}")
-    }
-
-    val outputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
-      veType.makeCVector(s"output_${isKey.renderValue}_${idx}")
-    }
-
-    val arguments = inputs.map(PointerPointer(_)) ++
-      List(CFunctionArgument.Raw("int* sets")) ++
-      outputs.map(PointerPointer(_))
-
-    CFunction2(
-      arguments,
+  def render: CFunction2 = {
+    val body = if (keycols.isEmpty) {
       CodeLines.from(
         "// Write out the number of buckets",
         s"sets[0] = 1;",
         "",
         (outputs, inputs).zipped.map(cloneCVecStmt(_, _))
       )
-    )
-  }
 
-  def copyVecToBucketsStmt(
-    output: CVector,
-    input: CVector,
-    buckets: Int,
-    idToBucket: String,
-    bucketToCount: String
-  ): CodeLines = {
-    require(
-      output.veType == input.veType,
-      "Cannot copy cVector values to their buckets - input and output VeTypes are not the same!"
-    )
-
-    CodeLines.scoped(
-      s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
-    ) {
+    } else {
       CodeLines.from(
-        // Perform the bucketing and get back T** (array of pointers)
-        s"auto ** tmp = ${input.name}[0]->bucket(${bucketToCount}, ${idToBucket});",
-        /*
-          Allocate the nullable_T_vector[] with size buckets
-
-          NOTE: This cast should not be correct, because we are allocating a T*
-          array (T**) but type-casting it to T*.  However, for some reason,
-          fixing this will lead an invalid free() later on.  Will need to
-          investigate fix this.
-        */
-        s"*${output.name} = static_cast<${output.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${buckets}));",
-        // Copy the pointers over
-        CodeLines.forLoop("b", s"${buckets}") {
-          s"${output.name}[b] = tmp[b];"
-        },
-        // Free the array of pointers (but not the structs themselves)
-        "free(tmp);"
+        computeBucketAssignments,
+        computeBucketCounts,
+        "// Write out the number of buckets",
+        s"sets[0] = ${nbuckets};",
+        "",
+        (outputs, inputs).zipped.map(copyVecToBucketsStmt(_, _))
       )
     }
+
+    CFunction2(arguments, body)
   }
 
-  def groupDataNormal(data: List[DataDescription], totalBuckets: Int): CFunction2 = {
-    val inputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
-      veType.makeCVector(s"${isKey.renderValue}_$idx")
-    }
-
-    val outputs = data.zipWithIndex.map { case (DataDescription(veType, isKey), idx) =>
-      veType.makeCVector(s"output_${isKey.renderValue}_$idx")
-    }
-
-    val arguments = inputs.map(PointerPointer(_)) ++
-      List(CFunctionArgument.Raw("int* sets")) ++
-      outputs.map(PointerPointer(_))
-
-    CFunction2(
-      arguments = arguments,
-      body = CodeLines.from(
-        // Compute the bucket assignments
-        computeBuckets(
-          cVectors = data.zip(inputs).filter(_._1.keyOrValue.isKey).map(_._2),
-          groupingIdentifiers = "bucket_assignments",
-          totalBuckets = totalBuckets
-        ),
-        "",
-        // Compute the bucket sizes
-        computeBucketSizes(
-          groupingIdentifiers = "bucket_assignments",
-          bucketToCount = "bucket_counts",
-          totalBuckets = totalBuckets
-        ),
-        "",
-        "// Write out the number of buckets",
-        s"sets[0] = ${totalBuckets};",
-        "",
-        // Copy the elements to their respective buckets
-        (outputs, inputs).zipped.map(
-          copyVecToBucketsStmt(_, _, totalBuckets, "bucket_assignments", "bucket_counts")
-        )
-      )
-    )
+  def toCodeLines: CodeLines = {
+    render.toCodeLines(name)
   }
 }

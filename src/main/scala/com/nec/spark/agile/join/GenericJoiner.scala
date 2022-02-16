@@ -82,7 +82,7 @@ object GenericJoiner {
       CodeLines.forLoop("i", s"${inputIndices}.size()")(
         CodeLines.from(
           s"${outputName}->data[i] = ${inputName}->data[${inputIndices}[i]];",
-          s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, ${inputIndices}[i]));"
+          s"${outputName}->set_validity(i, ${inputName}->get_validity(${inputIndices}[i]));"
         )
       )
     )

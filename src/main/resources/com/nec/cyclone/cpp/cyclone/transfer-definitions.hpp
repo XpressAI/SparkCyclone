@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -59,6 +59,10 @@ struct NullableScalarVec {
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   count             = 0;        // Row count (synonymous with size of data array)
 
+  // Merge N NullableScalarVec<T>s into 1 NullableScalarVec<T> (order is preserved)
+  static NullableScalarVec<T> * merge(const NullableScalarVec<T> * const * const inputs,
+                                      const size_t batches);
+
   // Explicitly force the generation of a default constructor
   NullableScalarVec() = default;
 
@@ -78,6 +82,12 @@ struct NullableScalarVec {
 
   // Print the data structure out for debugging
   void print() const;
+
+  // Compute the hash of the value at a given index, starting with a given seed
+  inline int32_t hash_at(const size_t idx,
+                         const int32_t seed) const {
+    return 31 * seed + data[idx];
+  }
 
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,
@@ -128,7 +138,12 @@ struct nullable_varchar_vector {
   int32_t   dataSize          = 0;        // Size of data array
   int32_t   count             = 0;        // The row count
 
+  // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);
+
+  // Merge N nullable_varchar_vectors into 1 nullable_varchar_vector
+  static nullable_varchar_vector * merge(const nullable_varchar_vector * const * const inputs,
+                                         const size_t batches);
 
   // Explicitly force the generation of a default constructor
   nullable_varchar_vector() = default;
@@ -155,6 +170,15 @@ struct nullable_varchar_vector {
 
   // Print the data structure out for debugging
   void print() const;
+
+  // Compute the hash of the value at a given index, starting with a given seed
+  inline int32_t hash_at(const size_t idx,
+                         int32_t seed) const {
+    for (int x = offsets[idx]; x < offsets[idx + 1]; x++) {
+      seed = 31 * seed + data[x];
+    }
+    return seed;
+  }
 
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,

@@ -43,8 +43,6 @@ import com.nec.spark.planning.VERewriteStrategy.{
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.plans._
-import com.nec.ve.GroupingFunction.DataDescription
-import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.{GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
@@ -123,40 +121,35 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             if options.joinOnVe =>
           val functionName = s"join_${functionPrefix}"
 
-          val exchangeNameL = s"exchange_l_$functionPrefix"
-          val exchangeNameR = s"exchange_r_$functionPrefix"
-          val exchangeFunctionL = {
-            GroupingFunction.groupData(
-              data = inputsLeft.map(leftVector =>
-                DataDescription(
-                  veType = leftVector.veType,
-                  keyOrValue =
-                    if (genericJoiner.joins.flatMap(_.vecs).contains(leftVector)) KeyOrValue.Key
-                    else KeyOrValue.Value
-                )
-              ),
-              totalBuckets = HashExchangeBuckets
-            )
-          }
-          val exchangeFunctionR = {
-            GroupingFunction.groupData(
-              data = inputsRight.map(rightVector =>
-                DataDescription(
-                  veType = rightVector.veType,
-                  keyOrValue =
-                    if (genericJoiner.joins.flatMap(_.vecs).contains(rightVector)) KeyOrValue.Key
-                    else KeyOrValue.Value
-                )
-              ),
-              totalBuckets = HashExchangeBuckets
-            )
-          }
+          val exchangeFunctionL = GroupingFunction(
+            s"exchange_l_${functionPrefix}",
+            inputsLeft.map { vec =>
+              GroupingFunction.DataDescription(
+                vec.veType,
+                if (genericJoiner.joins.flatMap(_.vecs).contains(vec)) GroupingFunction.Key
+                else GroupingFunction.Value
+              )
+            },
+            HashExchangeBuckets
+          )
+
+          val exchangeFunctionR = GroupingFunction(
+            s"exchange_r_${functionPrefix}",
+            inputsRight.map { vec =>
+              GroupingFunction.DataDescription(
+                vec.veType,
+                if (genericJoiner.joins.flatMap(_.vecs).contains(vec)) GroupingFunction.Key
+                else GroupingFunction.Value
+              )
+            },
+            HashExchangeBuckets
+          )
 
           val code = CodeLines
             .from(
               CFunctionGeneration.KeyHeaders,
-              exchangeFunctionL.toCodeLines(exchangeNameL),
-              exchangeFunctionR.toCodeLines(exchangeNameR)
+              exchangeFunctionL.toCodeLines,
+              exchangeFunctionR.toCodeLines
             )
 
           val joinPlan = VectorEngineJoinPlan(
@@ -182,7 +175,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             left = VeHashExchangePlan(
               exchangeFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                functionName = exchangeNameL,
+                functionName = exchangeFunctionL.name,
                 namedResults = inputsLeft
               ),
               child = SparkToVectorEnginePlan(planLater(leftChild))
@@ -190,7 +183,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             right = VeHashExchangePlan(
               exchangeFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                functionName = exchangeNameR,
+                functionName = exchangeFunctionR.name,
                 namedResults = inputsRight
               ),
               child = SparkToVectorEnginePlan(planLater(rightChild))
@@ -526,18 +519,16 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                       .toSet
                       .contains(expx.exprId)
 
-                DataDescription(
-                  veType = sparkTypeToVeType(expx.dataType),
-                  keyOrValue =
-                    if (contained) DataDescription.KeyOrValue.Key
-                    else DataDescription.KeyOrValue.Value
+                GroupingFunction.DataDescription(
+                  sparkTypeToVeType(expx.dataType),
+                  if (contained) GroupingFunction.Key else GroupingFunction.Value
                 )
               }
             }
-            exchangeName = s"exchange_$functionPrefix"
-            exchangeFunction = GroupingFunction.groupData(
-              data = dataDescriptions.toList,
-              totalBuckets = HashExchangeBuckets
+            exchangeFunction = GroupingFunction(
+              s"exchange_${functionPrefix}",
+              dataDescriptions.toList,
+              HashExchangeBuckets
             )
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
@@ -547,7 +538,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               .from(
                 partialCFunction.toCodeLinesSPtr(partialName),
                 ff.toCodeLinesNoHeaderOutPtr2(finalName),
-                exchangeFunction.toCodeLines(exchangeName),
+                exchangeFunction.toCodeLines,
                 MergerFunction
                   .merge(types = partialCFunction.outputs.map(_.veType))
                   .toCodeLines(mergeFunction)
@@ -571,7 +562,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                 VeHashExchangePlan(
                   exchangeFunction = VeFunction(
                     veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                    functionName = exchangeName,
+                    functionName = exchangeFunction.name,
                     namedResults = partialCFunction.inputs
                   ),
                   child = SparkToVectorEnginePlan(planLater(child))
