@@ -203,7 +203,9 @@ VectorEngine / run / fork := true
  */
 VectorEngine / testGrouping := (VectorEngine / definedTests).value.map { suite =>
   import sbt.Tests._
-  Group(suite.name, Seq(suite), SubProcess(ForkOptions(None, None, Vector[java.io.File](), None, Vector("-Djava.library.path=target/libjni"), false, Map[String, String]())))
+  Group(suite.name, Seq(suite), SubProcess(ForkOptions(runJVMOptions = Vector("-Djava.library.path=target/libjni"),
+                                                       bootJars=Vector[java.io.File](), javaHome=None, outputStrategy=None,
+                                                       workingDirectory=None, connectInput=false, envVars = Map[String, String]())))
 }
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
