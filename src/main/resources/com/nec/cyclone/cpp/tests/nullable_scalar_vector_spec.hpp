@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -27,7 +27,7 @@
 namespace cyclone::tests {
   TEST_SUITE("NullableScalarVec<T>") {
     // Instantiate for each template case to be tested
-    template<class T> const std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
+    template<typename T> const std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
 
     TEST_CASE_TEMPLATE("Equality checks work for T=", T, int32_t, int64_t, float, double) {
       auto *vec1 = new NullableScalarVec(raw<T>);

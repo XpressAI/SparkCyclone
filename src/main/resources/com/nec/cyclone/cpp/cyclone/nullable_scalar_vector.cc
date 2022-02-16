@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -36,7 +36,7 @@ NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
 
   // Set the validityBuffer
   size_t vcount = ceil(src.size() / 64.0);
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }

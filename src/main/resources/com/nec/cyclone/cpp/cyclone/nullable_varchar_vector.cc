@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -61,7 +61,7 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -106,7 +106,7 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }

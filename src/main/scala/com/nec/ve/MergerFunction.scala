@@ -19,8 +19,9 @@ object MergerFunction {
 
           NOTE: This cast is incorrect, because we are allocating a T* array
           (T**) but type-casting it to T*.  However, for some reason, fixing
-          this will lead an invalid free() later on.  Will need to investigate
-          and fix this in the future.
+          this will lead an invalid free() later on - this is likely due to an
+          error in how we define function call from the Spark side.  Will need
+          to investigate and fix this in the future.
         */
         s"// Allocate T*[] but cast to T* (incorrect but required to work correctly until a fix lands)",
         s"*${out} = static_cast<${vetype.cVectorType}*>(malloc(sizeof(nullptr)));",
