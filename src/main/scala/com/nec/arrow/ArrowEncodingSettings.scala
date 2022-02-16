@@ -28,7 +28,8 @@ object ArrowEncodingSettings {
   }
 
   private val Mb: Long = 1024 * 1024
-  // 64M
+
+  // 64M -- trying 128M does not change performance [2022-02-11]
   private val DefaultTargetBatchSize: Long = 64 * Mb
 
 }

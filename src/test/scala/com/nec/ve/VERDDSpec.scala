@@ -103,6 +103,7 @@ object VERDDSpec {
             }),
         preservesPartitioning = true
       )
+      .filter(_._2.nonEmpty)
       .exchangeBetweenVEs(cleanUpInput = true)
       .mapPartitions(vectorIter =>
         Iterator

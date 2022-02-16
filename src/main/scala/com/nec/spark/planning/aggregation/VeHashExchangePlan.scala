@@ -49,9 +49,13 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
             )(registerFunctionCallTime(_, veFunction.functionName))
             logger.debug(s"Mapped to ${multiBatches} completed.")
 
-            val (filled, unfilled) = multiBatches.partition(_._2.head.nonEmpty)
-            unfilled.flatMap(_._2).foreach(vcv => vcv.free())
-            filled.map { case (p, cl) => p -> VeColBatch.fromList(cl) }
+            multiBatches.flatMap {
+              case (n, l) if l.head.nonEmpty =>
+                Option(n -> VeColBatch.fromList(l))
+              case (_, l) =>
+                l.foreach(_.free())
+                None
+            }
           } finally {
             child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
           }
@@ -86,7 +90,13 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
               )
               logger.debug(s"Mapped to ${multiBatches} completed.")
 
-              multiBatches.map { case (n, l) => n -> VeColBatch.fromList(l) }
+              multiBatches.flatMap {
+                case (n, l) if l.head.nonEmpty =>
+                  Option(n -> VeColBatch.fromList(l))
+                case (_, l) =>
+                  l.foreach(_.free())
+                  None
+              }
             } else {
               logger.debug(s"${veColBatch} was empty.")
               Nil

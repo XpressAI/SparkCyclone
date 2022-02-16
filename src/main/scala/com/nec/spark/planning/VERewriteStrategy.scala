@@ -31,8 +31,7 @@ import com.nec.spark.agile.groupby.{
   GroupByPartialGenerator,
   GroupByPartialToFinalGenerator
 }
-import com.nec.spark.agile.join.GenericJoiner
-import com.nec.spark.agile.join.GenericJoiner.FilteredOutput
+import com.nec.spark.agile.join.JoinMatcher
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{
@@ -55,12 +54,11 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   AttributeReference,
-  EqualTo,
   Expression,
   NamedExpression,
   SortOrder
 }
-import org.apache.spark.sql.catalyst.plans.{logical, Inner}
+import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -70,7 +68,6 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{SparkSession, Strategy}
 
 import scala.collection.immutable
-import scala.util.Try
 
 object VERewriteStrategy {
   var _enabled: Boolean = true
@@ -122,58 +119,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               )
             )
             .toList
-
-        case j @ logical.Join(
-              leftChild,
-              rightChild,
-              Inner,
-              Some(
-                condition @ EqualTo(
-                  ar1 @ AttributeReference(_, _, _, _),
-                  ar2 @ AttributeReference(_, _, _, _)
-                )
-              ),
-              _
-            ) if options.joinOnVe =>
-          val inputsLeft = leftChild.output.toList.zipWithIndex.map { case (att, idx) =>
-            sparkTypeToVeType(att.dataType).makeCVector(s"l_$InputPrefix$idx")
-          }
-          val inputsRight = rightChild.output.toList.zipWithIndex.map { case (att, idx) =>
-            sparkTypeToVeType(att.dataType).makeCVector(s"r_$InputPrefix$idx")
-          }
-          val joins =
-            try {
-              List(
-                GenericJoiner.Join(
-                  left = inputsLeft(
-                    leftChild.output.indexWhere(attr =>
-                      List(ar1, ar2).exists(_.exprId == attr.exprId)
-                    )
-                  ),
-                  right = inputsRight(
-                    rightChild.output.indexWhere(attr =>
-                      List(ar1, ar2).exists(_.exprId == attr.exprId)
-                    )
-                  )
-                )
-              )
-            } catch {
-              case e: Throwable =>
-                throw new RuntimeException(s"Condition: ${condition}; ${e}", e)
-            }
-          val genericJoiner =
-            try {
-              GenericJoiner(
-                inputsLeft = inputsLeft,
-                inputsRight = inputsRight,
-                joins = joins,
-                outputs = (inputsLeft ++ inputsRight).map(cv => FilteredOutput(s"o_${cv.name}", cv))
-              )
-            } catch {
-              case e: Throwable =>
-                throw new RuntimeException(s"Condition: ${condition}; ${e}", e)
-            }
-
+        case JoinMatcher(JoinMatcher(leftChild, rightChild, inputsLeft, inputsRight, genericJoiner))
+            if options.joinOnVe =>
           val functionName = s"join_${functionPrefix}"
 
           val exchangeNameL = s"exchange_l_$functionPrefix"
@@ -184,7 +131,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                 DataDescription(
                   veType = leftVector.veType,
                   keyOrValue =
-                    if (joins.flatMap(_.vecs).contains(leftVector)) KeyOrValue.Key
+                    if (genericJoiner.joins.flatMap(_.vecs).contains(leftVector)) KeyOrValue.Key
                     else KeyOrValue.Value
                 )
               ),
@@ -197,7 +144,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                 DataDescription(
                   veType = rightVector.veType,
                   keyOrValue =
-                    if (joins.flatMap(_.vecs).contains(rightVector)) KeyOrValue.Key
+                    if (genericJoiner.joins.flatMap(_.vecs).contains(rightVector)) KeyOrValue.Key
                     else KeyOrValue.Value
                 )
               ),
@@ -212,47 +159,69 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               exchangeFunctionR.toCodeLines(exchangeNameR)
             )
 
-          List(
-            VectorEngineToSparkPlan(
-              VectorEngineJoinPlan(
-                outputExpressions = leftChild.output ++ rightChild.output,
-                joinFunction = VeFunction(
-                  veFunctionStatus = {
-                    val produceIndicesFName = s"produce_indices_${functionName}"
-                    VeFunctionStatus.SourceCode(
+          val joinPlan = VectorEngineJoinPlan(
+            outputExpressions = leftChild.output ++ rightChild.output,
+            joinFunction = VeFunction(
+              veFunctionStatus = {
+                val produceIndicesFName = s"produce_indices_${functionName}"
+                VeFunctionStatus.SourceCode(
+                  CodeLines
+                    .from(
+                      CFunctionGeneration.KeyHeaders,
+                      genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
+                      genericJoiner
+                        .cFunction(produceIndicesFName)
+                        .toCodeLinesNoHeaderOutPtr2(functionName)
+                    )
+                    .cCode
+                )
+              },
+              functionName = functionName,
+              namedResults = genericJoiner.outputs.map(_.cVector)
+            ),
+            left = VeHashExchangePlan(
+              exchangeFunction = VeFunction(
+                veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                functionName = exchangeNameL,
+                namedResults = inputsLeft
+              ),
+              child = SparkToVectorEnginePlan(planLater(leftChild))
+            ),
+            right = VeHashExchangePlan(
+              exchangeFunction = VeFunction(
+                veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
+                functionName = exchangeNameR,
+                namedResults = inputsRight
+              ),
+              child = SparkToVectorEnginePlan(planLater(rightChild))
+            )
+          )
+
+          val amplifyFunction = s"amplify_${functionName}"
+
+          val maybeAmplifiedJoinPlan =
+            if (options.amplifyBatches)
+              VeAmplifyBatchesPlan(
+                amplifyFunction = VeFunction(
+                  veFunctionStatus = VeFunctionStatus
+                    .SourceCode(
                       CodeLines
                         .from(
                           CFunctionGeneration.KeyHeaders,
-                          genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
-                          genericJoiner
-                            .cFunction(produceIndicesFName)
-                            .toCodeLinesNoHeaderOutPtr2(functionName)
+                          MergerFunction
+                            .merge(types = genericJoiner.outputs.map(_.cVector.veType))
+                            .toCodeLines(amplifyFunction)
                         )
                         .cCode
-                    )
-                  },
-                  functionName = functionName,
+                    ),
+                  functionName = amplifyFunction,
                   namedResults = genericJoiner.outputs.map(_.cVector)
                 ),
-                left = VeHashExchangePlan(
-                  exchangeFunction = VeFunction(
-                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                    functionName = exchangeNameL,
-                    namedResults = inputsLeft
-                  ),
-                  child = SparkToVectorEnginePlan(planLater(leftChild))
-                ),
-                right = VeHashExchangePlan(
-                  exchangeFunction = VeFunction(
-                    veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                    functionName = exchangeNameR,
-                    namedResults = inputsRight
-                  ),
-                  child = SparkToVectorEnginePlan(planLater(rightChild))
-                )
+                child = joinPlan
               )
-            )
-          )
+            else joinPlan
+
+          List(VectorEngineToSparkPlan(maybeAmplifiedJoinPlan))
         case f @ logical.Filter(condition, child) if options.filterOnVe =>
           implicit val fallback: EvalFallback = EvalFallback.noOp
 

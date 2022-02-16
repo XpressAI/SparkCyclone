@@ -34,6 +34,8 @@ import sun.misc.Unsafe
 import java.io.{DataOutputStream, OutputStream}
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
+  def serializedSize: Int = underlying.bufferSizes.sum
+
   def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit = {
     underlying.buffers.zip(underlying.bufferSizes).foreach { case (bufPos, bufLen) =>
       veProcess.writeToStream(outStream, bufPos, bufLen)

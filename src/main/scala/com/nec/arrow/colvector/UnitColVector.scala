@@ -70,6 +70,9 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
     dataOutputStream.writeInt(UnitColVector.veTypeToTag(underlying.veType))
   }
 
+  def streamedSize: Int =
+    List(4, underlying.source.identifier.length, 4, 4, underlying.name.size, 4, 4).sum
+
 }
 
 object UnitColVector {

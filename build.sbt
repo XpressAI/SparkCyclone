@@ -26,6 +26,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
   .enablePlugins(SystemdPlugin)
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .enablePlugins(RpmPlugin)
   .dependsOn(root % "test->test")
   .settings(
@@ -49,6 +50,7 @@ lazy val tracing = project
  */
 lazy val `fun-bench` = project
   .enablePlugins(JmhPlugin)
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .dependsOn(root % "compile->test")
   .settings(
     libraryDependencies ++= Seq(
@@ -123,7 +125,6 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
   "com.lihaoyi" %% "sourcecode" % "0.2.7",
-  "org.bytedeco" % "javacpp" % "1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
@@ -137,6 +138,8 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
   "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve"
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
+
+javaCppVersion := "1.5.7"
 
 libraryDependencies ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
@@ -387,6 +390,7 @@ Test / javaOptions ++= {
 
 lazy val tpchbench = project
   .in(file("tests/tpchbench"))
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .settings(
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
@@ -411,6 +415,7 @@ lazy val tpchbench = project
   )
 
 lazy val `tpcbench-run` = project
+  .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .settings(
     libraryDependencies ++= Seq(
       "org.xerial" % "sqlite-jdbc" % "3.36.0.3",

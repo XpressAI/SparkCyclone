@@ -10,7 +10,6 @@ trait VeProcessMetrics {
   def registerSerializationTime(timeTaken: Long): Unit
   def registerDeserializationTime(timeTaken: Long): Unit
   def registerFunctionCallTime(timeTaken: Long, functionName: String): Unit
-
 }
 
 object VeProcessMetrics {

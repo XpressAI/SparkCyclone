@@ -1,7 +1,10 @@
 package com.nec.ve.serializer
 
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
+import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.DeserializationStream
 
@@ -47,13 +50,35 @@ class VeDeserializationStream(in: InputStream)(implicit
         case CbTag =>
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           VeColBatch.fromStream(dataInputStream)
+        case MixedCbTagColBatch =>
+          val theSize = dataInputStream.readInt()
+          import SparkCycloneExecutorPlugin.metrics
+          if (DeserStreamed) {
+            import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+            metrics.measureRunningTime {
+              DualBatchOrBytes.ColBatchWrapper(VeColBatch.fromStream(dataInputStream))
+            }(metrics.registerDeserializationTime)
+          } else {
+            metrics.measureRunningTime {
+              val byteArray = Array.fill[Byte](theSize)(-1)
+              dataInputStream.readFully(byteArray)
+              new BytesOnly(byteArray, theSize): DualBatchOrBytes
+            }(metrics.registerDeserializationTime)
+          }
         case -1 =>
           throw new EOFException()
         case other =>
-          sys.error(s"Unexpected tag: ${other}, expected only ${IntTag} or ${CbTag}")
+          sys.error(
+            s"Unexpected tag: ${other}, expected only ${IntTag}, ${CbTag} or ${MixedCbTagColBatch}"
+          )
       }
     }.asInstanceOf[T]
 
   override def close(): Unit =
     dataInputStream.close()
+}
+
+object VeDeserializationStream {
+//  val DeserStreamed = true
+  val DeserStreamed = false
 }

@@ -55,6 +55,10 @@ object VeArrowNativeInterface extends LazyLogging {
     require(result > 0, s"Result should be > 0, got $result")
   }
 
+  def requirePositive(result: Long, note: => String): Unit = {
+    require(result > 0, s"Result should be > 0, got $result; $note")
+  }
+
   final class VeArrowNativeInterfaceLazyLib(proc: veo_proc_handle, libPath: String)
     extends ArrowNativeInterface {
 
