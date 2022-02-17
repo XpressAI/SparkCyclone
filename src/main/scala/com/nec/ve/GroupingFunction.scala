@@ -28,17 +28,23 @@ object GroupingFunction {
 case class GroupingFunction(name: String,
                             columns: List[GroupingFunction.DataDescription],
                             nbuckets: Int) {
-  private[ve] val inputs = columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
-    veType.makeCVector(s"${kvType.render}_${idx}")
+  require(columns.nonEmpty, "Expected Grouping to have at least one data column")
+
+  lazy val inputs: List[CVector] = {
+    columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
+      veType.makeCVector(s"${kvType.render}_${idx}")
+    }
   }
 
-  private[ve] val outputs = columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
-    veType.makeCVector(s"output_${kvType.render}_${idx}")
+  lazy val outputs: List[CVector] = {
+    columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
+      veType.makeCVector(s"output_${kvType.render}_${idx}")
+    }
   }
 
-  private[ve] val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
+  private[ve] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
-  private[ve] def arguments: List[CFunction2.CFunctionArgument] = {
+  lazy val arguments: List[CFunction2.CFunctionArgument] = {
     inputs.map(PointerPointer(_)) ++
       List(CFunctionArgument.Raw("int* sets")) ++
       outputs.map(PointerPointer(_))

@@ -43,7 +43,7 @@ import com.nec.spark.planning.VERewriteStrategy.{
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.plans._
-import com.nec.ve.{GroupingFunction, MergerFunction}
+import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
@@ -64,7 +64,6 @@ import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{SparkSession, Strategy}
-
 import scala.collection.immutable
 
 object VERewriteStrategy {
@@ -226,8 +225,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}$idx")
             }
           } yield {
-            val functionName = s"flt_${functionPrefix}"
-            val cFunction = renderFilter(
+            val filterFn = FilterFunction(
+              s"filter_${functionPrefix}",
               VeFilter(
                 stringVectorComputations = StringHole
                   .process(condition.transform(replacer))
@@ -239,15 +238,15 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               )
             )
 
-            val amplifyFunction = s"amplify_${functionName}"
+            val amplifyFunction = s"amplify_${filterFn.name}"
 
             val filterPlan = OneStageEvaluationPlan(
               outputExpressions = f.output,
               veFunction = VeFunction(
                 veFunctionStatus =
-                  VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
-                functionName = functionName,
-                namedResults = cFunction.outputs
+                  VeFunctionStatus.SourceCode(filterFn.toCodeLines.cCode),
+                functionName = filterFn.name,
+                namedResults = filterFn.outputs
               ),
               child = SparkToVectorEnginePlan(planLater(child))
             )
