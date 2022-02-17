@@ -87,13 +87,10 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
   // Set the offsets
   lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * (src.starts.size()), 1));
   offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * (src.starts.size()), 1));
-//   std::cout << "SIZE FOR FILTER: " << count << std::endl;
 
   for (auto i = 0; i < src.starts.size(); i++) {
     offsets[i] = src.starts[i];
     lengths[i] = src.lens[i];
-//       std::cout << "START FOR FILTER: " << offsets[i] << std::endl;
-//        std::cout << "LEN FOR FILTER: " << lengths[i] << std::endl;
   }
 
   // Set the validityBuffer
@@ -128,6 +125,7 @@ void nullable_varchar_vector::move_assign_from(nullable_varchar_vector * other) 
   offsets         = other->offsets;
   validityBuffer  = other->validityBuffer;
   dataSize        = other->dataSize;
+  lengths         = other->lengths;
   count           = other->count;
 
   // Free the other (struct only)
@@ -302,10 +300,6 @@ nullable_varchar_vector * nullable_varchar_vector::filter(const std::vector<size
     // Copy the start and len values
     starts[g] = input_words.starts[i];
     lens[g] = input_words.lens[i];
-
-//    std::cout << "START FOR FILTER: " << starts[g] << std::endl;
-//    std::cout << "LEN FOR FILTER: " << lens[g] << std::endl;
-
   }
 
   // Use starts, lens, and frovedis::concat_words to generate the frovedis::words
@@ -354,7 +348,6 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
       for (int i = 0; i < bucket_assignments.size(); i++) {
         if (bucket_assignments[i] == b) {
           matching_ids[pos++] = i;
-//          std::cout << "MATCHING ID FOR IDX: " << i << " IS: "<< bucket_assignments[i] << std::endl;
         }
       }
     }

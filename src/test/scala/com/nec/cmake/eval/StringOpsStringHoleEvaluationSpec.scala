@@ -76,12 +76,12 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
 }
 
 object StringOpsStringHoleEvaluationSpec {
-//  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
-//    executeHoleEvaluation(
-//      input = input,
-//      stringHoleEvaluation = StringHole.StringHoleEvaluation
-//        .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
-//    )
+  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
+    executeHoleEvaluation(
+      input = input,
+      stringHoleEvaluation = StringHole.StringHoleEvaluation
+        .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
+    )
 
   def executeHoleEvaluation(
     input: List[String],

@@ -72,7 +72,7 @@ final class ColumnarBatchToArrowTest extends AnyFreeSpec {
           columns.head
             .asInstanceOf[VarCharVectorInputWrapper]
             .varCharVector
-            .toList() == List[String]("ABC", "DEF")
+            .toList == List[String]("ABC", "DEF")
         )
       } finally vectorSchemaRoot.close()
     } finally {

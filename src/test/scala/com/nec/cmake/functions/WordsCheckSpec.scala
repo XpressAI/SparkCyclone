@@ -23,7 +23,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
           inputs = List(CVector.varChar("input_0")),
           outputs = List(CVector.varChar("output_0")),
           body = CodeLines.from(
-            "frovedis::words words = input_0->to_words();",
+            "const auto words = input_0->to_words();",
             "new (output_0) nullable_varchar_vector(words);",
             "return 0;"
           )
@@ -42,7 +42,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
               inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
               outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
             )
-            outVec.toList("UTF-8") == list
+            outVec.toList == list
           }
         }
       })
@@ -96,7 +96,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
               inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
               outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
             )
-            outVec.toList("UTF-8")
+            outVec.toList
           }
         }
 

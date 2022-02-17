@@ -35,17 +35,17 @@ object RichVectors {
   }
 
   implicit class RichVarCharVector(varCharVector: VarCharVector) {
-    def toList(charset: String = "UTF-32LE"): List[String] =
+    def toList: List[String] =
       (0 until varCharVector.getValueCount).view
         .map(varCharVector.get)
-        .map(bytes => new String(bytes, charset))
+        .map(bytes => new String(bytes))
         .toList
 
     def toListSafe: List[Option[String]] =
       (0 until varCharVector.getValueCount)
         .map(idx =>
           if (varCharVector.isNull(idx)) None
-          else Option(new String(varCharVector.get(idx), "UTF-32LE"))
+          else Option(new String(varCharVector.get(idx)))
         )
         .toList
   }

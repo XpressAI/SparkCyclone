@@ -74,13 +74,6 @@ object StringProducer {
         "",
         (std::vector<size_t>&)(${newStarts(outputName)})
       );""",
-//      s"""
-//         |for(int i =0 ; i < ${newStarts(outputName)}.size(); i++) {
-//         |   std::cout << "START FROM COMPLETE: " << ${newStarts(outputName)}[i] << std::endl;
-//         |      std::cout << "LEN FROM COMPLETE: " << ${frovedisLens(outputName)}[i] << std::endl;
-//         |
-//         | }
-//         |""".stripMargin,
       s"""${wordName(outputName)}.chars = ${newChars(outputName)};""",
       s"""${wordName(outputName)}.starts = ${newStarts(outputName)};""",
       s"""${wordName(outputName)}.lens = ${frovedisLens(outputName)};""",

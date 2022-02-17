@@ -57,22 +57,6 @@ object DateCastStringHoleEvaluationSpec {
       )
         .mkString("\n\n")
     )
-    val d = CFunction(
-      inputs = List(CVector.varChar("strings")),
-      outputs = List(CVector.int("dates")),
-      body = CodeLines.from(
-        stringHoleEvaluation.computeVector,
-        GroupByOutline
-          .initializeScalarVector(VeScalarType.veNullableInt, "dates", "strings->count"),
-        CodeLines.from(
-          "for ( int i = 0; i < strings->count; i++ ) { ",
-          GroupByOutline.storeTo("dates", stringHoleEvaluation.fetchResult, "i").indented,
-          "}"
-        ),
-        stringHoleEvaluation.deallocData,
-        "return 0;"
-      )
-    ).toCodeLinesG("test").cCode
 
     val nativeInterface = new CArrowNativeInterface(cLib.toString)
     WithTestAllocator { implicit allocator =>

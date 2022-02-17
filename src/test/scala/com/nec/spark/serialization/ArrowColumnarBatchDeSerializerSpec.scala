@@ -66,7 +66,7 @@ object ArrowColumnarBatchDeSerializerSpec {
         iv.setValueCount(strings.size)
         values.zipWithIndex.foreach {
           case (None, idx)        => iv.setNull(idx)
-          case (Some(value), idx) => iv.setSafe(idx, value.getBytes("UTF-32LE"))
+          case (Some(value), idx) => iv.setSafe(idx, value.getBytes())
         }
         iv
       }

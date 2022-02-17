@@ -112,7 +112,6 @@ object StringHole {
 
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"""std::cout << "COUNT: " << ${refName}->count << std::endl; """,
           s"std::vector<size_t> ${filteredIds}(${refName}->count);",
           CodeLines.scoped(s"Filter ${refName} to values of the given set") {
             CodeLines.from(

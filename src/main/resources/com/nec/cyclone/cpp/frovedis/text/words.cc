@@ -742,8 +742,6 @@ words merge_multi_words(const vector<words>& vecwords) {
   size_t total_chars_size = 0;
   size_t total_starts_size = 0;
   for(size_t i = 0; i < vecwords_size; i++) {
-
-//     std::cout << "SIZE FOR VECTOR: " << i << " WAS :" << vecwords[i].chars.size() << std::endl;
     total_chars_size += vecwords[i].chars.size();
     total_starts_size += vecwords[i].starts.size();
   }

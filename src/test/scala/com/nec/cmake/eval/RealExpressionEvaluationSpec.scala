@@ -813,7 +813,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
             )
           }
         }
-      } yield (o_a.toList("UTF-8"), o_b.toList, o_c.toList)
+      } yield (o_a.toList, o_b.toList, o_c.toList)
 
       val evaluation = evaluationResource.use { case (output_a, output_b, output_c) =>
         IO.delay {
@@ -1231,7 +1231,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
                     )
                   )
 
-                  vcv_out.toList("UTF-8").zip(f8v_out.toList)
+                  vcv_out.toList.zip(f8v_out.toList)
                 }
               }
             }
@@ -1271,7 +1271,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
                     )
                   )
 
-                  vcv_out.toList("UTF-8").zip(f8v_out.toList).zip(iv_out.toList).map {
+                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map {
                     case ((s, d), i) =>
                       (s, d, i)
                   }

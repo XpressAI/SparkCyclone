@@ -376,7 +376,6 @@ object VeArrowTransfers extends LazyLogging {
     vcvr.dataSize = dataBuff.capacity() / 4
     val startsBuff = startsFromVarcharVector(varcharVector)
     val lengthsBuff = lengthsFromVarcharVector(varcharVector)
-    println(s"DATA SIZE CODE: ${dataBuff.capacity()}")
 
     vcvr.data = copyPointerToVe(
       proc = proc,

@@ -260,7 +260,6 @@ object BytePointerColVector {
     val data = ArrowInterfaces.intCharsFromVarcharVector(varcharVector)
     val starts = ArrowInterfaces.startsFromVarcharVector(varcharVector)
     val lengths = ArrowInterfaces.lengthsFromVarcharVector(varcharVector)
-    println(s"DATA SIZE CODE:${data.limit()}")
     BytePointerColVector(
       GenericColVector(
         source = source,

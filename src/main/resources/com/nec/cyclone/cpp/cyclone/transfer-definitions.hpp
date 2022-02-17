@@ -181,7 +181,7 @@ struct nullable_varchar_vector {
   // Compute the hash of the value at a given index, starting with a given seed
   inline int32_t hash_at(const size_t idx,
                          int32_t seed) const {
-    for (int x = offsets[idx]; x < offsets[idx + 1]; x++) {
+    for (int x = offsets[idx]; x < offsets[idx] + lengths[idx]; x++) {
       seed = 31 * seed + data[x];
     }
     return seed;
