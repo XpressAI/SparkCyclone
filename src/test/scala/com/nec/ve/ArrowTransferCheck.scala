@@ -270,9 +270,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
    */
 
   "We can merge multiple VeColBatches" in {
-    val fName = "merger"
+    val mergeFn = MergerFunction("merger", List(VeNullableDouble, VeString))
 
-    compiledWithHeaders(MergerFunction.merge(types = List(VeNullableDouble, VeString)), fName) {
+    compiledWithHeaders(mergeFn.render, mergeFn.name) {
       path =>
         val lib = veProcess.loadLibrary(path)
         WithTestAllocator { implicit alloc =>
