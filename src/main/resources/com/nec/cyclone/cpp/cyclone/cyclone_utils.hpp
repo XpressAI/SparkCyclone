@@ -19,21 +19,31 @@
  */
 #pragma once
 
-#include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone_utils.hpp"
-#include "frovedis/text/dict.hpp"
-#include "frovedis/text/words.hpp"
 #include <stddef.h>
 #include <vector>
 
-std::string utcnanotime();
+namespace cyclone {
+  inline const std::vector<size_t> bitmask_to_matching_ids(const std::vector<size_t> &mask) {
+    // Count the number of 1-bits
+    size_t m_count = 0;
+    #pragma _NEC vector
+    for (int i = 0; i < mask.size(); i++) {
+      m_count += mask[i];
+    }
 
-void debug_words(frovedis::words &in);
+    // Allocate the output
+    std::vector<size_t> output(m_count);
 
-std::vector<size_t> idx_to_std(nullable_int_vector *idx);
+    // Append the positions for which the bit is 1
+    // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
+    size_t pos = 0;
+    #pragma _NEC vector
+    for (int i = 0; i < mask.size(); i++) {
+      if (mask[i]) {
+        output[pos++] = i;
+      }
+    }
 
-void print_indices(std::vector<size_t> vec);
-
-frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select);
-
-std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set);
+    return output;
+  }
+}

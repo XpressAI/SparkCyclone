@@ -1108,10 +1108,15 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         data = inputArguments.inputs,
         condition = condition,
         stringVectorComputations = Nil
-      )
+      ),
+      false
     )
 
-    val generatedSource = filterFn.toCodeLines
+    val generatedSource = CodeLines.from(
+      """#include "cyclone/cyclone.hpp"""",
+      """#include "cyclone/transfer-definitions.hpp"""",
+      filterFn.toCodeLines
+    )
 
     val cLib = CMakeBuilder.buildCLogging(
       List("\n\n", generatedSource.cCode)

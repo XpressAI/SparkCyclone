@@ -69,6 +69,7 @@ object CppResource {
     "frovedis/text/words.hpp",
     "cyclone/cyclone.cc",
     "cyclone/cyclone.hpp",
+    "cyclone/cyclone_utils.hpp",
     "cyclone/nullable_scalar_vector.cc",
     "cyclone/nullable_varchar_vector.cc",
     "cyclone/transfer-definitions.hpp",

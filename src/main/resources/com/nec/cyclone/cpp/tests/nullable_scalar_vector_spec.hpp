@@ -73,6 +73,18 @@ namespace cyclone::tests {
       CHECK(input->equals(empty));
     }
 
+    TEST_CASE_TEMPLATE("Pseudo move assignment works for T=", T, int32_t, int64_t, float, double) {
+      auto *input = new NullableScalarVec<T>;
+
+      // Need to allocate by malloc() since it will be freed by free() in the pseudo move
+      auto *copy1 = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+      new (copy1) NullableScalarVec(raw<T>);
+      auto *copy2 = new NullableScalarVec(raw<T>);
+
+      input->move_assign_from(copy1);
+      CHECK(input->equals(copy2));
+    }
+
     TEST_CASE_TEMPLATE("Clone works for T=", T, int32_t, int64_t, float, double) {
       auto *input = new NullableScalarVec(raw<T>);
       input->set_validity(1, 0);

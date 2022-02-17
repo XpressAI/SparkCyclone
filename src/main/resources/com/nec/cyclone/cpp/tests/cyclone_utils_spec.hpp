@@ -19,21 +19,13 @@
  */
 #pragma once
 
-#include "cyclone/transfer-definitions.hpp"
 #include "cyclone/cyclone_utils.hpp"
-#include "frovedis/text/dict.hpp"
-#include "frovedis/text/words.hpp"
-#include <stddef.h>
-#include <vector>
+#include "tests/doctest.h"
 
-std::string utcnanotime();
-
-void debug_words(frovedis::words &in);
-
-std::vector<size_t> idx_to_std(nullable_int_vector *idx);
-
-void print_indices(std::vector<size_t> vec);
-
-frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select);
-
-std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set);
+namespace cyclone::tests {
+  TEST_CASE("bitmask_to_matching_ids() works") {
+    std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
+    std::vector<size_t> expected = { 2, 7, 8, 9, 10, 13, 14 };
+    CHECK(cyclone::bitmask_to_matching_ids(bitmask) == expected);
+  }
+}

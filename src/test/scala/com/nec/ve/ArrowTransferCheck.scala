@@ -289,7 +289,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                   val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
                   val r: List[VeColVector] = veProcess.executeMultiIn(
                     libraryReference = lib,
-                    functionName = fName,
+                    functionName = mergeFn.name,
                     batches = bg,
                     results = colBatch1.cols.zipWithIndex.map { case (vcv, idx) =>
                       vcv.veType.makeCVector(s"o_${idx}")

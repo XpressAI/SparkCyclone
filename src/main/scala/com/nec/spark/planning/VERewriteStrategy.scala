@@ -189,7 +189,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             )
           )
 
-          // val amplifyFunction = s"amplify_${functionName}"
           val amplifyFn = MergerFunction(
             s"amplify_${functionName}",
             genericJoiner.outputs.map(_.cVector.veType)
@@ -205,9 +204,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                         .from(
                           CFunctionGeneration.KeyHeaders,
                           amplifyFn.toCodeLines
-                          // MergerFunction
-                          //   .merge(types = genericJoiner.outputs.map(_.cVector.veType))
-                          //   .toCodeLines(amplifyFunction)
                         )
                         .cCode
                     ),
@@ -243,7 +239,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               )
             )
 
-          // val amplifyFunction = s"amplify_${filterFn.name}"
             val amplifyFn = MergerFunction(
               s"amplify_${filterFn.name}",
               data.map(_.veType)
@@ -271,9 +266,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                             .from(
                               CFunctionGeneration.KeyHeaders,
                               amplifyFn.toCodeLines
-                              // MergerFunction
-                              //   .merge(types = data.map(_.veType))
-                              //   .toCodeLines(amplifyFunction)
                             )
                             .cCode
                         ),
@@ -542,9 +534,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
 
-            // mergeFunction = s"merge_$functionPrefix"
-
-
             mergeFn = MergerFunction(
               s"merge_$functionPrefix",
               partialCFunction.outputs.map(_.veType)
@@ -555,8 +544,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               ff.outputs.map(_.veType)
             )
 
-            // amplifyFunction = s"amplify_${functionPrefix}"
-
             code = CodeLines
               .from(
                 partialCFunction.toCodeLinesSPtr(partialName),
@@ -564,15 +551,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                 exchangeFunction.toCodeLines,
                 mergeFn.toCodeLines,
                 if (options.amplifyBatches) amplifyFn.toCodeLines else CodeLines.empty
-                // MergerFunction
-                //   .merge(types = partialCFunction.outputs.map(_.veType))
-                //   .toCodeLines(mergeFunction)
-                //   .cCode,
-                // if (options.amplifyBatches)
-                //   MergerFunction
-                //     .merge(types = ff.outputs.map(_.veType))
-                //     .toCodeLines(amplifyFunction)
-                // else CodeLines.empty
               )
 
           } yield {

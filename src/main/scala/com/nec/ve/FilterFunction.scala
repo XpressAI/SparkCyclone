@@ -4,14 +4,16 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{VeFilter, CExpression, CScalarVector, CVarChar, CVector}
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
+import com.nec.spark.agile.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
 
 object FilterFunction {
+  val BitMaskId = "mask"
   val MatchListId = "matching_ids"
 }
 
 case class FilterFunction(name: String,
-                          filter: VeFilter[CVector, CExpression]) {
+                          filter: VeFilter[CVector, CExpression],
+                          onVe: Boolean = true) {
   require(filter.data.nonEmpty, "Expected Filter to have at least one data column")
 
   lazy val inputs: List[CVector] = {
@@ -23,18 +25,27 @@ case class FilterFunction(name: String,
   }
 
   lazy val arguments: List[CFunction2.CFunctionArgument] = {
-    inputs.map(PointerPointer(_)) ++ outputs.map(PointerPointer(_))
-  }
-
-  def filterVecStmt(input: CVector): CodeLines = {
-    val output = input.replaceName("input", "output")
-    CodeLines.scoped(s"Populate ${output.name}[0] based on the filter applied to ${input.name}[0]") {
-      // Created a filtered copy of input and assign the pointer to output*
-      s"*${output.name} = ${input.name}[0]->filter(${FilterFunction.MatchListId});",
+    if (onVe) {
+      inputs.map(PointerPointer(_)) ++ outputs.map(PointerPointer(_))
+    } else {
+      inputs.map(Pointer(_)) ++ outputs.map(Pointer(_))
     }
   }
 
-  def computeFilterStmt: CodeLines = {
+  private[ve] def filterVecStmt(input: CVector): CodeLines = {
+    val output = input.replaceName("input", "output")
+    CodeLines.scoped(s"Populate ${output.name}[0] based on the filter applied to ${input.name}[0]") {
+      if (onVe) {
+        // Create a filtered copy of input and assign the pointer to output*
+        s"*${output.name} = ${input.name}[0]->filter(${FilterFunction.MatchListId});",
+      } else {
+        // A memory region is already provided, so create a filtered copy of input and move to the region
+        s"${output.name}->move_assign_from(${input.name}->filter(${FilterFunction.MatchListId}));"
+      }
+    }
+  }
+
+  private[ve] def computeFilterStmt: CodeLines = {
     // Final filter condition that is the AND of individual C expressions and output of *Hole evaluations
     val filterCondition = filter.condition.isNotNullCode match {
       case Some(x) =>
@@ -53,27 +64,13 @@ case class FilterFunction(name: String,
             CodeLines.from(
               // Generate mask array
               "// Combine all filters to a mask array",
-              s"std::vector<size_t> mask(${inputs.head.name}[0]->count);",
-              CodeLines.forLoop("i", s"${inputs.head.name}[0]->count") {
-                s"mask[i] = ${filterCondition};"
+              s"std::vector<size_t> ${FilterFunction.BitMaskId}(${filter.data.head.name}->count);",
+              CodeLines.forLoop("i", s"${filter.data.head.name}->count") {
+                s"${FilterFunction.BitMaskId}[i] = ${filterCondition};"
               },
               "",
-              "// Count the bits with value of 1",
-              "size_t m_count = 0;",
-              CodeLines.forLoop("i", "mask.size()") {
-                "m_count += mask[i];"
-              },
-              "",
-              "// Add the indices of the 1's to the matching_ids",
-              "matching_ids.resize(m_count);",
-              "size_t mz = 0;",
-              // Add #pragma to guide vectorization
-              "#pragma _NEC vector",
-              CodeLines.forLoop("i", "mask.size()") {
-                CodeLines.ifStatement("mask[i]") {
-                  "matching_ids[mz++] = i;"
-                }
-              }
+              "// Compute the matching_ids from the bitmask",
+              s"matching_ids = cyclone::bitmask_to_matching_ids(${FilterFunction.BitMaskId});",
             )
           }
         )
@@ -81,12 +78,20 @@ case class FilterFunction(name: String,
     )
   }
 
+  private[ve] def ptrDeclStmts: CodeLines = {
+    (filter.data, inputs).zipped.map { case (dvec, ivec) =>
+      if (onVe) {
+        s"${dvec.declarePointer} = ${ivec.name}[0];"
+      } else {
+        s"${dvec.declarePointer} = ${ivec.name};"
+      }
+    }
+  }
+
   def render: CFunction2 = {
     val body = CodeLines.from(
       // Declare some pointers
-      (filter.data, inputs).zipped.map { case (dvec, ivec) =>
-        s"${dvec.declarePointer} = ${ivec.name}[0];"
-      },
+      ptrDeclStmts,
       "",
       // Perform the filter
       computeFilterStmt,

@@ -77,6 +77,9 @@ struct NullableScalarVec {
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
 
+  // C implementation of a C++ move assignment
+  void move_assign_from(NullableScalarVec<T> * other);
+
   // Returns true if the struct fields have default values
   bool is_default() const;
 
@@ -161,6 +164,9 @@ struct nullable_varchar_vector {
 
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
+
+  // C implementation of a C++ move assignment
+  void move_assign_from(nullable_varchar_vector * other);
 
   // Returns true if the struct fields have default values
   bool is_default() const;

@@ -126,6 +126,21 @@ void nullable_varchar_vector::reset() {
   count           = 0;
 }
 
+void nullable_varchar_vector::move_assign_from(nullable_varchar_vector * other) {
+  // Reset the pointers and values
+  reset();
+
+  // Assign the pointers and values from other
+  data            = other->data;
+  offsets         = other->offsets;
+  validityBuffer  = other->validityBuffer;
+  dataSize        = other->dataSize;
+  count           = other->count;
+
+  // Free the other (struct only)
+  free(other);
+}
+
 bool nullable_varchar_vector::is_default() const {
   return data == nullptr &&
     offsets == nullptr &&

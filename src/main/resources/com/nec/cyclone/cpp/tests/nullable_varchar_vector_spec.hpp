@@ -74,6 +74,19 @@ namespace cyclone::tests {
       CHECK(input->equals(empty));
     }
 
+    TEST_CASE("Pseudo move assignment works") {
+      auto raw = std::vector<std::string> { "FEB", "MAR", "MAY", "", "DEC" };
+      auto *input = new nullable_varchar_vector;
+
+      // Need to allocate by malloc() since it will be freed by free() in the pseudo move
+      auto *copy1 = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
+      new (copy1) nullable_varchar_vector(raw);
+      auto *copy2 = new nullable_varchar_vector(raw);
+
+      input->move_assign_from(copy1);
+      CHECK(input->equals(copy2));
+    }
+
     TEST_CASE("Clone works") {
       // Include empty string value
       auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
