@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan
 
-import java.time.{Instant, LocalDate}
+import java.time.LocalDate
 
 // TPC-H table schemas
 case class Customer(
@@ -272,7 +272,10 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       (query22 _, 22)
     )
 
-    val toSkip = if (args.length >= 2) {
+    val skip = getOptions("skip").headOption
+    val toSkip = if (skip.isDefined) {
+      skip.getOrElse("0").split(",").filter(str => str.forall(Character.isDigit)).map(_.toInt).toSet
+    } else if (args.length >= 2) {
       args(1).split(",").filter(str => str.forall(Character.isDigit)).map(_.toInt).toSet
     } else {
       Set[Int]()
@@ -283,15 +286,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       .map(_.toInt)
       .toSet
 
+    val times = getOptions("times")
+      .map(_.toInt)
+      .headOption
+
     if (toSelect.nonEmpty) {
       queries
         .filter(q => toSelect.contains(q._2))
-        .foreach { case (q, i) => benchmark(i, q) }
+        .foreach { case (q, i) => benchmark(i, q, times) }
     } else
       queries.foreach { case (query, i) =>
         if (!toSkip.contains(i)) {
           cacheTables(i)
-          benchmark(i, query)
+          benchmark(i, query, times)
           uncacheTables(i)
         }
       }
@@ -334,20 +341,34 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     }
   }
 
-  def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
-    println(s"Running Query${i}")
-    logger.info(s"Running Query${i}")
-    val start = System.nanoTime()
-    val startI = Instant.now()
-    val res = f(sparkSession)
-    val endI = Instant.now()
-    val end = System.nanoTime()
+  def benchmark(query: Int, f: SparkSession => Array[_], times: Option[Int])(implicit sparkSession: SparkSession): Unit = {
+    val repeats = times.getOrElse(1)
+    var benchmarks: List[Double] = Nil
+    var res: Array[_] = Array()
+    println(s"Running Query${query} ${repeats} times")
+    logger.info(s"Running Query${query} ${repeats} times")
+
+    for (i <- 0 until repeats) {
+      val start = System.nanoTime()
+      res = f(sparkSession)
+      val end = System.nanoTime()
+      val seconds = (end - start).toDouble / 1e9
+      println(s"Loop $i: took ${seconds} s")
+      benchmarks ::= seconds
+    }
+
+    if (repeats == 2) {
+      benchmarks = benchmarks.sorted.init
+    } else if (repeats > 2) {
+      benchmarks = benchmarks.sorted.tail.init
+    }
+    val seconds = benchmarks.sum / benchmarks.length
+
     println(s"Result returned ${res.length} records.")
     logger.info(s"Result returned ${res.length} records.")
-    val duration = java.time.Duration
-      .between(startI, endI)
-    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${duration}")
-    logger.info(s"Query time: ${duration}")
+
+    println(s"Query${query} elapsed: ${seconds} s")
+    logger.info(s"Query time: ${seconds}s")
     res.take(10).foreach(println)
   }
 
