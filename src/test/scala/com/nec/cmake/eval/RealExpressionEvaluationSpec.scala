@@ -39,6 +39,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
+import com.nec.ve.FilterFunction
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
@@ -1101,17 +1102,21 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     inputArguments: InputArgumentsFull[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
-    val functionName = "filter_f"
+    val filterFn = FilterFunction(
+      "filter_f",
+      VeFilter(
+        data = inputArguments.inputs,
+        condition = condition,
+        stringVectorComputations = Nil
+      ),
+      false
+    )
 
-    val generatedSource =
-      renderFilter(
-        VeFilter(
-          data = inputArguments.inputs,
-          condition = condition,
-          stringVectorComputations = Nil
-        )
-      )
-        .toCodeLinesPF(functionName)
+    val generatedSource = CodeLines.from(
+      """#include "cyclone/cyclone.hpp"""",
+      """#include "cyclone/transfer-definitions.hpp"""",
+      filterFn.toCodeLines
+    )
 
     val cLib = CMakeBuilder.buildCLogging(
       List("\n\n", generatedSource.cCode)
@@ -1123,7 +1128,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       val (outArgs, fetcher) = outputArguments.allocateVectors()
       try {
         val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        try nativeInterface.callFunctionWrapped(filterFn.name, inVecs ++ outArgs)
         finally {
           inVecs
             .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>

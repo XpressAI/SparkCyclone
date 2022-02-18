@@ -43,7 +43,7 @@ import com.nec.spark.planning.VERewriteStrategy.{
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.plans._
-import com.nec.ve.{GroupingFunction, MergerFunction}
+import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
@@ -64,7 +64,6 @@ import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{SparkSession, Strategy}
-
 import scala.collection.immutable
 
 object VERewriteStrategy {
@@ -190,7 +189,10 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             )
           )
 
-          val amplifyFunction = s"amplify_${functionName}"
+          val amplifyFn = MergerFunction(
+            s"amplify_${functionName}",
+            genericJoiner.outputs.map(_.cVector.veType)
+          )
 
           val maybeAmplifiedJoinPlan =
             if (options.amplifyBatches)
@@ -201,13 +203,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                       CodeLines
                         .from(
                           CFunctionGeneration.KeyHeaders,
-                          MergerFunction
-                            .merge(types = genericJoiner.outputs.map(_.cVector.veType))
-                            .toCodeLines(amplifyFunction)
+                          amplifyFn.toCodeLines
                         )
                         .cCode
                     ),
-                  functionName = amplifyFunction,
+                  functionName = amplifyFn.name,
                   namedResults = genericJoiner.outputs.map(_.cVector)
                 ),
                 child = joinPlan
@@ -226,8 +226,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               sparkTypeToVeType(att.dataType).makeCVector(s"${InputPrefix}$idx")
             }
           } yield {
-            val functionName = s"flt_${functionPrefix}"
-            val cFunction = renderFilter(
+            val filterFn = FilterFunction(
+              s"filter_${functionPrefix}",
               VeFilter(
                 stringVectorComputations = StringHole
                   .process(condition.transform(replacer))
@@ -239,15 +239,18 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               )
             )
 
-            val amplifyFunction = s"amplify_${functionName}"
+            val amplifyFn = MergerFunction(
+              s"amplify_${filterFn.name}",
+              data.map(_.veType)
+            )
 
             val filterPlan = OneStageEvaluationPlan(
               outputExpressions = f.output,
               veFunction = VeFunction(
                 veFunctionStatus =
-                  VeFunctionStatus.SourceCode(cFunction.toCodeLinesSPtr(functionName).cCode),
-                functionName = functionName,
-                namedResults = cFunction.outputs
+                  VeFunctionStatus.SourceCode(filterFn.toCodeLines.cCode),
+                functionName = filterFn.name,
+                namedResults = filterFn.outputs
               ),
               child = SparkToVectorEnginePlan(planLater(child))
             )
@@ -262,13 +265,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                           CodeLines
                             .from(
                               CFunctionGeneration.KeyHeaders,
-                              MergerFunction
-                                .merge(types = data.map(_.veType))
-                                .toCodeLines(amplifyFunction)
+                              amplifyFn.toCodeLines
                             )
                             .cCode
                         ),
-                      functionName = amplifyFunction,
+                      functionName = amplifyFn.name,
                       namedResults = data
                     ),
                     child = filterPlan
@@ -532,22 +533,24 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             )
             partialName = s"partial_$functionPrefix"
             finalName = s"final_$functionPrefix"
-            mergeFunction = s"merge_$functionPrefix"
-            amplifyFunction = s"amplify_${functionPrefix}"
+
+            mergeFn = MergerFunction(
+              s"merge_$functionPrefix",
+              partialCFunction.outputs.map(_.veType)
+            )
+
+            amplifyFn = MergerFunction(
+              s"amplify_${functionPrefix}",
+              ff.outputs.map(_.veType)
+            )
+
             code = CodeLines
               .from(
                 partialCFunction.toCodeLinesSPtr(partialName),
                 ff.toCodeLinesNoHeaderOutPtr2(finalName),
                 exchangeFunction.toCodeLines,
-                MergerFunction
-                  .merge(types = partialCFunction.outputs.map(_.veType))
-                  .toCodeLines(mergeFunction)
-                  .cCode,
-                if (options.amplifyBatches)
-                  MergerFunction
-                    .merge(types = ff.outputs.map(_.veType))
-                    .toCodeLines(amplifyFunction)
-                else CodeLines.empty
+                mergeFn.toCodeLines,
+                if (options.amplifyBatches) amplifyFn.toCodeLines else CodeLines.empty
               )
 
           } yield {
@@ -601,7 +604,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             val flt = VeFlattenPartition(
               flattenFunction = VeFunction(
                 veFunctionStatus = VeFunctionStatus.SourceCode(code.cCode),
-                functionName = mergeFunction,
+                functionName = mergeFn.name,
                 namedResults = partialCFunction.outputs
               ),
               child = pag
@@ -623,7 +626,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                   amplifyFunction = VeFunction(
                     veFunctionStatus = VeFunctionStatus
                       .SourceCode(code.cCode),
-                    functionName = amplifyFunction,
+                    functionName = amplifyFn.name,
                     namedResults = ff.outputs
                   ),
                   child = finalAggregate

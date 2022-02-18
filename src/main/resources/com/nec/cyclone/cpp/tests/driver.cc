@@ -22,6 +22,7 @@
 
 // Include all the specs to be run
 #include "tests/example_spec.hpp"
+#include "tests/cyclone_utils_spec.hpp"
 #include "tests/nullable_scalar_vector_spec.hpp"
 #include "tests/nullable_varchar_vector_spec.hpp"
 

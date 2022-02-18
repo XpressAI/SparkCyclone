@@ -270,9 +270,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
    */
 
   "We can merge multiple VeColBatches" in {
-    val fName = "merger"
+    val mergeFn = MergerFunction("merger", List(VeNullableDouble, VeString))
 
-    compiledWithHeaders(MergerFunction.merge(types = List(VeNullableDouble, VeString)), fName) {
+    compiledWithHeaders(mergeFn.render, mergeFn.name) {
       path =>
         val lib = veProcess.loadLibrary(path)
         WithTestAllocator { implicit alloc =>
@@ -289,7 +289,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                   val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
                   val r: List[VeColVector] = veProcess.executeMultiIn(
                     libraryReference = lib,
-                    functionName = fName,
+                    functionName = mergeFn.name,
                     batches = bg,
                     results = colBatch1.cols.zipWithIndex.map { case (vcv, idx) =>
                       vcv.veType.makeCVector(s"o_${idx}")

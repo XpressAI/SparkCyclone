@@ -3,14 +3,34 @@ package com.nec.ve
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeString, VeType}
 import com.nec.spark.agile.groupby.GroupByOutline
 
-object MergerFunction {
+case class MergerFunction(name: String,
+                          columns: List[VeType]) {
+  require(columns.nonEmpty, "Expected Merge to have at least one data column")
+
+  lazy val inputs: List[CVector] = {
+    columns.zipWithIndex.map { case (veType, idx) =>
+      veType.makeCVector(s"input_${idx}_g")
+    }
+  }
+
+  lazy val outputs: List[CVector] = {
+    columns.zipWithIndex.map { case (veType, idx) =>
+      veType.makeCVector(s"output_${idx}_g")
+    }
+  }
+
+  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+    List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")) ++
+      inputs.map(CFunctionArgument.PointerPointer(_)) ++
+      outputs.map(CFunctionArgument.PointerPointer(_))
+  }
+
   def mergeCVecStmt(vetype: VeType, index: Int): CodeLines = {
     val in = s"input_${index}_g"
     val out = s"output_${index}_g"
-    val tmp = s"output_${index}"
 
     CodeLines.scoped(s"Merge ${in}[...] into ${out}[0]") {
       CodeLines.from(
@@ -31,21 +51,11 @@ object MergerFunction {
     }
   }
 
-  def merge(types: List[VeType]): CFunction2 = {
-    val inputs = types.zipWithIndex.map { case (veType, idx) =>
-      CFunctionArgument.PointerPointer(veType.makeCVector(s"input_${idx}_g"))
-    }
+  def render: CFunction2 = {
+    CFunction2(arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
+  }
 
-    val outputs = types.zipWithIndex.map { case (veType, idx) =>
-      CFunctionArgument.PointerPointer(veType.makeCVector(s"output_${idx}_g"))
-    }
-
-    CFunction2(
-      arguments = List(
-        CFunctionArgument.Raw("int batches"),
-        CFunctionArgument.Raw("int rows")
-      ) ++ inputs ++ outputs,
-      body = types.zipWithIndex.map((mergeCVecStmt _).tupled)
-    )
+  def toCodeLines: CodeLines = {
+    render.toCodeLines(name)
   }
 }

@@ -55,6 +55,20 @@ void NullableScalarVec<T>::reset() {
 }
 
 template <typename T>
+void NullableScalarVec<T>::move_assign_from(NullableScalarVec<T> * other) {
+  // Reset the pointers and values
+  reset();
+
+  // Assign the pointers and values from other
+  data            = other->data;
+  validityBuffer  = other->validityBuffer;
+  count           = other->count;
+
+  // Free the other (struct only)
+  free(other);
+}
+
+template <typename T>
 bool NullableScalarVec<T>::is_default() const {
   return data == nullptr &&
     validityBuffer  == nullptr &&
