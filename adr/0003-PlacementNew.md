@@ -48,7 +48,7 @@ public:
                                                                                                                                                                                                                                              
   void print() { std::cerr << i_ << "\t" << s_ << std::endl; }
   
-  static deleter(Data* data) { delete data; }   // not used yet - for future                                                                                                                                                                               
+  static void deleter(Data* data) { delete data; }   // not used yet - for future                                                                                                                                                                               
 };                                                                                                                                                                                                                                           
                                                                                                                                                                                                                                              
 int main()                                                                                                                                                                                                                                   
