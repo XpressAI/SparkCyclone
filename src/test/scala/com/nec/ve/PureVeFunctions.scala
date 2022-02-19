@@ -12,7 +12,7 @@ object PureVeFunctions {
       .from(
         CodeLines
           .from(
-            "nullable_double_vector* o = static_cast<nullable_double_vector*>(malloc(sizeof(nullable_double_vector)));",
+            "nullable_double_vector* o = nullable_double_vector::allocate();",
             "*o_p = o;",
             GroupByOutline.initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input[0]->count"),
             "for ( int i = 0; i < input[0]->count; i++ ) {",

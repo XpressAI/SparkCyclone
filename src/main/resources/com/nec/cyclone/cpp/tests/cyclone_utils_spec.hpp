@@ -19,13 +19,24 @@
  */
 #pragma once
 
-#include "cyclone/cyclone_utils.hpp"
+#include "cyclone/cyclone.hpp"
 #include "tests/doctest.h"
+#include <tuple>
 
 namespace cyclone::tests {
   TEST_CASE("bitmask_to_matching_ids() works") {
     std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
     std::vector<size_t> expected = { 2, 7, 8, 9, 10, 13, 14 };
     CHECK(cyclone::bitmask_to_matching_ids(bitmask) == expected);
+  }
+
+  TEST_CASE("std::vector print works") {
+    std::vector<size_t> vec = { 2, 7, 8, 9, 10, 13, 14 };
+    std::cout << vec << std::endl;
+  }
+
+  TEST_CASE("std::tuple print works") {
+    auto tup = std::make_tuple(5, "Hello", -0.1);
+    std::cout << tup << std::endl;
   }
 }

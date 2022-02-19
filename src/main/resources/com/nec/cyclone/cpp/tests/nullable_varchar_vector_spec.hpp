@@ -20,11 +20,25 @@
 #pragma once
 
 #include "cyclone/cyclone.hpp"
-#include "cyclone/transfer-definitions.hpp"
 #include "tests/doctest.h"
 
 namespace cyclone::tests {
   TEST_SUITE("nullable_varchar_vector") {
+    TEST_CASE("Allocate works") {
+      auto *vec1 = nullable_varchar_vector::allocate();
+      CHECK(vec1->is_default());
+    }
+
+    TEST_CASE("Print works") {
+      std::vector<std::string> raw { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+      auto *vec1 = new nullable_varchar_vector(raw);
+      vec1->set_validity(1, 0);
+      vec1->set_validity(4, 0);
+      vec1->set_validity(10, 0);
+
+      vec1->print();
+    }
+
     TEST_CASE("Equality checks work") {
       std::vector<std::string> raw { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
       auto *vec1 = new nullable_varchar_vector(raw);

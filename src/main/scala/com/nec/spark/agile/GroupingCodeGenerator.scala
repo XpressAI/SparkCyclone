@@ -72,17 +72,15 @@ final case class GroupingCodeGenerator(
         )
       },
       tupleTypes.zipWithIndex.reverse.collect { case (t, idx) =>
-        CodeLines.from(
-          s"{",
-          s"std::vector<${t}> temp(${count});",
-          s"for ( long i = 0; i < ${count}; i++ ) {",
-          CodeLines
-            .from(s"temp[i] = std::get<${idx}>(${groupingVecName}[${sortedIdxName}[i]]);")
-            .indented,
-          s"}",
-          s"frovedis::radix_sort(temp.data(), ${sortedIdxName}.data(), temp.size());",
-          s"}"
-        )
+        CodeLines.scoped(s"Sort by element ${idx} of the tuple") {
+          CodeLines.from(
+            s"std::vector<${t}> temp(${count});",
+            CodeLines.forLoop("i", s"${count}") {
+              s"temp[i] = std::get<${idx}>(${groupingVecName}[${sortedIdxName}[i]]);"
+            },
+            s"frovedis::radix_sort(temp.data(), ${sortedIdxName}.data(), temp.size());"
+          )
+        }
       },
       s"for ( long j = 0; j < ${count}; j++ ) {",
       CodeLines

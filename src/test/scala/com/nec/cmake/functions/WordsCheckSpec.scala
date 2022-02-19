@@ -89,7 +89,7 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
     WithTestAllocator { implicit allocator =>
       val p: Prop = Prop.forAll(listOfStr)(list => {
         val expected = list.zipWithIndex.collect { case (s, idx) if idx % 2 == 0 => s }.toList
-        val r = ArrowVectorBuilders.withArrowStringVector(list) { inVec =>
+        val result = ArrowVectorBuilders.withArrowStringVector(list) { inVec =>
           ArrowVectorBuilders.withArrowStringVector(Seq.empty) { outVec =>
             nativeInterface.callFunction(
               name = "test",
@@ -100,12 +100,12 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
           }
         }
 
-        if (r != expected)
+        if (result != expected)
           info(
-            s"result => ${r}; expected ${expected} (${r.map(_.length)}; ${expected.map(_.length)})"
+            s"result => ${result}; expected ${expected} (${result.map(_.length)}; ${expected.map(_.length)})"
           )
 
-        r == expected
+        result == expected
       })
       check(p)
     }

@@ -167,7 +167,7 @@ object SparkExpressionToCExpression {
         }
       case AttributeReference(name, StringType, _, _) =>
         Right(StringProducer.copyString(name))
-      case Alias(AttributeReference(name, StringType, _, _), name2) =>
+      case Alias(AttributeReference(name, StringType, _, _), _) =>
         Right(StringProducer.copyString(name))
       case other => Left(other)
     }

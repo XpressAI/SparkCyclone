@@ -18,10 +18,17 @@
  *
  */
 #include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone.hpp"
 #include "frovedis/core/utility.hpp"
 #include <stdlib.h>
 #include <iostream>
+
+template <typename T>
+NullableScalarVec<T> * NullableScalarVec<T>::allocate() {
+  // Allocate
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  // Initialize
+  return new (output) NullableScalarVec<T>;
+}
 
 template <typename T>
 NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
@@ -52,6 +59,22 @@ void NullableScalarVec<T>::reset() {
   data            = nullptr;
   validityBuffer  = nullptr;
   count           = 0;
+}
+
+template <typename T>
+void NullableScalarVec<T>::resize(const size_t size) {
+  // Reset the pointers and values
+  reset();
+
+  // Set count
+  count = size;
+
+  // Set data to new buffer
+  data = static_cast<T *>(malloc(sizeof(T) * count));
+
+  // Set validityBuffer to new buffer
+  auto vbytes = frovedis::ceil_div(count, int32_t(64)) * sizeof(uint64_t);
+  validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 }
 
 template <typename T>
@@ -137,7 +160,7 @@ bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) cons
 template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
   // Allocate
-  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = allocate();
 
   // Copy the count
   output->count = count;
@@ -158,7 +181,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
 template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &matching_ids) const {
   // Allocate
-  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = allocate();
 
   // Set the count
   output->count = matching_ids.size();
@@ -226,7 +249,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   }
 
   // Allocate
-  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = allocate();
 
   // Set the total count, and allocate data and validityBuffer
   output->count = rows;

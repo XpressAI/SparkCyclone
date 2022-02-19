@@ -20,6 +20,8 @@
 #pragma once
 
 #include <stddef.h>
+#include <iostream>
+#include <tuple>
 #include <vector>
 
 namespace cyclone {
@@ -45,5 +47,35 @@ namespace cyclone {
     }
 
     return output;
+  }
+
+  // Print out a tuple
+  template<typename Ch, typename Tr, typename T>
+  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
+                   std::vector<T> const &vec) {
+    std::basic_stringstream<Ch, Tr> tmp;
+    tmp << "[ ";
+    for (const auto &elem : vec) {
+      tmp << elem << ", ";
+    }
+    tmp.seekp(-2, tmp.cur);
+    tmp << " ]";
+    return stream << tmp.str();
+  }
+
+  // Print out a tuple
+  template<typename Ch, typename Tr, typename... Ts>
+  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
+                   std::tuple<Ts...> const &tup) {
+    std::basic_stringstream<Ch, Tr> tmp;
+    tmp << "(";
+    // Based on: https://stackoverflow.com/questions/6245735/pretty-print-stdtuple
+    std::apply(
+      [&tmp] (auto&&... args) { ((tmp << args << ", "), ...); },
+      tup
+    );
+    tmp.seekp(-2, tmp.cur);
+    tmp << ")";
+    return stream << tmp.str();
   }
 }
