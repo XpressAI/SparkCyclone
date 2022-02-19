@@ -164,7 +164,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       CExpression(
         cCode =
-          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i+1] - input_0->offsets[i]) == std::string("one")""",
+          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i] + input_0->lengths[i]) == std::string("one")""",
         isNotNullCode = None
       )
     )
@@ -1271,8 +1271,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
                     )
                   )
 
-                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map { case ((s, d), i) =>
-                    (s, d, i)
+                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map {
+                    case ((s, d), i) =>
+                      (s, d, i)
                   }
                 }
               }

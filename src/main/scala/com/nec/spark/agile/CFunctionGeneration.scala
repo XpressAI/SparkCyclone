@@ -143,7 +143,7 @@ object CFunctionGeneration {
 
     override def isString: Boolean = true
 
-    override def containerSize: Int = 32
+    override def containerSize: Int = 40
   }
 
   sealed trait VeScalarType extends VeType {
@@ -943,7 +943,9 @@ object CFunctionGeneration {
               s"std::vector<size_t> outer_idx = frovedis::outer_equi_join<std::tuple<${veOuterJoin.leftKey.veType.cScalarType}, int>>(right_vec, right_idx, left_vec, left_idx, right_out, left_out);"
             )
         },
-        List("long validityBuffSize = frovedis::ceil_div(size_t(left_out.size() + outer_idx.size()), size_t(64));"),
+        List(
+          "long validityBuffSize = frovedis::ceil_div(size_t(left_out.size() + outer_idx.size()), size_t(64));"
+        ),
         veOuterJoin.outputs.map {
           case OuterJoinOutput(NamedJoinExpression(outputName, veType, joinExpression), _) =>
             joinExpression.fold(whenProj =

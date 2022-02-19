@@ -37,10 +37,10 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
         IO.delay(new VarCharVector(name, bufferAllocator))
           .flatTap { vcv =>
             IO.delay {
-              vcv.setValueCount(stringBatch.length)
               stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
                 vcv.setSafe(idx, str.getBytes("UTF-8"), 0, str.length)
               }
+              vcv.setValueCount(stringBatch.length)
             }
           }
       )(res => IO.delay(res.close()))
@@ -51,8 +51,9 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
         IO.delay(new Float8Vector(name, bufferAllocator))
           .flatTap { vcv =>
             IO.delay {
-              vcv.setValueCount(doubleBatch.length)
               doubleBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
+              vcv.setValueCount(doubleBatch.length)
+              vcv
             }
           }
       )(res => IO.delay(res.close()))
@@ -64,8 +65,9 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
         IO.delay(new IntVector(name, bufferAllocator))
           .flatTap { vcv =>
             IO.delay {
-              vcv.setValueCount(intBatch.length)
               intBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
+              vcv.setValueCount(intBatch.length)
+              vcv
             }
           }
       )(res => IO.delay(res.close()))
@@ -77,8 +79,9 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
         IO.delay(new BigIntVector(name, bufferAllocator))
           .flatTap { vcv =>
             IO.delay {
-              vcv.setValueCount(longBatch.length)
               longBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
+              vcv.setValueCount(longBatch.length)
+              vcv
             }
           }
       )(res => IO.delay(res.close()))

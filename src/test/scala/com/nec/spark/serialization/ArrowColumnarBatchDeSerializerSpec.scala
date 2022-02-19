@@ -5,8 +5,16 @@ import com.nec.arrow.ArrowVectorBuilders.withDirectIntVector
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializer.RichFieldVector
-import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.ValueInfo.{FloatStorage, IntStorage, StringStorage}
-import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.{ImmutableColBatch, extractFieldVectors, genColB}
+import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.ValueInfo.{
+  FloatStorage,
+  IntStorage,
+  StringStorage
+}
+import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.{
+  extractFieldVectors,
+  genColB,
+  ImmutableColBatch
+}
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector, IntVector, VarCharVector}
