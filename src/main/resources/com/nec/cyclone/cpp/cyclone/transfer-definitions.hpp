@@ -107,157 +107,16 @@ struct NullableScalarVec {
 };
 
 // Explicitly instantiate struct template for int32_t
-//typedef NullableScalarVec<int32_t> nullable_int_vector;
-
-struct nullable_int_vector {
-  // NOTE: Field declaration order must be maintained to match existing JNA bindings
-
-	  // Initialize fields with defaults
-  int32_t      *data             = nullptr;  // The raw data containing all the ints concatenated together
-  int32_t   *offsets          = nullptr;  // Offsets to denote int start and end positions
-  uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
-  int32_t   dataSize          = 0;        // Size of data array
-  int32_t   count             = 0;        // The row count
-
-
-  // Explicitly force the generation of a default constructor
-  nullable_int_vector() = default;
-
-  // Returns a deep copy of this NullableScalarVec<T>
-  nullable_int_vector * clone();
-
-  // Value equality check against another NullableScalarVec<T>
-  bool equals(const nullable_int_vector * const other);
-  
-  inline void set_validity(const size_t idx,
-                           const int32_t validity);
-
-  inline uint32_t get_validity(const size_t idx) const;
-  
-  // Construct from a given frovedis::words
-  nullable_int_vector(const frovedis::words &src);
-
-  nullable_int_vector * filter(const std::vector<size_t> &matching_ids) const;
-
-  nullable_int_vector ** bucket(const std::vector<size_t> &bucket_counts,
-                                                           const std::vector<size_t> &bucket_assignments) const;
-  frovedis::words to_words() const;
-  nullable_int_vector * from_words(const frovedis::words &src) const;
-};
+typedef NullableScalarVec<int32_t> nullable_int_vector;
 
 // Explicitly instantiate struct template for int64_t
-//typedef NullableScalarVec<int64_t> nullable_bigint_vector;
-
-struct nullable_bigint_vector {
-  // NOTE: Field declaration order must be maintained to match existing JNA bindings
-  
-  // Initialize fields with defaults
-  int64_t      *data             = nullptr;  // The raw data containing all the bigints concatenated together
-  int32_t   *offsets          = nullptr;  // Offsets to denote bigint start and end positions
-  uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
-  int32_t   dataSize          = 0;        // Size of data array
-  int32_t   count             = 0;        // The row count
-
-  // Explicitly force the generation of a default constructor
-  nullable_bigint_vector() = default;
-
-  // Returns a deep copy of this NullableScalarVec<T>
-  nullable_bigint_vector * clone();
-
-  // Value equality check against another NullableScalarVec<T>
-  bool equals(const nullable_bigint_vector * const other);
-
-  inline void set_validity(const size_t idx,
-                           const int32_t validity);
-
-  inline uint32_t get_validity(const size_t idx) const;
-
-  // Construct from a given frovedis::words
-  nullable_bigint_vector(const frovedis::words &src);
- 
-  nullable_bigint_vector * filter(const std::vector<size_t> &matching_ids) const;
-
-  nullable_bigint_vector ** bucket(const std::vector<size_t> &bucket_counts,
-                                                           const std::vector<size_t> &bucket_assignments) const;
-  frovedis::words to_words() const;
-  nullable_bigint_vector * from_words(const frovedis::words &src) const;
-};
+typedef NullableScalarVec<int64_t> nullable_bigint_vector;
 
 // Explicitly instantiate struct template for float
-//typedef NullableScalarVec<float> nullable_float_vector;
-
-struct nullable_float_vector {
-  // NOTE: Field declaration order must be maintained to match existing JNA bindings
-
-  // Initialize fields with defaults
-  float      *data             = nullptr;  // The raw data containing all the floats concatenated together
-  int32_t   *offsets          = nullptr;  // Offsets to denote float start and end positions
-  uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
-  int32_t   dataSize          = 0;        // Size of data array
-  int32_t   count             = 0;        // The row count
-
-  // Explicitly force the generation of a default constructor
-  nullable_float_vector() = default;
-
-  // Returns a deep copy of this NullableScalarVec<T>
-  nullable_float_vector * clone();
-
-  // Value equality check against another NullableScalarVec<T>
-  bool equals(const nullable_float_vector * const other);
-
-  inline void set_validity(const size_t idx,
-                           const int32_t validity);
-
-  inline uint32_t get_validity(const size_t idx) const;
-
-  // Construct from a given frovedis::words
-  nullable_float_vector(const frovedis::words &src);
-
-  nullable_float_vector * filter(const std::vector<size_t> &matching_ids) const;
-
-  nullable_float_vector ** bucket(const std::vector<size_t> &bucket_counts,
-                                                           const std::vector<size_t> &bucket_assignments) const;
-  frovedis::words to_words() const;
-  nullable_float_vector * from_words(const frovedis::words &src) const;
-};
+typedef NullableScalarVec<float> nullable_float_vector;
 
 // Explicitly instantiate struct template for double
-//typedef NullableScalarVec<double> nullable_double_vector;
-
-struct nullable_double_vector {
-  // NOTE: Field declaration order must be maintained to match existing JNA bindings
-
-  // Initialize fields with defaults
-  double      *data             = nullptr;  // The raw data containing all the doubles concatenated together
-  int32_t   *offsets          = nullptr;  // Offsets to denote double start and end positions
-  uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
-  int32_t   dataSize          = 0;        // Size of data array
-  int32_t   count             = 0;        // The row count
-
-  // Explicitly force the generation of a default constructor
-  nullable_double_vector() = default;
-
-  // Returns a deep copy of this NullableScalarVec<T>
-  nullable_double_vector * clone();
-
-  // Value equality check against another NullableScalarVec<T>
-  bool equals(const nullable_double_vector * const other);
-
-  inline void set_validity(const size_t idx,
-                           const int32_t validity);
-
-  inline uint32_t get_validity(const size_t idx) const;
-
-  // Construct from a given frovedis::words
-  nullable_double_vector(const frovedis::words &src);
-
-  nullable_double_vector * filter(const std::vector<size_t> &matching_ids) const;
-
-  nullable_double_vector ** bucket(const std::vector<size_t> &bucket_counts,
-                                                           const std::vector<size_t> &bucket_assignments) const;
-  frovedis::words to_words() const;
-  nullable_double_vector * from_words(const frovedis::words &src) const;
-};
+typedef NullableScalarVec<double> nullable_double_vector;
 
 struct nullable_varchar_vector {
   // NOTE: Field declaration order must be maintained to match existing JNA bindings
