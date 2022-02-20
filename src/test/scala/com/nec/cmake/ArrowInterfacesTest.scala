@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.arrow
+package com.nec.cmake
 import com.nec.arrow.ArrowInterfaces.non_null_double_vector_to_float8Vector
 import com.nec.arrow.TransferDefinitions.non_null_double_vector
 import com.nec.util.RichVectors._
