@@ -39,6 +39,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
+import com.nec.ve.FilterFunction
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
@@ -163,7 +164,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
     )(
       CExpression(
         cCode =
-          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i+1] - input_0->offsets[i]) == std::string("one")""",
+          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i] + input_0->lengths[i]) == std::string("one")""",
         isNotNullCode = None
       )
     )
@@ -385,23 +386,23 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
       (
         TypedCExpression2(
           VeScalarType.veNullableDouble,
-          CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
+          CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
         ),
         TypedCExpression2(
           VeScalarType.veNullableDouble,
-          CExpression("input_1->data[i]", Some("check_valid(input_1->validityBuffer, i)"))
+          CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
         )
       )
     )(
       (
         TypedGroupByExpression[Option[Double]](
           GroupByProjection(
-            CExpression("input_0->data[i]", Some("check_valid(input_0->validityBuffer, i)"))
+            CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
           )
         ),
         TypedGroupByExpression[Double](
           GroupByProjection(
-            CExpression("input_1->data[i] + 1", Some("check_valid(input_1->validityBuffer, i)"))
+            CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))
           )
         ),
         TypedGroupByExpression[Option[Double]](
@@ -410,7 +411,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec {
               CExpression(
                 "input_2->data[i] - input_0->data[i]",
                 Some(
-                  "check_valid(input_0->validityBuffer, i) && check_valid(input_2->validityBuffer, i)"
+                  "input_0->get_validity(i) && input_2->get_validity(i)"
                 )
               )
             )
@@ -1101,17 +1102,21 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     inputArguments: InputArgumentsFull[Data],
     outputArguments: OutputArguments[Data]
   ): List[outputArguments.Result] = {
-    val functionName = "filter_f"
+    val filterFn = FilterFunction(
+      "filter_f",
+      VeFilter(
+        data = inputArguments.inputs,
+        condition = condition,
+        stringVectorComputations = Nil
+      ),
+      false
+    )
 
-    val generatedSource =
-      renderFilter(
-        VeFilter(
-          data = inputArguments.inputs,
-          condition = condition,
-          stringVectorComputations = Nil
-        )
-      )
-        .toCodeLinesPF(functionName)
+    val generatedSource = CodeLines.from(
+      """#include "cyclone/cyclone.hpp"""",
+      """#include "cyclone/transfer-definitions.hpp"""",
+      filterFn.toCodeLines
+    )
 
     val cLib = CMakeBuilder.buildCLogging(
       List("\n\n", generatedSource.cCode)
@@ -1123,7 +1128,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       val (outArgs, fetcher) = outputArguments.allocateVectors()
       try {
         val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
+        try nativeInterface.callFunctionWrapped(filterFn.name, inVecs ++ outArgs)
         finally {
           inVecs
             .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
@@ -1266,8 +1271,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
                     )
                   )
 
-                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map { case ((s, d), i) =>
-                    (s, d, i)
+                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map {
+                    case ((s, d), i) =>
+                      (s, d, i)
                   }
                 }
               }

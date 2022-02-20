@@ -19,15 +19,13 @@
  */
 #pragma once
 
-#include "cyclone/example.hpp"
+#include "cyclone/cyclone_utils.hpp"
 #include "tests/doctest.h"
 
 namespace cyclone::tests {
-  TEST_CASE("Testing the factorial function") {
-    CHECK(factorial(0) == 1);
-    CHECK(factorial(1) == 1);
-    CHECK(factorial(2) == 2);
-    CHECK(factorial(3) == 6);
-    CHECK(factorial(10) == 3628800);
+  TEST_CASE("bitmask_to_matching_ids() works") {
+    std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
+    std::vector<size_t> expected = { 2, 7, 8, 9, 10, 13, 14 };
+    CHECK(cyclone::bitmask_to_matching_ids(bitmask) == expected);
   }
 }

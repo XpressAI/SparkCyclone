@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -55,6 +55,20 @@ void NullableScalarVec<T>::reset() {
 }
 
 template <typename T>
+void NullableScalarVec<T>::move_assign_from(NullableScalarVec<T> * other) {
+  // Reset the pointers and values
+  reset();
+
+  // Assign the pointers and values from other
+  data            = other->data;
+  validityBuffer  = other->validityBuffer;
+  count           = other->count;
+
+  // Free the other (struct only)
+  free(other);
+}
+
+template <typename T>
 bool NullableScalarVec<T>::is_default() const {
   return data == nullptr &&
     validityBuffer  == nullptr &&
@@ -65,8 +79,8 @@ bool NullableScalarVec<T>::is_default() const {
 template <typename T>
 void NullableScalarVec<T>::print() const {
   std::stringstream stream;
-
   stream << "NullableScalarVec<T> @ " << this << " {\n";
+
   // Print count
   stream << "  COUNT: " << count << "\n";
 
@@ -77,7 +91,7 @@ void NullableScalarVec<T>::print() const {
     // Print data
     stream << "  DATA: [ ";
     for (auto i = 0; i < count; i++) {
-      if (check_valid(validityBuffer, i)) {
+      if (get_validity(i)) {
         stream << data[i] << ", ";
       } else {
         stream << "#, ";
@@ -87,7 +101,7 @@ void NullableScalarVec<T>::print() const {
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
     for (auto i = 0; i < count; i++) {
-        stream << check_valid(validityBuffer, i) << ", ";
+        stream << get_validity(i) << ", ";
     }
     stream << "]\n";
   }
@@ -114,7 +128,7 @@ bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) cons
   // Compare validityBuffer
   #pragma _NEC ivdep
   for (auto i = 0; i < count; i++) {
-    output = output && (check_valid(validityBuffer, i) == check_valid(other->validityBuffer, i));
+    output = output && (get_validity(i) == other->get_validity(i));
   }
 
   return output;
@@ -123,7 +137,7 @@ bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) cons
 template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
   // Allocate
-  auto * output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
 
   // Copy the count
   output->count = count;
@@ -144,7 +158,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
 template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &matching_ids) const {
   // Allocate
-  auto * output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
 
   // Set the count
   output->count = matching_ids.size();
@@ -177,7 +191,7 @@ template <typename T>
 NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &bucket_counts,
                                                      const std::vector<size_t> &bucket_assignments) const {
   // Allocate array of NullableScalarVec<T> pointers
-  auto ** output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
+  auto **output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
 
   // Loop over each bucket
   for (int b = 0; b < bucket_counts.size(); b++) {
@@ -196,6 +210,37 @@ NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &
 
     // Create a filtered copy based on the list of indexes
     output[b] = this->filter(matching_ids);
+  }
+
+  return output;
+}
+
+template <typename T>
+NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * const * const inputs,
+                                                   const size_t batches) {
+  // Count the total number of elements
+  size_t rows = 0;
+  #pragma _NEC vector
+  for (int b = 0; b < batches; b++) {
+    rows += inputs[b]->count;
+  }
+
+  // Allocate
+  auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+
+  // Set the total count, and allocate data and validityBuffer
+  output->count = rows;
+  output->data = static_cast<T *>(malloc(sizeof(T) * rows));
+  output->validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * frovedis::ceil_div(rows, size_t(64)), 1));
+
+  // Copy the data and preserve the validityBuffer across the merge
+  auto o = 0;
+  #pragma _NEC ivdep
+  for (int b = 0; b < batches; b++) {
+    for (int i = 0; i < inputs[b]->count; i++) {
+      output->data[o] = inputs[b]->data[i];
+      output->set_validity(o++, inputs[b]->get_validity(i));
+    }
   }
 
   return output;

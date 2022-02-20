@@ -89,13 +89,13 @@ object StringProducer {
           CodeLines.forLoop("g", s"${subset}.size()") {
             List(
               s"int i = ${subset}[g];",
-              s"set_validity(${outputName}->validityBuffer, g, check_valid(${inputName}->validityBuffer, i));"
+              s"${outputName}->set_validity(g, ${inputName}->get_validity(i));"
             )
           }
 
         case None =>
           CodeLines.forLoop("i", s"${outputName}->count") {
-            s"set_validity(${outputName}->validityBuffer, i, check_valid(${inputName}->validityBuffer, i));"
+            s"${outputName}->set_validity(i, ${inputName}->get_validity(i));"
           }
       }
     }
@@ -171,7 +171,7 @@ object StringProducer {
       }
 
     def validityForEach(idx: String): CodeLines =
-      CodeLines.from(s"set_validity($outputName->validityBuffer, $idx, 1);")
+      CodeLines.from(s"$outputName->set_validity($idx, 1);")
   }
 
   def produceVarChar(

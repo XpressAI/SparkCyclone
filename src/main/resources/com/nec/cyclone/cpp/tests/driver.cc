@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -22,6 +22,7 @@
 
 // Include all the specs to be run
 #include "tests/example_spec.hpp"
+#include "tests/cyclone_utils_spec.hpp"
 #include "tests/nullable_scalar_vector_spec.hpp"
 #include "tests/nullable_varchar_vector_spec.hpp"
 

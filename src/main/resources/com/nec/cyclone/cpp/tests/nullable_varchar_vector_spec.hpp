@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -74,6 +74,19 @@ namespace cyclone::tests {
       CHECK(input->equals(empty));
     }
 
+    TEST_CASE("Pseudo move assignment works") {
+      auto raw = std::vector<std::string> { "FEB", "MAR", "MAY", "", "DEC" };
+      auto *input = new nullable_varchar_vector;
+
+      // Need to allocate by malloc() since it will be freed by free() in the pseudo move
+      auto *copy1 = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
+      new (copy1) nullable_varchar_vector(raw);
+      auto *copy2 = new nullable_varchar_vector(raw);
+
+      input->move_assign_from(copy1);
+      CHECK(input->equals(copy2));
+    }
+
     TEST_CASE("Clone works") {
       // Include empty string value
       auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
@@ -84,6 +97,23 @@ namespace cyclone::tests {
       auto *output = input->clone();
       CHECK(output != input);
       CHECK(output->equals(input));
+    }
+
+    TEST_CASE("Hash value works") {
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+
+      const auto output = input->hash_at(3, 42);
+      CHECK(output == 31 * (31 * (31 * 42 + 'A') + 'P') + 'R');
+    }
+
+    TEST_CASE("Get and Set validity bit works") {
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
+
+      input->set_validity(4, 0);
+      CHECK(input->get_validity(4) == 0);
+
+      input->set_validity(4, 1);
+      CHECK(input->get_validity(4) == 1);
     }
 
     TEST_CASE("Filter works") {
@@ -123,6 +153,30 @@ namespace cyclone::tests {
       CHECK(output[0]->equals(input->filter(matching_ids_0)));
       CHECK(output[1]->equals(input->filter(matching_ids_1)));
       CHECK(output[2]->equals(input->filter(matching_ids_2)));
+    }
+
+    TEST_CASE("Merge works") {
+      std::vector<nullable_varchar_vector *> inputs(3);
+
+      inputs[0] = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY" });
+      inputs[0]->set_validity(1, 0);
+      inputs[0]->set_validity(4, 0);
+
+      inputs[1] = new nullable_varchar_vector(std::vector<std::string> { "MON", "", "WED" });
+      inputs[1]->set_validity(2, 0);
+
+      inputs[2] = new nullable_varchar_vector(std::vector<std::string> { "JUL", "AUG", "", "OCT" });
+      inputs[2]->set_validity(3, 0);
+
+      auto *expected = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "MON", "", "WED", "JUL", "AUG", "", "OCT" });
+      expected->set_validity(1, 0);
+      expected->set_validity(4, 0);
+      expected->set_validity(7, 0);
+      expected->set_validity(11, 0);
+
+      const auto *output = nullable_varchar_vector::merge(&inputs[0], 3);
+      CHECK(output != expected);
+      CHECK(output->equals(expected));
     }
   }
 }

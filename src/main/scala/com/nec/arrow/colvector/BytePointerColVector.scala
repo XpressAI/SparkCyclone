@@ -1,5 +1,6 @@
 package com.nec.arrow.colvector
 
+import com.nec.arrow.ArrowInterfaces
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -11,6 +12,7 @@ import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
+import sun.nio.ch.DirectBuffer
 
 /**
  * Storage of a col vector as serialized Arrow buffers, that are in BytePointers.
@@ -254,7 +256,10 @@ object BytePointerColVector {
 
   def fromVarcharVector(
     varcharVector: VarCharVector
-  )(implicit source: VeColVectorSource): BytePointerColVector =
+  )(implicit source: VeColVectorSource): BytePointerColVector = {
+    val data = ArrowInterfaces.intCharsFromVarcharVector(varcharVector)
+    val starts = ArrowInterfaces.startsFromVarcharVector(varcharVector)
+    val lengths = ArrowInterfaces.lengthsFromVarcharVector(varcharVector)
     BytePointerColVector(
       GenericColVector(
         source = source,
@@ -263,12 +268,14 @@ object BytePointerColVector {
         veType = VeString,
         container = None,
         buffers = List(
-          Option(new BytePointer(varcharVector.getDataBuffer.nioBuffer())),
-          Option(new BytePointer(varcharVector.getOffsetBuffer.nioBuffer())),
+          Option(new BytePointer(data)),
+          Option(new BytePointer(starts)),
+          Option(new BytePointer(lengths)),
           Option(new BytePointer(varcharVector.getValidityBuffer.nioBuffer()))
         ),
-        variableSize = Some(varcharVector.getDataBuffer.nioBuffer().limit())
+        variableSize = Some(data.limit() / 4)
       )
     )
+  }
 
 }

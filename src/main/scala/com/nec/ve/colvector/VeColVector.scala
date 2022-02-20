@@ -6,6 +6,7 @@ import com.nec.arrow.TransferDefinitions.{
   nullable_int_vector,
   nullable_varchar_vector
 }
+import com.nec.arrow.ArrowInterfaces.getUnsafe
 import com.nec.arrow.VeArrowTransfers.{
   nullableBigintVectorToBytePointer,
   nullableDoubleVectorToBytePointer,
@@ -172,17 +173,20 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeString =>
-          val ptr = (new UnsafeBytePointer())
+          val ptr = (new UnsafeIntPointer())
           ptr.setAddress(buffers(0))
           val offsetsPtr = (new UnsafeIntPointer())
           offsetsPtr.setAddress(buffers(1))
+          val lengthsPtr = (new UnsafeIntPointer())
+          lengthsPtr.setAddress(buffers(2))
           val validityPtr = (new UnsafeLongPointer())
-          validityPtr.setAddress(buffers(2))
+          validityPtr.setAddress(buffers(3))
 
           val vcvr = new nullable_varchar_vector()
             .count(numItems)
             .data(ptr)
             .offsets(offsetsPtr)
+            .lengths(lengthsPtr)
             .validityBuffer(validityPtr)
             .dataSize(
             variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize")))
@@ -253,28 +257,44 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case VeString =>
       val vcvr = new VarCharVector("output", bufferAllocator)
       if (numItems > 0) {
-        val offsetsSize = (numItems + 1) * 4
-        val lastOffsetIndex = numItems * 4
-        val offTarget = new BytePointer(offsetsSize)
+        println(s"NUM ITEMS IN CODE: ${numItems}")
+        val buffersSize = numItems * 4
+        val lastOffsetIndex = (numItems - 1) * 4
+        val lengthTarget = new BytePointer(buffersSize)
+        val startsTarget = new BytePointer(buffersSize)
         val validityTarget = new BytePointer(numItems)
+        veProcess.get(buffers(1), startsTarget, startsTarget.capacity())
+        veProcess.get(buffers(2), lengthTarget, lengthTarget.capacity())
+        veProcess.get(buffers(3), validityTarget, validityTarget.limit())
 
-        veProcess.get(buffers(1), new BytePointer(offTarget), offTarget.limit())
-        veProcess.get(buffers(2), validityTarget, validityTarget.limit())
-        val dataSize = offTarget.getInt(lastOffsetIndex)
-        val vhTarget = new BytePointer(dataSize)
+        val dataSize = (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
+        val vhTarget = new BytePointer(dataSize * 4)
 
-        offTarget.position(0)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         vcvr.allocateNew(dataSize, numItems)
         vcvr.setValueCount(numItems)
-
+        //TODO: tempFix
+        val array = new Array[Byte](dataSize * 4)
+        vhTarget.get(array)
+//        for (i <- 0 until numItems) {
+//          println(s"START for idx: ${i} is ${startsTarget.getInt(i * 4)}")
+//          println(s"LENGTHS for idx: ${i} is ${lengthTarget.getInt(i * 4)}")
+//        }
+//        println("THE ARRAY:" + new String(array))
+        for (i <- 0 until numItems) {
+          val start = startsTarget.getInt(i * 4) * 4
+          val length = lengthTarget.getInt(i * 4) * 4
+//          println(s"ARRAY LENGTH WAS ${array.length}, START ${start} and END ${length}")
+          val str = new String(array, start, length, "UTF-32LE")
+          val utf8bytes = str.getBytes
+//          println(s"DATA: ${str}")
+          vcvr.set(i, utf8bytes)
+        }
         getUnsafe.copyMemory(
           validityTarget.address(),
           vcvr.getValidityBufferAddress,
           Math.ceil(numItems / 64.0).toInt * 8
         )
-        getUnsafe.copyMemory(offTarget.address(), vcvr.getOffsetBufferAddress, offsetsSize)
-        getUnsafe.copyMemory(vhTarget.address(), vcvr.getDataBufferAddress, dataSize)
       }
       vcvr
     case other => sys.error(s"Not supported for conversion to arrow vector: $other")

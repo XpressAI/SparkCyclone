@@ -20,13 +20,16 @@
 package com.nec.arrow
 
 import com.nec.arrow.ArrowInterfaces.{
+  intCharsFromVarcharVector,
+  lengthsFromVarcharVector,
   nullable_bigint_vector_to_BigIntVector,
   nullable_bigint_vector_to_TimeStampVector,
   nullable_double_vector_to_float8Vector,
   nullable_int_vector_to_BitVector,
   nullable_int_vector_to_IntVector,
   nullable_int_vector_to_SmallIntVector,
-  nullable_varchar_vector_to_VarCharVector
+  nullable_varchar_vector_to_VarCharVector,
+  startsFromVarcharVector
 }
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper._
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.{
@@ -57,6 +60,9 @@ import org.bytedeco.javacpp.ShortPointer
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_args
 import org.bytedeco.veoffload.veo_proc_handle
+import sun.nio.ch.DirectBuffer
+
+import java.nio.ByteBuffer
 
 object VeArrowTransfers extends LazyLogging {
 
@@ -260,7 +266,8 @@ object VeArrowTransfers extends LazyLogging {
     cleanup: Cleanup
   ): non_null_c_bounded_string = {
     val vc = new non_null_c_bounded_string()
-    val thePtr = new BytePointer(string.getBytes():_*)
+
+    val thePtr = new BytePointer(string.getBytes("UTF-32LE"):_*)
       
     vc
       .length(string.length)
@@ -350,7 +357,7 @@ object VeArrowTransfers extends LazyLogging {
       .count(dateDayVector.getValueCount)
       .data(new IntPointer(copyPointerToVe(proc, new BytePointer(dateDayVector.getDataBuffer.nioBuffer()))(cleanup)))
       .validityBuffer(new LongPointer(copyPointerToVe(proc, new BytePointer(dateDayVector.getValidityBuffer.nioBuffer()))(cleanup)))
-
+    
     vcvr
   }
 
@@ -361,20 +368,29 @@ object VeArrowTransfers extends LazyLogging {
       "varchar_" + varcharVector.getName + "_" + varcharVector.getDataBuffer.capacity()
 
     logger.debug(s"Copying Buffer to VE for $keyName")
+    val dataBuff = intCharsFromVarcharVector(varcharVector)
+    val startsBuff = startsFromVarcharVector(varcharVector)
+    val lengthsBuff = lengthsFromVarcharVector(varcharVector)
 
     val vcvr = new nullable_varchar_vector()
       .count(varcharVector.getValueCount)
-      .dataSize(varcharVector.getDataBuffer.capacity().toInt)
-      .data(new BytePointer(copyPointerToVe(
+      .dataSize(dataBuff.capacity().toInt / 4)
+      .data(new IntPointer(copyPointerToVe(
       proc = proc,
-      bytePointer = new BytePointer(varcharVector.getDataBuffer.nioBuffer()),
-      len = Some(varcharVector.getDataBuffer.capacity())
+      bytePointer = new BytePointer(dataBuff),
+      len = Some(dataBuff.capacity())
     )(cleanup)))
       .offsets(new IntPointer(copyPointerToVe(
       proc,
-      new BytePointer(varcharVector.getOffsetBuffer.nioBuffer()),
-      len = Some(varcharVector.getOffsetBuffer.capacity())
+      new BytePointer(startsBuff),
+      len = Some(startsBuff.capacity())
     )(cleanup)))
+      .lengths(new IntPointer(copyPointerToVe(
+      proc,
+      new BytePointer(lengthsBuff),
+      len = Some(lengthsBuff.capacity())
+    )(cleanup)))
+
     vcvr
   }
 
@@ -544,8 +560,8 @@ object VeArrowTransfers extends LazyLogging {
   )(implicit cleanup: Cleanup): Unit = {
 
     /** Get data size */
-    val dataSize = bytePointer.getInt(24)
-    val dataCount = bytePointer.getInt(28)
+    val dataSize = bytePointer.getInt(32)
+    val dataCount = bytePointer.getInt(36)
 
     val newVec = vec.dataSize(dataSize)
       .count(dataCount)
@@ -562,7 +578,7 @@ object VeArrowTransfers extends LazyLogging {
     requireOk {
       veo.veo_read_mem(proc, vhTargetDataPointer, dataPtr, dataSize)
     }
-    val newVec2 = newVec.data(new BytePointer(vhTargetDataPointer))
+    val newVec2 = newVec.data(new IntPointer(vhTargetDataPointer))
     cleanup.add(dataPtr, dataSize)
 
     /** Transfer the offsets */
@@ -644,9 +660,10 @@ object VeArrowTransfers extends LazyLogging {
     val v_bb = varchar_vector.asByteBuffer
     v_bb.putLong(0, varchar_vector.data.address)
     v_bb.putLong(8, varchar_vector.offsets.address)
-    v_bb.putLong(16, varchar_vector.validityBuffer.address)
-    v_bb.putInt(24, varchar_vector.dataSize)
-    v_bb.putInt(28, varchar_vector.count)
+    v_bb.putLong(16, varchar_vector.lengths.address)
+    v_bb.putLong(24, varchar_vector.validityBuffer.address)
+    v_bb.putInt(32, varchar_vector.dataSize)
+    v_bb.putInt(36, varchar_vector.count)
     new BytePointer(v_bb)
   } 
 }

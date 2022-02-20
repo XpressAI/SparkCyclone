@@ -252,12 +252,12 @@ object StringHole {
       }
       case object NotNullEvaluator extends SlowEvaluator {
         override def evaluate(refName: String): CExpression =
-          CExpression(cCode = s"check_valid(${refName}->validityBuffer, i)", isNotNullCode = None)
+          CExpression(cCode = s"${refName}->get_validity(i)", isNotNullCode = None)
       }
       final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
         override def evaluate(refName: String): CExpression = {
           val leftStringLength =
-            s"($refName->offsets[i+1] - $refName->offsets[i])"
+            s"($refName->offsets[i] + $refName->lengths[i])"
           val expectedLength = theString.length
           val leftStringSubstring =
             s"""std::string($refName->data, $refName->offsets[i], $expectedLength)"""
@@ -368,7 +368,7 @@ object StringHole {
   def equalTo(leftRef: String, rightStr: String): CExpression =
     CExpression(
       cCode = List(
-        s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i+1]-$leftRef->offsets[i])",
+        s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i]+$leftRef->lengths[i])",
         s"""std::string("$rightStr")"""
       ).mkString(" == "),
       isNotNullCode = None
@@ -394,7 +394,7 @@ object StringHole {
     CExpression(
       cCode = {
         val leftStringLength =
-          s"($leftRef->offsets[i+1] - $leftRef->offsets[i])"
+          s"($leftRef->offsets[i] + $leftRef->lengths[i])"
         val expectedLength = right.length
         val leftStringSubstring =
           s"""std::string($leftRef->data, $leftRef->offsets[i], $expectedLength)"""
@@ -408,10 +408,10 @@ object StringHole {
     CExpression(
       cCode = {
         val leftStringLength =
-          s"($leftRef->offsets[i+1] - $leftRef->offsets[i])"
+          s"($leftRef->offsets[i] + $leftRef->lengths[i])"
         val expectedLength = right.length
         val leftStringSubstring =
-          s"""std::string($leftRef->data, $leftRef->offsets[i+1]-$expectedLength, $expectedLength)"""
+          s"""std::string($leftRef->data, $leftRef->offsets[i]-$expectedLength, $expectedLength)"""
         val rightString = s"""std::string("$right")"""
         s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
       },
@@ -422,7 +422,7 @@ object StringHole {
     CExpression(
       cCode = {
         val mainString =
-          s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i+1]-$leftRef->offsets[i])"
+          s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i]+$leftRef->lengths[i])"
         val rightString = s"""std::string("$right")"""
         s"$mainString.find($rightString) != std::string::npos"
       },

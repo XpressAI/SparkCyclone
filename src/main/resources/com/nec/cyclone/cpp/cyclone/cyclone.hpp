@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -19,29 +19,14 @@
  */
 #pragma once
 
-#include <vector>
+#include "cyclone/transfer-definitions.hpp"
+#include "cyclone/cyclone_utils.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
-#include "cyclone/transfer-definitions.hpp"
+#include <stddef.h>
+#include <vector>
 
 std::string utcnanotime();
-
-inline void set_validity(uint64_t *validityBuffer, int32_t idx, int32_t validity) {
-    int32_t byte = idx / 64;
-    int32_t bitIndex = idx % 64;
-    if (validity) {
-        validityBuffer[byte] |= (1UL << bitIndex);
-    } else {
-        validityBuffer[byte] &= ~(1UL << bitIndex);
-    }
-}
-
-inline uint64_t check_valid(uint64_t *validityBuffer, int32_t idx) {
-    uint64_t byte = idx / 64;
-    uint64_t bitIndex = idx % 64;
-    uint64_t res = (validityBuffer[byte] >> bitIndex) & 1;
-    return res;
-}
 
 void debug_words(frovedis::words &in);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -44,24 +44,29 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
   }
 
   // Copy strings to data
-  data = static_cast<char *>(malloc(sizeof(char) * dataSize));
+  data = static_cast<int32_t *>(malloc(sizeof(int32_t) * dataSize));
   auto p = 0;
   for (auto i = 0; i < src.size(); i++) {
     for (auto j = 0; j < src[i].size(); j++) {
-      data[p++] = src[i][j];
+      data[p++] = static_cast<int32_t>(src[i][j]);
     }
   }
 
   // Set the offsets
-  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * (src.size() + 1), 1));
+  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
+  lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
+   for (auto i = 0; i < src.size(); i++) {
+      lengths[i] = src[i].size();
+   }
   offsets[0] = 0;
-  for (auto i = 0; i < src.size(); i++) {
-    offsets[i+1] = offsets[i] + src[i].size();
+  for (auto i = 1; i < src.size(); i++) {
+    offsets[i] = offsets[i-1] + lengths[i-1];
   }
+
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -71,42 +76,26 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
   // Set count
   count = src.lens.size();
 
-  // Set dataSize
-  auto total_chars = 0;
-  for (size_t i = 0; i < src.lens.size(); i++) {
-    total_chars += src.lens[i];
-  }
-  dataSize = total_chars;
+  dataSize = src.chars.size();
 
   // Compute last_chars
-  std::vector<size_t> last_chars(src.lens.size() + 1);
-  auto sum = 0;
-  for (auto i = 0; i < src.lens.size(); i++) {
-    last_chars[i] = sum;
-    sum += src.lens[i];
-  }
 
   // Copy chars to data
-  data = static_cast<char *>(malloc(sizeof(char) * total_chars));
-  for (auto i = 0; i < count; i++) {
-    auto pos = last_chars[i];
-    auto word_start = src.starts[i];
-    auto word_end = word_start + src.lens[i];
-    for (int j = word_start; j < word_end; j++) {
-      data[pos++] = (char)src.chars[j];
-    }
-  }
+  data = static_cast<int32_t *>(malloc(dataSize * sizeof(int32_t)));
+  std::copy(src.chars.begin(), src.chars.end(), data);
 
   // Set the offsets
-  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * (src.starts.size() + 1), 1));
-  for (auto i = 1; i < src.starts.size() + 1; i++) {
-    offsets[i] = last_chars[i];
+  lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * (src.starts.size()), 1));
+  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * (src.starts.size()), 1));
+
+  for (auto i = 0; i < src.starts.size(); i++) {
+    offsets[i] = src.starts[i];
+    lengths[i] = src.lens[i];
   }
-  offsets[src.starts.size()] = total_chars;
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
-  validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * vcount, 1));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -122,8 +111,25 @@ void nullable_varchar_vector::reset() {
   data            = nullptr;
   offsets         = nullptr;
   validityBuffer  = nullptr;
+  lengths         = nullptr;
   dataSize        = 0;
   count           = 0;
+}
+
+void nullable_varchar_vector::move_assign_from(nullable_varchar_vector * other) {
+  // Reset the pointers and values
+  reset();
+
+  // Assign the pointers and values from other
+  data            = other->data;
+  offsets         = other->offsets;
+  validityBuffer  = other->validityBuffer;
+  dataSize        = other->dataSize;
+  lengths         = other->lengths;
+  count           = other->count;
+
+  // Free the other (struct only)
+  free(other);
 }
 
 bool nullable_varchar_vector::is_default() const {
@@ -143,7 +149,7 @@ frovedis::words nullable_varchar_vector::to_words() const {
   // Set the lens
   output.lens.resize(count);
   for (auto i = 0; i < count; i++) {
-    output.lens[i] = offsets[i + 1] - offsets[i];
+    output.lens[i] = lengths[i];
   }
 
   // Set the starts
@@ -151,18 +157,16 @@ frovedis::words nullable_varchar_vector::to_words() const {
   for (int i = 0; i < count; i++) {
     output.starts[i] = offsets[i];
   }
-
   // Set the chars
-  output.chars.resize(offsets[count]);
-  frovedis::char_to_int(data, offsets[count], output.chars.data());
+   output.chars.assign(data, data + dataSize);
 
   return output;
 }
 
 void nullable_varchar_vector::print() const {
   std::stringstream stream;
-
   stream << "nullable_varchar_vector @ " << this << " {\n";
+
   // Print count
   stream << "  COUNT: " << count << "\n";
 
@@ -173,13 +177,14 @@ void nullable_varchar_vector::print() const {
     stream << "  VALUES: [ ]\n"
            << "  OFFSETS: [ ]\n"
            << "  VALIDITY: [ ]\n"
+           << "  LENGTHS: [ ]\n"
            << "  DATA: [ ]\n";
   } else {
     // Print string values
     stream << "  VALUES: [ ";
     for (auto i = 0; i < count; i++) {
-      if (check_valid(validityBuffer, i)) {
-        stream << std::string(data,  offsets[i], offsets[i+1] - offsets[i]) << ", ";
+      if (get_validity(i)) {
+        stream << std::string((char*)data,  offsets[i], offsets[i+1] - offsets[i]) << ", ";
       } else {
         stream << "#, ";
       }
@@ -187,18 +192,23 @@ void nullable_varchar_vector::print() const {
 
     // Print offsets
     stream << "]\n  OFFSETS: [";
-    for (auto i = 0; i < count + 1; i++) {
+    for (auto i = 0; i < count; i++) {
         stream << offsets[i] << ", ";
+    }
+
+    stream << "]\n  LENGTHS: [";
+    for (auto i = 0; i < count; i++) {
+        stream << lengths[i] << ", ";
     }
 
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
     for (auto i = 0; i < count; i++) {
-        stream << check_valid(validityBuffer, i) << ", ";
+        stream << get_validity(i) << ", ";
     }
 
     // Print data
-    stream << "]\n  DATA: [" << std::string(data, dataSize) << "]\n";
+    stream << "]\n  DATA: [" << std::string((char *)(data), dataSize) << "]\n";
   }
 
   stream << "}\n";
@@ -224,14 +234,20 @@ bool nullable_varchar_vector::equals(const nullable_varchar_vector * const other
 
   // Compare offsets
   #pragma _NEC ivdep
-  for (auto i = 0; i < count + 1; i++) {
+  for (auto i = 0; i < count; i++) {
     output = output && (offsets[i] == other->offsets[i]);
+  }
+
+  // Compare lengths
+  #pragma _NEC ivdep
+  for (auto i = 0; i < count; i++) {
+    output = output && (lengths[i] == other->lengths[i]);
   }
 
   // Compare validityBuffer
   #pragma _NEC ivdep
   for (auto i = 0; i < count; i++) {
-    output = output && (check_valid(validityBuffer, i) == check_valid(other->validityBuffer, i));
+    output = output && (get_validity(i) == other->get_validity(i));
   }
 
   return output;
@@ -246,13 +262,19 @@ nullable_varchar_vector * nullable_varchar_vector::clone() const {
   output->dataSize = dataSize;
 
   // Copy the data
-  output->data = static_cast<char *>(malloc(output->dataSize));
-  memcpy(output->data, data, output->dataSize);
+  auto dbytes = output->dataSize * sizeof(int32_t);
+
+  output->data = static_cast<int32_t *>(malloc(dbytes));
+  memcpy(output->data, data, dbytes);
 
   // Copy the offsets
-  auto obytes = (output->count + 1) * sizeof(int32_t);
+  auto obytes = (output->count) * sizeof(int32_t);
   output->offsets = static_cast<int32_t *>(malloc(obytes));
   memcpy(output->offsets, offsets, obytes);
+  // Copy the lengths
+  auto lbytes = (output->count) * sizeof(int32_t);
+  output->lengths = static_cast<int32_t *>(malloc(lbytes));
+  memcpy(output->lengths, lengths, lbytes);
 
   // Copy the validity buffer
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
@@ -332,6 +354,31 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
 
     // Create a filtered copy based on the list of indexes
     output[b] = this->filter(matching_ids);
+  }
+
+  return output;
+}
+
+nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
+                                                         const size_t batches) {
+
+  // Construct std::vector<frovedis::words> from the inputs
+  std::vector<frovedis::words> multi_words(batches);
+  #pragma _NEC vector
+  for (int b = 0; b < batches; b++) {
+    multi_words[b] = inputs[b]->to_words();
+  }
+
+  // Merge using Frovedis and convert back to nullable_varchar_vector
+  auto *output = from_words(frovedis::merge_multi_words(multi_words));
+
+  // Preserve the validityBuffer across the merge
+  auto o = 0;
+  #pragma _NEC ivdep
+  for (int b = 0; b < batches; b++) {
+    for (int i = 0; i < inputs[b]->count; i++) {
+      output->set_validity(o++, inputs[b]->get_validity(i));
+    }
   }
 
   return output;

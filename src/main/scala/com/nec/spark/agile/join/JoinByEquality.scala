@@ -99,7 +99,7 @@ final case class JoinByEquality(
                   CodeLines.forLoop("i", s"${in}.size()") {
                     CodeLines.from(
                       s"${nme}_idx->data[i] = ${in}[i];",
-                      s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+                      s"${nme}_idx->set_validity(i, 1);"
                     )
                   }
                 )
@@ -122,7 +122,7 @@ final case class JoinByEquality(
                   CodeLines.forLoop("i", s"${in}.size()")(
                     CodeLines.from(
                       s"${nme}_idx->data[i] = ${in}[i];",
-                      s"set_validity(${nme}_idx->validityBuffer, i, 1);"
+                      s"${nme}_idx->set_validity(i, 1);"
                     )
                   )
                 )

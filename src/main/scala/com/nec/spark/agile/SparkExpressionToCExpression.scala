@@ -286,7 +286,7 @@ object SparkExpressionToCExpression {
             isNotNullCode = if (ar.nullable) {
               val indexingExpr = ar.name.substring(0, ar.name.length - 1).split("""data(\[)""")
               Some(
-                s"check_valid(${ar.name.replaceAll("""data\[.*\]""", "validityBuffer")}, ${indexingExpr(indexingExpr.size - 1)})"
+                s"${ar.name.replaceAll("""data\[.*\]""", "")}get_validity(${indexingExpr(indexingExpr.size - 1)})"
               )
             } else None
           )

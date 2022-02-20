@@ -66,10 +66,10 @@ object StaticTypingTestAdditions {
         inputs.zipWithIndex.map { case (cv, idx) =>
           val vcv = new VarCharVector(cv.name, rootAllocator)
           vcv.allocateNew()
-          vcv.setValueCount(data.size)
           data.zipWithIndex.foreach { case (str, idx) =>
             vcv.setSafe(idx, str.getBytes())
           }
+          vcv.setValueCount(data.size)
           NativeArgument.input(vcv)
         }
       }
@@ -85,10 +85,10 @@ object StaticTypingTestAdditions {
             if (idx == 0) {
               val vcv = new VarCharVector(cv.name, rootAllocator)
               vcv.allocateNew()
-              vcv.setValueCount(data.size)
               data.zipWithIndex.foreach { case ((str, dbl), idx) =>
                 vcv.setSafe(idx, str.getBytes())
               }
+              vcv.setValueCount(data.size)
               NativeArgument.input(vcv)
             } else {
               val f8v = new Float8Vector(cv.name, rootAllocator)
@@ -123,13 +123,13 @@ object StaticTypingTestAdditions {
           inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
-            vcv.setValueCount(data.size)
             data.zipWithIndex.foreach { case (str, idx) =>
               str match {
                 case None    => vcv.setNull(idx)
                 case Some(v) => vcv.setSafe(idx, v)
               }
             }
+            vcv.setValueCount(data.size)
             NativeArgument.input(vcv)
           }
         }
@@ -146,10 +146,10 @@ object StaticTypingTestAdditions {
         inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx) =>
           val vcv = new Float8Vector(name, rootAllocator)
           vcv.allocateNew()
-          vcv.setValueCount(data.size)
           data.zipWithIndex.foreach { case (str, idx) =>
             vcv.setSafe(idx, str)
           }
+          vcv.setValueCount(data.size)
           NativeArgument.input(vcv)
         }
       }
@@ -166,10 +166,10 @@ object StaticTypingTestAdditions {
           inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
-            vcv.setValueCount(data.size)
             data.zipWithIndex.foreach { case ((first, second), idx) =>
               vcv.setSafe(idx, if (idx_col == 0) first else second)
             }
+            vcv.setValueCount(data.size)
             NativeArgument.input(vcv)
           }
         }
@@ -187,10 +187,10 @@ object StaticTypingTestAdditions {
           inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
-            vcv.setValueCount(data.size)
             data.zipWithIndex.foreach { case ((first, second, third), idx) =>
               vcv.setSafe(idx, if (idx_col == 0) first else if (idx_col == 1) second else third)
             }
+            vcv.setValueCount(data.size)
             NativeArgument.input(vcv)
           }
         }
@@ -209,7 +209,6 @@ object StaticTypingTestAdditions {
           inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
-            vcv.setValueCount(data.size)
             data.zipWithIndex.foreach { case ((first, second, third), idx) =>
               if (idx_col == 0 && first.isEmpty)
                 vcv.setNull(idx)
@@ -219,6 +218,7 @@ object StaticTypingTestAdditions {
                   if (idx_col == 0) first.get else if (idx_col == 1) second else third
                 )
             }
+            vcv.setValueCount(data.size)
             NativeArgument.input(vcv)
           }
         }
@@ -238,7 +238,6 @@ object StaticTypingTestAdditions {
           inputs.zipWithIndex.map { case (CScalarVector(name, tpe), idx_col) =>
             val vcv = new Float8Vector(name, rootAllocator)
             vcv.allocateNew()
-            vcv.setValueCount(data.size)
             data.zipWithIndex.foreach { case ((first, second, third, fourth), idx) =>
               vcv.setSafe(
                 idx,
@@ -248,6 +247,7 @@ object StaticTypingTestAdditions {
                 else fourth
               )
             }
+            vcv.setValueCount(data.size)
             NativeArgument.input(vcv)
           }
         }
@@ -273,7 +273,7 @@ object StaticTypingTestAdditions {
       new OutputArguments[Option[Double]] {
         override type Result = (Option[Double])
         override def allocateVectors()(implicit
-                                       rootAllocator: RootAllocator
+          rootAllocator: RootAllocator
         ): (List[VectorOutputNativeArgument], () => List[Result]) = {
           val outVector_0 = new Float8Vector("output_0", rootAllocator)
           (List(NativeArgument.output(outVector_0)), () => outVector_0.toListNullable)

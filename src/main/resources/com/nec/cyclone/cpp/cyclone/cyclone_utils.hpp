@@ -19,15 +19,31 @@
  */
 #pragma once
 
-#include "cyclone/example.hpp"
-#include "tests/doctest.h"
+#include <stddef.h>
+#include <vector>
 
-namespace cyclone::tests {
-  TEST_CASE("Testing the factorial function") {
-    CHECK(factorial(0) == 1);
-    CHECK(factorial(1) == 1);
-    CHECK(factorial(2) == 2);
-    CHECK(factorial(3) == 6);
-    CHECK(factorial(10) == 3628800);
+namespace cyclone {
+  inline const std::vector<size_t> bitmask_to_matching_ids(const std::vector<size_t> &mask) {
+    // Count the number of 1-bits
+    size_t m_count = 0;
+    #pragma _NEC vector
+    for (int i = 0; i < mask.size(); i++) {
+      m_count += mask[i];
+    }
+
+    // Allocate the output
+    std::vector<size_t> output(m_count);
+
+    // Append the positions for which the bit is 1
+    // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
+    size_t pos = 0;
+    #pragma _NEC vector
+    for (int i = 0; i < mask.size(); i++) {
+      if (mask[i]) {
+        output[pos++] = i;
+      }
+    }
+
+    return output;
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Xpress AI.
+ * Copyright (c) 2022 Xpress AI.
  *
  * This file is part of Spark Cyclone.
  * See https://github.com/XpressAI/SparkCyclone for further info.
@@ -59,6 +59,10 @@ struct NullableScalarVec {
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   count             = 0;        // Row count (synonymous with size of data array)
 
+  // Merge N NullableScalarVec<T>s into 1 NullableScalarVec<T> (order is preserved)
+  static NullableScalarVec<T> * merge(const NullableScalarVec<T> * const * const inputs,
+                                      const size_t batches);
+
   // Explicitly force the generation of a default constructor
   NullableScalarVec() = default;
 
@@ -73,11 +77,20 @@ struct NullableScalarVec {
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
 
+  // C implementation of a C++ move assignment
+  void move_assign_from(NullableScalarVec<T> * other);
+
   // Returns true if the struct fields have default values
   bool is_default() const;
 
   // Print the data structure out for debugging
   void print() const;
+
+  // Compute the hash of the value at a given index, starting with a given seed
+  inline int32_t hash_at(const size_t idx,
+                         const int32_t seed) const {
+    return 31 * seed + data[idx];
+  }
 
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,
@@ -122,13 +135,19 @@ struct nullable_varchar_vector {
   // NOTE: Field declaration order must be maintained to match existing JNA bindings
 
   // Initialize fields with defaults
-  char      *data             = nullptr;  // The raw data containing all the varchars concatenated together
+  int32_t   *data             = nullptr;  // The raw data containing all the varchars concatenated together
   int32_t   *offsets          = nullptr;  // Offsets to denote varchar start and end positions
+  int32_t   *lengths          = nullptr;  // Lengths of the words
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   dataSize          = 0;        // Size of data array
   int32_t   count             = 0;        // The row count
 
+  // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);
+
+  // Merge N nullable_varchar_vectors into 1 nullable_varchar_vector
+  static nullable_varchar_vector * merge(const nullable_varchar_vector * const * const inputs,
+                                         const size_t batches);
 
   // Explicitly force the generation of a default constructor
   nullable_varchar_vector() = default;
@@ -147,6 +166,9 @@ struct nullable_varchar_vector {
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
 
+  // C implementation of a C++ move assignment
+  void move_assign_from(nullable_varchar_vector * other);
+
   // Returns true if the struct fields have default values
   bool is_default() const;
 
@@ -155,6 +177,15 @@ struct nullable_varchar_vector {
 
   // Print the data structure out for debugging
   void print() const;
+
+  // Compute the hash of the value at a given index, starting with a given seed
+  inline int32_t hash_at(const size_t idx,
+                         int32_t seed) const {
+    for (int x = offsets[idx]; x < offsets[idx] + lengths[idx]; x++) {
+      seed = 31 * seed + data[x];
+    }
+    return seed;
+  }
 
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,

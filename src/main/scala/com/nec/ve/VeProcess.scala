@@ -259,13 +259,17 @@ object VeProcess {
 
           VeColVector(
             source = source,
-            numItems = bytePointer.getInt(28),
+            numItems = bytePointer.getInt(36),
             name = name,
-            variableSize = Some(bytePointer.getInt(24)),
+            variableSize = Some(bytePointer.getInt(32)),
             veType = VeString,
             containerLocation = outContainerLocation,
-            bufferLocations =
-              List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16))
+            bufferLocations = List(
+              bytePointer.getLong(0),
+              bytePointer.getLong(8),
+              bytePointer.getLong(16),
+              bytePointer.getLong(24)
+            )
           ).register()
       }
     }
@@ -351,13 +355,17 @@ object VeProcess {
 
             VeColVector(
               source = source,
-              numItems = bytePointer.getInt(28),
+              numItems = bytePointer.getInt(36),
               name = name,
               veType = VeString,
               containerLocation = outContainerLocation,
-              bufferLocations =
-                List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16)),
-              variableSize = Some(bytePointer.getInt(24))
+              bufferLocations = List(
+                bytePointer.getLong(0),
+                bytePointer.getLong(8),
+                bytePointer.getLong(16),
+                bytePointer.getLong(24)
+              ),
+              variableSize = Some(bytePointer.getInt(32))
             ).register()
           case (outPointer, CScalarVector(name, r)) =>
             val outContainerLocation = outPointer.get(set)
@@ -450,13 +458,17 @@ object VeProcess {
 
           VeColVector(
             source = source,
-            numItems = bytePointer.getInt(28),
+            numItems = bytePointer.getInt(36),
             name = name,
-            variableSize = Some(bytePointer.getInt(24)),
+            variableSize = Some(bytePointer.getInt(32)),
             veType = VeString,
             containerLocation = outContainerLocation,
-            bufferLocations =
-              List(bytePointer.getLong(0), bytePointer.getLong(8), bytePointer.getLong(16))
+            bufferLocations = List(
+              bytePointer.getLong(0),
+              bytePointer.getLong(8),
+              bytePointer.getLong(16),
+              bytePointer.getLong(24)
+            )
           ).register()
       }
     }

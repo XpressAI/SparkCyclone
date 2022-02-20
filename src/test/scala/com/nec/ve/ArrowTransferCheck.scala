@@ -6,8 +6,6 @@ import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
-import com.nec.ve.GroupingFunction.DataDescription
-import com.nec.ve.GroupingFunction.DataDescription.KeyOrValue
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -129,18 +127,17 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   }
 
   "Partition data by some means (simple Int partitioning in this case) (PIN)" in {
-    compiledWithHeaders(
-      GroupingFunction
-        .groupData(
-          data = List(
-            DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Key),
-            DataDescription(VeString, KeyOrValue.Key),
-            DataDescription(VeScalarType.VeNullableDouble, KeyOrValue.Value)
-          ),
-          totalBuckets = 2
-        ),
-      "f"
-    ) { path =>
+    val function = GroupingFunction(
+      "f",
+      List(
+        GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Key),
+        GroupingFunction.DataDescription(VeString, GroupingFunction.Key),
+        GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Value)
+      ),
+      2
+    )
+
+    compiledWithHeaders(function.render, function.name) { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
@@ -273,9 +270,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
    */
 
   "We can merge multiple VeColBatches" in {
-    val fName = "merger"
+    val mergeFn = MergerFunction("merger", List(VeNullableDouble, VeString))
 
-    compiledWithHeaders(MergerFunction.merge(types = List(VeNullableDouble, VeString)), fName) {
+    compiledWithHeaders(mergeFn.render, mergeFn.name) {
       path =>
         val lib = veProcess.loadLibrary(path)
         WithTestAllocator { implicit alloc =>
@@ -292,7 +289,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                   val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
                   val r: List[VeColVector] = veProcess.executeMultiIn(
                     libraryReference = lib,
-                    functionName = fName,
+                    functionName = mergeFn.name,
                     batches = bg,
                     results = colBatch1.cols.zipWithIndex.map { case (vcv, idx) =>
                       vcv.veType.makeCVector(s"o_${idx}")

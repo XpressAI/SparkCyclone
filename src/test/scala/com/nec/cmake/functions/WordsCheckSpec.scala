@@ -66,12 +66,13 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
             prod.init("output_0", "size", "0"),
             "int g = 0;",
             "for(int i = 0; i < input_0->count; i++) {",
-            CodeLines.from(
-              s"if ( g < size && i < input_0->count ) {",
-              CodeLines.from(prod.produce("output_0", "g")).indented,
-              "}",
-              "i++;",
-              "g++;"
+            CodeLines
+              .from(
+                s"if ( g < size && i < input_0->count ) {",
+                CodeLines.from(prod.produce("output_0", "g")).indented,
+                "}",
+                "i++;",
+                "g++;"
               )
               .indented,
             "}",

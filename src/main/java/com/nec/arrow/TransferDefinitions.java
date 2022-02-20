@@ -353,8 +353,10 @@ public static class nullable_varchar_vector extends Pointer {
 
   // NOTE: Field declaration order must be maintained to match existing JNA bindings
 
-  public native @Cast("char*") BytePointer data(); public native nullable_varchar_vector data(BytePointer setter);              // The raw data containing all the varchars concatenated together
+  public native IntPointer data(); public native nullable_varchar_vector data(IntPointer setter);              // The raw data containing all the varchars concatenated together
   public native IntPointer offsets(); public native nullable_varchar_vector offsets(IntPointer setter);           // Offsets to denote varchar start and end positions
+  public native IntPointer lengths(); public native nullable_varchar_vector lengths(IntPointer setter);
+
   public native @Cast("uint64_t*") LongPointer validityBuffer(); public native nullable_varchar_vector validityBuffer(LongPointer setter);    // Bit vector to denote null values
   public native int dataSize(); public native nullable_varchar_vector dataSize(int setter);           // Size of data array
   public native int count(); public native nullable_varchar_vector count(int setter);              // The row count
