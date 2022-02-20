@@ -165,8 +165,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       _veo_proc != null,
       s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
     )
-    require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
-    logger.info(s"Opened process: ${_veo_proc}")
+    require(_veo_proc.address() > 0, s"Address for proc was ${_veo_proc.address()}")
+    logger.info(s"Opened process: ${_veo_proc} Address: ${_veo_proc.address()}")
 
     logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
