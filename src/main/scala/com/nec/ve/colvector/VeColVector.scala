@@ -205,7 +205,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case VeString =>
       val vcvr = new VarCharVector("output", bufferAllocator)
       if (numItems > 0) {
-        println(s"NUM ITEMS IN CODE: ${numItems}")
         val buffersSize = numItems * 4
         val lastOffsetIndex = (numItems - 1) * 4
         val lengthTarget = new BytePointer(buffersSize)
