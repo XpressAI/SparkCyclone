@@ -187,7 +187,9 @@ CMake / parallelExecution := true
  */
 CMake / testGrouping := (CMake / definedTests).value.map { suite =>
   import sbt.Tests._
-  Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
+  Group(suite.name, Seq(suite), SubProcess(ForkOptions(runJVMOptions = Vector("-Djava.library.path=target/libjni"),
+                                                       bootJars=Vector[java.io.File](), javaHome=None, outputStrategy=None,
+                                                       workingDirectory=None, connectInput=false, envVars = Map[String, String]())))
 }
 
 /** Vector Engine specific configuration */
