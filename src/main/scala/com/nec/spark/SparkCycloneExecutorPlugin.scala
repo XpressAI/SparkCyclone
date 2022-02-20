@@ -24,7 +24,6 @@ import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.typesafe.scalalogging.LazyLogging
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
@@ -32,8 +31,8 @@ import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
-import java.util
 
+import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.util.Try
 
@@ -154,15 +153,21 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
     logger.info(s"Using VE node = ${selectedVeNodeId}")
 
-    if (_veo_proc == null) {
-      _veo_proc = veo.veo_proc_create(selectedVeNodeId)
-      require(
-        _veo_proc != null,
-        s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
-      )
-      require(_veo_proc.address() != 0, s"Address for 0 for proc was ${_veo_proc}")
-      logger.info(s"Opened process: ${_veo_proc}")
+    var currentVeNodeId = selectedVeNodeId
+    while (_veo_proc == null && currentVeNodeId < 8) {
+      _veo_proc = veo.veo_proc_create(currentVeNodeId)
+      if (_veo_proc == null) {
+        logWarning(s"Proc could not be allocated for node ${currentVeNodeId}, trying next.")
+        currentVeNodeId += 1
+      }
     }
+    require(
+      _veo_proc != null,
+      s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
+    )
+    require(_veo_proc.address() > 0, s"Address for proc was ${_veo_proc.address()}")
+    logger.info(s"Opened process: ${_veo_proc} Address: ${_veo_proc.address()}")
+
     logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
     launched = true
@@ -176,9 +181,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.metrics
-    import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
-    import com.nec.spark.SparkCycloneExecutorPlugin.closeProcAndCtx
+    import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx, metrics}
     Option(metrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>
