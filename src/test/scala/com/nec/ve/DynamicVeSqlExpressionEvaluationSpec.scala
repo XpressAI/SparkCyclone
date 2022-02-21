@@ -20,30 +20,16 @@
 package com.nec.ve
 
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
-import com.nec.spark.planning.{VERewriteStrategy, VeRewriteStrategyOptions}
-import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
+import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.tpc.TPCHVESqlSpec
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.internal.SQLConf.CODEGEN_FALLBACK
 import org.bytedeco.veoffload.global.veo
 
 object DynamicVeSqlExpressionEvaluationSpec {
-
-  def VeConfiguration: SparkSession.Builder => SparkSession.Builder = {
-    _.config(CODEGEN_FALLBACK.key, value = false)
-      .config("spark.sql.codegen.comments", value = true)
-      .config("spark.plugins", classOf[AuroraSqlPlugin].getCanonicalName)
-      .withExtensions(sse =>
-        sse.injectPlannerStrategy(sparkSession =>
-          new VERewriteStrategy(
-            VeRewriteStrategyOptions.fromConfig(sparkSession.sparkContext.getConf)
-          )
-        )
-      )
-  }
-
+  def VeConfiguration: SparkSession.Builder => SparkSession.Builder =
+    TPCHVESqlSpec.VeConfiguration(failFast = true)
 }
 
-@org.scalatest.Ignore
 final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEvaluationSpec {
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =
