@@ -438,7 +438,6 @@ object CFunctionGeneration {
     }
 
   val KeyHeaders = CodeLines.from(
-    """#include "cyclone/transfer-definitions.hpp"""",
     """#include "cyclone/cyclone.hpp"""",
     """#include "cyclone/tuple_hash.hpp"""",
     "#include <bitset>",
@@ -459,7 +458,6 @@ object CFunctionGeneration {
   ) {
     def toCodeLinesSPtr(functionName: String): CodeLines = CodeLines.from(
       """#include "cyclone/cyclone.hpp"""",
-      """#include "cyclone/transfer-definitions.hpp"""",
       """#include "cyclone/tuple_hash.hpp"""",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/core/set_operations.hpp"""",
@@ -477,7 +475,6 @@ object CFunctionGeneration {
 
     def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
       """#include "cyclone/cyclone.hpp"""",
-      """#include "cyclone/transfer-definitions.hpp"""",
       """#include "cyclone/tuple_hash.hpp"""",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/core/set_operations.hpp"""",
@@ -497,7 +494,6 @@ object CFunctionGeneration {
     def toCodeLinesPF(functionName: String): CodeLines = {
       CodeLines.from(
         """#include "cyclone/cyclone.hpp"""",
-        """#include "cyclone/transfer-definitions.hpp"""",
         """#include "frovedis/text/dict.hpp"""",
         "#include <bitset>",
         "#include <string>",
@@ -510,7 +506,6 @@ object CFunctionGeneration {
     def toCodeLinesG(functionName: String): CodeLines = {
       CodeLines.from(
         """#include "cyclone/cyclone.hpp"""",
-        """#include "cyclone/transfer-definitions.hpp"""",
         """#include "cyclone/tuple_hash.hpp"""",
         """#include "frovedis/text/datetime_utility.hpp"""",
         """#include "frovedis/text/dict.hpp"""",

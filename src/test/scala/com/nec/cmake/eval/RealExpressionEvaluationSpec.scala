@@ -1114,7 +1114,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
     val generatedSource = CodeLines.from(
       """#include "cyclone/cyclone.hpp"""",
-      """#include "cyclone/transfer-definitions.hpp"""",
       filterFn.toCodeLines
     )
 

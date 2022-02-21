@@ -375,6 +375,19 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
   return output;
 }
 
+const std::vector<int64_t> nullable_varchar_vector::hash_vec() const {
+  // Allocate vec
+  std::vector<int64_t> output(count);
+
+  // Assign the hash of each string in the nullable_varchar_vector
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    output[i] = hash_at(i, 1);
+  }
+
+  return output;
+}
+
 nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
                                                          const size_t batches) {
 

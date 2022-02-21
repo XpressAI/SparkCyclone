@@ -52,7 +52,7 @@ namespace cyclone::tests {
   };
 
   TEST_CASE("Tuple sort works") {
-    // Manually loop-sorting the tuple elements
+    // Manually sort the tuples by the N-1th, N-2th, ... 0th elements
     std::vector<size_t> expected(elements.size());
     {
       for (int i = 0; i < elements.size(); i++) {
@@ -89,7 +89,7 @@ namespace cyclone::tests {
       }
     }
 
-    // Automatically generated sorting
+    // Perform the same sorting using template function generation
     const auto sorted_indices = cyclone::sort_tuples(elements);
     CHECK(sorted_indices == expected);
   }

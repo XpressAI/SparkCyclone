@@ -39,36 +39,19 @@ final case class GroupingCodeGenerator(
     CodeLines.from(
       s"std::vector<${tupleType}> ${groupingVecName}(${count});",
       s"std::vector<size_t> ${sortedIdxName}(${count});",
-      stringsToHash.map { name =>
-        val stringIdToHash = s"${name}_string_id_to_hash"
-        val stringHashTmp = s"${name}_string_id_to_hash_tmp"
-        CodeLines.from(
-          s"std::vector<long> $stringIdToHash(${count});",
-          s"for ( long i = 0; i < ${count}; i++ ) {",
-          CodeLines
-            .from(
-              s"long ${stringHashTmp} = 0;",
-              s"for ( int q = ${name}->offsets[i]; q < (${name}->lengths[i] + ${name}->offsets[i]); q++ ) {",
-              CodeLines
-                .from(s"${stringHashTmp} = 31*${stringHashTmp} + ${name}->data[q];")
-                .indented,
-              "}",
-              s"$stringIdToHash[i] = ${stringHashTmp};"
-            )
-            .indented,
-          "}"
-        )
-      },
+      "",
+      stringsToHash.map { name => s"const auto ${name}_string_hashes = ${name}->hash_vec();" },
+      "",
       CodeLines.forLoop("i", count) {
+        val elems = thingsToGroup.flatMap {
+          case Right(g) =>
+            List(g.cCode, g.isNotNullCode.getOrElse("1"))
+          case Left(stringName) =>
+            List(s"${stringName}_string_hashes[i]")
+        }
         CodeLines.from(
           s"${sortedIdxName}[i] = i;",
-          s"${groupingVecName}[i] = ${tupleType}(${thingsToGroup
-            .flatMap {
-              case Right(g) => List(g.cCode, g.isNotNullCode.getOrElse("1"))
-              case Left(stringName) =>
-                List(s"${stringName}_string_id_to_hash[i]")
-            }
-            .mkString(", ")});"
+          s"${groupingVecName}[i] = ${tupleType}(${elems.mkString(", ")});"
         )
       },
       // s"${sortedIdxName} = cyclone::sort_tuples(${groupingVecName});",
@@ -90,28 +73,13 @@ final case class GroupingCodeGenerator(
           case Right(g) =>
             List(g.cCode, g.isNotNullCode.getOrElse("1"))
           case Left(stringName) =>
-            List(s"${stringName}_string_id_to_hash[i]")
+            List(s"${stringName}_string_hashes[i]")
         }
-
         List(
           s"auto i = ${sortedIdxName}[j];",
           s"${groupingVecName}[j] = ${tupleType}(${elems.mkString(", ")});"
         )
       },
-      // s"for ( long j = 0; j < ${count}; j++ ) {",
-      // CodeLines
-      //   .from(
-      //     s"long i = ${sortedIdxName}[j];",
-      //     s"${groupingVecName}[j] = ${tupleType}(${thingsToGroup
-      //       .flatMap {
-      //         case Right(g) => List(g.cCode, g.isNotNullCode.getOrElse("1"))
-      //         case Left(stringName) =>
-      //           List(s"${stringName}_string_id_to_hash[i]")
-      //       }
-      //       .mkString(", ")});"
-      //   )
-      //   .indented,
-      // s"}",
       "",
       s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
       s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"

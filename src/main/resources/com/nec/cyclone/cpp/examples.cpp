@@ -108,8 +108,10 @@ void test_sort() {
   #ifndef __NEC__
 
   const std::vector<std::tuple<int32_t, float, int64_t, double>> elements {
-    std::make_tuple(0, 7.29214f,    3ll, 9.850428l),
-    std::make_tuple(0, 5.1007037f,  2ll, 2.1967127l),
+    std::make_tuple(1, 2.106764f,   2ll, 2.029292l),
+    std::make_tuple(0, 7.29214f,    3ll, 1.6248848l),
+    std::make_tuple(2, 4.0789514f,  3ll, 5.4606824l),
+    std::make_tuple(2, 2.1760006f,  6ll, 7.483787l),
   };
 
   const auto sorted_indices = sort_tuples(elements);
