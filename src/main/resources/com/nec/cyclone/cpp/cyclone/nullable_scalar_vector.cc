@@ -196,7 +196,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &m
 
   // Preserve the validityBuffer across the filter
   #pragma _NEC vector
-  for (int o = 0; o < matching_ids.size(); o++) {
+  for (auto o = 0; o < matching_ids.size(); o++) {
     // Fetch the original index
     int i = matching_ids[o];
 
@@ -217,14 +217,14 @@ NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &
   auto **output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
 
   // Loop over each bucket
-  for (int b = 0; b < bucket_counts.size(); b++) {
+  for (auto b = 0; b < bucket_counts.size(); b++) {
     // Generate the list of indexes where the bucket assignment is b
     std::vector<size_t> matching_ids(bucket_counts[b]);
     {
       // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
       size_t pos = 0;
       #pragma _NEC vector
-      for (int i = 0; i < bucket_assignments.size(); i++) {
+      for (auto i = 0; i < bucket_assignments.size(); i++) {
         if (bucket_assignments[i] == b) {
           matching_ids[pos++] = i;
         }
@@ -244,7 +244,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   // Count the total number of elements
   size_t rows = 0;
   #pragma _NEC vector
-  for (int b = 0; b < batches; b++) {
+  for (auto b = 0; b < batches; b++) {
     rows += inputs[b]->count;
   }
 
@@ -259,8 +259,8 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   // Copy the data and preserve the validityBuffer across the merge
   auto o = 0;
   #pragma _NEC ivdep
-  for (int b = 0; b < batches; b++) {
-    for (int i = 0; i < inputs[b]->count; i++) {
+  for (auto b = 0; b < batches; b++) {
+    for (auto i = 0; i < inputs[b]->count; i++) {
       output->data[o] = inputs[b]->data[i];
       output->set_validity(o++, inputs[b]->get_validity(i));
     }

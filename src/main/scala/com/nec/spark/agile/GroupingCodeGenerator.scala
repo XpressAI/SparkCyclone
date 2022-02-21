@@ -71,6 +71,8 @@ final case class GroupingCodeGenerator(
             .mkString(", ")});"
         )
       },
+      // s"${sortedIdxName} = cyclone::sort_tuples(${groupingVecName});",
+      "",
       tupleTypes.zipWithIndex.reverse.collect { case (t, idx) =>
         CodeLines.scoped(s"Sort by element ${idx} of the tuple") {
           CodeLines.from(
@@ -82,20 +84,35 @@ final case class GroupingCodeGenerator(
           )
         }
       },
-      s"for ( long j = 0; j < ${count}; j++ ) {",
-      CodeLines
-        .from(
-          s"long i = ${sortedIdxName}[j];",
-          s"${groupingVecName}[j] = ${tupleType}(${thingsToGroup
-            .flatMap {
-              case Right(g) => List(g.cCode, g.isNotNullCode.getOrElse("1"))
-              case Left(stringName) =>
-                List(s"${stringName}_string_id_to_hash[i]")
-            }
-            .mkString(", ")});"
+      "",
+      CodeLines.forLoop("j", count) {
+        val elems = thingsToGroup.flatMap {
+          case Right(g) =>
+            List(g.cCode, g.isNotNullCode.getOrElse("1"))
+          case Left(stringName) =>
+            List(s"${stringName}_string_id_to_hash[i]")
+        }
+
+        List(
+          s"auto i = ${sortedIdxName}[j];",
+          s"${groupingVecName}[j] = ${tupleType}(${elems.mkString(", ")});"
         )
-        .indented,
-      s"}",
+      },
+      // s"for ( long j = 0; j < ${count}; j++ ) {",
+      // CodeLines
+      //   .from(
+      //     s"long i = ${sortedIdxName}[j];",
+      //     s"${groupingVecName}[j] = ${tupleType}(${thingsToGroup
+      //       .flatMap {
+      //         case Right(g) => List(g.cCode, g.isNotNullCode.getOrElse("1"))
+      //         case Left(stringName) =>
+      //           List(s"${stringName}_string_id_to_hash[i]")
+      //       }
+      //       .mkString(", ")});"
+      //   )
+      //   .indented,
+      // s"}",
+      "",
       s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
       s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
     )

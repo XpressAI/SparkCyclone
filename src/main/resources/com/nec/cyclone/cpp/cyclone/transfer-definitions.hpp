@@ -80,6 +80,7 @@ struct NullableScalarVec {
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
 
+  // Set the count to size, and allocate memory for data and validityBuffer
   void resize(const size_t size);
 
   // C implementation of a C++ move assignment

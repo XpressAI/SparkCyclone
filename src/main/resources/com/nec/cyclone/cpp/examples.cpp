@@ -18,8 +18,6 @@
  *
  */
 #include "cyclone/cyclone.hpp"
-#include "cyclone/transfer-definitions.hpp"
-#include "cyclone/tuple_hash.hpp"
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
 #include "frovedis/core/utility.hpp"
@@ -30,6 +28,8 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
+using namespace cyclone;
 
 nullable_varchar_vector * project_eval(const nullable_varchar_vector *input_0)  {
   auto output_0_input_words = input_0->to_words();
@@ -104,7 +104,28 @@ void projection_test() {
   return;
 }
 
+void test_sort() {
+  #ifndef __NEC__
+
+  const std::vector<std::tuple<int32_t, float, int64_t, double>> elements {
+    std::make_tuple(0, 7.29214f,    3ll, 9.850428l),
+    std::make_tuple(0, 5.1007037f,  2ll, 2.1967127l),
+  };
+
+  const auto sorted_indices = sort_tuples(elements);
+
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "SORT TEST\n" << std::endl;
+  std::cout << sorted_indices << std::endl;
+  std::cout << "================================================================================" << std::endl;
+
+  #endif
+
+  return;
+}
+
 int main() {
   projection_test();
   filter_test();
+  test_sort();
 }

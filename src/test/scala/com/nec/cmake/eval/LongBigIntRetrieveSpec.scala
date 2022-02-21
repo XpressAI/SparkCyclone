@@ -34,7 +34,6 @@ final class LongBigIntRetrieveSpec extends AnyFreeSpec {
 
       val cLib = CMakeBuilder.buildC(
         List(
-          """#include "cyclone/transfer-definitions.hpp"""",
           """#include "cyclone/cyclone.hpp"""",
           """#include <math.h>""",
           "\n\n",

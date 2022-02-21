@@ -652,7 +652,7 @@ object CFunctionGeneration {
               CodeLines.forLoop("i", "input_0->count") {
                 s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);"
               },
-              s"${sortFn}(temp.data(), idx.data(), temp.size());"
+              s"${sortFn}(temp, idx);"
             )
           }
         },
