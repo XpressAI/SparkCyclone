@@ -20,7 +20,6 @@
 #pragma once
 
 #include "cyclone/cyclone.hpp"
-#include "cyclone/transfer-definitions.hpp"
 #include "tests/doctest.h"
 #include <stddef.h>
 
@@ -28,6 +27,20 @@ namespace cyclone::tests {
   TEST_SUITE("NullableScalarVec<T>") {
     // Instantiate for each template case to be tested
     template<typename T> const std::vector<T> raw { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 };
+
+    TEST_CASE_TEMPLATE("Allocate works for T=", T, int32_t, int64_t, float, double) {
+      auto *vec1 = NullableScalarVec<T>::allocate();
+      CHECK(vec1->is_default());
+    }
+
+    TEST_CASE_TEMPLATE("Print works for T=", T, int32_t, int64_t, float, double) {
+      auto *vec1 = new NullableScalarVec(raw<T>);
+      vec1->set_validity(1, 0);
+      vec1->set_validity(4, 0);
+      vec1->set_validity(8, 0);
+
+      vec1->print();
+    }
 
     TEST_CASE_TEMPLATE("Equality checks work for T=", T, int32_t, int64_t, float, double) {
       auto *vec1 = new NullableScalarVec(raw<T>);
@@ -71,6 +84,17 @@ namespace cyclone::tests {
       CHECK(not input->equals(empty));
       input->reset();
       CHECK(input->equals(empty));
+    }
+
+    TEST_CASE_TEMPLATE("Resize works for T=", T, int32_t, int64_t, float, double) {
+      auto *vec = new NullableScalarVec<T>;
+      CHECK(vec->is_default());
+
+      vec->resize(10);
+      CHECK(not vec->is_default());
+      CHECK(vec->count == 10);
+      CHECK(vec->data != nullptr);
+      CHECK(vec->validityBuffer != nullptr);
     }
 
     TEST_CASE_TEMPLATE("Pseudo move assignment works for T=", T, int32_t, int64_t, float, double) {

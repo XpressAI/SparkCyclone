@@ -59,6 +59,9 @@ struct NullableScalarVec {
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   count             = 0;        // Row count (synonymous with size of data array)
 
+  // malloc() a NullableScalarVec<T> with C++ initialization
+  static NullableScalarVec<T> * allocate();
+
   // Merge N NullableScalarVec<T>s into 1 NullableScalarVec<T> (order is preserved)
   static NullableScalarVec<T> * merge(const NullableScalarVec<T> * const * const inputs,
                                       const size_t batches);
@@ -76,6 +79,8 @@ struct NullableScalarVec {
 
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
+
+  void resize(const size_t size);
 
   // C implementation of a C++ move assignment
   void move_assign_from(NullableScalarVec<T> * other);
@@ -141,6 +146,9 @@ struct nullable_varchar_vector {
   uint64_t  *validityBuffer   = nullptr;  // Bit vector to denote null values
   int32_t   dataSize          = 0;        // Size of data array
   int32_t   count             = 0;        // The row count
+
+  // malloc() a nullable_varchar_vector with C++ initialization
+  static nullable_varchar_vector * allocate();
 
   // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);

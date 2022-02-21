@@ -18,15 +18,21 @@
  *
  */
 #include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone.hpp"
 #include "frovedis/core/utility.hpp"
 #include "frovedis/text/char_int_conv.hpp"
 #include <stdlib.h>
 #include <iostream>
 
+nullable_varchar_vector * nullable_varchar_vector::allocate() {
+  // Allocate
+  auto *output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
+  // Initialize
+  return new (output) nullable_varchar_vector;
+}
+
 nullable_varchar_vector * nullable_varchar_vector::from_words(const frovedis::words &src) {
   // Allocate
-  auto * output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
+  auto *output = allocate();
 
   // Use placement new to construct nullable_varchar_vector from frovedis::words
   // in the pre-allocated memory
@@ -52,17 +58,18 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
     }
   }
 
-  // Set the offsets
-  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
+  // Set the lengths
   lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
    for (auto i = 0; i < src.size(); i++) {
       lengths[i] = src[i].size();
    }
+
+  // Set the offsets
+  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
   offsets[0] = 0;
   for (auto i = 1; i < src.size(); i++) {
     offsets[i] = offsets[i-1] + lengths[i-1];
   }
-
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
@@ -76,9 +83,8 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
   // Set count
   count = src.lens.size();
 
+  // Set dataSize
   dataSize = src.chars.size();
-
-  // Compute last_chars
 
   // Copy chars to data
   data = static_cast<int32_t *>(malloc(dataSize * sizeof(int32_t)));
@@ -105,6 +111,7 @@ void nullable_varchar_vector::reset() {
   // Free the owned memory
   free(data);
   free(offsets);
+  free(lengths);
   free(validityBuffer);
 
   // Reset the pointers and values
@@ -184,7 +191,10 @@ void nullable_varchar_vector::print() const {
     stream << "  VALUES: [ ";
     for (auto i = 0; i < count; i++) {
       if (get_validity(i)) {
-        stream << std::string((char*)data,  offsets[i], offsets[i+1] - offsets[i]) << ", ";
+        for (auto j = offsets[i]; j < offsets[i] + lengths[i]; j++) {
+          stream << char(data[j]);
+        }
+        stream << ", ";
       } else {
         stream << "#, ";
       }
@@ -193,22 +203,28 @@ void nullable_varchar_vector::print() const {
     // Print offsets
     stream << "]\n  OFFSETS: [";
     for (auto i = 0; i < count; i++) {
-        stream << offsets[i] << ", ";
+      stream << offsets[i] << ", ";
     }
 
+    // Print lengths
     stream << "]\n  LENGTHS: [";
     for (auto i = 0; i < count; i++) {
-        stream << lengths[i] << ", ";
+      stream << lengths[i] << ", ";
     }
 
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
     for (auto i = 0; i < count; i++) {
-        stream << get_validity(i) << ", ";
+      stream << get_validity(i) << ", ";
     }
 
     // Print data
-    stream << "]\n  DATA: [" << std::string((char *)(data), dataSize) << "]\n";
+    stream << "]\n  DATA: [";
+    for (auto i = 0; i < dataSize; i++) {
+      stream << char(data[i]);
+    }
+
+    stream << "]\n";
   }
 
   stream << "}\n";
@@ -255,7 +271,7 @@ bool nullable_varchar_vector::equals(const nullable_varchar_vector * const other
 
 nullable_varchar_vector * nullable_varchar_vector::clone() const {
   // Allocate the output
-  auto * output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
+  auto *output = allocate();
 
   // Copy the count and dataSizes
   output->count = count;
@@ -263,7 +279,6 @@ nullable_varchar_vector * nullable_varchar_vector::clone() const {
 
   // Copy the data
   auto dbytes = output->dataSize * sizeof(int32_t);
-
   output->data = static_cast<int32_t *>(malloc(dbytes));
   memcpy(output->data, data, dbytes);
 
@@ -271,6 +286,7 @@ nullable_varchar_vector * nullable_varchar_vector::clone() const {
   auto obytes = (output->count) * sizeof(int32_t);
   output->offsets = static_cast<int32_t *>(malloc(obytes));
   memcpy(output->offsets, offsets, obytes);
+
   // Copy the lengths
   auto lbytes = (output->count) * sizeof(int32_t);
   output->lengths = static_cast<int32_t *>(malloc(lbytes));
@@ -293,9 +309,9 @@ nullable_varchar_vector * nullable_varchar_vector::filter(const std::vector<size
   std::vector<size_t> lens(matching_ids.size());
 
   #pragma _NEC vector
-  for (int g = 0; g < matching_ids.size(); g++) {
+  for (auto g = 0; g < matching_ids.size(); g++) {
     // Fetch the original index
-    int i = matching_ids[g];
+    auto i = matching_ids[g];
 
     // Copy the start and len values
     starts[g] = input_words.starts[i];
@@ -317,7 +333,7 @@ nullable_varchar_vector * nullable_varchar_vector::filter(const std::vector<size
   input_words.lens = lens;
 
   // Map the data from frovedis::words back to nullable_varchar_vector
-  auto * output = nullable_varchar_vector::from_words(input_words);
+  auto *output = from_words(input_words);
 
   // Preserve the validityBuffer across the filter
   #pragma _NEC vector

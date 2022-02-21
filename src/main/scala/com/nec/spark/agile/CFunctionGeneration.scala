@@ -585,12 +585,12 @@ object CFunctionGeneration {
           .from(
             inputs.map { cVector =>
               CodeLines.from(
-                s"${cVector.veType.cVectorType}* ${cVector.name} = ${cVector.name}_m[0];"
+                s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.name}_m[0];"
               )
             },
             outputs.map { cVector =>
               CodeLines.from(
-                s"${cVector.veType.cVectorType}* ${cVector.name} = static_cast<${cVector.veType.cVectorType}*>(malloc(sizeof(${cVector.veType.cVectorType})));",
+                s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.veType.cVectorType}::allocate();",
                 s"*${cVector.name}_mo = ${cVector.name};"
               )
             },
@@ -623,11 +623,7 @@ object CFunctionGeneration {
       outputs = sortOutput,
       body = CodeLines.from(
         sortOutput.map { case CScalarVector(outputName, outputVeType) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t($outputName->count), size_t(64)), sizeof(uint64_t)));",
-            s"$outputName->data = static_cast<${outputVeType.cScalarType}*>(malloc($outputName->count * sizeof(${outputVeType.cScalarType})));"
-          )
+          s"${outputName}->resize(input_0->count);"
         },
         "// create an array of indices, which by default are in order, but afterwards are out of order.",
         "std::vector<size_t> idx(input_0->count);",
@@ -645,23 +641,20 @@ object CFunctionGeneration {
           .mkString("(", ",", ")")};",
         "}",
         sortingTypes.zipWithIndex.reverse.map { case ((dataType, order), idx) =>
-          CodeLines.from(
-            "{",
-            CodeLines
-              .from(
-                s"std::vector<${dataType}> temp(input_0->count);",
-                "for(long i = 0; i < input_0->count; i++) {",
-                CodeLines.from(s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);").indented,
-                "}",
-                order match {
-                  case Ascending => "frovedis::radix_sort(temp.data(), idx.data(), temp.size());"
-                  case Descending =>
-                    "frovedis::radix_sort_desc(temp.data(), idx.data(), temp.size());"
-                }
-              )
-              .indented,
-            "}"
-          )
+          CodeLines.scoped(s"Sort by element ${idx} of the tuple") {
+            val sortFn = order match {
+              case Ascending  => "frovedis::radix_sort"
+              case Descending => "frovedis::radix_sort_desc"
+            }
+
+            CodeLines.from(
+              s"std::vector<${dataType}> temp(input_0->count);",
+              CodeLines.forLoop("i", "input_0->count") {
+                s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);"
+              },
+              s"${sortFn}(temp.data(), idx.data(), temp.size());"
+            )
+          }
         },
         "// prevent deallocation of input vector -- it is deallocated by the caller",
         s"for(int i = 0; i < input_0->count; i++) {",
@@ -703,11 +696,7 @@ object CFunctionGeneration {
     body = CodeLines.from(
       veDataTransformation.outputs.zipWithIndex.map {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
-          CodeLines.from(
-            s"$outputName->count = input_0->count;",
-            s"$outputName->data = static_cast<${veType.cScalarType}*>(malloc($outputName->count * sizeof(${veType.cScalarType})));",
-            s"$outputName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t($outputName->count), size_t(64)), sizeof(uint64_t)));"
-          )
+          CodeLines.from(s"${outputName}->resize(input_0->count);")
         case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
           StringProducer
             .produceVarChar(

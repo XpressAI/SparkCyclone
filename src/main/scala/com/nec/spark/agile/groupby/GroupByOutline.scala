@@ -150,7 +150,7 @@ object GroupByOutline {
   def dealloc(cv: CVector): CodeLines = CodeLines.empty
 
   def declare(cv: CVector): CodeLines = CodeLines.from(
-    s"${cv.veType.cVectorType} *${cv.name} = static_cast<${cv.veType.cVectorType}*>(malloc(sizeof(${cv.veType.cVectorType})));"
+    s"${cv.veType.cVectorType} *${cv.name} = ${cv.veType.cVectorType}::allocate();"
   )
 
   final case class StringReference(name: String)
@@ -190,12 +190,9 @@ object GroupByOutline {
     veScalarType: VeScalarType,
     variableName: String,
     countExpression: String
-  ): CodeLines =
-    CodeLines.from(
-      s"$variableName->count = ${countExpression};",
-      s"$variableName->data = static_cast<${veScalarType.cScalarType}*>(malloc($variableName->count * sizeof(${veScalarType.cScalarType})));",
-      s"$variableName->validityBuffer = static_cast<uint64_t*>(calloc(frovedis::ceil_div(size_t(${countExpression}), size_t(64)), sizeof(uint64_t)));"
-    )
+  ): CodeLines = {
+    s"${variableName}->resize(${countExpression});"
+  }
 
   def scalarVectorFromStdVector(
     veScalarType: VeScalarType,
@@ -203,7 +200,7 @@ object GroupByOutline {
     sourceName: String
   ): CodeLines =
     CodeLines.from(
-      s"$targetName = static_cast<${veScalarType.cVectorType}*>(malloc(sizeof(${veScalarType.cVectorType})));",
+      s"$targetName = ${veScalarType.cVectorType}::allocate();",
       initializeScalarVector(veScalarType, targetName, s"$sourceName.size()"),
       s"for ( int x = 0; x < $sourceName.size(); x++ ) {",
       CodeLines
