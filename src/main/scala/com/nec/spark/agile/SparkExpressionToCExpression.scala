@@ -461,7 +461,7 @@ object SparkExpressionToCExpression {
       case DoubleType    => VeScalarType.veNullableDouble
       case IntegerType   => VeScalarType.veNullableInt
       case LongType      => VeScalarType.veNullableLong
-      case ShortType     => VeScalarType.veNullableInt
+      case ShortType     => VeScalarType.veNullableShort
       case DateType      => VeScalarType.veNullableInt
       case BooleanType   => VeScalarType.veNullableInt
       case TimestampType => VeScalarType.veNullableLong
@@ -473,7 +473,7 @@ object SparkExpressionToCExpression {
       case IntegerType   => VeScalarType.veNullableInt
       case DateType      => VeScalarType.veNullableInt
       case LongType      => VeScalarType.veNullableLong
-      case ShortType     => VeScalarType.veNullableInt
+      case ShortType     => VeScalarType.veNullableShort
       case BooleanType   => VeScalarType.veNullableInt
       case StringType    => VeString
       case TimestampType => VeScalarType.veNullableLong
@@ -492,6 +492,7 @@ object SparkExpressionToCExpression {
       case VeScalarType.VeNullableFloat  => FloatType
       case VeScalarType.VeNullableInt    => IntegerType
       case VeScalarType.VeNullableLong   => LongType
+      case VeScalarType.VeNullableShort   => ShortType
       case VeString                      => StringType
     }
   }

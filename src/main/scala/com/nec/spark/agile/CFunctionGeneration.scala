@@ -41,7 +41,7 @@ object CFunctionGeneration {
     d match {
       case DoubleType =>
         VeScalarType.VeNullableDouble
-      case IntegerType | DateType =>
+      case IntegerType | DateType | ShortType =>
         VeScalarType.VeNullableInt
       case x =>
         sys.error(s"unsupported dataType $x")
@@ -67,7 +67,7 @@ object CFunctionGeneration {
       }
     def varChar(name: String): CVector = CVarChar(name)
     def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
-    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableInt)
+    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableShort)
     def bigInt(name: String): CVector = CScalarVector(name, VeScalarType.VeNullableLong)
   }
 
@@ -160,7 +160,7 @@ object CFunctionGeneration {
 
   object VeScalarType {
     val All: Set[VeScalarType] =
-      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong)
+      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong)
     case object VeNullableDouble extends VeScalarType {
 
       def cScalarType: String = "double"
@@ -174,6 +174,14 @@ object CFunctionGeneration {
       def cScalarType: String = "float"
 
       def cVectorType: String = "nullable_float_vector"
+
+      override def cSize: Int = 4
+    }
+
+    case object VeNullableShort extends VeScalarType {
+      def cScalarType: String = "int32_t"
+
+      def cVectorType: String = "nullable_int_vector"
 
       override def cSize: Int = 4
     }
@@ -196,6 +204,7 @@ object CFunctionGeneration {
 
     def veNullableDouble: VeScalarType = VeNullableDouble
     def veNullableInt: VeScalarType = VeNullableInt
+    def veNullableShort: VeScalarType = VeNullableShort
     def veNullableLong: VeScalarType = VeNullableLong
   }
 
