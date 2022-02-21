@@ -104,6 +104,11 @@ object CEvaluationPlan {
         .vector
         .obj
         .asInstanceOf[FieldVector]
+      def getOptionalArrowValueVector: Option[FieldVector] = Option(columnVector).collect {
+        case a: ArrowColumnVector =>
+          a.readPrivate.accessor.vector.obj
+            .asInstanceOf[FieldVector]
+      }
     }
   }
 

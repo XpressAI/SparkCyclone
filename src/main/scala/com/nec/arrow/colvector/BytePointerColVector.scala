@@ -12,7 +12,8 @@ import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
-import sun.nio.ch.DirectBuffer
+import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StringType}
+import org.apache.spark.sql.vectorized.ColumnVector
 
 /**
  * Storage of a col vector as serialized Arrow buffers, that are in BytePointers.
@@ -276,6 +277,50 @@ object BytePointerColVector {
         variableSize = Some(data.limit() / 4)
       )
     )
+  }
+
+  def fromColumnarVector(name: String, columnVector: ColumnVector, size: Int)(implicit
+    source: VeColVectorSource,
+    bufferAllocator: BufferAllocator
+  ): Option[(FieldVector, BytePointerColVector)] = {
+    PartialFunction.condOpt(columnVector.dataType()) {
+      case IntegerType =>
+        val intVector = new IntVector(name, bufferAllocator)
+        intVector.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => intVector.setNull(idx)
+          case idx                               => intVector.set(idx, columnVector.getInt(idx))
+        }
+        (intVector, fromIntVector(intVector))
+      case DoubleType =>
+        val float8Vector = new Float8Vector(name, bufferAllocator)
+        float8Vector.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => float8Vector.setNull(idx)
+          case idx                               => float8Vector.set(idx, columnVector.getDouble(idx))
+        }
+        (float8Vector, fromFloat8Vector(float8Vector))
+      case LongType =>
+        val bigIntVector = new BigIntVector(name, bufferAllocator)
+        bigIntVector.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => bigIntVector.setNull(idx)
+          case idx                               => bigIntVector.set(idx, columnVector.getLong(idx))
+        }
+        (bigIntVector, fromBigIntVector(bigIntVector))
+      case StringType =>
+        val varCharVector = new VarCharVector(name, bufferAllocator)
+        varCharVector.allocateNew()
+        varCharVector.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => varCharVector.setNull(idx)
+          case idx =>
+            val utf8 = columnVector.getUTF8String(idx)
+            val byteBuffer = utf8.getByteBuffer
+            varCharVector.setSafe(idx, byteBuffer, byteBuffer.position(), utf8.numBytes())
+        }
+        (varCharVector, fromVarcharVector(varCharVector))
+    }
   }
 
 }

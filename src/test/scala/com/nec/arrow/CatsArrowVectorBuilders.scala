@@ -73,6 +73,23 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
       )(res => IO.delay(res.close()))
     )
 
+  def optionalIntVector(intBatch: Seq[Option[Int]]): Resource[IO, IntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new IntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              intBatch.view.zipWithIndex.foreach {
+                case (None, idx)      => vcv.setNull(idx)
+                case (Some(str), idx) => vcv.setSafe(idx, str)
+              }
+              vcv.setValueCount(intBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
   def longVector(longBatch: Seq[Long]): Resource[IO, BigIntVector] =
     makeName.flatMap(name =>
       Resource.make(

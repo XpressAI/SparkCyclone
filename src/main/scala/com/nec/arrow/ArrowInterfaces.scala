@@ -65,7 +65,7 @@ object ArrowInterfaces {
 
     for (i <- 0 until buf.getValueCount) {
       val ints = buf.getObject(i).toString.getBytes("UTF-32LE")
-      val intBuf = ByteBuffer.wrap(ints).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer();
+      val intBuf = ByteBuffer.wrap(ints).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
       out.put(intBuf)
     }
     ret
