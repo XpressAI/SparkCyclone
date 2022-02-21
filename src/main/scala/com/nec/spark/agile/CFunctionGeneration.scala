@@ -603,16 +603,25 @@ object CFunctionGeneration {
     val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
       CScalarVector(name.replaceAllLiterally("input", "output"), veType)
     }
-    val sortingTypes = sort.sorts
-      .flatMap(sortExpression =>
-        List(
-          (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
-          ("int", sortExpression.sortOrdering)
-        )
+    val sortingTypes = sort.sorts.flatMap { sortExpression =>
+      List(
+        (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
+        ("int", sortExpression.sortOrdering)
       )
-    val sortingTuple = sort.sorts
-      .flatMap(veScalar => List(veScalar.typedExpression.veType.cScalarType, "int"))
-      .mkString("std::tuple<", ", ", ">")
+    }
+
+    val sortingTuple = sort.sorts.flatMap { veScalar =>
+      List(veScalar.typedExpression.veType.cScalarType, "int")
+    }.mkString("std::tuple<", ", ", ">")
+
+    val sortOrder = sortingTypes.map { case (_, order) =>
+        order match {
+          case Ascending => 1
+          case Descending => 0
+        }
+      }
+      .mkString(s"std::array<int, ${sortingTypes.size}> {{ ", ", ", " }}")
+
     CFunction(
       inputs = sort.data,
       outputs = sortOutput,
@@ -635,22 +644,8 @@ object CFunctionGeneration {
           }
           .mkString("(", ",", ")")};",
         "}",
-        sortingTypes.zipWithIndex.reverse.map { case ((dataType, order), idx) =>
-          CodeLines.scoped(s"Sort by element ${idx} of the tuple") {
-            val sortFn = order match {
-              case Ascending  => "frovedis::radix_sort"
-              case Descending => "frovedis::radix_sort_desc"
-            }
-
-            CodeLines.from(
-              s"std::vector<${dataType}> temp(input_0->count);",
-              CodeLines.forLoop("i", "input_0->count") {
-                s"temp[i] = std::get<${idx}>(sorting_vec[idx[i]]);"
-              },
-              s"${sortFn}(temp, idx);"
-            )
-          }
-        },
+        s"idx = cyclone::sort_tuples(sorting_vec, ${sortOrder});",
+        "",
         "// prevent deallocation of input vector -- it is deallocated by the caller",
         s"for(int i = 0; i < input_0->count; i++) {",
         sort.data.zip(sortOutput).map {

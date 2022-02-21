@@ -22,6 +22,7 @@
 #include "frovedis/core/set_operations.hpp"
 #include "frovedis/core/utility.hpp"
 #include "frovedis/dataframe/join.hpp"
+#include <array>
 #include <bitset>
 #include <cmath>
 #include <iostream>
@@ -105,8 +106,6 @@ void projection_test() {
 }
 
 void test_sort() {
-  #ifndef __NEC__
-
   const std::vector<std::tuple<int32_t, float, int64_t, double>> elements {
     std::make_tuple(1, 2.106764f,   2ll, 2.029292l),
     std::make_tuple(0, 7.29214f,    3ll, 1.6248848l),
@@ -114,20 +113,31 @@ void test_sort() {
     std::make_tuple(2, 2.1760006f,  6ll, 7.483787l),
   };
 
-  const auto sorted_indices = sort_tuples(elements);
+  const auto sorted_indices = sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
 
   std::cout << "================================================================================" << std::endl;
   std::cout << "SORT TEST\n" << std::endl;
   std::cout << sorted_indices << std::endl;
   std::cout << "================================================================================" << std::endl;
 
-  #endif
-
   return;
+}
+
+constexpr std::array<int, 3> example1 {{ 42, 55, 67 }};
+
+template<size_t N, const std::array<int, N> &arr>
+void print_array() {
+  for (auto i = 0; i < N; i++) {
+    std::cout << arr[i] << std::endl;
+  }
 }
 
 int main() {
   projection_test();
   filter_test();
   test_sort();
+
+  print_array<3, example1>();
+  static constexpr std::array<int, 3> example2 {{ 100, 99, 98 }};
+  print_array<3, example2>();
 }

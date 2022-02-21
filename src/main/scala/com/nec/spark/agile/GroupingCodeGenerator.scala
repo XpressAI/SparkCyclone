@@ -35,54 +35,49 @@ final case class GroupingCodeGenerator(
     count: String,
     thingsToGroup: List[Either[String, CExpression]]
   ): CodeLines = {
-    val stringsToHash: List[String] = thingsToGroup.flatMap(_.left.toSeq)
+    val stringVecHashes: List[String] = thingsToGroup.flatMap(_.left.toSeq)
+
+    val elems = thingsToGroup.flatMap {
+      case Right(g) =>
+        List(g.cCode, g.isNotNullCode.getOrElse("1"))
+      case Left(stringName) =>
+        List(s"${stringName}_string_hashes[i]")
+    }
+
+    // Sort in ASC order for all tuple elements
+    val sortOrder = elems.map(_ => 1).mkString(s"std::array<int, ${elems.size}> {{ ", ", ", " }}")
+
     CodeLines.from(
+      // Declare the elements and sorted_indices vectors
       s"std::vector<${tupleType}> ${groupingVecName}(${count});",
       s"std::vector<size_t> ${sortedIdxName}(${count});",
       "",
-      stringsToHash.map { name => s"const auto ${name}_string_hashes = ${name}->hash_vec();" },
+      // For all string columns, get the hash vector
+      stringVecHashes.map { name => s"const auto ${name}_string_hashes = ${name}->hash_vec();" },
       "",
+      // Construct the elements vector
       CodeLines.forLoop("i", count) {
-        val elems = thingsToGroup.flatMap {
-          case Right(g) =>
-            List(g.cCode, g.isNotNullCode.getOrElse("1"))
-          case Left(stringName) =>
-            List(s"${stringName}_string_hashes[i]")
-        }
-        CodeLines.from(
+        List(
           s"${sortedIdxName}[i] = i;",
           s"${groupingVecName}[i] = ${tupleType}(${elems.mkString(", ")});"
         )
       },
-      // s"${sortedIdxName} = cyclone::sort_tuples(${groupingVecName});",
       "",
-      tupleTypes.zipWithIndex.reverse.collect { case (t, idx) =>
-        CodeLines.scoped(s"Sort by element ${idx} of the tuple") {
-          CodeLines.from(
-            s"std::vector<${t}> temp(${count});",
-            CodeLines.forLoop("i", s"${count}") {
-              s"temp[i] = std::get<${idx}>(${groupingVecName}[${sortedIdxName}[i]]);"
-            },
-            s"frovedis::radix_sort(temp.data(), ${sortedIdxName}.data(), temp.size());"
-          )
-        }
-      },
+      // Perform the tuple sort
+      s"${sortedIdxName} = cyclone::sort_tuples(${groupingVecName}, ${sortOrder});",
       "",
+      // Reconstruct the elements vector using the sorted_indices
       CodeLines.forLoop("j", count) {
-        val elems = thingsToGroup.flatMap {
-          case Right(g) =>
-            List(g.cCode, g.isNotNullCode.getOrElse("1"))
-          case Left(stringName) =>
-            List(s"${stringName}_string_hashes[i]")
-        }
         List(
           s"auto i = ${sortedIdxName}[j];",
           s"${groupingVecName}[j] = ${tupleType}(${elems.mkString(", ")});"
         )
       },
       "",
+      // Identify the indices where elements first change
       s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
-      s"int ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;"
+      s"auto ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;",
+      ""
     )
   }
 

@@ -19,9 +19,6 @@
  */
 #pragma once
 
-// Disable for nc++ for now
-#ifndef __NEC__
-
 #include "cyclone/cyclone.hpp"
 #include "tests/doctest.h"
 #include <tuple>
@@ -51,48 +48,70 @@ namespace cyclone::tests {
     std::make_tuple(0, 7.5230184f,  6ll, 2.865592l)
   };
 
-  TEST_CASE("Tuple sort works") {
-    // Manually sort the tuples by the N-1th, N-2th, ... 0th elements
-    std::vector<size_t> expected(elements.size());
-    {
-      for (int i = 0; i < elements.size(); i++) {
-        expected[i] = i;
+  TEST_SUITE("std::tuple sort") {
+    TEST_CASE("Tuple sort works") {
+      // Manually sort the tuples by the N-1th, N-2th, ... 0th elements
+      std::vector<size_t> expected(elements.size());
+      {
+        for (int i = 0; i < elements.size(); i++) {
+          expected[i] = i;
+        }
+
+        {
+          std::vector<double> temp(elements.size());
+          for (auto i = 0; i < elements.size(); i++) {
+            temp[i] = std::get<3>(elements[expected[i]]);
+          }
+          frovedis::radix_sort(temp, expected);
+        }
+        {
+          std::vector<int64_t> temp(elements.size());
+          for (auto i = 0; i < elements.size(); i++) {
+            temp[i] = std::get<2>(elements[expected[i]]);
+          }
+          frovedis::radix_sort(temp, expected);
+        }
+        {
+          std::vector<float> temp(elements.size());
+          for (auto i = 0; i < elements.size(); i++) {
+            temp[i] = std::get<1>(elements[expected[i]]);
+          }
+          frovedis::radix_sort(temp, expected);
+        }
+        {
+          std::vector<int32_t> temp(elements.size());
+          for (auto i = 0; i < elements.size(); i++) {
+            temp[i] = std::get<0>(elements[expected[i]]);
+          }
+          frovedis::radix_sort(temp, expected);
+        }
       }
 
-      {
-        std::vector<double> temp(elements.size());
-        for (auto i = 0; i < elements.size(); i++) {
-          temp[i] = std::get<3>(elements[expected[i]]);
-        }
-        frovedis::radix_sort(temp, expected);
-      }
-      {
-        std::vector<int64_t> temp(elements.size());
-        for (auto i = 0; i < elements.size(); i++) {
-          temp[i] = std::get<2>(elements[expected[i]]);
-        }
-        frovedis::radix_sort(temp, expected);
-      }
-      {
-        std::vector<float> temp(elements.size());
-        for (auto i = 0; i < elements.size(); i++) {
-          temp[i] = std::get<1>(elements[expected[i]]);
-        }
-        frovedis::radix_sort(temp, expected);
-      }
-      {
-        std::vector<int32_t> temp(elements.size());
-        for (auto i = 0; i < elements.size(); i++) {
-          temp[i] = std::get<0>(elements[expected[i]]);
-        }
-        frovedis::radix_sort(temp, expected);
-      }
+      // Perform the same sorting using template function generation
+      const auto sorted_indices1 = cyclone::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
+      // Perform a different sorting, where the 0th elementh is sorted in DESC order
+      const auto sorted_indices2 = cyclone::sort_tuples(elements, std::array<int, 4> {{ 0, 1, 1, 1 }});
+
+      CHECK(sorted_indices1 == expected);
+      CHECK(sorted_indices2 != expected);
     }
 
-    // Perform the same sorting using template function generation
-    const auto sorted_indices = cyclone::sort_tuples(elements);
-    CHECK(sorted_indices == expected);
+    TEST_CASE("Tuple sort works for empty tuples") {
+      const std::vector<std::tuple<>> elements {
+        std::tuple<>(),
+        std::tuple<>(),
+        std::tuple<>()
+      };
+
+      std::vector<size_t> expected(elements.size());
+      {
+        for (int i = 0; i < elements.size(); i++) {
+          expected[i] = i;
+        }
+      }
+
+      const auto sorted_indices = cyclone::sort_tuples(elements, std::array<int, 0> {{ }});
+      CHECK(sorted_indices == expected);
+    }
   }
 }
-
-#endif

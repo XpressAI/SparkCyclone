@@ -19,11 +19,8 @@
  */
 #pragma once
 
-// Disable for nc++ for now because it is unable to compile this unit
-// Currently results in: `nc++: Internal Error: Unknown statement kind.`
-#ifndef __NEC__
-
 #include "frovedis/core/radix_sort.hpp"
+#include <array>
 #include <tuple>
 #include <vector>
 
@@ -31,6 +28,7 @@ namespace cyclone {
   namespace {
     template <std::size_t I, typename... Ts>
     void sort_by_ith_element(const std::vector<std::tuple<Ts...>> &elements,
+                             const std::array<int, sizeof...(Ts)> &sort_order,
                              std::vector<size_t> &sorted_indices) {
       // Fetch the Ith type of the tuple
       using Type = std::tuple_element_t<I, std::tuple<Ts...>>;
@@ -42,30 +40,35 @@ namespace cyclone {
       }
 
       // Sort the Ith values of the tuples
-      frovedis::radix_sort(temp, sorted_indices);
+      if (sort_order[I]) {
+        frovedis::radix_sort(temp, sorted_indices);
+      } else {
+        frovedis::radix_sort_desc(temp, sorted_indices);
+      }
 
       // Repeat the sort if needed
       if constexpr (I > 0) {
-        sort_by_ith_element<I - 1, Ts...>(elements, sorted_indices);
+        sort_by_ith_element<I - 1, Ts...>(elements, sort_order, sorted_indices);
       }
     }
   }
 
   template <typename... Ts>
-  std::vector<size_t> sort_tuples(const std::vector<std::tuple<Ts...>> &elements) {
+  std::vector<size_t> sort_tuples(const std::vector<std::tuple<Ts...>> &elements,
+                                  const std::array<int, sizeof...(Ts)> &sort_order) {
     // Initialize the sorted indices
     std::vector<size_t> sorted_indices(elements.size());
     for (auto i = 0; i < elements.size(); i++) {
       sorted_indices[i] = i;
     }
 
-    // Apply sort from the N-1th to 0th element of the tuples,
-    // which will update the sorted indices
-    sort_by_ith_element<sizeof...(Ts) - 1, Ts...>(elements, sorted_indices);
+    if constexpr (sizeof...(Ts) > 0) {
+      // Apply sort from the N-1th to 0th element of the tuples,
+      // which will update the sorted indices
+      sort_by_ith_element<sizeof...(Ts) - 1, Ts...>(elements, sort_order, sorted_indices);
+    }
 
     // Return the sorted indices
     return sorted_indices;
   }
 }
-
-#endif
