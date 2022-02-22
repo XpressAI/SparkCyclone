@@ -10,12 +10,10 @@ import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
-
-import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StringType}
+import org.apache.spark.sql.types.{DateType, DoubleType, IntegerType, LongType, StringType}
 import org.apache.spark.sql.vectorized.ColumnVector
 
 /**
@@ -136,10 +134,19 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           val lengthTarget = new BytePointer(buffersSize)
           val startsTarget = new BytePointer(buffersSize)
           val validityTarget = new BytePointer(numItems)
-          getUnsafe.copyMemory(bytePointersAddresses(1), startsTarget.address(), startsTarget.capacity())
-          getUnsafe.copyMemory(bytePointersAddresses(2), lengthTarget.address(), lengthTarget.capacity())
+          getUnsafe.copyMemory(
+            bytePointersAddresses(1),
+            startsTarget.address(),
+            startsTarget.capacity()
+          )
+          getUnsafe.copyMemory(
+            bytePointersAddresses(2),
+            lengthTarget.address(),
+            lengthTarget.capacity()
+          )
 
-          val dataSize = (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
+          val dataSize =
+            (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
           val vhTarget = new BytePointer(dataSize * 4)
 
           getUnsafe.copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
@@ -301,7 +308,7 @@ object BytePointerColVector {
     bufferAllocator: BufferAllocator
   ): Option[(FieldVector, BytePointerColVector)] = {
     PartialFunction.condOpt(columnVector.dataType()) {
-      case IntegerType =>
+      case IntegerType | DateType =>
         val intVector = new IntVector(name, bufferAllocator)
         intVector.setValueCount(size)
         (0 until size).foreach {
