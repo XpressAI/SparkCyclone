@@ -13,8 +13,6 @@ import org.scalatest.freespec.AnyFreeSpec
 
 object ColumnarBatchToVeColBatchTest {}
 
-/** This is a test-case that is currently not passing */
-@Ignore
 final class ColumnarBatchToVeColBatchTest
   extends AnyFreeSpec
   with SparkAdditions
