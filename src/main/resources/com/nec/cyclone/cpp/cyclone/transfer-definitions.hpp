@@ -80,6 +80,7 @@ struct NullableScalarVec {
   // C pseudo-destructor (to be called before `free()` for object instances created by `malloc()`)
   void reset();
 
+  // Set the count to size, and allocate memory for data and validityBuffer
   void resize(const size_t size);
 
   // C implementation of a C++ move assignment
@@ -92,8 +93,8 @@ struct NullableScalarVec {
   void print() const;
 
   // Compute the hash of the value at a given index, starting with a given seed
-  inline int32_t hash_at(const size_t idx,
-                         const int32_t seed) const {
+  inline int64_t hash_at(const size_t idx,
+                         const int64_t seed) const {
     return 31 * seed + data[idx];
   }
 
@@ -187,13 +188,16 @@ struct nullable_varchar_vector {
   void print() const;
 
   // Compute the hash of the value at a given index, starting with a given seed
-  inline int32_t hash_at(const size_t idx,
-                         int32_t seed) const {
+  inline int64_t hash_at(const size_t idx,
+                         int64_t seed) const {
     for (int x = offsets[idx]; x < offsets[idx] + lengths[idx]; x++) {
       seed = 31 * seed + data[x];
     }
     return seed;
   }
+
+  // Compute a vector of hashes corresponding to the values of the nullable_varchar_vector
+  const std::vector<int64_t> hash_vec() const;
 
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,

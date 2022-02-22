@@ -161,7 +161,7 @@ frovedis::words nullable_varchar_vector::to_words() const {
 
   // Set the starts
   output.starts.resize(count);
-  for (int i = 0; i < count; i++) {
+  for (auto i = 0; i < count; i++) {
     output.starts[i] = offsets[i];
   }
   // Set the chars
@@ -337,7 +337,7 @@ nullable_varchar_vector * nullable_varchar_vector::filter(const std::vector<size
 
   // Preserve the validityBuffer across the filter
   #pragma _NEC vector
-  for (int g = 0; g < matching_ids.size(); g++) {
+  for (auto g = 0; g < matching_ids.size(); g++) {
     // Fetch the original index
     int i = matching_ids[g];
 
@@ -354,14 +354,14 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
   auto ** output = static_cast<nullable_varchar_vector **>(malloc(sizeof(nullable_varchar_vector *) * bucket_counts.size()));
 
   // Loop over each bucket
-  for (int b = 0; b < bucket_counts.size(); b++) {
+  for (auto b = 0; b < bucket_counts.size(); b++) {
     // Generate the list of indexes where the bucket assignment is b
     std::vector<size_t> matching_ids(bucket_counts[b]);
     {
       // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
       size_t pos = 0;
       #pragma _NEC vector
-      for (int i = 0; i < bucket_assignments.size(); i++) {
+      for (auto i = 0; i < bucket_assignments.size(); i++) {
         if (bucket_assignments[i] == b) {
           matching_ids[pos++] = i;
         }
@@ -375,13 +375,26 @@ nullable_varchar_vector ** nullable_varchar_vector::bucket(const std::vector<siz
   return output;
 }
 
+const std::vector<int64_t> nullable_varchar_vector::hash_vec() const {
+  // Allocate vec
+  std::vector<int64_t> output(count);
+
+  // Assign the hash of each string in the nullable_varchar_vector
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    output[i] = hash_at(i, 1);
+  }
+
+  return output;
+}
+
 nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
                                                          const size_t batches) {
 
   // Construct std::vector<frovedis::words> from the inputs
   std::vector<frovedis::words> multi_words(batches);
   #pragma _NEC vector
-  for (int b = 0; b < batches; b++) {
+  for (auto b = 0; b < batches; b++) {
     multi_words[b] = inputs[b]->to_words();
   }
 
@@ -391,8 +404,8 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
   // Preserve the validityBuffer across the merge
   auto o = 0;
   #pragma _NEC ivdep
-  for (int b = 0; b < batches; b++) {
-    for (int i = 0; i < inputs[b]->count; i++) {
+  for (auto b = 0; b < batches; b++) {
+    for (auto i = 0; i < inputs[b]->count; i++) {
       output->set_validity(o++, inputs[b]->get_validity(i));
     }
   }

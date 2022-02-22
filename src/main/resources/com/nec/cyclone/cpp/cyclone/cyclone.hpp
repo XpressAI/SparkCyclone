@@ -20,6 +20,7 @@
 #pragma once
 
 #include "cyclone/transfer-definitions.hpp"
+#include "cyclone/cyclone_sort.hpp"
 #include "cyclone/cyclone_utils.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"

@@ -60,7 +60,7 @@ case class GroupingFunction(name: String,
           CodeLines.forLoop("i", s"${keycols.head.name}[0]->count") {
             CodeLines.from(
               // Initialize the hash
-              s"int hash = 1;",
+              s"int64_t hash = 1;",
               // Compute the hash across all keys
               keycols.map { vec => s"hash = ${vec.name}[0]->hash_at(i, hash);" },
               // Assign the bucket based on the hash

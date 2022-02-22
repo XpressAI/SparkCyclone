@@ -116,8 +116,23 @@ namespace cyclone::tests {
     TEST_CASE("Hash value works") {
       auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
 
-      const auto output = input->hash_at(3, 42);
-      CHECK(output == 31 * (31 * (31 * 42 + 'A') + 'P') + 'R');
+      const auto seed = 42;
+      const auto output = input->hash_at(3, seed);
+      CHECK(output == 31 * (31 * (31 * seed + 'A') + 'P') + 'R');
+    }
+
+    TEST_CASE("Hash vector generation works") {
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR" });
+
+      const auto seed = 1;
+      std::vector<int64_t> expected {
+        31 * (31 * (31 * seed + 'J') + 'A') + 'N',
+        31 * (31 * (31 * seed + 'F') + 'E') + 'B',
+        31 * (31 * (31 * seed + 'M') + 'A') + 'R'
+      };
+
+      const auto output = input->hash_vec();
+      CHECK(output == expected);
     }
 
     TEST_CASE("Get and Set validity bit works") {
