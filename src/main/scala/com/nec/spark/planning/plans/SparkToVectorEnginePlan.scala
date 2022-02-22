@@ -16,7 +16,8 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 object SparkToVectorEnginePlan {
-  val ConvertColumnarToColumnar = false
+//  val ConvertColumnarToColumnar = false
+  val ConvertColumnarToColumnar = true
 }
 case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   extends UnaryExecNode
