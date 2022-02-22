@@ -11,7 +11,8 @@ final case class VeRewriteStrategyOptions(
   passThroughProject: Boolean,
   failFast: Boolean,
   joinOnVe: Boolean,
-  amplifyBatches: Boolean
+  amplifyBatches: Boolean,
+  rewriteEnabled: Boolean
 )
 
 object VeRewriteStrategyOptions {
@@ -55,7 +56,11 @@ object VeRewriteStrategyOptions {
       amplifyBatches = sparkConf
         .getOption(key = "spark.com.nec.spark.amplify-batches")
         .map(_.toBoolean)
-        .getOrElse(default.amplifyBatches)
+        .getOrElse(default.amplifyBatches),
+      rewriteEnabled = sparkConf
+        .getOption(key = "spark.com.nec.spark.rewrite-enabled")
+        .map(_.toBoolean)
+        .getOrElse(default.rewriteEnabled)
     )
   }
 
@@ -70,6 +75,7 @@ object VeRewriteStrategyOptions {
       passThroughProject = false,
       failFast = false,
       joinOnVe = false,
-      amplifyBatches = true
+      amplifyBatches = true,
+      rewriteEnabled = true
     )
 }
