@@ -132,6 +132,17 @@ void print_array() {
   }
 }
 
+template<typename T>
+void print_vecs(const std::vector<T> &foo) {
+  std::cout << foo << std::endl;
+}
+
+template<typename T, typename ...Ts>
+void print_vecs(const std::vector<T> &head, const std::vector<Ts> &...tail) {
+  std::cout << head << std::endl;
+  print_vecs(tail...);
+}
+
 int main() {
   projection_test();
   filter_test();
@@ -140,4 +151,11 @@ int main() {
   print_array<3, example1>();
   static constexpr std::array<int, 3> example2 {{ 100, 99, 98 }};
   print_array<3, example2>();
+
+
+  std::vector<float> data1 { 3.14, 2.71, 42.0, };
+  std::vector<std::string> data2 { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
+  std::vector<int32_t> data3 { 586, 951, 106, 318, 538, 620, 553 };
+
+  print_vecs(data1, data2, data3);
 }
