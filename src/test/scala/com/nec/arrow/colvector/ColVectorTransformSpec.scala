@@ -9,12 +9,24 @@ import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
+import java.time.LocalDate
+
 final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
   private implicit val bufAllocator = new RootAllocator()
   private val vecBuilder = CatsArrowVectorBuilders(Ref.unsafe(1))
   List(
     ("Optional Int", vecBuilder.optionalIntVector(Seq(Some(1), None, Some(3)))),
     ("Long", vecBuilder.longVector(Seq(1, 2, 3))),
+    (
+      "DateTime",
+      vecBuilder.dateVector(
+        Seq(
+          LocalDate.parse("2019-01-02"),
+          LocalDate.parse("2019-01-03"),
+          LocalDate.parse("2019-01-04")
+        )
+      )
+    ),
     ("Double", vecBuilder.doubleVector(Seq(1, 2, 3))),
     ("String", vecBuilder.stringVector(Seq("A", "BB", "CDEF")))
   ).foreach { case (name, resource) =>

@@ -308,7 +308,7 @@ object BytePointerColVector {
     bufferAllocator: BufferAllocator
   ): Option[(FieldVector, BytePointerColVector)] = {
     PartialFunction.condOpt(columnVector.dataType()) {
-      case IntegerType | DateType =>
+      case IntegerType =>
         val intVector = new IntVector(name, bufferAllocator)
         intVector.setValueCount(size)
         (0 until size).foreach {
@@ -316,6 +316,14 @@ object BytePointerColVector {
           case idx                               => intVector.set(idx, columnVector.getInt(idx))
         }
         (intVector, fromIntVector(intVector))
+      case DateType =>
+        val dateDayVector = new DateDayVector(name, bufferAllocator)
+        dateDayVector.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => dateDayVector.setNull(idx)
+          case idx                               => dateDayVector.set(idx, columnVector.getInt(idx))
+        }
+        (dateDayVector, fromDateDayVector(dateDayVector))
       case DoubleType =>
         val float8Vector = new Float8Vector(name, bufferAllocator)
         float8Vector.setValueCount(size)

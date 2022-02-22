@@ -21,7 +21,9 @@ package com.nec.arrow
 
 import cats.effect.{IO, Ref, Resource}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector.{BigIntVector, DateDayVector, Float8Vector, IntVector, VarCharVector}
+
+import java.time.{Duration, LocalDate}
 
 final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
   bufferAllocator: BufferAllocator
@@ -98,6 +100,23 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
             IO.delay {
               longBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
               vcv.setValueCount(longBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def dateVector(localDates: Seq[LocalDate]): Resource[IO, DateDayVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new DateDayVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              localDates.view.zipWithIndex.foreach { case (str, idx) =>
+                val duration = Duration.between(LocalDate.parse("1970-01-01"), str)
+                vcv.setSafe(idx, duration.toDays.toInt)
+              }
+              vcv.setValueCount(localDates.length)
               vcv
             }
           }
