@@ -220,21 +220,14 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
         vcvr.allocateNew(dataSize, numItems)
         vcvr.setValueCount(numItems)
-        //TODO: tempFix
         val array = new Array[Byte](dataSize * 4)
         vhTarget.get(array)
-//        for (i <- 0 until numItems) {
-//          println(s"START for idx: ${i} is ${startsTarget.getInt(i * 4)}")
-//          println(s"LENGTHS for idx: ${i} is ${lengthTarget.getInt(i * 4)}")
-//        }
-//        println("THE ARRAY:" + new String(array))
+
         for (i <- 0 until numItems) {
           val start = startsTarget.getInt(i * 4) * 4
           val length = lengthTarget.getInt(i * 4) * 4
-//          println(s"ARRAY LENGTH WAS ${array.length}, START ${start} and END ${length}")
           val str = new String(array, start, length, "UTF-32LE")
           val utf8bytes = str.getBytes
-//          println(s"DATA: ${str}")
           vcvr.set(i, utf8bytes)
         }
         getUnsafe.copyMemory(

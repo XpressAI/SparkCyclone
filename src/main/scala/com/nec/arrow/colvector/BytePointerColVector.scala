@@ -1,6 +1,7 @@
 package com.nec.arrow.colvector
 
 import com.nec.arrow.ArrowInterfaces
+import com.nec.arrow.ArrowInterfaces.getUnsafe
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -9,9 +10,11 @@ import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
+
 import org.apache.spark.sql.types.{DoubleType, IntegerType, LongType, StringType}
 import org.apache.spark.sql.vectorized.ColumnVector
 
@@ -128,21 +131,35 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
       case VeString =>
         val vcvr = new VarCharVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
-          val offsetsSize = (numItems + 1) * 4
-          val lastOffsetIndex = numItems * 4
-          val offTarget = buffers(1).get
-          val dataSize = offTarget.getInt(lastOffsetIndex)
-          offTarget.position(0)
+          val buffersSize = numItems * 4
+          val lastOffsetIndex = (numItems - 1) * 4
+          val lengthTarget = new BytePointer(buffersSize)
+          val startsTarget = new BytePointer(buffersSize)
+          val validityTarget = new BytePointer(numItems)
+          getUnsafe.copyMemory(bytePointersAddresses(1), startsTarget.address(), startsTarget.capacity())
+          getUnsafe.copyMemory(bytePointersAddresses(2), lengthTarget.address(), lengthTarget.capacity())
+
+          val dataSize = (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
+          val vhTarget = new BytePointer(dataSize * 4)
+
+          getUnsafe.copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
           vcvr.allocateNew(dataSize, numItems)
           vcvr.setValueCount(numItems)
+          val array = new Array[Byte](dataSize * 4)
+          vhTarget.get(array)
 
+          for (i <- 0 until numItems) {
+            val start = startsTarget.getInt(i * 4) * 4
+            val length = lengthTarget.getInt(i * 4) * 4
+            val str = new String(array, start, length, "UTF-32LE")
+            val utf8bytes = str.getBytes
+            vcvr.set(i, utf8bytes)
+          }
           getUnsafe.copyMemory(
-            bytePointersAddresses(2),
+            bytePointersAddresses(3),
             vcvr.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
           )
-          getUnsafe.copyMemory(bytePointersAddresses(1), vcvr.getOffsetBufferAddress, offsetsSize)
-          getUnsafe.copyMemory(bytePointersAddresses(0), vcvr.getDataBufferAddress, dataSize)
         }
         vcvr
       case other => sys.error(s"Not supported for conversion to arrow vector: $other")
@@ -311,7 +328,6 @@ object BytePointerColVector {
       case StringType =>
         val varCharVector = new VarCharVector(name, bufferAllocator)
         varCharVector.allocateNew()
-        varCharVector.setValueCount(size)
         (0 until size).foreach {
           case idx if columnVector.isNullAt(idx) => varCharVector.setNull(idx)
           case idx =>
@@ -319,6 +335,7 @@ object BytePointerColVector {
             val byteBuffer = utf8.getByteBuffer
             varCharVector.setSafe(idx, byteBuffer, byteBuffer.position(), utf8.numBytes())
         }
+        varCharVector.setValueCount(size)
         (varCharVector, fromVarcharVector(varCharVector))
     }
   }
