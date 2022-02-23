@@ -96,7 +96,7 @@ namespace cyclone::tests {
       CHECK(sorted_indices2 != expected);
     }
 
-    TEST_CASE("Sorting const Ts * const ...columns works") {
+    TEST_CASE("Sorting std::tuple<int, Ts> &...columns works") {
       std::vector<int32_t>  column1(elements.size());
       std::vector<float>    column2(elements.size());
       std::vector<int64_t>  column3(elements.size());
@@ -111,23 +111,18 @@ namespace cyclone::tests {
       }
 
       const auto expected = cyclone::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
-      const auto sorted_indices = cyclone::sort_tuples(elements.size(), column1.data(), column2.data(), column3.data(), column4.data());
-      CHECK(sorted_indices == expected);
 
-
-      const auto sorted2 = cyclone::sort_tuples(
+      const auto sorted_indices = cyclone::sort_tuples(
         elements.size(),
         std::make_tuple(1, column1.data()),
         std::make_tuple(1, column2.data()),
         std::make_tuple(1, column3.data()),
         std::make_tuple(1, column4.data())
       );
-
-      std::cout << expected << std::endl;
-      std::cout << sorted2 << std::endl;
+      CHECK(sorted_indices == expected);
     }
 
-    TEST_CASE("Tuple sort works for empty tuples") {
+    TEST_CASE("Sorting std::vector<std::tuple<Ts...>> works for empty tuples") {
       const std::vector<std::tuple<>> elements {
         std::tuple<>(),
         std::tuple<>(),

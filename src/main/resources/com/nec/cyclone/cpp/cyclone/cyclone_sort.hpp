@@ -76,77 +76,32 @@ namespace cyclone {
   }
 
   namespace {
-    template<typename T>
-    inline void sort_ith_column(std::vector<size_t> &sorted_indices,
-                                const T * const data) {
-      std::vector<T> temp(sorted_indices.size());
-      #pragma _NEC vector
-      for (auto i = 0; i < sorted_indices.size(); i++) {
-        temp[i] = data[sorted_indices[i]];
-      }
-
-      frovedis::radix_sort(temp, sorted_indices);
-    }
-
-    template<typename T, typename ...Ts>
-    inline void sort_ith_column(std::vector<size_t> &sorted_indices,
-                                const T * const data,
-                                const Ts * const ...tail) {
-      sort_ith_column(sorted_indices, tail...);
-
-      std::vector<T> temp(sorted_indices.size());
-      #pragma _NEC vector
-      for (auto i = 0; i < sorted_indices.size(); i++) {
-        temp[i] = data[sorted_indices[i]];
-      }
-
-      frovedis::radix_sort(temp, sorted_indices);
-    }
-  }
-
-  template <typename... Ts>
-  inline std::vector<size_t> sort_tuples(const size_t count,
-                                         const Ts * const ...datum) {
-    // Initialize the sorted indices
-    std::vector<size_t> sorted_indices(count);
-    #pragma _NEC vector
-    for (auto i = 0; i < sorted_indices.size(); i++) {
-      sorted_indices[i] = i;
-    }
-
-    if constexpr (sizeof...(Ts) > 0) {
-      // Apply sort from the N-1th to 0th element of the tuples,
-      // which will update the sorted indices
-      sort_ith_column(sorted_indices, datum...);
-    }
-
-    // Return the sorted indices
-    return sorted_indices;
-  }
-
-
-
-
-  namespace {
     template <typename ...Ts>
-    inline std::vector<size_t> sort_tuples_reverse(const size_t count, const std::tuple<int, Ts> &...columns) {
+    inline std::vector<size_t> sort_tuples_reversed_args(const size_t count,
+                                                         const std::tuple<int, Ts> &...columns) {
+      // Construct the sorted_indices
       std::vector<size_t> sorted_indices(count);
 
+      // Initialize by current order
       #pragma _NEC vector
       for (auto i = 0; i < sorted_indices.size(); i++) {
         sorted_indices[i] = i;
       }
 
-      // Run fold expression - this will be expanded and inlined during compilation
+      // Apply the fold expression to all the variadic args
+      // This section will be expanded and inlined during compilation
       ([&] (const auto & column) {
+        // Extract the sort_order and the data pointer
         const auto & [ sort_order, data ] = column;
 
+        // Construct the temp keys
         std::vector<std::remove_pointer_t<decltype(data)>> temp(sorted_indices.size());
         #pragma _NEC vector
         for (auto i = 0; i < sorted_indices.size(); i++) {
           temp[i] = data[sorted_indices[i]];
         }
 
+        // Sort and apply ordering to the sorted_indices
         if (sort_order) {
           frovedis::radix_sort(temp, sorted_indices);
         } else {
@@ -158,21 +113,21 @@ namespace cyclone {
       return sorted_indices;
     }
 
-    // Forward declaration
+    // Forward declaration of the struct for reversing the variadic args
     template<typename ...Tn>
     struct reverse;
 
-    // Base case - apply sort_tuples_reverse
+    // Base case - Apply sort_tuples_reversed_args() to the (now-reversed) args
     template<>
     struct reverse<> {
       template<typename ...Un>
       static inline std::vector<size_t> apply(const size_t size,
                                               const std::tuple<int, Un> &...un) {
-        return sort_tuples_reverse(size, un...);
+        return sort_tuples_reversed_args(size, un...);
       }
     };
 
-    // Nth case - swap the variadic args' positions
+    // Nth case - Swap the positions of the variadic args one by one
     template<typename T, typename ...Tn>
     struct reverse<T, Tn...> {
       template<typename ...Un>
@@ -180,7 +135,7 @@ namespace cyclone {
                                               const std::tuple<int, T> &t,
                                               const std::tuple<int, Tn> &...tn,
                                               const std::tuple<int, Un> &...un) {
-        // Bubble the 1st parameter backwards
+        // Move the 1st parameter backwards
         return reverse<Tn...>::apply(size, tn..., t, un...);
       }
     };
@@ -188,32 +143,11 @@ namespace cyclone {
 
   template <typename ...Ts>
   inline std::vector<size_t> sort_tuples(const size_t count, const std::tuple<int, Ts> &...columns) {
+    // The algorithm sorts starting from the N-1th column and moves down to the
+    // 0th column.  A fold expressions is used to inline what would otherwise be
+    // recursive function calls.  However, since fold expressions cannot be
+    // applied in reverse order, we first reverse the order of the variadic args
+    // before applying the sort function template.
     return reverse<Ts...>::apply(count, columns...);
-
-
-    // std::vector<size_t> sorted_indices(count);
-
-    // #pragma _NEC vector
-    // for (auto i = 0; i < sorted_indices.size(); i++) {
-    //   sorted_indices[i] = i;
-    // }
-
-    // ([&] (const auto & column) {
-    //     const auto & [ sort_order, data ] = column;
-
-    //     std::vector<std::remove_pointer_t<Ts>> temp(sorted_indices.size());
-    //     #pragma _NEC vector
-    //     for (auto i = 0; i < sorted_indices.size(); i++) {
-    //       temp[i] = data[sorted_indices[i]];
-    //     }
-
-    //     if (sort_order) {
-    //       frovedis::radix_sort(temp, sorted_indices);
-    //     } else {
-    //       frovedis::radix_sort_desc(temp, sorted_indices);
-    //     }
-    // } (columns), ...);
-
-    // return sorted_indices;
   }
 }
