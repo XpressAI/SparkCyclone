@@ -20,7 +20,8 @@ import org.apache.spark.sql.types.{
   IntegerType,
   LongType,
   ShortType,
-  StringType
+  StringType,
+  TimestampType
 }
 import org.apache.spark.sql.vectorized.ColumnVector
 
@@ -353,6 +354,14 @@ object BytePointerColVector {
           case idx                               => smallIntVector.set(idx, columnVector.getShort(idx))
         }
         (smallIntVector, fromSmallIntVector(smallIntVector))
+      case TimestampType =>
+        val vec = new BigIntVector(name, bufferAllocator)
+        vec.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => vec.setNull(idx)
+          case idx                               => vec.set(idx, columnVector.getLong(idx))
+        }
+        (vec, fromBigIntVector(vec))
       case DateType =>
         val dateDayVector = new DateDayVector(name, bufferAllocator)
         dateDayVector.setValueCount(size)

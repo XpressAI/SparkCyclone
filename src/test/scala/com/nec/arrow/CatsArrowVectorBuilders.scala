@@ -30,7 +30,7 @@ import org.apache.arrow.vector.{
   VarCharVector
 }
 
-import java.time.{Duration, LocalDate, ZoneId}
+import java.time.{Duration, Instant, LocalDate, ZoneId}
 
 final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
   bufferAllocator: BufferAllocator
@@ -141,6 +141,22 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
                 vcv.setSafe(idx, duration.toDays.toInt)
               }
               vcv.setValueCount(localDates.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def timestampVector(timestamps: Seq[Instant]): Resource[IO, BigIntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new BigIntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              timestamps.view.zipWithIndex.foreach { case (instant, idx) =>
+                vcv.setSafe(idx, instant.toEpochMilli)
+              }
+              vcv.setValueCount(timestamps.length)
               vcv
             }
           }
