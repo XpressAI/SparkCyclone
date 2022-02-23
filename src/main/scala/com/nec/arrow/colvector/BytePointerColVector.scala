@@ -1,5 +1,7 @@
 package com.nec.arrow.colvector
 
+import java.nio.ByteBuffer
+
 import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.ArrowInterfaces.getUnsafe
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
@@ -10,6 +12,7 @@ import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
@@ -126,6 +129,23 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           getUnsafe.copyMemory(bytePointersAddresses(0), intVector.getDataBufferAddress, dataSize)
         }
         intVector
+      case VeScalarType.VeNullableShort =>
+        val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 4
+          smallIntVector.setValueCount(numItems)
+          getUnsafe.copyMemory(
+            bytePointersAddresses(1),
+            smallIntVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          val buff = ByteBuffer.allocateDirect(dataSize)
+
+          getUnsafe.copyMemory(bytePointersAddresses(0), buff.asInstanceOf[DirectBuffer].address(), dataSize)
+          val intBuff = buff.asIntBuffer()
+          (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
+        }
+        smallIntVector
       case VeString =>
         val vcvr = new VarCharVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
@@ -232,7 +252,7 @@ object BytePointerColVector {
         source = source,
         numItems = smallDirInt.getValueCount,
         name = smallDirInt.getName,
-        veType = VeScalarType.VeNullableInt,
+        veType = VeScalarType.VeNullableShort,
         container = None,
         buffers = List(
           Option(new BytePointer(intVector.getDataBuffer.nioBuffer())),

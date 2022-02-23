@@ -49,21 +49,7 @@ namespace cyclone {
     return output;
   }
 
-  // Print out a tuple
-  template<typename Ch, typename Tr, typename T>
-  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
-                   std::vector<T> const &vec) {
-    std::basic_stringstream<Ch, Tr> tmp;
-    tmp << "[ ";
-    for (const auto &elem : vec) {
-      tmp << elem << ", ";
-    }
-    tmp.seekp(-2, tmp.cur);
-    tmp << " ]";
-    return stream << tmp.str();
-  }
-
-  // Print out a tuple
+  // Print out a std::tuple to ostream
   template<typename Ch, typename Tr, typename... Ts>
   auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
                    std::tuple<Ts...> const &tup) {
@@ -76,6 +62,22 @@ namespace cyclone {
     );
     tmp.seekp(-2, tmp.cur);
     tmp << ")";
+    return stream << tmp.str();
+  }
+
+  // Print out a std::vector to ostream
+  // Define this AFTER defining operator<< for std::tuple
+  // so that we can print std::vector<std::tuple<Ts...>>
+  template<typename Ch, typename Tr, typename T>
+  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
+                   std::vector<T> const &vec) {
+    std::basic_stringstream<Ch, Tr> tmp;
+    tmp << "[ ";
+    for (const auto &elem : vec) {
+      tmp << elem << ", ";
+    }
+    tmp.seekp(-2, tmp.cur);
+    tmp << " ]";
     return stream << tmp.str();
   }
 }
