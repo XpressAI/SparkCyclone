@@ -20,12 +20,7 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
-  VeNullableDouble,
-  VeNullableFloat,
-  VeNullableInt,
-  VeNullableLong
-}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong, VeNullableShort}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer}
 import com.nec.spark.agile.groupby.GroupByOutline
@@ -37,18 +32,7 @@ import org.aopalliance.reflect.Code
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
-  def veType(d: DataType): VeScalarType = {
-    d match {
-      case DoubleType =>
-        VeScalarType.VeNullableDouble
-      case IntegerType | DateType | ShortType =>
-        VeScalarType.VeNullableInt
-      case x =>
-        sys.error(s"unsupported dataType $x")
-    }
-  }
-
-  trait SortOrdering
+  sealed trait SortOrdering
   final case object Descending extends SortOrdering
   final case object Ascending extends SortOrdering
 
@@ -181,9 +165,9 @@ object CFunctionGeneration {
     case object VeNullableShort extends VeScalarType {
       def cScalarType: String = "int32_t"
 
-      def cVectorType: String = "nullable_int_vector"
+      def cVectorType: String = "nullable_short_vector"
 
-      override def cSize: Int = 4
+      override def cSize: Int = 2
     }
 
     case object VeNullableInt extends VeScalarType {
@@ -432,6 +416,7 @@ object CFunctionGeneration {
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
 
   final case class VeSortExpression(typedExpression: TypedCExpression2, sortOrdering: SortOrdering)
+
   def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
     cVector.veType match {
       case VeString =>
@@ -444,6 +429,8 @@ object CFunctionGeneration {
         new IntVector(cVector.name, bufferAllocator)
       case VeNullableLong =>
         new BigIntVector(cVector.name, bufferAllocator)
+      case VeNullableShort =>
+        new SmallIntVector(cVector.name, bufferAllocator)
     }
 
   val KeyHeaders = CodeLines.from(

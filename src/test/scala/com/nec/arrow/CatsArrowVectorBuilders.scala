@@ -21,6 +21,16 @@ package com.nec.arrow
 
 import cats.effect.{IO, Ref, Resource}
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.{
+  BigIntVector,
+  DateDayVector,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  VarCharVector
+}
+
+import java.time.{Duration, LocalDate, ZoneId}
 import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, VarCharVector}
 
 final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
@@ -73,6 +83,37 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
       )(res => IO.delay(res.close()))
     )
 
+  def shortVector(shortBatch: Seq[Short]): Resource[IO, SmallIntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new SmallIntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              shortBatch.view.zipWithIndex.foreach { case (short, idx) => vcv.setSafe(idx, short) }
+              vcv.setValueCount(shortBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def optionalIntVector(intBatch: Seq[Option[Int]]): Resource[IO, IntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new IntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              intBatch.view.zipWithIndex.foreach {
+                case (None, idx)      => vcv.setNull(idx)
+                case (Some(str), idx) => vcv.setSafe(idx, str)
+              }
+              vcv.setValueCount(intBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
   def longVector(longBatch: Seq[Long]): Resource[IO, BigIntVector] =
     makeName.flatMap(name =>
       Resource.make(
@@ -81,6 +122,26 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
             IO.delay {
               longBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
               vcv.setValueCount(longBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def dateVector(localDates: Seq[LocalDate]): Resource[IO, DateDayVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new DateDayVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              localDates.view.zipWithIndex.foreach { case (str, idx) =>
+                val duration = Duration.between(
+                  LocalDate.parse("1970-01-01").atStartOfDay(ZoneId.of("UTC")),
+                  str.atStartOfDay(ZoneId.of("UTC"))
+                )
+                vcv.setSafe(idx, duration.toDays.toInt)
+              }
+              vcv.setValueCount(localDates.length)
               vcv
             }
           }

@@ -138,7 +138,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
       case VeScalarType.VeNullableShort =>
         val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
-          val dataSize = numItems * 4
+          val dataSize = numItems * 2
           smallIntVector.setValueCount(numItems)
           getUnsafe.copyMemory(
             bytePointersAddresses(1),
@@ -152,7 +152,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             smallIntVector.getDataBufferAddress,
             dataSize
           )
-          val intBuff = buff.asIntBuffer()
+          val intBuff = buff.asShortBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
         }
         smallIntVector
@@ -351,7 +351,7 @@ object BytePointerColVector {
         smallIntVector.setValueCount(size)
         (0 until size).foreach {
           case idx if columnVector.isNullAt(idx) => smallIntVector.setNull(idx)
-          case idx                               => smallIntVector.set(idx, columnVector.getInt(idx))
+          case idx                               => smallIntVector.set(idx, columnVector.getShort(idx))
         }
         (smallIntVector, fromSmallIntVector(smallIntVector))
       case DateType =>
