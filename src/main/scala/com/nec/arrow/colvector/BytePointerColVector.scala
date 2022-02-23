@@ -138,21 +138,21 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
       case VeScalarType.VeNullableShort =>
         val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
-          val dataSize = numItems * 2
+          val dataSize = numItems * 4
           smallIntVector.setValueCount(numItems)
           getUnsafe.copyMemory(
             bytePointersAddresses(1),
             smallIntVector.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
           )
-          val buff = ByteBuffer.allocateDirect(dataSize)
+          val buff = new BytePointer(ByteBuffer.allocateDirect(dataSize))
 
           getUnsafe.copyMemory(
             bytePointersAddresses(0),
-            smallIntVector.getDataBufferAddress,
+            buff.address(),
             dataSize
           )
-          val intBuff = buff.asShortBuffer()
+          val intBuff = buff.asBuffer().asIntBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
         }
         smallIntVector
