@@ -635,6 +635,14 @@ object VeArrowTransfers extends LazyLogging {
     new BytePointer(v_bb)
   }
 
+  def nullableShortVectorToBytePointer(short_vector: nullable_short_vector): BytePointer = {
+    val v_bb = short_vector.getPointer.getByteBuffer(0, 20)
+    v_bb.putLong(0, short_vector.data)
+    v_bb.putLong(8, short_vector.validityBuffer)
+    v_bb.putInt(16, short_vector.count)
+    new BytePointer(v_bb)
+  }
+
   def nonNullDoubleVectorToBytePointer(double_vector: non_null_double_vector): BytePointer = {
     val v_bb = double_vector.getPointer.getByteBuffer(0, 12)
     v_bb.putLong(0, double_vector.data)
