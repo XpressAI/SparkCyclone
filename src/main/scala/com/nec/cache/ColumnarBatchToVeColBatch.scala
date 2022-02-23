@@ -39,7 +39,7 @@ object ColumnarBatchToVeColBatch {
                   ) match {
                   case None =>
                     throw new NotImplementedError(
-                      s"Type ${field.getType} not supported for columnar batch conversion"
+                      s"Type ${columnarBatch.column(i).dataType()} not supported for columnar batch conversion"
                     )
                   case Some((fieldVector, bytePointerColVector)) =>
                     try bytePointerColVector.toVeColVector()
