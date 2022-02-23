@@ -1,7 +1,6 @@
 package com.nec.arrow.colvector
 
 import java.nio.ByteBuffer
-
 import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.ArrowInterfaces.getUnsafe
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
@@ -12,11 +11,17 @@ import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
-import org.apache.spark.sql.types.{DateType, DoubleType, IntegerType, LongType, StringType}
+import org.apache.spark.sql.types.{
+  DateType,
+  DoubleType,
+  IntegerType,
+  LongType,
+  ShortType,
+  StringType
+}
 import org.apache.spark.sql.vectorized.ColumnVector
 
 /**
@@ -141,7 +146,11 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           )
           val buff = ByteBuffer.allocateDirect(dataSize)
 
-          getUnsafe.copyMemory(bytePointersAddresses(0), smallIntVector.getDataBufferAddress, dataSize)
+          getUnsafe.copyMemory(
+            bytePointersAddresses(0),
+            smallIntVector.getDataBufferAddress,
+            dataSize
+          )
           val intBuff = buff.asIntBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
         }
@@ -336,6 +345,14 @@ object BytePointerColVector {
           case idx                               => intVector.set(idx, columnVector.getInt(idx))
         }
         (intVector, fromIntVector(intVector))
+      case ShortType =>
+        val smallIntVector = new SmallIntVector(name, bufferAllocator)
+        smallIntVector.setValueCount(size)
+        (0 until size).foreach {
+          case idx if columnVector.isNullAt(idx) => smallIntVector.setNull(idx)
+          case idx                               => smallIntVector.set(idx, columnVector.getInt(idx))
+        }
+        (smallIntVector, fromSmallIntVector(smallIntVector))
       case DateType =>
         val dateDayVector = new DateDayVector(name, bufferAllocator)
         dateDayVector.setValueCount(size)
