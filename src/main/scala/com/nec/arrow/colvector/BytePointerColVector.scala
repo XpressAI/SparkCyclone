@@ -141,7 +141,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           )
           val buff = ByteBuffer.allocateDirect(dataSize)
 
-          getUnsafe.copyMemory(bytePointersAddresses(0), buff.asInstanceOf[DirectBuffer].address(), dataSize)
+          getUnsafe.copyMemory(bytePointersAddresses(0), smallIntVector.getDataBufferAddress, dataSize)
           val intBuff = buff.asIntBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
         }
