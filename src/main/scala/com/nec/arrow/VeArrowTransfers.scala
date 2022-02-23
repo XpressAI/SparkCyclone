@@ -209,13 +209,13 @@ object VeArrowTransfers extends LazyLogging {
           )
         )
       case SmallIntVectorInputWrapper(smallIntVector) =>
-        val int_vector_raw = make_veo_int_vector(proc, smallIntVector)
+        val short_int_vector_raw = make_veo_short_vector(proc, smallIntVector)
         requireOk(
           veo.veo_args_set_stack(
             our_args,
             0,
             index,
-            nullableIntVectorToBytePointer(int_vector_raw),
+            nullableShortVectorToBytePointer(short_int_vector_raw),
             20L
           )
         )
@@ -299,27 +299,17 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_int_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(implicit
+  private def make_veo_short_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(implicit
     cleanup: Cleanup
-  ): nullable_int_vector = {
-    val keyName = "int2_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
-    val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
-    intVector.setValueCount(smallIntVector.getValueCount)
-
-    (0 until smallIntVector.getValueCount)
-      .foreach {
-        case idx if (!smallIntVector.isNull(idx)) =>
-          intVector.set(idx, smallIntVector.get(idx).toInt)
-        case idx => intVector.setNull(idx)
-      }
+  ): nullable_short_vector = {
+    val keyName = "short_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
     logger.debug(s"Copying Buffer to VE for $keyName")
-
-    val vcvr = new nullable_int_vector()
-    vcvr.count = intVector.getValueCount
-    vcvr.data = copyPointerToVe(proc, new BytePointer(intVector.getDataBuffer.nioBuffer()))(cleanup)
+    val vcvr = new nullable_short_vector()
+    vcvr.count = smallIntVector.getValueCount
+    vcvr.data =
+      copyPointerToVe(proc, new BytePointer(smallIntVector.getDataBuffer.nioBuffer()))(cleanup)
     vcvr.validityBuffer =
-      copyPointerToVe(proc, new BytePointer(intVector.getValidityBuffer.nioBuffer()))(cleanup)
-
+      copyPointerToVe(proc, new BytePointer(smallIntVector.getValidityBuffer.nioBuffer()))(cleanup)
     vcvr
   }
 
