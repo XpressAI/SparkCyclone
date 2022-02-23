@@ -5,12 +5,14 @@ import com.nec.arrow.ArrowTransferStructures.{
   nullable_bigint_vector,
   nullable_double_vector,
   nullable_int_vector,
+  nullable_short_vector,
   nullable_varchar_vector
 }
 import com.nec.arrow.VeArrowTransfers.{
   nullableBigintVectorToBytePointer,
   nullableDoubleVectorToBytePointer,
   nullableIntVectorToBytePointer,
+  nullableShortVectorToBytePointer,
   nullableVarCharVectorVectorToBytePointer
 }
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
@@ -121,11 +123,11 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeScalarType.VeNullableShort =>
-          val vcvr = new nullable_int_vector()
+          val vcvr = new nullable_short_vector()
           vcvr.count = numItems
           vcvr.data = buffers(0)
           vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableIntVectorToBytePointer(vcvr)
+          val bytePointer = nullableShortVectorToBytePointer(vcvr)
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeScalarType.VeNullableLong =>
@@ -213,7 +215,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case VeScalarType.VeNullableShort =>
       val intVector = new SmallIntVector("output", bufferAllocator)
       if (numItems > 0) {
-        val dataSize = numItems * 4
+        val dataSize = numItems * 2
         val vhTarget = new BytePointer(dataSize)
         val validityTarget = new BytePointer(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())

@@ -78,6 +78,36 @@ public interface ArrowTransferStructures extends Library {
         }
     }
 
+
+    @Structure.FieldOrder({"data","validityBuffer", "count"})
+    class nullable_short_vector extends Structure {
+        public long data;
+        public long validityBuffer;
+        public Integer count;
+
+        public int dataSize() {
+            return count * 2;
+        }
+
+        public nullable_short_vector() {
+            super();
+        }
+
+        public nullable_short_vector(Pointer p) {
+            super(p);
+            read();
+        }
+
+        public static class ByReference extends nullable_short_vector implements Structure.ByReference {
+            public ByReference() {
+            }
+
+            public ByReference(Pointer p) {
+                super(p);
+            }
+        }
+    }
+
     @Structure.FieldOrder({"data", "count"})
     class non_null_int2_vector extends Structure {
         public long data;

@@ -20,15 +20,13 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong, VeNullableShort}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer}
-import com.nec.spark.agile.groupby.GroupByOutline
+import com.nec.spark.agile.StringProducer.FrovedisStringProducer
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
-import org.aopalliance.reflect.Code
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
