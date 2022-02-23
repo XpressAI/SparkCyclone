@@ -129,7 +129,7 @@ struct NullableScalarVec {
 typedef NullableScalarVec<int32_t> nullable_int_vector;
 
 // Explicitly instantiate struct template for short
-typedef NullableScalarVec<short> nullable_short_vector;
+typedef NullableScalarVec<int16_t> nullable_short_vector;
 
 // Explicitly instantiate struct template for int64_t
 typedef NullableScalarVec<int64_t> nullable_bigint_vector;
