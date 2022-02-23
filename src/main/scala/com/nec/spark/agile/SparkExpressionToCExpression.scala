@@ -97,9 +97,12 @@ object SparkExpressionToCExpression {
         ar.withName(s"input_${idx}->data[left_out[i]]")
       case idx if (rightIds.contains(ar.exprId)) =>
         ar.withName(s"input_${idx}->data[right_out[i]]")
-      case _ => sys.error(s"SparkExpressionToCExpression.referenceReplacer: " +
-        s"Could not match ${Try(inputs.indexWhere(_.exprId == ar.exprId).toString)}, " +
-        s"type ${inputs.indexWhere(_.exprId == ar.exprId).getClass}")
+      case _ =>
+        sys.error(
+          s"SparkExpressionToCExpression.referenceReplacer: " +
+            s"Could not match ${Try(inputs.indexWhere(_.exprId == ar.exprId).toString)}, " +
+            s"type ${inputs.indexWhere(_.exprId == ar.exprId).getClass}"
+        )
     }
   }
 
@@ -492,7 +495,7 @@ object SparkExpressionToCExpression {
       case VeScalarType.VeNullableFloat  => FloatType
       case VeScalarType.VeNullableInt    => IntegerType
       case VeScalarType.VeNullableLong   => LongType
-      case VeScalarType.VeNullableShort   => ShortType
+      case VeScalarType.VeNullableShort  => ShortType
       case VeString                      => StringType
     }
   }
