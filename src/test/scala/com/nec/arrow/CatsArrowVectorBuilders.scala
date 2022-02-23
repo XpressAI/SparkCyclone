@@ -21,7 +21,14 @@ package com.nec.arrow
 
 import cats.effect.{IO, Ref, Resource}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, DateDayVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  DateDayVector,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  VarCharVector
+}
 
 import java.time.{Duration, LocalDate, ZoneId}
 
@@ -69,6 +76,20 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
             IO.delay {
               intBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
               vcv.setValueCount(intBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def shortVector(shortBatch: Seq[Short]): Resource[IO, SmallIntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new SmallIntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              shortBatch.view.zipWithIndex.foreach { case (short, idx) => vcv.setSafe(idx, short) }
+              vcv.setValueCount(shortBatch.length)
               vcv
             }
           }

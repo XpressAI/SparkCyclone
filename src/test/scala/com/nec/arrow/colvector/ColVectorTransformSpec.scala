@@ -16,6 +16,7 @@ final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
   private val vecBuilder = CatsArrowVectorBuilders(Ref.unsafe(1))
   List(
     ("Optional Int", vecBuilder.optionalIntVector(Seq(Some(1), None, Some(3)))),
+    ("Short", vecBuilder.shortVector(Seq(1, 2, 3))),
     ("Long", vecBuilder.longVector(Seq(1, 2, 3))),
     (
       "DateTime",
