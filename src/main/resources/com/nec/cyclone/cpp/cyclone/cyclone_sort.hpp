@@ -96,7 +96,7 @@ namespace cyclone {
 
         // Construct the temp keys
         std::vector<std::remove_pointer_t<decltype(data)>> temp(sorted_indices.size());
-        #pragma _NEC vector
+        #pragma _NEC ivdep
         for (auto i = 0; i < sorted_indices.size(); i++) {
           temp[i] = data[sorted_indices[i]];
         }
