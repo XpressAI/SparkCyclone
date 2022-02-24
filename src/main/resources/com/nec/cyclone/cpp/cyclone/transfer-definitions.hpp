@@ -226,6 +226,30 @@ struct nullable_varchar_vector {
                                     const std::vector<size_t> &bucket_assignments) const;
 };
 
+struct non_null_double_vector
+{
+    double *data;
+    int32_t count;
+};
+
+struct non_null_bigint_vector
+{
+    int64_t *data;
+    int32_t count;
+};
+
+struct non_null_int2_vector
+{
+    int16_t *data;
+    int32_t count;
+};
+
+struct non_null_int_vector
+{
+    int32_t *data;
+    int32_t count;
+};
+
 struct non_null_c_bounded_string {
   char      *data   = nullptr;
   int32_t   length  = 0;

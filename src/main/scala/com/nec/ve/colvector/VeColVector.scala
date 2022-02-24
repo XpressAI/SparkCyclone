@@ -1,12 +1,12 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.ArrowInterfaces.getUnsafe
-import com.nec.arrow.ArrowTransferStructures.{
+import com.nec.arrow.TransferDefinitions.{
   nullable_bigint_vector,
   nullable_double_vector,
   nullable_int_vector,
   nullable_varchar_vector
 }
+import com.nec.arrow.ArrowInterfaces.getUnsafe
 import com.nec.arrow.VeArrowTransfers.{
   nullableBigintVectorToBytePointer,
   nullableDoubleVectorToBytePointer,
@@ -29,7 +29,11 @@ import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
+import org.bytedeco.javacpp.Pointer
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.DoublePointer
+import org.bytedeco.javacpp.LongPointer
+import org.bytedeco.javacpp.IntPointer
 import sun.misc.Unsafe
 
 import java.io.{DataOutputStream, OutputStream}
@@ -97,6 +101,34 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       )
     )
 
+  class UnsafeBytePointer extends BytePointer
+  {
+    def setAddress(to: Long): Unit = {
+      address = to
+    }
+  }
+
+  class UnsafeDoublePointer extends DoublePointer
+  {
+    def setAddress(to: Long): Unit = {
+      address = to
+    }
+  }
+
+  class UnsafeIntPointer extends IntPointer
+  {
+    def setAddress(to: Long): Unit = {
+      address = to
+    }
+  }
+
+  class UnsafeLongPointer extends LongPointer
+  {
+    def setAddress(to: Long): Unit = {
+      address = to
+    }
+  }
+
   def newContainer()(implicit
     veProcess: VeProcess,
     source: VeColVectorSource,
@@ -105,39 +137,59 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     copy(underlying = {
       veType match {
         case VeScalarType.VeNullableDouble =>
+          val ptr = (new UnsafeDoublePointer())
+          ptr.setAddress(buffers(0))
+          val validityPtr = (new UnsafeLongPointer())
+          validityPtr.setAddress(buffers(1))
           val vcvr = new nullable_double_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
+            .count(numItems)
+            .data(ptr)
+            .validityBuffer(validityPtr)
           val bytePointer = nullableDoubleVectorToBytePointer(vcvr)
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeScalarType.VeNullableInt =>
+          val ptr = (new UnsafeIntPointer())
+          ptr.setAddress(buffers(0))
+          val validityPtr = (new UnsafeLongPointer())
+          validityPtr.setAddress(buffers(1))
           val vcvr = new nullable_int_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
+            .count(numItems)
+            .data(ptr)
+            .validityBuffer(validityPtr)
           val bytePointer = nullableIntVectorToBytePointer(vcvr)
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeScalarType.VeNullableLong =>
+          val ptr = (new UnsafeLongPointer())
+          ptr.setAddress(buffers(0))
+          val validityPtr = (new UnsafeLongPointer())
+          validityPtr.setAddress(buffers(1))
           val vcvr = new nullable_bigint_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
+            .count(numItems)
+            .data(ptr)
+            .validityBuffer(validityPtr)
           val bytePointer = nullableBigintVectorToBytePointer(vcvr)
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeString =>
-          val vcvr = new nullable_varchar_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.offsets = buffers(1)
-          vcvr.lengths = buffers(2)
-          vcvr.validityBuffer = buffers(3)
-          vcvr.dataSize =
-            variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
+          val ptr = (new UnsafeIntPointer())
+          ptr.setAddress(buffers(0))
+          val offsetsPtr = (new UnsafeIntPointer())
+          offsetsPtr.setAddress(buffers(1))
+          val lengthsPtr = (new UnsafeIntPointer())
+          lengthsPtr.setAddress(buffers(2))
+          val validityPtr = (new UnsafeLongPointer())
+          validityPtr.setAddress(buffers(3))
 
+          val vcvr = new nullable_varchar_vector()
+            .count(numItems)
+            .data(ptr)
+            .offsets(offsetsPtr)
+            .lengths(lengthsPtr)
+            .validityBuffer(validityPtr)
+            .dataSize(
+            variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize")))
           val bytePointer = nullableVarCharVectorVectorToBytePointer(vcvr)
 
           underlying.copy(container = veProcess.putPointer(bytePointer))

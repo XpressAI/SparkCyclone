@@ -20,7 +20,7 @@
 package com.nec.arrow
 
 import com.nec.arrow.ArrowInterfaces.c_bounded_data
-import com.nec.arrow.ArrowTransferStructures._
+import com.nec.arrow.TransferDefinitions._
 import com.nec.arrow.ArrowInterfaces._
 import com.nec.arrow.ArrowNativeInterface.NativeArgument.VectorInputNativeArgument.InputVectorWrapper.{
   BigIntVectorInputWrapper,

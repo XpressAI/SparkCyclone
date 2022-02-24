@@ -21,6 +21,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
+  .enablePlugins(SbtJavaCPP4S)
   .settings(version := "0.9.2")
 
 lazy val tracing = project
@@ -42,6 +43,22 @@ lazy val tracing = project
     reStart := reStart.dependsOn((Test / testQuick).toTask("")).evaluated,
     reStart / envVars += "LOG_DIR" -> file("tracing-dir").getAbsolutePath
   )
+
+gppCompilerPath := "g++"
+nativeJavaClassPath := "com.nec.arrow.TransferDefinitions"
+
+includePath := (baseDirectory in Compile).value / "src/main/resources/com/nec/cyclone/cpp"
+
+libraryName := "libTransferDefinitions"
+
+makeLibraryCommands := Seq(
+  "g++ -std=c++17 -fPIC",
+  "-I", includePath.value.toString,
+  currentLibraryMeta.value.option,
+  "-o",
+  (libraryDestinationPath.value / s"${libraryName.value}.${currentLibraryMeta.value.extension}").toString,
+  ((baseDirectory in Compile).value / "src/main/resources/com/nec/cyclone/cpp/cyclone/" / "transfer-definitions.hpp").toString
+)
 
 /**
  * Run with:
@@ -149,6 +166,8 @@ libraryDependencies ++= {
   }
 }
 
+
+Test / fork := true
 Test / unmanagedJars ++= sys.env
   .get("CUDF_PATH")
   .map(path => new File(path))
@@ -168,7 +187,9 @@ CMake / parallelExecution := true
  */
 CMake / testGrouping := (CMake / definedTests).value.map { suite =>
   import sbt.Tests._
-  Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
+  Group(suite.name, Seq(suite), SubProcess(ForkOptions(runJVMOptions = Vector("-Djava.library.path=target/libjni"),
+                                                       bootJars=Vector[java.io.File](), javaHome=None, outputStrategy=None,
+                                                       workingDirectory=None, connectInput=false, envVars = Map[String, String]())))
 }
 
 /** Vector Engine specific configuration */
@@ -184,7 +205,9 @@ VectorEngine / run / fork := true
  */
 VectorEngine / testGrouping := (VectorEngine / definedTests).value.map { suite =>
   import sbt.Tests._
-  Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
+  Group(suite.name, Seq(suite), SubProcess(ForkOptions(runJVMOptions = Vector("-Djava.library.path=target/libjni"),
+                                                       bootJars=Vector[java.io.File](), javaHome=None, outputStrategy=None,
+                                                       workingDirectory=None, connectInput=false, envVars = Map[String, String]())))
 }
 
 /** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
@@ -194,6 +217,7 @@ VectorEngine / run / javaOptions ++= {
     List("-agentlib:hprof=cpu=samples")
   else Nil
 }
+
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
 VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
 
