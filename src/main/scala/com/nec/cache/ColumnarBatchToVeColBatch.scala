@@ -32,7 +32,7 @@ object ColumnarBatchToVeColBatch {
               case None =>
                 val field = arrowSchema.getFields.get(i)
                 BytePointerColVector
-                  .fromColumnarVector(
+                  .fromColumnarVectorViaArrow(
                     field.getName,
                     columnarBatch.column(i),
                     columnarBatch.numRows()

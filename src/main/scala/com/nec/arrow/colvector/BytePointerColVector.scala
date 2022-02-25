@@ -12,8 +12,9 @@ import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
-import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.{BytePointer, IntPointer}
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.{
   DateType,
   DoubleType,
@@ -147,11 +148,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           )
           val buff = new BytePointer(ByteBuffer.allocateDirect(dataSize))
 
-          getUnsafe.copyMemory(
-            bytePointersAddresses(0),
-            buff.address(),
-            dataSize
-          )
+          getUnsafe.copyMemory(bytePointersAddresses(0), buff.address(), dataSize)
           val intBuff = buff.asBuffer().asIntBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
         }
@@ -205,6 +202,30 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
 }
 
 object BytePointerColVector {
+  def fromOffHeapColumnarVector(size: Int, str: String, col: OffHeapColumnVector)(implicit
+    source: VeColVectorSource
+  ): Option[BytePointerColVector] = {
+    PartialFunction.condOpt(col.dataType()) { case IntegerType =>
+      /** TODO do this in one shot - whether on the VE or via Intel CPU extensions */
+      val ptr = new IntPointer(size.toLong)
+      (0 until size).foreach(idx => ptr.put(idx.toLong, col.getInt(idx)))
+      val validity = new IntPointer(size.toLong)
+      /** TODO do this correctly - it works for some limited cases, however */
+      (0 until size).foreach(idx => validity.put(idx.toLong, Int.MaxValue))
+
+      BytePointerColVector(
+        GenericColVector(
+          source = source,
+          numItems = size,
+          name = str,
+          variableSize = None,
+          veType = VeScalarType.veNullableInt,
+          container = None,
+          buffers = List(Some(new BytePointer(ptr)), Some(new BytePointer(validity)))
+        )
+      )
+    }
+  }
 
   def fromArrowVector(
     valueVector: ValueVector
@@ -333,7 +354,7 @@ object BytePointerColVector {
     )
   }
 
-  def fromColumnarVector(name: String, columnVector: ColumnVector, size: Int)(implicit
+  def fromColumnarVectorViaArrow(name: String, columnVector: ColumnVector, size: Int)(implicit
     source: VeColVectorSource,
     bufferAllocator: BufferAllocator
   ): Option[(FieldVector, BytePointerColVector)] = {

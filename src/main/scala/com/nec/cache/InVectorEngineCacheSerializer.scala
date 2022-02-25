@@ -97,7 +97,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
                   .toVeColVector()
               case None =>
                 BytePointerColVector
-                  .fromColumnarVector(
+                  .fromColumnarVectorViaArrow(
                     schema(i).name,
                     columnarBatch.column(i),
                     columnarBatch.numRows()

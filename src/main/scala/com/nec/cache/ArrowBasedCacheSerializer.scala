@@ -100,7 +100,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
                   .toByteArrayColVector()
               case None =>
                 BytePointerColVector
-                  .fromColumnarVector(
+                  .fromColumnarVectorViaArrow(
                     schema(i).name,
                     columnarBatch.column(i),
                     columnarBatch.numRows()
