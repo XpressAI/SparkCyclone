@@ -302,14 +302,24 @@ object VeArrowTransfers extends LazyLogging {
   private def make_veo_short_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(implicit
     cleanup: Cleanup
   ): nullable_short_vector = {
-    val keyName = "short_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
+    val keyName = "int2_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
+    val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
+    intVector.setValueCount(smallIntVector.getValueCount)
+
+    (0 until smallIntVector.getValueCount)
+      .foreach {
+        case idx if (!smallIntVector.isNull(idx)) =>
+          intVector.set(idx, smallIntVector.get(idx).toInt)
+        case idx => intVector.setNull(idx)
+      }
     logger.debug(s"Copying Buffer to VE for $keyName")
+
     val vcvr = new nullable_short_vector()
-    vcvr.count = smallIntVector.getValueCount
-    vcvr.data =
-      copyPointerToVe(proc, new BytePointer(smallIntVector.getDataBuffer.nioBuffer()))(cleanup)
+    vcvr.count = intVector.getValueCount
+    vcvr.data = copyPointerToVe(proc, new BytePointer(intVector.getDataBuffer.nioBuffer()))(cleanup)
     vcvr.validityBuffer =
-      copyPointerToVe(proc, new BytePointer(smallIntVector.getValidityBuffer.nioBuffer()))(cleanup)
+      copyPointerToVe(proc, new BytePointer(intVector.getValidityBuffer.nioBuffer()))(cleanup)
+
     vcvr
   }
 

@@ -73,20 +73,14 @@ object CFunctionGeneration {
     def storeTo(outputName: String): CodeLines = isNotNullCode match {
       case None =>
         CodeLines
-          .from(
-            s"${outputName}->data[i] = ${cCode};",
-            s"$outputName->set_validity(i, 1);"
-          )
+          .from(s"${outputName}->data[i] = ${cCode};", s"$outputName->set_validity(i, 1);")
           .indented
       case Some(nullCheck) =>
         CodeLines
           .from(
             s"if( ${nullCheck} ) {",
             CodeLines
-              .from(
-                s"${outputName}->data[i] = ${cCode};",
-                s"$outputName->set_validity(i, 1);"
-              )
+              .from(s"${outputName}->data[i] = ${cCode};", s"$outputName->set_validity(i, 1);")
               .indented,
             "} else {",
             CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
@@ -165,7 +159,7 @@ object CFunctionGeneration {
 
       def cVectorType: String = "nullable_short_vector"
 
-      override def cSize: Int = 2
+      override def cSize: Int = 4
     }
 
     case object VeNullableInt extends VeScalarType {
@@ -604,13 +598,16 @@ object CFunctionGeneration {
       )
     }
 
-    val sortingTuple = sort.sorts.flatMap { veScalar =>
-      List(veScalar.typedExpression.veType.cScalarType, "int")
-    }.mkString("std::tuple<", ", ", ">")
+    val sortingTuple = sort.sorts
+      .flatMap { veScalar =>
+        List(veScalar.typedExpression.veType.cScalarType, "int")
+      }
+      .mkString("std::tuple<", ", ", ">")
 
-    val sortOrder = sortingTypes.map { case (_, order) =>
+    val sortOrder = sortingTypes
+      .map { case (_, order) =>
         order match {
-          case Ascending => 1
+          case Ascending  => 1
           case Descending => 0
         }
       }
