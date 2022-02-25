@@ -215,7 +215,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     case VeScalarType.VeNullableShort =>
       val intVector = new SmallIntVector("output", bufferAllocator)
       if (numItems > 0) {
-        val dataSize = numItems * 2
+        val dataSize = numItems * 4
         val vhTarget = new BytePointer(dataSize)
         val validityTarget = new BytePointer(numItems)
         veProcess.get(buffers.head, vhTarget, vhTarget.limit())
