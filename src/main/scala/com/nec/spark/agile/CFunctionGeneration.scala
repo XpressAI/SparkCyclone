@@ -20,35 +20,17 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{
-  VeNullableDouble,
-  VeNullableFloat,
-  VeNullableInt,
-  VeNullableLong
-}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringProducer.{FrovedisCopyStringProducer, FrovedisStringProducer}
-import com.nec.spark.agile.groupby.GroupByOutline
+import com.nec.spark.agile.StringProducer.FrovedisStringProducer
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
-import org.aopalliance.reflect.Code
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
-  def veType(d: DataType): VeScalarType = {
-    d match {
-      case DoubleType =>
-        VeScalarType.VeNullableDouble
-      case IntegerType | DateType =>
-        VeScalarType.VeNullableInt
-      case x =>
-        sys.error(s"unsupported dataType $x")
-    }
-  }
-
-  trait SortOrdering
+  sealed trait SortOrdering
   final case object Descending extends SortOrdering
   final case object Ascending extends SortOrdering
 
@@ -67,7 +49,7 @@ object CFunctionGeneration {
       }
     def varChar(name: String): CVector = CVarChar(name)
     def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
-    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableInt)
+    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableShort)
     def bigInt(name: String): CVector = CScalarVector(name, VeScalarType.VeNullableLong)
   }
 
@@ -91,20 +73,14 @@ object CFunctionGeneration {
     def storeTo(outputName: String): CodeLines = isNotNullCode match {
       case None =>
         CodeLines
-          .from(
-            s"${outputName}->data[i] = ${cCode};",
-            s"$outputName->set_validity(i, 1);"
-          )
+          .from(s"${outputName}->data[i] = ${cCode};", s"$outputName->set_validity(i, 1);")
           .indented
       case Some(nullCheck) =>
         CodeLines
           .from(
             s"if( ${nullCheck} ) {",
             CodeLines
-              .from(
-                s"${outputName}->data[i] = ${cCode};",
-                s"$outputName->set_validity(i, 1);"
-              )
+              .from(s"${outputName}->data[i] = ${cCode};", s"$outputName->set_validity(i, 1);")
               .indented,
             "} else {",
             CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
@@ -160,7 +136,7 @@ object CFunctionGeneration {
 
   object VeScalarType {
     val All: Set[VeScalarType] =
-      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong)
+      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong)
     case object VeNullableDouble extends VeScalarType {
 
       def cScalarType: String = "double"
@@ -174,6 +150,14 @@ object CFunctionGeneration {
       def cScalarType: String = "float"
 
       def cVectorType: String = "nullable_float_vector"
+
+      override def cSize: Int = 4
+    }
+
+    case object VeNullableShort extends VeScalarType {
+      def cScalarType: String = "int32_t"
+
+      def cVectorType: String = "nullable_short_vector"
 
       override def cSize: Int = 4
     }
@@ -196,6 +180,7 @@ object CFunctionGeneration {
 
     def veNullableDouble: VeScalarType = VeNullableDouble
     def veNullableInt: VeScalarType = VeNullableInt
+    def veNullableShort: VeScalarType = VeNullableShort
     def veNullableLong: VeScalarType = VeNullableLong
   }
 
@@ -423,6 +408,7 @@ object CFunctionGeneration {
   final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
 
   final case class VeSortExpression(typedExpression: TypedCExpression2, sortOrdering: SortOrdering)
+
   def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
     cVector.veType match {
       case VeString =>
@@ -435,6 +421,8 @@ object CFunctionGeneration {
         new IntVector(cVector.name, bufferAllocator)
       case VeNullableLong =>
         new BigIntVector(cVector.name, bufferAllocator)
+      case VeNullableShort =>
+        new SmallIntVector(cVector.name, bufferAllocator)
     }
 
   val KeyHeaders = CodeLines.from(
@@ -610,13 +598,16 @@ object CFunctionGeneration {
       )
     }
 
-    val sortingTuple = sort.sorts.flatMap { veScalar =>
-      List(veScalar.typedExpression.veType.cScalarType, "int")
-    }.mkString("std::tuple<", ", ", ">")
+    val sortingTuple = sort.sorts
+      .flatMap { veScalar =>
+        List(veScalar.typedExpression.veType.cScalarType, "int")
+      }
+      .mkString("std::tuple<", ", ", ">")
 
-    val sortOrder = sortingTypes.map { case (_, order) =>
+    val sortOrder = sortingTypes
+      .map { case (_, order) =>
         order match {
-          case Ascending => 1
+          case Ascending  => 1
           case Descending => 0
         }
       }

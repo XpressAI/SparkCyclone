@@ -209,13 +209,13 @@ object VeArrowTransfers extends LazyLogging {
           )
         )
       case SmallIntVectorInputWrapper(smallIntVector) =>
-        val int_vector_raw = make_veo_int_vector(proc, smallIntVector)
+        val short_int_vector_raw = make_veo_short_vector(proc, smallIntVector)
         requireOk(
           veo.veo_args_set_stack(
             our_args,
             0,
             index,
-            nullableIntVectorToBytePointer(int_vector_raw),
+            nullableShortVectorToBytePointer(short_int_vector_raw),
             20L
           )
         )
@@ -299,9 +299,9 @@ object VeArrowTransfers extends LazyLogging {
     vcvr
   }
 
-  private def make_veo_int_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(implicit
+  private def make_veo_short_vector(proc: veo_proc_handle, smallIntVector: SmallIntVector)(implicit
     cleanup: Cleanup
-  ): nullable_int_vector = {
+  ): nullable_short_vector = {
     val keyName = "int2_" + smallIntVector.getName + "_" + smallIntVector.getDataBuffer.capacity()
     val intVector = new IntVector("name", ArrowUtilsExposed.rootAllocator)
     intVector.setValueCount(smallIntVector.getValueCount)
@@ -314,7 +314,7 @@ object VeArrowTransfers extends LazyLogging {
       }
     logger.debug(s"Copying Buffer to VE for $keyName")
 
-    val vcvr = new nullable_int_vector()
+    val vcvr = new nullable_short_vector()
     vcvr.count = intVector.getValueCount
     vcvr.data = copyPointerToVe(proc, new BytePointer(intVector.getDataBuffer.nioBuffer()))(cleanup)
     vcvr.validityBuffer =
@@ -632,6 +632,14 @@ object VeArrowTransfers extends LazyLogging {
     v_bb.putLong(0, int_vector.data)
     v_bb.putLong(8, int_vector.validityBuffer)
     v_bb.putInt(16, int_vector.count)
+    new BytePointer(v_bb)
+  }
+
+  def nullableShortVectorToBytePointer(short_vector: nullable_short_vector): BytePointer = {
+    val v_bb = short_vector.getPointer.getByteBuffer(0, 20)
+    v_bb.putLong(0, short_vector.data)
+    v_bb.putLong(8, short_vector.validityBuffer)
+    v_bb.putInt(16, short_vector.count)
     new BytePointer(v_bb)
   }
 

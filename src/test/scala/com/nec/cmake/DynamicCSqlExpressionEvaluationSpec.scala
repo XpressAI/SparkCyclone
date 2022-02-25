@@ -97,7 +97,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_pairwise_short = s"SELECT ${SampleColD} + ${SampleColD} FROM nums"
-  "Support pairwise addition with shorts" ignore withSparkSession2(configuration) { sparkSession =>
+  "Support pairwise addition with shorts" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_pairwise_short).debugSqlHere { ds =>
@@ -163,7 +163,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
 
   val sql_select_sort2 =
     s"SELECT ${SampleColA}, ${SampleColB}, (${SampleColA} + ${SampleColB}) FROM nums ORDER BY ${SampleColB}"
-  "Support order by with select with addition" ignore withSparkSession2(configuration) {
+  "Support order by with select with addition" in withSparkSession2(configuration) {
     sparkSession =>
       makeCsvNumsMultiColumn(sparkSession)
       import sparkSession.implicits._

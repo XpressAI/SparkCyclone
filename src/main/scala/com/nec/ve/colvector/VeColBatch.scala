@@ -76,6 +76,8 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     veProcess: VeProcess
   ): ColumnarBatch = {
     val vecs = underlying.cols.map(_.toArrowVector())
+    println("TEST DATA: " + underlying.cols.map(_.veType))
+
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(underlying.numRows)
     cb

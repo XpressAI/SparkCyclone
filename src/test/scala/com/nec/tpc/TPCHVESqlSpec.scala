@@ -43,6 +43,7 @@ object TPCHVESqlSpec {
       )
       .config(key = "spark.ui.enabled", value = true)
       .config(key = "spark.com.nec.spark.fail-fast", value = failFast)
+      .config(key = "spark.com.nec.spark.sort-on-ve", value = true)
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
   }
