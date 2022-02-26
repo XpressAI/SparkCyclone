@@ -31,6 +31,17 @@ import org.apache.arrow.vector.{
 }
 
 import java.time.{Duration, Instant, LocalDate, ZoneId}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  DateDayVector,
+  Float8Vector,
+  IntVector,
+  SmallIntVector,
+  VarCharVector
+}
+
+import java.time.{Duration, LocalDate, ZoneId}
+import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, VarCharVector}
 
 final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
   bufferAllocator: BufferAllocator
@@ -75,6 +86,37 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
           .flatTap { vcv =>
             IO.delay {
               intBatch.view.zipWithIndex.foreach { case (str, idx) => vcv.setSafe(idx, str) }
+              vcv.setValueCount(intBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def shortVector(shortBatch: Seq[Short]): Resource[IO, SmallIntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new SmallIntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              shortBatch.view.zipWithIndex.foreach { case (short, idx) => vcv.setSafe(idx, short) }
+              vcv.setValueCount(shortBatch.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
+  def optionalIntVector(intBatch: Seq[Option[Int]]): Resource[IO, IntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new IntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              intBatch.view.zipWithIndex.foreach {
+                case (None, idx)      => vcv.setNull(idx)
+                case (Some(str), idx) => vcv.setSafe(idx, str)
+              }
               vcv.setValueCount(intBatch.length)
               vcv
             }
@@ -162,4 +204,5 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
           }
       )(res => IO.delay(res.close()))
     )
+
 }

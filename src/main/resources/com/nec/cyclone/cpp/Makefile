@@ -31,6 +31,12 @@ SOURCES = $(shell find frovedis -name \*.cc) \
 
 TEST_SOURCES = $(shell find tests -name \*.cc)
 
+# Create a BOM file of the source files (for use by the Spark Cyclone plugin)
+bom:
+	find frovedis -name \*.cc -o -name \*.hpp -o -name \*.incl\* | sort > sources.bom
+	find cyclone -name \*.cc -o -name \*.hpp | sort >> sources.bom
+	echo Makefile >> sources.bom
+
 # Build the library
 libcyclone.so: $(DEPS)
 	$(CPP) $(CPP_OPTS) -shared -fPIC -o libcyclone.so $(SOURCES)
@@ -49,4 +55,7 @@ examples: libcyclone.so
 	VE_LD_LIBRARY_PATH=. ./cyclone-examples.out
 
 clean:
-	rm -f *.s *.L *.o *.so *.out
+	rm -f *.s *.L *.o *.out
+
+cleanall:
+	rm -f *.s *.L *.o *.out *.so *.bom

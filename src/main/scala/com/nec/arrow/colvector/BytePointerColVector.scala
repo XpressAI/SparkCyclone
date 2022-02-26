@@ -13,10 +13,10 @@ import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.types.{IntegerType, StringType}
+import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
-import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.{BytePointer, IntPointer}
+import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
@@ -134,7 +134,8 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             lengthTarget.capacity()
           )
 
-          val dataSize = startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex)
+          val dataSize =
+            (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
           val vhTarget = new BytePointer(dataSize * 4)
 
           getUnsafe.copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
