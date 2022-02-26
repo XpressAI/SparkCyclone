@@ -97,7 +97,9 @@ object CFunctionGeneration {
     name: String,
     veType: VeScalarType,
     cExpression: CExpression
-  )
+  ) {
+    def cVector: CVector = veType.makeCVector(name)
+  }
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
   @SQLUserDefinedType(udt = classOf[UserDefinedVeType])

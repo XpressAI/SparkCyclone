@@ -10,6 +10,8 @@ import java.time.Instant
 
 trait VeKernelInfra { this: Suite =>
 
+  protected implicit def kernelInfra: VeKernelInfra = this
+
   def compiledWithHeaders[T](cCode: CFunction, name: String)(f: Path => T): T = {
     withCompiled(cCode.toCodeLinesHeaderPtr(name).cCode)(f)
   }
@@ -18,7 +20,7 @@ trait VeKernelInfra { this: Suite =>
     withCompiled(CodeLines.from(KeyHeaders, cCode.toCodeLines(name)).cCode)(f)
   }
 
-  def withCompiled[T](cCode: String)(f: Path => T): T = {
+  private def withCompiled[T](cCode: String)(f: Path => T): T = {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val oPath =
       VeKernelCompiler(s"${getClass.getSimpleName.replaceAllLiterally("$", "")}", veBuildPath)
