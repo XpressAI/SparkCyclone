@@ -11,10 +11,7 @@ import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
-import java.time.LocalDate
-
 final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
-  private implicit val bufAllocator = new RootAllocator()
   import java.time.{Instant, LocalDate}
   private implicit val bufAllocator: RootAllocator = new RootAllocator()
   private val vecBuilder = CatsArrowVectorBuilders(Ref.unsafe(1))

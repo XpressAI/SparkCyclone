@@ -13,8 +13,9 @@ import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
+import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.{BytePointer, IntPointer}
 import sun.nio.ch.DirectBuffer
 

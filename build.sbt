@@ -473,9 +473,14 @@ cycloneCppTgtDir := (Compile / resourceManaged).value / "cycloneve"
 Compile / resourceGenerators += Def.taskDyn {
   // If ncc is availble, build both the BOM and the library
   if (Files.exists(Paths.get("/opt/nec/ve/bin/ncc"))) cycloneVeLibrary.toTask
-  // Else just build the BOM (may be needed for CMake tests)
-  else cycloneVeSourcesBom.toTask
+  else emptyTask.toTask
 }.taskValue
+
+
+lazy val emptyTask = taskKey[Seq[File]]("Do nothing")
+emptyTask := {
+  Seq.empty
+}
 
 lazy val cycloneVeLibrarySources = taskKey[Seq[File]]("Cyclone VE library sources")
 cycloneVeLibrarySources := {
