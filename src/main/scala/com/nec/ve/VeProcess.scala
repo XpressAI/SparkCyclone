@@ -1,22 +1,15 @@
 package com.nec.ve
 
-import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CFunctionGeneration.{
-  CScalarVector,
-  CVarChar,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
+import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
+import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
-import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
 import java.io.{InputStream, OutputStream}
 import java.nio.channels.Channels
@@ -501,5 +494,22 @@ object VeProcess {
       memoryLocation
     }
 
+  }
+
+  object Requires {
+    def requireOk(result: Int): Unit = {
+      require(result >= 0, s"Result should be >=0, got $result")
+    }
+    def requireOk(result: Int, extra: => String): Unit = {
+      require(result >= 0, s"Result should be >=0, got $result; ${extra}")
+    }
+
+    def requirePositive(result: Long): Unit = {
+      require(result > 0, s"Result should be > 0, got $result")
+    }
+
+    def requirePositive(result: Long, note: => String): Unit = {
+      require(result > 0, s"Result should be > 0, got $result; $note")
+    }
   }
 }
