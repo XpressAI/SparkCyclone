@@ -1068,32 +1068,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       false
     )
 
-
-    evalFunction(cFunction, functionName)(input, outputs.map(_.cVector))
+    evalFunction(filterFn, functionName)(input, outputs.map(_.cVector))
 
     val generatedSource = CodeLines.from("""#include "cyclone/cyclone.hpp"""", filterFn.toCodeLines)
 
-    val cLib = CMakeBuilder.buildCLogging(
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(filterFn.name, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
+    evalFunction(
+      filterFn, "filter_f"
+    )(input, veRetriever.veTypes.zipWithIndex.map{ case (t, i)=> t.makeCVector(s"out_${i}")})
   }
 
   def evalSort[Data](input: Data*)(sorts: VeSortExpression*)(implicit
@@ -1129,112 +1110,4 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
   }
 
-  final case class SplitGroupBy[Partial, Output](
-    stringGrouping: StringGrouping,
-    output: (StringGrouping, TypedGroupByExpression[Double])
-  ) {
-
-    def generator: OldUnifiedGroupByFunctionGeneration = OldUnifiedGroupByFunctionGeneration(
-      VeGroupBy(
-        inputs = List(CVector.varChar("input_0"), CVector.double("input_1")),
-        groups = List(Left(stringGrouping)),
-        outputs = List(
-          Left(NamedStringProducer("output_0", StringProducer.copyString(output._1.name))),
-          Right(
-            NamedGroupByExpression(
-              "output_1",
-              VeScalarType.veNullableDouble,
-              output._2.groupByExpression
-            )
-          )
-        )
-      )
-    )
-
-    def evalFull(inputData: List[(String, Double)]): List[(String, Double)] = evalFinal(
-      evalPartial(inputData)
-    )
-
-    def evalFinal(partialInputData: List[(String, Double, Long)]): List[(String, Double)] = {
-      val functionName = "aggregate_final"
-
-      val generatedSource: CodeLines =
-        ??? // = generator.renderFinalGroupBy.toCodeLines(functionName)
-
-      logger.debug(s"Generated code: ${generatedSource.cCode}")
-
-      val cLib = CMakeBuilder.buildCLogging(
-        List(generatedSource.cCode)
-          .mkString("\n\n")
-      )
-
-      val nativeInterface = new CArrowNativeInterface(cLib.toString)
-      WithTestAllocator { implicit allocator =>
-        withArrowStringVector(partialInputData.map(_._1)) { vcv =>
-          withDirectFloat8Vector(partialInputData.map(_._2)) { f8v =>
-            withDirectBigIntVector(partialInputData.map(_._3)) { iv =>
-              withNullableArrowStringVector(Seq.empty) { vcv_out =>
-                withDirectFloat8Vector(Seq.empty) { f8v_out =>
-                  nativeInterface.callFunctionWrapped(
-                    functionName,
-                    List(
-                      NativeArgument.input(vcv),
-                      NativeArgument.input(f8v),
-                      NativeArgument.input(iv),
-                      NativeArgument.output(vcv_out),
-                      NativeArgument.output(f8v_out)
-                    )
-                  )
-
-                  vcv_out.toList.zip(f8v_out.toList)
-                }
-              }
-            }
-          }
-        }
-      }
-
-    }
-
-    def evalPartial(inputData: List[(String, Double)]): List[(String, Double, Long)] = {
-      val functionName = "aggregate_partial"
-
-      val generatedSource = CodeLines.empty //.renderPartialGroupBy.toCodeLines(functionName)
-
-      logger.debug(s"Generated code: ${generatedSource.cCode}")
-
-      val cLib = CMakeBuilder.buildCLogging(
-        List("\n\n", generatedSource.cCode)
-          .mkString("\n\n")
-      )
-
-      val nativeInterface = new CArrowNativeInterface(cLib.toString)
-      WithTestAllocator { implicit allocator =>
-        withArrowStringVector(inputData.map(_._1)) { vcv =>
-          withDirectFloat8Vector(inputData.map(_._2)) { f8v =>
-            withNullableArrowStringVector(Seq.empty) { vcv_out =>
-              withDirectFloat8Vector(Seq.empty) { f8v_out =>
-                withDirectBigIntVector(Seq.empty) { iv_out =>
-                  nativeInterface.callFunctionWrapped(
-                    functionName,
-                    List(
-                      NativeArgument.input(vcv),
-                      NativeArgument.input(f8v),
-                      NativeArgument.output(vcv_out),
-                      NativeArgument.output(f8v_out),
-                      NativeArgument.output(iv_out)
-                    )
-                  )
-
-                  vcv_out.toList.zip(f8v_out.toList).zip(iv_out.toList).map { case ((s, d), i) =>
-                    (s, d, i)
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
 }
