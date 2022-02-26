@@ -91,38 +91,12 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   ): VeColVector =
     copy(underlying = {
       veType match {
-        case VeScalarType.VeNullableDouble =>
-          val vcvr = new nullable_double_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableDoubleVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeScalarType.VeNullableInt =>
-          val vcvr = new nullable_int_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableIntVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeScalarType.VeNullableShort =>
-          val vcvr = new nullable_short_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableShortVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeScalarType.VeNullableLong =>
-          val vcvr = new nullable_bigint_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableBigintVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
+        case scalarType: VeScalarType
+            if VeArrowTypeMapping.VeTypeToBytePointer.contains(scalarType) =>
+          val mapper = VeArrowTypeMapping.VeTypeToBytePointer(scalarType)
+          underlying.copy(container =
+            veProcess.putPointer(mapper.toBytePointer(numItems, buffers(0), buffers(1)))
+          )
         case VeString =>
           val vcvr = new nullable_varchar_vector()
           vcvr.count = numItems
