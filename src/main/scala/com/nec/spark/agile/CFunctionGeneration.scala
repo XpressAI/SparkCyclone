@@ -159,7 +159,7 @@ object CFunctionGeneration {
 
       def cVectorType: String = "nullable_short_vector"
 
-      override def cSize: Int = 2
+      override def cSize: Int = 4
     }
 
     case object VeNullableInt extends VeScalarType {
