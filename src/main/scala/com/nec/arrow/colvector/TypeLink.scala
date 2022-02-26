@@ -87,15 +87,8 @@ object TypeLink {
       new DateDayVector(name, bufferAllocator)
 
     override def transfer(idx: Int, from: ColumnVector, to: ArrowType): Unit =
-      try if (from.isNullAt(idx)) to.setNull(idx)
+      if (from.isNullAt(idx)) to.setNull(idx)
       else to.set(idx, from.getInt(idx))
-      catch {
-        case e: Throwable =>
-          throw new RuntimeException(
-            s"Failed to transfer ${idx} from ${from} (type: ${from.dataType()}) to ${to}",
-            e
-          )
-      }
 
     override def veScalarType: VeScalarType = VeScalarType.veNullableInt
   }
@@ -112,13 +105,13 @@ object TypeLink {
   val VeToArrow: Map[VeScalarType, TypeLink] = Map(
     VeScalarType.VeNullableDouble -> DoubleTypeLink,
     VeScalarType.VeNullableInt -> IntegerTypeLink,
-    VeScalarType.VeNullableLong -> LongTypeLink,
+    VeScalarType.VeNullableLong -> LongTypeLink
   )
 
   val ArrowToVe: Map[Class[_ <: BaseFixedWidthVector], TypeLink] = Map(
     classOf[Float8Vector] -> DoubleTypeLink,
     classOf[BigIntVector] -> LongTypeLink,
     classOf[IntVector] -> IntegerTypeLink,
-    classOf[DateDayVector] -> DateTypeLink,
+    classOf[DateDayVector] -> DateTypeLink
   )
 }
