@@ -1,7 +1,6 @@
 package com.nec.ve.colvector
 
 import com.nec.arrow.ArrowTransferStructures._
-import com.nec.arrow.VeArrowTransfers._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
@@ -91,13 +90,17 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   ): VeColVector =
     copy(underlying = {
       veType match {
-        case scalarType: VeScalarType
-            if VeArrowTypeMapping.VeTypeToBytePointer.contains(scalarType) =>
-          val mapper = VeArrowTypeMapping.VeTypeToBytePointer(scalarType)
-          underlying.copy(container =
-            veProcess.putPointer(mapper.toBytePointer(numItems, buffers(0), buffers(1)))
-          )
+        case _: VeScalarType =>
+          // todo replace without using JNA at all
+          val double_vector = new nullable_double_vector()
+          val v_bb = double_vector.getPointer.getByteBuffer(0, 20)
+          v_bb.putLong(0, buffers(0))
+          v_bb.putLong(8, buffers(1))
+          v_bb.putInt(16, numItems)
+          val bytePointer = new BytePointer(v_bb)
+          underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeString =>
+          // todo use to replace without JNA at all
           val vcvr = new nullable_varchar_vector()
           vcvr.count = numItems
           vcvr.data = buffers(0)
@@ -107,7 +110,16 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           vcvr.dataSize =
             variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
 
-          val bytePointer = nullableVarCharVectorVectorToBytePointer(vcvr)
+          val bytePointer = {
+            val v_bb = vcvr.getPointer.getByteBuffer(0, (8 * 4) + (4 * 2))
+            v_bb.putLong(0, vcvr.data)
+            v_bb.putLong(8, vcvr.offsets)
+            v_bb.putLong(16, vcvr.lengths)
+            v_bb.putLong(24, vcvr.validityBuffer)
+            v_bb.putInt(32, vcvr.dataSize)
+            v_bb.putInt(36, vcvr.count)
+            new BytePointer(v_bb)
+          }
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case other => sys.error(s"Other $other not supported.")
