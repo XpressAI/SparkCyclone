@@ -1,8 +1,9 @@
 package com.nec.arrow.colvector
 
-import java.nio.ByteBuffer
 import com.nec.arrow.ArrowInterfaces
-import com.nec.arrow.ArrowInterfaces.getUnsafe
+import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -11,20 +12,13 @@ import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
-import org.bytedeco.javacpp.{BytePointer, IntPointer}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.types.{
-  DateType,
-  DoubleType,
-  IntegerType,
-  LongType,
-  ShortType,
-  StringType,
-  TimestampType
-}
+import org.apache.spark.sql.types.{IntegerType, StringType}
+import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.ColumnVector
+import org.bytedeco.javacpp.{BytePointer, IntPointer}
+
+import java.nio.ByteBuffer
 
 /**
  * Storage of a col vector as serialized Arrow buffers, that are in BytePointers.
@@ -89,54 +83,8 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     import underlying.{buffers, numItems}
     val bytePointersAddresses = buffers.flatten.map(_.address())
     underlying.veType match {
-      case VeScalarType.VeNullableDouble =>
-        val float8Vector = new Float8Vector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * 8
-          float8Vector.setValueCount(numItems)
-          getUnsafe.copyMemory(
-            bytePointersAddresses(1),
-            float8Vector.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-          getUnsafe.copyMemory(
-            bytePointersAddresses(0),
-            float8Vector.getDataBufferAddress,
-            dataSize
-          )
-        }
-        float8Vector
-      case VeScalarType.VeNullableLong =>
-        val bigIntVector = new BigIntVector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * 8
-          bigIntVector.setValueCount(numItems)
-          getUnsafe.copyMemory(
-            bytePointersAddresses(1),
-            bigIntVector.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-          getUnsafe.copyMemory(
-            bytePointersAddresses(0),
-            bigIntVector.getDataBufferAddress,
-            dataSize
-          )
-        }
-        bigIntVector
-      case VeScalarType.VeNullableInt =>
-        val intVector = new IntVector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * 4
-          intVector.setValueCount(numItems)
-          getUnsafe.copyMemory(
-            bytePointersAddresses(1),
-            intVector.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-          getUnsafe.copyMemory(bytePointersAddresses(0), intVector.getDataBufferAddress, dataSize)
-        }
-        intVector
       case VeScalarType.VeNullableShort =>
+        /** Short type is casted to int */
         val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
           val dataSize = numItems * 4
@@ -153,6 +101,20 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
         }
         smallIntVector
+      case scalarType: VeScalarType if VeToArrow.contains(scalarType) =>
+        val typeLink = VeToArrow(scalarType)
+        val vec = typeLink.makeArrow(underlying.name)(bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * scalarType.cSize
+          vec.setValueCount(numItems)
+          getUnsafe.copyMemory(
+            bytePointersAddresses(1),
+            vec.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+          getUnsafe.copyMemory(bytePointersAddresses(0), vec.getDataBufferAddress, dataSize)
+        }
+        vec
       case VeString =>
         val vcvr = new VarCharVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
@@ -172,8 +134,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             lengthTarget.capacity()
           )
 
-          val dataSize =
-            (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
+          val dataSize = startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex)
           val vhTarget = new BytePointer(dataSize * 4)
 
           getUnsafe.copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
@@ -210,6 +171,7 @@ object BytePointerColVector {
       val ptr = new IntPointer(size.toLong)
       (0 until size).foreach(idx => ptr.put(idx.toLong, col.getInt(idx)))
       val validity = new IntPointer(size.toLong)
+
       /** TODO do this correctly - it works for some limited cases, however */
       (0 until size).foreach(idx => validity.put(idx.toLong, Int.MaxValue))
 
@@ -231,100 +193,27 @@ object BytePointerColVector {
     valueVector: ValueVector
   )(implicit source: VeColVectorSource): BytePointerColVector =
     valueVector match {
-      case float8Vector: Float8Vector     => fromFloat8Vector(float8Vector)
-      case bigIntVector: BigIntVector     => fromBigIntVector(bigIntVector)
-      case intVector: IntVector           => fromIntVector(intVector)
-      case varCharVector: VarCharVector   => fromVarcharVector(varCharVector)
-      case dateDayVector: DateDayVector   => fromDateDayVector(dateDayVector)
-      case smallIntVector: SmallIntVector => fromSmallIntVector(smallIntVector)
-      case other                          => sys.error(s"Not supported to convert from ${other.getClass}")
+      case smallIntVector: SmallIntVector =>
+        fromBaseFixedWidthVector(VeNullableInt, smallIntVector.toIntVector)
+      case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
+        fromBaseFixedWidthVector(ArrowToVe(vec.getClass).veScalarType, vec)
+      case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
+      case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
     }
 
-  def fromBigIntVector(
-    bigIntVector: BigIntVector
-  )(implicit source: VeColVectorSource): BytePointerColVector =
+  def fromBaseFixedWidthVector(veType: VeScalarType, bigIntVector: BaseFixedWidthVector)(implicit
+    source: VeColVectorSource
+  ): BytePointerColVector =
     BytePointerColVector(
       GenericColVector(
         source = source,
         numItems = bigIntVector.getValueCount,
         name = bigIntVector.getName,
-        veType = VeScalarType.VeNullableLong,
+        veType = veType,
         container = None,
         buffers = List(
           Option(new BytePointer(bigIntVector.getDataBuffer.nioBuffer())),
           Option(new BytePointer(bigIntVector.getValidityBuffer.nioBuffer()))
-        ),
-        variableSize = None
-      )
-    )
-
-  def fromIntVector(dirInt: IntVector)(implicit source: VeColVectorSource): BytePointerColVector =
-    BytePointerColVector(
-      GenericColVector(
-        source = source,
-        numItems = dirInt.getValueCount,
-        name = dirInt.getName,
-        veType = VeScalarType.VeNullableInt,
-        container = None,
-        buffers = List(
-          Option(new BytePointer(dirInt.getDataBuffer.nioBuffer())),
-          Option(new BytePointer(dirInt.getValidityBuffer.nioBuffer()))
-        ),
-        variableSize = None
-      )
-    )
-
-  def fromSmallIntVector(
-    smallDirInt: SmallIntVector
-  )(implicit source: VeColVectorSource): BytePointerColVector = {
-    val intVector = smallDirInt.toIntVector
-    BytePointerColVector(
-      GenericColVector(
-        source = source,
-        numItems = smallDirInt.getValueCount,
-        name = smallDirInt.getName,
-        veType = VeScalarType.VeNullableShort,
-        container = None,
-        buffers = List(
-          Option(new BytePointer(intVector.getDataBuffer.nioBuffer())),
-          Option(new BytePointer(intVector.getValidityBuffer.nioBuffer()))
-        ),
-        variableSize = None
-      )
-    )
-  }
-
-  def fromDateDayVector(
-    dateDayVector: DateDayVector
-  )(implicit source: VeColVectorSource): BytePointerColVector =
-    BytePointerColVector(
-      GenericColVector(
-        source = source,
-        numItems = dateDayVector.getValueCount,
-        name = dateDayVector.getName,
-        veType = VeScalarType.VeNullableInt,
-        container = None,
-        buffers = List(
-          Option(new BytePointer(dateDayVector.getDataBuffer.nioBuffer())),
-          Option(new BytePointer(dateDayVector.getValidityBuffer.nioBuffer()))
-        ),
-        variableSize = None
-      )
-    )
-
-  def fromFloat8Vector(
-    float8Vector: Float8Vector
-  )(implicit source: VeColVectorSource): BytePointerColVector =
-    BytePointerColVector(
-      GenericColVector(
-        source = source,
-        numItems = float8Vector.getValueCount,
-        name = float8Vector.getName,
-        veType = VeScalarType.VeNullableDouble,
-        container = None,
-        buffers = List(
-          Option(new BytePointer(float8Vector.getDataBuffer.nioBuffer())),
-          Option(new BytePointer(float8Vector.getValidityBuffer.nioBuffer()))
         ),
         variableSize = None
       )
@@ -358,56 +247,15 @@ object BytePointerColVector {
     source: VeColVectorSource,
     bufferAllocator: BufferAllocator
   ): Option[(FieldVector, BytePointerColVector)] = {
-    PartialFunction.condOpt(columnVector.dataType()) {
-      case IntegerType =>
-        val intVector = new IntVector(name, bufferAllocator)
-        intVector.setValueCount(size)
-        (0 until size).foreach {
-          case idx if columnVector.isNullAt(idx) => intVector.setNull(idx)
-          case idx                               => intVector.set(idx, columnVector.getInt(idx))
-        }
-        (intVector, fromIntVector(intVector))
-      case ShortType =>
-        val smallIntVector = new SmallIntVector(name, bufferAllocator)
-        smallIntVector.setValueCount(size)
-        (0 until size).foreach {
-          case idx if columnVector.isNullAt(idx) => smallIntVector.setNull(idx)
-          case idx                               => smallIntVector.set(idx, columnVector.getShort(idx))
-        }
-        (smallIntVector, fromSmallIntVector(smallIntVector))
-      case TimestampType =>
-        val vec = new BigIntVector(name, bufferAllocator)
-        vec.setValueCount(size)
-        (0 until size).foreach {
-          case idx if columnVector.isNullAt(idx) => vec.setNull(idx)
-          case idx                               => vec.set(idx, columnVector.getLong(idx))
-        }
-        (vec, fromBigIntVector(vec))
-      case DateType =>
-        val dateDayVector = new DateDayVector(name, bufferAllocator)
-        dateDayVector.setValueCount(size)
-        (0 until size).foreach {
-          case idx if columnVector.isNullAt(idx) => dateDayVector.setNull(idx)
-          case idx                               => dateDayVector.set(idx, columnVector.getInt(idx))
-        }
-        (dateDayVector, fromDateDayVector(dateDayVector))
-      case DoubleType =>
-        val float8Vector = new Float8Vector(name, bufferAllocator)
-        float8Vector.setValueCount(size)
-        (0 until size).foreach {
-          case idx if columnVector.isNullAt(idx) => float8Vector.setNull(idx)
-          case idx                               => float8Vector.set(idx, columnVector.getDouble(idx))
-        }
-        (float8Vector, fromFloat8Vector(float8Vector))
-      case LongType =>
-        val bigIntVector = new BigIntVector(name, bufferAllocator)
-        bigIntVector.setValueCount(size)
-        (0 until size).foreach {
-          case idx if columnVector.isNullAt(idx) => bigIntVector.setNull(idx)
-          case idx                               => bigIntVector.set(idx, columnVector.getLong(idx))
-        }
-        (bigIntVector, fromBigIntVector(bigIntVector))
-      case StringType =>
+    PartialFunction.condOpt(
+      columnVector.dataType() -> TypeLink.SparkToArrow.get(columnVector.dataType())
+    ) {
+      case (_, Some(tl)) =>
+        val theVec = tl.makeArrow(name)
+        theVec.setValueCount(size)
+        (0 until size).foreach { idx => tl.transfer(idx, columnVector, theVec) }
+        (theVec, fromBaseFixedWidthVector(tl.veScalarType, theVec))
+      case (StringType, _) =>
         val varCharVector = new VarCharVector(name, bufferAllocator)
         varCharVector.allocateNew()
         (0 until size).foreach {
