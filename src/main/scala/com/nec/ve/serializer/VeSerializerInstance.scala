@@ -21,13 +21,15 @@ class VeSerializerInstance(cleanUpInput: Boolean) extends SerializerInstance wit
   override def serializeStream(s: OutputStream): SerializationStream =
     new VeSerializationStream(s)(
       SparkCycloneExecutorPlugin.veProcess,
-      SparkCycloneExecutorPlugin.source
+      SparkCycloneExecutorPlugin.source,
+      SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
     )
 
   override def deserializeStream(s: InputStream): DeserializationStream =
     new VeDeserializationStream(s)(
       SparkCycloneExecutorPlugin.veProcess,
-      SparkCycloneExecutorPlugin.source
+      SparkCycloneExecutorPlugin.source,
+      SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
     )
 
 }

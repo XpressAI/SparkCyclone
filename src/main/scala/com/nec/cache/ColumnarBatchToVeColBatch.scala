@@ -3,7 +3,7 @@ package com.nec.cache
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.arrow.memory.BufferAllocator
@@ -20,7 +20,8 @@ object ColumnarBatchToVeColBatch {
     arrowEncodingSettings: ArrowEncodingSettings,
     originalCallingContext: OriginalCallingContext,
     veProcess: VeProcess,
-    veColVectorSource: VeColVectorSource
+    veColVectorSource: VeColVectorSource,
+    cycloneMetrics: VeProcessMetrics
   ): Iterator[VeColBatch] = {
     columnarBatches.map { columnarBatch =>
       VeColBatch.fromList(
@@ -61,7 +62,8 @@ object ColumnarBatchToVeColBatch {
     arrowEncodingSettings: ArrowEncodingSettings,
     originalCallingContext: OriginalCallingContext,
     veProcess: VeProcess,
-    veColVectorSource: VeColVectorSource
+    veColVectorSource: VeColVectorSource,
+    cycloneMetrics: VeProcessMetrics
   ): Iterator[VeColBatch] = {
     columnarBatches.flatMap { columnarBatch =>
       import scala.collection.JavaConverters._

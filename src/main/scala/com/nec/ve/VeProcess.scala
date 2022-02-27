@@ -1,7 +1,6 @@
 package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
@@ -225,13 +224,15 @@ object VeProcess {
       )
 
       val start = System.nanoTime()
-      val callRes = cycloneMetrics.measureRunningTime(
+      val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
-      )(cycloneMetrics.registerVeCall)
+      )(veProcessMetrics.registerVeCall)
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)")
+      println(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
 
       require(
         callRes == 0,
@@ -331,13 +332,15 @@ object VeProcess {
       )
 
       val start = System.nanoTime()
-      val callRes = cycloneMetrics.measureRunningTime(
+      val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
-      )(cycloneMetrics.registerVeCall)
+      )(veProcessMetrics.registerVeCall)
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)")
+      println(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
 
       require(
         callRes == 0,
@@ -439,13 +442,15 @@ object VeProcess {
       )
 
       val start = System.nanoTime()
-      val callRes = cycloneMetrics.measureRunningTime(
+      val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
-      )(cycloneMetrics.registerVeCall)
+      )(veProcessMetrics.registerVeCall)
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)")
+      println(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
 
       require(
         callRes == 0,

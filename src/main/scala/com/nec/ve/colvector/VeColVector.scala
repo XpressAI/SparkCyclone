@@ -3,11 +3,10 @@ package com.nec.ve.colvector
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.ve.VeProcess
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
@@ -47,7 +46,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   /**
    * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
    */
-  def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
+  def serialize()(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Array[Byte] = {
     val totalSize = bufferSizes.sum
 
     val resultingArray = cycloneMetrics.measureRunningTime(
@@ -176,13 +175,15 @@ object VeColVector {
   def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
     veProcess: VeProcess,
     _source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColVector = fromArrowVector(source.getArrowValueVector)
 
   def fromArrowVector(valueVector: ValueVector)(implicit
     veProcess: VeProcess,
     source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColVector =
     BytePointerColVector
       .fromArrowVector(valueVector)

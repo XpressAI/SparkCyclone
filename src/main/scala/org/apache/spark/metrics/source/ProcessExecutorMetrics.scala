@@ -50,7 +50,7 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker, reg
   private val perFunctionHistograms: scala.collection.mutable.Map[String, Histogram] =
     mutable.Map.empty
 
-  def measureRunningTime[T](toMeasure: => T)(registerTime: Long => Unit): T = {
+  override def measureRunningTime[T](toMeasure: => T)(registerTime: Long => Unit): T = {
     val start = System.currentTimeMillis()
     val result = toMeasure
     val end = System.currentTimeMillis()

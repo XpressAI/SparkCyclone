@@ -48,7 +48,9 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
 
         val res = VeColBatch.fromList(unwrapBatch(cb).map {
           case Left(veColVector)         => veColVector
-          case Right(byteArrayColVector) => byteArrayColVector.transferToBytePointers().toVeColVector()
+          case Right(byteArrayColVector) =>
+            import ImplicitMetrics._
+            byteArrayColVector.transferToBytePointers().toVeColVector()
         })
         logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
         execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)

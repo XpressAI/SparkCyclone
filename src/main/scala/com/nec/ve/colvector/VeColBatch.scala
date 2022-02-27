@@ -3,7 +3,7 @@ package com.nec.ve.colvector
 import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve
-import com.nec.ve.VeProcess
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
@@ -20,7 +20,9 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     }
   }.sum
 
-  def serializeToStream(dataOutputStream: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
+  def serializeToStream(
+    dataOutputStream: DataOutputStream
+  )(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Unit = {
     import VeColBatch._
     dataOutputStream.writeInt(ColLengthsId)
     dataOutputStream.writeInt(cols.length)
@@ -38,7 +40,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 
   }
 
-  def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
+  def serialize()(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Array[Byte] = {
     val byteArrayOutputStream = new ByteArrayOutputStream()
     val objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)
     objectOutputStream.writeObject(toUnit)
@@ -133,7 +135,8 @@ object VeColBatch {
   def deserialize(data: Array[Byte])(implicit
     veProcess: VeProcess,
     originalCallingContext: OriginalCallingContext,
-    source: VeColVectorSource
+    source: VeColVectorSource,
+    cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     val byteArrayInputStream = new ByteArrayInputStream(data)
     val objectInputStream = new ObjectInputStream(byteArrayInputStream)
@@ -197,7 +200,8 @@ object VeColBatch {
   def fromArrowColumnarBatch(columnarBatch: ColumnarBatch)(implicit
     veProcess: VeProcess,
     source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     VeColBatch(
       GenericColBatch(

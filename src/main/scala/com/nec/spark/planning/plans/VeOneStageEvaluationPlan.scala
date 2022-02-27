@@ -19,7 +19,7 @@
  */
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{cycloneMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, ImplicitMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -66,25 +66,28 @@ final case class VeOneStageEvaluationPlan(
           veColBatches.map { inputBatch =>
             val beforeExec = System.nanoTime()
 
-
-            val res = try {
-              logger.debug(s"Mapping batch ${inputBatch}")
-              val cols = cycloneMetrics.measureRunningTime(
-                veProcess.execute(
-                  libraryReference = libRef,
-                  functionName = veFunction.functionName,
-                  cols = inputBatch.cols,
-                  results = veFunction.namedResults
+            val res =
+              try {
+                logger.debug(s"Mapping batch ${inputBatch}")
+                val cols = ImplicitMetrics.processMetrics.measureRunningTime(
+                  veProcess.execute(
+                    libraryReference = libRef,
+                    functionName = veFunction.functionName,
+                    cols = inputBatch.cols,
+                    results = veFunction.namedResults
+                  )
+                )(
+                  ImplicitMetrics.processMetrics
+                    .registerFunctionCallTime(_, veFunction.functionName)
                 )
-              )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
 
-              logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
+                logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
 
-              val outBatch = VeColBatch.fromList(cols)
-              if (inputBatch.numRows < outBatch.numRows)
-                logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
-              outBatch
-            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
+                val outBatch = VeColBatch.fromList(cols)
+                if (inputBatch.numRows < outBatch.numRows)
+                  logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
+                outBatch
+              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
             execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
             res
           }

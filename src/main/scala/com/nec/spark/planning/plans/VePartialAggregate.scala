@@ -1,6 +1,6 @@
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{cycloneMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -37,7 +37,6 @@ case class VePartialAggregate(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-
         withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
           veColBatches.map { veColBatch =>
@@ -47,18 +46,22 @@ case class VePartialAggregate(
             logger.debug(s"Mapping a VeColBatch $veColBatch")
             VeColBatch.fromList {
               import OriginalCallingContext.Automatic._
-              val res = try {
-                val result = cycloneMetrics.measureRunningTime(
-                  veProcess.execute(
-                    libraryReference = libRef,
-                    functionName = partialFunction.functionName,
-                    cols = veColBatch.cols,
-                    results = partialFunction.namedResults
+              val res =
+                try {
+                  val result = ImplicitMetrics.processMetrics.measureRunningTime(
+                    veProcess.execute(
+                      libraryReference = libRef,
+                      functionName = partialFunction.functionName,
+                      cols = veColBatch.cols,
+                      results = partialFunction.namedResults
+                    )
+                  )(
+                    ImplicitMetrics.processMetrics
+                      .registerFunctionCallTime(_, veFunction.functionName)
                   )
-                )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
-                logger.debug(s"Mapped $veColBatch to $result")
-                result
-              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+                  logger.debug(s"Mapped $veColBatch to $result")
+                  result
+                } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
 
               res

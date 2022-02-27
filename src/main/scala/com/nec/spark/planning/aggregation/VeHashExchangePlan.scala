@@ -1,7 +1,12 @@
 package com.nec.spark.planning.aggregation
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{cycloneMetrics, source}
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, ImplicitMetrics}
+import com.nec.spark.planning.{
+  PlanCallsVeFunction,
+  SupportsKeyedVeColBatch,
+  SupportsVeColBatch,
+  VeFunction
+}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDD.RichKeyedRDDL
@@ -41,14 +46,14 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             try {
               logger.debug(s"Mapping ${veColBatch} for exchange")
-              val multiBatches = cycloneMetrics.measureRunningTime(
+              val multiBatches = ImplicitMetrics.processMetrics.measureRunningTime(
                 veProcess.executeMulti(
                   libraryReference = libRefExchange,
                   functionName = exchangeFunction.functionName,
                   cols = veColBatch.cols,
                   results = exchangeFunction.namedResults
                 )
-              )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
+              )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
               logger.debug(s"Mapped to ${multiBatches} completed.")
 
               multiBatches.flatMap {
@@ -67,7 +72,6 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
         res
       }
       .exchangeBetweenVEs(cleanUpInput = true)
-
 
   }
 

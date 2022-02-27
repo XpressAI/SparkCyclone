@@ -20,7 +20,7 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.{cycloneMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, ImplicitMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
@@ -76,35 +76,40 @@ final case class VeProjectEvaluationPlan(
 
             val beforeExec = System.nanoTime()
 
-            val res = try {
-              val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
+            val res =
+              try {
+                val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
 
-              val cols =
-                if (canPassThroughall) Nil
-                else {
-                  cycloneMetrics.measureRunningTime(
-                    veProcess.execute(
-                      libraryReference = libRef,
-                      functionName = veFunction.functionName,
-                      cols = veColBatch.cols,
-                      results = veFunction.namedResults
+                val cols =
+                  if (canPassThroughall) Nil
+                  else {
+                    ImplicitMetrics.processMetrics.measureRunningTime(
+                      veProcess.execute(
+                        libraryReference = libRef,
+                        functionName = veFunction.functionName,
+                        cols = veColBatch.cols,
+                        results = veFunction.namedResults
+                      )
+                    )(
+                      ImplicitMetrics.processMetrics
+                        .registerFunctionCallTime(_, veFunction.functionName)
                     )
-                  )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
 
-                }
-              val outBatch = createOutputBatch(cols, veColBatch)
+                  }
+                val outBatch = createOutputBatch(cols, veColBatch)
 
-              if (veColBatch.numRows < outBatch.numRows)
-                println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-              outBatch
-            } finally {
-              child
-                .asInstanceOf[SupportsVeColBatch]
-                .dataCleanup
-                .cleanup(
-                  VeProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
-                )
-            }
+                if (veColBatch.numRows < outBatch.numRows)
+                  println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+                outBatch
+              } finally {
+                child
+                  .asInstanceOf[SupportsVeColBatch]
+                  .dataCleanup
+                  .cleanup(
+                    VeProjectEvaluationPlan
+                      .getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
+                  )
+              }
             execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
             res
           }
@@ -135,7 +140,7 @@ object VeProjectEvaluationPlan {
       val outputColumns = outputExpressions
         .foldLeft((0, 0, Seq.empty[VeColVector])) {
           case ((calculatedIdx, copiedIdx, seq), a @ AttributeReference(_, _, _, _))
-              if inputs.find(ex => ex.exprId == a.exprId).isDefined =>
+              if inputs.exists(ex => ex.exprId == a.exprId) =>
             (
               calculatedIdx,
               copiedIdx + 1,

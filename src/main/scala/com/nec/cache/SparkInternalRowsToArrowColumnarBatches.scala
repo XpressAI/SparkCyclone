@@ -1,8 +1,8 @@
 package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
-import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeProcessMetrics
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -20,7 +20,8 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): Iterator[ColumnarBatch] = {
     if (rowIterator.hasNext) {
       new Iterator[ColumnarBatch] {

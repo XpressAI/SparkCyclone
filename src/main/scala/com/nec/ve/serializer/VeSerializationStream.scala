@@ -1,7 +1,7 @@
 package com.nec.ve.serializer
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.ve.VeProcess
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.colvector.VeColBatch
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
@@ -13,7 +13,8 @@ import scala.reflect.ClassTag
 
 class VeSerializationStream(out: OutputStream)(implicit
   veProcess: VeProcess,
-  veColVectorSource: VeColVectorSource
+  veColVectorSource: VeColVectorSource,
+  cycloneMetrics: VeProcessMetrics
 ) extends SerializationStream
   with Logging {
   val dataOutputStream = new DataOutputStream(out)
@@ -41,7 +42,7 @@ class VeSerializationStream(out: OutputStream)(implicit
         this
       case v: BytesOnly =>
         dataOutputStream.writeInt(MixedCbTagColBatch)
-        println(s"Will write ${v.size} (${v.bytes.size} as MixedBatch")
+        println(s"Will write ${v.size} (${v.bytes.length} as MixedBatch")
         dataOutputStream.writeInt(v.size)
         dataOutputStream.write(v.bytes)
         this
@@ -50,7 +51,6 @@ class VeSerializationStream(out: OutputStream)(implicit
 //        println(s"Will write ${v.size} (${v.bytes.size} as MixedBatch")
         /** for reading out as byte array */
 
-        import SparkCycloneExecutorPlugin.cycloneMetrics
         cycloneMetrics.measureRunningTime {
           dataOutputStream.writeInt(v.veColBatch.serializeToStreamSize)
           val startSize = dataOutputStream.size()

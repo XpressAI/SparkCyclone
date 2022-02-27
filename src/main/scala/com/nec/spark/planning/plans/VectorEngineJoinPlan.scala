@@ -1,7 +1,12 @@
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
+import com.nec.spark.planning.{
+  PlanCallsVeFunction,
+  SupportsKeyedVeColBatch,
+  SupportsVeColBatch,
+  VeFunction
+}
 import com.nec.ve.{VeColBatch, VeRDD}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -44,14 +49,14 @@ case class VectorEngineJoinPlan(
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =
             try {
-              cycloneMetrics.measureRunningTime(
+              ImplicitMetrics.processMetrics.measureRunningTime {
                 veProcess.execute(
                   libraryReference = libRefJoin,
                   functionName = joinFunction.functionName,
                   cols = leftColBatch.cols ++ rightColBatch.cols,
                   results = joinFunction.namedResults
                 )
-              )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
+              }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
             } finally {
               dataCleanup.cleanup(leftColBatch)
               dataCleanup.cleanup(rightColBatch)

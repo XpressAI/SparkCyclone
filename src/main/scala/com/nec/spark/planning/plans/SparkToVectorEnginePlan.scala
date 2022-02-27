@@ -61,24 +61,27 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
             .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
           TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
           import OriginalCallingContext.Automatic._
-          val res = if (ConvertColumnarToColumnar)
-            ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
-              columnarBatches = columnarBatches,
-              arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-              completeInSpark = true
-            )
-          else
-            ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
-              columnarBatches = columnarBatches,
-              arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-              completeInSpark = true
-            )
+          import ImplicitMetrics._
+          val res =
+            if (ConvertColumnarToColumnar)
+              ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
+                columnarBatches = columnarBatches,
+                arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
+                completeInSpark = true
+              )
+            else
+              ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
+                columnarBatches = columnarBatches,
+                arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
+                completeInSpark = true
+              )
           execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
           res
         }
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
+        import ImplicitMetrics._
 
         val beforeExec = System.nanoTime()
 

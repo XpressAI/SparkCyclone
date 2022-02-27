@@ -2,14 +2,13 @@ package com.nec.arrow.colvector
 
 import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
-import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
-import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColVector.getUnsafe
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
@@ -30,7 +29,8 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
   def toVeColVector()(implicit
     veProcess: VeProcess,
     _source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColVector =
     VeColVector(
       transferBuffersToVe()
@@ -40,7 +40,8 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
   def transferBuffersToVe()(implicit
     veProcess: VeProcess,
     source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): GenericColVector[Option[Long]] = {
     cycloneMetrics.measureRunningTime(
       underlying

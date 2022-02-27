@@ -4,7 +4,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
 import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.DeserializationStream
 
@@ -13,7 +13,8 @@ import scala.reflect.ClassTag
 
 class VeDeserializationStream(in: InputStream)(implicit
   veProcess: VeProcess,
-  veColVectorSource: VeColVectorSource
+  veColVectorSource: VeColVectorSource,
+  cycloneMetrics: VeProcessMetrics
 ) extends DeserializationStream
   with Logging {
   logDebug(s"Inputting from ==> ${in}; ${in.getClass}")
@@ -52,7 +53,6 @@ class VeDeserializationStream(in: InputStream)(implicit
           VeColBatch.fromStream(dataInputStream)
         case MixedCbTagColBatch =>
           val theSize = dataInputStream.readInt()
-          import SparkCycloneExecutorPlugin.cycloneMetrics
           if (DeserStreamed) {
             import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
             cycloneMetrics.measureRunningTime {

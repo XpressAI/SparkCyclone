@@ -1,11 +1,10 @@
 package com.nec.arrow.colvector
 
-import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.VeType
-import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 
 import java.io.{DataInputStream, DataOutputStream, InputStream}
 
@@ -39,7 +38,8 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
   def deserialize(ba: Array[Byte])(implicit
     source: VeColVectorSource,
     veProcess: VeProcess,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColVector =
     cycloneMetrics.measureRunningTime {
       VeColVector(
