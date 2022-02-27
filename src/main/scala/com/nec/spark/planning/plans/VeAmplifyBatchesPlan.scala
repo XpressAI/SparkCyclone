@@ -35,11 +35,11 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        withVeLibrary { libRefExchange =>
+        val res = withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
           veColBatches
             .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
@@ -67,10 +67,9 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                 }
             }
         }
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        res
       }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
   }
 
   override def output: Seq[Attribute] = child.output

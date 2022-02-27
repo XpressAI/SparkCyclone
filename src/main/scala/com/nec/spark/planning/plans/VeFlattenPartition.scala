@@ -32,11 +32,11 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        withVeLibrary { libRefExchange =>
+        val res = withVeLibrary { libRefExchange =>
           Iterator
             .continually {
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
@@ -70,10 +70,10 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
             .take(1)
             .flatten
         }
-      }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
 
-    res
+        res
+      }
   }
 
   override def output: Seq[Attribute] = child.output

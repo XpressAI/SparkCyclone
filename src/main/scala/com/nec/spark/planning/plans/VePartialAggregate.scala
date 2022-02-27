@@ -35,11 +35,11 @@ case class VePartialAggregate(
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        withVeLibrary { libRef =>
+        val res = withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
           veColBatches.map { veColBatch =>
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
@@ -61,10 +61,10 @@ case class VePartialAggregate(
             }
           }
         }
-      }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
 
-    res
+        res
+      }
   }
 
   // this is wrong, but just to please spark

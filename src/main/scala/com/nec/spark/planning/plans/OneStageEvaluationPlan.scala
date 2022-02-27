@@ -60,11 +60,11 @@ final case class OneStageEvaluationPlan(
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        withVeLibrary { libRef =>
+        val res = withVeLibrary { libRef =>
           logger.info(s"Will map batches with function ${veFunction}")
           import OriginalCallingContext.Automatic._
           veColBatches.map { inputBatch =>
@@ -88,10 +88,9 @@ final case class OneStageEvaluationPlan(
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
           }
         }
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        res
       }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
   }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =

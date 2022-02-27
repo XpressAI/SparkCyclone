@@ -32,7 +32,7 @@ case class VectorEngineJoinPlan(
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = VeRDD
+    VeRDD
       .joinExchange(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
@@ -41,7 +41,7 @@ case class VectorEngineJoinPlan(
       .map { case (leftColBatch, rightColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         import com.nec.spark.SparkCycloneExecutorPlugin.source
-        withVeLibrary { libRefJoin =>
+        val res = withVeLibrary { libRefJoin =>
           logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =
@@ -61,10 +61,9 @@ case class VectorEngineJoinPlan(
           logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
           VeColBatch.fromList(batch)
         }
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        res
       }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
   }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
