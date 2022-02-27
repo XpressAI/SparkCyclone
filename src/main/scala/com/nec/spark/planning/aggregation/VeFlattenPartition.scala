@@ -44,7 +44,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
             .continually {
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               val inputBatches = veColBatches.toList
-              logger.debug(s"Fetched all the data: ${inputBatches}")
+              //logger.debug(s"Fetched all the data: ${inputBatches}")
               inputBatches match {
                 case one :: Nil => Iterator(one)
                 case Nil        => Iterator.empty

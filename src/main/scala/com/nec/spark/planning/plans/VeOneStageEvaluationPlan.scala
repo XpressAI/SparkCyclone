@@ -60,13 +60,14 @@ final case class VeOneStageEvaluationPlan(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
-
-        val res = withVeLibrary { libRef =>
+        withVeLibrary { libRef =>
           logger.info(s"Will map batches with function ${veFunction}")
           import OriginalCallingContext.Automatic._
           veColBatches.map { inputBatch =>
-            try {
+            val beforeExec = System.nanoTime()
+
+
+            val res = try {
               logger.debug(s"Mapping batch ${inputBatch}")
               val cols = cycloneMetrics.measureRunningTime(
                 veProcess.execute(
@@ -84,10 +85,10 @@ final case class VeOneStageEvaluationPlan(
                 logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
               outBatch
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
+            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+            res
           }
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
       }
   }
 

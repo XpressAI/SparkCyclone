@@ -38,7 +38,6 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
 
         val res = withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
@@ -48,7 +47,10 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
               case inputBatches if inputBatches.size == 1 => inputBatches.head
               case inputBatches =>
                 import OriginalCallingContext.Automatic._
-                try {
+
+                val beforeExec = System.nanoTime()
+
+                val res = try {
                   val res =
                     VeColBatch.fromList(
                       veProcess.executeMultiIn(
@@ -66,9 +68,11 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                   inputBatches
                     .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
                 }
+
+                execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+                res
             }
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
         res
       }
   }
