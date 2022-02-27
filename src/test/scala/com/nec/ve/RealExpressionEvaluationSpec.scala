@@ -30,7 +30,7 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{veNullableDouble, VeNullableDouble}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
+import com.nec.spark.agile.{CFunction2, DeclarativeAggregationConverter, StringProducer}
 import com.nec.ve.StaticTypingTestAdditions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -703,6 +703,29 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       }
     }
   }
+  def evalFunction[Input, Output](
+    cFunction: CFunction2,
+    functionName: String
+  )(input: List[Input], outputs: List[CVector])(implicit
+    veAllocator: VeAllocator[Input],
+    veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra,
+    originalCallingContext: OriginalCallingContext,
+    veColVectorSource: VeColVectorSource
+  ): List[Output] = {
+    WithTestAllocator { implicit allocator =>
+      veKernelInfra.compiledWithHeaders(cFunction, functionName) { path =>
+        val libRef = veProcess.loadLibrary(path)
+        val inputVectors = veAllocator.allocate(input: _*)
+        try {
+          val resultingVectors =
+            veProcess.execute(libRef, functionName, inputVectors.cols, outputs)
+          veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
+        } finally inputVectors.free()
+      }
+    }
+  }
 
   def evalFilter[Data](input: Data*)(condition: CExpression)(implicit
     veAllocator: VeAllocator[Data],
@@ -722,7 +745,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     )
 
     import OriginalCallingContext.Automatic._
-    evalFunction(filterFn.render.asInstanceOf[CFunction], "filter_f")(
+    evalFunction(filterFn.render, "filter_f")(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
     )
