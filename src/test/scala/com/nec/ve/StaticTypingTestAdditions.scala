@@ -61,8 +61,10 @@ object StaticTypingTestAdditions {
             VeColBatch.fromList(List(VeColVector.fromArrowVector(f8v)))
           }
         }
+
       override def veTypes: List[VeType] = List(VeNullableDouble)
     }
+
     implicit object StringDoubleAllocator extends VeAllocator[(String, Double)] {
       override def allocate(data: (String, Double)*)(implicit veProcess: VeProcess): VeColBatch =
         WithTestAllocator { implicit a =>
@@ -76,8 +78,10 @@ object StaticTypingTestAdditions {
             }
           }
         }
+
       override def veTypes: List[VeType] = List(VeNullableDouble)
     }
+
     implicit object DoubleDoubleAllocator extends VeAllocator[(Double, Double)] {
       override def allocate(data: (Double, Double)*)(implicit veProcess: VeProcess): VeColBatch =
         WithTestAllocator { implicit a =>
@@ -91,8 +95,10 @@ object StaticTypingTestAdditions {
             }
           }
         }
+
       override def veTypes: List[VeType] = List(VeNullableDouble, VeNullableDouble)
     }
+
     implicit object DoubleDoubleDoubleAllocator extends VeAllocator[(Double, Double, Double)] {
       override def allocate(
         data: (Double, Double, Double)*
@@ -114,9 +120,11 @@ object StaticTypingTestAdditions {
             }
           }
         }
+
       override def veTypes: List[VeType] =
         List(VeNullableDouble, VeNullableDouble, VeNullableDouble)
     }
+
     implicit object OptionDoubleAllocator extends VeAllocator[Option[Double]] {
       override def allocate(data: Option[Double]*)(implicit veProcess: VeProcess): VeColBatch =
         WithTestAllocator { implicit a =>
@@ -126,10 +134,38 @@ object StaticTypingTestAdditions {
             VeColBatch.fromList(List(VeColVector.fromArrowVector(f8v)))
           }
         }
+
       override def veTypes: List[VeType] = List(VeNullableDouble)
     }
-  }
 
+    implicit object OptionDoubleDoubleDoubleAllocator
+      extends VeAllocator[(Option[Double], Double, Double)] {
+      override def allocate(
+        data: (Option[Double], Double, Double)*
+      )(implicit veProcess: VeProcess): VeColBatch =
+        WithTestAllocator { implicit a =>
+          withNullableDoubleVector(data.map(_._1)) { a =>
+            withArrowFloat8VectorI(data.map(_._2)) { b =>
+              withArrowFloat8VectorI(data.map(_._2)) { c =>
+                import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+                import com.nec.ve.colvector.VeColBatch.VeColVectorSource.Automatic._
+                VeColBatch.fromList(
+                  List(
+                    VeColVector.fromArrowVector(a),
+                    VeColVector.fromArrowVector(b),
+                    VeColVector.fromArrowVector(c)
+                  )
+                )
+              }
+            }
+          }
+        }
+
+      override def veTypes: List[VeType] =
+        List(VeNullableDouble, VeNullableDouble, VeNullableDouble)
+    }
+
+  }
   trait VeRetriever[Output] {
     final def makeCVectors: List[CFunctionGeneration.CVector] = veTypes.zipWithIndex.map {
       case (veType, idx) => veType.makeCVector(s"output_${idx}")
@@ -222,6 +258,44 @@ object StaticTypingTestAdditions {
         }
       }
     }
+    implicit object OptionDoubleDoubleDoubleRetriever
+      extends VeRetriever[(Option[Double], Double, Double)] {
+      override def veTypes: List[VeType] = List(VeNullableDouble, VeNullableDouble)
+
+      override def retrieve(
+        veColBatch: VeColBatch
+      )(implicit veProcess: VeProcess): List[(Option[Double], Double, Double)] = {
+        WithTestAllocator { implicit alloc =>
+          veColBatch.cols.map { col =>
+            val arrow = col.toArrowVector()
+            try arrow.asInstanceOf[Float8Vector].toListSafe
+            finally arrow.close()
+          }
+        } match {
+          case colA :: colB :: colC :: Nil =>
+            colA.zip(colB.flatten).zip(colC.flatten).map { case ((a, b), c) => (a, b, c) }
+        }
+      }
+    }
+    implicit object OptionDoubleDoubleOptionDoubleRetriever
+      extends VeRetriever[(Option[Double], Double, Option[Double])] {
+      override def veTypes: List[VeType] = List(VeNullableDouble, VeNullableDouble)
+
+      override def retrieve(
+        veColBatch: VeColBatch
+      )(implicit veProcess: VeProcess): List[(Option[Double], Double, Option[Double])] = {
+        WithTestAllocator { implicit alloc =>
+          veColBatch.cols.map { col =>
+            val arrow = col.toArrowVector()
+            try arrow.asInstanceOf[Float8Vector].toListSafe
+            finally arrow.close()
+          }
+        } match {
+          case colA :: colB :: colC :: Nil =>
+            colA.zip(colB.flatten).zip(colC).map { case ((a, b), c) => (a, b, c) }
+        }
+      }
+    }
     implicit object StringDoubleRetriever extends VeRetriever[(String, Double)] {
       override def veTypes: List[VeType] = List(VeNullableDouble, VeNullableDouble)
 
@@ -240,5 +314,4 @@ object StaticTypingTestAdditions {
       }
     }
   }
-
 }

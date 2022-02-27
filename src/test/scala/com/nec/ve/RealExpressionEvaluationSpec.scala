@@ -31,11 +31,12 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
 import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
-import com.nec.spark.agile.{CFunctionGeneration, DeclarativeAggregationConverter}
+import com.nec.spark.agile.{CFunctionGeneration, DeclarativeAggregationConverter, StringProducer}
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.StaticTypingTestAdditions._
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -201,19 +202,39 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   }
 
   "We can aggregate / group by (simple sum)" in {
-    val result = evalGroupBySum(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (3, 4, 9))
-    )(
-      (
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-      )
-    )(
-      (
-        GroupByProjection(CExpression("input_0->data[i]", None)),
-        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
-        GroupByAggregation(
-          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+      List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (3, 4, 9)),
+      groups = List(
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+        ),
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+        )
+      ),
+      expressions = List(
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_0->data[i]", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_1",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_1->data[i] + 1", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_2",
+            VeNullableDouble,
+            GroupByAggregation(
+              Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+            )
+          )
         )
       )
     )
@@ -229,7 +250,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
 
     /** SELECT a, SUM(b) group by a, b*b */
     val result =
-      evalGroupBySumStr(input)(
+      evalGroupBySumStr[(String, Double), (String, Double)](input)(
         (
           StringGrouping("input_0"),
           TypedCExpression2(
@@ -238,30 +259,56 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
           )
         )
       )(
-        (
-          StringGrouping("input_0"),
-          GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
+        List(
+          Left(NamedStringProducer("output_0", StringProducer.copyString("input_0"))),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeNullableDouble,
+              GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
+            )
+          )
         )
       )
 
-    assert(result.asInstanceOf[List[(String, Double)]].sorted == expected.sorted)
+    assert(result.sorted == expected.sorted)
   }
 
   "We can aggregate / group by with NULL input check values" in {
-    val result = evalGroupBySum(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-    )(
-      (
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-      )
-    )(
-      (
-        GroupByProjection(CExpression("input_0->data[i]", None)),
-        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
-        GroupByAggregation(
-          Aggregation.sum(
-            CExpression("input_2->data[i] - input_0->data[i]", Some("input_2->data[i] != 4.0"))
+    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
+      groups = List(
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+        ),
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+        )
+      ),
+      expressions = List(
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_0->data[i]", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_1->data[i] + 1", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByAggregation(
+              Aggregation.sum(
+                CExpression("input_2->data[i] - input_0->data[i]", Some("input_2->data[i] != 4.0"))
+              )
+            )
           )
         )
       )
@@ -273,22 +320,42 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   }
 
   "We can aggregate / group by with NULLs for grouped computations" in {
-    val result = evalGroupBySum(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-    )(
-      (
-        TypedCExpression2(
-          VeScalarType.veNullableDouble,
-          CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
+    val result = evalGroupBySum[(Double, Double, Double), (Option[Double], Double, Double)](
+      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
+      groups = List(
+        Right(
+          TypedCExpression2(
+            VeScalarType.veNullableDouble,
+            CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
+          )
         ),
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-      )
-    )(
-      (
-        GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))),
-        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
-        GroupByAggregation(
-          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+        )
+      ),
+      expressions = List(
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0")))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_1->data[i] + 1", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByAggregation(
+              Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+            )
+          )
         )
       )
     )
@@ -303,37 +370,60 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   }
 
   "We can aggregate / group by with NULLs for inputs as well" in {
-    val result = evalGroupBySum(
-      List[(Option[Double], Double, Double)](
-        (Some(1.0), 2.0, 3.0),
-        (Some(1.5), 1.2, 3.1),
-        (None, 2.0, 4.0)
-      )
-    )(
-      (
-        TypedCExpression2(
-          VeScalarType.veNullableDouble,
-          CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
+    val result =
+      evalGroupBySum[(Option[Double], Double, Double), (Option[Double], Double, Option[Double])](
+        input = List[(Option[Double], Double, Double)](
+          (Some(1.0), 2.0, 3.0),
+          (Some(1.5), 1.2, 3.1),
+          (None, 2.0, 4.0)
         ),
-        TypedCExpression2(
-          VeScalarType.veNullableDouble,
-          CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
-        )
-      )
-    )(
-      (
-        GroupByProjection(CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))),
-        GroupByProjection(CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))),
-        GroupByAggregation(
-          Aggregation.sum(
-            CExpression(
-              "input_2->data[i] - input_0->data[i]",
-              Some("input_0->get_validity(i) && input_2->get_validity(i)")
+        groups = List(
+          Right(
+            TypedCExpression2(
+              VeScalarType.veNullableDouble,
+              CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
+            )
+          ),
+          Right(
+            TypedCExpression2(
+              VeScalarType.veNullableDouble,
+              CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
+            )
+          )
+        ),
+        expressions = List(
+          Right(
+            NamedGroupByExpression(
+              "output_0",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_0->data[i]", Some("input_0->get_validity(i)")))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeNullableDouble,
+              GroupByProjection(
+                CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))
+              )
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_2",
+              VeNullableDouble,
+              GroupByAggregation(
+                Aggregation.sum(
+                  CExpression(
+                    "input_2->data[i] - input_0->data[i]",
+                    Some("input_0->get_validity(i) && input_2->get_validity(i)")
+                  )
+                )
+              )
             )
           )
         )
       )
-    )
     assert(
       result ==
         List[(Option[Double], Double, Option[Double])](
@@ -345,19 +435,41 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   }
 
   "We can sum using DeclarativeAggregate" in {
-    val result = evalGroupBySum(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-    )(
-      (
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-      )
-    )(
-      (
-        GroupByProjection(CExpression("input_0->data[i]", None)),
-        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
-        GroupByAggregation(
-          DeclarativeAggregationConverter(Sum(AttributeReference("input_0->data[i]", DoubleType)()))
+    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
+      groups = List(
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+        ),
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+        )
+      ),
+      expressions = List(
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_0->data[i]", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_1->data[i] + 1", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByAggregation(
+              DeclarativeAggregationConverter(
+                Sum(AttributeReference("input_0->data[i]", DoubleType)())
+              )
+            )
+          )
         )
       )
     )
@@ -820,10 +932,11 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
-  def evalGroupBySum[Input, Groups, Output](
-    input: List[Input]
-  )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit
-    groupExpressor: GroupExpressor[Output],
+  def evalGroupBySum[Input, Output](
+    input: List[Input],
+    groups: List[Either[StringGrouping, TypedCExpression2]],
+    expressions: List[Either[NamedStringProducer, NamedGroupByExpression]]
+  )(implicit
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
@@ -831,11 +944,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   ): List[Output] = {
     val cFunction =
       OldUnifiedGroupByFunctionGeneration(
-        VeGroupBy(
-          inputs = veAllocator.makeCVectors,
-          groups = List(Right(groups._1), Right(groups._2)),
-          outputs = groupExpressor.express(expressions).map(v => Right(v))
-        )
+        VeGroupBy(inputs = veAllocator.makeCVectors, groups = groups, outputs = expressions)
       ).renderGroupBy
 
     import OriginalCallingContext.Automatic._
@@ -844,9 +953,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
   }
 
-  def evalGroupBySumStr[Input, Groups, Output](
-    input: List[Input]
-  )(groups: (StringGrouping, TypedCExpression2))(expressions: Output)(implicit
+  def evalGroupBySumStr[Input, Output](input: List[Input])(
+    groups: (StringGrouping, TypedCExpression2)
+  )(expressions: List[Either[NamedStringProducer, NamedGroupByExpression]])(implicit
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
@@ -857,7 +966,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
         VeGroupBy(
           inputs = veAllocator.makeCVectors,
           groups = List(Left(groups._1), Right(groups._2)),
-          outputs = groupExpressor.express(expressions)
+          outputs = expressions
         )
       ).renderGroupBy
 
