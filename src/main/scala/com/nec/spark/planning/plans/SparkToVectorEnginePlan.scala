@@ -12,8 +12,11 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
+
+import scala.concurrent.duration.NANOSECONDS
 
 object SparkToVectorEnginePlan {
   val ConvertColumnarToColumnar = false
@@ -22,6 +25,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   extends UnaryExecNode
   with LazyLogging
   with SupportsVeColBatch {
+
+  override lazy val metrics = Map(
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+  )
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
 
@@ -34,13 +41,17 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
+    val execMetric = longMetric("execTime")
+    val beforeExec = System.nanoTime()
+
+
     //      val numInputRows = longMetric("numInputRows")
     //      val numOutputBatches = longMetric("numOutputBatches")
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
-    if (child.supportsColumnar) {
+    val res = if (child.supportsColumnar) {
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
@@ -62,7 +73,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
               completeInSpark = true
             )
         }
-    } else
+    } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
         implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
@@ -75,5 +86,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
           arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
         )
       }
+    }
+
+    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+
+    res
   }
 }
