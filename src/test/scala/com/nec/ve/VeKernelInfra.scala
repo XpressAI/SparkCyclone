@@ -20,7 +20,7 @@ trait VeKernelInfra { this: Suite =>
     withCompiled(CodeLines.from(KeyHeaders, cCode.toCodeLines(name)).cCode)(f)
   }
 
-  private def withCompiled[T](cCode: String)(f: Path => T): T = {
+  def withCompiled[T](cCode: String)(f: Path => T): T = {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val oPath =
       VeKernelCompiler(s"${getClass.getSimpleName.replaceAllLiterally("$", "")}", veBuildPath)
