@@ -243,8 +243,6 @@ object CFunctionGeneration {
     joinExpression: JoinExpression
   )
 
-  final case class TypedGroupByExpression[ScalaType](groupByExpression: GroupByExpression)
-
   sealed trait GroupByExpression {
     def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T
   }

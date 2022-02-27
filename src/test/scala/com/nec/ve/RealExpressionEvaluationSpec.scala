@@ -22,12 +22,6 @@ package com.nec.ve
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowVectorBuilders.{
-  withArrowStringVector,
-  withDirectBigIntVector,
-  withDirectFloat8Vector,
-  withNullableArrowStringVector
-}
 import com.nec.arrow.{CatsArrowVectorBuilders, WithTestAllocator}
 import com.nec.cmake.CMakeBuilder
 import com.nec.cmake.eval.OldUnifiedGroupByFunctionGeneration
@@ -41,11 +35,11 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
 import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
-import com.nec.spark.agile.{CFunctionGeneration, DeclarativeAggregationConverter, StringProducer}
-import com.nec.util.RichVectors.{RichBigIntVector, RichFloat8, RichIntVector, RichVarCharVector}
+import com.nec.spark.agile.{CFunctionGeneration, DeclarativeAggregationConverter}
+import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.StaticTypingTestAdditions._
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.{VeBatchOfBatches, VeColVectorSource}
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
@@ -193,23 +187,15 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   }
 
   "We can aggregate / group by on an empty grouping" ignore {
-    val result = evalAggregate(
-      List[(Double, Double, Double)]((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-    )(
-      TypedGroupByExpression[Double](
-        GroupByAggregation(
-          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
-        )
-      )
-    )
+    val result = evalAggregate[(Double, Double, Double), Double](
+      List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+    )(GroupByAggregation(Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))))
     assert(result == List[Double](6.6))
   }
 
   "Average is computed correctly" in {
-    val result = evalAggregate(List[Double](1, 2, 3))(
-      TypedGroupByExpression[Double](
-        GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
-      )
+    val result = evalAggregate[Double, Double](List[Double](1, 2, 3))(
+      GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
     )
     assert(result == List[Double](2))
   }
@@ -224,14 +210,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )
     )(
       (
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
-        TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", None))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByAggregation(
-            Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
-          )
+        GroupByProjection(CExpression("input_0->data[i]", None)),
+        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
+        GroupByAggregation(
+          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
         )
       )
     )
@@ -258,9 +240,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )(
         (
           StringGrouping("input_0"),
-          TypedGroupByExpression[Double](
-            GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
-          )
+          GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
         )
       )
 
@@ -277,15 +257,11 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )
     )(
       (
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
-        TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", None))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByAggregation(
-            Aggregation.sum(
-              CExpression("input_2->data[i] - input_0->data[i]", Some("input_2->data[i] != 4.0"))
-            )
+        GroupByProjection(CExpression("input_0->data[i]", None)),
+        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
+        GroupByAggregation(
+          Aggregation.sum(
+            CExpression("input_2->data[i] - input_0->data[i]", Some("input_2->data[i] != 4.0"))
           )
         )
       )
@@ -309,16 +285,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )
     )(
       (
-        TypedGroupByExpression[Option[Double]](
-          GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0")))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", None))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByAggregation(
-            Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
-          )
+        GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))),
+        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
+        GroupByAggregation(
+          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
         )
       )
     )
@@ -352,19 +322,13 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )
     )(
       (
-        TypedGroupByExpression[Option[Double]](
-          GroupByProjection(CExpression("input_0->data[i]", Some("input_0->get_validity(i)")))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)")))
-        ),
-        TypedGroupByExpression[Option[Double]](
-          GroupByAggregation(
-            Aggregation.sum(
-              CExpression(
-                "input_2->data[i] - input_0->data[i]",
-                Some("input_0->get_validity(i) && input_2->get_validity(i)")
-              )
+        GroupByProjection(CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))),
+        GroupByProjection(CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))),
+        GroupByAggregation(
+          Aggregation.sum(
+            CExpression(
+              "input_2->data[i] - input_0->data[i]",
+              Some("input_0->get_validity(i) && input_2->get_validity(i)")
             )
           )
         )
@@ -390,16 +354,10 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )
     )(
       (
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
-        TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", None))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByAggregation(
-            DeclarativeAggregationConverter(
-              Sum(AttributeReference("input_0->data[i]", DoubleType)())
-            )
-          )
+        GroupByProjection(CExpression("input_0->data[i]", None)),
+        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
+        GroupByAggregation(
+          DeclarativeAggregationConverter(Sum(AttributeReference("input_0->data[i]", DoubleType)()))
         )
       )
     )
@@ -551,17 +509,13 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       )
     )(
       (
-        TypedGroupByExpression[Double](GroupByProjection(CExpression("input_0->data[i]", None))),
-        TypedGroupByExpression[Double](
-          GroupByProjection(CExpression("input_1->data[i] + 1", None))
-        ),
-        TypedGroupByExpression[Double](
-          GroupByAggregation(
-            DeclarativeAggregationConverter(
-              Corr(
-                AttributeReference("input_2->data[i]", DoubleType)(),
-                AttributeReference("input_2->data[i]", DoubleType)()
-              )
+        GroupByProjection(CExpression("input_0->data[i]", None)),
+        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
+        GroupByAggregation(
+          DeclarativeAggregationConverter(
+            Corr(
+              AttributeReference("input_2->data[i]", DoubleType)(),
+              AttributeReference("input_2->data[i]", DoubleType)()
             )
           )
         )
@@ -784,45 +738,24 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
 
 object RealExpressionEvaluationSpec extends LazyLogging {
 
-  def evalAggregate[Input, Output](input: List[Input])(expressions: Output)(implicit
-    inputArguments: InputArgumentsScalar[Input],
-    groupExpressor: GroupExpressor[Output],
-    outputArguments: OutputArguments[Output]
-  ): List[outputArguments.Result] = {
-    val functionName = "agg"
-
-    val generatedSource =
+  def evalAggregate[Input, Output](input: List[Input])(expressions: GroupByExpression*)(implicit
+    veAllocator: VeAllocator[Input],
+    veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra
+  ): List[Output] = {
+    val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
-          inputs = inputArguments.inputs,
+          inputs = veAllocator.veTypes,
           groups = Nil,
-          outputs = groupExpressor.express(expressions).map(v => Right(v))
+          outputs = veRetriever.express(expressions).map(v => Right(v))
         )
-      ).renderGroupBy.toCodeLinesG(functionName)
+      ).renderGroupBy
 
-    logger.debug(s"Generated code: ${generatedSource.cCode}")
-
-    val cLib = CMakeBuilder.buildCLogging(
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
+    evalFunction(cFunction, "agg")(input, veRetriever.makeCVectors)
   }
 
   def evalInnerJoin[Input, LeftKey, RightKey, Output](
@@ -831,44 +764,25 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     rightKey: TypedCExpression2,
     output: Output
   )(implicit
-    inputArguments: InputArgumentsScalar[Input],
+    veAllocator: VeAllocator[Input],
     joinExpressor: JoinExpressor[Output],
-    outputArguments: OutputArguments[Output]
-  ): List[outputArguments.Result] = {
-    val functionName = "project_f"
-    val generatedSource =
+    veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra
+  ): List[Output] = {
+    val cFunction =
       renderInnerJoin(
         VeInnerJoin(
-          inputs = inputArguments.inputs,
+          inputs = veAllocator.veTypes,
           leftKey = leftKey,
           rightKey = rightKey,
           outputs = joinExpressor.express(output)
         )
-      ).toCodeLinesS(functionName)
+      )
 
-    logger.debug(s"Generated code: ${generatedSource.cCode}")
-
-    val cLib = CMakeBuilder.buildCLogging(
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
+    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
   def evalOuterJoin[Input, LeftKey, RightKey, Output](
@@ -879,145 +793,84 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     outerOutput: Output,
     joinType: JoinType
   )(implicit
-    inputArguments: InputArgumentsScalar[Input],
+    veAllocator: VeAllocator[Input],
     joinExpressor: JoinExpressor[Output],
-    outputArguments: OutputArguments[Output]
+    veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra
   ): List[outputArguments.Result] = {
-    val functionName = "project_f"
     val outputs = joinExpressor
       .express(innerOutput)
       .zip(joinExpressor.express(outerOutput))
       .map { case (inner, outer) =>
         OuterJoinOutput(inner, outer)
       }
-    val generatedSource =
+    val cFunction =
       renderOuterJoin(
         VeOuterJoin(
-          inputs = inputArguments.inputs,
+          inputs = veAllocator.veTypes,
           leftKey = leftKey,
           rightKey = rightKey,
           outputs = outputs,
           joinType
         )
-      ).toCodeLinesS(functionName)
-    logger.debug(s"Generated code: ${generatedSource.cCode}")
-
-    val cLib = CMakeBuilder.buildCLogging(
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
+      )
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
+    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
   def evalGroupBySum[Input, Groups, Output](
     input: List[Input]
   )(groups: (TypedCExpression2, TypedCExpression2))(expressions: Output)(implicit
-    inputArguments: InputArgumentsScalar[Input],
     groupExpressor: GroupExpressor[Output],
-    outputArguments: OutputArguments[Output]
-  ): List[outputArguments.Result] = {
-    val functionName = "project_f"
-
-    val generatedSource =
+    veAllocator: VeAllocator[Input],
+    veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra
+  ): List[Output] = {
+    val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
-          inputs = inputArguments.inputs,
+          inputs = veAllocator.makeCVectors,
           groups = List(Right(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions).map(v => Right(v))
         )
-      ).renderGroupBy.toCodeLinesG(functionName)
+      ).renderGroupBy
 
-    logger.debug(s"Generated code: ${generatedSource.cCode}")
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
+    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
 
-    val cLib = CMakeBuilder.buildCLogging(
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
   }
 
   def evalGroupBySumStr[Input, Groups, Output](
     input: List[Input]
   )(groups: (StringGrouping, TypedCExpression2))(expressions: Output)(implicit
-    inputArguments: InputArgumentsFull[Input],
-    groupExpressor: GeneralGroupExpressor[Output],
-    outputArguments: OutputArguments[Output]
-  ): List[outputArguments.Result] = {
-    val functionName = "project_f"
-
-    val generatedSource =
+    veAllocator: VeAllocator[Input],
+    veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra
+  ): List[Output] = {
+    val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
-          inputs = inputArguments.inputs,
+          inputs = veAllocator.makeCVectors,
           groups = List(Left(groups._1), Right(groups._2)),
           outputs = groupExpressor.express(expressions)
         )
-      ).renderGroupBy.toCodeLinesG(functionName)
+      ).renderGroupBy
 
-    logger.debug(s"Generated code: ${generatedSource.cCode}")
-
-    val cLib = CMakeBuilder.buildCLogging(cSource =
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
+    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
   def evalProject[Input, Output](input: List[Input])(expressions: CExpression*)(implicit
     veProcess: VeProcess,
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
-    veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
-    veColVectorSource: VeColVectorSource
+    veKernelInfra: VeKernelInfra
   ): List[Output] = {
     val functionName = "project_f"
 
@@ -1031,6 +884,8 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       VeProjection(inputs = veAllocator.veTypes, outputs = outputs.map(out => Right(out)))
     )
 
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
     evalFunction(cFunction, functionName)(input, outputs.map(_.cVector))
   }
 
@@ -1038,9 +893,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     cFunction: CFunction,
     functionName: String
   )(input: List[Input], outputs: List[CVector])(implicit
-    veProcess: VeProcess,
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
+    veProcess: VeProcess,
     veKernelInfra: VeKernelInfra,
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
@@ -1059,12 +914,21 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
   }
 
-  def evalFilter[Data](input: Data*)(
-    condition: CExpression
-  )(implicit veAllocator: VeAllocator[Data], veRetriever: VeRetriever[Data]): List[Data] = {
+  def evalFilter[Data](input: Data*)(condition: CExpression)(implicit
+    veAllocator: VeAllocator[Data],
+    veRetriever: VeRetriever[Data],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra,
+    originalCallingContext: OriginalCallingContext,
+    veColVectorSource: VeColVectorSource
+  ): List[Data] = {
     val filterFn = FilterFunction(
       "filter_f",
-      VeFilter(data = inputArguments.inputs, condition = condition, stringVectorComputations = Nil),
+      VeFilter(
+        data = veAllocator.makeCVectors,
+        condition = condition,
+        stringVectorComputations = Nil
+      ),
       false
     )
 
@@ -1072,42 +936,25 @@ object RealExpressionEvaluationSpec extends LazyLogging {
 
     val generatedSource = CodeLines.from("""#include "cyclone/cyclone.hpp"""", filterFn.toCodeLines)
 
-    evalFunction(
-      filterFn, "filter_f"
-    )(input, veRetriever.veTypes.zipWithIndex.map{ case (t, i)=> t.makeCVector(s"out_${i}")})
+    evalFunction(filterFn, "filter_f")(
+      input,
+      veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
+    )
   }
 
   def evalSort[Data](input: Data*)(sorts: VeSortExpression*)(implicit
-    inputArguments: InputArgumentsScalar[Data],
-    outputArguments: OutputArguments[Data]
-  ): List[outputArguments.Result] = {
+    veAllocator: VeAllocator[Data],
+    veRetriever: VeRetriever[Data],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra,
+    originalCallingContext: OriginalCallingContext,
+    veColVectorSource: VeColVectorSource
+  ): List[Data] = {
     val functionName = "sort_f"
 
-    val generatedSource =
-      renderSort(sort = VeSort(data = inputArguments.inputs, sorts = sorts.toList))
-        .toCodeLinesS(functionName)
-
-    val cLib = CMakeBuilder.buildC(
-      List("\n\n", generatedSource.cCode)
-        .mkString("\n\n")
-    )
-
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val (outArgs, fetcher) = outputArguments.allocateVectors()
-      try {
-        val inVecs = inputArguments.allocateVectors(input: _*)
-        try nativeInterface.callFunctionWrapped(functionName, inVecs ++ outArgs)
-        finally {
-          inVecs
-            .collect { case VectorInputNativeArgument(v: InputArrowVectorWrapper) =>
-              v.valueVector
-            }
-            .foreach(_.close())
-        }
-        fetcher()
-      } finally outArgs.foreach(_.wrapped.valueVector.close())
-    }
+    val cFunction =
+      renderSort(sort = VeSort(data = veAllocator.makeCVectors, sorts = sorts.toList))
+    evalFunction(cFunction, functionName)(input = input.toList, veRetriever.makeCVectors)
   }
 
 }

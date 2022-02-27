@@ -149,6 +149,23 @@ object ArrowVectorBuilders {
     }
   }
 
+  def withNullableDoubleVector[T](data: Seq[Option[Double]])(f: Float8Vector => T): T = {
+    WithTestAllocator { alloc =>
+      val vcv = new Float8Vector(s"value$vectorCount", alloc)
+      vectorCount += 1
+      vcv.allocateNew()
+      try {
+        data.zipWithIndex.foreach {
+          case (None, idx)      => vcv.setNull(idx)
+          case (Some(str), idx) => vcv.setSafe(idx, str)
+        }
+        vcv.setValueCount(data.size)
+
+        f(vcv)
+      } finally vcv.close()
+    }
+  }
+
   def withDirectBigIntVector[T](data: Seq[Long])(f: BigIntVector => T): T = {
     WithTestAllocator { alloc =>
       val vcv = new BigIntVector(s"value$vectorCount", alloc)
