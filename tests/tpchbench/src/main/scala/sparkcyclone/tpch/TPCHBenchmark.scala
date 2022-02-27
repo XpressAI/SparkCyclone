@@ -295,7 +295,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       .flatMap(_.split(",").map(_.toInt))
       .toSet
 
-    val skipPlan = getOptions("plan")
+    val skipPlan = getOptions("skipPlan")
       .map(_.toBoolean)
       .headOption
       .getOrElse(false)
