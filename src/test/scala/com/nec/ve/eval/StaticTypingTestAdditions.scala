@@ -17,13 +17,9 @@
  * limitations under the License.
  *
  */
-package com.nec.ve
+package com.nec.ve.eval
 
-import com.nec.arrow.ArrowVectorBuilders.{
-  withArrowFloat8VectorI,
-  withArrowStringVector,
-  withNullableDoubleVector
-}
+import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
@@ -32,6 +28,7 @@ import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
+import com.nec.ve.{VeColBatch, VeProcess}
 import org.apache.arrow.vector.{Float8Vector, VarCharVector}
 
 /**
