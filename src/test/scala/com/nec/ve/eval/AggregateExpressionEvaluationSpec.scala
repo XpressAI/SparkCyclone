@@ -33,11 +33,10 @@ import com.nec.ve.eval.StaticTypingTestAdditions._
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType
+import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
-/**
- * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
- */
+@Ignore
 final class AggregateExpressionEvaluationSpec
   extends AnyFreeSpec
   with WithVeProcess

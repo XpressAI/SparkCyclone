@@ -1,4 +1,4 @@
-package com.nec.ve
+package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
@@ -12,8 +12,11 @@ import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
+import com.nec.ve.{VeColBatch, VeKernelInfra, VeProcess, WithVeProcess}
+import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
+@Ignore
 final class StringOpsStringHoleEvaluationSpec
   extends AnyFreeSpec
   with WithVeProcess

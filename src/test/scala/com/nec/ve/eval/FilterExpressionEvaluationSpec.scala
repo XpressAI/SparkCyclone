@@ -21,13 +21,14 @@ package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.ve._
+import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
  */
+@Ignore
 final class FilterExpressionEvaluationSpec
   extends AnyFreeSpec
   with WithVeProcess

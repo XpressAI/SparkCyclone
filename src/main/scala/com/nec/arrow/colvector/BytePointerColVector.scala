@@ -90,16 +90,16 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
         if (numItems > 0) {
           val dataSize = numItems * 4
           smallIntVector.setValueCount(numItems)
-          getUnsafe.copyMemory(
-            bytePointersAddresses(1),
-            smallIntVector.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
           val buff = new BytePointer(ByteBuffer.allocateDirect(dataSize))
 
           getUnsafe.copyMemory(bytePointersAddresses(0), buff.address(), dataSize)
           val intBuff = buff.asBuffer().asIntBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
+          getUnsafe.copyMemory(
+            bytePointersAddresses(1),
+            smallIntVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
         }
         smallIntVector
       case scalarType: VeScalarType if VeToArrow.contains(scalarType) =>
