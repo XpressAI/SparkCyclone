@@ -29,18 +29,15 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
 
   override def doExecute(): RDD[InternalRow] = {
-    val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
-
-    val res: RDD[InternalRow] = doExecuteColumnar().mapPartitions(columnarBatchIterator =>
+    doExecuteColumnar().mapPartitions(columnarBatchIterator => {
       columnarBatchIterator.flatMap(mapBatchToRow)
-    )
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
+    })
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val execMetric = longMetric("execTime")
+    val beforeExec = System.nanoTime()
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -49,7 +46,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
         lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-        iterator.map { veColBatch =>
+        val res = iterator.map { veColBatch =>
           import OriginalCallingContext.Automatic._
 
           try {
@@ -59,6 +56,8 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
             res
           } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
         }
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        res
       }
   }
 

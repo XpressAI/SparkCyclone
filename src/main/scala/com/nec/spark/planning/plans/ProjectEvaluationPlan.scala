@@ -68,12 +68,12 @@ final case class ProjectEvaluationPlan(
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
         val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
-        veColBatches.map { veColBatch =>
+        val res = veColBatches.map { veColBatch =>
           import SparkCycloneExecutorPlugin.veProcess
           import OriginalCallingContext.Automatic._
           try {
@@ -97,17 +97,18 @@ final case class ProjectEvaluationPlan(
             if (veColBatch.numRows < outBatch.numRows)
               println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
             outBatch
-          } finally child
-            .asInstanceOf[SupportsVeColBatch]
-            .dataCleanup
-            .cleanup(
-              ProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
-            )
+          } finally {
+            child
+              .asInstanceOf[SupportsVeColBatch]
+              .dataCleanup
+              .cleanup(
+                ProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
+              )
+          }
         }
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        res
       }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
   }
 
 }

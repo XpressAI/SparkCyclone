@@ -36,11 +36,11 @@ case class VeFinalAggregate(
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        withVeLibrary { libRef =>
+        val res = withVeLibrary { libRef =>
           veColBatches.map { veColBatch =>
             logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
 
@@ -63,10 +63,11 @@ case class VeFinalAggregate(
             }
           }
         }
-      }
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
 
-    res
+        res
+      }
+
   }
 
   override def output: Seq[Attribute] = expectedOutputs.map(_.toAttribute)
