@@ -695,6 +695,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       veKernelInfra.withCompiled(cFunction.toCodeLinesSPtr(functionName).cCode) { path =>
         val libRef = veProcess.loadLibrary(path)
         val inputVectors = veAllocator.allocate()
+        println(s"Input = ${inputVectors}")
         try {
           val resultingVectors =
             veProcess.execute(libRef, functionName, inputVectors.cols, outputs)
