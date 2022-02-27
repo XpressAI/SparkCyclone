@@ -2,7 +2,7 @@ package com.nec.arrow.colvector
 
 import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableInt, VeNullableTimestamp}
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -11,12 +11,12 @@ import com.nec.ve.colvector.VeColVector.getUnsafe
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.{IntegerType, StringType}
-import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
+import org.apache.spark.sql.util.ArrowUtilsExposed.{RichSmallIntVector, RichTimestampMicroVector}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.{BytePointer, IntPointer}
-
 import java.nio.ByteBuffer
 
 /**
@@ -84,6 +84,29 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     import underlying.{buffers, numItems}
     val bytePointersAddresses = buffers.flatten.map(_.address())
     underlying.veType match {
+      case VeScalarType.VeNullableTimestamp =>
+        val bigIntVector = new BigIntVector(underlying.name, bufferAllocator)
+        if (numItems > 0) {
+          val dataSize = numItems * 8
+          val bPointer = new BytePointer(ByteBuffer.allocateDirect(dataSize))
+
+          bigIntVector.setValueCount(numItems)
+
+          getUnsafe.copyMemory(
+            bytePointersAddresses(0),
+            bPointer.address(),
+            dataSize
+          )
+
+          val longBuffer = bPointer.asBuffer().asLongBuffer()
+          (0 until numItems).map(idx => bigIntVector.set(idx, longBuffer.get(idx) / 1000))
+          getUnsafe.copyMemory(
+            bytePointersAddresses(1),
+            bigIntVector.getValidityBufferAddress,
+            Math.ceil(numItems / 64.0).toInt * 8
+          )
+        }
+        bigIntVector
       case VeScalarType.VeNullableShort =>
         /** Short type is casted to int */
         val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
@@ -102,6 +125,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           )
         }
         smallIntVector
+
       case scalarType: VeScalarType if VeToArrow.contains(scalarType) =>
         val typeLink = VeToArrow(scalarType)
         val vec = typeLink.makeArrow(underlying.name)(bufferAllocator)
@@ -195,6 +219,7 @@ object BytePointerColVector {
     valueVector: ValueVector
   )(implicit source: VeColVectorSource): BytePointerColVector =
     valueVector match {
+      case timestampVector: TimeStampMicroTZVector => fromBaseFixedWidthVector(VeNullableTimestamp, timestampVector.toNanoVector)
       case smallIntVector: SmallIntVector =>
         fromBaseFixedWidthVector(VeNullableInt, smallIntVector.toIntVector)
       case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>

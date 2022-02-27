@@ -138,7 +138,7 @@ object CFunctionGeneration {
 
   object VeScalarType {
     val All: Set[VeScalarType] =
-      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong)
+      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong, VeNullableTimestamp)
     case object VeNullableDouble extends VeScalarType {
 
       def cScalarType: String = "double"
@@ -159,7 +159,7 @@ object CFunctionGeneration {
     case object VeNullableShort extends VeScalarType {
       def cScalarType: String = "int32_t"
 
-      def cVectorType: String = "nullable_short_vector"
+      def cVectorType: String = "nullable_int_vector"
 
       override def cSize: Int = 4
     }
@@ -180,10 +180,20 @@ object CFunctionGeneration {
       override def cSize: Int = 8
     }
 
+    case object VeNullableTimestamp extends VeScalarType {
+      def cScalarType: String = "int64_t"
+
+      def cVectorType: String = "nullable_bigint_vector"
+
+      override def cSize: Int = 8
+    }
+
     def veNullableDouble: VeScalarType = VeNullableDouble
     def veNullableInt: VeScalarType = VeNullableInt
     def veNullableShort: VeScalarType = VeNullableShort
     def veNullableLong: VeScalarType = VeNullableLong
+    def veNullableTimestamp: VeScalarType = VeNullableTimestamp
+
   }
 
   /**
@@ -423,6 +433,8 @@ object CFunctionGeneration {
         new BigIntVector(cVector.name, bufferAllocator)
       case VeNullableShort =>
         new SmallIntVector(cVector.name, bufferAllocator)
+      case VeNullableTimestamp =>
+        new BigIntVector(cVector.name, bufferAllocator)
     }
 
   val KeyHeaders = CodeLines.from(

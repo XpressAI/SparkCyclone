@@ -2,22 +2,9 @@ package com.nec.arrow.colvector
 
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{
-  BaseFixedWidthVector,
-  BigIntVector,
-  DateDayVector,
-  Float8Vector,
-  IntVector
-}
-import org.apache.spark.sql.types.{
-  DataType,
-  DateType,
-  DoubleType,
-  IntegerType,
-  LongType,
-  ShortType,
-  TimestampType
-}
+import org.apache.arrow.vector.{BaseFixedWidthVector, BigIntVector, DateDayVector, Float8Vector, IntVector, TimeStampMicroTZVector, TimeStampMicroVector}
+
+import org.apache.spark.sql.types.{DataType, DateType, DoubleType, IntegerType, LongType, ShortType, TimestampType}
 import org.apache.spark.sql.vectorized.ColumnVector
 
 sealed trait TypeLink {
@@ -80,6 +67,19 @@ object TypeLink {
     override def veScalarType: VeScalarType = VeScalarType.veNullableShort
   }
 
+  private case object TimestampTypeLink extends TypeLink {
+    override type ArrowType = TimeStampMicroVector
+
+    override def makeArrow(name: String)(implicit bufferAllocator: BufferAllocator): ArrowType =
+      new TimeStampMicroVector(name, bufferAllocator)
+
+    override def transfer(idx: Int, from: ColumnVector, to: ArrowType): Unit =
+      if (from.isNullAt(idx)) to.setNull(idx)
+      else to.set(idx, from.getLong(idx) * 1000)
+
+    override def veScalarType: VeScalarType = VeScalarType.veNullableShort
+  }
+
   private case object DateTypeLink extends TypeLink {
     override type ArrowType = DateDayVector
 
@@ -98,8 +98,8 @@ object TypeLink {
     ShortType -> ShortTypeLink,
     DoubleType -> DoubleTypeLink,
     LongType -> LongTypeLink,
-    TimestampType -> LongTypeLink,
-    DateType -> DateTypeLink
+    TimestampType -> TimestampTypeLink,
+    DateType -> DateTypeLink,
   )
 
   val VeToArrow: Map[VeScalarType, TypeLink] = Map(

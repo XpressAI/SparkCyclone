@@ -467,7 +467,7 @@ object SparkExpressionToCExpression {
       case ShortType     => VeScalarType.veNullableShort
       case DateType      => VeScalarType.veNullableInt
       case BooleanType   => VeScalarType.veNullableInt
-      case TimestampType => VeScalarType.veNullableLong
+      case TimestampType => VeScalarType.veNullableTimestamp
     }
   }
   def sparkTypeToVeType(dataType: DataType): VeType = {
@@ -479,7 +479,7 @@ object SparkExpressionToCExpression {
       case ShortType     => VeScalarType.veNullableShort
       case BooleanType   => VeScalarType.veNullableInt
       case StringType    => VeString
-      case TimestampType => VeScalarType.veNullableLong
+      case TimestampType => VeScalarType.veNullableTimestamp
     }
   }
   def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
@@ -495,7 +495,8 @@ object SparkExpressionToCExpression {
       case VeScalarType.VeNullableFloat  => FloatType
       case VeScalarType.VeNullableInt    => IntegerType
       case VeScalarType.VeNullableLong   => LongType
-      case VeScalarType.VeNullableShort  => ShortType
+      case VeScalarType.VeNullableShort   => ShortType
+      case VeScalarType.VeNullableTimestamp   => TimestampType
       case VeString                      => StringType
     }
   }

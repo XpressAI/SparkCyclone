@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.{DataFrame, SparkSession}
-
+import scala.language.existentials
 import java.time.LocalDate
 
 // TPC-H table schemas

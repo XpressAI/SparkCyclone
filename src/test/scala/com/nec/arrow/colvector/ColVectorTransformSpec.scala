@@ -5,11 +5,13 @@ import cats.effect.{IO, Ref}
 import com.nec.arrow.CatsArrowVectorBuilders
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.RootAllocator
-import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
-import org.apache.spark.sql.types.{IntegerType, StructField}
+
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
+
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
+import org.apache.spark.sql.types.{IntegerType, StructField}
 
 final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
   import java.time.{Instant, LocalDate}

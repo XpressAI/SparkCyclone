@@ -957,7 +957,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  s"Timestamps are supported" ignore withSparkSession2(configuration) { sparkSession =>
+  s"Timestamps are supported" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val a = Instant.now()

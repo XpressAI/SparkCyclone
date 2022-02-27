@@ -58,5 +58,4 @@ object ArrowInterfaces {
     }
     ret
   }
-
 }
