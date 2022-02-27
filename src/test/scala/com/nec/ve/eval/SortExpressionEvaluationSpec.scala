@@ -34,53 +34,51 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
 
   import RealExpressionEvaluationUtils._
 
-  "Sort" - {
-    "We can sort" in {
-      expect(
-        evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
-          VeSortExpression(
-            TypedCExpression2(
-              VeScalarType.VeNullableDouble,
-              CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
-            ),
-            Ascending
-          )
-        ) ==
-          List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
+  "We can sort" in {
+    expect(
+      evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
+        VeSortExpression(
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
+          ),
+          Ascending
+        )
+      ) ==
+        List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
+    )
+  }
+
+  "We can sort (3 cols)" in {
+    val results =
+      evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
+        VeSortExpression(
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+          ),
+          Ascending
+        )
       )
-    }
+    val expected =
+      List[(Double, Double, Double)]((2.0, 2.0, 0.0), (90.0, 5.0, 1.0), (1.0, 4.0, 3.0))
+    expect(results == expected)
+  }
 
-    "We can sort (3 cols)" in {
-      val results =
-        evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
-          VeSortExpression(
-            TypedCExpression2(
-              VeScalarType.VeNullableDouble,
-              CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
-            ),
-            Ascending
-          )
+  "We can sort (3 cols) desc" in {
+    val results =
+      evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
+        VeSortExpression(
+          TypedCExpression2(
+            VeScalarType.VeNullableDouble,
+            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+          ),
+          Descending
         )
-      val expected =
-        List[(Double, Double, Double)]((2.0, 2.0, 0.0), (90.0, 5.0, 1.0), (1.0, 4.0, 3.0))
-      expect(results == expected)
-    }
-
-    "We can sort (3 cols) desc" in {
-      val results =
-        evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
-          VeSortExpression(
-            TypedCExpression2(
-              VeScalarType.VeNullableDouble,
-              CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
-            ),
-            Descending
-          )
-        )
-      val expected =
-        List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
-      expect(results == expected)
-    }
+      )
+    val expected =
+      List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
+    expect(results == expected)
   }
 
 }

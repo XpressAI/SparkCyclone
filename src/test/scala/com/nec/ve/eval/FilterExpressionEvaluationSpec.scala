@@ -37,59 +37,56 @@ final class FilterExpressionEvaluationSpec
 
   import RealExpressionEvaluationUtils._
 
-  "Filter" ignore {
+  "We can transform a null-column (FilterNull)" in {
+    expect(
+      evalFilter[Option[Double]](Some(90), None, Some(123))(
+        CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
+      ) == List[Option[Double]](None, Some(123))
+    )
+  }
 
-    "We can transform a null-column (FilterNull)" in {
-      expect(
-        evalFilter[Option[Double]](Some(90), None, Some(123))(
-          CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
-        ) == List[Option[Double]](None, Some(123))
+  "We can filter a column" in {
+    expect(
+      evalFilter[Double](90.0, 1.0, 2, 19, 14)(
+        CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
+      ) == List[Double](90, 19)
+    )
+  }
+
+  "We can filter a column by a String (FilterByString)" ignore {
+
+    /** Ignored because we are likely not going to support filtering * */
+    val result = evalFilter[(String, Double)](
+      ("x", 90.0),
+      ("one", 1.0),
+      ("two", 2.0),
+      ("prime", 19.0),
+      ("other", 14.0)
+    )(
+      CExpression(
+        cCode =
+          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i] + input_0->lengths[i]) == std::string("one")""",
+        isNotNullCode = None
       )
-    }
+    )
+    val expected = List[(String, Double)](("one", 1.0))
 
-    "We can filter a column" in {
-      expect(
-        evalFilter[Double](90.0, 1.0, 2, 19, 14)(
-          CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
-        ) == List[Double](90, 19)
-      )
-    }
+    expect(result == expected)
+  }
+  "We can filter a column with a String" ignore {
 
-    "We can filter a column by a String (FilterByString)" ignore {
+    /** Ignored because we are likely not going to support filtering * */
 
-      /** Ignored because we are likely not going to support filtering * */
-      val result = evalFilter[(String, Double)](
-        ("x", 90.0),
-        ("one", 1.0),
-        ("two", 2.0),
-        ("prime", 19.0),
-        ("other", 14.0)
-      )(
-        CExpression(
-          cCode =
-            """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i] + input_0->lengths[i]) == std::string("one")""",
-          isNotNullCode = None
-        )
-      )
-      val expected = List[(String, Double)](("one", 1.0))
+    val result = evalFilter[(String, Double)](
+      ("x", 90.0),
+      ("one", 1.0),
+      ("two", 2.0),
+      ("prime", 19.0),
+      ("other", 14.0)
+    )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None))
+    val expected = List[(String, Double)](("x", 90.0), ("prime", 19.0))
 
-      expect(result == expected)
-    }
-    "We can filter a column with a String" ignore {
-
-      /** Ignored because we are likely not going to support filtering * */
-
-      val result = evalFilter[(String, Double)](
-        ("x", 90.0),
-        ("one", 1.0),
-        ("two", 2.0),
-        ("prime", 19.0),
-        ("other", 14.0)
-      )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None))
-      val expected = List[(String, Double)](("x", 90.0), ("prime", 19.0))
-
-      expect(result == expected)
-    }
+    expect(result == expected)
   }
 
 }

@@ -34,47 +34,35 @@ final class JoinExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   private implicit val fallback: EvalFallback = EvalFallback.noOp
 
   import RealExpressionEvaluationUtils._
-  "Join" - {
-    "We can Inner Join" in {
-      val leftKey =
-        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
+  "We can Inner Join" in {
+    val leftKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
-      val rightKey =
-        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
+    val rightKey =
+      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
 
-      val outputs = (
-        TypedJoinExpression[Double](
-          JoinProjection(CExpression("input_1->data[left_out[i]]", None))
-        ),
-        TypedJoinExpression[Double](
-          JoinProjection(CExpression("input_2->data[right_out[i]]", None))
-        ),
-        TypedJoinExpression[Double](
-          JoinProjection(CExpression("input_0->data[left_out[i]]", None))
-        ),
-        TypedJoinExpression[Double](
-          JoinProjection(CExpression("input_3->data[right_out[i]]", None))
-        )
-      )
+    val outputs = (
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
+      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
+    )
 
-      import JoinExpressor.RichJoin
+    import JoinExpressor.RichJoin
 
-      val out = evalInnerJoin[(Double, Double, Double, Double), (Double, Double, Double, Double)](
-        List(
-          (1.0, 2.0, 5.0, 1.0),
-          (3.0, 2.0, 3.0, 7.0),
-          (11.0, 7.0, 12.0, 11.0),
-          (8.0, 2.0, 3.0, 9.0)
-        ),
-        leftKey,
-        rightKey,
-        outputs.expressed
-      )
+    val out = evalInnerJoin[(Double, Double, Double, Double), (Double, Double, Double, Double)](
+      List(
+        (1.0, 2.0, 5.0, 1.0),
+        (3.0, 2.0, 3.0, 7.0),
+        (11.0, 7.0, 12.0, 11.0),
+        (8.0, 2.0, 3.0, 9.0)
+      ),
+      leftKey,
+      rightKey,
+      outputs.expressed
+    )
 
-      assert(out == List((2.0, 5.0, 1.0, 1.0), (7.0, 12.0, 11.0, 11.0)))
-    }
+    assert(out == List((2.0, 5.0, 1.0, 1.0), (7.0, 12.0, 11.0, 11.0)))
   }
 
 }
-
-
