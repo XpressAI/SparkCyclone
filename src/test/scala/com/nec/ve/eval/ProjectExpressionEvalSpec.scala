@@ -30,8 +30,6 @@ import org.scalatest.freespec.AnyFreeSpec
  */
 final class ProjectExpressionEvalSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
 
-  private implicit val fallback: EvalFallback = EvalFallback.noOp
-
   import RealExpressionEvaluationUtils._
 
   "We can transform a column" in {

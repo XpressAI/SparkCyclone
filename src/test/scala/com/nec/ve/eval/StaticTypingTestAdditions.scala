@@ -19,17 +19,21 @@
  */
 package com.nec.ve.eval
 
-import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
+import com.nec.arrow.ArrowVectorBuilders.{
+  withArrowFloat8VectorI,
+  withArrowStringVector,
+  withNullableDoubleVector
+}
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
+import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
 import com.nec.ve.{VeColBatch, VeProcess}
-import org.apache.arrow.vector.{Float8Vector, VarCharVector}
+import org.apache.arrow.vector.{Float8Vector, IntVector, VarCharVector}
 
 /**
  * Boilerplate to deal with making the tests nice and tight.
@@ -68,6 +72,20 @@ object StaticTypingTestAdditions {
         }
 
       override def veTypes: List[VeType] = List(VeNullableDouble)
+    }
+
+    implicit object StringAllocator extends VeAllocator[String] {
+      override def allocate(data: String*)(implicit
+        veProcess: VeProcess,
+        originalCallingContext: OriginalCallingContext,
+        veColVectorSource: VeColVectorSource
+      ): VeColBatch =
+        WithTestAllocator { implicit a =>
+          withArrowStringVector(data) { vcv =>
+            VeColBatch.fromList(List(VeColVector.fromArrowVector(vcv)))
+          }
+        }
+      override def veTypes: List[VeType] = List(VeString)
     }
 
     implicit object StringDoubleAllocator extends VeAllocator[(String, Double)] {
@@ -285,6 +303,19 @@ object StaticTypingTestAdditions {
           veColBatch.cols.flatMap { col =>
             val arrow = col.toArrowVector()
             try arrow.asInstanceOf[Float8Vector].toListSafe
+            finally arrow.close()
+          }
+        }
+      }
+    }
+    implicit object IntRetriever extends VeRetriever[Int] {
+      override def veTypes: List[VeType] = List(VeNullableInt)
+
+      override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Int] = {
+        WithTestAllocator { implicit alloc =>
+          veColBatch.cols.flatMap { col =>
+            val arrow = col.toArrowVector()
+            try arrow.asInstanceOf[IntVector].toList
             finally arrow.close()
           }
         }

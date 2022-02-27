@@ -33,8 +33,6 @@ final class FilterExpressionEvaluationSpec
   with WithVeProcess
   with VeKernelInfra {
 
-  private implicit val fallback: EvalFallback = EvalFallback.noOp
-
   import RealExpressionEvaluationUtils._
 
   "We can transform a null-column (FilterNull)" in {
