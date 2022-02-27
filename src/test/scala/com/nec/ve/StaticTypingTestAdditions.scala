@@ -27,7 +27,13 @@ import com.nec.arrow.ArrowVectorBuilders.{
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CVector,
+  NamedJoinExpression,
+  TypedJoinExpression,
+  VeScalarType,
+  VeType
+}
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.colvector.VeColVector
 import org.apache.arrow.vector.{Float8Vector, VarCharVector}
@@ -103,10 +109,10 @@ object StaticTypingTestAdditions {
       override def allocate(
         data: (Double, Double, Double)*
       )(implicit veProcess: VeProcess): VeColBatch =
-        WithTestAllocator { implicit a =>
+        WithTestAllocator { implicit all =>
           withArrowFloat8VectorI(data.map(_._1)) { a =>
             withArrowFloat8VectorI(data.map(_._2)) { b =>
-              withArrowFloat8VectorI(data.map(_._2)) { c =>
+              withArrowFloat8VectorI(data.map(_._3)) { c =>
                 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
                 import com.nec.ve.colvector.VeColBatch.VeColVectorSource.Automatic._
                 VeColBatch.fromList(
@@ -123,6 +129,36 @@ object StaticTypingTestAdditions {
 
       override def veTypes: List[VeType] =
         List(VeNullableDouble, VeNullableDouble, VeNullableDouble)
+    }
+
+    implicit object DoubleDoubleDoubleDoubleAllocator
+      extends VeAllocator[(Double, Double, Double, Double)] {
+      override def allocate(
+        data: (Double, Double, Double, Double)*
+      )(implicit veProcess: VeProcess): VeColBatch =
+        WithTestAllocator { implicit all =>
+          withArrowFloat8VectorI(data.map(_._1)) { a =>
+            withArrowFloat8VectorI(data.map(_._2)) { b =>
+              withArrowFloat8VectorI(data.map(_._2)) { c =>
+                withArrowFloat8VectorI(data.map(_._3)) { d =>
+                  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+                  import com.nec.ve.colvector.VeColBatch.VeColVectorSource.Automatic._
+                  VeColBatch.fromList(
+                    List(
+                      VeColVector.fromArrowVector(a),
+                      VeColVector.fromArrowVector(b),
+                      VeColVector.fromArrowVector(c),
+                      VeColVector.fromArrowVector(d)
+                    )
+                  )
+                }
+              }
+            }
+          }
+        }
+
+      override def veTypes: List[VeType] =
+        List(VeNullableDouble, VeNullableDouble, VeNullableDouble, VeNullableDouble)
     }
 
     implicit object OptionDoubleAllocator extends VeAllocator[Option[Double]] {
@@ -143,7 +179,7 @@ object StaticTypingTestAdditions {
       override def allocate(
         data: (Option[Double], Double, Double)*
       )(implicit veProcess: VeProcess): VeColBatch =
-        WithTestAllocator { implicit a =>
+        WithTestAllocator { implicit allocator =>
           withNullableDoubleVector(data.map(_._1)) { a =>
             withArrowFloat8VectorI(data.map(_._2)) { b =>
               withArrowFloat8VectorI(data.map(_._2)) { c =>
@@ -208,6 +244,28 @@ object StaticTypingTestAdditions {
           case colA :: colB :: colC :: Nil =>
             colA.zip(colB).zip(colC).map { case ((a, b), c) =>
               (a, b, c)
+            }
+        }
+      }
+    }
+    implicit object DoubleDoubleDoubleDoubleRetriever
+      extends VeRetriever[(Double, Double, Double, Double)] {
+      override def veTypes: List[VeType] =
+        List(VeNullableDouble, VeNullableDouble, VeNullableDouble, VeNullableDouble)
+
+      override def retrieve(
+        veColBatch: VeColBatch
+      )(implicit veProcess: VeProcess): List[(Double, Double, Double, Double)] = {
+        WithTestAllocator { implicit alloc =>
+          veColBatch.cols.map { col =>
+            val arrow = col.toArrowVector()
+            try arrow.asInstanceOf[Float8Vector].toList
+            finally arrow.close()
+          }
+        } match {
+          case colA :: colB :: colC :: colD :: Nil =>
+            colA.zip(colB).zip(colC).zip(colD).map { case (((a, b), c), d) =>
+              (a, b, c, d)
             }
         }
       }
@@ -313,5 +371,44 @@ object StaticTypingTestAdditions {
         }
       }
     }
+  }
+
+  trait JoinExpressor[Output] {
+    def express(output: Output): List[NamedJoinExpression]
+  }
+
+  object JoinExpressor {
+    implicit class RichJoin[T](t: T)(implicit joinExpressor: JoinExpressor[T]) {
+      def expressed: List[NamedJoinExpression] = joinExpressor.express(t)
+    }
+    implicit val forQuartetDouble: JoinExpressor[
+      (
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double],
+        TypedJoinExpression[Double]
+      )
+    ] = output =>
+      List(
+        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
+      )
+
+    implicit val forQuartetDoubleOption: JoinExpressor[
+      (
+        TypedJoinExpression[Option[Double]],
+        TypedJoinExpression[Option[Double]],
+        TypedJoinExpression[Option[Double]],
+        TypedJoinExpression[Option[Double]]
+      )
+    ] = output =>
+      List(
+        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
+      )
   }
 }

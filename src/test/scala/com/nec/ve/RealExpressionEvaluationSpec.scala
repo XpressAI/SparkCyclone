@@ -31,7 +31,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByProjection
 }
 import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{veNullableDouble, VeNullableDouble}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
@@ -190,13 +190,25 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   "We can aggregate / group by on an empty grouping" ignore {
     val result = evalAggregate[(Double, Double, Double), Double](
       List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-    )(GroupByAggregation(Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))))
+    )(
+      NamedGroupByExpression(
+        "exp",
+        veNullableDouble,
+        GroupByAggregation(
+          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
+        )
+      )
+    )
     assert(result == List[Double](6.6))
   }
 
   "Average is computed correctly" in {
     val result = evalAggregate[Double, Double](List[Double](1, 2, 3))(
-      GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
+      NamedGroupByExpression(
+        "exp",
+        veNullableDouble,
+        GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
+      )
     )
     assert(result == List[Double](2))
   }
@@ -480,12 +492,6 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   }
 
   "We can Inner Join" in {
-    val inputs = List(
-      (1.0, 2.0, 5.0, 1.0),
-      (3.0, 2.0, 3.0, 7.0),
-      (11.0, 7.0, 12.0, 11.0),
-      (8.0, 2.0, 3.0, 9.0)
-    )
     val leftKey =
       TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
 
@@ -499,135 +505,60 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
     )
 
-    val out = evalInnerJoin(inputs, leftKey, rightKey, outputs)
+    import JoinExpressor.RichJoin
+
+    val out = evalInnerJoin[(Double, Double, Double, Double), (Double, Double, Double, Double)](
+      List(
+        (1.0, 2.0, 5.0, 1.0),
+        (3.0, 2.0, 3.0, 7.0),
+        (11.0, 7.0, 12.0, 11.0),
+        (8.0, 2.0, 3.0, 9.0)
+      ),
+      leftKey,
+      rightKey,
+      outputs.expressed
+    )
 
     assert(out == List((2.0, 5.0, 1.0, 1.0), (7.0, 12.0, 11.0, 11.0)))
   }
 
-  "We can Left Join" in {
-    val inputs = List(
-      (1.0, 2.0, 5.0, 1.0),
-      (3.0, 2.0, 3.0, 7.0),
-      (11.0, 7.0, 12.0, 11.0),
-      (8.0, 2.0, 3.0, 9.0)
-    )
-    val leftKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
-
-    val rightKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
-
-    val innerOutputs = (
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_1->data[left_out[i]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_2->data[right_out[i]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_0->data[left_out[i]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_3->data[right_out[i]]", None))
-      )
-    )
-
-    val outerOutputs = (
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_1->data[outer_idx[idx]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_0->data[outer_idx[idx]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false"))))
-    )
-
-    val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, LeftOuterJoin)
-
-    assert(
-      out == List(
-        (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
-        (Some(7.0), Some(12.0), Some(11.0), Some(11.0)),
-        (Some(2.0), None, Some(3.0), None),
-        (Some(2.0), None, Some(8.0), None)
-      )
-    )
-  }
-
-  "We can Right Join" in {
-    val inputs = List(
-      (1.0, 2.0, 5.0, 1.0),
-      (3.0, 2.0, 3.0, 7.0),
-      (11.0, 7.0, 12.0, 11.0),
-      (8.0, 2.0, 3.0, 9.0)
-    )
-    val leftKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
-
-    val rightKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
-
-    val innerOutputs = (
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_1->data[left_out[i]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_2->data[right_out[i]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_0->data[left_out[i]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_3->data[right_out[i]]", None))
-      )
-    )
-
-    val outerOutputs = (
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_2->data[outer_idx[idx]]", None))
-      ),
-      TypedJoinExpression[Option[Double]](JoinProjection(CExpression("0", Some("false")))),
-      TypedJoinExpression[Option[Double]](
-        JoinProjection(CExpression("input_3->data[outer_idx[idx]]", None))
-      )
-    )
-
-    val out = evalOuterJoin(inputs, leftKey, rightKey, innerOutputs, outerOutputs, RightOuterJoin)
-
-    assert(
-      out == List(
-        (Some(2.0), Some(5.0), Some(1.0), Some(1.0)),
-        (Some(7.0), Some(12.0), Some(11.0), Some(11.0)),
-        (None, Some(3.0), None, Some(7.0)),
-        (None, Some(3.0), None, Some(9.0))
-      )
-    )
-  }
-
   "We can aggregate / group by (correlation)" in {
-    val result = evalGroupBySum(
-      List[(Double, Double, Double)](
-        (1.0, 2.0, 3.0),
-        (1.5, 1.2, 3.1),
-        (1.0, 2.0, 4.0),
-        (1.5, 1.2, 4.1)
-      )
-    )(
-      (
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None)),
-        TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-      )
-    )(
-      (
-        GroupByProjection(CExpression("input_0->data[i]", None)),
-        GroupByProjection(CExpression("input_1->data[i] + 1", None)),
-        GroupByAggregation(
-          DeclarativeAggregationConverter(
-            Corr(
-              AttributeReference("input_2->data[i]", DoubleType)(),
-              AttributeReference("input_2->data[i]", DoubleType)()
+    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (1.5, 1.2, 4.1)),
+      groups = List(
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+        ),
+        Right(
+          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+        )
+      ),
+      expressions = List(
+        Right(
+          NamedGroupByExpression(
+            "output_0",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_0->data[i]", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_1",
+            VeNullableDouble,
+            GroupByProjection(CExpression("input_1->data[i] + 1", None))
+          )
+        ),
+        Right(
+          NamedGroupByExpression(
+            "output_2",
+            VeNullableDouble,
+            GroupByAggregation(
+              DeclarativeAggregationConverter(
+                Corr(
+                  AttributeReference("input_2->data[i]", DoubleType)(),
+                  AttributeReference("input_2->data[i]", DoubleType)()
+                )
+              )
             )
           )
         )
@@ -639,218 +570,13 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
     )
   }
 
-  "Join" - {
-
-    val left = List[(String, Long, Int)](
-      ("foo", 42, 43),
-      ("test", 123, 456),
-      ("test2", 123, 4567),
-      ("test2", 12, 45678),
-      ("test3", 12, 456789),
-      ("test3", 123, 4567890)
-    )
-
-    val right = List[(String, Long, Double)](
-      ("foo", 42, 43),
-      ("test2", 123, 654),
-      ("test2", 123, 761),
-      ("test3", 12, 456),
-      ("bar", 0, 0)
-    )
-
-    "We can get indices of join (JoinOnlyIndices)" in {
-      val inputsLeft =
-        List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
-      val inputsRight =
-        List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
-      val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
-      val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
-
-      val evaluationResource = for {
-        allocator <- WithTestAllocator.resource
-        vb = CatsArrowVectorBuilders(cats.effect.Ref.unsafe[IO, Int](0))(allocator)
-
-        x_a <- vb.stringVector(left.map(_._1))
-        x_b <- vb.longVector(left.map(_._2))
-        x_c <- vb.intVector(left.map(_._3))
-
-        y_a <- vb.stringVector(right.map(_._1))
-        y_b <- vb.longVector(right.map(_._2))
-        y_c <- vb.doubleVector(right.map(_._3))
-
-        idx_left <- vb.intVector(Seq.empty)
-        idx_right <- vb.intVector(Seq.empty)
-
-        cLib <- Resource.eval {
-          IO.delay {
-            CMakeBuilder.buildCLogging(
-              List(
-                "\n\n",
-                GenericJoiner.printVec.cCode, {
-                  val inputsLeft =
-                    List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
-                  val inputsRight =
-                    List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
-                  val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
-                  val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
-                  JoinByEquality(
-                    inputsLeft = inputsLeft,
-                    inputsRight = inputsRight,
-                    joins = List(firstJoin, secondJoin)
-                  ).produceIndices.toCodeLinesS("adv_join").cCode
-                }
-              )
-                .mkString("\n\n")
-            )
-          }
-        }
-
-        nativeInterface = new CArrowNativeInterface(cLib.toString)
-        _ <- Resource.eval {
-          IO.delay {
-            nativeInterface.callFunctionWrapped(
-              name = "adv_join",
-              arguments = List(
-                NativeArgument.input(x_a),
-                NativeArgument.input(x_b),
-                NativeArgument.input(x_c),
-                NativeArgument.input(y_a),
-                NativeArgument.input(y_b),
-                NativeArgument.input(y_c),
-                NativeArgument.output(idx_left),
-                NativeArgument.output(idx_right)
-              )
-            )
-          }
-        }
-      } yield (idx_left.toList, idx_right.toList)
-
-      val evaluation = evaluationResource.use { case (output_idx_left, output_idx_right) =>
-        IO.delay {
-          expect(output_idx_left == List(0, 2, 2, 4), output_idx_right == List(0, 1, 2, 3))
-        }
-      }
-
-      evaluation.unsafeRunSync()
-
-    }
-
-    "We can join by String & Long (JoinByString)" in {
-
-      /**
-       * SELECT X.A, X.C, Y.C FROM X LEFT JOIN Y ON X.A = Y.A AND X.B = Y.B
-       * X = [A: String, B: Long, C: Int]
-       * Y = [A: String, B: Long, C: Double]
-       */
-
-      val joinSideBySide = List[((String, Long, Int), (String, Long, Double))](
-        /** two inner join entries on RHS */
-        (("foo", 42, 43), ("foo", 42, 43)),
-        (("test2", 123, 4567), ("test2", 123, 654)),
-        (("test2", 123, 4567), ("test2", 123, 761)),
-        (("test3", 12, 456789), ("test3", 12, 456))
-      )
-
-      val joinSelectOnlyIntDouble = List[(String, Int, Double)](
-        ("foo", 43, 43),
-        ("test2", 4567, 654),
-        ("test2", 4567, 761),
-        ("test3", 456789, 456)
-      )
-
-      val evaluationResource = for {
-        allocator <- WithTestAllocator.resource
-        vb = CatsArrowVectorBuilders(cats.effect.Ref.unsafe[IO, Int](0))(allocator)
-        x_a <- vb.stringVector(left.map(_._1))
-        x_b <- vb.longVector(left.map(_._2))
-        x_c <- vb.intVector(left.map(_._3))
-        y_a <- vb.stringVector(right.map(_._1))
-        y_b <- vb.longVector(right.map(_._2))
-        y_c <- vb.doubleVector(right.map(_._3))
-        o_a <- vb.stringVector(Seq.empty)
-        o_b <- vb.intVector(Seq.empty)
-        o_c <- vb.doubleVector(Seq.empty)
-
-        cLib <- Resource.eval {
-          IO.delay {
-            CMakeBuilder.buildCLogging(
-              List(
-                "\n\n",
-                GenericJoiner.printVec.cCode, {
-                  val inputsLeft =
-                    List(CVector.varChar("x_a"), CVector.bigInt("x_b"), CVector.int("x_c"))
-                  val inputsRight =
-                    List(CVector.varChar("y_a"), CVector.bigInt("y_b"), CVector.double("y_c"))
-                  val firstJoin = Join(left = inputsLeft(0), right = inputsRight(0))
-                  val secondJoin = Join(left = inputsLeft(1), right = inputsRight(1))
-                  val genericJoiner = GenericJoiner(
-                    inputsLeft = inputsLeft,
-                    inputsRight = inputsRight,
-                    joins = List(firstJoin, secondJoin),
-                    outputs = List(
-                      FilteredOutput("o_a", inputsLeft(0)),
-                      FilteredOutput("o_b", inputsLeft(2)),
-                      FilteredOutput("o_c", inputsRight(2))
-                    )
-                  )
-                  val functionName = "adv_join"
-                  val produceIndicesFName = s"indices_${functionName}"
-                  CodeLines
-                    .from(
-                      CFunctionGeneration.KeyHeaders,
-                      genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
-                      genericJoiner
-                        .cFunction(produceIndicesFName)
-                        .toCodeLinesNoHeader(functionName)
-                    )
-                    .cCode
-                }
-              )
-                .mkString("\n\n")
-            )
-          }
-        }
-
-        nativeInterface = new CArrowNativeInterface(cLib.toString)
-        _ <- Resource.eval {
-          IO.delay {
-            nativeInterface.callFunctionWrapped(
-              name = "adv_join",
-              arguments = List(
-                NativeArgument.input(x_a),
-                NativeArgument.input(x_b),
-                NativeArgument.input(x_c),
-                NativeArgument.input(y_a),
-                NativeArgument.input(y_b),
-                NativeArgument.input(y_c),
-                NativeArgument.output(o_a),
-                NativeArgument.output(o_b),
-                NativeArgument.output(o_c)
-              )
-            )
-          }
-        }
-      } yield (o_a.toList, o_b.toList, o_c.toList)
-
-      val evaluation = evaluationResource.use { case (output_a, output_b, output_c) =>
-        IO.delay {
-          val expected_a = joinSelectOnlyIntDouble.map(_._1)
-          val expected_b = joinSelectOnlyIntDouble.map(_._2)
-          val expected_c = joinSelectOnlyIntDouble.map(_._3)
-          expect(output_a == expected_a, output_b == expected_b, output_c == expected_c)
-        }
-      }
-
-      evaluation.unsafeRunSync()
-
-    }
-  }
-
 }
 
 object RealExpressionEvaluationSpec extends LazyLogging {
 
-  def evalAggregate[Input, Output](input: List[Input])(expressions: GroupByExpression*)(implicit
+  def evalAggregate[Input, Output](
+    input: List[Input]
+  )(expressions: NamedGroupByExpression*)(implicit
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
@@ -859,9 +585,9 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
-          inputs = veAllocator.veTypes,
+          inputs = veAllocator.makeCVectors,
           groups = Nil,
-          outputs = veRetriever.express(expressions).map(v => Right(v))
+          outputs = expressions.map(e => Right(e)).toList
         )
       ).renderGroupBy
 
@@ -870,14 +596,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     evalFunction(cFunction, "agg")(input, veRetriever.makeCVectors)
   }
 
-  def evalInnerJoin[Input, LeftKey, RightKey, Output](
+  def evalInnerJoin[Input, Output](
     input: List[Input],
     leftKey: TypedCExpression2,
     rightKey: TypedCExpression2,
-    output: Output
+    output: List[NamedJoinExpression]
   )(implicit
     veAllocator: VeAllocator[Input],
-    joinExpressor: JoinExpressor[Output],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
     veKernelInfra: VeKernelInfra
@@ -885,48 +610,13 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val cFunction =
       renderInnerJoin(
         VeInnerJoin(
-          inputs = veAllocator.veTypes,
+          inputs = veAllocator.makeCVectors,
           leftKey = leftKey,
           rightKey = rightKey,
-          outputs = joinExpressor.express(output)
+          outputs = output
         )
       )
 
-    import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
-    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
-  }
-
-  def evalOuterJoin[Input, LeftKey, RightKey, Output](
-    input: List[Input],
-    leftKey: TypedCExpression2,
-    rightKey: TypedCExpression2,
-    innerOutput: Output,
-    outerOutput: Output,
-    joinType: JoinType
-  )(implicit
-    veAllocator: VeAllocator[Input],
-    joinExpressor: JoinExpressor[Output],
-    veRetriever: VeRetriever[Output],
-    veProcess: VeProcess,
-    veKernelInfra: VeKernelInfra
-  ): List[outputArguments.Result] = {
-    val outputs = joinExpressor
-      .express(innerOutput)
-      .zip(joinExpressor.express(outerOutput))
-      .map { case (inner, outer) =>
-        OuterJoinOutput(inner, outer)
-      }
-    val cFunction =
-      renderOuterJoin(
-        VeOuterJoin(
-          inputs = veAllocator.veTypes,
-          leftKey = leftKey,
-          rightKey = rightKey,
-          outputs = outputs,
-          joinType
-        )
-      )
     import OriginalCallingContext.Automatic._
     import VeColVectorSource.Automatic._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
@@ -990,7 +680,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     }
 
     val cFunction = renderProjection(
-      VeProjection(inputs = veAllocator.veTypes, outputs = outputs.map(out => Right(out)))
+      VeProjection(inputs = veAllocator.makeCVectors, outputs = outputs.map(out => Right(out)))
     )
 
     import OriginalCallingContext.Automatic._
@@ -1032,21 +722,17 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veColVectorSource: VeColVectorSource
   ): List[Data] = {
     val filterFn = FilterFunction(
-      "filter_f",
-      VeFilter(
+      name = "filter_f",
+      filter = VeFilter(
         data = veAllocator.makeCVectors,
         condition = condition,
         stringVectorComputations = Nil
       ),
-      false
+      onVe = false
     )
 
-    evalFunction(filterFn, functionName)(input, outputs.map(_.cVector))
-
-    val generatedSource = CodeLines.from("""#include "cyclone/cyclone.hpp"""", filterFn.toCodeLines)
-
-    evalFunction(filterFn, "filter_f")(
-      input,
+    evalFunction(filterFn.render.asInstanceOf[CFunction], "filter_f")(
+      input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
     )
   }
@@ -1062,7 +748,12 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     val functionName = "sort_f"
 
     val cFunction =
-      renderSort(sort = VeSort(data = veAllocator.makeCVectors, sorts = sorts.toList))
+      renderSort(sort =
+        VeSort(
+          data = veAllocator.makeCVectors.map(_.asInstanceOf[CScalarVector]),
+          sorts = sorts.toList
+        )
+      )
     evalFunction(cFunction, functionName)(input = input.toList, veRetriever.makeCVectors)
   }
 
