@@ -66,6 +66,7 @@ object StaticTypingTestAdditions {
       ): VeColBatch =
         WithTestAllocator { implicit a =>
           withArrowFloat8VectorI(data) { f8v =>
+            println(s"inv = ${f8v}")
             VeColBatch.fromList(List(VeColVector.fromArrowVector(f8v)))
           }
         }
