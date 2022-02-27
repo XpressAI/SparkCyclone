@@ -19,13 +19,9 @@
  */
 package com.nec.ve
 
-import cats.effect.unsafe.implicits.global
-import cats.effect.{IO, Resource}
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.{CatsArrowVectorBuilders, WithTestAllocator}
-import com.nec.cmake.CMakeBuilder
+import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.eval.OldUnifiedGroupByFunctionGeneration
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
@@ -34,10 +30,7 @@ import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{veNullableDouble, VeNullableDouble}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
-import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
-import com.nec.spark.agile.join.{GenericJoiner, JoinByEquality}
-import com.nec.spark.agile.{CFunctionGeneration, DeclarativeAggregationConverter, StringProducer}
-import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
+import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.nec.ve.StaticTypingTestAdditions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -307,14 +300,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
         ),
         Right(
           NamedGroupByExpression(
-            "output_0",
+            "output_1",
             VeNullableDouble,
             GroupByProjection(CExpression("input_1->data[i] + 1", None))
           )
         ),
         Right(
           NamedGroupByExpression(
-            "output_0",
+            "output_2",
             VeNullableDouble,
             GroupByAggregation(
               Aggregation.sum(
@@ -355,14 +348,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
         ),
         Right(
           NamedGroupByExpression(
-            "output_0",
+            "output_1",
             VeNullableDouble,
             GroupByProjection(CExpression("input_1->data[i] + 1", None))
           )
         ),
         Right(
           NamedGroupByExpression(
-            "output_0",
+            "output_2",
             VeNullableDouble,
             GroupByAggregation(
               Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
@@ -467,14 +460,14 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
         ),
         Right(
           NamedGroupByExpression(
-            "output_0",
+            "output_1",
             VeNullableDouble,
             GroupByProjection(CExpression("input_1->data[i] + 1", None))
           )
         ),
         Right(
           NamedGroupByExpression(
-            "output_0",
+            "output_2",
             VeNullableDouble,
             GroupByAggregation(
               DeclarativeAggregationConverter(
