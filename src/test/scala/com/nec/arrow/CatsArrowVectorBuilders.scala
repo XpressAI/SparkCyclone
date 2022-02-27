@@ -21,27 +21,9 @@ package com.nec.arrow
 
 import cats.effect.{IO, Ref, Resource}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{
-  BigIntVector,
-  DateDayVector,
-  Float8Vector,
-  IntVector,
-  SmallIntVector,
-  VarCharVector
-}
+import org.apache.arrow.vector._
 
 import java.time.{Duration, Instant, LocalDate, ZoneId}
-import org.apache.arrow.vector.{
-  BigIntVector,
-  DateDayVector,
-  Float8Vector,
-  IntVector,
-  SmallIntVector,
-  VarCharVector
-}
-
-import java.time.{Duration, LocalDate, ZoneId}
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, VarCharVector}
 
 final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
   bufferAllocator: BufferAllocator

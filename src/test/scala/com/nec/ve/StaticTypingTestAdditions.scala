@@ -19,6 +19,7 @@
  */
 package com.nec.ve
 
+import cats.effect.{IO, Resource}
 import com.nec.arrow.ArrowVectorBuilders.{
   withArrowFloat8VectorI,
   withArrowStringVector,
@@ -36,7 +37,7 @@ import com.nec.spark.agile.CFunctionGeneration.{
 }
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.vector.{Float8Vector, VarCharVector}
+import org.apache.arrow.vector.{Float8Vector, ValueVector, VarCharVector}
 
 /**
  * Boilerplate to deal with making the tests nice and tight.
