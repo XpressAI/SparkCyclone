@@ -303,7 +303,10 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     if (toSelect.nonEmpty) {
       queries
         .filter(q => toSelect.contains(q._2))
-        .foreach { case (q, i) => benchmark(i, q, skipPlan) }
+        .foreach { case (q, i) =>
+          cacheTables(i)
+          benchmark(i, q, skipPlan)
+        }
     } else
       queries.foreach { case (query, i) =>
         if (!toSkip.contains(i)) {
