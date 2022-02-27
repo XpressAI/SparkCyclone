@@ -69,13 +69,14 @@ final case class VeProjectEvaluationPlan(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
-
         withVeLibrary { libRef =>
-          val res = veColBatches.map { veColBatch =>
+          veColBatches.map { veColBatch =>
             import OriginalCallingContext.Automatic._
             import SparkCycloneExecutorPlugin.veProcess
-            try {
+
+            val beforeExec = System.nanoTime()
+
+            val res = try {
               val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
 
               val cols =
@@ -104,13 +105,12 @@ final case class VeProjectEvaluationPlan(
                   VeProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
                 )
             }
+            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+            res
           }
-          execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-          res
         }
       }
   }
-
 }
 
 object VeProjectEvaluationPlan {

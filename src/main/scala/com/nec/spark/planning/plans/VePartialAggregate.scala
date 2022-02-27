@@ -37,16 +37,17 @@ case class VePartialAggregate(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
 
-        val res = withVeLibrary { libRef =>
+        withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
           veColBatches.map { veColBatch =>
+            val beforeExec = System.nanoTime()
+
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             logger.debug(s"Mapping a VeColBatch $veColBatch")
             VeColBatch.fromList {
               import OriginalCallingContext.Automatic._
-              try {
+              val res = try {
                 val result = cycloneMetrics.measureRunningTime(
                   veProcess.execute(
                     libraryReference = libRef,
@@ -58,12 +59,12 @@ case class VePartialAggregate(
                 logger.debug(s"Mapped $veColBatch to $result")
                 result
               } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+              execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+
+              res
             }
           }
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-        res
       }
   }
 

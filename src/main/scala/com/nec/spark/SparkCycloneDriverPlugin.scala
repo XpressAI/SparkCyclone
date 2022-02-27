@@ -19,7 +19,6 @@
  */
 package com.nec.spark
 
-import com.codahale.metrics.Timer
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeCompiler.CachingNativeCompiler
 import com.nec.spark.SparkCycloneDriverPlugin.currentCompiler
@@ -35,7 +34,6 @@ object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
   private[spark] var currentCompiler: NativeCompiler = _
-  var veSeconds: Timer = _
 }
 
 class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
@@ -64,7 +62,6 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
     logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
     SparkCycloneDriverPlugin.launched = true
-    SparkCycloneDriverPlugin.veSeconds = pluginContext.metricRegistry().timer("com.nec.ve-seconds")
 
     val allExtensions = List(classOf[LocalVeoExtension])
     pluginContext
