@@ -32,12 +32,13 @@ case class VePartialAggregate(
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        val beforeExec = System.nanoTime()
+
         val res = withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
           veColBatches.map { veColBatch =>

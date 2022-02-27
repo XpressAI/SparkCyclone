@@ -33,12 +33,13 @@ case class VeFinalAggregate(
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        val beforeExec = System.nanoTime()
+
         val res = withVeLibrary { libRef =>
           veColBatches.map { veColBatch =>
             logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
