@@ -9,14 +9,7 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
-import java.io.{
-  ByteArrayInputStream,
-  ByteArrayOutputStream,
-  DataInputStream,
-  DataOutputStream,
-  ObjectInputStream,
-  ObjectOutputStream
-}
+import java.io._
 import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen
@@ -76,7 +69,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     veProcess: VeProcess
   ): ColumnarBatch = {
     val vecs = underlying.cols.map(_.toArrowVector())
-    println("TEST DATA: " + underlying.cols.map(_.veType))
+    println("TEST DATA: " + underlying.cols.map(_.veType) + " (" + underlying.numRows + ")")
 
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(underlying.numRows)

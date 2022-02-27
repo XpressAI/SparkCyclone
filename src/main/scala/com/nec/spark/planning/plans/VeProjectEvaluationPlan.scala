@@ -20,8 +20,7 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
+import com.nec.spark.SparkCycloneExecutorPlugin.{cycloneMetrics, source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
@@ -37,7 +36,7 @@ import java.nio.file.Paths
 import scala.concurrent.duration.NANOSECONDS
 import scala.language.dynamics
 
-final case class ProjectEvaluationPlan(
+final case class VeProjectEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
   veFunction: VeFunction,
   child: SparkPlan
@@ -61,7 +60,7 @@ final case class ProjectEvaluationPlan(
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   private val projectionContext =
-    ProjectEvaluationPlan.ProjectionContext(outputExpressions, child.outputSet.toList)
+    VeProjectEvaluationPlan.ProjectionContext(outputExpressions, child.outputSet.toList)
 
   import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] = {
@@ -74,22 +73,22 @@ final case class ProjectEvaluationPlan(
       .mapPartitions { veColBatches =>
         val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
         val res = veColBatches.map { veColBatch =>
-          import SparkCycloneExecutorPlugin.veProcess
           import OriginalCallingContext.Automatic._
+          import SparkCycloneExecutorPlugin.veProcess
           try {
             val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
 
             val cols =
               if (canPassThroughall) Nil
               else {
-                measureRunningTime(
+                cycloneMetrics.measureRunningTime(
                   veProcess.execute(
                     libraryReference = libRef,
                     functionName = veFunction.functionName,
                     cols = veColBatch.cols,
                     results = veFunction.namedResults
                   )
-                )(registerFunctionCallTime(_, veFunction.functionName))
+                )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
 
               }
             val outBatch = createOutputBatch(cols, veColBatch)
@@ -102,7 +101,7 @@ final case class ProjectEvaluationPlan(
               .asInstanceOf[SupportsVeColBatch]
               .dataCleanup
               .cleanup(
-                ProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
+                VeProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
               )
           }
         }
@@ -113,7 +112,7 @@ final case class ProjectEvaluationPlan(
 
 }
 
-object ProjectEvaluationPlan {
+object VeProjectEvaluationPlan {
 
   private[planning] final case class ProjectionContext(
     outputExpressions: Seq[NamedExpression],

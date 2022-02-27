@@ -1,6 +1,9 @@
 package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
+import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
+import com.nec.ve.VeProcess.OriginalCallingContext
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.pojo.Schema
@@ -8,9 +11,6 @@ import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.arrow.ArrowWriter
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerConversionTime}
-import com.nec.ve.VeProcess.OriginalCallingContext
-import com.typesafe.scalalogging.LazyLogging
 
 object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
   def apply(
@@ -51,7 +51,7 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
         }
 
         override def next(): ColumnarBatch = {
-          measureRunningTime {
+          cycloneMetrics.measureRunningTime {
             arrowWriter.reset()
             cb.setNumRows(0)
             root.getFieldVectors.asScala.foreach(_.reset())
@@ -72,7 +72,7 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
               s"Emitted batch of size ${totalVectorSize} bytes (${rowCount} rows); requested from ${originalCallingContext.renderString}."
             )
             cb
-          }(registerConversionTime)
+          }(cycloneMetrics.registerConversionTime)
         }
       }
     } else Iterator.empty
