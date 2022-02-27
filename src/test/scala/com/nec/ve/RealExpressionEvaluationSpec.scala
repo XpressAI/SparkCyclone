@@ -709,9 +709,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Data],
     veRetriever: VeRetriever[Data],
     veProcess: VeProcess,
-    veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
-    veColVectorSource: VeColVectorSource
+    veKernelInfra: VeKernelInfra
   ): List[Data] = {
     val filterFn = FilterFunction(
       name = "filter_f",
@@ -723,6 +721,8 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       onVe = false
     )
 
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
     evalFunction(filterFn.render.asInstanceOf[CFunction], "filter_f")(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
@@ -733,12 +733,12 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Data],
     veRetriever: VeRetriever[Data],
     veProcess: VeProcess,
-    veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
-    veColVectorSource: VeColVectorSource
+    veKernelInfra: VeKernelInfra
   ): List[Data] = {
     val functionName = "sort_f"
 
+    import OriginalCallingContext.Automatic._
+    import VeColVectorSource.Automatic._
     val cFunction =
       renderSort(sort =
         VeSort(
