@@ -44,7 +44,6 @@ import org.scalatest.freespec.AnyFreeSpec
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
  */
 final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
-  import OriginalCallingContext.Automatic._
 
   private implicit val fallback: EvalFallback = EvalFallback.noOp
   import RealExpressionEvaluationSpec._
@@ -573,6 +572,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
     val cFunction =
@@ -585,7 +585,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       ).renderGroupBy
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     evalFunction(cFunction, "agg")(input, veRetriever.makeCVectors)
   }
 
@@ -598,6 +597,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
     val cFunction =
@@ -611,7 +611,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       )
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
@@ -623,6 +622,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
     val cFunction =
@@ -631,7 +631,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       ).renderGroupBy
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
 
   }
@@ -641,6 +640,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
   )(expressions: List[Either[NamedStringProducer, NamedGroupByExpression]])(implicit
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
+    veColVectorSource: VeColVectorSource,
     veProcess: VeProcess,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
@@ -654,7 +654,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
       ).renderGroupBy
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
@@ -662,6 +661,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veProcess: VeProcess,
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
+    veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
     val functionName = "project_f"
@@ -677,7 +677,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     )
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     evalFunction(cFunction, functionName)(input, outputs.map(_.cVector))
   }
 
@@ -709,6 +708,7 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Data],
     veRetriever: VeRetriever[Data],
     veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Data] = {
     val filterFn = FilterFunction(
@@ -722,7 +722,6 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     )
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     evalFunction(filterFn.render.asInstanceOf[CFunction], "filter_f")(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
@@ -733,12 +732,12 @@ object RealExpressionEvaluationSpec extends LazyLogging {
     veAllocator: VeAllocator[Data],
     veRetriever: VeRetriever[Data],
     veProcess: VeProcess,
+    veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Data] = {
     val functionName = "sort_f"
 
     import OriginalCallingContext.Automatic._
-    import VeColVectorSource.Automatic._
     val cFunction =
       renderSort(sort =
         VeSort(
