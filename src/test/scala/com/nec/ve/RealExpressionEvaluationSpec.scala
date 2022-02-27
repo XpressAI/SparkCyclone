@@ -47,352 +47,187 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
 
   private implicit val fallback: EvalFallback = EvalFallback.noOp
   import RealExpressionEvaluationSpec._
-  "We can transform a column" in {
-    expect(
-      evalProject[Double, (Double, Double)](List[Double](90.0, 1.0, 2, 19, 14))(
-        CExpression("2 * input_0->data[i]", None),
-        CExpression("2 + input_0->data[i]", None)
-      ) == List[(Double, Double)]((180, 92), (2, 3), (4, 4), (38, 21), (28, 16))
-    )
-  }
-
-  "We can transform a null-column (FilterNull)" in {
-    expect(
-      evalFilter[Option[Double]](Some(90), None, Some(123))(
-        CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
-      ) == List[Option[Double]](None, Some(123))
-    )
-  }
-
-  "We can project a null-column (ProjectNull)" in {
-    expect(
-      evalProject[Double, (Double, Option[Double])](List[Double](90.0, 1.0, 2, 19, 14))(
-        CExpression("2 * input_0->data[i]", None),
-        CExpression("2 + input_0->data[i]", Some("input_0->data[i] == 2"))
-      ) == List[(Double, Option[Double])](
-        (180, None),
-        (2, None),
-        (4, Some(4)),
-        (38, None),
-        (28, None)
+  "Project" - {
+    "We can transform a column" in {
+      expect(
+        evalProject[Double, (Double, Double)](List[Double](90.0, 1.0, 2, 19, 14))(
+          CExpression("2 * input_0->data[i]", None),
+          CExpression("2 + input_0->data[i]", None)
+        ) == List[(Double, Double)]((180, 92), (2, 3), (4, 4), (38, 21), (28, 16))
       )
-    )
-  }
+    }
 
-  "We can transform a null-column" in {
-    expect(
-      evalProject[Double, (Double, Option[Double])](List[Double](90.0, 1.0, 2, 19, 14))(
-        CExpression("2 * input_0->data[i]", None),
-        CExpression("2 + input_0->data[i]", Some("0"))
-      ) == List[(Double, Option[Double])]((180, None), (2, None), (4, None), (38, None), (28, None))
-    )
-  }
-
-  "We can filter a column" in {
-    expect(
-      evalFilter[Double](90.0, 1.0, 2, 19, 14)(
-        CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
-      ) == List[Double](90, 19)
-    )
-  }
-
-  "We can filter a column by a String (FilterByString)" ignore {
-
-    /** Ignored because we are likely not going to support filtering * */
-    val result = evalFilter[(String, Double)](
-      ("x", 90.0),
-      ("one", 1.0),
-      ("two", 2.0),
-      ("prime", 19.0),
-      ("other", 14.0)
-    )(
-      CExpression(
-        cCode =
-          """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i] + input_0->lengths[i]) == std::string("one")""",
-        isNotNullCode = None
-      )
-    )
-    val expected = List[(String, Double)](("one", 1.0))
-
-    expect(result == expected)
-  }
-  "We can filter a column with a String" ignore {
-
-    /** Ignored because we are likely not going to support filtering * */
-
-    val result = evalFilter[(String, Double)](
-      ("x", 90.0),
-      ("one", 1.0),
-      ("two", 2.0),
-      ("prime", 19.0),
-      ("other", 14.0)
-    )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None))
-    val expected = List[(String, Double)](("x", 90.0), ("prime", 19.0))
-
-    expect(result == expected)
-  }
-
-  "We can sort" in {
-    expect(
-      evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
-        VeSortExpression(
-          TypedCExpression2(
-            VeScalarType.VeNullableDouble,
-            CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
-          ),
-          Ascending
-        )
-      ) ==
-        List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
-    )
-  }
-
-  "We can sort (3 cols)" in {
-    val results =
-      evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
-        VeSortExpression(
-          TypedCExpression2(
-            VeScalarType.VeNullableDouble,
-            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
-          ),
-          Ascending
+    "We can project a null-column (ProjectNull)" in {
+      expect(
+        evalProject[Double, (Double, Option[Double])](List[Double](90.0, 1.0, 2, 19, 14))(
+          CExpression("2 * input_0->data[i]", None),
+          CExpression("2 + input_0->data[i]", Some("input_0->data[i] == 2"))
+        ) == List[(Double, Option[Double])](
+          (180, None),
+          (2, None),
+          (4, Some(4)),
+          (38, None),
+          (28, None)
         )
       )
-    val expected =
-      List[(Double, Double, Double)]((2.0, 2.0, 0.0), (90.0, 5.0, 1.0), (1.0, 4.0, 3.0))
-    expect(results == expected)
-  }
+    }
 
-  "We can sort (3 cols) desc" in {
-    val results =
-      evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
-        VeSortExpression(
-          TypedCExpression2(
-            VeScalarType.VeNullableDouble,
-            CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
-          ),
-          Descending
+    "We can transform a null-column" in {
+      expect(
+        evalProject[Double, (Double, Option[Double])](List[Double](90.0, 1.0, 2, 19, 14))(
+          CExpression("2 * input_0->data[i]", None),
+          CExpression("2 + input_0->data[i]", Some("0"))
+        ) == List[(Double, Option[Double])](
+          (180, None),
+          (2, None),
+          (4, None),
+          (38, None),
+          (28, None)
         )
       )
-    val expected =
-      List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
-    expect(results == expected)
+    }
   }
 
-  "We can aggregate / group by on an empty grouping" ignore {
-    val result = evalAggregate[(Double, Double, Double), Double](
-      List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
-    )(
-      NamedGroupByExpression(
-        "exp",
-        veNullableDouble,
-        GroupByAggregation(
-          Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
-        )
+  "Filter" ignore {
+
+    "We can transform a null-column (FilterNull)" in {
+      expect(
+        evalFilter[Option[Double]](Some(90), None, Some(123))(
+          CExpression(cCode = "input_0->data[i] != 90", isNotNullCode = None)
+        ) == List[Option[Double]](None, Some(123))
       )
-    )
-    assert(result == List[Double](6.6))
-  }
+    }
 
-  "Average is computed correctly" in {
-    val result = evalAggregate[Double, Double](List[Double](1, 2, 3))(
-      NamedGroupByExpression(
-        "exp",
-        veNullableDouble,
-        GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
+    "We can filter a column" in {
+      expect(
+        evalFilter[Double](90.0, 1.0, 2, 19, 14)(
+          CExpression(cCode = "input_0->data[i] > 15", isNotNullCode = None)
+        ) == List[Double](90, 19)
       )
-    )
-    assert(result == List[Double](2))
-  }
+    }
 
-  "We can aggregate / group by (simple sum)" in {
-    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
-      List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (3, 4, 9)),
-      groups = List(
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
-        ),
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-        )
-      ),
-      expressions = List(
-        Right(
-          NamedGroupByExpression(
-            "output_0",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_0->data[i]", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_1",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_1->data[i] + 1", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_2",
-            VeNullableDouble,
-            GroupByAggregation(
-              Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
-            )
-          )
-        )
-      )
-    )
-    assert(
-      result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6), (3.0, 5.0, 6.0))
-    )
-  }
+    "We can filter a column by a String (FilterByString)" ignore {
 
-  "We can aggregate / group by a String value (GroupByString)" in {
-    val input = List[(String, Double)](("x", 1.0), ("yy", 2.0), ("ax", 3.0), ("x", -1.0))
-    val expected = input.groupBy(_._1).mapValues(_.map(_._2).sum).toList
-
-    /** SELECT a, SUM(b) group by a, b*b */
-    val result =
-      evalGroupBySumStr[(String, Double), (String, Double)](input)(
-        (
-          StringGrouping("input_0"),
-          TypedCExpression2(
-            VeScalarType.veNullableDouble,
-            CExpression("input_1->data[i] * input_1->data[i]", None)
-          )
-        )
+      /** Ignored because we are likely not going to support filtering * */
+      val result = evalFilter[(String, Double)](
+        ("x", 90.0),
+        ("one", 1.0),
+        ("two", 2.0),
+        ("prime", 19.0),
+        ("other", 14.0)
       )(
-        List(
-          Left(NamedStringProducer("output_0", StringProducer.copyString("input_0"))),
-          Right(
-            NamedGroupByExpression(
-              "output_1",
-              VeNullableDouble,
-              GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
-            )
+        CExpression(
+          cCode =
+            """std::string(input_0->data, input_0->offsets[i], input_0->offsets[i] + input_0->lengths[i]) == std::string("one")""",
+          isNotNullCode = None
+        )
+      )
+      val expected = List[(String, Double)](("one", 1.0))
+
+      expect(result == expected)
+    }
+    "We can filter a column with a String" ignore {
+
+      /** Ignored because we are likely not going to support filtering * */
+
+      val result = evalFilter[(String, Double)](
+        ("x", 90.0),
+        ("one", 1.0),
+        ("two", 2.0),
+        ("prime", 19.0),
+        ("other", 14.0)
+      )(CExpression(cCode = "input_1->data[i] > 15", isNotNullCode = None))
+      val expected = List[(String, Double)](("x", 90.0), ("prime", 19.0))
+
+      expect(result == expected)
+    }
+  }
+
+  "Sort" - {
+    "We can sort" in {
+      expect(
+        evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
+          VeSortExpression(
+            TypedCExpression2(
+              VeScalarType.VeNullableDouble,
+              CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
+            ),
+            Ascending
+          )
+        ) ==
+          List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
+      )
+    }
+
+    "We can sort (3 cols)" in {
+      val results =
+        evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
+          VeSortExpression(
+            TypedCExpression2(
+              VeScalarType.VeNullableDouble,
+              CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+            ),
+            Ascending
+          )
+        )
+      val expected =
+        List[(Double, Double, Double)]((2.0, 2.0, 0.0), (90.0, 5.0, 1.0), (1.0, 4.0, 3.0))
+      expect(results == expected)
+    }
+
+    "We can sort (3 cols) desc" in {
+      val results =
+        evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
+          VeSortExpression(
+            TypedCExpression2(
+              VeScalarType.VeNullableDouble,
+              CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
+            ),
+            Descending
+          )
+        )
+      val expected =
+        List[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))
+      expect(results == expected)
+    }
+  }
+  "Aggregate" - {
+
+    "We can aggregate / group by on an empty grouping" ignore {
+      val result = evalAggregate[(Double, Double, Double), Double](
+        List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0))
+      )(
+        NamedGroupByExpression(
+          "exp",
+          veNullableDouble,
+          GroupByAggregation(
+            Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
           )
         )
       )
+      assert(result == List[Double](6.6))
+    }
 
-    assert(result.sorted == expected.sorted)
-  }
-
-  "We can aggregate / group by with NULL input check values" in {
-    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
-      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
-      groups = List(
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
-        ),
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-        )
-      ),
-      expressions = List(
-        Right(
-          NamedGroupByExpression(
-            "output_0",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_0->data[i]", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_1",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_1->data[i] + 1", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_2",
-            VeNullableDouble,
-            GroupByAggregation(
-              Aggregation.sum(
-                CExpression("input_2->data[i] - input_0->data[i]", Some("input_2->data[i] != 4.0"))
-              )
-            )
-          )
+    "Average is computed correctly" in {
+      val result = evalAggregate[Double, Double](List[Double](1, 2, 3))(
+        NamedGroupByExpression(
+          "exp",
+          veNullableDouble,
+          GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
         )
       )
-    )
-    assert(
-      result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.6))
-    )
-  }
+      assert(result == List[Double](2))
+    }
 
-  "We can aggregate / group by with NULLs for grouped computations" in {
-    val result = evalGroupBySum[(Double, Double, Double), (Option[Double], Double, Double)](
-      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
-      groups = List(
-        Right(
-          TypedCExpression2(
-            VeScalarType.veNullableDouble,
-            CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
-          )
-        ),
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-        )
-      ),
-      expressions = List(
-        Right(
-          NamedGroupByExpression(
-            "output_0",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0")))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_1",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_1->data[i] + 1", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_2",
-            VeNullableDouble,
-            GroupByAggregation(
-              Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
-            )
-          )
-        )
-      )
-    )
-    assert(
-      result ==
-        List[(Option[Double], Double, Double)](
-          (None, 3.0, 3.0),
-          (Some(1.0), 3.0, 2.0),
-          (Some(1.5), 2.2, 1.6)
-        )
-    )
-  }
-
-  "We can aggregate / group by with NULLs for inputs as well" in {
-    val result =
-      evalGroupBySum[(Option[Double], Double, Double), (Option[Double], Double, Option[Double])](
-        input = List[(Option[Double], Double, Double)](
-          (Some(1.0), 2.0, 3.0),
-          (Some(1.5), 1.2, 3.1),
-          (None, 2.0, 4.0)
-        ),
+    "We can aggregate / group by (simple sum)" in {
+      val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+        List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (3, 4, 9)),
         groups = List(
           Right(
-            TypedCExpression2(
-              VeScalarType.veNullableDouble,
-              CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
-            )
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
           ),
           Right(
-            TypedCExpression2(
-              VeScalarType.veNullableDouble,
-              CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
-            )
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
           )
         ),
         expressions = List(
@@ -400,16 +235,87 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
             NamedGroupByExpression(
               "output_0",
               VeNullableDouble,
-              GroupByProjection(CExpression("input_0->data[i]", Some("input_0->get_validity(i)")))
+              GroupByProjection(CExpression("input_0->data[i]", None))
             )
           ),
           Right(
             NamedGroupByExpression(
               "output_1",
               VeNullableDouble,
-              GroupByProjection(
-                CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))
+              GroupByProjection(CExpression("input_1->data[i] + 1", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_2",
+              VeNullableDouble,
+              GroupByAggregation(
+                Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
               )
+            )
+          )
+        )
+      )
+      assert(
+        result ==
+          List[(Double, Double, Double)]((1.0, 3.0, 5.0), (1.5, 2.2, 1.6), (3.0, 5.0, 6.0))
+      )
+    }
+
+    "We can aggregate / group by a String value (GroupByString)" in {
+      val input = List[(String, Double)](("x", 1.0), ("yy", 2.0), ("ax", 3.0), ("x", -1.0))
+      val expected = input.groupBy(_._1).mapValues(_.map(_._2).sum).toList
+
+      /** SELECT a, SUM(b) group by a, b*b */
+      val result =
+        evalGroupBySumStr[(String, Double), (String, Double)](input)(
+          (
+            StringGrouping("input_0"),
+            TypedCExpression2(
+              VeScalarType.veNullableDouble,
+              CExpression("input_1->data[i] * input_1->data[i]", None)
+            )
+          )
+        )(
+          List(
+            Left(NamedStringProducer("output_0", StringProducer.copyString("input_0"))),
+            Right(
+              NamedGroupByExpression(
+                "output_1",
+                VeNullableDouble,
+                GroupByAggregation(Aggregation.sum(CExpression("input_1->data[i]", None)))
+              )
+            )
+          )
+        )
+
+      assert(result.sorted == expected.sorted)
+    }
+
+    "We can aggregate / group by with NULL input check values" in {
+      val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+        input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
+        groups = List(
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          ),
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          )
+        ),
+        expressions = List(
+          Right(
+            NamedGroupByExpression(
+              "output_0",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_0->data[i]", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_1->data[i] + 1", None))
             )
           ),
           Right(
@@ -420,7 +326,7 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
                 Aggregation.sum(
                   CExpression(
                     "input_2->data[i] - input_0->data[i]",
-                    Some("input_0->get_validity(i) && input_2->get_validity(i)")
+                    Some("input_2->data[i] != 4.0")
                   )
                 )
               )
@@ -428,138 +334,259 @@ final class RealExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
           )
         )
       )
-    assert(
-      result ==
-        List[(Option[Double], Double, Option[Double])](
-          (None, 3.0, Some(0.0)),
-          (Some(1.0), 3.0, Some(2.0)),
-          (Some(1.5), 2.2, Some(1.6))
-        )
-    )
-  }
+      assert(
+        result ==
+          List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.6))
+      )
+    }
 
-  "We can sum using DeclarativeAggregate" in {
-    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
-      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
-      groups = List(
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
-        ),
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
-        )
-      ),
-      expressions = List(
-        Right(
-          NamedGroupByExpression(
-            "output_0",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_0->data[i]", None))
+    "We can aggregate / group by with NULLs for grouped computations" in {
+      val result = evalGroupBySum[(Double, Double, Double), (Option[Double], Double, Double)](
+        input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
+        groups = List(
+          Right(
+            TypedCExpression2(
+              VeScalarType.veNullableDouble,
+              CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
+            )
+          ),
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
           )
         ),
-        Right(
-          NamedGroupByExpression(
-            "output_1",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_1->data[i] + 1", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_2",
-            VeNullableDouble,
-            GroupByAggregation(
-              DeclarativeAggregationConverter(
-                Sum(AttributeReference("input_0->data[i]", DoubleType)())
+        expressions = List(
+          Right(
+            NamedGroupByExpression(
+              "output_0",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0")))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_1->data[i] + 1", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_2",
+              VeNullableDouble,
+              GroupByAggregation(
+                Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
               )
             )
           )
         )
       )
-    )
-    assert(
-      result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.5))
-    )
-  }
+      assert(
+        result ==
+          List[(Option[Double], Double, Double)](
+            (None, 3.0, 3.0),
+            (Some(1.0), 3.0, 2.0),
+            (Some(1.5), 2.2, 1.6)
+          )
+      )
+    }
 
-  "We can Inner Join" in {
-    val leftKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
-
-    val rightKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
-
-    val outputs = (
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_2->data[right_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_0->data[left_out[i]]", None))),
-      TypedJoinExpression[Double](JoinProjection(CExpression("input_3->data[right_out[i]]", None)))
-    )
-
-    import JoinExpressor.RichJoin
-
-    val out = evalInnerJoin[(Double, Double, Double, Double), (Double, Double, Double, Double)](
-      List(
-        (1.0, 2.0, 5.0, 1.0),
-        (3.0, 2.0, 3.0, 7.0),
-        (11.0, 7.0, 12.0, 11.0),
-        (8.0, 2.0, 3.0, 9.0)
-      ),
-      leftKey,
-      rightKey,
-      outputs.expressed
-    )
-
-    assert(out == List((2.0, 5.0, 1.0, 1.0), (7.0, 12.0, 11.0, 11.0)))
-  }
-
-  "We can aggregate / group by (correlation)" in {
-    val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
-      input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (1.5, 1.2, 4.1)),
-      groups = List(
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
-        ),
-        Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+    "We can aggregate / group by with NULLs for inputs as well" in {
+      val result =
+        evalGroupBySum[(Option[Double], Double, Double), (Option[Double], Double, Option[Double])](
+          input = List[(Option[Double], Double, Double)](
+            (Some(1.0), 2.0, 3.0),
+            (Some(1.5), 1.2, 3.1),
+            (None, 2.0, 4.0)
+          ),
+          groups = List(
+            Right(
+              TypedCExpression2(
+                VeScalarType.veNullableDouble,
+                CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
+              )
+            ),
+            Right(
+              TypedCExpression2(
+                VeScalarType.veNullableDouble,
+                CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
+              )
+            )
+          ),
+          expressions = List(
+            Right(
+              NamedGroupByExpression(
+                "output_0",
+                VeNullableDouble,
+                GroupByProjection(CExpression("input_0->data[i]", Some("input_0->get_validity(i)")))
+              )
+            ),
+            Right(
+              NamedGroupByExpression(
+                "output_1",
+                VeNullableDouble,
+                GroupByProjection(
+                  CExpression("input_1->data[i] + 1", Some("input_1->get_validity(i)"))
+                )
+              )
+            ),
+            Right(
+              NamedGroupByExpression(
+                "output_2",
+                VeNullableDouble,
+                GroupByAggregation(
+                  Aggregation.sum(
+                    CExpression(
+                      "input_2->data[i] - input_0->data[i]",
+                      Some("input_0->get_validity(i) && input_2->get_validity(i)")
+                    )
+                  )
+                )
+              )
+            )
+          )
         )
-      ),
-      expressions = List(
-        Right(
-          NamedGroupByExpression(
-            "output_0",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_0->data[i]", None))
+      assert(
+        result ==
+          List[(Option[Double], Double, Option[Double])](
+            (None, 3.0, Some(0.0)),
+            (Some(1.0), 3.0, Some(2.0)),
+            (Some(1.5), 2.2, Some(1.6))
+          )
+      )
+    }
+
+    "We can sum using DeclarativeAggregate" in {
+      val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+        input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
+        groups = List(
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          ),
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
           )
         ),
-        Right(
-          NamedGroupByExpression(
-            "output_1",
-            VeNullableDouble,
-            GroupByProjection(CExpression("input_1->data[i] + 1", None))
-          )
-        ),
-        Right(
-          NamedGroupByExpression(
-            "output_2",
-            VeNullableDouble,
-            GroupByAggregation(
-              DeclarativeAggregationConverter(
-                Corr(
-                  AttributeReference("input_2->data[i]", DoubleType)(),
-                  AttributeReference("input_2->data[i]", DoubleType)()
+        expressions = List(
+          Right(
+            NamedGroupByExpression(
+              "output_0",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_0->data[i]", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_1->data[i] + 1", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_2",
+              VeNullableDouble,
+              GroupByAggregation(
+                DeclarativeAggregationConverter(
+                  Sum(AttributeReference("input_0->data[i]", DoubleType)())
                 )
               )
             )
           )
         )
       )
-    )
-    assert(
-      result ==
-        List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
-    )
+      assert(
+        result ==
+          List[(Double, Double, Double)]((1.0, 3.0, 2.0), (1.5, 2.2, 1.5))
+      )
+    }
+    "We can aggregate / group by (correlation)" in {
+      val result = evalGroupBySum[(Double, Double, Double), (Double, Double, Double)](
+        input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (1.5, 1.2, 4.1)),
+        groups = List(
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          ),
+          Right(
+            TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          )
+        ),
+        expressions = List(
+          Right(
+            NamedGroupByExpression(
+              "output_0",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_0->data[i]", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_1",
+              VeNullableDouble,
+              GroupByProjection(CExpression("input_1->data[i] + 1", None))
+            )
+          ),
+          Right(
+            NamedGroupByExpression(
+              "output_2",
+              VeNullableDouble,
+              GroupByAggregation(
+                DeclarativeAggregationConverter(
+                  Corr(
+                    AttributeReference("input_2->data[i]", DoubleType)(),
+                    AttributeReference("input_2->data[i]", DoubleType)()
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+      assert(
+        result ==
+          List[(Double, Double, Double)]((1.0, 3.0, 1.0), (1.5, 2.2, 1.0))
+      )
+    }
+
+  }
+  "Join" - {
+    "We can Inner Join" in {
+      val leftKey =
+        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
+
+      val rightKey =
+        TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
+
+      val outputs = (
+        TypedJoinExpression[Double](
+          JoinProjection(CExpression("input_1->data[left_out[i]]", None))
+        ),
+        TypedJoinExpression[Double](
+          JoinProjection(CExpression("input_2->data[right_out[i]]", None))
+        ),
+        TypedJoinExpression[Double](
+          JoinProjection(CExpression("input_0->data[left_out[i]]", None))
+        ),
+        TypedJoinExpression[Double](
+          JoinProjection(CExpression("input_3->data[right_out[i]]", None))
+        )
+      )
+
+      import JoinExpressor.RichJoin
+
+      val out = evalInnerJoin[(Double, Double, Double, Double), (Double, Double, Double, Double)](
+        List(
+          (1.0, 2.0, 5.0, 1.0),
+          (3.0, 2.0, 3.0, 7.0),
+          (11.0, 7.0, 12.0, 11.0),
+          (8.0, 2.0, 3.0, 9.0)
+        ),
+        leftKey,
+        rightKey,
+        outputs.expressed
+      )
+
+      assert(out == List((2.0, 5.0, 1.0, 1.0), (7.0, 12.0, 11.0, 11.0)))
+    }
   }
 
 }
