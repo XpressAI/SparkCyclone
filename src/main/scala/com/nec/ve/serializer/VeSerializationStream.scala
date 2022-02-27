@@ -50,8 +50,8 @@ class VeSerializationStream(out: OutputStream)(implicit
 //        println(s"Will write ${v.size} (${v.bytes.size} as MixedBatch")
         /** for reading out as byte array */
 
-        import SparkCycloneExecutorPlugin.metrics
-        metrics.measureRunningTime {
+        import SparkCycloneExecutorPlugin.cycloneMetrics
+        cycloneMetrics.measureRunningTime {
           dataOutputStream.writeInt(v.veColBatch.serializeToStreamSize)
           val startSize = dataOutputStream.size()
           v.veColBatch.serializeToStream(dataOutputStream)
@@ -62,7 +62,7 @@ class VeSerializationStream(out: OutputStream)(implicit
             diff == v.veColBatch.serializeToStreamSize,
             s"Written ${diff} bytes, expected ${v.veColBatch.serializeToStreamSize}"
           )
-        }(metrics.registerSerializationTime)
+        }(cycloneMetrics.registerSerializationTime)
         this
       case other =>
         sys.error(s"Not supported here to write item of type ${other.getClass.getCanonicalName}")

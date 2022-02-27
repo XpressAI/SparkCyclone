@@ -1,14 +1,11 @@
 package com.nec.arrow.colvector
 
+import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
+import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerDeserializationTime
-}
-import com.nec.spark.agile.CFunctionGeneration.VeType
 
 import java.io.{DataInputStream, DataOutputStream, InputStream}
 
@@ -44,7 +41,7 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
     veProcess: VeProcess,
     originalCallingContext: OriginalCallingContext
   ): VeColVector =
-    measureRunningTime {
+    cycloneMetrics.measureRunningTime {
       VeColVector(
         ByteArrayColVector(
           underlying.copy(
@@ -58,7 +55,7 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
           .map(_.getOrElse(-1))
       )
         .newContainer()
-    }(registerDeserializationTime)
+    }(cycloneMetrics.registerDeserializationTime)
 
   def toStreamFast(dataOutputStream: DataOutputStream): Unit = {
     dataOutputStream.writeInt(underlying.source.identifier.length)

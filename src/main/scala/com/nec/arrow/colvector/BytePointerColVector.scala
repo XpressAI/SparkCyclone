@@ -2,7 +2,7 @@ package com.nec.arrow.colvector
 
 import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerTransferTime}
+import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
 import com.nec.ve.VeProcess
@@ -17,7 +17,6 @@ import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.{BytePointer, IntPointer}
-import sun.nio.ch.DirectBuffer
 
 import java.nio.ByteBuffer
 
@@ -43,11 +42,11 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext
   ): GenericColVector[Option[Long]] = {
-    measureRunningTime(
+    cycloneMetrics.measureRunningTime(
       underlying
         .map(_.map(bp => veProcess.putPointer(bp)))
         .copy(source = source)
-    )(registerTransferTime)
+    )(cycloneMetrics.registerTransferTime)
   }
 
   def toByteArrayColVector(): ByteArrayColVector =

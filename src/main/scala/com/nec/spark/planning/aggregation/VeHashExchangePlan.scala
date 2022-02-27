@@ -1,18 +1,9 @@
 package com.nec.spark.planning.aggregation
 
-import com.nec.spark.SparkCycloneExecutorPlugin.source
-import com.nec.spark.planning.{
-  PlanCallsVeFunction,
-  SupportsKeyedVeColBatch,
-  SupportsVeColBatch,
-  VeFunction
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.{cycloneMetrics, source}
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerFunctionCallTime
-}
 import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -26,8 +17,8 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   with PlanCallsVeFunction
   with SupportsKeyedVeColBatch {
 
-  import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   import OriginalCallingContext.Automatic._
+  import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .asInstanceOf[SupportsVeColBatch]
@@ -39,14 +30,14 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           try {
             logger.debug(s"Mapping ${veColBatch} for exchange")
-            val multiBatches = measureRunningTime(
+            val multiBatches = cycloneMetrics.measureRunningTime(
               veProcess.executeMulti(
                 libraryReference = libRefExchange,
                 functionName = exchangeFunction.functionName,
                 cols = veColBatch.cols,
                 results = exchangeFunction.namedResults
               )
-            )(registerFunctionCallTime(_, veFunction.functionName))
+            )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
             logger.debug(s"Mapped to ${multiBatches} completed.")
 
             multiBatches.flatMap {

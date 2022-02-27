@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
+import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
@@ -60,6 +60,8 @@ trait VeProcess {
 }
 
 object VeProcess {
+  var calls = 0
+  var veSeconds = 0.0
 
   final case class OriginalCallingContext(fullName: sourcecode.FullName, line: sourcecode.Line) {
     def renderString: String = s"${fullName.value}#${line.value}"
@@ -215,16 +217,21 @@ object VeProcess {
       }
       val fnCallResult = new LongPointer(1)
 
-      val functionAddr = measureRunningTime(
-        veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
-      )(registerVeCall)
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
 
       require(
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
-      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      val start = System.nanoTime()
+      val callRes = cycloneMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(cycloneMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      println(s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)")
 
       require(
         callRes == 0,
@@ -322,7 +329,15 @@ object VeProcess {
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
-      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+
+      val start = System.nanoTime()
+      val callRes = cycloneMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(cycloneMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      println(s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)")
 
       require(
         callRes == 0,
@@ -423,7 +438,14 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
-      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      val start = System.nanoTime()
+      val callRes = cycloneMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(cycloneMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      println(s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)")
 
       require(
         callRes == 0,

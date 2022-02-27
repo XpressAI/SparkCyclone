@@ -1,10 +1,10 @@
 package com.nec.ve.serializer
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
 import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
+import com.nec.ve.{VeColBatch, VeProcess}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.DeserializationStream
 
@@ -52,18 +52,18 @@ class VeDeserializationStream(in: InputStream)(implicit
           VeColBatch.fromStream(dataInputStream)
         case MixedCbTagColBatch =>
           val theSize = dataInputStream.readInt()
-          import SparkCycloneExecutorPlugin.metrics
+          import SparkCycloneExecutorPlugin.cycloneMetrics
           if (DeserStreamed) {
             import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-            metrics.measureRunningTime {
+            cycloneMetrics.measureRunningTime {
               DualBatchOrBytes.ColBatchWrapper(VeColBatch.fromStream(dataInputStream))
-            }(metrics.registerDeserializationTime)
+            }(cycloneMetrics.registerDeserializationTime)
           } else {
-            metrics.measureRunningTime {
+            cycloneMetrics.measureRunningTime {
               val byteArray = Array.fill[Byte](theSize)(-1)
               dataInputStream.readFully(byteArray)
               new BytesOnly(byteArray, theSize): DualBatchOrBytes
-            }(metrics.registerDeserializationTime)
+            }(cycloneMetrics.registerDeserializationTime)
           }
         case -1 =>
           throw new EOFException()

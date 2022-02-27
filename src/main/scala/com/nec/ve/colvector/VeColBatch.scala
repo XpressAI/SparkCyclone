@@ -9,14 +9,7 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
-import java.io.{
-  ByteArrayInputStream,
-  ByteArrayOutputStream,
-  DataInputStream,
-  DataOutputStream,
-  ObjectInputStream,
-  ObjectOutputStream
-}
+import java.io._
 import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen

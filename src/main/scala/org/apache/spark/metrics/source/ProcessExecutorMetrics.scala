@@ -2,9 +2,9 @@ package org.apache.spark.metrics.source
 
 import com.codahale.metrics.{Gauge, Histogram, MetricRegistry, UniformReservoir}
 import com.nec.ve.VeProcessMetrics
-
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker.Allocation
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -37,7 +37,7 @@ object ProcessExecutorMetrics {
   }
 }
 
-final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
+final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker, registry: MetricRegistry)
   extends VeProcessMetrics
   with Source {
   private val allocations: scala.collection.mutable.Map[Long, Long] = mutable.Map.empty
@@ -102,7 +102,7 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker)
 
   override def sourceName: String = "VEProcessExecutor"
 
-  override val metricRegistry: MetricRegistry = new MetricRegistry()
+  override val metricRegistry: MetricRegistry = registry
 
   metricRegistry.register(
     MetricRegistry.name("ve", "allocations"),

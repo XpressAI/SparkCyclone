@@ -1,15 +1,13 @@
 package com.nec.spark.planning.plans
 
+import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
 import com.nec.ve.{VeColBatch, VeRDD}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.arrow.memory.RootAllocator
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
-import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
 import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan}
 
 import scala.concurrent.duration.NANOSECONDS
 
@@ -39,21 +37,20 @@ case class VectorEngineJoinPlan(
         cleanUpInput = true
       )
       .map { case (leftColBatch, rightColBatch) =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        import com.nec.spark.SparkCycloneExecutorPlugin.source
+        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
         val res = withVeLibrary { libRefJoin =>
           logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =
             try {
-              measureRunningTime(
+              cycloneMetrics.measureRunningTime(
                 veProcess.execute(
                   libraryReference = libRefJoin,
                   functionName = joinFunction.functionName,
                   cols = leftColBatch.cols ++ rightColBatch.cols,
                   results = joinFunction.namedResults
                 )
-              )(registerFunctionCallTime(_, veFunction.functionName))
+              )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
             } finally {
               dataCleanup.cleanup(leftColBatch)
               dataCleanup.cleanup(rightColBatch)

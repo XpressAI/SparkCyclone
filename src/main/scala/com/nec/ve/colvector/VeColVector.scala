@@ -3,10 +3,7 @@ package com.nec.ve.colvector
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerSerializationTime
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.cycloneMetrics
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
@@ -53,11 +50,11 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
     val totalSize = bufferSizes.sum
 
-    val resultingArray = measureRunningTime(
+    val resultingArray = cycloneMetrics.measureRunningTime(
       toBytePointerVector()
         .toByteArrayColVector()
         .serialize()
-    )(registerSerializationTime)
+    )(cycloneMetrics.registerSerializationTime)
 
     assert(
       resultingArray.length == totalSize,
