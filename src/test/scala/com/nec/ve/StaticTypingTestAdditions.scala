@@ -27,18 +27,12 @@ import com.nec.arrow.ArrowVectorBuilders.{
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
-import com.nec.spark.agile.CFunctionGeneration.{
-  CVector,
-  NamedJoinExpression,
-  TypedJoinExpression,
-  VeScalarType,
-  VeType
-}
+import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.vector.{Float8Vector, ValueVector, VarCharVector}
+import org.apache.arrow.vector.{Float8Vector, VarCharVector}
 
 /**
  * Boilerplate to deal with making the tests nice and tight.
@@ -230,6 +224,7 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double)] = {
+        println(s"CB = ${veColBatch}")
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
             val arrow = col.toArrowVector()
