@@ -1,7 +1,9 @@
 package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
+import com.nec.arrow.colvector.BytePointerColVector
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.arrow.memory.BufferAllocator
@@ -77,13 +79,44 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
     schema: Seq[Attribute],
     storageLevel: StorageLevel,
     conf: SQLConf
-  ): RDD[CachedBatch] = input.map { cb =>
-    import com.nec.spark.SparkCycloneExecutorPlugin._
-    import OriginalCallingContext.Automatic._
+  ): RDD[CachedBatch] = input.mapPartitions { columnarBatches =>
+    implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+      .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
 
-    val veColBatch = VeColBatch.fromArrowColumnarBatch(cb)
-    SparkCycloneExecutorPlugin.registerCachedBatch(veColBatch)
-    CachedVeBatch(veColBatch)
+    import com.nec.spark.SparkCycloneExecutorPlugin._
+    columnarBatches.map { columnarBatch =>
+      CachedVeBatch.apply(cachedColumnVectors =
+        (0 until columnarBatch.numCols())
+          .map(i =>
+            columnarBatch.column(i).getOptionalArrowValueVector match {
+              case Some(acv) =>
+                import OriginalCallingContext.Automatic._
+                BytePointerColVector
+                  .fromArrowVector(acv)
+                  .toVeColVector()
+              case None =>
+                BytePointerColVector
+                  .fromColumnarVectorViaArrow(
+                    schema(i).name,
+                    columnarBatch.column(i),
+                    columnarBatch.numRows()
+                  ) match {
+                  case None =>
+                    throw new NotImplementedError(
+                      s"Type ${schema(i).dataType} not supported for columnar batch conversion"
+                    )
+                  case Some((fieldVector, bytePointerColVector)) =>
+                    import OriginalCallingContext.Automatic._
+                    try bytePointerColVector.toVeColVector()
+                    finally fieldVector.close()
+                }
+            }
+          )
+          .toList
+          .map(byteArrayColVector => Left(byteArrayColVector))
+      )
+    }
   }
 
   override def requiresCleanUp: Boolean = false

@@ -1,20 +1,25 @@
-package com.nec.cmake.eval
+package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowNativeInterface.SupportedVectorWrapper
-import com.nec.arrow.{ArrowVectorBuilders, CArrowNativeInterface, WithTestAllocator}
-import com.nec.cmake.CMakeBuilder
-import com.nec.util.RichVectors.RichIntVector
+import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
 import com.nec.spark.agile.StringHole
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.{LikeStringHoleEvaluation, SlowEvaluator}
 import com.nec.spark.agile.groupby.GroupByOutline
+import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
 import org.scalatest.freespec.AnyFreeSpec
 
-final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
+final class StringOpsStringHoleEvaluationSpec
+  extends AnyFreeSpec
+  with WithVeProcess
+  with VeKernelInfra {
+
+  import OriginalCallingContext.Automatic._
 
   val list = List("this", "test", "is defi", "nitely", "tested")
 
@@ -76,51 +81,57 @@ final class StringOpsStringHoleEvaluationSpec extends AnyFreeSpec {
 }
 
 object StringOpsStringHoleEvaluationSpec {
-  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator): List[Int] =
+  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator)(implicit
+    veAllocator: VeAllocator[String],
+    veRetriever: VeRetriever[Int],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra,
+    originalCallingContext: OriginalCallingContext,
+    veColVectorSource: VeColVectorSource
+  ): List[Int] =
     executeHoleEvaluation(
       input = input,
       stringHoleEvaluation = StringHole.StringHoleEvaluation
         .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
     )
 
-  def executeHoleEvaluation(
-    input: List[String],
-    stringHoleEvaluation: StringHoleEvaluation
+  def executeHoleEvaluation(input: List[String], stringHoleEvaluation: StringHoleEvaluation)(
+    implicit
+    veAllocator: VeAllocator[String],
+    veRetriever: VeRetriever[Int],
+    veProcess: VeProcess,
+    veKernelInfra: VeKernelInfra,
+    originalCallingContext: OriginalCallingContext,
+    veColVectorSource: VeColVectorSource
   ): List[Int] = {
 
-    val cLib = CMakeBuilder.buildCLogging(
-      List(
-        "\n\n",
-        CFunction(
-          inputs = List(CVector.varChar("strings")),
-          outputs = List(CVector.int("bools")),
-          body = CodeLines.from(
-            stringHoleEvaluation.computeVector,
-            GroupByOutline
-              .initializeScalarVector(VeScalarType.veNullableInt, "bools", "strings->count"),
-            CodeLines.from(
-              "for ( int i = 0; i < strings->count; i++ ) { ",
-              GroupByOutline.storeTo("bools", stringHoleEvaluation.fetchResult, "i").indented,
-              "}"
-            ),
-            stringHoleEvaluation.deallocData,
-            "return 0;"
-          )
-        ).toCodeLinesG("test").cCode
+    val cFunction = CFunction(
+      inputs = List(CVector.varChar("strings")),
+      outputs = List(CVector.int("bools")),
+      body = CodeLines.from(
+        stringHoleEvaluation.computeVector,
+        GroupByOutline
+          .initializeScalarVector(VeScalarType.veNullableInt, "bools", "strings->count"),
+        CodeLines.from(
+          "for ( int i = 0; i < strings->count; i++ ) { ",
+          GroupByOutline.storeTo("bools", stringHoleEvaluation.fetchResult, "i").indented,
+          "}"
+        ),
+        stringHoleEvaluation.deallocData,
+        "return 0;"
       )
-        .mkString("\n\n")
     )
 
-    val nativeInterface = new CArrowNativeInterface(cLib.toString)
     WithTestAllocator { implicit allocator =>
-      ArrowVectorBuilders.withArrowStringVector(input) { inVec =>
-        ArrowVectorBuilders.withDirectIntVector(Seq.empty) { outVec =>
-          nativeInterface.callFunction(
-            name = "test",
-            inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
-            outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
-          )
-          outVec.toList
+      WithTestAllocator { implicit allocator =>
+        veKernelInfra.compiledWithHeaders(cFunction, "test") { path =>
+          val libRef = veProcess.loadLibrary(path)
+          val inputVectors = veAllocator.allocate(input: _*)
+          try {
+            val resultingVectors =
+              veProcess.execute(libRef, "test", inputVectors.cols, veRetriever.makeCVectors)
+            veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
+          } finally inputVectors.free()
         }
       }
     }

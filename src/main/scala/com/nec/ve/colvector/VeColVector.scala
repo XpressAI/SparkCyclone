@@ -1,49 +1,33 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.ArrowInterfaces.getUnsafe
-import com.nec.arrow.ArrowTransferStructures.{
-  nullable_bigint_vector,
-  nullable_double_vector,
-  nullable_int_vector,
-  nullable_short_vector,
-  nullable_varchar_vector
-}
-import com.nec.arrow.VeArrowTransfers.{
-  nullableBigintVectorToBytePointer,
-  nullableDoubleVectorToBytePointer,
-  nullableIntVectorToBytePointer,
-  nullableShortVectorToBytePointer,
-  nullableVarCharVectorVectorToBytePointer
-}
+import com.nec.arrow.ArrowTransferStructures._
+import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
+import com.nec.cache.VeColColumnarVector
 import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
   measureRunningTime,
   registerSerializationTime
 }
-import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
-import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.colvector.VeColVector.getUnsafe
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import sun.misc.Unsafe
 
-import java.io.{DataOutputStream, OutputStream}
+import java.io.OutputStream
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
   def serializedSize: Int = underlying.bufferSizes.sum
 
-  def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit = {
+  def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit =
     underlying.buffers.zip(underlying.bufferSizes).foreach { case (bufPos, bufLen) =>
       veProcess.writeToStream(outStream, bufPos, bufLen)
     }
-  }
 
   def toUnit: UnitColVector = underlying.toUnit
   def allAllocations = containerLocation :: bufferLocations
@@ -106,39 +90,17 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   ): VeColVector =
     copy(underlying = {
       veType match {
-        case VeScalarType.VeNullableDouble =>
-          val vcvr = new nullable_double_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableDoubleVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeScalarType.VeNullableInt =>
-          val vcvr = new nullable_int_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableIntVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeScalarType.VeNullableShort =>
-          val vcvr = new nullable_short_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableShortVectorToBytePointer(vcvr)
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeScalarType.VeNullableLong =>
-          val vcvr = new nullable_bigint_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.validityBuffer = buffers(1)
-          val bytePointer = nullableBigintVectorToBytePointer(vcvr)
-
+        case _: VeScalarType =>
+          // todo replace without using JNA at all
+          val double_vector = new nullable_double_vector()
+          val v_bb = double_vector.getPointer.getByteBuffer(0, 20)
+          v_bb.putLong(0, buffers(0))
+          v_bb.putLong(8, buffers(1))
+          v_bb.putInt(16, numItems)
+          val bytePointer = new BytePointer(v_bb)
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case VeString =>
+          // todo use to replace without JNA at all
           val vcvr = new nullable_varchar_vector()
           vcvr.count = numItems
           vcvr.data = buffers(0)
@@ -148,7 +110,16 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
           vcvr.dataSize =
             variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
 
-          val bytePointer = nullableVarCharVectorVectorToBytePointer(vcvr)
+          val bytePointer = {
+            val v_bb = vcvr.getPointer.getByteBuffer(0, (8 * 4) + (4 * 2))
+            v_bb.putLong(0, vcvr.data)
+            v_bb.putLong(8, vcvr.offsets)
+            v_bb.putLong(16, vcvr.lengths)
+            v_bb.putLong(24, vcvr.validityBuffer)
+            v_bb.putInt(32, vcvr.dataSize)
+            v_bb.putInt(36, vcvr.count)
+            new BytePointer(v_bb)
+          }
 
           underlying.copy(container = veProcess.putPointer(bytePointer))
         case other => sys.error(s"Other $other not supported.")
@@ -160,120 +131,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
   def toArrowVector()(implicit
     veProcess: VeProcess,
     bufferAllocator: BufferAllocator
-  ): FieldVector = veType match {
-    case VeScalarType.VeNullableDouble =>
-      val float8Vector = new Float8Vector("output", bufferAllocator)
-      if (numItems > 0) {
-        val dataSize = numItems * 8
-        float8Vector.setValueCount(numItems)
-        val vhTarget = new BytePointer(dataSize)
-        val validityTarget = new BytePointer(numItems)
-        veProcess.get(buffers.head, vhTarget, vhTarget.limit())
-        veProcess.get(buffers(1), validityTarget, validityTarget.limit())
-        getUnsafe.copyMemory(
-          validityTarget.address(),
-          float8Vector.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
-        )
-        getUnsafe.copyMemory(vhTarget.address(), float8Vector.getDataBufferAddress, dataSize)
-      }
-      float8Vector
-    case VeScalarType.VeNullableLong =>
-      val bigIntVector = new BigIntVector("output", bufferAllocator)
-      if (numItems > 0) {
-        val dataSize = numItems * 8
-        bigIntVector.setValueCount(numItems)
-        val vhTarget = new BytePointer(dataSize)
-        val validityTarget = new BytePointer(numItems)
-        veProcess.get(buffers.head, vhTarget, vhTarget.limit())
-        veProcess.get(buffers(1), validityTarget, validityTarget.limit())
-        getUnsafe.copyMemory(
-          validityTarget.address(),
-          bigIntVector.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
-        )
-        getUnsafe.copyMemory(vhTarget.address(), bigIntVector.getDataBufferAddress, dataSize)
-      }
-      bigIntVector
-    case VeScalarType.VeNullableInt =>
-      val intVector = new IntVector("output", bufferAllocator)
-      if (numItems > 0) {
-        val dataSize = numItems * 4
-        intVector.setValueCount(numItems)
-        val vhTarget = new BytePointer(dataSize)
-        val validityTarget = new BytePointer(numItems)
-        veProcess.get(buffers.head, vhTarget, vhTarget.limit())
-        veProcess.get(buffers(1), validityTarget, validityTarget.limit())
-        getUnsafe.copyMemory(
-          validityTarget.address(),
-          intVector.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
-        )
-        getUnsafe.copyMemory(vhTarget.address(), intVector.getDataBufferAddress, dataSize)
-      }
-      intVector
-    case VeScalarType.VeNullableShort =>
-      val intVector = new SmallIntVector("output", bufferAllocator)
-      if (numItems > 0) {
-        val dataSize = numItems * 4
-        val vhTarget = new BytePointer(dataSize)
-        val validityTarget = new BytePointer(numItems)
-        veProcess.get(buffers.head, vhTarget, vhTarget.limit())
-        veProcess.get(buffers(1), validityTarget, validityTarget.limit())
-        val intBuff = vhTarget.asBuffer().asIntBuffer()
-        intVector.setValueCount(numItems)
-        (0 until numItems).foreach(idx => intVector.set(idx, intBuff.get(idx)))
-        getUnsafe.copyMemory(
-          validityTarget.address(),
-          intVector.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
-        )
-      }
-      intVector
-    case VeString =>
-      val vcvr = new VarCharVector("output", bufferAllocator)
-      if (numItems > 0) {
-        val buffersSize = numItems * 4
-        val lastOffsetIndex = (numItems - 1) * 4
-        val lengthTarget = new BytePointer(buffersSize)
-        val startsTarget = new BytePointer(buffersSize)
-        val validityTarget = new BytePointer(numItems)
-        veProcess.get(buffers(1), startsTarget, startsTarget.capacity())
-        veProcess.get(buffers(2), lengthTarget, lengthTarget.capacity())
-        veProcess.get(buffers(3), validityTarget, validityTarget.limit())
-
-        val dataSize = (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
-        val vhTarget = new BytePointer(dataSize * 4)
-
-        veProcess.get(buffers.head, vhTarget, vhTarget.limit())
-        vcvr.allocateNew(dataSize, numItems)
-        vcvr.setValueCount(numItems)
-        //TODO: tempFix
-        val array = new Array[Byte](dataSize * 4)
-        vhTarget.get(array)
-//        for (i <- 0 until numItems) {
-//          println(s"START for idx: ${i} is ${startsTarget.getInt(i * 4)}")
-//          println(s"LENGTHS for idx: ${i} is ${lengthTarget.getInt(i * 4)}")
-//        }
-//        println("THE ARRAY:" + new String(array))
-        for (i <- 0 until numItems) {
-          val start = startsTarget.getInt(i * 4) * 4
-          val length = lengthTarget.getInt(i * 4) * 4
-//          println(s"ARRAY LENGTH WAS ${array.length}, START ${start} and END ${length}")
-          val str = new String(array, start, length, "UTF-32LE")
-          val utf8bytes = str.getBytes
-//          println(s"DATA: ${str}")
-          vcvr.set(i, utf8bytes)
-        }
-        getUnsafe.copyMemory(
-          validityTarget.address(),
-          vcvr.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
-        )
-      }
-      vcvr
-    case other => sys.error(s"Not supported for conversion to arrow vector: $other")
-  }
+  ): FieldVector = toBytePointerVector().toArrowVector()
 
   def free()(implicit
     veProcess: VeProcess,

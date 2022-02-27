@@ -1,9 +1,11 @@
 package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
+import com.nec.arrow.colvector.BytePointerColVector
+import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.{VeColBatch, VeProcess}
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -20,7 +22,34 @@ object ColumnarBatchToVeColBatch {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource
   ): Iterator[VeColBatch] = {
-    ???
+    columnarBatches.map { columnarBatch =>
+      VeColBatch.fromList(
+        (0 until columnarBatch.numCols())
+          .map(i =>
+            columnarBatch.column(i).getOptionalArrowValueVector match {
+              case Some(acv) =>
+                VeColVector.fromArrowVector(acv)
+              case None =>
+                val field = arrowSchema.getFields.get(i)
+                BytePointerColVector
+                  .fromColumnarVectorViaArrow(
+                    field.getName,
+                    columnarBatch.column(i),
+                    columnarBatch.numRows()
+                  ) match {
+                  case None =>
+                    throw new NotImplementedError(
+                      s"Type ${columnarBatch.column(i).dataType()} not supported for columnar batch conversion"
+                    )
+                  case Some((fieldVector, bytePointerColVector)) =>
+                    try bytePointerColVector.toVeColVector()
+                    finally fieldVector.close()
+                }
+            }
+          )
+          .toList
+      )
+    }
   }
 
   def toVeColBatchesViaRows(
@@ -48,4 +77,5 @@ object ColumnarBatchToVeColBatch {
         }
     }
   }
+
 }

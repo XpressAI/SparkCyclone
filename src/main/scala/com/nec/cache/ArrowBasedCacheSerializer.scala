@@ -83,18 +83,42 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     schema: Seq[Attribute],
     storageLevel: StorageLevel,
     conf: SQLConf
-  ): RDD[CachedBatch] = input.map { columnarBatch =>
+  ): RDD[CachedBatch] = input.mapPartitions { columnarBatches =>
+    implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+      .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+
     import com.nec.spark.SparkCycloneExecutorPlugin._
-    CachedVeBatch.apply(cachedColumnVectors =
-      (0 until columnarBatch.numCols())
-        .map(i =>
-          BytePointerColVector
-            .fromArrowVector(columnarBatch.column(i).getArrowValueVector)
-            .toByteArrayColVector()
-        )
-        .toList
-        .map(byteArrayColVector => Right(byteArrayColVector))
-    )
+    columnarBatches.map { columnarBatch =>
+      CachedVeBatch.apply(cachedColumnVectors =
+        (0 until columnarBatch.numCols())
+          .map(i =>
+            columnarBatch.column(i).getOptionalArrowValueVector match {
+              case Some(acv) =>
+                BytePointerColVector
+                  .fromArrowVector(acv)
+                  .toByteArrayColVector()
+              case None =>
+                BytePointerColVector
+                  .fromColumnarVectorViaArrow(
+                    schema(i).name,
+                    columnarBatch.column(i),
+                    columnarBatch.numRows()
+                  ) match {
+                  case None =>
+                    throw new NotImplementedError(
+                      s"Type ${schema(i).dataType} not supported for columnar batch conversion"
+                    )
+                  case Some((fieldVector, bytePointerColVector)) =>
+                    try bytePointerColVector.toByteArrayColVector()
+                    finally fieldVector.close()
+                }
+            }
+          )
+          .toList
+          .map(byteArrayColVector => Right(byteArrayColVector))
+      )
+    }
   }
 
   override def requiresCleanUp: Boolean = true

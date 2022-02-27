@@ -4,6 +4,7 @@ import sbt.Keys.envVars
 import scala.sys.process.Process
 import java.lang.management.ManagementFactory
 import java.nio.file.{Files, Paths}
+import scala.xml.Properties.isWin
 
 val CMake = config("cmake") extend Test
 val TPC = config("tpc") extend Test
@@ -137,7 +138,8 @@ libraryDependencies ++= Seq(
   /** Log with logback in our scopes but not in production runs */
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
-  "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve"
+  "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve",
+  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,cmake,ve"
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 javaCppVersion := "1.5.7"
@@ -459,10 +461,11 @@ lazy val `tpcbench-run` = project
   )
   .dependsOn(tracing)
 
-
-/*******************************************************************************
+/**
+ * *****************************************************************************
  * Cyclone C++ (VE) Library Build Settings
-*******************************************************************************/
+ * *****************************************************************************
+ */
 
 // Declare the C++ source and target directories
 lazy val cycloneCppSrcDir = settingKey[File]("Cyclone C++ source directory")
@@ -473,18 +476,22 @@ cycloneCppTgtDir := (Compile / resourceManaged).value / "cycloneve"
 Compile / resourceGenerators += Def.taskDyn {
   // If ncc is availble, build both the BOM and the library
   if (Files.exists(Paths.get("/opt/nec/ve/bin/ncc"))) cycloneVeLibrary.toTask
-  // Else just build the BOM (may be needed for CMake tests)
+  else if (isWin) emptyTask.toTask
   else cycloneVeSourcesBom.toTask
 }.taskValue
 
+lazy val emptyTask = taskKey[Seq[File]]("Do nothing")
+emptyTask := {
+  Seq.empty
+}
+
 lazy val cycloneVeLibrarySources = taskKey[Seq[File]]("Cyclone VE library sources")
 cycloneVeLibrarySources := {
-  sbt.nio.file.FileTreeView.default.list(
-    Seq("frovedis/**", "cyclone/**", "tests/**", "Makefile").map { suffix =>
+  sbt.nio.file.FileTreeView.default
+    .list(Seq("frovedis/**", "cyclone/**", "tests/**", "Makefile").map { suffix =>
       Glob((Compile / resourceDirectory).value.toString + s"/com/nec/cyclone/cpp/${suffix}")
-    }
-  )
-  .map(_._1.toFile)
+    })
+    .map(_._1.toFile)
 }
 
 lazy val copyCycloneSourcesToTarget = taskKey[Unit]("Copy Cyclone C++ sources to target directory")
@@ -495,12 +502,22 @@ copyCycloneSourcesToTarget := {
   IO.createDirectory(cycloneCppTgtDir.value)
 
   // Clear out any old source files left over from previous runs, if they exist
-  if ((Process(Seq("rm", "-rf", s"${cycloneCppTgtDir.value}/*"), cycloneCppSrcDir.value) ! logger) != 0) {
+  if (
+    (Process(
+      Seq("rm", "-rf", s"${cycloneCppTgtDir.value}/*"),
+      cycloneCppSrcDir.value
+    ) ! logger) != 0
+  ) {
     sys.error(s"Failed to clear target directory.")
   }
 
   logger.info(s"Copying C++ source files over to the target directory...")
-  if ((Process(Seq("cp", "-R", ".", cycloneCppTgtDir.value.toString), cycloneCppSrcDir.value) ! logger) != 0) {
+  if (
+    (Process(
+      Seq("cp", "-R", ".", cycloneCppTgtDir.value.toString),
+      cycloneCppSrcDir.value
+    ) ! logger) != 0
+  ) {
     sys.error(s"Failed to copy Cyclone C++ library files over.")
   }
 }
@@ -533,13 +550,22 @@ cycloneVeLibrary := {
 
         // Build the library and BOM directly in the target directory to avoid cache issues
         logger.info(s"Building and testing libcyclone.so, and creating the sources BOM...")
-        if ((Process(Seq("make", "cleanall", "all", "test", "bom", "clean"), cycloneCppTgtDir.value) ! logger) != 0) {
+        if (
+          (Process(
+            Seq("make", "cleanall", "all", "test", "bom", "clean"),
+            cycloneCppTgtDir.value
+          ) ! logger) != 0
+        ) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
         }
 
         // Collect the header files and generated arfifacts
-        val files = in.filter { fp => Seq(".hpp", ".incl", ".incl1", ".inc2").exists(fp.toString.endsWith(_)) } ++
-          Set("libcyclone.so", "sources.bom").map { fname => new File(makefile.getParentFile, fname) }
+        val files = in.filter { fp =>
+          Seq(".hpp", ".incl", ".incl1", ".inc2").exists(fp.toString.endsWith(_))
+        } ++
+          Set("libcyclone.so", "sources.bom").map { fname =>
+            new File(makefile.getParentFile, fname)
+          }
 
         // Rebase filepaths on the target directory
         files.flatMap { f => Path.rebase(cycloneCppSrcDir.value, cycloneCppTgtDir.value).apply(f) }

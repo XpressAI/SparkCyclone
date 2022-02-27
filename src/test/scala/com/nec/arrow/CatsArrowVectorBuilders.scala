@@ -21,17 +21,9 @@ package com.nec.arrow
 
 import cats.effect.{IO, Ref, Resource}
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{
-  BigIntVector,
-  DateDayVector,
-  Float8Vector,
-  IntVector,
-  SmallIntVector,
-  VarCharVector
-}
+import org.apache.arrow.vector._
 
-import java.time.{Duration, LocalDate, ZoneId}
-import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, VarCharVector}
+import java.time.{Duration, Instant, LocalDate, ZoneId}
 
 final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
   bufferAllocator: BufferAllocator
@@ -147,4 +139,21 @@ final case class CatsArrowVectorBuilders(vectorCount: Ref[IO, Int])(implicit
           }
       )(res => IO.delay(res.close()))
     )
+
+  def timestampVector(timestamps: Seq[Instant]): Resource[IO, BigIntVector] =
+    makeName.flatMap(name =>
+      Resource.make(
+        IO.delay(new BigIntVector(name, bufferAllocator))
+          .flatTap { vcv =>
+            IO.delay {
+              timestamps.view.zipWithIndex.foreach { case (instant, idx) =>
+                vcv.setSafe(idx, instant.toEpochMilli)
+              }
+              vcv.setValueCount(timestamps.length)
+              vcv
+            }
+          }
+      )(res => IO.delay(res.close()))
+    )
+
 }
