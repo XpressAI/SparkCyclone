@@ -11,19 +11,33 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import scala.concurrent.duration.NANOSECONDS
 
 case class VectorEngineToSparkPlan(override val child: SparkPlan)
   extends UnaryExecNode
   with LazyLogging {
   override def supportsColumnar: Boolean = true
 
+  override lazy val metrics = Map(
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+  )
+
+
   override def doExecute(): RDD[InternalRow] = {
-    doExecuteColumnar().mapPartitions(columnarBatchIterator =>
+    val execMetric = longMetric("execTime")
+    val beforeExec = System.nanoTime()
+
+    val res: RDD[InternalRow] = doExecuteColumnar().mapPartitions(columnarBatchIterator =>
       columnarBatchIterator.flatMap(mapBatchToRow)
     )
+    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+
+    res
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

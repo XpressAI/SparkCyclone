@@ -1,11 +1,6 @@
 package com.nec.spark.planning.plans
 
-import com.nec.spark.planning.{
-  PlanCallsVeFunction,
-  SupportsKeyedVeColBatch,
-  SupportsVeColBatch,
-  VeFunction
-}
+import com.nec.spark.planning.{PlanCallsVeFunction, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
 import com.nec.ve.{VeColBatch, VeRDD}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.RootAllocator
@@ -13,10 +8,10 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan, UnaryExecNode}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerFunctionCallTime
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
+import org.apache.spark.sql.execution.metric.SQLMetrics
+
+import scala.concurrent.duration.NANOSECONDS
 
 case class VectorEngineJoinPlan(
   outputExpressions: Seq[NamedExpression],
@@ -29,8 +24,15 @@ case class VectorEngineJoinPlan(
   with SupportsVeColBatch
   with PlanCallsVeFunction {
 
-  override def executeVeColumnar(): RDD[VeColBatch] =
-    VeRDD
+  override lazy val metrics = Map(
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+  )
+
+  override def executeVeColumnar(): RDD[VeColBatch] = {
+    val execMetric = longMetric("execTime")
+    val beforeExec = System.nanoTime()
+
+    val res = VeRDD
       .joinExchange(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
@@ -60,6 +62,10 @@ case class VectorEngineJoinPlan(
           VeColBatch.fromList(batch)
         }
       }
+    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+
+    res
+  }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(joinFunction = f(joinFunction))

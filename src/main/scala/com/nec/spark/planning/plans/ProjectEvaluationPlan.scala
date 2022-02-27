@@ -21,10 +21,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerFunctionCallTime
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerFunctionCallTime}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
@@ -33,9 +30,11 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 import java.nio.file.Paths
+import scala.concurrent.duration.NANOSECONDS
 import scala.language.dynamics
 
 final case class ProjectEvaluationPlan(
@@ -50,6 +49,10 @@ final case class ProjectEvaluationPlan(
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
+  override lazy val metrics = Map(
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+  )
+
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(veFunction = f(veFunction))
 
@@ -61,8 +64,11 @@ final case class ProjectEvaluationPlan(
     ProjectEvaluationPlan.ProjectionContext(outputExpressions, child.outputSet.toList)
 
   import projectionContext._
-  override def executeVeColumnar(): RDD[VeColBatch] =
-    child
+  override def executeVeColumnar(): RDD[VeColBatch] = {
+    val execMetric = longMetric("execTime")
+    val beforeExec = System.nanoTime()
+
+    val res = child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
@@ -99,6 +105,10 @@ final case class ProjectEvaluationPlan(
             )
         }
       }
+    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+
+    res
+  }
 
 }
 
