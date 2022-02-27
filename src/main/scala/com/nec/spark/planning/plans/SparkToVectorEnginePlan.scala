@@ -52,7 +52,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
-    val res = if (child.supportsColumnar) {
+    if (child.supportsColumnar) {
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
@@ -61,7 +61,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
             .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
           TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
           import OriginalCallingContext.Automatic._
-          if (ConvertColumnarToColumnar)
+          val res = if (ConvertColumnarToColumnar)
             ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
               columnarBatches = columnarBatches,
               arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
@@ -73,6 +73,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
               arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
               completeInSpark = true
             )
+          execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+          res
         }
     } else {
       child.execute().mapPartitions { internalRows =>
@@ -82,15 +84,13 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
         TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
         import OriginalCallingContext.Automatic._
 
-        DualMode.unwrapPossiblyDualToVeColBatches(
+        val res = DualMode.unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = internalRows,
           arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
         )
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+        res
       }
     }
-
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
   }
 }

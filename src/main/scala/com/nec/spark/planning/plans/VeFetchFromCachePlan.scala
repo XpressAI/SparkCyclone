@@ -40,7 +40,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
     val execMetric = longMetric("execTime")
     val beforeExec = System.nanoTime()
 
-    val res = child
+    child
       .executeColumnar()
       .map(cb => {
         logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
@@ -52,11 +52,9 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
           case Right(byteArrayColVector) => byteArrayColVector.transferToBytePointers().toVeColVector()
         })
         logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
+        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
         res
       })
-    execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-    res
   }
 
   override def output: Seq[Attribute] = child.output
