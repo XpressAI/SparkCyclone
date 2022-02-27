@@ -1,10 +1,8 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.SupportsVeColBatch
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -36,28 +34,30 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { iterator =>
         import SparkCycloneExecutorPlugin._
+
         lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
-        val res = iterator.map { veColBatch =>
+        iterator.map { veColBatch =>
           import OriginalCallingContext.Automatic._
+          val beforeExec = System.nanoTime()
 
-          try {
+          val res = try {
             logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
             val res = veColBatch.toArrowColumnarBatch()
             logger.debug(s"Finished mapping ${veColBatch}")
             res
           } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+
+          execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+          res
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
       }
   }
 

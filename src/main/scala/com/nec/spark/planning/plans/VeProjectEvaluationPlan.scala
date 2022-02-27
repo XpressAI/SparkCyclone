@@ -32,7 +32,6 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-import java.nio.file.Paths
 import scala.concurrent.duration.NANOSECONDS
 import scala.language.dynamics
 
@@ -65,48 +64,50 @@ final case class VeProjectEvaluationPlan(
   import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath))
-        val res = veColBatches.map { veColBatch =>
-          import OriginalCallingContext.Automatic._
-          import SparkCycloneExecutorPlugin.veProcess
-          try {
-            val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
+        val beforeExec = System.nanoTime()
 
-            val cols =
-              if (canPassThroughall) Nil
-              else {
-                cycloneMetrics.measureRunningTime(
-                  veProcess.execute(
-                    libraryReference = libRef,
-                    functionName = veFunction.functionName,
-                    cols = veColBatch.cols,
-                    results = veFunction.namedResults
-                  )
-                )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
+        withVeLibrary { libRef =>
+          val res = veColBatches.map { veColBatch =>
+            import OriginalCallingContext.Automatic._
+            import SparkCycloneExecutorPlugin.veProcess
+            try {
+              val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
 
-              }
-            val outBatch = createOutputBatch(cols, veColBatch)
+              val cols =
+                if (canPassThroughall) Nil
+                else {
+                  cycloneMetrics.measureRunningTime(
+                    veProcess.execute(
+                      libraryReference = libRef,
+                      functionName = veFunction.functionName,
+                      cols = veColBatch.cols,
+                      results = veFunction.namedResults
+                    )
+                  )(cycloneMetrics.registerFunctionCallTime(_, veFunction.functionName))
 
-            if (veColBatch.numRows < outBatch.numRows)
-              println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-            outBatch
-          } finally {
-            child
-              .asInstanceOf[SupportsVeColBatch]
-              .dataCleanup
-              .cleanup(
-                VeProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
-              )
+                }
+              val outBatch = createOutputBatch(cols, veColBatch)
+
+              if (veColBatch.numRows < outBatch.numRows)
+                println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+              outBatch
+            } finally {
+              child
+                .asInstanceOf[SupportsVeColBatch]
+                .dataCleanup
+                .cleanup(
+                  VeProjectEvaluationPlan.getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
+                )
+            }
           }
+          execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+          res
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
       }
   }
 

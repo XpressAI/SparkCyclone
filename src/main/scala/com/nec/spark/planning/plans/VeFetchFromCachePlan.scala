@@ -7,7 +7,6 @@ import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.metric.SQLMetrics
@@ -38,14 +37,14 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     child
       .executeColumnar()
       .map(cb => {
         logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
-        import com.nec.spark.SparkCycloneExecutorPlugin._
         import OriginalCallingContext.Automatic._
+        import com.nec.spark.SparkCycloneExecutorPlugin._
+        val beforeExec = System.nanoTime()
 
         val res = VeColBatch.fromList(unwrapBatch(cb).map {
           case Left(veColVector)         => veColVector

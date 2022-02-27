@@ -28,7 +28,6 @@ case class VectorEngineJoinPlan(
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     VeRDD
       .joinExchange(
@@ -38,6 +37,8 @@ case class VectorEngineJoinPlan(
       )
       .map { case (leftColBatch, rightColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+        val beforeExec = System.nanoTime()
+
         val res = withVeLibrary { libRefJoin =>
           logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._

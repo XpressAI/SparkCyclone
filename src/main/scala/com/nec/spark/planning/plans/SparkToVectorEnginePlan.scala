@@ -43,8 +43,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
-
 
     //      val numInputRows = longMetric("numInputRows")
     //      val numOutputBatches = longMetric("numOutputBatches")
@@ -56,6 +54,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
+          val beforeExec = System.nanoTime()
+
           import SparkCycloneExecutorPlugin._
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
@@ -79,6 +79,9 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
+
+        val beforeExec = System.nanoTime()
+
         implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
           .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
         TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())

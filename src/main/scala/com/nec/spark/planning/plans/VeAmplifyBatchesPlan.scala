@@ -33,12 +33,13 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
-    val beforeExec = System.nanoTime()
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        val beforeExec = System.nanoTime()
+
         val res = withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
           veColBatches
