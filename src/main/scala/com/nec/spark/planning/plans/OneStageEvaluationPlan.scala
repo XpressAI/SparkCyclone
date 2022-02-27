@@ -59,11 +59,11 @@ final case class OneStageEvaluationPlan(
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
         withVeLibrary { libRef =>
-          logger.info(s"Will map batches with function ${veFunction}")
+          logger.info("Will map batches with function {}", veFunction)
           import OriginalCallingContext.Automatic._
           veColBatches.map { inputBatch =>
             try {
-              logger.debug(s"Mapping batch ${inputBatch}")
+              logger.debug("Mapping batch {}", inputBatch)
               val cols = measureRunningTime(
                 veProcess.execute(
                   libraryReference = libRef,
@@ -73,11 +73,11 @@ final case class OneStageEvaluationPlan(
                 )
               )(registerFunctionCallTime(_, veFunction.functionName))
 
-              logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
+              logger.debug("Completed mapping {}, got {}", inputBatch, cols)
 
               val outBatch = VeColBatch.fromList(cols)
               if (inputBatch.numRows < outBatch.numRows)
-                logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
+                logger.error("Input rows = {}, output = {}", inputBatch.numRows, outBatch)
               outBatch
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
           }

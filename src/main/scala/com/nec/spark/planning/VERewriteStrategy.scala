@@ -705,15 +705,15 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       if (options.failFast) {
         val x = res
         if (x.isEmpty)
-          logger.debug(s"Didn't rewrite")
+          logger.debug("Didn't rewrite")
         else
-          logger.debug(s"Rewrote it to ==> ${x}")
+          logger.debug("Rewrote it to ==> {}", x)
         x
       } else {
         try res
         catch {
           case e: Throwable =>
-            logger.error(s"Could not map plan ${plan} because of: ${e}", e)
+            logger.error("Could not map plan {} because of:", plan, e)
             plan match {
               case f @ logical.Filter(cond, imr @ InMemoryRelation(output, cb, oo))
                   if cb.serializer

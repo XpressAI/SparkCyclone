@@ -46,7 +46,7 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
   override def receive(message: Any): AnyRef = {
     message match {
       case RequestCompiledLibraryForCode(codePath) =>
-        logger.debug(s"Received request for compiled code at path: '${codePath}'")
+        logger.debug("Received request for compiled code at path: '{}'", codePath)
         val localLocation = Paths.get(codePath)
         if (Files.exists(localLocation)) {
           RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(localLocation): _*))
@@ -63,8 +63,8 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
   ): java.util.Map[String, String] = {
     nativeCompiler = CachingNativeCompiler(NativeCompiler.fromConfig(sc.getConf))
     currentCompiler = nativeCompiler
-    logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
-    logger.info(s"Will use native compiler: ${nativeCompiler}")
+    logger.info("SparkCycloneDriverPlugin is launched. Will use compiler: {}", nativeCompiler)
+    logger.info("Will use native compiler: {}", nativeCompiler)
     SparkCycloneDriverPlugin.launched = true
     val allExtensions = List(classOf[LocalVeoExtension])
     pluginContext

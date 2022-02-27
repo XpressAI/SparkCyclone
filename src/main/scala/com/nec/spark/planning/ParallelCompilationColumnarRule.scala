@@ -20,9 +20,9 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
     }
     if (uncompiledOnes.nonEmpty) {
       val preMatchStart = Instant.now()
-      logger.info(s"Found an uncompiled plan - proceeding.")
+      logger.info("Found an uncompiled plan - proceeding.")
 
-      logger.debug(s"Found ${uncompiledOnes.length} plans uncompiled")
+      logger.debug("Found {} plans uncompiled", uncompiledOnes.length)
       val compilationStart = Instant.now()
 
       val uncompiledCodes = uncompiledOnes
@@ -32,7 +32,7 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
         }
         .toSet
 
-      logger.info(s"Found ${uncompiledCodes.size} codes uncompiled")
+      logger.info("Found {} codes uncompiled", uncompiledCodes.size)
 
       val compiled: Map[SourceCode, Path] = uncompiledCodes.toList.par
         .map { sourceCode =>
@@ -41,7 +41,7 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
         .toMap
         .toList
         .toMap
-      logger.info(s"Compiled ${compiled.size} codes")
+      logger.info("Compiled {} codes", compiled.size)
 
       val result = plan.transformUp { case UncompiledPlan(plan) =>
         plan.sparkPlan.updateVeFunction {
@@ -57,9 +57,10 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
       val timeTaken = java.time.Duration.between(compilationStart, compilationEnd)
       val timeTakenMatch = java.time.Duration.between(preMatchStart, compilationEnd)
       logger.info(
-        s"Took ${timeTaken} to transform functions to compiled status (total: ${timeTakenMatch})."
+        "Took {} to transform functions to compiled status (total: {}).",
+        timeTaken, timeTakenMatch
       )
-      logger.info(s"Compilation time: ${timeTakenMatch}")
+      logger.info("Compilation time: {}", timeTakenMatch)
       result
     } else plan
   }

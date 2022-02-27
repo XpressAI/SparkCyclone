@@ -221,7 +221,7 @@ abstract class TPCHSqlCSpec
     }
 
     def debugSqlHere[V](f: Dataset[T] => V): V = {
-      logger.info(s"Plan is: ${dataSet.queryExecution}")
+      logger.info("Plan is: {}", dataSet.queryExecution.toString())
       import _root_.scalatags.Text.all._
       condMarkup(details(summary("Plan"), pre(dataSet.queryExecution.toString())).render)
       condMarkup("<hr/>")
@@ -245,7 +245,7 @@ abstract class TPCHSqlCSpec
       try f(dataSet)
       catch {
         case e: Throwable =>
-          logger.info(s"${dataSet.queryExecution.executedPlan}; ${e}", e)
+          logger.info("{}", dataSet.queryExecution.executedPlan.toString(),  e)
           throw e
       }
     }

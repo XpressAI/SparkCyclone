@@ -34,11 +34,11 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
     .executeVeColumnar()
     .mapPartitions { veColBatches =>
       withVeLibrary { libRefExchange =>
-        logger.info(s"Will map multiple col batches for hash exchange.")
+        logger.info("Will map multiple col batches for hash exchange.")
         veColBatches.flatMap { veColBatch =>
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           try {
-            logger.debug(s"Mapping ${veColBatch} for exchange")
+            logger.debug("Mapping {} for exchange", veColBatch)
             val multiBatches = measureRunningTime(
               veProcess.executeMulti(
                 libraryReference = libRefExchange,
@@ -47,7 +47,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                 results = exchangeFunction.namedResults
               )
             )(registerFunctionCallTime(_, veFunction.functionName))
-            logger.debug(s"Mapped to ${multiBatches} completed.")
+            logger.debug("Mapped to {} completed.", multiBatches)
 
             multiBatches.flatMap {
               case (n, l) if l.head.nonEmpty =>
@@ -76,19 +76,19 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
     .executeVeColumnar()
     .mapPartitions { veColBatches =>
       withVeLibrary { libRefExchange =>
-        logger.info(s"Will map multiple col batches for hash exchange.")
+        logger.info("Will map multiple col batches for hash exchange.")
         veColBatches.flatMap { veColBatch =>
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           try {
             if (veColBatch.nonEmpty) {
-              logger.debug(s"Mapping ${veColBatch} for exchange")
+              logger.debug("Mapping {} for exchange", veColBatch)
               val multiBatches = veProcess.executeMulti(
                 libraryReference = libRefExchange,
                 functionName = exchangeFunction.functionName,
                 cols = veColBatch.cols,
                 results = exchangeFunction.namedResults
               )
-              logger.debug(s"Mapped to ${multiBatches} completed.")
+              logger.debug("Mapped to {} completed.", multiBatches)
 
               multiBatches.flatMap {
                 case (n, l) if l.head.nonEmpty =>
@@ -98,7 +98,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                   None
               }
             } else {
-              logger.debug(s"${veColBatch} was empty.")
+              logger.debug("{} was empty.", veColBatch)
               Nil
             }
           } finally {

@@ -34,7 +34,7 @@ case class VeFinalAggregate(
     .mapPartitions { veColBatches =>
       withVeLibrary { libRef =>
         veColBatches.map { veColBatch =>
-          logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
+          logger.debug("Preparing to final-aggregate a batch... {}", veColBatch)
 
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
           VeColBatch.fromList {

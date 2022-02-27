@@ -1017,7 +1017,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
       try f(dataSet)
       catch {
         case e: Throwable =>
-          logger.info(s"${dataSet.queryExecution.executedPlan}; ${e}", e)
+          logger.info(dataSet.queryExecution.executedPlan.toString(), e)
           throw e
       }
     }

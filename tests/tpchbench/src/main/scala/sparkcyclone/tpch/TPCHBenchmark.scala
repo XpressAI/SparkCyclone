@@ -359,7 +359,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
   def benchmark(i: Int, f: SparkSession => (Array[_], DataFrame), skipPlan: Boolean)(implicit sparkSession: SparkSession): Unit = {
     println(s"Running Query${i}")
-    logger.info(s"Running Query${i}")
+    logger.info("Running Query {}", i)
 
     val start = System.nanoTime()
     val (res, ds) = f(sparkSession)
@@ -368,10 +368,10 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val duration = (end - start).toDouble / 1e9
 
     println(s"Result returned ${res.length} records.")
-    logger.info(s"Result returned ${res.length} records.")
+    logger.info("Result returned {} records.", res.length)
 
     println(s"Query${i} elapsed: ${duration} s")
-    logger.info(s"Query time: ${duration}")
+    logger.info("Query time: {}", duration)
 
     res.take(10).foreach(println)
 

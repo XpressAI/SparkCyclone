@@ -102,15 +102,15 @@ object BenchTestingPossibilities extends LazyLogging {
       source.generate(sparkSession, dataSize)
       import sparkSession.sqlContext.implicits._
       logger.debug(
-        s"Generated input data = ${sparkSession.sql(s"SELECT * FROM ${SharedName}").collect().toList.mkString(" | ")}"
+        "Generated input data = {}", sparkSession.sql(s"SELECT * FROM ${SharedName}").collect().toList.mkString(" | ")
       )
-      logger.info(s"Will run query: ${sql}")
+      logger.info("Will run query: {}", sql)
       val dataSet = sparkSession.sql(sql).as[Result]
 
       val planString = dataSet.queryExecution.executedPlan.toString()
-      logger.debug(s"Generated logical plan: ${dataSet.queryExecution.logical}")
-      logger.debug(s"Generated spark plan: ${dataSet.queryExecution.sparkPlan}")
-      logger.debug(s"Generated executed plan: ${planString}")
+      logger.debug("Generated logical plan:", dataSet.queryExecution.logical)
+      logger.debug("Generated spark plan: {}", dataSet.queryExecution.sparkPlan)
+      logger.debug("Generated executed plan: {}", planString)
       expectedStrings.foreach { expStr =>
         assert(
           planString.contains(expStr),

@@ -24,7 +24,7 @@ object ProcessRunner extends LazyLogging {
     val proc = process.run(io)
     val ev = proc.exitValue()
     if (doDebug) {
-      logger.debug(s"NCC output: \n${res}; \n${resErr}")
+      logger.debug("NCC output: \n{}; \n{}", res, resErr)
     }
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }

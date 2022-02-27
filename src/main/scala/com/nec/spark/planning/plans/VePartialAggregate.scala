@@ -32,10 +32,10 @@ case class VePartialAggregate(
     .executeVeColumnar()
     .mapPartitions { veColBatches =>
       withVeLibrary { libRef =>
-        logger.info(s"Will map partial aggregates using $partialFunction")
+        logger.info("Will map partial aggregates using {}", partialFunction)
         veColBatches.map { veColBatch =>
           import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          logger.debug(s"Mapping a VeColBatch $veColBatch")
+          logger.debug("Mapping a VeColBatch {}", veColBatch)
           VeColBatch.fromList {
             import OriginalCallingContext.Automatic._
             try {
@@ -47,7 +47,7 @@ case class VePartialAggregate(
                   results = partialFunction.namedResults
                 )
               )(registerFunctionCallTime(_, veFunction.functionName))
-              logger.debug(s"Mapped $veColBatch to $result")
+              logger.debug("Mapped {} to {}", veColBatch, result)
               result
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
           }

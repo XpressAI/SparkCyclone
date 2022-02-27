@@ -42,7 +42,7 @@ trait NativeCompiler extends Serializable {
 object NativeCompiler extends LazyLogging {
   def fromConfig(sparkConf: SparkConf): NativeCompiler = {
     val compilerConfig = VeKernelCompiler.VeCompilerConfig.fromSparkConf(sparkConf)
-    logger.info(s"Compiler configuration: ${compilerConfig}")
+    logger.info("Compiler configuration: {}", compilerConfig)
     sparkConf.getOption("spark.com.nec.spark.kernel.precompiled") match {
       case Some(directory) => PreCompiled(directory)
       case None =>
@@ -74,12 +74,12 @@ object NativeCompiler extends LazyLogging {
     override def forCode(code: String): Path = {
       cache.get(code.hashCode) match {
         case None =>
-          logger.debug(s"Cache miss for compilation.")
+          logger.debug("Cache miss for compilation.")
           val compiledPath = nativeCompiler.forCode(code)
           cache = cache.updated(code.hashCode, compiledPath)
           compiledPath
         case Some(path) =>
-          logger.debug(s"Cache hit for compilation.")
+          logger.debug("Cache hit for compilation.")
           path
       }
     }
@@ -93,11 +93,11 @@ object NativeCompiler extends LazyLogging {
       val sourcePath = Paths.get(buildDir).resolve(s"_spark_${cc.hashCode}.so").toAbsolutePath
 
       if (sourcePath.toFile.exists()) {
-        logger.debug(s"Loading precompiled from path: $sourcePath")
+        logger.debug("Loading precompiled from path: {}", sourcePath)
         sourcePath
       } else {
-        logger.debug(s"Compiling for the VE...: $code")
-        logger.info(s"Compiler config ==> ${veCompilerConfig}")
+        logger.debug("Compiling for the VE...:{}", code)
+        logger.info("Compiler config ==> {}", veCompilerConfig)
         val startTime = System.currentTimeMillis()
         val soName =
           VeKernelCompiler(
@@ -107,7 +107,7 @@ object NativeCompiler extends LazyLogging {
           )
             .compile_c(cc)
         val endTime = System.currentTimeMillis() - startTime
-        logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
+        logger.debug("Compiled code in {}ms to path {}.", endTime, soName)
         soName
       }
     }
@@ -117,7 +117,7 @@ object NativeCompiler extends LazyLogging {
     override def forCode(code: String): Path = {
       val cc = combinedCode(code)
       val sourcePath = Paths.get(sourceDir).resolve(s"_spark_${cc.hashCode}.so").toAbsolutePath
-      logger.debug(s"Will be loading source from path: $sourcePath")
+      logger.debug("Will be loading source from path: {}", sourcePath)
       sourcePath
     }
   }

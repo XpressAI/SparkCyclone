@@ -40,7 +40,7 @@ case class VectorEngineJoinPlan(
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         import com.nec.spark.SparkCycloneExecutorPlugin.source
         withVeLibrary { libRefJoin =>
-          logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
+          logger.debug("Mapping {} / {} for join", leftColBatch, rightColBatch)
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           val batch =
             try {
@@ -56,7 +56,7 @@ case class VectorEngineJoinPlan(
               dataCleanup.cleanup(leftColBatch)
               dataCleanup.cleanup(rightColBatch)
             }
-          logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
+          logger.debug("Completed {} / {} => {}.", leftColBatch, rightColBatch, batch)
           VeColBatch.fromList(batch)
         }
       }

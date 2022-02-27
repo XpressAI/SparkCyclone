@@ -142,7 +142,8 @@ object VeProcess {
       veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       val ptr = veInputPointer.get()
       logger.trace(
-        s"Allocating ${size} bytes ==> ${ptr} in ${context.fullName.value}#${context.line.value}"
+        "Allocating {} bytes ==> {} in {}#{}",
+        size, ptr, context.fullName.value, context.line.value
       )
       veProcessMetrics.registerAllocation(size, ptr)
       ptr
@@ -153,7 +154,8 @@ object VeProcess {
         veColVector.bufferLocations.zip(veColVector.underlying.bufferSizes).foreach {
           case (location, size) =>
             logger.trace(
-              s"Registering allocation of ${size} at ${location}; original source is ${context.fullName.value}#${context.line.value}"
+              "Registering allocation of {} at {}; original source is {}#{}",
+              size, location, context.fullName.value, context.line.value
             )
             veProcessMetrics.registerAllocation(size, location)
         }
@@ -177,7 +179,8 @@ object VeProcess {
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
       logger.trace(
-        s"Deallocating ptr ${memoryLocation} (in ${context.fullName.value}#${context.line.value})"
+        s"Deallocating ptr {} (in {}#{})",
+        memoryLocation, context.fullName.value, context.line.value
       )
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
     }
@@ -275,10 +278,10 @@ object VeProcess {
         )
         .getOrElseUpdate(
           path.toString, {
-            logger.info(s"Loading library from path ${path}...")
+            logger.info("Loading library from path {}...", path)
             val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
             require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe} (library at: ${path})")
-            logger.info(s"Loaded library from ${path} as $libRe")
+            logger.info("Loaded library from {} as {}", path, libRe)
             LibraryReference(libRe)
           }
         )

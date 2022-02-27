@@ -20,8 +20,9 @@ object DataCleanup extends LazyLogging {
       processId: VeColVectorSource,
       originalCallingContext: OriginalCallingContext
     ): Unit = logger.trace(
-      s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
-        .map(_.containerLocation)} - from ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
+      "Not cleaning up data at {} / {} - from {}#{}, directed by {}",
+      processId, veColBatch.underlying.cols.map(_.containerLocation),
+      originalCallingContext.fullName.value, originalCallingContext.line.value, parent.getCanonicalName
     )
   }
   def cleanup(parent: Class[_]): DataCleanup = new DataCleanup {
@@ -31,8 +32,10 @@ object DataCleanup extends LazyLogging {
       originalCallingContext: OriginalCallingContext
     ): Unit = {
       logger.trace(
-        s"Requesting to clean up data of ${veColBatch.underlying.cols
-          .map(_.containerLocation)} at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
+        "Requesting to clean up data of {} at {} by {}#{}, directed by {}",
+        veColBatch.underlying.cols.map(_.containerLocation), processId,
+        originalCallingContext.fullName.value, originalCallingContext.line.value,
+        parent.getCanonicalName
       )
       cleanUpIfNotCached(veColBatch)
     }

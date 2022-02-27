@@ -120,7 +120,7 @@ object CMakeBuilder extends LazyLogging {
 
   def buildCLogging(cSource: String, debug: Boolean = false): Path = {
     try {
-      logger.debug(s"Code to compile: ${cSource}")
+      logger.debug("Code to compile: {}", cSource)
       buildC(cSource, debug)
     } catch {
       case e: Exception =>
@@ -133,7 +133,7 @@ object CMakeBuilder extends LazyLogging {
           specificErrors.foreach(errLine => logger.error(errLine))
           throw new CompileError("Could not compile code. Reported in the log.")
         } else {
-          logger.debug(s"Could not compile code due to error: ${e}", e)
+          logger.debug("Could not compile code due to error:", e)
           throw e
         }
     }

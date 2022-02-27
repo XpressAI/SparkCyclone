@@ -33,7 +33,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
   override def executeVeColumnar(): RDD[VeColBatch] = child
     .executeColumnar()
     .map(cb => {
-      logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
+      logger.debug("Mapping ColumnarBatch {} to VE", cb)
       import com.nec.spark.SparkCycloneExecutorPlugin._
       import OriginalCallingContext.Automatic._
 
@@ -41,7 +41,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
         case Left(veColVector)         => veColVector
         case Right(byteArrayColVector) => byteArrayColVector.transferToBytePointers().toVeColVector()
       })
-      logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
+      logger.debug("Finished mapping ColumnarBatch {} to VE: {}", cb, res)
       res
     })
 

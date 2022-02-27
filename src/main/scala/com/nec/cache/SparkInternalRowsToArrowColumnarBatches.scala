@@ -69,7 +69,8 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
             }
             cb.setNumRows(rowCount)
             logger.debug(
-              s"Emitted batch of size ${totalVectorSize} bytes (${rowCount} rows); requested from ${originalCallingContext.renderString}."
+              "Emitted batch of size {} bytes ({} rows); requested from {}.",
+              totalVectorSize, rowCount, originalCallingContext.renderString
             )
             cb
           }(registerConversionTime)

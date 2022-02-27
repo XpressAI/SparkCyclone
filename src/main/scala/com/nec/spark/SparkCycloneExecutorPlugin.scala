@@ -112,13 +112,15 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   )(implicit originalCallingContext: OriginalCallingContext): Unit =
     if (cachedBatches.contains(veColBatch))
       logger.trace(
-        s"Data at ${veColBatch.cols
-          .map(_.containerLocation)} will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
+        "Data at {} will not be cleaned up as it's cached ({}#{})",
+        veColBatch.cols.map(_.containerLocation),
+        originalCallingContext.fullName.value,
+        originalCallingContext.line.value
       )
     else {
       val (cached, notCached) = veColBatch.cols.partition(cachedCols.contains)
-      logger.trace(s"Will clean up data for ${cached
-        .map(_.bufferLocations)}, and not clean up for ${notCached.map(_.allAllocations)}")
+      logger.trace("Will clean up data for {}, and not clean up for {}",
+        cached.map(_.bufferLocations), notCached.map(_.allAllocations))
       notCached.foreach(_.free())
     }
 
@@ -133,11 +135,12 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
     val resources = ctx.resources()
 
-    logger.info(s"Executor has the following resources available => ${resources}")
+    logger.info("Executor has the following resources available => {}", resources)
     val selectedVeNodeId = if (!resources.containsKey("ve")) {
       val nodeId = Try(System.getenv("VE_NODE_NUMBER").toInt).getOrElse(DefaultVeNodeId)
       logger.info(
-        s"Do not have a VE resource available. Will use '${nodeId}' as the main resource."
+        "Do not have a VE resource available. Will use '{}' as the main resource.",
+        nodeId
       )
       nodeId
     } else {
@@ -146,18 +149,18 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       val executorNumber = Try(ctx.executorID().toInt - 1).getOrElse(0) // Executor IDs start at 1.
       val veMultiple = executorNumber / 8
       if (veMultiple > resourceCount) {
-        logWarning("Not enough VE resources allocated for number of executors specified.")
+        logger.warn("Not enough VE resources allocated for number of executors specified.")
       }
       veResources.addresses(veMultiple % resourceCount).toInt
     }
 
-    logger.info(s"Using VE node = ${selectedVeNodeId}")
+    logger.info("Using VE node = {}", selectedVeNodeId)
 
     var currentVeNodeId = selectedVeNodeId
     while (_veo_proc == null && currentVeNodeId < 8) {
       _veo_proc = veo.veo_proc_create(currentVeNodeId)
       if (_veo_proc == null) {
-        logWarning(s"Proc could not be allocated for node ${currentVeNodeId}, trying next.")
+        logger.warn("Proc could not be allocated for node {}, trying next.", currentVeNodeId)
         currentVeNodeId += 1
       }
     }
@@ -166,7 +169,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
     )
     require(_veo_proc.address() > 0, s"Address for proc was ${_veo_proc.address()}")
-    logger.info(s"Opened process: ${_veo_proc} Address: ${_veo_proc.address()}")
+    logger.info("Opened process: {} Address: {}", _veo_proc, _veo_proc.address())
 
     logger.info("Initializing SparkCycloneExecutorPlugin.")
     params = params ++ extraConf.asScala
@@ -186,8 +189,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>
         logger.error(
-          s"There were some ${unfinishedAllocations.size} unreleased allocations: ${unfinishedAllocations.toString
-            .take(50)}..., expected to be none."
+          "There were some {} unreleased allocations: {}..., expected to be none.",
+          unfinishedAllocations.size, unfinishedAllocations.toString.take(50)
         )
       )
 
@@ -197,19 +200,19 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       .filter(_.nonEmpty)
       .map(_.take(NumToPrint))
       .foreach { someAllocations =>
-        logger.error(s"There were some unreleased allocations. First ${NumToPrint}:")
+        logger.error("There were some unreleased allocations. First {}:", NumToPrint)
         someAllocations.foreach { allocation =>
           val throwable = new Throwable {
             override def getMessage: String =
               s"Unreleased allocation found at ${allocation.position}"
             override def getStackTrace: Array[StackTraceElement] = allocation.stackTrace.toArray
           }
-          logger.error(s"Position: ${allocation.position}", throwable)
+          logger.error("Position:", throwable)
         }
       }
 
     if (CloseAutomatically) {
-      logger.info(s"Closing process: ${_veo_proc}")
+      logger.info("Closing process: {}", _veo_proc)
       closeProcAndCtx()
       launched = false
     }

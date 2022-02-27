@@ -47,7 +47,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                     )
                   )
                 logger.debug(
-                  s"Transformed input, got ${res}; produced a batch of size ${res.totalBufferSize} bytes"
+                  s"Transformed input, got {}; produced a batch of size {} bytes", res, res.totalBufferSize
                 )
                 res
               } finally {
