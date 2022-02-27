@@ -382,8 +382,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           planE.fold(e => sys.error(s"Could not map ${e}"), identity)
 
         case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-            if child.output.nonEmpty &&
-              aggregateExpressions.nonEmpty &&
+          if options.aggregateOnVe && child.output.nonEmpty && aggregateExpressions.nonEmpty &&
               ! {
                 aggregateExpressions
                   .collect {
