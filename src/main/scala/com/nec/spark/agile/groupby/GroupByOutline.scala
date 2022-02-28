@@ -164,27 +164,30 @@ object GroupByOutline {
     attributes: List[StagedAggregationAttribute]
   )
 
-  def storeTo(outputName: String, cExpression: CExpression, idx: String): CodeLines =
-    cExpression.isNotNullCode match {
-      case None =>
-        CodeLines.from(
-          s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
-          s"$outputName->set_validity(${idx}, 1);"
-        )
-      case Some(notNullCheck) =>
-        CodeLines.from(
-          s"if ( $notNullCheck ) {",
-          CodeLines
-            .from(
-              s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
-              s"$outputName->set_validity(${idx}, 1);"
-            )
-            .indented,
-          "} else {",
-          CodeLines.from(s"$outputName->set_validity(${idx}, 0);").indented,
-          "}"
-        )
-    }
+  // def storeTo(outputName: String, cExpression: CExpression, idx: String): CodeLines =
+  //   cExpression.isNotNullCode match {
+  //     case None =>
+  //       CodeLines.from(
+  //         s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
+  //         s"$outputName->set_validity(${idx}, 1);"
+  //       )
+  //     case Some(notNullCheck) =>
+  //       CodeLines.ifElseStatement(notNullCheck) {
+  //         List(
+  //           s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
+  //           s"$outputName->set_validity(${idx}, 1);"
+  //         )
+  //       } {
+  //         s"$outputName->set_validity(${idx}, 0);"
+  //       }
+  //   }
+  def storeTo(outname: String, expr: CExpression, idx: String): CodeLines = {
+    val condition = expr.isNotNullCode.getOrElse("1")
+    CodeLines.from(
+      s"""${outname}->data[${idx}] = ${expr.cCode};""",
+      s"${outname}->set_validity(${idx}, ${condition});"
+    )
+  }
 
   def initializeScalarVector(
     veScalarType: VeScalarType,

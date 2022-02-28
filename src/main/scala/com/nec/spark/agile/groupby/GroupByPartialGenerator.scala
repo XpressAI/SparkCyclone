@@ -62,7 +62,7 @@ final case class GroupByPartialGenerator(
       body = CodeLines.from(
         performGrouping(count = s"${inputs.head.name}->count"),
         stringVectorComputations.map(_.computeVector),
-        computeGroupingKeysPerGroup.block,
+        computeGroupingKeysPerGroup,
         computedProjections.map { case (sp, e) =>
           computeProjectionsPerGroup(sp, e)
         },
@@ -77,18 +77,8 @@ final case class GroupByPartialGenerator(
     stagedProjection: StagedProjection,
     r: Either[StringReference, TypedCExpression2]
   ): CodeLines = r match {
-    case Left(StringReference(sourceName)) =>
-      val fp =
-        FilteringProducer(
-          s"partial_str_${stagedProjection.name}",
-          StringProducer.copyString(sourceName)
-        )
-      CodeLines.from(
-        fp.setup(size = "groups_count"),
-        groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.forEach("g"))),
-        fp.complete,
-        groupingCodeGenerator.forHeadOfEachGroup(CodeLines.from(fp.validityForEach("g")))
-      )
+    case Left(StringReference(sr)) =>
+      CodeLines.from(s"partial_str_${stagedProjection.name}->move_assign_from(${sr}->filter(matching_ids));")
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
         GroupByOutline.initializeScalarVector(
@@ -127,15 +117,24 @@ final case class GroupByPartialGenerator(
     )
   }
 
-  def performGrouping(count: String): CodeLines =
-    groupingCodeGenerator.identifyGroups(
-      tupleTypes = tupleTypes,
-      tupleType = tupleType,
-      count = count,
-      thingsToGroup = computedGroupingKeys.map { case (_, e) =>
-        e.map(_.cExpression).left.map(_.name)
-      }
+  def performGrouping(count: String): CodeLines = {
+    CodeLines.from(
+      groupingCodeGenerator.identifyGroups(
+        tupleTypes = tupleTypes,
+        tupleType = tupleType,
+        count = count,
+        thingsToGroup = computedGroupingKeys.map { case (_, e) =>
+          e.map(_.cExpression).left.map(_.name)
+        }
+      ),
+      "",
+      s"std::vector<size_t> matching_ids(${groupingCodeGenerator.groupsCountOutName});",
+      CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
+        s"matching_ids[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
+      },
+      ""
     )
+  }
 
   def computeGroupingKeysPerGroup: CodeLines = {
     final case class ProductionTriplet(init: CodeLines, forEach: CodeLines, complete: CodeLines)
@@ -151,24 +150,19 @@ final case class GroupByPartialGenerator(
           complete = CodeLines.empty
         )
       case (groupingKey, Left(StringReference(sr))) =>
-        val fp =
-          FilteringProducer(s"partial_str_${groupingKey.name}", StringProducer.copyString(sr))
-
         ProductionTriplet(
-          init = fp.setup(size = "groups_count"),
-          forEach = fp.forEach("g"),
-          complete = CodeLines.from(
-            fp.complete,
-            groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
-          )
+          init = CodeLines.empty,
+          forEach = CodeLines.empty,
+          complete = CodeLines.from(s"partial_str_${groupingKey.name}->move_assign_from(${sr}->filter(matching_ids));")
         )
     }
 
-    CodeLines.from(
-      initVars.map(_.init),
-      groupingCodeGenerator.forHeadOfEachGroup(initVars.map(_.forEach)),
-      initVars.map(_.complete)
-    )
+    CodeLines.scoped("Compute grouping keys per group") {
+      CodeLines.from(
+        initVars.map(_.init),
+        groupingCodeGenerator.forHeadOfEachGroup(initVars.map(_.forEach)),
+        initVars.map(_.complete)
+      )
+    }
   }
-
 }

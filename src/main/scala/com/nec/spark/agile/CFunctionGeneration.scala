@@ -577,6 +577,7 @@ object CFunctionGeneration {
                 s"*${cVector.name}_mo = ${cVector.name};"
               )
             },
+            "",
             body
           )
           .indented,
