@@ -44,7 +44,7 @@ final case class JoinByEquality(
 
   def ioWo: List[CVector] = inputsLeft ++ inputsRight
   def ioO: List[CVector] = List(out_left, out_right)
-  def io: List[CVector] = ioWo ++ ioO
+  // def io: List[CVector] = ioWo ++ ioO
 
   def produceIndices: CFunction = CFunction(
     inputs = ioWo,

@@ -220,7 +220,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
   }
 
   val sql_filterer = s"SELECT * FROM nums where COALESCE(${SampleColC} + ${SampleColD}, 25) > 24"
-  "Support filtering" ignore withSparkSession2(configuration) { sparkSession =>
+  "Support filtering" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
     sparkSession.sql(sql_filterer).debugSqlHere { ds =>
@@ -696,7 +696,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
 
     val sql7 = s"SELECT ${SampleColA}, ${SampleColB} FROM nums ORDER BY ${SampleColB}"
-    s"Ordering with a group by: ${sql7}" ignore withSparkSession2(configuration) { sparkSession =>
+    s"Ordering with a group by: ${sql7}" in withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -723,7 +723,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
 
     val sql8 =
       s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
-    s"Ordering with a group by: ${sql8}" ignore withSparkSession2(configuration) { sparkSession =>
+    s"Ordering with a group by: ${sql8}" in withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
@@ -957,7 +957,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  s"Timestamps are supported" ignore withSparkSession2(configuration) { sparkSession =>
+  s"Timestamps are supported" in withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val a = Instant.now()
