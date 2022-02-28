@@ -5,14 +5,15 @@ import cats.effect.{IO, Ref}
 import com.nec.arrow.CatsArrowVectorBuilders
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.RootAllocator
+import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
+import org.apache.spark.sql.types.{IntegerType, StructField}
 import org.apache.spark.sql.vectorized.ArrowColumnVector
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
-import java.time.LocalDate
-
 final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
-  private implicit val bufAllocator = new RootAllocator()
+  import java.time.{Instant, LocalDate}
+  private implicit val bufAllocator: RootAllocator = new RootAllocator()
   private val vecBuilder = CatsArrowVectorBuilders(Ref.unsafe(1))
   List(
     ("Optional Int", vecBuilder.optionalIntVector(Seq(Some(1), None, Some(3)))),
@@ -29,6 +30,12 @@ final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
       )
     ),
     ("Double", vecBuilder.doubleVector(Seq(1, 2, 3))),
+    (
+      "Timestamp",
+      vecBuilder.timestampVector(
+        Seq(Instant.now(), Instant.now().plusSeconds(1), Instant.now().plusSeconds(2))
+      )
+    ),
     ("String", vecBuilder.stringVector(Seq("A", "BB", "CDEF")))
   ).foreach { case (name, resource) =>
     s"It works for ${name}" in {
@@ -37,7 +44,7 @@ final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
           IO.delay {
             implicit val veColVectorSource: VeColVectorSource = VeColVectorSource("test")
             val result = BytePointerColVector
-              .fromColumnarVector(
+              .fromColumnarVectorViaArrow(
                 name = "test",
                 columnVector = new ArrowColumnVector(vector),
                 size = vector.getValueCount
@@ -56,6 +63,30 @@ final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
         }
         .unsafeRunSync()
     }
+  }
+
+  "Off-heap Int works" in {
+    val Array(col) = OffHeapColumnVector.allocateColumns(
+      3,
+      Array(StructField("int", IntegerType, nullable = false))
+    )
+    col.putInt(0, 1)
+    col.putInt(1, -200000)
+    col.putInt(2, 99000)
+
+    val gotVecStr =
+      try {
+        implicit val veColVectorSource: VeColVectorSource = VeColVectorSource("test")
+        val bytePointerColVector: BytePointerColVector = BytePointerColVector
+          .fromOffHeapColumnarVector(size = 3, str = "int", col = col)
+          .getOrElse(fail("Could not convert"))
+
+        val fieldVector = bytePointerColVector.toArrowVector()
+        try fieldVector.toString
+        finally fieldVector.close()
+      } finally col.close()
+
+    assert(gotVecStr == "[1, -200000, 99000]")
   }
 
   override protected def afterAll(): Unit = {

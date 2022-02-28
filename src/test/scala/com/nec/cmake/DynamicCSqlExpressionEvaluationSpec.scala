@@ -22,7 +22,7 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.SparkAdditions
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
-import com.nec.spark.planning.plans.OneStageEvaluationPlan
+import com.nec.spark.planning.plans.VeOneStageEvaluationPlan
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource._
 import com.nec.testing.Testing.DataSize.SanityCheckSize
@@ -75,7 +75,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
   "Support pairwise addition/projection" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).ensurePlan(classOf[OneStageEvaluationPlan]).debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise).ensurePlan(classOf[VeOneStageEvaluationPlan]).debugSqlHere { ds =>
       assert(
         ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
           None,

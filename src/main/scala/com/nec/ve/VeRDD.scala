@@ -21,6 +21,7 @@ object VeRDD extends LazyLogging {
     rdd
       .map { case (idx, veColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         logger.debug(s"Preparing to serialize batch ${veColBatch}")
         val r = (idx, veColBatch.serialize())
         if (cleanUpInput) veColBatch.cols.foreach(_.free())
@@ -31,6 +32,7 @@ object VeRDD extends LazyLogging {
       .map { case (_, ba) =>
         logger.debug(s"Preparing to deserialize batch of size ${ba.length}...")
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         val res = VeColBatch.deserialize(ba)
         logger.debug(s"Completed deserializing batch ${ba.length} ==> ${res}")
         res
@@ -104,7 +106,7 @@ object VeRDD extends LazyLogging {
           )
         )
       }
-    ).map { case (k, (a, b)) => (a, b) }
+    ).map { case (_, (a, b)) => (a, b) }
   }
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {

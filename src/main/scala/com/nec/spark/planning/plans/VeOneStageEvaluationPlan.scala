@@ -19,25 +19,21 @@
  */
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-import com.nec.spark.SparkCycloneExecutorPlugin.metrics.{
-  measureRunningTime,
-  registerFunctionCallTime
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, ImplicitMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.SparkEnv
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
+import scala.concurrent.duration.NANOSECONDS
 import scala.language.dynamics
 
-final case class OneStageEvaluationPlan(
+final case class VeOneStageEvaluationPlan(
   outputExpressions: Seq[NamedExpression],
   veFunction: VeFunction,
   child: SparkPlan
@@ -49,11 +45,17 @@ final case class OneStageEvaluationPlan(
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
+  override lazy val metrics = Map(
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+  )
+
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    val execMetric = longMetric("execTime")
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -62,24 +64,32 @@ final case class OneStageEvaluationPlan(
           logger.info(s"Will map batches with function ${veFunction}")
           import OriginalCallingContext.Automatic._
           veColBatches.map { inputBatch =>
-            try {
-              logger.debug(s"Mapping batch ${inputBatch}")
-              val cols = measureRunningTime(
-                veProcess.execute(
-                  libraryReference = libRef,
-                  functionName = veFunction.functionName,
-                  cols = inputBatch.cols,
-                  results = veFunction.namedResults
+            val beforeExec = System.nanoTime()
+
+            val res =
+              try {
+                logger.debug(s"Mapping batch ${inputBatch}")
+                val cols = ImplicitMetrics.processMetrics.measureRunningTime(
+                  veProcess.execute(
+                    libraryReference = libRef,
+                    functionName = veFunction.functionName,
+                    cols = inputBatch.cols,
+                    results = veFunction.namedResults
+                  )
+                )(
+                  ImplicitMetrics.processMetrics
+                    .registerFunctionCallTime(_, veFunction.functionName)
                 )
-              )(registerFunctionCallTime(_, veFunction.functionName))
 
-              logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
+                logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
 
-              val outBatch = VeColBatch.fromList(cols)
-              if (inputBatch.numRows < outBatch.numRows)
-                logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
-              outBatch
-            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
+                val outBatch = VeColBatch.fromList(cols)
+                if (inputBatch.numRows < outBatch.numRows)
+                  logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
+                outBatch
+              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
+            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+            res
           }
         }
       }

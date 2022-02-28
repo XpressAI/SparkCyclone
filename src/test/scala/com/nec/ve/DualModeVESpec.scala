@@ -38,7 +38,7 @@ final class DualModeVESpec
 
     implicit val veProc: VeProcess =
       DeferredVeProcess(() =>
-        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.NoOp)
+        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.noOp)
       )
 
     def makeColumnarBatch1() = {
@@ -71,18 +71,20 @@ final class DualModeVESpec
     val inputRdd: RDD[InternalRow] = sparkSession.sparkContext
       .makeRDD(Seq(1, 2))
       .repartition(1)
-      .map(int =>
+      .map { int =>
+        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         VeColBatch.fromArrowColumnarBatch(
           if (int == 1) makeColumnarBatch1()
           else makeColumnarBatch2()
         )
-      )
+      }
       .mapPartitions(it => it.flatMap(_.toInternalColumnarBatch().rowIterator().asScala))
     val result = inputRdd
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         implicit val arrowEncodingSettings: ArrowEncodingSettings =
           ArrowEncodingSettings("UTC", 3, 10)
+        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =

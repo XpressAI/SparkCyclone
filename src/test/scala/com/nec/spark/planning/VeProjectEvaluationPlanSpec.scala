@@ -1,9 +1,9 @@
 package com.nec.spark.planning
 
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
-import com.nec.spark.planning.ProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
-import com.nec.spark.planning.plans.ProjectEvaluationPlan
-import com.nec.spark.planning.plans.ProjectEvaluationPlan.ProjectionContext
+import com.nec.spark.planning.VeProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
+import com.nec.spark.planning.plans.VeProjectEvaluationPlan
+import com.nec.spark.planning.plans.VeProjectEvaluationPlan.ProjectionContext
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, ExprId, NamedExpression}
@@ -12,7 +12,7 @@ import org.scalatest.Ignore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-object ProjectEvaluationPlanSpec {
+object VeProjectEvaluationPlanSpec {
   private val SampleCol1 = AttributeReference("SomeData", IntegerType)(ExprId(1))
   private val SampleCol2 = AttributeReference("NextData", IntegerType)(ExprId(2))
   private val SampleCol3 = AttributeReference("AnotherData", IntegerType)(ExprId(3))
@@ -42,7 +42,7 @@ object ProjectEvaluationPlanSpec {
 
 // ignored as currently disabled by default anwyay
 @Ignore
-final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
+final class VeProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ProjectEvaluationSpec"
 
@@ -136,7 +136,7 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
     val reusedIds = List(0, 1, 2, 3)
 
-    val cleanedBatch = ProjectEvaluationPlan.getBatchForPartialCleanup(reusedIds)(veInputBatch)
+    val cleanedBatch = VeProjectEvaluationPlan.getBatchForPartialCleanup(reusedIds)(veInputBatch)
 
     assert(cleanedBatch == VeColBatch(0, List.empty))
   }
@@ -151,7 +151,7 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       )
     )
 
-    val cleanupBatch = ProjectEvaluationPlan.getBatchForPartialCleanup(Seq.empty)(veInputBatch)
+    val cleanupBatch = VeProjectEvaluationPlan.getBatchForPartialCleanup(Seq.empty)(veInputBatch)
 
     assert(cleanupBatch == veInputBatch)
   }
@@ -171,7 +171,7 @@ final class ProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
     val veInputBatch = VeColBatch.fromList(copiedVectors ++ notCopiedVectors)
 
     val outBatch =
-      ProjectEvaluationPlan.getBatchForPartialCleanup(List(0, 1, 2))(veInputBatch)
+      VeProjectEvaluationPlan.getBatchForPartialCleanup(List(0, 1, 2))(veInputBatch)
 
     assert(outBatch == VeColBatch.fromList(notCopiedVectors))
   }

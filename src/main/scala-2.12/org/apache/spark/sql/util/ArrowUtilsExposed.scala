@@ -32,8 +32,8 @@ object ArrowUtilsExposed {
       val intVector = new IntVector(smallInt.getName, rootAllocator)
       intVector.setValueCount(smallInt.getValueCount)
       (0 until smallInt.getValueCount).foreach {
-        case idx if (!smallInt.isNull(idx)) => intVector.set(idx, smallInt.get(idx))
-        case idx                            => intVector.setNull(idx)
+        case idx if smallInt.isNull(idx) => intVector.setNull(idx)
+        case idx                         => intVector.set(idx, smallInt.get(idx).toInt)
       }
 
       intVector

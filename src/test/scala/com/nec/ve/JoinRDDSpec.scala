@@ -83,6 +83,7 @@ object JoinRDDSpec {
     ): VeColVector = {
       WithTestAllocator { implicit alloc =>
         withDirectFloat8Vector(l) { vec =>
+          import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
           VeColVector.fromArrowVector(vec)
         }
       }

@@ -4,7 +4,7 @@ import com.nec.arrow.colvector.{ByteArrayColBatch, ByteArrayColVector, GenericCo
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -44,7 +44,8 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
   def toVEColBatch()(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
       case Some(vecs) => VeColBatch.fromList(vecs)

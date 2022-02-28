@@ -21,7 +21,6 @@ package com.nec.spark
 
 import com.nec.spark.LocalVeoExtension.compilerRule
 import com.nec.spark.planning.hints._
-import com.nec.spark.planning.plans.{SparkToVectorEnginePlan, VectorEngineToSparkPlan}
 import com.nec.spark.planning.{CombinedCompilationColumnarRule, VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
@@ -70,19 +69,6 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
 
     sparkSessionExtensions.injectPostHocResolutionRule(sparkSession => {
       new MyRule()
-    })
-
-    sparkSessionExtensions.injectQueryStagePrepRule(_ => {
-      plan => {
-        plan transform {
-          case VectorEngineToSparkPlan(SparkToVectorEnginePlan(child)) => {
-            child
-          }
-          case SparkToVectorEnginePlan(VectorEngineToSparkPlan(child)) => {
-            child
-          }
-        }
-      }
     })
   }
 }

@@ -5,7 +5,7 @@ import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.catalyst.InternalRow
@@ -96,7 +96,8 @@ object DualMode {
     veProcess: VeProcess,
     source: VeColVectorSource,
     arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): Iterator[VeColBatch] =
     DualMode.unwrapInternalRows(possiblyDualModeInternalRows) match {
       case Left(colBatches) =>

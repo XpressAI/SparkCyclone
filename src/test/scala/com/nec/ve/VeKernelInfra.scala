@@ -10,6 +10,8 @@ import java.time.Instant
 
 trait VeKernelInfra { this: Suite =>
 
+  protected implicit def kernelInfra: VeKernelInfra = this
+
   def compiledWithHeaders[T](cCode: CFunction, name: String)(f: Path => T): T = {
     withCompiled(cCode.toCodeLinesHeaderPtr(name).cCode)(f)
   }

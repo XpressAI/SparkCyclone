@@ -3,20 +3,13 @@ package com.nec.ve.colvector
 import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
 import com.nec.spark.agile.CFunctionGeneration.VeType
 import com.nec.ve
-import com.nec.ve.VeProcess
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
-import java.io.{
-  ByteArrayInputStream,
-  ByteArrayOutputStream,
-  DataInputStream,
-  DataOutputStream,
-  ObjectInputStream,
-  ObjectOutputStream
-}
+import java.io._
 import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen
@@ -27,7 +20,9 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     }
   }.sum
 
-  def serializeToStream(dataOutputStream: DataOutputStream)(implicit veProcess: VeProcess): Unit = {
+  def serializeToStream(
+    dataOutputStream: DataOutputStream
+  )(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Unit = {
     import VeColBatch._
     dataOutputStream.writeInt(ColLengthsId)
     dataOutputStream.writeInt(cols.length)
@@ -45,7 +40,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 
   }
 
-  def serialize()(implicit veProcess: VeProcess): Array[Byte] = {
+  def serialize()(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Array[Byte] = {
     val byteArrayOutputStream = new ByteArrayOutputStream()
     val objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)
     objectOutputStream.writeObject(toUnit)
@@ -76,8 +71,6 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     veProcess: VeProcess
   ): ColumnarBatch = {
     val vecs = underlying.cols.map(_.toArrowVector())
-    println("TEST DATA: " + underlying.cols.map(_.veType))
-
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(underlying.numRows)
     cb
@@ -142,7 +135,8 @@ object VeColBatch {
   def deserialize(data: Array[Byte])(implicit
     veProcess: VeProcess,
     originalCallingContext: OriginalCallingContext,
-    source: VeColVectorSource
+    source: VeColVectorSource,
+    cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     val byteArrayInputStream = new ByteArrayInputStream(data)
     val objectInputStream = new ObjectInputStream(byteArrayInputStream)
@@ -206,7 +200,8 @@ object VeColBatch {
   def fromArrowColumnarBatch(columnarBatch: ColumnarBatch)(implicit
     veProcess: VeProcess,
     source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     VeColBatch(
       GenericColBatch(
@@ -220,5 +215,18 @@ object VeColBatch {
   }
 
   final case class VeColVectorSource(identifier: String)
+
+  object VeColVectorSource {
+
+    def make(implicit fullName: sourcecode.FullName, line: sourcecode.Line): VeColVectorSource =
+      VeColVectorSource(s"${fullName.value}#${line.value}")
+
+    object Automatic {
+      implicit def veColVectorSource(implicit
+        fullName: sourcecode.FullName,
+        line: sourcecode.Line
+      ): VeColVectorSource = make
+    }
+  }
 
 }

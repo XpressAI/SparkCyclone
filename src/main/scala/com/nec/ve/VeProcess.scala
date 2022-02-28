@@ -1,22 +1,14 @@
 package com.nec.ve
 
-import com.nec.arrow.VeArrowNativeInterface.requireOk
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CFunctionGeneration.{
-  CScalarVector,
-  CVarChar,
-  CVector,
-  VeScalarType,
-  VeString,
-  VeType
-}
+import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
+import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
-import SparkCycloneExecutorPlugin.metrics.{measureRunningTime, registerVeCall}
 
 import java.io.{InputStream, OutputStream}
 import java.nio.channels.Channels
@@ -67,6 +59,8 @@ trait VeProcess {
 }
 
 object VeProcess {
+  var calls = 0
+  var veSeconds = 0.0
 
   final case class OriginalCallingContext(fullName: sourcecode.FullName, line: sourcecode.Line) {
     def renderString: String = s"${fullName.value}#${line.value}"
@@ -222,16 +216,23 @@ object VeProcess {
       }
       val fnCallResult = new LongPointer(1)
 
-      val functionAddr = measureRunningTime(
-        veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
-      )(registerVeCall)
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
 
       require(
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
-      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      val start = System.nanoTime()
+      val callRes = veProcessMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(veProcessMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      println(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
 
       require(
         callRes == 0,
@@ -329,7 +330,17 @@ object VeProcess {
         functionAddr > 0,
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
-      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+
+      val start = System.nanoTime()
+      val callRes = veProcessMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(veProcessMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      println(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
 
       require(
         callRes == 0,
@@ -430,7 +441,16 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
-      val callRes = veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      val start = System.nanoTime()
+      val callRes = veProcessMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(veProcessMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      println(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
 
       require(
         callRes == 0,
@@ -501,5 +521,22 @@ object VeProcess {
       memoryLocation
     }
 
+  }
+
+  object Requires {
+    def requireOk(result: Int): Unit = {
+      require(result >= 0, s"Result should be >=0, got $result")
+    }
+    def requireOk(result: Int, extra: => String): Unit = {
+      require(result >= 0, s"Result should be >=0, got $result; ${extra}")
+    }
+
+    def requirePositive(result: Long): Unit = {
+      require(result > 0, s"Result should be > 0, got $result")
+    }
+
+    def requirePositive(result: Long, note: => String): Unit = {
+      require(result > 0, s"Result should be > 0, got $result; $note")
+    }
   }
 }

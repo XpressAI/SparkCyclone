@@ -255,7 +255,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               data.map(_.veType)
             )
 
-            val filterPlan = OneStageEvaluationPlan(
+            val filterPlan = VeOneStageEvaluationPlan(
               outputExpressions = f.output,
               veFunction = VeFunction(
                 veFunctionStatus =
@@ -357,7 +357,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               )
             )
             List(VectorEngineToSparkPlan(if (options.passThroughProject) {
-              ProjectEvaluationPlan(
+              VeProjectEvaluationPlan(
                 outputExpressions = projectList,
                 veFunction = VeFunction(
                   veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
@@ -367,7 +367,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                 child = SparkToVectorEnginePlan(planLater(child))
               )
             } else {
-              OneStageEvaluationPlan(
+              VeOneStageEvaluationPlan(
                 outputExpressions = projectList,
                 veFunction = VeFunction(
                   veFunctionStatus = VeFunctionStatus.SourceCode(cF.toCodeLinesSPtr(fName).cCode),
@@ -382,8 +382,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           planE.fold(e => sys.error(s"Could not map ${e}"), identity)
 
         case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-            if child.output.nonEmpty &&
-              aggregateExpressions.nonEmpty &&
+          if options.aggregateOnVe && child.output.nonEmpty && aggregateExpressions.nonEmpty &&
               ! {
                 aggregateExpressions
                   .collect {
@@ -686,7 +685,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
           List(
             VectorEngineToSparkPlan(
-              OneStageEvaluationPlan(
+              VeOneStageEvaluationPlan(
                 outputExpressions = s.output,
                 veFunction = VeFunction(
                   veFunctionStatus =

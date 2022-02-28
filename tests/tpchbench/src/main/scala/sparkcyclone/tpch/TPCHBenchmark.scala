@@ -20,10 +20,11 @@
 package sparkcyclone.tpch
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
-import java.time.{Instant, LocalDate}
+import java.time.LocalDate
 
 // TPC-H table schemas
 case class Customer(
@@ -106,11 +107,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
   def createViews(sparkSession: SparkSession, inputDir: String): Unit = {
     import sparkSession.implicits._
 
-    val sc = sparkSession.sparkContext
-
-    val dfMap = Map(
-      "customer" -> sc
-        .textFile(inputDir + "/customer.tbl*")
+    val dfMap = Map[String, SparkContext => DataFrame](
+      "customer" -> (sc =>
+        sc.textFile(inputDir + "/customer.tbl*")
         .map(_.split('|'))
         .map(p =>
           Customer(
@@ -124,9 +123,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
             p(7).trim
           )
         )
-        .toDF(),
-      "lineitem" -> sc
-        .textFile(inputDir + "/lineitem.tbl*")
+        .toDF()),
+      "lineitem" -> (sc =>
+        sc.textFile(inputDir + "/lineitem.tbl*")
         .map(_.split('|'))
         .map(p =>
           Lineitem(
@@ -148,19 +147,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
             l_comment = p(15).trim
           )
         )
-        .toDF(),
-      "nation" -> sc
-        .textFile(inputDir + "/nation.tbl*")
+        .toDF()),
+      "nation" -> (sc =>
+        sc.textFile(inputDir + "/nation.tbl*")
         .map(_.split('|'))
         .map(p => Nation(p(0).trim.toLong, p(1).trim, p(2).trim.toLong, p(3).trim))
-        .toDF(),
-      "region" -> sc
-        .textFile(inputDir + "/region.tbl*")
+        .toDF()),
+      "region" -> (sc =>
+        sc.textFile(inputDir + "/region.tbl*")
         .map(_.split('|'))
         .map(p => Region(p(0).trim.toLong, p(1).trim, p(2).trim))
-        .toDF(),
-      "orders" -> sc
-        .textFile(inputDir + "/orders.tbl*")
+        .toDF()),
+      "orders" -> (sc =>
+        sc.textFile(inputDir + "/orders.tbl*")
         .map(_.split('|'))
         .map(p =>
           Order(
@@ -175,9 +174,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
             p(8).trim
           )
         )
-        .toDF(),
-      "part" -> sc
-        .textFile(inputDir + "/part.tbl*")
+        .toDF()),
+      "part" -> (sc =>
+        sc.textFile(inputDir + "/part.tbl*")
         .map(_.split('|'))
         .map(p =>
           Part(
@@ -192,9 +191,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
             p(8).trim
           )
         )
-        .toDF(),
-      "partsupp" -> sc
-        .textFile(inputDir + "/partsupp.tbl*")
+        .toDF()),
+      "partsupp" -> (sc =>
+        sc.textFile(inputDir + "/partsupp.tbl*")
         .map(_.split('|'))
         .map(p =>
           Partsupp(
@@ -205,9 +204,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
             p(4).trim
           )
         )
-        .toDF(),
-      "supplier" -> sc
-        .textFile(inputDir + "/supplier.tbl*")
+        .toDF()),
+      "supplier" -> (sc =>
+        sc.textFile(inputDir + "/supplier.tbl*")
         .map(_.split('|'))
         .map(p =>
           Supplier(
@@ -220,11 +219,20 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
             p(6).trim
           )
         )
-        .toDF()
+        .toDF())
     )
 
     dfMap.foreach { case (key, value) =>
-      value.createOrReplaceTempView(key)
+      val sc = sparkSession.sparkContext
+      val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)
+      if (!fs.exists(new org.apache.hadoop.fs.Path(s"$key.parquet"))) {
+        println(s"Writing ${key}.parquet")
+
+        value(sc).write.parquet(s"${key}.parquet")
+      }
+
+      val parquetTable = sparkSession.read.parquet(s"${key}.parquet")
+      parquetTable.createOrReplaceTempView(key)
     }
   }
 
@@ -278,21 +286,33 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       Set[Int]()
     }
 
-    val select = "--select="
+    println("Spark Config:")
+    sparkSession.conf.getAll.foreach { case (key, value) =>
+      println(s"$key = $value")
+    }
+
     val toSelect = getOptions("select")
-      .map(_.toInt)
+      .flatMap(_.split(",").map(_.toInt))
       .toSet
+
+    val skipPlan = getOptions("skipPlan")
+      .map(_.toBoolean)
+      .headOption
+      .getOrElse(false)
 
     if (toSelect.nonEmpty) {
       queries
         .filter(q => toSelect.contains(q._2))
-        .foreach { case (q, i) => benchmark(i, q) }
+        .foreach { case (q, i) =>
+          cacheTables(i)
+          benchmark(i, q, skipPlan)
+        }
     } else
       queries.foreach { case (query, i) =>
         if (!toSkip.contains(i)) {
           cacheTables(i)
-          benchmark(i, query)
-          uncacheTables(i)
+          benchmark(i, query, skipPlan)
+          //uncacheTables(i)
         }
       }
   }
@@ -324,7 +344,10 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
   def cacheTables(i: Int): Unit = {
     for (key <- tableMap(i)) {
+      println(s"Caching Table ${key}")
+
       sparkSession.sql("CACHE TABLE " + key)
+      sparkSession.sql("ANALYZE TABLE " + key + " COMPUTE STATISTICS FOR ALL COLUMNS")
     }
   }
 
@@ -334,27 +357,33 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     }
   }
 
-  def benchmark(i: Int, f: SparkSession => Array[_])(implicit sparkSession: SparkSession): Unit = {
+  def benchmark(i: Int, f: SparkSession => (Array[_], DataFrame), skipPlan: Boolean)(implicit sparkSession: SparkSession): Unit = {
     println(s"Running Query${i}")
     logger.info(s"Running Query${i}")
+
     val start = System.nanoTime()
-    val startI = Instant.now()
-    val res = f(sparkSession)
-    val endI = Instant.now()
+    val (res, ds) = f(sparkSession)
     val end = System.nanoTime()
+
+    val duration = (end - start).toDouble / 1e9
+
     println(s"Result returned ${res.length} records.")
     logger.info(s"Result returned ${res.length} records.")
-    val duration = java.time.Duration
-      .between(startI, endI)
-    println(s"Query${i} elapsed: ${(end - start).toDouble / 1e9} s (instant: ${duration}")
+
+    println(s"Query${i} elapsed: ${duration} s")
     logger.info(s"Query time: ${duration}")
+
     res.take(10).foreach(println)
+
+    if (!skipPlan) {
+      logPlan(ds.queryExecution.executedPlan)
+    }
   }
 
-  def query1(sparkSession: SparkSession): Array[_] = {
+  def query1(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val delta = 90
     val sql = s"""
-      select
+      select 
         l_returnflag,
         l_linestatus,
         sum(l_quantity) as sum_qty,
@@ -375,19 +404,20 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     """
 
     val ds = sparkSession.sql(sql)
-    logPlan(ds.queryExecution.executedPlan)
-    ds.limit(1).collect()
+    val res = ds.limit(1).collect()
+
+    (res, ds)
   }
 
-  private def logPlan(executedPlan: SparkPlan): Unit = logger.info(s"Final plan: ${executedPlan}")
+  private def logPlan(executedPlan: SparkPlan): Unit = println(s"Final plan: ${executedPlan}")
 
-  def query2(sparkSession: SparkSession): Array[_] = {
+  def query2(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val size = 15
     val pType = "BRASS"
     val region = "EUROPE"
 
     val sql = s"""
-      select
+      select /*+ SHUFFLE_HASH(part, supplier, partsupp, nation, region) */
         s_acctbal,
         s_name,
         n_name,
@@ -411,7 +441,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         and n_regionkey = r_regionkey
         and r_name = '$region'
         and ps_supplycost = (
-          select
+          select /*+ SHUFFLE_HASH(supplier, partsupp, nation, region) */
             min(ps_supplycost)
           from
             partsupp,
@@ -432,16 +462,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
           p_partkey
     """
     val ds = sparkSession.sql(sql).limit(100)
-    logPlan(ds.queryExecution.executedPlan)
-    ds.collect()
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query3(sparkSession: SparkSession): Array[_] = {
+  def query3(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val segment = "BUILDING"
     val date = "1995-03-15"
 
     val sql = s"""
-      select
+      select 
         l_orderkey,
         sum(l_extendedprice * (1 - l_discount)) as revenue,
         o_orderdate,
@@ -465,14 +496,18 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         o_orderdate
     """
 
-    sparkSession.sql(sql).limit(10).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.limit(10).collect()
+
+
+    (res, ds)
   }
 
-  def query4(sparkSession: SparkSession): Array[_] = {
+  def query4(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val date = "1993-07-01"
 
     val sql = s"""
-      select
+      select 
         o_orderpriority,
         count(*) as order_count
       from
@@ -494,15 +529,18 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         o_orderpriority;
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query5(sparkSession: SparkSession): Array[_] = {
+  def query5(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val region = "ASIA"
     val date = "1994-01-01"
 
     val sql = s"""
-      select
+      select 
         n_name,
         sum(l_extendedprice * (1 - l_discount)) as revenue
       from
@@ -528,16 +566,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         revenue desc
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query6(sparkSession: SparkSession): Array[_] = {
+  def query6(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val date = "1994-01-01"
     val discount = 0.06
     val quantity = 24
 
     val sql = s"""
-      select
+      select 
         sum(l_extendedprice*l_discount) as revenue
       from
         lineitem
@@ -549,15 +590,18 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         and l_quantity < $quantity
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query7(sparkSession: SparkSession): Array[_] = {
+  def query7(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val nation1 = "FRANCE"
     val nation2 = "GERMANY"
 
     val sql = s"""
-      select
+      select 
         supp_nation,
         cust_nation,
         l_year,
@@ -596,16 +640,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         l_year
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query8(sparkSession: SparkSession): Array[_] = {
+  def query8(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val nation = "BRAZIL"
     val region = "AMERICA"
     val pType = "ECONOMY ANODIZED STEEL"
 
     val sql = s"""
-      select
+      select 
         o_year,
         sum(
           case when nation = '$nation'
@@ -646,14 +693,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       o_year
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query9(sparkSession: SparkSession): Array[_] = {
+  def query9(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val color = "green"
 
     val sql = s"""
-      select
+      select 
         nation,
         o_year,
         sum(amount) as sum_profit
@@ -686,14 +736,18 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         o_year desc
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
+
   }
 
-  def query10(sparkSession: SparkSession): Array[_] = {
+  def query10(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val date = "1993-10-01"
 
     val sql = s"""
-      select
+      select 
         c_custkey,
         c_name,
         sum(l_extendedprice * (1 - l_discount)) as revenue,
@@ -725,15 +779,18 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         revenue desc
     """
 
-    sparkSession.sql(sql).limit(20).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.limit(20).collect()
+
+    (res, ds)
   }
 
-  def query11(sparkSession: SparkSession): Array[_] = {
+  def query11(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val nation = "GERMANY"
     val fraction = 0.0001
 
     val sql = s"""
-      select
+      select 
         ps_partkey,
         sum(ps_supplycost * ps_availqty) as value
       from
@@ -761,16 +818,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         value desc
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query12(sparkSession: SparkSession): Array[_] = {
+  def query12(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val shipMode1 = "MAIL"
     val shipMode2 = "SHIP"
     val date = "1994-01-01"
 
     val sql = s"""
-      select
+      select 
         l_shipmode,
         sum(
           case
@@ -800,16 +860,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       order by l_shipmode
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query13(sparkSession: SparkSession): Array[_] = {
+  def query13(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val word1 = "special"
     val word2 = "requests"
 
     val sql =
       s"""
-      select
+      select 
         c_count,
         count(*) as custdist
       from (
@@ -830,14 +893,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         c_count desc
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query14(sparkSession: SparkSession): Array[_] = {
+  def query14(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val date = "1995-09-01"
 
     val sql = s"""
-      select
+      select 
         100.00 * sum(
           case
             when p_type like 'PROMO%'
@@ -854,10 +920,13 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         and l_shipdate < date '$date' + interval '1' month
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query15(sparkSession: SparkSession): Array[_] = {
+  def query15(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val streamId = "1"
     val date = "1996-01-01"
 
@@ -874,7 +943,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       group by
         l_suppkey"""
     val sql2 = s"""
-      select
+      select 
         s_suppkey,
         s_name,
         s_address,
@@ -900,16 +969,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
     sparkSession.sql(sql1)
 
-    sparkSession.sql(sql2).collect()
+    val ds = sparkSession.sql(sql2)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query16(sparkSession: SparkSession): Array[_] = {
+  def query16(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val brand = "Brand#45"
     val pType = "MEDIUM POLISHED"
     val sizes = Seq(49, 14, 23, 45, 19, 3, 36, 9)
 
     val sql = s"""
-      select
+      select 
         p_brand,
         p_type,
         p_size,
@@ -940,17 +1012,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         p_type,
         p_size
     """
+
     val ds = sparkSession.sql(sql)
-    logPlan(ds.queryExecution.executedPlan)
-    ds.collect()
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query17(sparkSession: SparkSession): Array[_] = {
+  def query17(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val brand = "Brand#23"
     val container = "MED BOX"
 
     val sql = s"""
-      select
+      select 
         (sum(l_extendedprice) / 7.0) as avg_yearly
       from
         lineitem,
@@ -969,14 +1043,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         )
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query18(sparkSession: SparkSession): Array[_] = {
+  def query18(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val quantity = 300
 
     val sql = s"""
-      select
+      select 
         c_name,
         c_custkey,
         o_orderkey,
@@ -1011,10 +1088,13 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         o_orderdate
     """
 
-    sparkSession.sql(sql).limit(100).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.limit(100).collect()
+
+    (res, ds)
   }
 
-  def query19(sparkSession: SparkSession): Array[_] = {
+  def query19(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val brand1 = "Brand#12"
     val quantity1 = 1
 
@@ -1025,7 +1105,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val quantity3 = 20
 
     val sql = s"""
-      select
+      select 
         sum(l_extendedprice * (1 - l_discount) ) as revenue
       from
         lineitem,
@@ -1062,16 +1142,19 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       )
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query20(sparkSession: SparkSession): Array[_] = {
+  def query20(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val color = "forest"
     val date = "1994-01-01"
     val nation = "CANADA"
 
     val sql = s"""
-      select
+      select 
         s_name,
         s_address
       from
@@ -1109,14 +1192,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         s_name
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 
-  def query21(sparkSession: SparkSession): Array[_] = {
+  def query21(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val nation = "SAUDI ARABIA"
 
     val sql = s"""
-      select
+      select 
         s_name,
         count(*) as numwait
       from
@@ -1155,14 +1241,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         s_name
     """
 
-    sparkSession.sql(sql).limit(100).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.limit(100).collect()
+
+    (res, ds)
   }
 
-  def query22(sparkSession: SparkSession): Array[_] = {
+  def query22(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val items = Seq("'13'", "'31'", "'23'", "'29'", "'30'", "'18'", "'17'")
 
     val sql = s"""
-      select
+      select 
         cntrycode,
         count(*) as numcust,
         sum(c_acctbal) as totacctbal
@@ -1197,6 +1286,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         cntrycode
     """
 
-    sparkSession.sql(sql).collect()
+    val ds = sparkSession.sql(sql)
+    val res = ds.collect()
+
+    (res, ds)
   }
 }

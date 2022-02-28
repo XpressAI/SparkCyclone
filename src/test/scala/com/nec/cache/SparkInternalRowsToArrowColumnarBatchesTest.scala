@@ -2,6 +2,7 @@ package com.nec.cache
 
 import com.nec.arrow.{ArrowEncodingSettings, WithTestAllocator}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
@@ -9,6 +10,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.scalatest.freespec.AnyFreeSpec
 
 final class SparkInternalRowsToArrowColumnarBatchesTest extends AnyFreeSpec {
+  private implicit val noOpMetrics = VeProcessMetrics.noOp
   "It works" in {
     implicit val arrowEncodingSettings: ArrowEncodingSettings =
       ArrowEncodingSettings("UTC", 3, 10)

@@ -22,17 +22,13 @@ package com.nec.spark
 import com.nec.native.NativeCompiler
 import com.nec.native.NativeCompiler.CachingNativeCompiler
 import com.nec.spark.SparkCycloneDriverPlugin.currentCompiler
-
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import org.apache.spark.SparkContext
-import org.apache.spark.api.plugin.DriverPlugin
-import org.apache.spark.api.plugin.PluginContext
-
-import java.nio.file.{Files, Paths}
-import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.FileAttributes
 import com.typesafe.scalalogging.LazyLogging
 import okio.ByteString
+import org.apache.spark.SparkContext
+import org.apache.spark.api.plugin.{DriverPlugin, PluginContext}
+
+import java.nio.file.{Files, Paths}
+import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
@@ -66,6 +62,7 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
     logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
     logger.info(s"Will use native compiler: ${nativeCompiler}")
     SparkCycloneDriverPlugin.launched = true
+
     val allExtensions = List(classOf[LocalVeoExtension])
     pluginContext
       .conf()
