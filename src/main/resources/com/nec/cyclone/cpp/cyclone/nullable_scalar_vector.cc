@@ -282,8 +282,8 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
 }
 
 template <typename T>
-const std::vector<int32_t> NullableScalarVec<T>::eval_in(const std::vector<T> &elements) const {
-  std::vector<int32_t> bitmask(count);
+const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &elements) const {
+  std::vector<size_t> bitmask(count);
 
   // Loop over the IN elements first (makes the code more vectorizable)
   #pragma _NEC ivdep

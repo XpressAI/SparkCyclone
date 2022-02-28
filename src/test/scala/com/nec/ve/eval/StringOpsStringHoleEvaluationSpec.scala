@@ -7,7 +7,6 @@ import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType
 import com.nec.spark.agile.StringHole
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.SlowEvaluator
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -84,20 +83,6 @@ final class StringOpsStringHoleEvaluationSpec
 }
 
 object StringOpsStringHoleEvaluationSpec {
-  def executeSlowEvaluator(input: List[String], slowEvaluator: SlowEvaluator)(implicit
-    veAllocator: VeAllocator[String],
-    veRetriever: VeRetriever[Int],
-    veProcess: VeProcess,
-    veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
-    veColVectorSource: VeColVectorSource
-  ): List[Int] =
-    executeHoleEvaluation(
-      input = input,
-      stringHoleEvaluation = StringHole.StringHoleEvaluation
-        .SlowEvaluation(refName = "strings", slowEvaluator = slowEvaluator)
-    )
-
   def executeHoleEvaluation(input: List[String], stringHoleEvaluation: StringHoleEvaluation)(
     implicit
     veAllocator: VeAllocator[String],
@@ -120,7 +105,6 @@ object StringOpsStringHoleEvaluationSpec {
           GroupByOutline.storeTo("bools", stringHoleEvaluation.fetchResult, "i").indented,
           "}"
         ),
-        stringHoleEvaluation.deallocData,
         "return 0;"
       )
     )

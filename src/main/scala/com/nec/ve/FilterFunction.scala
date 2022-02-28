@@ -95,8 +95,6 @@ case class FilterFunction(name: String,
       "",
       // Perform the filter
       computeFilterStmt,
-      // Deallocate data used for the string vector computations
-      filter.stringVectorComputations.distinct.map(_.deallocData),
       // Copy elements over to the output based on the matching_ids
       inputs.map(filterVecStmt)
     )

@@ -441,11 +441,11 @@ const std::vector<int32_t> nullable_varchar_vector::date_cast() const {
   return dates;
 }
 
-const std::vector<int32_t> nullable_varchar_vector::eval_like(const std::string &pattern) const {
+const std::vector<size_t> nullable_varchar_vector::eval_like(const std::string &pattern) const {
   const auto words = to_words();
   const auto matching_ids = frovedis::like(words, pattern);
 
-  std::vector<int32_t> bitmask(count);
+  std::vector<size_t> bitmask(count);
   #pragma _NEC vector
   for (auto i = 0; i < matching_ids.size(); i++) {
     bitmask[matching_ids[i]] = 1;
@@ -454,12 +454,12 @@ const std::vector<int32_t> nullable_varchar_vector::eval_like(const std::string 
   return bitmask;
 }
 
-const std::vector<int32_t> nullable_varchar_vector::eval_in(const frovedis::words &elements) const {
+const std::vector<size_t> nullable_varchar_vector::eval_in(const frovedis::words &elements) const {
   const auto compressed_words = frovedis::make_compressed_words(to_words());
   const auto dct = frovedis::make_dict_from_words(elements);
   const auto find_results = dct.lookup(compressed_words);
 
-  std::vector<int32_t> bitmask(count);
+  std::vector<size_t> bitmask(count);
   #pragma _NEC vector
   for (auto i = 0; i < bitmask.size(); i++) {
     bitmask[i] = (find_results[i] != std::numeric_limits<size_t>::max());
@@ -468,7 +468,7 @@ const std::vector<int32_t> nullable_varchar_vector::eval_in(const frovedis::word
   return bitmask;
 }
 
-const std::vector<int32_t> nullable_varchar_vector::eval_in(const std::vector<std::string> &elements) const {
+const std::vector<size_t> nullable_varchar_vector::eval_in(const std::vector<std::string> &elements) const {
   const nullable_varchar_vector tmp(elements);
   return eval_in(tmp.to_words());
 }

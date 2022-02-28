@@ -209,8 +209,8 @@ namespace cyclone::tests {
 
     TEST_CASE_TEMPLATE("Evaluation of IN works for T=", T, int32_t, int64_t, float, double) {
       const auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538 });
-      const std::vector<int32_t> expected1 { 1, 0, 0, 0, 0 };
-      const std::vector<int32_t> expected2 { 0, 0, 1, 0, 1 };
+      const std::vector<size_t> expected1 { 1, 0, 0, 0, 0 };
+      const std::vector<size_t> expected2 { 0, 0, 1, 0, 1 };
 
       CHECK(input->eval_in(std::vector<T> { 586, 42 }) == expected1);
       CHECK(input->eval_in(std::vector<T> { 106, 538 }) == expected2);

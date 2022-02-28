@@ -164,24 +164,8 @@ object GroupByOutline {
     attributes: List[StagedAggregationAttribute]
   )
 
-  // def storeTo(outputName: String, cExpression: CExpression, idx: String): CodeLines =
-  //   cExpression.isNotNullCode match {
-  //     case None =>
-  //       CodeLines.from(
-  //         s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
-  //         s"$outputName->set_validity(${idx}, 1);"
-  //       )
-  //     case Some(notNullCheck) =>
-  //       CodeLines.ifElseStatement(notNullCheck) {
-  //         List(
-  //           s"""$outputName->data[${idx}] = ${cExpression.cCode};""",
-  //           s"$outputName->set_validity(${idx}, 1);"
-  //         )
-  //       } {
-  //         s"$outputName->set_validity(${idx}, 0);"
-  //       }
-  //   }
   def storeTo(outname: String, expr: CExpression, idx: String): CodeLines = {
+    // Flatten out the if-clause to make the loop more vectorizable
     val condition = expr.isNotNullCode.getOrElse("1")
     CodeLines.from(
       s"""${outname}->data[${idx}] = ${expr.cCode};""",

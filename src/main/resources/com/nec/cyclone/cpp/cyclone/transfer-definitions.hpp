@@ -128,7 +128,7 @@ struct NullableScalarVec {
                                  const std::vector<size_t> &bucket_assignments) const;
 
   // Return a bitmask that is the value of evaluating an IN expression
-  const std::vector<int32_t> eval_in(const std::vector<T> &elements) const;
+  const std::vector<size_t> eval_in(const std::vector<T> &elements) const;
 };
 
 // Explicitly instantiate struct template for int32_t
@@ -241,13 +241,13 @@ struct nullable_varchar_vector {
   const std::vector<int32_t> date_cast() const;
 
   // Return a bitmask that is the value of evaluating a LIKE expression
-  const std::vector<int32_t> eval_like(const std::string &pattern) const;
+  const std::vector<size_t> eval_like(const std::string &pattern) const;
 
   // Return a bitmask that is the value of evaluating an IN expression
-  const std::vector<int32_t> eval_in(const frovedis::words &elements) const;
+  const std::vector<size_t> eval_in(const frovedis::words &elements) const;
 
   // Return a bitmask that is the value of evaluating an IN expression
-  const std::vector<int32_t> eval_in(const std::vector<std::string> &elements) const;
+  const std::vector<size_t> eval_in(const std::vector<std::string> &elements) const;
 };
 
 struct non_null_c_bounded_string {

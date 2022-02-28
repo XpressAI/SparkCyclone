@@ -22,7 +22,6 @@ final class InStringHoleEvaluationSpec extends AnyWordSpec {
         CodeLines.forLoop("i", "strings->count") {
           GroupByOutline.storeTo("bools", evaluation.fetchResult, "i")
         },
-        evaluation.deallocData,
         "return 0;"
       )
 

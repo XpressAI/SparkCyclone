@@ -68,8 +68,7 @@ final case class GroupByPartialGenerator(
         },
         computedAggregates.map { case (a, ag) =>
           computeAggregatePartialsPerGroup(a, ag)
-        },
-        stringVectorComputations.map(_.deallocData)
+        }
       )
     )
 

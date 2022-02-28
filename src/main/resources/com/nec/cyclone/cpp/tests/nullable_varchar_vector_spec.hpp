@@ -219,10 +219,10 @@ namespace cyclone::tests {
 
     TEST_CASE("Evaluation of ILIKE works") {
       const auto *input = new nullable_varchar_vector(std::vector<std::string> { "foo", "foobar", "bazfoobar", "bazfoo", "baz" });
-      const std::vector<int32_t> expected1 { 1, 0, 0, 0, 0 };
-      const std::vector<int32_t> expected2 { 1, 1, 0, 0, 0 };
-      const std::vector<int32_t> expected3 { 1, 0, 0, 1, 0 };
-      const std::vector<int32_t> expected4 { 1, 1, 1, 1, 0 };
+      const std::vector<size_t> expected1 { 1, 0, 0, 0, 0 };
+      const std::vector<size_t> expected2 { 1, 1, 0, 0, 0 };
+      const std::vector<size_t> expected3 { 1, 0, 0, 1, 0 };
+      const std::vector<size_t> expected4 { 1, 1, 1, 1, 0 };
 
       CHECK(input->eval_like("foo") == expected1);
       CHECK(input->eval_like("foo%") == expected2);
@@ -232,8 +232,8 @@ namespace cyclone::tests {
 
     TEST_CASE("Evaluation of IN works") {
       const auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY" });
-      const std::vector<int32_t> expected1 { 1, 0, 0, 0, 0 };
-      const std::vector<int32_t> expected2 { 0, 1, 0, 0, 1 };
+      const std::vector<size_t> expected1 { 1, 0, 0, 0, 0 };
+      const std::vector<size_t> expected2 { 0, 1, 0, 0, 1 };
 
       CHECK(input->eval_in(std::vector<std::string> { "JAN", "FOO" }) == expected1);
       CHECK(input->eval_in(std::vector<std::string> { "FEB", "MAY" }) == expected2);
