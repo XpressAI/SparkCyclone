@@ -104,7 +104,7 @@ case class Supplier(
 )
 
 object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
-  def createViews(sparkSession: SparkSession, inputDir: String): Unit = {
+  def createViews(sparkSession: SparkSession, inputDir: String, parquet: Boolean): Unit = {
     import sparkSession.implicits._
 
     val dfMap = Map[String, SparkContext => DataFrame](
@@ -224,15 +224,21 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
     dfMap.foreach { case (key, value) =>
       val sc = sparkSession.sparkContext
-      val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)
-      if (!fs.exists(new org.apache.hadoop.fs.Path(s"${inputDir}/${key}.parquet"))) {
-        println(s"Writing ${inputDir}/${key}.parquet")
+      if (parquet) {
+        println("Using Parquet")
+        val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)
+        if (!fs.exists(new org.apache.hadoop.fs.Path(s"${inputDir}/${key}.parquet"))) {
+          println(s"Writing ${inputDir}/${key}.parquet")
 
-        value(sc).write.parquet(s"${inputDir}/${key}.parquet")
+          value(sc).write.parquet(s"${inputDir}/${key}.parquet")
+        }
+
+        val parquetTable = sparkSession.read.parquet(s"${inputDir}/${key}.parquet")
+        parquetTable.createOrReplaceTempView(key)
+      } else {
+        println(s"reading $key CSV")
+        value(sc).createOrReplaceTempView(key)
       }
-
-      val parquetTable = sparkSession.read.parquet(s"${inputDir}/${key}.parquet")
-      parquetTable.createOrReplaceTempView(key)
     }
   }
 
@@ -253,7 +259,11 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       }
     }
 
-    createViews(sparkSession, tableDir)
+    val parquet = getOptions("parquet")
+      .headOption
+      .exists(_.toBoolean)
+
+    createViews(sparkSession, tableDir, parquet)
 
     val queries = Seq(
       (query1 _, 1),
@@ -356,7 +366,16 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     }
   }
 
+  var first = true
   def benchmark(i: Int, f: SparkSession => (Array[_], DataFrame), skipPlan: Boolean)(implicit sparkSession: SparkSession): Unit = {
+    if (first) {
+      println("Warming up JVM...")
+      val df = sparkSession.sql("SELECT max(l_partkey), min(l_orderkey), avg(l_tax) from lineitem")
+      df.collect().foreach(println)
+      System.gc()
+      first = false
+    }
+
     println(s"Running Query${i}")
     logger.info(s"Running Query${i}")
 
