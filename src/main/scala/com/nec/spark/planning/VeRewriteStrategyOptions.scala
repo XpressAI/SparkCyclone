@@ -67,11 +67,10 @@ object VeRewriteStrategyOptions {
   val default: VeRewriteStrategyOptions =
     VeRewriteStrategyOptions(
       enableVeSorting = false,
-      projectOnVe = true,
-      filterOnVe = true,
+      projectOnVe = false,
+      filterOnVe = false,
       aggregateOnVe = true,
-      /** Disabled by default as there appears to be a fault here * */
-      exchangeOnVe = true,
+      exchangeOnVe = false,
       passThroughProject = false,
       failFast = false,
       joinOnVe = false,
