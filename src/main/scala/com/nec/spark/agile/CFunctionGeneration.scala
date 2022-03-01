@@ -427,15 +427,16 @@ object CFunctionGeneration {
 
   val KeyHeaders = CodeLines.from(
     """#include "cyclone/cyclone.hpp"""",
-    """#include "cyclone/tuple_hash.hpp"""",
-    "#include <bitset>",
-    "#include <string>",
-    "#include <iostream>",
-    "#include <tuple>",
-    "#include <math.h>",
     """#include "frovedis/dataframe/join.hpp"""",
     """#include "frovedis/core/set_operations.hpp"""",
-    """#include "frovedis/text/datetime_utility.hpp""""
+    """#include "frovedis/text/datetime_utility.hpp"""",
+    "#include <math.h>",
+    "#include <stddef.h>",
+    "#include <bitset>",
+    "#include <iostream>",
+    "#include <string>",
+    "#include <tuple>",
+    "#include <vector>"
   )
 
   final case class CFunction(
@@ -446,34 +447,35 @@ object CFunctionGeneration {
   ) {
     def toCodeLinesSPtr(functionName: String): CodeLines = CodeLines.from(
       """#include "cyclone/cyclone.hpp"""",
-      """#include "cyclone/tuple_hash.hpp"""",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/core/set_operations.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
       """#include "frovedis/text/datetime_utility.hpp"""",
       """#include "frovedis/text/dict.hpp"""",
-      "#include <bitset>",
-      "#include <string>",
-      "#include <vector>",
-      "#include <iostream>",
-      "#include <tuple>",
       "#include <math.h>",
+      "#include <stddef.h>",
+      "#include <bitset>",
+      "#include <iostream>",
+      "#include <string>",
+      "#include <tuple>",
+      "#include <vector>",
       toCodeLinesNoHeaderOutPtr2(functionName)
     )
 
     def toCodeLinesS(functionName: String): CodeLines = CodeLines.from(
       """#include "cyclone/cyclone.hpp"""",
-      """#include "cyclone/tuple_hash.hpp"""",
       """#include "frovedis/core/radix_sort.hpp"""",
       """#include "frovedis/core/set_operations.hpp"""",
       """#include "frovedis/dataframe/join.hpp"""",
       """#include "frovedis/text/datetime_utility.hpp"""",
       """#include "frovedis/text/dict.hpp"""",
-      "#include <bitset>",
-      "#include <string>",
-      "#include <iostream>",
-      "#include <tuple>",
       "#include <math.h>",
+      "#include <stddef.h>",
+      "#include <bitset>",
+      "#include <iostream>",
+      "#include <string>",
+      "#include <tuple>",
+      "#include <vector>",
       toCodeLinesNoHeader(functionName)
     )
 
@@ -483,10 +485,12 @@ object CFunctionGeneration {
       CodeLines.from(
         """#include "cyclone/cyclone.hpp"""",
         """#include "frovedis/text/dict.hpp"""",
-        "#include <bitset>",
-        "#include <string>",
-        "#include <iostream>",
         "#include <math.h>",
+        "#include <stddef.h>",
+        "#include <bitset>",
+        "#include <iostream>",
+        "#include <string>",
+        "#include <vector>",
         toCodeLinesNoHeader(functionName)
       )
     }
@@ -494,14 +498,15 @@ object CFunctionGeneration {
     def toCodeLinesG(functionName: String): CodeLines = {
       CodeLines.from(
         """#include "cyclone/cyclone.hpp"""",
-        """#include "cyclone/tuple_hash.hpp"""",
         """#include "frovedis/text/datetime_utility.hpp"""",
         """#include "frovedis/text/dict.hpp"""",
-        "#include <bitset>",
-        "#include <string>",
-        "#include <iostream>",
-        "#include <tuple>",
         "#include <math.h>",
+        "#include <stddef.h>",
+        "#include <bitset>",
+        "#include <iostream>",
+        "#include <string>",
+        "#include <tuple>",
+        "#include <vector>",
         toCodeLinesNoHeader(functionName)
       )
     }

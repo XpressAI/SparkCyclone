@@ -146,6 +146,19 @@ const std::vector<int32_t> NullableScalarVec<T>::validity_vec() const {
 }
 
 template <typename T>
+const std::vector<size_t> NullableScalarVec<T>::size_t_data_vec() const {
+  std::vector<size_t> output(count);
+
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    // Note: No explicit sign checking is performed here in order to keep the loop fast.
+    output[i] = data[i];
+  }
+
+  return output;
+}
+
+template <typename T>
 bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) const {
   if (is_default() && other->is_default()) {
     return true;

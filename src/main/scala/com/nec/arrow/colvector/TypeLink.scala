@@ -7,8 +7,7 @@ import org.apache.arrow.vector.{
   BigIntVector,
   DateDayVector,
   Float8Vector,
-  IntVector,
-  BitVector
+  IntVector
 }
 import org.apache.spark.sql.types.{
   BooleanType,

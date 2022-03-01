@@ -146,6 +146,13 @@ namespace cyclone::tests {
       CHECK(input->validity_vec() == expected);
     }
 
+    TEST_CASE_TEMPLATE("size_t value vector generation works for T=", T, int32_t, int64_t) {
+      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620 });
+      std::vector<size_t> expected { 586, 951, 106, 318, 538, 620 };
+
+      CHECK(input->size_t_data_vec() == expected);
+    }
+
     TEST_CASE_TEMPLATE("Filter works for T=", T, int32_t, int64_t, float, double) {
       auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
       input->set_validity(1, 0);
