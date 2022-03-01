@@ -49,7 +49,6 @@ object DateCastStringHoleEvaluationSpec {
               GroupByOutline.storeTo("dates", stringHoleEvaluation.fetchResult, "i").indented,
               "}"
             ),
-            stringHoleEvaluation.deallocData,
             "return 0;"
           )
         ).toCodeLinesG("test").cCode

@@ -34,30 +34,12 @@ final case class GenericJoiner(
         joinByEquality.ioWo.map(_.name) ++
           joinByEquality.ioO.map(v => s"&${v.name}")
       }.mkString(", ")});",
-      s"std::vector<size_t> left_idx_std = idx_to_std(&left_idx);",
-      s"std::vector<size_t> right_idx_std = idx_to_std(&right_idx);",
+      s"const auto left_idx_std = left_idx.size_t_data_vec();",
+      s"const auto right_idx_std = right_idx.size_t_data_vec();",
       outputs.map {
-        case FilteredOutput(newName, source @ CScalarVector(name, veType)) =>
-          val isLeft = inputsLeft.contains(source)
-          val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
-          CodeLines.from(
-            populateScalar(
-              outputName = newName,
-              inputIndices = indicesName,
-              inputName = name,
-              veScalarType = veType
-            )
-          )
-
-        case FilteredOutput(outName, source @ CVarChar(name)) =>
-          val isLeft = inputsLeft.contains(source)
-          val indicesName = if (isLeft) "left_idx_std" else "right_idx_std"
-
-          CodeLines.from(
-            s"auto ${name}_words = ${name}->to_words();",
-            s"auto ${name}_filtered_words = filter_words(${name}_words, ${indicesName});",
-            s"""new (${outName}) nullable_varchar_vector(${name}_filtered_words);"""
-          )
+        case FilteredOutput(output, source) =>
+          val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
+          CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
       }
     )
   )

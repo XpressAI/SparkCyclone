@@ -20,7 +20,6 @@
 package com.nec.spark.agile
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator
 import com.nec.spark.agile.StringHole.{StringHoleEvaluation, StringHoleTransformation}
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,

@@ -109,6 +109,12 @@ struct NullableScalarVec {
     return get_valid_bit(validityBuffer, idx);
   }
 
+  // Return the validity buffer as a std::vector
+  const std::vector<int32_t> validity_vec() const;
+
+  // Return the data buffer as a std::vector<size_t> (values will be casted to size_t)
+  const std::vector<size_t> size_t_data_vec() const;
+
   // Value equality check against another NullableScalarVec<T>
   bool equals(const NullableScalarVec<T> * const other) const;
 
@@ -123,6 +129,9 @@ struct NullableScalarVec {
   // the bucket_assignments
   NullableScalarVec<T> ** bucket(const std::vector<size_t> &bucket_counts,
                                  const std::vector<size_t> &bucket_assignments) const;
+
+  // Return a bitmask that is the value of evaluating an IN expression
+  const std::vector<size_t> eval_in(const std::vector<T> &elements) const;
 };
 
 // Explicitly instantiate struct template for int32_t
@@ -213,6 +222,9 @@ struct nullable_varchar_vector {
     return get_valid_bit(validityBuffer, idx);
   }
 
+  // Return the validity buffer as a std::vector
+  const std::vector<int32_t> validity_vec() const;
+
   // Value equality check against another nullable_varchar_vector
   bool equals(const nullable_varchar_vector * const other) const;
 
@@ -227,6 +239,18 @@ struct nullable_varchar_vector {
   // on the bucket_assignments
   nullable_varchar_vector ** bucket(const std::vector<size_t> &bucket_counts,
                                     const std::vector<size_t> &bucket_assignments) const;
+
+  // Convert a vector of string dates into int32_t's (number of days since 1970-01-01)
+  const std::vector<int32_t> date_cast() const;
+
+  // Return a bitmask that is the value of evaluating a LIKE expression
+  const std::vector<size_t> eval_like(const std::string &pattern) const;
+
+  // Return a bitmask that is the value of evaluating an IN expression
+  const std::vector<size_t> eval_in(const frovedis::words &elements) const;
+
+  // Return a bitmask that is the value of evaluating an IN expression
+  const std::vector<size_t> eval_in(const std::vector<std::string> &elements) const;
 };
 
 struct non_null_c_bounded_string {

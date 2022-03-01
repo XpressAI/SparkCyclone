@@ -10,6 +10,7 @@ import org.apache.arrow.vector.{
   IntVector
 }
 import org.apache.spark.sql.types.{
+  BooleanType,
   DataType,
   DateType,
   DoubleType,
@@ -54,6 +55,21 @@ object TypeLink {
     override def veScalarType: VeScalarType = VeScalarType.veNullableLong
   }
 
+  private case object BooleanTypeLink extends TypeLink {
+    override type ArrowType = IntVector
+
+    override def makeArrow(name: String)(implicit bufferAllocator: BufferAllocator): ArrowType =
+      new IntVector(name, bufferAllocator)
+
+    override def transfer(idx: Int, from: ColumnVector, to: ArrowType): Unit =
+      if (from.isNullAt(idx)) to.setNull(idx)
+      else {
+        to.set(idx, if (from.getBoolean(idx)) 1 else 0)
+      }
+
+    override def veScalarType: VeScalarType = VeScalarType.veNullableInt
+  }
+
   private case object IntegerTypeLink extends TypeLink {
     override type ArrowType = IntVector
 
@@ -94,6 +110,7 @@ object TypeLink {
   }
 
   val SparkToArrow: Map[DataType, TypeLink] = Map(
+    BooleanType -> BooleanTypeLink,
     IntegerType -> IntegerTypeLink,
     ShortType -> ShortTypeLink,
     DoubleType -> DoubleTypeLink,
