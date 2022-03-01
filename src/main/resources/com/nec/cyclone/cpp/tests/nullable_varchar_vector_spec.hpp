@@ -145,6 +145,15 @@ namespace cyclone::tests {
       CHECK(input->get_validity(4) == 1);
     }
 
+    TEST_CASE("Validity vector generation works") {
+      auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "", "JUN" });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      std::vector<int32_t> expected { 1, 0, 1, 1, 0, 1 };
+
+      CHECK(input->validity_vec() == expected);
+    }
+
     TEST_CASE("Filter works") {
       // Include empty string value
       auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });
@@ -206,6 +215,36 @@ namespace cyclone::tests {
       const auto *output = nullable_varchar_vector::merge(&inputs[0], 3);
       CHECK(output != expected);
       CHECK(output->equals(expected));
+    }
+
+    TEST_CASE("Evaluation of ILIKE works") {
+      const auto *input = new nullable_varchar_vector(std::vector<std::string> { "foo", "foobar", "bazfoobar", "bazfoo", "baz" });
+      const std::vector<int32_t> expected1 { 1, 0, 0, 0, 0 };
+      const std::vector<int32_t> expected2 { 1, 1, 0, 0, 0 };
+      const std::vector<int32_t> expected3 { 1, 0, 0, 1, 0 };
+      const std::vector<int32_t> expected4 { 1, 1, 1, 1, 0 };
+
+      CHECK(input->eval_like("foo") == expected1);
+      CHECK(input->eval_like("foo%") == expected2);
+      CHECK(input->eval_like("%foo") == expected3);
+      CHECK(input->eval_like("%foo%") == expected4);
+    }
+
+    TEST_CASE("Evaluation of IN works") {
+      const auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY" });
+      const std::vector<int32_t> expected1 { 1, 0, 0, 0, 0 };
+      const std::vector<int32_t> expected2 { 0, 1, 0, 0, 1 };
+
+      CHECK(input->eval_in(std::vector<std::string> { "JAN", "FOO" }) == expected1);
+      CHECK(input->eval_in(std::vector<std::string> { "FEB", "MAY" }) == expected2);
+    }
+
+    TEST_CASE("Date cast works") {
+      const auto *input = new nullable_varchar_vector(std::vector<std::string> { "1964-05-24", "1967-03-14", "1981-03-20", "2022-02-21" });
+      const std::vector<int32_t> expected { -2048, -1024, 4096, 19044 };
+
+      const auto output = input->date_cast();
+      CHECK(output == expected);
     }
   }
 }

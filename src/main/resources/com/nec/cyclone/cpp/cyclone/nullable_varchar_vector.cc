@@ -20,6 +20,8 @@
 #include "cyclone/transfer-definitions.hpp"
 #include "frovedis/core/utility.hpp"
 #include "frovedis/text/char_int_conv.hpp"
+#include "frovedis/text/datetime_utility.hpp"
+#include "frovedis/text/dict.hpp"
 #include <stdlib.h>
 #include <iostream>
 
@@ -164,9 +166,9 @@ frovedis::words nullable_varchar_vector::to_words() const {
   for (auto i = 0; i < count; i++) {
     output.starts[i] = offsets[i];
   }
-  // Set the chars
-   output.chars.assign(data, data + dataSize);
 
+  // Set the chars
+  output.chars.assign(data, data + dataSize);
   return output;
 }
 
@@ -388,6 +390,17 @@ const std::vector<int64_t> nullable_varchar_vector::hash_vec() const {
   return output;
 }
 
+const std::vector<int32_t> nullable_varchar_vector::validity_vec() const {
+  std::vector<int32_t> bitmask(count);
+
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    bitmask[i] = get_validity(i);
+  }
+
+  return bitmask;
+}
+
 nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
                                                          const size_t batches) {
 
@@ -411,4 +424,51 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
   }
 
   return output;
+}
+
+const std::vector<int32_t> nullable_varchar_vector::date_cast() const {
+  static const auto epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);
+
+  const auto words = to_words();
+  auto datetimes = frovedis::parsedatetime(words, std::string("%Y-%m-%d"));
+
+  std::vector<int32_t> dates(count);
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    dates[i] = frovedis::datetime_diff_day(datetimes[i], epoch);
+  }
+
+  return dates;
+}
+
+const std::vector<int32_t> nullable_varchar_vector::eval_like(const std::string &pattern) const {
+  const auto words = to_words();
+  const auto matching_ids = frovedis::like(words, pattern);
+
+  std::vector<int32_t> bitmask(count);
+  #pragma _NEC vector
+  for (auto i = 0; i < matching_ids.size(); i++) {
+    bitmask[matching_ids[i]] = 1;
+  }
+
+  return bitmask;
+}
+
+const std::vector<int32_t> nullable_varchar_vector::eval_in(const frovedis::words &elements) const {
+  const auto compressed_words = frovedis::make_compressed_words(to_words());
+  const auto dct = frovedis::make_dict_from_words(elements);
+  const auto find_results = dct.lookup(compressed_words);
+
+  std::vector<int32_t> bitmask(count);
+  #pragma _NEC vector
+  for (auto i = 0; i < bitmask.size(); i++) {
+    bitmask[i] = (find_results[i] != std::numeric_limits<size_t>::max());
+  }
+
+  return bitmask;
+}
+
+const std::vector<int32_t> nullable_varchar_vector::eval_in(const std::vector<std::string> &elements) const {
+  const nullable_varchar_vector tmp(elements);
+  return eval_in(tmp.to_words());
 }

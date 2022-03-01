@@ -137,6 +137,15 @@ namespace cyclone::tests {
       CHECK(input->get_validity(4) == 1);
     }
 
+    TEST_CASE_TEMPLATE("Validity vector generation works for T=", T, int32_t, int64_t, float, double) {
+      auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620 });
+      input->set_validity(1, 0);
+      input->set_validity(4, 0);
+      std::vector<int32_t> expected { 1, 0, 1, 1, 0, 1 };
+
+      CHECK(input->validity_vec() == expected);
+    }
+
     TEST_CASE_TEMPLATE("Filter works for T=", T, int32_t, int64_t, float, double) {
       auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
       input->set_validity(1, 0);
@@ -196,6 +205,15 @@ namespace cyclone::tests {
       const auto *output = NullableScalarVec<T>::merge(&inputs[0], 3);
       CHECK(output != expected);
       CHECK(output->equals(expected));
+    }
+
+    TEST_CASE_TEMPLATE("Evaluation of IN works for T=", T, int32_t, int64_t, float, double) {
+      const auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538 });
+      const std::vector<int32_t> expected1 { 1, 0, 0, 0, 0 };
+      const std::vector<int32_t> expected2 { 0, 0, 1, 0, 1 };
+
+      CHECK(input->eval_in(std::vector<T> { 586, 42 }) == expected1);
+      CHECK(input->eval_in(std::vector<T> { 106, 538 }) == expected2);
     }
   }
 }
