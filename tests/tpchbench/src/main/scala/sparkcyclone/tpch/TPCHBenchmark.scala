@@ -225,13 +225,13 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     dfMap.foreach { case (key, value) =>
       val sc = sparkSession.sparkContext
       val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)
-      if (!fs.exists(new org.apache.hadoop.fs.Path(s"$key.parquet"))) {
-        println(s"Writing ${key}.parquet")
+      if (!fs.exists(new org.apache.hadoop.fs.Path(s"${inputDir}/${key}.parquet"))) {
+        println(s"Writing ${inputDir}/${key}.parquet")
 
-        value(sc).write.parquet(s"${key}.parquet")
+        value(sc).write.parquet(s"${inputDir}/${key}.parquet")
       }
 
-      val parquetTable = sparkSession.read.parquet(s"${key}.parquet")
+      val parquetTable = sparkSession.read.parquet(s"${inputDir}/${key}.parquet")
       parquetTable.createOrReplaceTempView(key)
     }
   }
@@ -280,18 +280,16 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       (query22 _, 22)
     )
 
-    val toSkip = if (args.length >= 2) {
-      args(1).split(",").filter(str => str.forall(Character.isDigit)).map(_.toInt).toSet
-    } else {
-      Set[Int]()
-    }
-
     println("Spark Config:")
     sparkSession.conf.getAll.foreach { case (key, value) =>
       println(s"$key = $value")
     }
 
     val toSelect = getOptions("select")
+      .flatMap(_.split(",").map(_.toInt))
+      .toSet
+
+    val toSkip = getOptions("skip")
       .flatMap(_.split(",").map(_.toInt))
       .toSet
 
@@ -303,6 +301,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     if (toSelect.nonEmpty) {
       queries
         .filter(q => toSelect.contains(q._2))
+        .filter(q => !toSkip.contains(q._2))
         .foreach { case (q, i) =>
           cacheTables(i)
           benchmark(i, q, skipPlan)
@@ -347,7 +346,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       println(s"Caching Table ${key}")
 
       sparkSession.sql("CACHE TABLE " + key)
-      sparkSession.sql("ANALYZE TABLE " + key + " COMPUTE STATISTICS FOR ALL COLUMNS")
+      //sparkSession.sql("ANALYZE TABLE " + key + " COMPUTE STATISTICS FOR ALL COLUMNS")
     }
   }
 
