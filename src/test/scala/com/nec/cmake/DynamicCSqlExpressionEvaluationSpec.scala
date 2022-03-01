@@ -75,7 +75,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
   "Support pairwise addition/projection" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).ensurePlan(classOf[VeOneStageEvaluationPlan]).debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise).debugSqlHere { ds =>
       assert(
         ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
           None,
