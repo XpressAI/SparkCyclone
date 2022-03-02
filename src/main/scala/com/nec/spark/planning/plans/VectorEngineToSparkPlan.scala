@@ -24,7 +24,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   override lazy val metrics = Map(
     "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
-    "inputElementCount" -> SQLMetrics.createAverageMetric(sparkContext, "input element count")
+    "inputElementCount" -> SQLMetrics.createMetric(sparkContext, "input element count")
   )
 
 

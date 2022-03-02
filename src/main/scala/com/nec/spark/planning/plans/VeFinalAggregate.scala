@@ -38,14 +38,13 @@ case class VeFinalAggregate(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
-
-        val res = withVeLibrary { libRef =>
+        withVeLibrary { libRef =>
           veColBatches.map { veColBatch =>
             logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
+            val beforeExec = System.nanoTime()
 
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            VeColBatch.fromList {
+            val res = VeColBatch.fromList {
               import OriginalCallingContext.Automatic._
 
               try ImplicitMetrics.processMetrics.measureRunningTime(
@@ -61,11 +60,10 @@ case class VeFinalAggregate(
                 child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
             }
+            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+            res
           }
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-        res
       }
 
   }
