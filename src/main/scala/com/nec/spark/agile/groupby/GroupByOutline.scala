@@ -82,7 +82,7 @@ final case class GroupByOutline(
   def tupleType: String =
     tupleTypes.mkString(start = "std::tuple<", sep = ", ", end = ">")
 
-  def performGroupingOnKeys: CodeLines =
+  def performGroupingOnKeys: CodeLines = {
     CodeLines.from(
       groupingCodeGenerator.identifyGroups(
         tupleTypes = tupleTypes,
@@ -100,21 +100,29 @@ final case class GroupByOutline(
             case VeString => Left(s"partial_str_${gk.name}")
           }
         )
-      )
+      ),
+      "",
+      s"std::vector<size_t> matching_ids(${groupingCodeGenerator.groupsCountOutName});",
+      CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
+        s"matching_ids[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
+      },
+      ""
     )
+  }
 
   def passProjectionsPerGroup: CodeLines =
     CodeLines.from(projections.map {
       case StagedProjection(name, VeString) =>
-        val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
-        CodeLines
-          .from(
-            fp.setup(size = "groups_count"),
-            groupingCodeGenerator.forHeadOfEachGroup(fp.forEach("g")),
-            fp.complete,
-            groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
-          )
-          .block
+        CodeLines.from(s"${name}->move_assign_from(partial_str_${name}->filter(matching_ids));")
+        // val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
+        // CodeLines
+        //   .from(
+        //     fp.setup(size = "groups_count"),
+        //     groupingCodeGenerator.forHeadOfEachGroup(fp.forEach("g")),
+        //     fp.complete,
+        //     groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
+        //   )
+        //   .block
       case stagedProjection @ StagedProjection(_, scalarType: VeScalarType) =>
         CodeLines.from(
           GroupByOutline.initializeScalarVector(
