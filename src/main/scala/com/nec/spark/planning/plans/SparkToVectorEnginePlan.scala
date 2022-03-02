@@ -28,7 +28,9 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   with SupportsVeColBatch {
 
   override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
+    "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
+    "inputElementCount" -> SQLMetrics.createAverageMetric(sparkContext, "input element count")
   )
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
@@ -43,6 +45,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
     val execMetric = longMetric("execTime")
+    val inputPartCount = longMetric("inputPartitions")
+    val inputEleCount = longMetric("inputElementCount")
 
     //      val numInputRows = longMetric("numInputRows")
     //      val numOutputBatches = longMetric("numOutputBatches")
@@ -51,8 +55,11 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
     if (child.supportsColumnar) {
-      child
+      val input = child
         .executeColumnar()
+      inputPartCount.set(input.partitions.length)
+
+      input
         .mapPartitions { columnarBatches =>
           val beforeExec = System.nanoTime()
 
@@ -79,7 +86,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
           res
         }
     } else {
-      child.execute().mapPartitions { internalRows =>
+      val input = child.execute()
+      inputPartCount.set(input.partitions.length)
+
+      input.mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
         import ImplicitMetrics._
 

@@ -22,7 +22,9 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   override def supportsColumnar: Boolean = true
 
   override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
+    "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
+    "inputElementCount" -> SQLMetrics.createAverageMetric(sparkContext, "input element count")
   )
 
 
@@ -34,10 +36,15 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val execMetric = longMetric("execTime")
+    val inputPartCount = longMetric("inputPartitions")
+    val inputEleCount = longMetric("inputElementCount")
 
-    child
+    val input = child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
+    inputPartCount.set(input.partitions.length)
+
+    input
       .mapPartitions { iterator =>
         import SparkCycloneExecutorPlugin._
 
@@ -46,6 +53,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
         iterator.map { veColBatch =>
           import OriginalCallingContext.Automatic._
+          inputEleCount.set(veColBatch.cols.length)
           val beforeExec = System.nanoTime()
 
           val res = try {
@@ -54,6 +62,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
             logger.debug(s"Finished mapping ${veColBatch}")
             res
           } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+
 
           execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
           res
