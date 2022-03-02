@@ -19,22 +19,18 @@
  */
 #pragma once
 
+/*
+  This is the single main header to should be included by code that uses the
+  Cyclone C++ Library.
+*/
+
 #include "cyclone/transfer-definitions.hpp"
 #include "cyclone/cyclone_sort.hpp"
 #include "cyclone/cyclone_utils.hpp"
+#include "cyclone/tuple_hash.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
-#include <stddef.h>
-#include <vector>
 
 std::string utcnanotime();
 
 void debug_words(frovedis::words &in);
-
-std::vector<size_t> idx_to_std(nullable_int_vector *idx);
-
-void print_indices(std::vector<size_t> vec);
-
-frovedis::words filter_words(frovedis::words &in_words, std::vector<size_t> to_select);
-
-std::vector<size_t> filter_words_dict(frovedis::words &input_words, frovedis::words &filtering_set);

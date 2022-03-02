@@ -134,6 +134,31 @@ void NullableScalarVec<T>::print() const {
 }
 
 template <typename T>
+const std::vector<int32_t> NullableScalarVec<T>::validity_vec() const {
+  std::vector<int32_t> bitmask(count);
+
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    bitmask[i] = get_validity(i);
+  }
+
+  return bitmask;
+}
+
+template <typename T>
+const std::vector<size_t> NullableScalarVec<T>::size_t_data_vec() const {
+  std::vector<size_t> output(count);
+
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    // Note: No explicit sign checking is performed here in order to keep the loop fast.
+    output[i] = data[i];
+  }
+
+  return output;
+}
+
+template <typename T>
 bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) const {
   if (is_default() && other->is_default()) {
     return true;
@@ -267,6 +292,23 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   }
 
   return output;
+}
+
+template <typename T>
+const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &elements) const {
+  std::vector<size_t> bitmask(count);
+
+  // Loop over the IN elements first (makes the code more vectorizable)
+  #pragma _NEC ivdep
+  for (auto j = 0; j < elements.size(); j++) {
+    // Loop over column values
+    for (auto i = 0; i < bitmask.size(); i++) {
+      // Apply ||= to `(element value == column value)`
+      bitmask[i] = (bitmask[i] || data[i] == elements[j]);
+    }
+  }
+
+  return bitmask;
 }
 
 // Forward declare the class template instantiations to prevent linker errors:

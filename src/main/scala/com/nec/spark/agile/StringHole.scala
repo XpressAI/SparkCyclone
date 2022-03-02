@@ -22,17 +22,11 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringHole.StringHoleEvaluation.SlowEvaluator.{
-  NotNullEvaluator,
-  SlowEvaluator
-}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.{
   DateCastStringHoleEvaluation,
   InStringHoleEvaluation,
   LikeStringHoleEvaluation,
   ScalarInExpHoleEvaluation,
-  SlowEvaluation,
-  SlowEvaluator
 }
 
 import org.apache.spark.sql.catalyst.expressions.{
@@ -67,9 +61,6 @@ object StringHole {
 
   sealed trait StringHoleEvaluation {
     def computeVector: CodeLines
-
-    def deallocData: CodeLines
-
     def fetchResult: CExpression
   }
 
@@ -84,13 +75,11 @@ object StringHole {
       }
     }
 
-    final case class InStringHoleEvaluation(refName: String, valueList: Seq[String])
+    final case class InStringHoleEvaluation(ref: String, valueList: Seq[String])
       extends StringHoleEvaluation {
-      val inputWords = s"input_words_${Math.abs(hashCode())}"
       val values = s"values_${Math.abs(hashCode())}"
-      val filteringSet = s"filtering_set_${Math.abs(hashCode())}"
-      val matchingIds = s"matching_ids_${Math.abs(hashCode())}"
-      val filteredIds = s"filtered_ids_${Math.abs(hashCode())}"
+      val elements = s"elements_${Math.abs(hashCode())}"
+      val output = s"bitmask_${Math.abs(hashCode())}"
       val delimiter = {
         /*
           Use an ASCII character that is not present in any of the strings in
@@ -112,173 +101,77 @@ object StringHole {
 
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"std::vector<size_t> ${filteredIds}(${refName}->count);",
-          CodeLines.scoped(s"Filter ${refName} to values of the given set") {
+          s"std::vector<size_t> ${output};",
+          CodeLines.scoped(s"Evaluate bitmask for ${ref} IN values of the given set") {
             CodeLines.from(
-              s"frovedis::words $inputWords = $refName->to_words();",
-              s"std::vector<int> ${values} { ${words} };",
-              s"""frovedis::words ${filteringSet} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",
-              s"std::vector<size_t> ${matchingIds} = filter_words_dict(${inputWords}, ${filteringSet});",
-              CodeLines.forLoop("i", s"${matchingIds}.size()") {
-                CodeLines.ifElseStatement(
-                  s"$matchingIds[i] != std::numeric_limits<size_t>::max()"
-                ) {
-                  s"${filteredIds}[i] = 1;"
-                } {
-                  s"${filteredIds}[i] = 0;"
-                }
-              }
+              s"std::vector<int32_t> ${values} { ${words} };",
+              s"""frovedis::words ${elements} = frovedis::split_to_words(${values}, std::string(1, char(${delimiter})));""",
+              s"${output} = ${ref}->eval_in(${elements});"
             )
           }
         )
       }
 
-      override def deallocData: CodeLines = CodeLines.empty
-
-      override def fetchResult: CExpression = CExpression(s"${filteredIds}[i]", None)
+      override def fetchResult: CExpression = CExpression(s"${output}[i]", None)
     }
 
     final case class ScalarInExpHoleEvaluation(ref: String, dtype: DataType, values: Seq[String])
       extends StringHoleEvaluation {
-      val filteredIds = s"filtered_ids_${Math.abs(hashCode())}"
-      val elements = s"elements_${Math.abs(hashCode())}"
-      val ctype = SparkExpressionToCExpression.sparkTypeToScalarVeType(dtype)
+      val output = s"bitmask_${Math.abs(hashCode())}"
+      val ctype = SparkExpressionToCExpression.sparkTypeToScalarVeType(dtype).cScalarType
 
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"std::vector<size_t> ${filteredIds}(${ref}->count);",
-          CodeLines.scoped(s"Filter ${ref} to values of the given set") {
-            CodeLines.from(
-              // Create the IN elements vector
-              s"std::vector<${ctype.cScalarType}> ${elements} { ${values.mkString(", ")} };",
-              "",
-              // Add pragma to guide NCC to vectorization
-              "#pragma _NEC ivdep",
-              // Loop over the IN elements first (makes the code more vectorizable)
-              CodeLines.forLoop("j", s"${elements}.size()") {
-                // Loop over column values
-                CodeLines.forLoop("i", s"${filteredIds}.size()") {
-                  // Apply ||= to `(element value == column value)`
-                  s"${filteredIds}[i] = (${filteredIds}[i] || (${ref}->data[i] == ${elements}[j]));"
-                }
-              }
-            )
-          }
+          s"// Evaluate bitmask for ${ref} IN values of the given set",
+          s"std::vector<size_t> ${output} = ${ref}->eval_in(std::vector<${ctype}> { ${values.mkString(", ")} });",
+          ""
         )
       }
 
-      override def deallocData: CodeLines = CodeLines.empty
-
-      override def fetchResult: CExpression = CExpression(s"${filteredIds}[i]", None)
+      override def fetchResult: CExpression = CExpression(s"${output}[i]", None)
     }
 
-    final case class DateCastStringHoleEvaluation(refName: String) extends StringHoleEvaluation {
-      val finalVectorName = s"stringCasting_${Math.abs(hashCode())}"
-      val myIdWords = s"stringCasting_words_${Math.abs(hashCode())}"
-      val dateTimeVectorName = s"stringCasting_datetime_${Math.abs(hashCode())}"
+    final case class DateCastStringHoleEvaluation(ref: String) extends StringHoleEvaluation {
+      val output = s"dates_${Math.abs(hashCode())}"
+
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"frovedis::words $myIdWords = $refName->to_words();",
-          s"""std::vector<datetime_t> $dateTimeVectorName = frovedis::parsedatetime($myIdWords, std::string("%Y-%m-%d"));""",
-          s"std::vector<int> $finalVectorName($refName->count);",
-          "datetime_t epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);",
-          s"for(int i = 0; i < $refName->count; i++) {",
-          CodeLines
-            .from(
-              s"$finalVectorName[i] = frovedis::datetime_diff_day($dateTimeVectorName[i], epoch);"
-            )
-            .indented,
-          "}"
+          s"""// CAST date strings into days (offset from 1970-01-01)""",
+          s"std::vector<int32_t> ${output} = ${ref}->date_cast();",
+          ""
         )
       }
 
-      override def deallocData: CodeLines = CodeLines.empty
-
-      override def fetchResult: CExpression = CExpression(s"$finalVectorName[i]", None)
+      override def fetchResult: CExpression = CExpression(s"${output}[i]", None)
     }
 
-    /** Vectorized evaluation */
-    final case class LikeStringHoleEvaluation(refName: String, likeString: String)
+    final case class LikeStringHoleEvaluation(ref: String, pattern: String)
       extends StringHoleEvaluation {
-      val myId = s"output_${Math.abs(hashCode())}"
-      val myIdWords = s"input_words_${Math.abs(hashCode())}"
-      val matchingIds = s"matching_ids_${Math.abs(hashCode())}"
+      val output = s"bitmask_${Math.abs(hashCode())}"
 
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"std::vector<int> ${myId}($refName->count);",
-          CodeLines.scoped(s"Populate ${myId} with ${refName} ILIKE '${likeString}'") {
-            CodeLines.from(
-              s"frovedis::words $myIdWords = ${refName}->to_words();",
-              s"""std::vector<size_t> ${matchingIds} = frovedis::like(${myIdWords}, "${likeString}");""",
-              CodeLines.forLoop("i", s"${refName}->count") {
-                s"${myId}[i] = 0;"
-              },
-              CodeLines.forLoop("i", s"${matchingIds}.size()") {
-                s"${myId}[${matchingIds}[i]] = 1;"
-              }
-            )
-          }
+          s"""// Populate ${output} with "${ref} ILIKE '${pattern}'"""",
+          s"""std::vector<size_t> ${output} = ${ref}->eval_like("${pattern}");""",
+          ""
         )
       }
 
-      override def deallocData: CodeLines = CodeLines.empty
-
-      /** Fetch result per each item - most likely an int */
-      override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
+      override def fetchResult: CExpression = CExpression(s"$output[i]", None)
     }
 
-    final case class SlowEvaluation(refName: String, slowEvaluator: SlowEvaluator)
-      extends StringHoleEvaluation {
-      val myId = s"${refName}_sloweval_${Math.abs(hashCode())}"
+    final case class ValidityExprHoleEvaluation(ref: String) extends StringHoleEvaluation {
+      val output = s"bitmask_${Math.abs(hashCode)}"
+
       override def computeVector: CodeLines = {
         CodeLines.from(
-          s"std::vector<int> ${myId}(${refName}->count);",
-          CodeLines.scoped(s"Populate ${myId} with slow evaluation of ${refName}") {
-            CodeLines.forLoop("i", s"${refName}->count") {
-              s"$myId[i] = ${slowEvaluator.evaluate(refName).cCode};"
-            }
-          }
+          s"""// Populate ${output} with the validity buffer of ${ref}""",
+          s"std::vector<int32_t> ${output} = ${ref}->validity_vec();",
+          ""
         )
       }
 
-      override def deallocData: CodeLines = CodeLines.empty
-
-      override def fetchResult: CExpression = CExpression(s"$myId[i]", None)
-    }
-    object SlowEvaluator {
-      sealed trait SlowEvaluator {
-        def evaluate(refName: String): CExpression
-      }
-      case object NotNullEvaluator extends SlowEvaluator {
-        override def evaluate(refName: String): CExpression =
-          CExpression(cCode = s"${refName}->get_validity(i)", isNotNullCode = None)
-      }
-      final case class StartsWithEvaluator(theString: String) extends SlowEvaluator {
-        override def evaluate(refName: String): CExpression = {
-          val leftStringLength =
-            s"($refName->offsets[i] + $refName->lengths[i])"
-          val expectedLength = theString.length
-          val leftStringSubstring =
-            s"""std::string($refName->data, $refName->offsets[i], $expectedLength)"""
-          val rightString = s"""std::string("$theString")"""
-          val bool =
-            s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
-          CExpression(bool, None)
-        }
-      }
-      final case class EndsWithEvaluator(theString: String) extends SlowEvaluator {
-        override def evaluate(refName: String): CExpression =
-          endsWithExp(refName, theString)
-      }
-      final case class ContainsEvaluator(theString: String) extends SlowEvaluator {
-        override def evaluate(refName: String): CExpression =
-          containsExp(refName, theString)
-      }
-      final case class EqualsEvaluator(theString: String) extends SlowEvaluator {
-        override def evaluate(refName: String): CExpression =
-          equalTo(refName, theString)
-      }
+      override def fetchResult: CExpression = CExpression(s"$output[i]", None)
     }
   }
 
@@ -304,23 +197,7 @@ object StringHole {
       )
   }
 
-  def processSubExpressionSlow: PartialFunction[Expression, StringHoleEvaluation] = {
-    case StartsWith(left: AttributeReference, Literal(v, StringType)) =>
-      SlowEvaluation(left.name, SlowEvaluator.StartsWithEvaluator(v.toString))
-    case EndsWith(left: AttributeReference, Literal(v, StringType)) =>
-      SlowEvaluation(left.name, SlowEvaluator.EndsWithEvaluator(v.toString))
-    case Contains(left: AttributeReference, Literal(v, StringType)) =>
-      SlowEvaluation(left.name, SlowEvaluator.ContainsEvaluator(v.toString))
-    case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
-      SlowEvaluation(left.name, SlowEvaluator.EqualsEvaluator(v.toString))
-  }
-
-  private val UseFastMethod: Boolean = true
-
-  def processSubExpression: PartialFunction[Expression, StringHoleEvaluation] =
-    if (UseFastMethod) processSubExpressionFast else processSubExpressionSlow
-
-  def processSubExpressionFast: PartialFunction[Expression, StringHoleEvaluation] = {
+  def processSubExpression: PartialFunction[Expression, StringHoleEvaluation] = {
     case Like(left: AttributeReference, Literal(v, StringType), _) =>
       LikeStringHoleEvaluation(left.name, v.toString)
     case StartsWith(left: AttributeReference, Literal(v, StringType)) =>
@@ -332,7 +209,7 @@ object StringHole {
     case EqualTo(left: AttributeReference, Literal(v, StringType)) =>
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
-      SlowEvaluation(item.name, NotNullEvaluator)
+      StringHoleEvaluation.ValidityExprHoleEvaluation(item.name)
     case Cast(expr: AttributeReference, DateType, Some(_)) =>
       DateCastStringHoleEvaluation(expr.name)
     case In(expr: AttributeReference, values: Seq[Literal]) if expr.dataType == StringType =>
@@ -364,68 +241,4 @@ object StringHole {
 
     def newExpression: Expression = exprWithHoles
   }
-
-  def equalTo(leftRef: String, rightStr: String): CExpression =
-    CExpression(
-      cCode = List(
-        s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i]+$leftRef->lengths[i])",
-        s"""std::string("$rightStr")"""
-      ).mkString(" == "),
-      isNotNullCode = None
-    )
-
-  def simpleStringExpressionMatcher(expression: Expression): Option[CExpression] =
-    PartialFunction.condOpt(expression) {
-      case EqualTo(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        equalTo(left.name, right.toString())
-      case Contains(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        containsExp(left.name, right.toString())
-      case EndsWith(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        endsWithExp(left.name, right.toString())
-      case StartsWith(left: AttributeReference, right: Literal)
-          if left.dataType == StringType && right.dataType == StringType =>
-        startsWithExp(left.name, right.toString())
-    }
-
-  private def startsWithExp(leftRef: String, right: String): CExpression =
-    CExpression(
-      cCode = {
-        val leftStringLength =
-          s"($leftRef->offsets[i] + $leftRef->lengths[i])"
-        val expectedLength = right.length
-        val leftStringSubstring =
-          s"""std::string($leftRef->data, $leftRef->offsets[i], $expectedLength)"""
-        val rightString = s"""std::string("$right")"""
-        s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
-      },
-      isNotNullCode = None
-    )
-
-  private def endsWithExp(leftRef: String, right: String): CExpression =
-    CExpression(
-      cCode = {
-        val leftStringLength =
-          s"($leftRef->offsets[i] + $leftRef->lengths[i])"
-        val expectedLength = right.length
-        val leftStringSubstring =
-          s"""std::string($leftRef->data, $leftRef->offsets[i]-$expectedLength, $expectedLength)"""
-        val rightString = s"""std::string("$right")"""
-        s"$leftStringLength >= $expectedLength && $leftStringSubstring == $rightString"
-      },
-      isNotNullCode = None
-    )
-
-  private def containsExp(leftRef: String, right: String): CExpression =
-    CExpression(
-      cCode = {
-        val mainString =
-          s"std::string($leftRef->data, $leftRef->offsets[i], $leftRef->offsets[i]+$leftRef->lengths[i])"
-        val rightString = s"""std::string("$right")"""
-        s"$mainString.find($rightString) != std::string::npos"
-      },
-      isNotNullCode = None
-    )
 }
