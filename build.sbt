@@ -578,3 +578,11 @@ cycloneVeLibrary := {
   cachedFun(cycloneVeLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
 }
 cycloneVeLibrary / logBuffered := false
+
+lazy val `RDD-Bench` = project
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value
+    ),
+    name := "rdd-bench"
+  )
