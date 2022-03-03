@@ -66,7 +66,7 @@ object VeRewriteStrategyOptions {
 
   val default: VeRewriteStrategyOptions =
     VeRewriteStrategyOptions(
-      enableVeSorting = true,
+      enableVeSorting = false,
       projectOnVe = false,
       filterOnVe = false,
       aggregateOnVe = true,
