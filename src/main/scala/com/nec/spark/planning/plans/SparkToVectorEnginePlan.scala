@@ -30,8 +30,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override lazy val metrics = Map(
     "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
-    "batchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, "batch row count"),
-    "batchColCount" -> SQLMetrics.createAverageMetric(sparkContext, "batch column count")
+    "inputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "input batch row count"),
+    "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count"),
+    "outputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "output batch row count"),
+    "outputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "output batch column count")
   )
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
@@ -47,8 +49,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
     val execMetric = longMetric("execTime")
     val inputPartCount = longMetric("inputPartitions")
-    val batchRowCount = longMetric("batchRowCount")
-    val batchColCount = longMetric("batchColCount")
+    val inputBatchRows = longMetric("inputBatchRows")
+    val inputBatchCols = longMetric("inputBatchCols")
+    val outputBatchRows = longMetric("outputBatchRows")
+    val outputBatchCols = longMetric("outputBatchCols")
 
     //      val numInputRows = longMetric("numInputRows")
     //      val numOutputBatches = longMetric("numOutputBatches")
@@ -77,16 +81,20 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
                 columnarBatches = columnarBatches,
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
                 completeInSpark = true,
-                batchRowCount = batchRowCount,
-                batchColCount = batchColCount
+                inputBatchRows = inputBatchRows,
+                inputBatchCols = inputBatchCols,
+                outputBatchRows = outputBatchRows,
+                outputBatchCols = outputBatchCols
               )
             else
               ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
                 columnarBatches = columnarBatches,
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
                 completeInSpark = true,
-                batchRowCount = batchRowCount,
-                batchColCount = batchColCount
+                inputBatchRows = inputBatchRows,
+                inputBatchCols = inputBatchCols,
+                outputBatchRows = outputBatchRows,
+                outputBatchCols = outputBatchCols
               )
           execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
           res
