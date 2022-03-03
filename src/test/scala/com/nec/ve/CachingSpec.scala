@@ -1,18 +1,8 @@
 package com.nec.ve
 
-import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.WithTestAllocator
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
+import com.nec.spark.SparkAdditions
 import com.nec.tpc.TPCHVESqlSpec
-import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.CachingSpec.SampleStructure
-import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.VERDDSpec.{doubleBatches, longBatches}
-import com.nec.ve.VeColBatch.VeColVector
-import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
-import com.nec.ve.VeRDD.RichKeyedRDD
-import org.apache.arrow.vector.Float8Vector
 import org.scalatest.freespec.AnyFreeSpec
 
 object CachingSpec {
@@ -25,7 +15,7 @@ object CachingSpec {
   )
 }
 final class CachingSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
-  "We can retrieve cached items back out" in withSparkSession2(
+  "We can retrieve cached items back out" ignore withSparkSession2(
     TPCHVESqlSpec.VeConfiguration(failFast = true)
   ) { sparkSession =>
     import sparkSession.implicits._

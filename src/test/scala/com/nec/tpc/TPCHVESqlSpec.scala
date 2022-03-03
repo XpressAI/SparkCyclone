@@ -37,10 +37,6 @@ object TPCHVESqlSpec {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
-      .config(
-        key = "spark.sql.cache.serializer",
-        value = "com.nec.spark.planning.VeCachedBatchSerializer"
-      )
       .config(key = "spark.ui.enabled", value = true)
       .config(key = "spark.com.nec.spark.fail-fast", value = failFast)
       .config(key = "spark.com.nec.spark.sort-on-ve", value = true)

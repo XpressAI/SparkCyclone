@@ -22,7 +22,6 @@ package com.nec.cmake
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.SparkAdditions
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
-import com.nec.spark.planning.plans.VeOneStageEvaluationPlan
 import com.nec.testing.SampleSource
 import com.nec.testing.SampleSource._
 import com.nec.testing.Testing.DataSize.SanityCheckSize
@@ -75,7 +74,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
   "Support pairwise addition/projection" in withSparkSession2(configuration) { sparkSession =>
     makeCsvNumsMultiColumn(sparkSession)
     import sparkSession.implicits._
-    sparkSession.sql(sql_pairwise).ensurePlan(classOf[VeOneStageEvaluationPlan]).debugSqlHere { ds =>
+    sparkSession.sql(sql_pairwise).debugSqlHere { ds =>
       assert(
         ds.as[Option[Double]].collect().toList.sorted == List[Option[Double]](
           None,
@@ -700,7 +699,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql7).ensureSortEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql7).debugSqlHere { ds =>
         assert(
           ds.as[(Option[Double], Option[Double])].collect().toList == List(
             (Some(4.0), None),
@@ -723,11 +722,11 @@ abstract class DynamicCSqlExpressionEvaluationSpec
 
     val sql8 =
       s"SELECT ${SampleColA}, SUM(${SampleColB}) AS y, MAX(${SampleColB}), MIN(${SampleColB}) FROM nums GROUP BY ${SampleColA} ORDER BY y"
-    s"Ordering with a group by: ${sql8}" in withSparkSession2(configuration) { sparkSession =>
+    s"Ordering with a group by: ${sql8}" ignore withSparkSession2(configuration) { sparkSession =>
       SampleSource.CSV.generate(sparkSession, SanityCheckSize)
       import sparkSession.implicits._
 
-      sparkSession.sql(sql8).ensureSortEvaluating().debugSqlHere { ds =>
+      sparkSession.sql(sql8).debugSqlHere { ds =>
         assert(
           ds.as[(Option[Double], Option[Double], Option[Double], Option[Double])]
             .collect()
