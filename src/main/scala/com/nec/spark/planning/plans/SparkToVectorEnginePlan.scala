@@ -30,8 +30,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override lazy val metrics = Map(
     "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
-    "batchRowCount" -> SQLMetrics.createMetric(sparkContext, "batch row count"),
-    "batchColCount" -> SQLMetrics.createMetric(sparkContext, "batch column count")
+    "batchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, "batch row count"),
+    "batchColCount" -> SQLMetrics.createAverageMetric(sparkContext, "batch column count")
   )
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
