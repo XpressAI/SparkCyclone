@@ -29,21 +29,25 @@ case class VePartialAggregate(
   override lazy val metrics = Map(
     "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "inputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "input batch row count"),
-    "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count")
+    "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count"),
+    "inputBatchesPerPartition" -> SQLMetrics.createAverageMetric(sparkContext, "input batch count per partition")
   )
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
     val inputBatchRows = longMetric("inputBatchRows")
     val inputBatchCols = longMetric("inputBatchCols")
+    val inputBatchesPerPartition = longMetric("inputBatchesPerPartition")
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        val batches = veColBatches.toList
+        inputBatchesPerPartition.set(batches.size)
         withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
-          veColBatches.map { veColBatch =>
+          batches.map { veColBatch =>
             val beforeExec = System.nanoTime()
             inputBatchRows.set(veColBatch.numRows)
             inputBatchCols.set(veColBatch.cols.size)
@@ -73,7 +77,7 @@ case class VePartialAggregate(
               res
             }
           }
-        }
+        }.toIterator
       }
   }
 
