@@ -26,22 +26,31 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   )
 
   override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
+    "batchBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "batch buffer size"),
+    "inputBatchCount" -> SQLMetrics.createMetric(sparkContext, "input batch count"),
+    "outputBatchCount" -> SQLMetrics.createMetric(sparkContext, "output batch count")
   )
 
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
+    val inputBatchCount = longMetric("inputBatchCount")
+    val outputBatchCount = longMetric("outputBatchCount")
+    val batchBufferSize = longMetric("batchBufferSize")
 
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        val batches = veColBatches.toList
+        inputBatchCount.set(batches.size)
+        batches.foreach {b => batchBufferSize.set(b.totalBufferSize)}
 
         val res = withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
-          veColBatches
+          batches.iterator
             .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
             .map {
               case inputBatches if inputBatches.size == 1 => inputBatches.head
@@ -69,6 +78,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                     .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
                 }
 
+                outputBatchCount.set(1)
                 execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
                 res
             }
