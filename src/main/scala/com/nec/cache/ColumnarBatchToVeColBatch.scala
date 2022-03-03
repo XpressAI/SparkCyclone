@@ -60,7 +60,7 @@ object ColumnarBatchToVeColBatch {
       )
 
       outputBatchRows.set(res.numRows)
-      outputBatchRows.set(res.cols.size)
+      outputBatchCols.set(res.cols.size)
 
       res
     }
@@ -98,7 +98,7 @@ object ColumnarBatchToVeColBatch {
           val res = VeColBatch.fromArrowColumnarBatch(columnarBatch)
 
           outputBatchRows.set(res.numRows)
-          outputBatchRows.set(res.cols.size)
+          outputBatchCols.set(res.cols.size)
 
           res
         }
