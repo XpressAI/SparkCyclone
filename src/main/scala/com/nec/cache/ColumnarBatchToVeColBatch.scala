@@ -61,16 +61,16 @@ object ColumnarBatchToVeColBatch {
   def toVeColBatchesViaRows(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
-    completeInSpark: Boolean
+    completeInSpark: Boolean,
+    batchRowCount: SQLMetric,
+    batchColCount: SQLMetric
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
     originalCallingContext: OriginalCallingContext,
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
-    cycloneMetrics: VeProcessMetrics,
-    batchRowCount: SQLMetric,
-    batchColCount: SQLMetric
+    cycloneMetrics: VeProcessMetrics
   ): Iterator[VeColBatch] = {
     columnarBatches.flatMap { columnarBatch =>
       batchRowCount.set(columnarBatch.numRows)
