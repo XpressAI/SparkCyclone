@@ -29,6 +29,8 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
     "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "batchBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "batch buffer size"),
     "inputBatchCount" -> SQLMetrics.createMetric(sparkContext, "input batch count"),
+    "inputRowCount" -> SQLMetrics.createMetric(sparkContext, "input row count"),
+    "inputColCount" -> SQLMetrics.createMetric(sparkContext, "input col count"),
     "outputBatchCount" -> SQLMetrics.createMetric(sparkContext, "output batch count")
   )
 
@@ -37,6 +39,8 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
     val inputBatchCount = longMetric("inputBatchCount")
+    val inputRowCount = longMetric("inputRowCount")
+    val inputColCount = longMetric("inputColCount")
     val outputBatchCount = longMetric("outputBatchCount")
     val batchBufferSize = longMetric("batchBufferSize")
 
@@ -46,14 +50,21 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
       .mapPartitions { veColBatches =>
         val batches = veColBatches.toList
         inputBatchCount.set(batches.size)
-        batches.foreach {b => batchBufferSize.set(b.totalBufferSize)}
+        batches.foreach {b =>
+          batchBufferSize.add(b.totalBufferSize)
+          inputRowCount.set(b.numRows)
+          inputColCount.set(b.cols.size)
+        }
 
         val res = withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
           batches.iterator
             .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
             .map {
-              case inputBatches if inputBatches.size == 1 => inputBatches.head
+              case inputBatches if inputBatches.size == 1 => {
+                outputBatchCount.set(1)
+                inputBatches.head
+              }
               case inputBatches =>
                 import OriginalCallingContext.Automatic._
 
