@@ -27,11 +27,15 @@ case class VePartialAggregate(
   )
 
   override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
+    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
+    "inputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "input batch row count"),
+    "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count")
   )
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
+    val inputBatchRows = longMetric("inputBatchRows")
+    val inputBatchCols = longMetric("inputBatchCols")
 
     child
       .asInstanceOf[SupportsVeColBatch]
@@ -41,6 +45,8 @@ case class VePartialAggregate(
           logger.info(s"Will map partial aggregates using $partialFunction")
           veColBatches.map { veColBatch =>
             val beforeExec = System.nanoTime()
+            inputBatchRows.set(veColBatch.numRows)
+            inputBatchCols.set(veColBatch.cols.size)
 
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
             logger.debug(s"Mapping a VeColBatch $veColBatch")
