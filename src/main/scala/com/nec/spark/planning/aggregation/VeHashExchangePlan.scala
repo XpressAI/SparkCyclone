@@ -38,13 +38,13 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
-
-        val res = withVeLibrary { libRefExchange =>
+        withVeLibrary { libRefExchange =>
           logger.info(s"Will map multiple col batches for hash exchange.")
           veColBatches.flatMap { veColBatch =>
+            val beforeExec = System.nanoTime()
+
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            try {
+            val res = try {
               logger.debug(s"Mapping ${veColBatch} for exchange")
               val multiBatches = ImplicitMetrics.processMetrics.measureRunningTime(
                 veProcess.executeMulti(
@@ -66,10 +66,10 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
             } finally {
               child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
             }
+            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
+            res
           }
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
       }
       .exchangeBetweenVEs(cleanUpInput = true)
 
