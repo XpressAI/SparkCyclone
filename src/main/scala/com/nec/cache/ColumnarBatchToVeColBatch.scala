@@ -8,13 +8,16 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarBatchToVeColBatch {
   def toVeColBatchesViaCols(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
-    completeInSpark: Boolean
+    completeInSpark: Boolean,
+    batchRowCount: SQLMetric,
+    batchColCount: SQLMetric
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
@@ -24,6 +27,8 @@ object ColumnarBatchToVeColBatch {
     cycloneMetrics: VeProcessMetrics
   ): Iterator[VeColBatch] = {
     columnarBatches.map { columnarBatch =>
+      batchRowCount.set(columnarBatch.numRows)
+      batchColCount.set(columnarBatch.numCols())
       VeColBatch.fromList(
         (0 until columnarBatch.numCols())
           .map(i =>
@@ -63,9 +68,14 @@ object ColumnarBatchToVeColBatch {
     originalCallingContext: OriginalCallingContext,
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
-    cycloneMetrics: VeProcessMetrics
+    cycloneMetrics: VeProcessMetrics,
+    batchRowCount: SQLMetric,
+    batchColCount: SQLMetric
   ): Iterator[VeColBatch] = {
     columnarBatches.flatMap { columnarBatch =>
+      batchRowCount.set(columnarBatch.numRows)
+      batchColCount.set(columnarBatch.numCols())
+
       import scala.collection.JavaConverters._
       SparkInternalRowsToArrowColumnarBatches
         .apply(

@@ -30,7 +30,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override lazy val metrics = Map(
     "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
-    "inputElementCount" -> SQLMetrics.createMetric(sparkContext, "input element count")
+    "batchRowCount" -> SQLMetrics.createMetric(sparkContext, "batch row count"),
+    "batchColCount" -> SQLMetrics.createMetric(sparkContext, "batch column count")
   )
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
@@ -46,7 +47,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
     val execMetric = longMetric("execTime")
     val inputPartCount = longMetric("inputPartitions")
-    val inputEleCount = longMetric("inputElementCount")
+    val batchRowCount = longMetric("batchRowCount")
+    val batchColCount = longMetric("batchColCount")
 
     //      val numInputRows = longMetric("numInputRows")
     //      val numOutputBatches = longMetric("numOutputBatches")
@@ -74,13 +76,17 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
               ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
                 columnarBatches = columnarBatches,
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true
+                completeInSpark = true,
+                batchRowCount = batchRowCount,
+                batchColCount = batchColCount
               )
             else
               ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
                 columnarBatches = columnarBatches,
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true
+                completeInSpark = true,
+                batchRowCount = batchRowCount,
+                batchColCount = batchColCount
               )
           execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
           res
