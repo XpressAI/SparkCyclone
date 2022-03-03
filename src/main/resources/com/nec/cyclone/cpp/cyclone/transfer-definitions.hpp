@@ -21,6 +21,7 @@
 
 #ifndef VE_TD_DEFS
 
+#include "cyclone/cyclone_function_view.hpp"
 #include "frovedis/text/words.hpp"
 #include <stddef.h>
 #include <stdint.h>
@@ -170,6 +171,11 @@ struct nullable_varchar_vector {
   static nullable_varchar_vector * merge(const nullable_varchar_vector * const * const inputs,
                                          const size_t batches);
 
+  static nullable_varchar_vector * from_binary_choice(const size_t count,
+                                                      const cyclone::function_view<bool(size_t)> &condition,
+                                                      const std::string &truestr,
+                                                      const std::string &falsestr);
+
   // Explicitly force the generation of a default constructor
   nullable_varchar_vector() = default;
 
@@ -227,6 +233,8 @@ struct nullable_varchar_vector {
 
   // Value equality check against another nullable_varchar_vector
   bool equals(const nullable_varchar_vector * const other) const;
+
+  bool equivalent_to(const nullable_varchar_vector * const other) const;
 
   // Returns a deep copy of this nullable_varchar_vector
   nullable_varchar_vector * clone() const;

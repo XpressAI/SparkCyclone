@@ -320,5 +320,4 @@ object DeclarativeAggregationConverter {
       )
     }
   }
-
 }

@@ -21,7 +21,6 @@ package com.nec.spark.agile.groupby
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.StringProducer.FilteringProducer
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregation, StagedProjection}
 import com.nec.spark.agile.{GroupingCodeGenerator, StringProducer}
 
@@ -114,15 +113,6 @@ final case class GroupByOutline(
     CodeLines.from(projections.map {
       case StagedProjection(name, VeString) =>
         CodeLines.from(s"${name}->move_assign_from(partial_str_${name}->filter(matching_ids));")
-        // val fp = FilteringProducer(name, StringProducer.copyString(s"partial_str_${name}"))
-        // CodeLines
-        //   .from(
-        //     fp.setup(size = "groups_count"),
-        //     groupingCodeGenerator.forHeadOfEachGroup(fp.forEach("g")),
-        //     fp.complete,
-        //     groupingCodeGenerator.forHeadOfEachGroup(fp.validityForEach("g"))
-        //   )
-        //   .block
       case stagedProjection @ StagedProjection(_, scalarType: VeScalarType) =>
         CodeLines.from(
           GroupByOutline.initializeScalarVector(

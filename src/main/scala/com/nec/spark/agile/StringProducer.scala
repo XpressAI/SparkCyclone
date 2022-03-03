@@ -145,35 +145,6 @@ object StringProducer {
     }
   }
 
-  final case class FilteringProducer(outputName: String, stringProducer: StringProducer) {
-    val tmpString = s"${outputName}_tmp"
-    val tmpOffsets = s"${outputName}_tmp_offsets"
-    val tmpCurrentOffset = s"${outputName}_tmp_current_offset"
-    val tmpCount = s"${outputName}_tmp_count"
-
-    def setup(size: String = "groups_count", capacity: String = "0"): CodeLines =
-      stringProducer match {
-        case f: FrovedisStringProducer =>
-          f.init(outputName, size, capacity)
-      }
-
-    def forEach(outputIdx: String): CodeLines = {
-      stringProducer match {
-        case frovedisStringProducer: FrovedisStringProducer =>
-          frovedisStringProducer.produce(outputName, outputIdx)
-      }
-    }
-
-    def complete: CodeLines =
-      stringProducer match {
-        case f: FrovedisStringProducer =>
-          f.complete(outputName)
-      }
-
-    def validityForEach(idx: String): CodeLines =
-      CodeLines.from(s"$outputName->set_validity($idx, 1);")
-  }
-
   def produceVarChar(
     inputCount: String,
     outputName: String,

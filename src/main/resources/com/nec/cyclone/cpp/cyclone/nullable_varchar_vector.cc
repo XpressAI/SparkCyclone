@@ -271,6 +271,37 @@ bool nullable_varchar_vector::equals(const nullable_varchar_vector * const other
   return output;
 }
 
+bool nullable_varchar_vector::equivalent_to(const nullable_varchar_vector * const other) const {
+  if (is_default() && other->is_default()) {
+    return true;
+  }
+
+  // Compare count
+  auto output = (count == other->count);
+
+  // Compare lengths
+  #pragma _NEC ivdep
+  for (auto i = 0; i < count; i++) {
+    output = output && (lengths[i] == other->lengths[i]);
+  }
+
+  // Compare data (the physical data buffer might be different, but equivalent data should be encoded)
+  #pragma _NEC ivdep
+  for (auto i = 0; i < count; i++) {
+    for (auto j = 0; j < lengths[i];  j++) {
+      output = output && (data[offsets[i] + j] == other->data[other->offsets[i] + j]);
+    }
+  }
+
+  // Compare validityBuffer
+  #pragma _NEC ivdep
+  for (auto i = 0; i < count; i++) {
+    output = output && (get_validity(i) == other->get_validity(i));
+  }
+
+  return output;
+}
+
 nullable_varchar_vector * nullable_varchar_vector::clone() const {
   // Allocate the output
   auto *output = allocate();
@@ -471,4 +502,49 @@ const std::vector<size_t> nullable_varchar_vector::eval_in(const frovedis::words
 const std::vector<size_t> nullable_varchar_vector::eval_in(const std::vector<std::string> &elements) const {
   const nullable_varchar_vector tmp(elements);
   return eval_in(tmp.to_words());
+}
+
+nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size_t count,
+                                                                      const cyclone::function_view<bool(size_t)> &condition,
+                                                                      const std::string &truestr,
+                                                                      const std::string &falsestr) {
+  // Create int vectors for both the true and false cases
+  std::vector<int32_t> output_chars = frovedis::char_to_int(truestr);
+  std::vector<int32_t> false_chars = frovedis::char_to_int(falsestr);
+
+  // Set the positions and lengths
+  int32_t true_pos = 0;
+  int32_t true_len = output_chars.size();
+  int32_t false_pos = output_chars.size();
+  int32_t false_len = false_chars.size();
+
+  // Combine to single vector
+  output_chars.insert(output_chars.end(), false_chars.begin(), false_chars.end());
+
+  // Prepare the output starts and lens vectors
+  std::vector<size_t> output_starts(count);
+  std::vector<size_t> output_lens(count);
+
+  #pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    // If condition is true, set to the true case, else set to the false case
+    if (condition(i)) {
+      output_starts[i] = true_pos;
+      output_lens[i] = true_len;
+    } else {
+      output_starts[i] = false_pos;
+      output_lens[i] = false_len;
+    }
+  }
+
+  // Set the output words
+  frovedis::words output_words;
+  output_words.chars.swap(output_chars);
+  output_words.starts.swap(output_starts);
+  output_words.lens.swap(output_lens);
+
+  output_words.print();
+
+  // Convert to nullable_varchar_vector
+  return from_words(output_words);
 }
