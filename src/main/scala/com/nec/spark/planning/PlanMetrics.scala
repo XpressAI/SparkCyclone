@@ -75,9 +75,9 @@ trait PlanMetrics {
 
   def collectBatchMetrics[T](metricPrefix: String, batches: Iterator[T]): Iterator[T] = {
     val allBatches = batches.toList
-    allBatches.foreach { case
-      b: VeColBatch => collectBatchMetrics(metricPrefix, b)
-      b: ColumnarBatch => collectBatchMetrics(metricPrefix, b)
+    allBatches.foreach {
+      case b: VeColBatch => collectBatchMetrics(metricPrefix, b)
+      case b: ColumnarBatch => collectBatchMetrics(metricPrefix, b)
     }
     allBatches.iterator
   }
