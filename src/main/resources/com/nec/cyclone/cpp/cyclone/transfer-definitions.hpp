@@ -173,8 +173,8 @@ struct nullable_varchar_vector {
 
   static nullable_varchar_vector * from_binary_choice(const size_t count,
                                                       const cyclone::function_view<bool(size_t)> &condition,
-                                                      const std::string &truestr,
-                                                      const std::string &falsestr);
+                                                      const std::string &trueval,
+                                                      const std::string &falseval);
 
   // Explicitly force the generation of a default constructor
   nullable_varchar_vector() = default;

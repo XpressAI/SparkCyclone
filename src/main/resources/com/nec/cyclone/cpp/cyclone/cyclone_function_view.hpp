@@ -65,7 +65,7 @@ namespace cyclone {
       TReturn (*_erased_fn)(void*, TArgs...);
 
     public:
-      // Only construct function_views for callable objects
+      // Only allow construction of function_views from callable objects
       template <typename T, typename = std::enable_if_t<is_callable<T&(TArgs...)>{} &&
                                                        !std::is_same<std::decay_t<T>, function_view>{}>>
       // Save the pointer in the constructor
@@ -78,9 +78,9 @@ namespace cyclone {
 
       decltype(auto) operator()(TArgs... xs) const
         noexcept(noexcept(_erased_fn(_ptr, std::forward<TArgs>(xs)...))) {
-          // Invoke the function pointer with the callable as the first arugment
-          // applied to the forwarded arguments
-          return _erased_fn(_ptr, std::forward<TArgs>(xs)...);
+        // Invoke the function pointer with the callable as the first arugment
+        // applied to the forwarded arguments
+        return _erased_fn(_ptr, std::forward<TArgs>(xs)...);
       }
   };
 }

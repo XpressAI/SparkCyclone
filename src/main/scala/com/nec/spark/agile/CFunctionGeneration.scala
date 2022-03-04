@@ -684,16 +684,8 @@ object CFunctionGeneration {
       veDataTransformation.outputs.zipWithIndex.map {
         case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
           CodeLines.from(s"${outputName}->resize(input_0->count);")
-        case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
-          StringProducer
-            .produceVarChar(
-              inputCount = "input_0->count",
-              outputName = name,
-              stringProducer = stringProducer,
-              outputCount = "input_0->count",
-              outputIdx = "i"
-            )
-            .block
+        case (Left(NamedStringExpression(name, producer: FrovedisStringProducer)), idx) =>
+          producer.produce(name, "", "")
       },
       "for ( long i = 0; i < input_0->count; i++ ) {",
       veDataTransformation.outputs.zipWithIndex

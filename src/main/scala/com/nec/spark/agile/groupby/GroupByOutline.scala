@@ -22,7 +22,7 @@ package com.nec.spark.agile.groupby
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregation, StagedProjection}
-import com.nec.spark.agile.{GroupingCodeGenerator, StringProducer}
+import com.nec.spark.agile.{GroupingCodeGenerator}
 
 /**
  * General class to describe a group-by to create the function outline

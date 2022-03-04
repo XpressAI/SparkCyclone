@@ -506,11 +506,11 @@ const std::vector<size_t> nullable_varchar_vector::eval_in(const std::vector<std
 
 nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size_t count,
                                                                       const cyclone::function_view<bool(size_t)> &condition,
-                                                                      const std::string &truestr,
-                                                                      const std::string &falsestr) {
+                                                                      const std::string &trueval,
+                                                                      const std::string &falseval) {
   // Create int vectors for both the true and false cases
-  std::vector<int32_t> output_chars = frovedis::char_to_int(truestr);
-  std::vector<int32_t> false_chars = frovedis::char_to_int(falsestr);
+  std::vector<int32_t> output_chars = frovedis::char_to_int(trueval);
+  std::vector<int32_t> false_chars = frovedis::char_to_int(falseval);
 
   // Set the positions and lengths
   int32_t true_pos = 0;
@@ -542,8 +542,6 @@ nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size
   output_words.chars.swap(output_chars);
   output_words.starts.swap(output_starts);
   output_words.lens.swap(output_lens);
-
-  output_words.print();
 
   // Convert to nullable_varchar_vector
   return from_words(output_words);

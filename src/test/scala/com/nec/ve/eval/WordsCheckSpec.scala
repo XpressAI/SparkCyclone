@@ -50,65 +50,65 @@ final class WordsCheckSpec extends AnyFreeSpec with Checkers {
     }*/
   }
 
-  "we can produce a subset of strings" in {
-    val someString: Gen[String] = Gen.asciiStr
-    val listOfStr = Gen.listOf(someString)
+  // "we can produce a subset of strings" in {
+  //   val someString: Gen[String] = Gen.asciiStr
+  //   val listOfStr = Gen.listOf(someString)
 
-    val prod = FrovedisCopyStringProducer("input_0")
-    val cLib = CMakeBuilder.buildCLogging(
-      cSource = List(
-        "\n\n",
-        CFunction(
-          inputs = List(CVector.varChar("input_0")),
-          outputs = List(CVector.varChar("output_0")),
-          body = CodeLines.from(
-            s"int size = input_0->count % 2 == 0 ? (input_0->count) / 2 : ((1 + input_0->count) / 2);",
-            prod.init("output_0", "size", "0"),
-            "int g = 0;",
-            "for(int i = 0; i < input_0->count; i++) {",
-            CodeLines
-              .from(
-                s"if ( g < size && i < input_0->count ) {",
-                CodeLines.from(prod.produce("output_0", "g")).indented,
-                "}",
-                "i++;",
-                "g++;"
-              )
-              .indented,
-            "}",
-            prod.complete("output_0"),
-            "return 0;"
-          )
-        ).toCodeLinesS("test").cCode
-      )
-        .mkString("\n\n"),
-      debug = true
-    )
+  //   val prod = FrovedisCopyStringProducer("input_0")
+  //   val cLib = CMakeBuilder.buildCLogging(
+  //     cSource = List(
+  //       "\n\n",
+  //       CFunction(
+  //         inputs = List(CVector.varChar("input_0")),
+  //         outputs = List(CVector.varChar("output_0")),
+  //         body = CodeLines.from(
+  //           s"int size = input_0->count % 2 == 0 ? (input_0->count) / 2 : ((1 + input_0->count) / 2);",
+  //           prod.init("output_0", "size", "0"),
+  //           "int g = 0;",
+  //           "for(int i = 0; i < input_0->count; i++) {",
+  //           CodeLines
+  //             .from(
+  //               s"if ( g < size && i < input_0->count ) {",
+  //               CodeLines.from(prod.produce("output_0", "g")).indented,
+  //               "}",
+  //               "i++;",
+  //               "g++;"
+  //             )
+  //             .indented,
+  //           "}",
+  //           prod.complete("output_0"),
+  //           "return 0;"
+  //         )
+  //       ).toCodeLinesS("test").cCode
+  //     )
+  //       .mkString("\n\n"),
+  //     debug = true
+  //   )
 
-    /* val nativeInterface = new CArrowNativeInterface(cLib.toString)
-    WithTestAllocator { implicit allocator =>
-      val p: Prop = Prop.forAll(listOfStr)(list => {
-        val expected = list.zipWithIndex.collect { case (s, idx) if idx % 2 == 0 => s }.toList
-        val result = ArrowVectorBuilders.withArrowStringVector(list) { inVec =>
-          ArrowVectorBuilders.withArrowStringVector(Seq.empty) { outVec =>
-            nativeInterface.callFunction(
-              name = "test",
-              inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
-              outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
-            )
-            outVec.toList
-          }
-        }
+  //   /* val nativeInterface = new CArrowNativeInterface(cLib.toString)
+  //   WithTestAllocator { implicit allocator =>
+  //     val p: Prop = Prop.forAll(listOfStr)(list => {
+  //       val expected = list.zipWithIndex.collect { case (s, idx) if idx % 2 == 0 => s }.toList
+  //       val result = ArrowVectorBuilders.withArrowStringVector(list) { inVec =>
+  //         ArrowVectorBuilders.withArrowStringVector(Seq.empty) { outVec =>
+  //           nativeInterface.callFunction(
+  //             name = "test",
+  //             inputArguments = List(Some(SupportedVectorWrapper.wrapInput(inVec)), None),
+  //             outputArguments = List(None, Some(SupportedVectorWrapper.wrapOutput(outVec)))
+  //           )
+  //           outVec.toList
+  //         }
+  //       }
 
-        if (result != expected)
-          info(
-            s"result => ${result}; expected ${expected} (${result.map(_.length)}; ${expected.map(_.length)})"
-          )
+  //       if (result != expected)
+  //         info(
+  //           s"result => ${result}; expected ${expected} (${result.map(_.length)}; ${expected.map(_.length)})"
+  //         )
 
-        result == expected
-      })
-      check(p)
-    }*/
-    fail("Needs re-implementation")
-  }
+  //       result == expected
+  //     })
+  //     check(p)
+  //   }*/
+  //   fail("Needs re-implementation")
+  // }
 }
