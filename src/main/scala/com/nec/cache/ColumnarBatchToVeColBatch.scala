@@ -15,7 +15,7 @@ object ColumnarBatchToVeColBatch {
   def toVeColBatchesViaCols(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
-    completeInSpark: Boolean,
+    completeInSpark: Boolean
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
@@ -57,7 +57,7 @@ object ColumnarBatchToVeColBatch {
   def toVeColBatchesViaRows(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
-    completeInSpark: Boolean,
+    completeInSpark: Boolean
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,

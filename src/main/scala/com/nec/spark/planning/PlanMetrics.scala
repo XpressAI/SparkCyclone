@@ -59,7 +59,7 @@ trait PlanMetrics {
 
     batchColCount.set(batch.numCols())
     batchRowCount.set(batch.numRows())
-    totalBatchRowCount.add(batch.numRows())
+    totalBatchRowCount += batch.numRows()
     batch
   }
 
@@ -73,17 +73,19 @@ trait PlanMetrics {
 
     batchColCount.set(batch.cols.length)
     batchRowCount.set(batch.numRows)
-    totalBatchRowCount.add(batch.numRows)
     batchSize.set(batch.totalBufferSize)
+
+    totalBatchRowCount += batch.numRows
+
     batch
   }
 
   def collectBatchMetrics[T](metricPrefix: String, batches: Iterator[T]): Iterator[T] = {
     batches.map {
         case b: VeColBatch => collectBatchMetrics(metricPrefix, b).asInstanceOf[T]
+        case (k: Any, b: VeColBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
         case b: ColumnarBatch => collectBatchMetrics(metricPrefix, b).asInstanceOf[T]
         case (k: Any, b: ColumnarBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
-        case (k: Any, b: VeColBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
     }
   }
 }

@@ -60,7 +60,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
               collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
                 columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true,
+                completeInSpark = true
               ))
             else
               collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
