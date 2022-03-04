@@ -2,7 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -18,6 +18,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
   with SupportsVeColBatch
   with LazyLogging
+  with PlanMetrics
   with PlanCallsVeFunction {
 
   require(
@@ -25,8 +26,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
     s"Expected output size ${output.size} to match flatten function results size, but got ${amplifyFunction.results.size}"
   )
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ Map(
     "batchBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "batch buffer size"),
     "inputBatchCount" -> SQLMetrics.createMetric(sparkContext, "input batch count"),
     "inputRowCount" -> SQLMetrics.createMetric(sparkContext, "input row count"),
@@ -37,7 +37,6 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
     val inputBatchCount = longMetric("inputBatchCount")
     val inputRowCount = longMetric("inputRowCount")
     val inputColCount = longMetric("inputColCount")
@@ -56,45 +55,39 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
           inputColCount.set(b.cols.size)
         }
 
-        val res = withVeLibrary { libRefExchange =>
+        withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
-          batches.iterator
-            .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
-            .map {
-              case inputBatches if inputBatches.size == 1 => {
-                outputBatchCount.set(1)
-                inputBatches.head
-              }
-              case inputBatches =>
-                import OriginalCallingContext.Automatic._
-
-                val beforeExec = System.nanoTime()
-
-                val res = try {
-                  val res =
-                    VeColBatch.fromList(
-                      veProcess.executeMultiIn(
-                        libraryReference = libRefExchange,
-                        functionName = amplifyFunction.functionName,
-                        batches = VeBatchOfBatches.fromVeColBatches(inputBatches.toList),
-                        results = amplifyFunction.namedResults
-                      )
+          withInvocationMetrics(PLAN){
+            batches.iterator
+              .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
+              .map {
+                case inputBatches if inputBatches.size == 1 =>
+                  outputBatchCount.set(1)
+                  inputBatches.head
+                case inputBatches =>
+                  outputBatchCount.set(1)
+                  import OriginalCallingContext.Automatic._
+                  try {
+                      val res = withInvocationMetrics(VE) {
+                        VeColBatch.fromList(
+                          veProcess.executeMultiIn(
+                            libraryReference = libRefExchange,
+                            functionName = amplifyFunction.functionName,
+                            batches = VeBatchOfBatches.fromVeColBatches(inputBatches.toList),
+                            results = amplifyFunction.namedResults
+                          )
+                        )
+                      }
+                    logger.debug(
+                      s"Transformed input, got ${res}; produced a batch of size ${res.totalBufferSize} bytes"
                     )
-                  logger.debug(
-                    s"Transformed input, got ${res}; produced a batch of size ${res.totalBufferSize} bytes"
-                  )
-                  res
-                } finally {
-                  inputBatches
-                    .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
+                    res
+                  } finally {
+                    inputBatches.foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
+                  }
                 }
-
-                outputBatchCount.set(1)
-                execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-                res
             }
-        }
-        res
+          }
       }
   }
 

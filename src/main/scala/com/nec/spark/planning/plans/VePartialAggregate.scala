@@ -1,7 +1,7 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
@@ -19,6 +19,7 @@ case class VePartialAggregate(
 ) extends UnaryExecNode
   with SupportsVeColBatch
   with LazyLogging
+  with PlanMetrics
   with PlanCallsVeFunction {
 
   require(
@@ -27,11 +28,10 @@ case class VePartialAggregate(
   )
 
   override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
     "inputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "input batch row count"),
     "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count"),
     "inputBatchesPerPartition" -> SQLMetrics.createAverageMetric(sparkContext, "input batch count per partition")
-  )
+  ) ++ invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     val execMetric = longMetric("execTime")
@@ -43,38 +43,38 @@ case class VePartialAggregate(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        incrementInvocations(PLAN)
         val batches = veColBatches.toList
         inputBatchesPerPartition.set(batches.size)
         withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
           batches.map { veColBatch =>
-            val beforeExec = System.nanoTime()
             inputBatchRows.set(veColBatch.numRows)
             inputBatchCols.set(veColBatch.cols.size)
 
-            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            logger.debug(s"Mapping a VeColBatch $veColBatch")
-            VeColBatch.fromList {
-              import OriginalCallingContext.Automatic._
-              val res =
+            withInvocationMetrics(BATCH){
+              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+              logger.debug(s"Mapping a VeColBatch $veColBatch")
+              VeColBatch.fromList {
+                import OriginalCallingContext.Automatic._
                 try {
-                  val result = ImplicitMetrics.processMetrics.measureRunningTime(
-                    veProcess.execute(
-                      libraryReference = libRef,
-                      functionName = partialFunction.functionName,
-                      cols = veColBatch.cols,
-                      results = partialFunction.namedResults
+                  val result = withInvocationMetrics(VE){
+                    ImplicitMetrics.processMetrics.measureRunningTime(
+                      veProcess.execute(
+                        libraryReference = libRef,
+                        functionName = partialFunction.functionName,
+                        cols = veColBatch.cols,
+                        results = partialFunction.namedResults
+                      )
+                    )(
+                      ImplicitMetrics.processMetrics
+                        .registerFunctionCallTime(_, veFunction.functionName)
                     )
-                  )(
-                    ImplicitMetrics.processMetrics
-                      .registerFunctionCallTime(_, veFunction.functionName)
-                  )
+                  }
                   logger.debug(s"Mapped $veColBatch to $result")
                   result
                 } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
-              execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-              res
+            }
             }
           }
         }.toIterator

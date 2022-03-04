@@ -2,7 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.arrow.colvector.ByteArrayColVector
 import com.nec.cache.{CycloneCacheBase, VeColColumnarVector}
-import com.nec.spark.planning.{DataCleanup, SupportsVeColBatch}
+import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVector
@@ -23,11 +23,11 @@ object VeFetchFromCachePlan {
 case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
   extends UnaryExecNode
   with SupportsVeColBatch
+  with PlanMetrics
   with LazyLogging {
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
-  )
+  override lazy val metrics = invocationMetrics(BATCH)
+
   private def unwrapBatch(
     columnarBatch: ColumnarBatch
   ): List[Either[VeColVector, ByteArrayColVector]] =
@@ -36,25 +36,23 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
       .toList
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .executeColumnar()
       .map(cb => {
         logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
         import OriginalCallingContext.Automatic._
         import com.nec.spark.SparkCycloneExecutorPlugin._
-        val beforeExec = System.nanoTime()
 
-        val res = VeColBatch.fromList(unwrapBatch(cb).map {
-          case Left(veColVector)         => veColVector
-          case Right(byteArrayColVector) =>
-            import ImplicitMetrics._
-            byteArrayColVector.transferToBytePointers().toVeColVector()
-        })
-        logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
+        withInvocationMetrics(BATCH){
+          val res = VeColBatch.fromList(unwrapBatch(cb).map {
+            case Left(veColVector)         => veColVector
+            case Right(byteArrayColVector) =>
+              import ImplicitMetrics._
+              byteArrayColVector.transferToBytePointers().toVeColVector()
+          })
+          logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
+          res
+        }
       })
   }
 

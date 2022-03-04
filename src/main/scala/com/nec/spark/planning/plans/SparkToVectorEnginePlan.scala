@@ -2,9 +2,10 @@ package com.nec.spark.planning.plans
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.{ColumnarBatchToVeColBatch, CycloneCacheBase, DualMode}
-import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.planning.PlanMetrics.Implicits.WithMoreMetrics
+import com.nec.spark.{SparkCycloneExecutorPlugin, planning}
 import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToColumnar
-import com.nec.spark.planning.{DataCleanup, SupportsVeColBatch}
+import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
@@ -25,10 +26,10 @@ object SparkToVectorEnginePlan {
 case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   extends UnaryExecNode
   with LazyLogging
-  with SupportsVeColBatch {
+  with SupportsVeColBatch
+  with PlanMetrics {
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time"),
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ Map(
     "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
     "inputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "input batch row count"),
     "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count"),
@@ -47,7 +48,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
-    val execMetric = longMetric("execTime")
     val inputPartCount = longMetric("inputPartitions")
     val inputBatchRows = longMetric("inputBatchRows")
     val inputBatchCols = longMetric("inputBatchCols")
@@ -67,15 +67,13 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
       input
         .mapPartitions { columnarBatches =>
-          val beforeExec = System.nanoTime()
-
-          import SparkCycloneExecutorPlugin._
-          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
-          TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-          import OriginalCallingContext.Automatic._
-          import ImplicitMetrics._
-          val res =
+          withInvocationMetrics(PLAN) {
+            import SparkCycloneExecutorPlugin._
+            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+              .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
+            TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+            import OriginalCallingContext.Automatic._
+            import ImplicitMetrics._
             if (ConvertColumnarToColumnar)
               ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
                 columnarBatches = columnarBatches,
@@ -96,8 +94,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
                 outputBatchRows = outputBatchRows,
                 outputBatchCols = outputBatchCols
               )
-          execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-          res
+          }
         }
     } else {
       val input = child.execute()
@@ -107,19 +104,17 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
         import SparkCycloneExecutorPlugin._
         import ImplicitMetrics._
 
-        val beforeExec = System.nanoTime()
+        withInvocationMetrics(PLAN){
+          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
+          TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+          import OriginalCallingContext.Automatic._
 
-        implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-          .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
-        TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-        import OriginalCallingContext.Automatic._
-
-        val res = DualMode.unwrapPossiblyDualToVeColBatches(
-          possiblyDualModeInternalRows = internalRows,
-          arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
-        )
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
+          DualMode.unwrapPossiblyDualToVeColBatches(
+            possiblyDualModeInternalRows = internalRows,
+            arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
+          )
+        }
       }
     }
   }
