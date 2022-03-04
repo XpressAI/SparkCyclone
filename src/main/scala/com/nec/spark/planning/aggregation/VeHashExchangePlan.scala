@@ -85,8 +85,9 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
         withVeLibrary { libRefExchange =>
           logger.info(s"Will map multiple col batches for hash exchange.")
           incrementInvocations(PLAN)
-          veColBatches.flatMap { veColBatch =>
+          collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+            collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
               try {
                 if (veColBatch.nonEmpty) {
@@ -116,7 +117,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                 child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
             }
-          }
+          })
         }
       }
   }
