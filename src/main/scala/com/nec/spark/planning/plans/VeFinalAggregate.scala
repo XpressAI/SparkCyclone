@@ -31,8 +31,6 @@ case class VeFinalAggregate(
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()

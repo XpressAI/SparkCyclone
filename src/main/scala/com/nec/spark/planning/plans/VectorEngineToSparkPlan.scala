@@ -33,7 +33,6 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    val execMetric = longMetric("execTime")
     val inputPartCount = longMetric("inputPartitions")
     val inputEleCount = longMetric("inputElementCount")
 

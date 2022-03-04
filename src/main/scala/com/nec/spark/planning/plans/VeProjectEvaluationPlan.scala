@@ -62,8 +62,6 @@ final case class VeProjectEvaluationPlan(
 
   import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()

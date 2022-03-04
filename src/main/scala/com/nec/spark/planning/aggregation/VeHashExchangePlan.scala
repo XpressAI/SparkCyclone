@@ -77,46 +77,44 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   override def veFunction: VeFunction = exchangeFunction
 
   override def executeVeColumnarKeyed(): RDD[(Int, VeColBatch)] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
         withVeLibrary { libRefExchange =>
           logger.info(s"Will map multiple col batches for hash exchange.")
+          incrementInvocations(PLAN)
           veColBatches.flatMap { veColBatch =>
-            val beforeExec = System.nanoTime()
-
             import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            val res = try {
-              if (veColBatch.nonEmpty) {
-                logger.debug(s"Mapping ${veColBatch} for exchange")
-                val multiBatches = veProcess.executeMulti(
-                  libraryReference = libRefExchange,
-                  functionName = exchangeFunction.functionName,
-                  cols = veColBatch.cols,
-                  results = exchangeFunction.namedResults
-                )
-                logger.debug(s"Mapped to ${multiBatches} completed.")
+            withInvocationMetrics(BATCH){
+              try {
+                if (veColBatch.nonEmpty) {
+                  logger.debug(s"Mapping ${veColBatch} for exchange")
+                  val multiBatches = withInvocationMetrics(VE){
+                    veProcess.executeMulti(
+                      libraryReference = libRefExchange,
+                      functionName = exchangeFunction.functionName,
+                      cols = veColBatch.cols,
+                      results = exchangeFunction.namedResults
+                    )
+                  }
+                  logger.debug(s"Mapped to ${multiBatches} completed.")
 
-                multiBatches.flatMap {
-                  case (n, l) if l.head.nonEmpty =>
-                    Option(n -> VeColBatch.fromList(l))
-                  case (_, l) =>
-                    l.foreach(_.free())
-                    None
+                  multiBatches.flatMap {
+                    case (n, l) if l.head.nonEmpty =>
+                      Option(n -> VeColBatch.fromList(l))
+                    case (_, l) =>
+                      l.foreach(_.free())
+                      None
+                  }
+                } else {
+                  logger.debug(s"${veColBatch} was empty.")
+                  Nil
                 }
-              } else {
-                logger.debug(s"${veColBatch} was empty.")
-                Nil
+              } finally {
+                child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
-            } finally {
-              child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
             }
-            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-
-            res
           }
         }
       }

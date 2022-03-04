@@ -34,7 +34,6 @@ case class VePartialAggregate(
   ) ++ invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
     val inputBatchRows = longMetric("inputBatchRows")
     val inputBatchCols = longMetric("inputBatchCols")
     val inputBatchesPerPartition = longMetric("inputBatchesPerPartition")
