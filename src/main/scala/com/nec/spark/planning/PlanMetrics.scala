@@ -12,7 +12,7 @@ trait PlanMetrics {
   def PLAN = "plan"
   def VE = "VE"
 
-  def sparkContext: SparkContext
+  protected def sparkContext: SparkContext
   def longMetric(name: String): SQLMetric
 
   def invocationMetrics(metricPrefix: String) = Map(
