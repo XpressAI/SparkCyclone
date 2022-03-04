@@ -26,8 +26,9 @@ trait PlanMetrics {
   )
 
   def batchMetrics(metricPrefix: String) = Map(
-    s"${metricPrefix}BatchColCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch column count"),
-    s"${metricPrefix}BatchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch row count"),
+    s"${metricPrefix}TotalBatchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch row count"),
+    s"${metricPrefix}AvgBatchColCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch column count"),
+    s"${metricPrefix}AvgBatchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch row count"),
     s"${metricPrefix}BatchSize" -> SQLMetrics.createSizeMetric(sparkContext, s"${metricPrefix} batch size"),
     s"${metricPrefix}BatchCount" -> SQLMetrics.createMetric(sparkContext, s"${metricPrefix} batch count")
   )
@@ -52,23 +53,27 @@ trait PlanMetrics {
   def collectBatchMetrics(metricPrefix: String, batch: ColumnarBatch): ColumnarBatch = {
     incrementBatchCount(metricPrefix)
 
-    val batchColCount = longMetric(s"${metricPrefix}BatchColCount")
-    val batchRowCount = longMetric(s"${metricPrefix}BatchRowCount")
+    val batchColCount = longMetric(s"${metricPrefix}AvgBatchColCount")
+    val batchRowCount = longMetric(s"${metricPrefix}AvgBatchRowCount")
+    val totalBatchRowCount = longMetric(s"${metricPrefix}TotalBatchRowCount")
 
     batchColCount.set(batch.numCols())
     batchRowCount.set(batch.numRows())
+    totalBatchRowCount.set(batch.numRows())
     batch
   }
 
   def collectBatchMetrics(metricPrefix: String, batch: VeColBatch): VeColBatch = {
     incrementBatchCount(metricPrefix)
 
-    val batchColCount = longMetric(s"${metricPrefix}BatchColCount")
-    val batchRowCount = longMetric(s"${metricPrefix}BatchRowCount")
+    val batchColCount = longMetric(s"${metricPrefix}AvgBatchColCount")
+    val batchRowCount = longMetric(s"${metricPrefix}AvgBatchRowCount")
+    val totalBatchRowCount = longMetric(s"${metricPrefix}TotalBatchRowCount")
     val batchSize = longMetric(s"${metricPrefix}BatchSize")
 
     batchColCount.set(batch.cols.length)
     batchRowCount.set(batch.numRows)
+    totalBatchRowCount.add(batch.numRows)
     batchSize.set(batch.totalBufferSize)
     batch
   }
