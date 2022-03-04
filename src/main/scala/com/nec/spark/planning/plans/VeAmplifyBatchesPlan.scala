@@ -26,15 +26,16 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
     s"Expected output size ${output.size} to match flatten function results size, but got ${amplifyFunction.results.size}"
   )
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    child
+    val res = child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      .mapPartitions { veColBatches =>
+    collectPartitionMetrics(PLAN,res.getNumPartitions)
+      res.mapPartitions { veColBatches =>
         withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
           withInvocationMetrics(PLAN){

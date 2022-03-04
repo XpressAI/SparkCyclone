@@ -23,7 +23,7 @@ case class VectorEngineJoinPlan(
   with PlanMetrics
   with PlanCallsVeFunction {
 
-  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics("left") ++ batchMetrics("right") ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics("left") ++ batchMetrics("right") ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     VeRDD

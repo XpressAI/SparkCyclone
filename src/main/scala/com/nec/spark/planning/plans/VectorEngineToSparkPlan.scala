@@ -20,7 +20,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   with LazyLogging {
   override def supportsColumnar: Boolean = true
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
 
   override def doExecute(): RDD[InternalRow] = {
@@ -30,10 +30,11 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    child
+    val res =     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      .mapPartitions { iterator =>
+      collectPartitionMetrics(PLAN,res.getNumPartitions)
+      res.mapPartitions { iterator =>
         incrementInvocations(PLAN)
 
         import SparkCycloneExecutorPlugin._

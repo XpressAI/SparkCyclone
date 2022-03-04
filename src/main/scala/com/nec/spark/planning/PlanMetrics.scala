@@ -20,6 +20,11 @@ trait PlanMetrics {
   protected def sparkContext: SparkContext
   def longMetric(name: String): SQLMetric
 
+
+  def partitionMetrics(metricPrefix: String) = Map(
+    s"${metricPrefix}inPartitions" -> SQLMetrics.createMetric(sparkContext,s"${metricPrefix} partitions")
+  )
+
   def invocationMetrics(metricPrefix: String) = Map(
     s"${metricPrefix}Exec" -> SQLMetrics.createTimingMetric(sparkContext, s"${metricPrefix} execution time"),
     s"${metricPrefix}Invocations" -> SQLMetrics.createMetric(sparkContext, s"${metricPrefix} invocation count")
@@ -35,6 +40,12 @@ trait PlanMetrics {
 
   def incrementInvocations(metricPrefix: String): Unit = {
     longMetric(s"${metricPrefix}Invocations").add(1)
+  }
+
+
+  def collectPartitionMetrics[T](metricPrefix: String,numPartitions: Long) {
+    val execMetric = longMetric(s"${metricPrefix}inPartitions")
+    execMetric.set(numPartitions)
   }
 
   def withInvocationMetrics[T](metricPrefix: String)(f: => T): T = {

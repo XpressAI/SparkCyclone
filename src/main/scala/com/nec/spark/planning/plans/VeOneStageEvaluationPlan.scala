@@ -34,10 +34,10 @@ import scala.concurrent.duration.NANOSECONDS
 import scala.language.dynamics
 
 final case class VeOneStageEvaluationPlan(
-  outputExpressions: Seq[NamedExpression],
-  veFunction: VeFunction,
-  child: SparkPlan
-) extends SparkPlan
+                                           outputExpressions: Seq[NamedExpression],
+                                           veFunction: VeFunction,
+                                           child: SparkPlan
+                                         ) extends SparkPlan
   with UnaryExecNode
   with LazyLogging
   with SupportsVeColBatch
@@ -46,52 +46,53 @@ final case class VeOneStageEvaluationPlan(
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    child
+    val res =   child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      .mapPartitions { veColBatches =>
-        withVeLibrary { libRef =>
-          logger.info(s"Will map batches with function ${veFunction}")
-          import OriginalCallingContext.Automatic._
+    collectPartitionMetrics(PLAN,res.getNumPartitions)
+    res.mapPartitions { veColBatches =>
+      withVeLibrary { libRef =>
+        logger.info(s"Will map batches with function ${veFunction}")
+        import OriginalCallingContext.Automatic._
 
-          incrementInvocations(PLAN)
-          veColBatches.map { inputBatch =>
-            collectBatchMetrics(INPUT, inputBatch)
-            collectBatchMetrics(OUTPUT, withInvocationMetrics(BATCH){
-              try {
-                logger.debug(s"Mapping batch ${inputBatch}")
-                val cols = withInvocationMetrics(VE){
-                  ImplicitMetrics.processMetrics.measureRunningTime(
-                    veProcess.execute(
-                      libraryReference = libRef,
-                      functionName = veFunction.functionName,
-                      cols = inputBatch.cols,
-                      results = veFunction.namedResults
-                    )
-                  )(
-                    ImplicitMetrics.processMetrics
-                      .registerFunctionCallTime(_, veFunction.functionName)
+        incrementInvocations(PLAN)
+        veColBatches.map { inputBatch =>
+          collectBatchMetrics(INPUT, inputBatch)
+          collectBatchMetrics(OUTPUT, withInvocationMetrics(BATCH){
+            try {
+              logger.debug(s"Mapping batch ${inputBatch}")
+              val cols = withInvocationMetrics(VE){
+                ImplicitMetrics.processMetrics.measureRunningTime(
+                  veProcess.execute(
+                    libraryReference = libRef,
+                    functionName = veFunction.functionName,
+                    cols = inputBatch.cols,
+                    results = veFunction.namedResults
                   )
-                }
+                )(
+                  ImplicitMetrics.processMetrics
+                    .registerFunctionCallTime(_, veFunction.functionName)
+                )
+              }
 
-                logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
+              logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
 
-                val outBatch = VeColBatch.fromList(cols)
-                if (inputBatch.numRows < outBatch.numRows)
-                  logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
-                outBatch
-              } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
-            })
-          }
+              val outBatch = VeColBatch.fromList(cols)
+              if (inputBatch.numRows < outBatch.numRows)
+                logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
+              outBatch
+            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
+          })
         }
       }
+    }
   }
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =

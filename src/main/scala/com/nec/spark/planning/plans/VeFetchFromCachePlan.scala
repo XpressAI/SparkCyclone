@@ -22,39 +22,41 @@ object VeFetchFromCachePlan {
 
 case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
   extends UnaryExecNode
-  with SupportsVeColBatch
-  with PlanMetrics
-  with LazyLogging {
+    with SupportsVeColBatch
+    with PlanMetrics
+    with LazyLogging {
 
-  override lazy val metrics = invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
   private def unwrapBatch(
-    columnarBatch: ColumnarBatch
-  ): List[Either[VeColVector, ByteArrayColVector]] =
+                           columnarBatch: ColumnarBatch
+                         ): List[Either[VeColVector, ByteArrayColVector]] =
     (0 until columnarBatch.numCols())
       .map(colIdx => columnarBatch.column(colIdx).asInstanceOf[VeColColumnarVector].dualVeBatch)
       .toList
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    child
+    val res = child
       .executeColumnar()
-      .map(cb => {
-        logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
-        import OriginalCallingContext.Automatic._
-        import com.nec.spark.SparkCycloneExecutorPlugin._
-        collectBatchMetrics(INPUT, cb)
 
-        withInvocationMetrics(BATCH){
-          val res = VeColBatch.fromList(unwrapBatch(cb).map {
-            case Left(veColVector)         => veColVector
-            case Right(byteArrayColVector) =>
-              import ImplicitMetrics._
-              byteArrayColVector.transferToBytePointers().toVeColVector()
-          })
-          logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
-          collectBatchMetrics(OUTPUT, res)
-        }
-      })
+    collectPartitionMetrics(PLAN,res.getNumPartitions)
+    res.map(cb => {
+      logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
+      import OriginalCallingContext.Automatic._
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      collectBatchMetrics(INPUT, cb)
+
+      withInvocationMetrics(BATCH){
+        val res = VeColBatch.fromList(unwrapBatch(cb).map {
+          case Left(veColVector)         => veColVector
+          case Right(byteArrayColVector) =>
+            import ImplicitMetrics._
+            byteArrayColVector.transferToBytePointers().toVeColVector()
+        })
+        logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
+        collectBatchMetrics(OUTPUT, res)
+      }
+    })
   }
 
   override def output: Seq[Attribute] = child.output

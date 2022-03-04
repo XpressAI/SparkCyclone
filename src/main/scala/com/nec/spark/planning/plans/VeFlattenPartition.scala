@@ -25,7 +25,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
     s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.results.size}"
   )
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     child

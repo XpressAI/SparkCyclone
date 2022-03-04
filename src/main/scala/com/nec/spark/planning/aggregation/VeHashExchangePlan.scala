@@ -27,10 +27,12 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    val result =
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      .mapPartitions { veColBatches =>
+      collectPartitionMetrics(PLAN,result.getNumPartitions)
+      result.mapPartitions { veColBatches =>
         incrementInvocations(PLAN)
 
         withVeLibrary { libRefExchange =>

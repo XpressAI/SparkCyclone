@@ -19,16 +19,16 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import scala.concurrent.duration.NANOSECONDS
 
 object SparkToVectorEnginePlan {
-//  val ConvertColumnarToColumnar = false
+  //  val ConvertColumnarToColumnar = false
   val ConvertColumnarToColumnar = true
 }
 case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   extends UnaryExecNode
-  with LazyLogging
-  with SupportsVeColBatch
-  with PlanMetrics {
+    with LazyLogging
+    with SupportsVeColBatch
+    with PlanMetrics {
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)  ++ partitionMetrics(PLAN)
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
 
@@ -46,30 +46,31 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
     if (child.supportsColumnar) {
-      child
+      val res = child
         .executeColumnar()
-        .mapPartitions { columnarBatches =>
-          withInvocationMetrics(PLAN) {
-            import SparkCycloneExecutorPlugin._
-            implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-              .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
-            TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-            import OriginalCallingContext.Automatic._
-            import ImplicitMetrics._
-            if (ConvertColumnarToColumnar)
-              collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
-                columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
-                arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true
-              ))
-            else
-              collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
-                columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
-                arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true
-              ))
-          }
+      collectPartitionMetrics(PLAN,res.getNumPartitions)
+      res.mapPartitions { columnarBatches =>
+        withInvocationMetrics(PLAN) {
+          import SparkCycloneExecutorPlugin._
+          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
+            .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
+          TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+          import OriginalCallingContext.Automatic._
+          import ImplicitMetrics._
+          if (ConvertColumnarToColumnar)
+            collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
+              columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
+              arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
+              completeInSpark = true
+            ))
+          else
+            collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
+              columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
+              arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
+              completeInSpark = true
+            ))
         }
+      }
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
