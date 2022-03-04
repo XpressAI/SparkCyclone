@@ -2,7 +2,6 @@ package com.nec.spark.planning.plans
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.{ColumnarBatchToVeColBatch, CycloneCacheBase, DualMode}
-import com.nec.spark.planning.PlanMetrics.Implicits.WithMoreMetrics
 import com.nec.spark.{SparkCycloneExecutorPlugin, planning}
 import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToColumnar
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
