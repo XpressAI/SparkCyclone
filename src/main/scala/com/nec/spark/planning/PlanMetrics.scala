@@ -26,7 +26,7 @@ trait PlanMetrics {
   )
 
   def batchMetrics(metricPrefix: String) = Map(
-    s"${metricPrefix}TotalBatchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch row count"),
+    s"${metricPrefix}TotalBatchRowCount" -> SQLMetrics.createMetric(sparkContext, s"total ${metricPrefix} batch row count"),
     s"${metricPrefix}AvgBatchColCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch column count"),
     s"${metricPrefix}AvgBatchRowCount" -> SQLMetrics.createAverageMetric(sparkContext, s"${metricPrefix} batch row count"),
     s"${metricPrefix}BatchSize" -> SQLMetrics.createSizeMetric(sparkContext, s"${metricPrefix} batch size"),
