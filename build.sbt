@@ -325,8 +325,8 @@ deploy := {
   logger.info(s"Assembled file: ${generatedFile}")
 
   if (targetBox == "local") {
-    logger.info(s"Copying JAR locally to /opt/cyclone/${sys.env.get("USER")}/spark-cyclone-sql-plugin.jar:")
-    Seq("cp", generatedFile.toString, s"/opt/cyclone/${sys.env.get("USER")}/spark-cyclone-sql-plugin.jar") ! logger
+    logger.info(s"Copying JAR locally to /opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar:")
+    Seq("cp", generatedFile.toString, s"/opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar") ! logger
     logger.info(s"Copied.")
   } else {
     logger.info(s"Uploading JAR to ${targetBox}")
