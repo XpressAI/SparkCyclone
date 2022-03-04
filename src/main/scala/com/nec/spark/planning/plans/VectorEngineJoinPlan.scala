@@ -23,7 +23,7 @@ case class VectorEngineJoinPlan(
   with PlanMetrics
   with PlanCallsVeFunction {
 
-  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE)
+  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics("left") ++ batchMetrics("right") ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     VeRDD
@@ -34,6 +34,8 @@ case class VectorEngineJoinPlan(
       )
       .map { case (leftColBatch, rightColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+        collectBatchMetrics("left", leftColBatch)
+        collectBatchMetrics("right", rightColBatch)
 
         withInvocationMetrics(BATCH) {
           withVeLibrary { libRefJoin =>
@@ -56,7 +58,7 @@ case class VectorEngineJoinPlan(
                 dataCleanup.cleanup(rightColBatch)
               }
             logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
-            VeColBatch.fromList(batch)
+            collectBatchMetrics(OUTPUT, VeColBatch.fromList(batch))
           }
         }
       }

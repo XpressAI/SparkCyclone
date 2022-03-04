@@ -28,13 +28,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   with SupportsVeColBatch
   with PlanMetrics {
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ Map(
-    "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
-    "inputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "input batch row count"),
-    "inputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "input batch column count"),
-    "outputBatchRows" -> SQLMetrics.createAverageMetric(sparkContext, "output batch row count"),
-    "outputBatchCols" -> SQLMetrics.createAverageMetric(sparkContext, "output batch column count")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
 
@@ -47,24 +41,13 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
 
-    val inputPartCount = longMetric("inputPartitions")
-    val inputBatchRows = longMetric("inputBatchRows")
-    val inputBatchCols = longMetric("inputBatchCols")
-    val outputBatchRows = longMetric("outputBatchRows")
-    val outputBatchCols = longMetric("outputBatchCols")
-
-    //      val numInputRows = longMetric("numInputRows")
-    //      val numOutputBatches = longMetric("numOutputBatches")
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
     if (child.supportsColumnar) {
-      val input = child
+      child
         .executeColumnar()
-      inputPartCount.set(input.partitions.length)
-
-      input
         .mapPartitions { columnarBatches =>
           withInvocationMetrics(PLAN) {
             import SparkCycloneExecutorPlugin._
@@ -74,32 +57,21 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
             import OriginalCallingContext.Automatic._
             import ImplicitMetrics._
             if (ConvertColumnarToColumnar)
-              ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
-                columnarBatches = columnarBatches,
+              collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
+                columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
                 completeInSpark = true,
-                inputBatchRows = inputBatchRows,
-                inputBatchCols = inputBatchCols,
-                outputBatchRows = outputBatchRows,
-                outputBatchCols = outputBatchCols
-              )
+              ))
             else
-              ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
-                columnarBatches = columnarBatches,
+              collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
+                columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true,
-                inputBatchRows = inputBatchRows,
-                inputBatchCols = inputBatchCols,
-                outputBatchRows = outputBatchRows,
-                outputBatchCols = outputBatchCols
-              )
+                completeInSpark = true
+              ))
           }
         }
     } else {
-      val input = child.execute()
-      inputPartCount.set(input.partitions.length)
-
-      input.mapPartitions { internalRows =>
+      child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
         import ImplicitMetrics._
 
@@ -109,10 +81,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
           TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
           import OriginalCallingContext.Automatic._
 
-          DualMode.unwrapPossiblyDualToVeColBatches(
+          collectBatchMetrics(OUTPUT, DualMode.unwrapPossiblyDualToVeColBatches(
             possiblyDualModeInternalRows = internalRows,
             arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
-          )
+          ))
         }
       }
     }

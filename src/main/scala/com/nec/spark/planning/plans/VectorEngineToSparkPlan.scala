@@ -20,10 +20,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   with LazyLogging {
   override def supportsColumnar: Boolean = true
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ Map(
-    "inputPartitions" -> SQLMetrics.createMetric(sparkContext, "input partitions count"),
-    "inputElementCount" -> SQLMetrics.createMetric(sparkContext, "input element count")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
 
   override def doExecute(): RDD[InternalRow] = {
@@ -33,15 +30,9 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    val inputPartCount = longMetric("inputPartitions")
-    val inputEleCount = longMetric("inputElementCount")
-
-    val input = child
+    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-    inputPartCount.set(input.partitions.length)
-
-    input
       .mapPartitions { iterator =>
         incrementInvocations(PLAN)
 
@@ -52,14 +43,13 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
         iterator.map { veColBatch =>
           import OriginalCallingContext.Automatic._
-          inputEleCount.set(veColBatch.cols.length)
-
+          collectBatchMetrics(INPUT, veColBatch)
           withInvocationMetrics(BATCH){
             try {
               logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
               val res = veColBatch.toArrowColumnarBatch()
               logger.debug(s"Finished mapping ${veColBatch}")
-              res
+              collectBatchMetrics(OUTPUT, res)
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
           }
         }

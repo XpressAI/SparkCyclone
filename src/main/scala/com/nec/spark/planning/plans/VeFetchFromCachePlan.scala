@@ -26,7 +26,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
   with PlanMetrics
   with LazyLogging {
 
-  override lazy val metrics = invocationMetrics(BATCH)
+  override lazy val metrics = invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   private def unwrapBatch(
     columnarBatch: ColumnarBatch
@@ -42,6 +42,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
         logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
         import OriginalCallingContext.Automatic._
         import com.nec.spark.SparkCycloneExecutorPlugin._
+        collectBatchMetrics(INPUT, cb)
 
         withInvocationMetrics(BATCH){
           val res = VeColBatch.fromList(unwrapBatch(cb).map {
@@ -51,7 +52,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
               byteArrayColVector.transferToBytePointers().toVeColVector()
           })
           logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
-          res
+          collectBatchMetrics(OUTPUT, res)
         }
       })
   }

@@ -48,7 +48,7 @@ final case class VeProjectEvaluationPlan(
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(veFunction = f(veFunction))
@@ -70,6 +70,7 @@ final case class VeProjectEvaluationPlan(
         withVeLibrary { libRef =>
           withInvocationMetrics(BATCH){
             veColBatches.map { veColBatch =>
+              collectBatchMetrics(INPUT, veColBatch)
               import OriginalCallingContext.Automatic._
               import SparkCycloneExecutorPlugin.veProcess
               try {
@@ -97,7 +98,7 @@ final case class VeProjectEvaluationPlan(
 
                 if (veColBatch.numRows < outBatch.numRows)
                   println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-                outBatch
+                collectBatchMetrics(OUTPUT, outBatch)
               } finally {
                 child
                   .asInstanceOf[SupportsVeColBatch]

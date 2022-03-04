@@ -24,7 +24,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   import OriginalCallingContext.Automatic._
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     child
@@ -35,7 +35,8 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
 
         withVeLibrary { libRefExchange =>
           logger.info(s"Will map multiple col batches for hash exchange.")
-          veColBatches.flatMap { veColBatch =>
+          collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
+            collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               try {
@@ -63,7 +64,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                 child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
             }
-          }
+          })
         }
       }
       .exchangeBetweenVEs(cleanUpInput = true)

@@ -27,7 +27,7 @@ case class VeFinalAggregate(
     s"Expected outputs ${expectedOutputs.size} to match final function results size, but got ${finalFunction.results.size}"
   )
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = {
@@ -39,9 +39,10 @@ case class VeFinalAggregate(
           incrementInvocations(PLAN)
           veColBatches.map { veColBatch =>
             logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
+            collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-              VeColBatch.fromList {
+              collectBatchMetrics(OUTPUT, VeColBatch.fromList {
                 import OriginalCallingContext.Automatic._
                 withInvocationMetrics(VE){
                   try ImplicitMetrics.processMetrics.measureRunningTime(
@@ -57,7 +58,7 @@ case class VeFinalAggregate(
                     child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
                   }
                 }
-              }
+              })
             }
           }
         }

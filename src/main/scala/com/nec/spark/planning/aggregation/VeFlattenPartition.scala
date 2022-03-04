@@ -27,7 +27,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
     s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.results.size}"
   )
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     child
@@ -36,10 +36,10 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
       .mapPartitions { veColBatches =>
         withVeLibrary { libRefExchange =>
           withInvocationMetrics(PLAN){
-            Iterator
+            collectBatchMetrics(OUTPUT, Iterator
               .continually {
                 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-                val inputBatches = veColBatches.toList
+                val inputBatches = collectBatchMetrics(INPUT, veColBatches).toList
                 //logger.debug(s"Fetched all the data: ${inputBatches}")
                 inputBatches match {
                   case one :: Nil => withInvocationMetrics(BATCH){ Iterator(one) }
@@ -72,7 +72,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                 }
               }
               .take(1)
-              .flatten
+              .flatten)
           }
         }
       }

@@ -46,7 +46,7 @@ final case class VeOneStageEvaluationPlan(
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ invocationMetrics(BATCH)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
@@ -63,7 +63,8 @@ final case class VeOneStageEvaluationPlan(
 
           incrementInvocations(PLAN)
           veColBatches.map { inputBatch =>
-            withInvocationMetrics(BATCH){
+            collectBatchMetrics(INPUT, inputBatch)
+            collectBatchMetrics(OUTPUT, withInvocationMetrics(BATCH){
               try {
                 logger.debug(s"Mapping batch ${inputBatch}")
                 val cols = withInvocationMetrics(VE){
@@ -87,7 +88,7 @@ final case class VeOneStageEvaluationPlan(
                   logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
                 outBatch
               } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
-            }
+            })
           }
         }
       }

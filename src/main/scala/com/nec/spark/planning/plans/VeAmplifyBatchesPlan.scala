@@ -26,46 +26,23 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
     s"Expected output size ${output.size} to match flatten function results size, but got ${amplifyFunction.results.size}"
   )
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ Map(
-    "batchBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "batch buffer size"),
-    "inputBatchCount" -> SQLMetrics.createMetric(sparkContext, "input batch count"),
-    "inputRowCount" -> SQLMetrics.createMetric(sparkContext, "input row count"),
-    "inputColCount" -> SQLMetrics.createMetric(sparkContext, "input col count"),
-    "outputBatchCount" -> SQLMetrics.createMetric(sparkContext, "output batch count")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val inputBatchCount = longMetric("inputBatchCount")
-    val inputRowCount = longMetric("inputRowCount")
-    val inputColCount = longMetric("inputColCount")
-    val outputBatchCount = longMetric("outputBatchCount")
-    val batchBufferSize = longMetric("batchBufferSize")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val batches = veColBatches.toList
-        inputBatchCount.set(batches.size)
-        batches.foreach {b =>
-          batchBufferSize.add(b.totalBufferSize)
-          inputRowCount.set(b.numRows)
-          inputColCount.set(b.cols.size)
-        }
-
         withVeLibrary { libRefExchange =>
           import com.nec.util.BatchAmplifier.Implicits._
           withInvocationMetrics(PLAN){
-            batches.iterator
+            collectBatchMetrics(OUTPUT, collectBatchMetrics(INPUT, veColBatches)
               .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
               .map {
-                case inputBatches if inputBatches.size == 1 =>
-                  outputBatchCount.set(1)
-                  inputBatches.head
+                case inputBatches if inputBatches.size == 1 => inputBatches.head
                 case inputBatches =>
-                  outputBatchCount.set(1)
                   import OriginalCallingContext.Automatic._
                   try {
                       val res = withInvocationMetrics(VE) {
@@ -85,7 +62,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                   } finally {
                     inputBatches.foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
                   }
-                }
+                })
             }
           }
       }
