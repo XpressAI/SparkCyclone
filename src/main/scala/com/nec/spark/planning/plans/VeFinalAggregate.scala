@@ -27,7 +27,7 @@ case class VeFinalAggregate(
     s"Expected outputs ${expectedOutputs.size} to match final function results size, but got ${finalFunction.results.size}"
   )
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE)
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE)
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = {
