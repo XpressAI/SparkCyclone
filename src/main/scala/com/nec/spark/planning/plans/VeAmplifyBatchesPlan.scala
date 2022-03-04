@@ -9,6 +9,7 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, Distribution}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
@@ -29,6 +30,8 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
+
+  override def requiredChildDistribution: Seq[Distribution] = Seq.fill(children.size)(AllTuples)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     child
