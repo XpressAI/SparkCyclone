@@ -7,6 +7,7 @@ import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToCol
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -40,6 +41,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
+    import OriginalCallingContext.Automatic._
 
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
@@ -69,7 +71,9 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
                 completeInSpark = true
               ))
           }
-        }
+        }.mapPartitions { b =>
+          b.toList.zipWithIndex.map{case (b,i) => (i, b)}.iterator
+      }.exchangeBetweenVEs(cleanUpInput = true)
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
