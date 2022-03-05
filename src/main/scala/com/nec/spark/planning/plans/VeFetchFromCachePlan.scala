@@ -39,12 +39,12 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
     val res = child
       .executeColumnar()
 
-    collectPartitionMetrics(PLAN,res.getNumPartitions)
     res.map(cb => {
       logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
       import OriginalCallingContext.Automatic._
       import com.nec.spark.SparkCycloneExecutorPlugin._
       collectBatchMetrics(INPUT, cb)
+      collectPartitionMetrics(PLAN,res.getNumPartitions)
 
       withInvocationMetrics(BATCH){
         val res = VeColBatch.fromList(unwrapBatch(cb).map {

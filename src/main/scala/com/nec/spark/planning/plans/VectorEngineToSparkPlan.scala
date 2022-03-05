@@ -33,9 +33,9 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
     val res =     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      collectPartitionMetrics(PLAN,res.getNumPartitions)
       res.mapPartitions { iterator =>
         incrementInvocations(PLAN)
+        collectPartitionMetrics(PLAN,res.getNumPartitions)
 
         import SparkCycloneExecutorPlugin._
 

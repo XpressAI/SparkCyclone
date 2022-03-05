@@ -33,8 +33,8 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
     val res =  child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-    collectPartitionMetrics(PLAN,res.getNumPartitions)
     res.mapPartitions { veColBatches =>
+      collectPartitionMetrics(PLAN,res.getNumPartitions)
       withVeLibrary { libRefExchange =>
         withInvocationMetrics(PLAN){
           collectBatchMetrics(OUTPUT, Iterator

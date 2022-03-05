@@ -31,9 +31,9 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-      collectPartitionMetrics(PLAN,result.getNumPartitions)
       result.mapPartitions { veColBatches =>
         incrementInvocations(PLAN)
+        collectPartitionMetrics(PLAN,result.getNumPartitions)
 
         withVeLibrary { libRefExchange =>
           logger.info(s"Will map multiple col batches for hash exchange.")
