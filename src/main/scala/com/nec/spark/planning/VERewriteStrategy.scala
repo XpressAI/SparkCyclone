@@ -546,7 +546,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       val filterFn = FilterFunction(
         s"filter_${functionPrefix}",
         VeFilter(
-          stringVectorComputations = StringHole.process(condition.transform(replacer)).flatMap(_.stringParts).toList.distinct,
+          stringVectorComputations = StringHole.process(condition.transform(replacer)).toList.flatMap(_.stringParts).distinct,
           data = data,
           condition = cond
         )
