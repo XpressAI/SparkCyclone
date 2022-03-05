@@ -166,7 +166,7 @@ object VeRDD extends LazyLogging {
           i: Int => k + i
         }
 
-        nonEmpty.zipWithIndex.map{case (b,i) => (key_fn(i), b)}
+        batches.zipWithIndex.map{case (b,i) => (key_fn(i), b)}.iterator
         // TODO: Change partitions to something configurable
       }.exchangeBetweenVEs(cleanUpInput = cleanUpInput, partitions = 8)
   }
