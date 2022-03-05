@@ -65,8 +65,8 @@ final case class VeProjectEvaluationPlan(
     val res =    child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-    res.mapPartitions { veColBatches =>
-      collectPartitionMetrics(PLAN,res.getNumPartitions)
+    res.mapPartitionsWithIndex { (index,veColBatches) =>
+      collectPartitionMetrics(s"${index}PLAN",res.getNumPartitions)
       incrementInvocations(PLAN)
       withVeLibrary { libRef =>
         withInvocationMetrics(BATCH){

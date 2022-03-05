@@ -34,8 +34,8 @@ case class VeFinalAggregate(
     val res =  child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-    res.mapPartitions { veColBatches =>
-      collectPartitionMetrics(PLAN,res.getNumPartitions)
+    res.mapPartitionsWithIndex { (index,veColBatches) =>
+      collectPartitionMetrics(s"${index}PLAN",res.getNumPartitions)
       withVeLibrary { libRef =>
         incrementInvocations(PLAN)
         veColBatches.map { veColBatch =>

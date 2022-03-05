@@ -56,8 +56,8 @@ final case class VeOneStageEvaluationPlan(
     val res =   child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-    collectPartitionMetrics(PLAN,res.getNumPartitions)
-    res.mapPartitions { veColBatches =>
+    res.mapPartitionsWithIndex { (index,veColBatches) =>
+      collectPartitionMetrics(s"${index}PLAN",res.getNumPartitions)
       withVeLibrary { libRef =>
         logger.info(s"Will map batches with function ${veFunction}")
         import OriginalCallingContext.Automatic._
