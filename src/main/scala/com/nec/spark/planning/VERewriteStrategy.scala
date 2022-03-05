@@ -70,6 +70,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
   import com.github.ghik.silencer.silent
 
+  def rewriteWithOptions(child: LogicalPlan, options: VeRewriteStrategyOptions): immutable.Seq[SparkPlan] = {
+    val ret = VERewriteStrategy(options).apply(child)
+    collection.immutable.Seq(ret :_*)
+  }
+
   @silent
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     def functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
@@ -81,34 +86,17 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       )
 
       def res: immutable.Seq[SparkPlan] = plan match {
-        case SortOnVe(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(enableVeSorting = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case ProjectOnVe(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(projectOnVe = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case FilterOnVe(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(filterOnVe = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case AggregateOnVe(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(aggregateOnVe = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case ExchangeOnVe(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(exchangeOnVe = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case FailFast(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(failFast = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case JoinOnVe(child, enabled) =>
-          println(s"JoinOnVe($enabled)")
-          val ret = VERewriteStrategy(options.copy(joinOnVe = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case AmplifyBatches(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(amplifyBatches = enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
-        case SkipVe(child, enabled) =>
-          val ret = VERewriteStrategy(options.copy(rewriteEnabled = !enabled)).apply(child)
-          collection.immutable.Seq(ret :_*)
+        /* Apply Hints */
+        case SortOnVe(child, enabled) =>      rewriteWithOptions(child, options.copy(enableVeSorting = enabled))
+        case ProjectOnVe(child, enabled) =>   rewriteWithOptions(child, options.copy(projectOnVe = enabled))
+        case FilterOnVe(child, enabled) =>    rewriteWithOptions(child, options.copy(filterOnVe = enabled))
+        case AggregateOnVe(child, enabled) => rewriteWithOptions(child, options.copy(aggregateOnVe = enabled))
+        case ExchangeOnVe(child, enabled) =>  rewriteWithOptions(child, options.copy(exchangeOnVe = enabled))
+        case FailFast(child, enabled) =>      rewriteWithOptions(child, options.copy(failFast = enabled))
+        case JoinOnVe(child, enabled) =>      rewriteWithOptions(child, options.copy(joinOnVe = enabled))
+        case AmplifyBatches(child, enabled) =>rewriteWithOptions(child, options.copy(amplifyBatches = enabled))
+        case SkipVe(child, enabled) =>        rewriteWithOptions(child, options.copy(rewriteEnabled = enabled))
+
 
         case imr @ InMemoryRelation(_, cb, oo)
             if cb.serializer
