@@ -25,7 +25,7 @@ trait PlanMetrics {
   def partitionMetrics(metricPrefix: String): mutable.HashMap[String,SQLMetric] = {
     val ret = mutable.HashMap[String,SQLMetric]()
     for(i <- 0 until 10) {
-      ret(s"$i${metricPrefix}") =  SQLMetrics.createMetric(sparkContext,s"i${metricPrefix} partitions")
+      ret(s"$i${metricPrefix}") =  SQLMetrics.createMetric(sparkContext,s"$i ${metricPrefix} partitions")
       ret(s"$i${metricPrefix}batchSize") =  SQLMetrics.createMetric(sparkContext,s"i${metricPrefix} batch size")
     }
     ret
