@@ -7,6 +7,7 @@ import scala.language.implicitConversions
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.mutable
 import scala.concurrent.duration.NANOSECONDS
 
 trait PlanMetrics {
@@ -21,10 +22,13 @@ trait PlanMetrics {
   def longMetric(name: String): SQLMetric
 
 
-  def partitionMetrics(metricPrefix: String) = Map(
-    s"${metricPrefix}inPartitions" -> SQLMetrics.createMetric(sparkContext,s"${metricPrefix} partitions")
-  )
-
+  def partitionMetrics(metricPrefix: String): mutable.HashMap[String,SQLMetric] = {
+    val ret = mutable.HashMap[String,SQLMetric]()
+    for(i <- 0 until 10) {
+      ret(s"$i{metricPrefix}inPartitions") =  SQLMetrics.createMetric(sparkContext,s"${metricPrefix} partitions")
+    }
+    ret
+  }
   def invocationMetrics(metricPrefix: String) = Map(
     s"${metricPrefix}Exec" -> SQLMetrics.createTimingMetric(sparkContext, s"${metricPrefix} execution time"),
     s"${metricPrefix}Invocations" -> SQLMetrics.createMetric(sparkContext, s"${metricPrefix} invocation count")
@@ -93,10 +97,10 @@ trait PlanMetrics {
 
   def collectBatchMetrics[T](metricPrefix: String, batches: Iterator[T]): Iterator[T] = {
     batches.map {
-        case b: VeColBatch => collectBatchMetrics(metricPrefix, b).asInstanceOf[T]
-        case (k: Any, b: VeColBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
-        case b: ColumnarBatch => collectBatchMetrics(metricPrefix, b).asInstanceOf[T]
-        case (k: Any, b: ColumnarBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
+      case b: VeColBatch => collectBatchMetrics(metricPrefix, b).asInstanceOf[T]
+      case (k: Any, b: VeColBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
+      case b: ColumnarBatch => collectBatchMetrics(metricPrefix, b).asInstanceOf[T]
+      case (k: Any, b: ColumnarBatch) => (k, collectBatchMetrics(metricPrefix, b)).asInstanceOf[T]
     }
   }
 }
