@@ -9,6 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import com.nec.ve.VeRDD.RichRDD
 
 import scala.concurrent.duration.NANOSECONDS
 
@@ -30,6 +31,8 @@ case class VePartialAggregate(
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    import OriginalCallingContext.Automatic._
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -66,7 +69,7 @@ case class VePartialAggregate(
             }
           }
         }
-      }
+      }.exchangeBetweenVEs(partitions = 1)
   }
 
   // this is wrong, but just to please spark

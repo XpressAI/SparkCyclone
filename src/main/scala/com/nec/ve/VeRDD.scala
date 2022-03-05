@@ -149,7 +149,8 @@ object VeRDD extends LazyLogging {
 
   implicit class RichRDD(rdd: RDD[VeColBatch]){
     def exchangeBetweenVEs(
-      cleanUpInput: Boolean = true
+      cleanUpInput: Boolean = true,
+      partitions: Int = 8
     )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
       rdd.mapPartitionsWithIndex { (k, b) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
@@ -168,6 +169,6 @@ object VeRDD extends LazyLogging {
 
         batches.zipWithIndex.map{case (b,i) => (key_fn(i), b)}.iterator
         // TODO: Change partitions to something configurable
-      }.exchangeBetweenVEs(cleanUpInput = cleanUpInput, partitions = 8)
+      }.exchangeBetweenVEs(cleanUpInput = cleanUpInput, partitions = partitions)
   }
 }
