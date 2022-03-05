@@ -7,7 +7,7 @@ import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToCol
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.VeRDD.RichKeyedRDDL
+import com.nec.ve.VeRDD.{RichKeyedRDDL, RichRDD}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -47,7 +47,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
-    if (child.supportsColumnar) {
+    (if (child.supportsColumnar) {
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
@@ -71,9 +71,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
                 completeInSpark = true
               ))
           }
-        }.mapPartitions { b =>
-          b.toList.zipWithIndex.map{case (b,i) => (i, b)}.iterator
-      }.exchangeBetweenVEs(cleanUpInput = true)
+        }
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
@@ -91,6 +89,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
           ))
         }
       }
-    }
+    }).exchangeBetweenVEs()
   }
 }

@@ -135,14 +135,24 @@ object VeRDD extends LazyLogging {
 
   implicit class RichKeyedRDDL(rdd: RDD[(Int, VeColBatch)]) {
     def exchangeBetweenVEs(
-      cleanUpInput: Boolean
+      cleanUpInput: Boolean,
+      partitions: Int = rdd.partitions.length
     )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
       if (UseFastSerializer)
-        exchangeCycloneSerialize(rdd, cleanUpInput, partitions = rdd.partitions.length)
+        exchangeCycloneSerialize(rdd, cleanUpInput, partitions = partitions)
       else exchangeSparkSerialize(rdd, cleanUpInput)
 
     // for single-machine case!
     // def exchangeBetweenVEsNoSer()(implicit veProcess: VeProcess): RDD[VeColBatch] =
     // exchangeLS(rdd)
+  }
+
+  implicit class RichRDD(rdd: RDD[VeColBatch]){
+    def exchangeBetweenVEs(
+      cleanUpInput: Boolean = true
+    )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
+      rdd.mapPartitionsWithIndex { (k, b) =>
+        b.zipWithIndex.map{case (b,i) => (k + i, b)}
+      }.exchangeBetweenVEs(cleanUpInput = cleanUpInput, partitions = 8)
   }
 }
