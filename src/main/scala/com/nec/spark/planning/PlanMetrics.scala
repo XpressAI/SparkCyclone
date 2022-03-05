@@ -48,7 +48,7 @@ trait PlanMetrics {
 
 
   def collectPartitionMetrics[T](metricPrefix: String,numPartitions: Long) {
-    val execMetric = longMetric(s"${metricPrefix}inPartitions")
+    val execMetric = longMetric(s"${metricPrefix}")
     execMetric.set(numPartitions)
   }
 
