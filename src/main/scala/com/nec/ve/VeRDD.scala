@@ -156,7 +156,18 @@ object VeRDD extends LazyLogging {
 
         val (nonEmpty, empty) = b.partition(_.nonEmpty)
         empty.foreach(_.free())
-        nonEmpty.zipWithIndex.map{case (b,i) => (k + i, b)}
+
+        val batches = nonEmpty.toList
+        val partitionRowCount = batches.map(x => x.numRows).sum
+        // TODO: Change to something configurable
+        val key_fn = if(partitionRowCount < 8000){
+          _: Int => 0
+        }else{
+          i: Int => k + i
+        }
+
+        nonEmpty.zipWithIndex.map{case (b,i) => (key_fn(i), b)}
+        // TODO: Change partitions to something configurable
       }.exchangeBetweenVEs(cleanUpInput = cleanUpInput, partitions = 8)
   }
 }
