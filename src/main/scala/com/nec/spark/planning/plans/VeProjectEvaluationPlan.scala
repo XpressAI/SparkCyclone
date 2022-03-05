@@ -67,6 +67,7 @@ final case class VeProjectEvaluationPlan(
       .executeVeColumnar()
     res.mapPartitionsWithIndex { (index,veColBatches) =>
       collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
+      collectPartitionBatchSize(index,veColBatches.size)
       incrementInvocations(PLAN)
       withVeLibrary { libRef =>
         withInvocationMetrics(BATCH){

@@ -41,6 +41,8 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
               collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               val inputBatches = collectBatchMetrics(INPUT, veColBatches).toList
+              collectPartitionBatchSize(index,inputBatches.size)
+
               //logger.debug(s"Fetched all the data: ${inputBatches}")
               inputBatches match {
                 case one :: Nil => withInvocationMetrics(BATCH){ Iterator(one) }

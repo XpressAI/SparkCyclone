@@ -36,6 +36,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
       res.mapPartitionsWithIndex { (index,iterator) =>
         incrementInvocations(PLAN)
         collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
+        collectPartitionBatchSize(index,iterator.size)
 
         import SparkCycloneExecutorPlugin._
 

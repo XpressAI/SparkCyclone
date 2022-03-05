@@ -34,9 +34,11 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
     val res = child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
-    collectPartitionMetrics(PLAN,res.getNumPartitions)
-      res.mapPartitions { veColBatches =>
+
+    res.mapPartitionsWithIndex { (index,veColBatches) =>
         withVeLibrary { libRefExchange =>
+          collectPartitionMetrics(PLAN,res.getNumPartitions)
+          collectPartitionBatchSize(index,veColBatches.size)
           import com.nec.util.BatchAmplifier.Implicits._
           withInvocationMetrics(PLAN){
             collectBatchMetrics(OUTPUT, collectBatchMetrics(INPUT, veColBatches)

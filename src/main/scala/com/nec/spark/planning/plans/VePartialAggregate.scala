@@ -38,7 +38,7 @@ case class VePartialAggregate(
     execResult.mapPartitionsWithIndex { (index,veColBatches) =>
       incrementInvocations(PLAN)
       collectPartitionMetrics(s"${index}${PLAN}",execResult.getNumPartitions)
-
+      collectPartitionBatchSize(index,veColBatches.size)
       withVeLibrary { libRef =>
         logger.info(s"Will map partial aggregates using $partialFunction")
         veColBatches.map { veColBatch =>
