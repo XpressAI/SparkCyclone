@@ -51,7 +51,7 @@ trait PlanMetrics {
 
   def collectPartitionBatchSize[T](index: Int,batchSize: Long) {
     val execMetric = longMetric(s"${index}${PLAN}batchSize")
-    execMetric.set(batchSize)
+    execMetric.add(batchSize)
   }
 
   def collectPartitionMetrics[T](metricPrefix: String,numPartitions: Long) {

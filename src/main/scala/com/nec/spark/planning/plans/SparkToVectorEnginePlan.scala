@@ -50,7 +50,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
         .executeColumnar()
       res.mapPartitionsWithIndex { (index,columnarBatches) =>
         collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
-        collectPartitionBatchSize(index,columnarBatches.size)
+        columnarBatches.foreach(batch => {
+          collectPartitionBatchSize(index,batch.numRows())
+        })
+
         withInvocationMetrics(PLAN) {
           import SparkCycloneExecutorPlugin._
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator

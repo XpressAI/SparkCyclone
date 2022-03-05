@@ -36,10 +36,10 @@ case class VeFinalAggregate(
       .executeVeColumnar()
     res.mapPartitionsWithIndex { (index,veColBatches) =>
       collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
-      collectPartitionBatchSize(index,veColBatches.size)
       withVeLibrary { libRef =>
         incrementInvocations(PLAN)
         veColBatches.map { veColBatch =>
+          collectPartitionBatchSize(index,veColBatch.numRows)
           logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
           collectBatchMetrics(INPUT, veColBatch)
           withInvocationMetrics(BATCH){

@@ -44,6 +44,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
         iterator.map { veColBatch =>
+          collectPartitionBatchSize(index,veColBatch.numRows)
           import OriginalCallingContext.Automatic._
           collectBatchMetrics(INPUT, veColBatch)
           withInvocationMetrics(BATCH){
