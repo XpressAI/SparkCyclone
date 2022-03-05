@@ -9,7 +9,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import com.nec.ve.VeRDD.RichRDD
 
 import scala.concurrent.duration.NANOSECONDS
 
@@ -32,8 +31,6 @@ case class VeFinalAggregate(
 
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    import OriginalCallingContext.Automatic._
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -65,7 +62,7 @@ case class VeFinalAggregate(
             }
           }
         }
-      }.exchangeBetweenVEs()
+      }
 
   }
 
