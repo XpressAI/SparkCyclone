@@ -23,13 +23,15 @@ case class VectorEngineJoinPlan(
   with PlanMetrics
   with PlanCallsVeFunction {
 
-  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics("left") ++ batchMetrics("right") ++ batchMetrics(OUTPUT)
+  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics("left"
+  ) ++ batchMetrics("right") ++ batchMetrics(OUTPUT) ++ batchMetrics("left before exchange"
+  ) ++ batchMetrics("right before exchange")
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     VeRDD
       .joinExchange(
-        left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
-        right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed(),
+        left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("left before exchange", b)),
+        right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("right before exchange", b)),
         cleanUpInput = true
       )
       .map { case (leftColBatch, rightColBatch) =>
@@ -59,6 +61,7 @@ case class VectorEngineJoinPlan(
               }
             logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
             collectBatchMetrics(OUTPUT, VeColBatch.fromList(batch))
+
           }
         }
       }
