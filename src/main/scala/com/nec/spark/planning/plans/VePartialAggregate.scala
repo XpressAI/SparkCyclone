@@ -5,7 +5,6 @@ import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBa
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
-import com.nec.ve.VeRDD.RichRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.metric.SQLMetrics
@@ -31,8 +30,6 @@ case class VePartialAggregate(
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    import OriginalCallingContext.Automatic._
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -69,7 +66,7 @@ case class VePartialAggregate(
             }
           }
         }
-      }.exchangeBetweenVEs()
+      }
   }
 
   // this is wrong, but just to please spark
