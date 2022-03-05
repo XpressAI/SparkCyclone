@@ -668,52 +668,37 @@ object CFunctionGeneration {
   }
 
   def renderProjection(
-    veDataTransformation: VeProjection[
+    projection: VeProjection[
       CVector,
       Either[NamedStringExpression, NamedTypedCExpression]
     ]
   ): CFunction = CFunction(
-    inputs = veDataTransformation.inputs,
-    outputs = veDataTransformation.outputs.zipWithIndex.map {
-      case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
-        CScalarVector(outputName, veType)
-      case (Left(NamedStringExpression(name, _)), idx) =>
-        CVarChar(name)
+    inputs = projection.inputs,
+    outputs = projection.outputs.map {
+      case Right(NamedTypedCExpression(outname, veType, _)) =>
+        CScalarVector(outname, veType)
+      case Left(NamedStringExpression(outname, _)) =>
+        CVarChar(outname)
     },
-    body = CodeLines.from(
-      veDataTransformation.outputs.zipWithIndex.map {
-        case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
-          CodeLines.from(s"${outputName}->resize(input_0->count);")
-        case (Left(NamedStringExpression(name, producer: FrovedisStringProducer)), idx) =>
-          producer.produce(name, "", "")
-      },
-      "for ( long i = 0; i < input_0->count; i++ ) {",
-      veDataTransformation.outputs.zipWithIndex
-        .map {
-          case (Right(NamedTypedCExpression(outputName, veType, cExpr)), idx) =>
-            cExpr.isNotNullCode match {
-              case None =>
-                CodeLines.from(
-                  s"""$outputName->data[i] = ${cExpr.cCode};""",
-                  s"$outputName->set_validity(i, 1);"
-                )
-              case Some(notNullCheck) =>
-                CodeLines.from(
-                  s"if ( $notNullCheck ) {",
-                  s"""  $outputName->data[i] = ${cExpr.cCode};""",
-                  s"  $outputName->set_validity(i, 1);",
-                  "} else {",
-                  s"  $outputName->set_validity(i, 0);",
-                  "}"
-                )
+    body = projection.outputs.map {
+      case Left(NamedStringExpression(outname, producer: FrovedisStringProducer)) =>
+        producer.produce(outname, "input_0->count", "i")
+
+      case Right(NamedTypedCExpression(outname, vetype, cexpr)) =>
+        CodeLines.scoped(s"Project onto ${outname}") {
+          CodeLines.from(
+            s"${outname}->resize(input_0->count);",
+            "#pragma _NEC vector",
+            CodeLines.forLoop("i", "input_0->count") {
+              List(
+                s"bool validity = ${cexpr.isNotNullCode.getOrElse("1")};",
+                s"$outname->data[i] = ${cexpr.cCode};",
+                s"$outname->set_validity(i, validity);"
+              )
             }
-          case (Left(_), _) =>
-            // already produced for string, because produceVarChar does everything
-            CodeLines.empty
+          )
         }
-        .map(_.indented),
-      "}"
-    )
+    }
   )
 
   def renderInnerJoin(
