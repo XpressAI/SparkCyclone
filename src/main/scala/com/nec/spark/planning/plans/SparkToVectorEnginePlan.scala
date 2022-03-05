@@ -49,7 +49,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
       val res = child
         .executeColumnar()
       res.mapPartitionsWithIndex { (index,columnarBatches) =>
-        collectPartitionMetrics(s"${index}PLAN",res.getNumPartitions)
+        collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
         withInvocationMetrics(PLAN) {
           import SparkCycloneExecutorPlugin._
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
@@ -74,7 +74,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     } else {
       val res = child.execute()
       res.mapPartitionsWithIndex { (index,internalRows) =>
-        collectPartitionMetrics(s"${index}PLAN",res.getNumPartitions)
+        collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
         import SparkCycloneExecutorPlugin._
         import ImplicitMetrics._
 

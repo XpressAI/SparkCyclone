@@ -57,7 +57,7 @@ final case class VeOneStageEvaluationPlan(
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
     res.mapPartitionsWithIndex { (index,veColBatches) =>
-      collectPartitionMetrics(s"${index}PLAN",res.getNumPartitions)
+      collectPartitionMetrics(s"${index}${PLAN}",res.getNumPartitions)
       withVeLibrary { libRef =>
         logger.info(s"Will map batches with function ${veFunction}")
         import OriginalCallingContext.Automatic._
