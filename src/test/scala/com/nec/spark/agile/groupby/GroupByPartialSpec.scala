@@ -1,20 +1,41 @@
 package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.CFunctionGeneration.CVector
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
-import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregationAttribute}
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, TypedCExpression2}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
+import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
+import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregationAttribute, StagedProjection, StringReference}
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
 import org.scalatest.freespec.AnyFreeSpec
 
 class GroupByPartialSpec extends AnyFreeSpec {
   "Partial C Code works" in {
+    val inputs = List(CVector.int("value_0"), CVector.int("value_1"))
+
+    val proj = "proj"
     val groupingExpressionsKeys: List[(GroupingKey, Expression)] = List(
-      (GroupingKey("g1", veType = VeNullableInt), Literal.TrueLiteral)
+      (GroupingKey("grouping_key", veType = VeNullableInt), Literal.TrueLiteral)
+    )
+    val agg = "agg"
+    val computedGroupingKeys = List(
+      GroupingKey(agg, VeNullableInt) -> Right(TypedCExpression2(VeNullableInt, CExpression("foo", None))),
+      GroupingKey(agg+"2", VeNullableInt) -> Right(TypedCExpression2(VeNullableInt, CExpression("foo2", None))),
+      //TODO: String references are just not supported at the moment
+      //GroupingKey("str_key", VeNullableInt) -> Left(StringReference("some_str_col"))
+    )
+
+    val computedProjections = List(
+      StagedProjection(proj, VeNullableDouble) -> Right(TypedCExpression2(VeNullableDouble, CExpression("bar", None))),
+    )
+
+    val stringVectorComputations = List(
+      //TODO: StringHole seems to not be fully supported in aggregation yet
+      //LikeStringHoleEvaluation("spam", "eggs")
     )
 
     val finalOutputs: List[Either[GroupByOutline.StagedProjection, GroupByOutline.StagedAggregation]] = List(
-      Left(GroupByOutline.StagedProjection("proj", VeNullableInt)),
-      Right(GroupByOutline.StagedAggregation("agg", VeNullableInt, List(StagedAggregationAttribute("foo", VeNullableInt))))
+      Left(GroupByOutline.StagedProjection(proj, VeNullableDouble)),
+      Right(GroupByOutline.StagedAggregation("some_name", VeNullableInt, List(StagedAggregationAttribute(agg, VeNullableInt))))
     )
 
     val stagedGroupBy = GroupByOutline(
@@ -24,14 +45,14 @@ class GroupByPartialSpec extends AnyFreeSpec {
 
     val groupByPartialGenerator = GroupByPartialGenerator(
       finalGenerator = GroupByPartialToFinalGenerator(stagedGroupBy = stagedGroupBy, computedAggregates = Nil),
-      computedGroupingKeys = Nil,
-      computedProjections = Nil,
-      stringVectorComputations = Nil
+      computedGroupingKeys = computedGroupingKeys,
+      computedProjections = computedProjections,
+      stringVectorComputations = stringVectorComputations
     )
 
     val partialCFunction = groupByPartialGenerator
-      .createPartial(inputs = List(CVector.int("foo")))
-      .toCodeLinesHeaderPtr("partial_foo")
+      .createPartial(inputs = inputs)
+      .toCodeLinesHeaderBatchPtr("partial_foo")
 
     println(partialCFunction.cCode)
 
