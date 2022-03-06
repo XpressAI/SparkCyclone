@@ -179,7 +179,7 @@ final case class GroupByPartialGenerator(
           val accessor = s"${cVector.name}[b]"
           CodeLines.from(
             s"$accessor = ${cVector.veType.cVectorType}::allocate();",
-            s"$accessor.resize(${BatchCountsId}[b]);",
+            s"$accessor->resize(${BatchCountsId}[b]);",
           )
         }
       },
@@ -192,7 +192,7 @@ final case class GroupByPartialGenerator(
     val initVars = computedGroupingKeys.map {
       case (groupingKey, Right(TypedCExpression2(_, cExp))) =>
         ProductionTriplet(
-          forEach = storeTo(s"(*partial_${groupingKey.name}[${BatchAssignmentsId}[g]])", cExp, s"${BatchGroupPositionsId}[g]"),
+          forEach = storeTo(s"partial_${groupingKey.name}[${BatchAssignmentsId}[g]]", cExp, s"${BatchGroupPositionsId}[g]"),
           complete = CodeLines.empty
         )
       case (groupingKey, Left(StringReference(sr))) =>
@@ -219,7 +219,7 @@ final case class GroupByPartialGenerator(
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
         groupingCodeGenerator.forHeadOfEachGroup(
-          storeTo(s"(*partial_${stagedProjection.name}[${BatchAssignmentsId}[g]])", cExpression, s"${BatchGroupPositionsId}[g]")
+          storeTo(s"partial_${stagedProjection.name}[${BatchAssignmentsId}[g]]", cExpression, s"${BatchGroupPositionsId}[g]")
         )
       )
   }
@@ -237,7 +237,7 @@ final case class GroupByPartialGenerator(
           CodeLines.from(stagedAggregation.attributes.zip(aggregate.partialValues(prefix)).map {
             case (attr, (_, ex)) =>
               CodeLines.from(
-                storeTo(s"(*partial_${attr.name}[${BatchAssignmentsId}[g]])", ex, s"${BatchGroupPositionsId}[g]")
+                storeTo(s"partial_${attr.name}[${BatchAssignmentsId}[g]]", ex, s"${BatchGroupPositionsId}[g]")
               )
           })
       ),
