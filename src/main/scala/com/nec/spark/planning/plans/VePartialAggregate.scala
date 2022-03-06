@@ -9,7 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import com.nec.ve.VeRDD.RichRDD
+import com.nec.ve.VeRDD.RichKeyedRDDL
 
 import scala.concurrent.duration.NANOSECONDS
 
@@ -40,36 +40,43 @@ case class VePartialAggregate(
         incrementInvocations(PLAN)
         withVeLibrary { libRef =>
           logger.info(s"Will map partial aggregates using $partialFunction")
-          veColBatches.map { veColBatch =>
+          collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
             collectBatchMetrics(INPUT, veColBatch)
 
-            withInvocationMetrics(BATCH){
+            withInvocationMetrics(BATCH) {
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               logger.debug(s"Mapping a VeColBatch $veColBatch")
-              collectBatchMetrics(OUTPUT, VeColBatch.fromList {
-                import OriginalCallingContext.Automatic._
-                try {
-                  val result = withInvocationMetrics(VE){
-                    ImplicitMetrics.processMetrics.measureRunningTime(
-                      veProcess.execute(
-                        libraryReference = libRef,
-                        functionName = partialFunction.functionName,
-                        cols = veColBatch.cols,
-                        results = partialFunction.namedResults
-                      )
-                    )(
-                      ImplicitMetrics.processMetrics
-                        .registerFunctionCallTime(_, veFunction.functionName)
+
+              try {
+                val result = withInvocationMetrics(VE) {
+                  ImplicitMetrics.processMetrics.measureRunningTime(
+                    veProcess.executeMulti(
+                      libraryReference = libRef,
+                      functionName = partialFunction.functionName,
+                      cols = veColBatch.cols,
+                      results = partialFunction.namedResults
                     )
-                  }
-                  logger.debug(s"Mapped $veColBatch to $result")
-                  result
-                } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
-            })
+                  )(
+                    ImplicitMetrics.processMetrics
+                      .registerFunctionCallTime(_, veFunction.functionName)
+                  )
+                }
+                logger.debug(s"Mapped $veColBatch to $result")
+
+                result.flatMap {
+                  case (n, l) if l.head.nonEmpty =>
+                    Option(n -> VeColBatch.fromList(l))
+                  case (_, l) =>
+                    l.foreach(_.free())
+                    None
+                }
+              } finally {
+                child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+              }
             }
-          }
+          })
         }
-      }.exchangeBetweenVEs(partitions = 1)
+      }.exchangeBetweenVEs()
   }
 
   // this is wrong, but just to please spark

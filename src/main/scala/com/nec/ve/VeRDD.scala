@@ -135,7 +135,7 @@ object VeRDD extends LazyLogging {
 
   implicit class RichKeyedRDDL(rdd: RDD[(Int, VeColBatch)]) {
     def exchangeBetweenVEs(
-      cleanUpInput: Boolean,
+      cleanUpInput: Boolean = true,
       partitions: Int = rdd.partitions.length
     )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
       if (UseFastSerializer)

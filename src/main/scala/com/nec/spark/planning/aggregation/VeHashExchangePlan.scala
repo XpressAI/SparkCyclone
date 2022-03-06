@@ -4,7 +4,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.VeRDD.RichRDD
+import com.nec.ve.VeRDD.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -67,8 +67,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
           })
         }
       }
-      .map{case (_, b) => b}
-      .exchangeBetweenVEs()
+      .exchangeBetweenVEs(cleanUpInput = true)
   }
 
   override def output: Seq[Attribute] = child.output

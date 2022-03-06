@@ -80,17 +80,16 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
       if (options.failFast) {
         val x = rewritePlan(functionPrefix, plan)
-        if (x.isEmpty)
-          logger.debug(s"Didn't rewrite")
-        else
-          logger.debug(s"Rewrote it to ==> ${x}")
+        if (x.isEmpty) logger.debug(s"Didn't rewrite") else logger.debug(s"Rewrote it to ==> ${x}")
         x
       } else {
         try rewritePlan(functionPrefix, plan)
         catch {
           case e: Throwable =>
             logger.error(s"Could not map plan ${plan} because of: ${e}", e)
-            /* TODO: WHY??? */
+            /* https://github.com/XpressAI/SparkCyclone/pull/407:
+             InMemoryRelation is not being picked up in the translation process after a failure in plan transformation.
+             Capture specific Filter+InMemory combination when such a failure happens. */
             plan match {
               case logical.Filter(cond, imr@InMemoryRelation(_, cb, _))
                 if cb.serializer.isInstanceOf[CycloneCacheBase] =>
@@ -344,21 +343,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       partialName = s"partial_$functionPrefix"
       finalName = s"final_$functionPrefix"
 
-      exchangeFunction = GroupingFunction(
-        s"exchange_${functionPrefix}",
-        dataDescriptions.toList,
-        HashExchangeBuckets
-      )
-
-      mergeFn = MergerFunction(
-        s"merge_$functionPrefix",
-        partialCFunction.outputs.map(_.veType)
-      )
-
-      amplifyFn = MergerFunction(
-        s"amplify_${functionPrefix}",
-        ff.outputs.map(_.veType)
-      )
+      exchangeFunction = GroupingFunction(s"exchange_${functionPrefix}", dataDescriptions.toList, HashExchangeBuckets)
+      mergeFn = MergerFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
+      amplifyFn = MergerFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
 
       code = CodeLines
         .from(
@@ -370,32 +357,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         )
 
     } yield {
-      val exchangePlan =
-      /*
-                TODO: Optimize in the future so that we don't need to copy the
-                input to output vectors at all if:
-
-                  dataDescriptions.count(_.keyOrValue.isKey) <= 0
-               */
-        if (options.exchangeOnVe) {
-          VeHashExchangePlan(
-            exchangeFunction = VeFunction(
-              veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-              functionName = exchangeFunction.name,
-              namedResults = partialCFunction.inputs
-            ),
-            child = SparkToVectorEnginePlan(planLater(child))
-          )
-        } else {
-          SparkToVectorEnginePlan(
-            ShuffleExchangeExec(
-              outputPartitioning =
-                HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-              child = planLater(child),
-              shuffleOrigin = REPARTITION
-            )
-          )
-        }
+      val exchangePlan = SparkToVectorEnginePlan(planLater(child))
 
       val pag = VePartialAggregate(
         partialFunction = VeFunction(
