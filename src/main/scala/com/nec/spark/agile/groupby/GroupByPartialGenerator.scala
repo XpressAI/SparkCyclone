@@ -179,7 +179,7 @@ final case class GroupByPartialGenerator(
           val accessor = s"${cVector.name}[b]"
           CodeLines.from(
             s"$accessor = ${cVector.veType.cVectorType}::allocate();",
-            s"$accessor->resize(${BatchCountsId}[b]);",
+            s"if(${BatchCountsId}[b] != 0) $accessor->resize(${BatchCountsId}[b]);",
           )
         }
       },
