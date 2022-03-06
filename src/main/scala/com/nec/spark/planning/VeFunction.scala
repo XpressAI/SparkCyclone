@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 import com.nec.spark.planning.LibLocation.LibLocation
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
@@ -7,6 +8,8 @@ import com.nec.spark.planning.VeFunction.VeFunctionStatus
 object VeFunction {
   sealed trait VeFunctionStatus
   object VeFunctionStatus {
+    def fromCodeLines(lines: CodeLines): SourceCode = SourceCode(lines.cCode)
+
     final case class SourceCode(sourceCode: String) extends VeFunctionStatus {
       override def toString: String = super.toString.take(25)
     }

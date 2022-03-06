@@ -22,8 +22,6 @@ package com.nec.spark.agile.groupby
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.StringProducer
-import com.nec.spark.agile.StringProducer.FilteringProducer
 import com.nec.spark.agile.groupby.GroupByOutline._
 
 final case class GroupByPartialGenerator(
