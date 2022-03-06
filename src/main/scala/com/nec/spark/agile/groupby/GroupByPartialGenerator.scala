@@ -67,7 +67,8 @@ final case class GroupByPartialGenerator(
         computedAggregates.map { case (a, ag) =>
           computeAggregatePartialsPerGroup(a, ag)
         }
-      )
+      ),
+      hasSets = true
     )
 
   def computeProjectionsPerGroup(
