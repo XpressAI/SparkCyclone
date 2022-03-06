@@ -357,7 +357,14 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         )
 
     } yield {
-      val exchangePlan = SparkToVectorEnginePlan(planLater(child))
+      val exchangePlan = VeFlattenPartition(
+        flattenFunction = VeFunction(
+          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
+          functionName = mergeFn.name,
+          namedResults = partialCFunction.outputs
+        ),
+        child = SparkToVectorEnginePlan(planLater(child))
+      )
 
       val pag = VePartialAggregate(
         partialFunction = VeFunction(
