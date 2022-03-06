@@ -349,7 +349,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
       code = CodeLines
         .from(
-          partialCFunction.toCodeLinesSPtr(partialName),
+          partialCFunction.toCodeLinesHeaderBatchPtr(partialName),
           ff.toCodeLinesNoHeaderOutPtr2(finalName),
           exchangeFunction.toCodeLines,
           mergeFn.toCodeLines,
