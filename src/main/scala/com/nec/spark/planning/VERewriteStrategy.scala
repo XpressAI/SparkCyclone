@@ -360,7 +360,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       val exchangePlan = VeAmplifyBatchesPlan(
         amplifyFunction = VeFunction(
           veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-          functionName = mergeFn.name,
+          functionName = amplifyFn.name,
           namedResults = partialCFunction.inputs
         ),
         child = SparkToVectorEnginePlan(planLater(child))
