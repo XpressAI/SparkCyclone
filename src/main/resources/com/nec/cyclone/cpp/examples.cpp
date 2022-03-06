@@ -82,7 +82,6 @@ void filter_test() {
   output->print();
 
   std::cout << "================================================================================" << std::endl;
-  return;
 }
 
 void projection_test() {
@@ -102,10 +101,9 @@ void projection_test() {
   output->print();
 
   std::cout << "================================================================================" << std::endl;
-  return;
 }
 
-void test_sort() {
+void test_sort1() {
   const std::vector<std::tuple<int32_t, float, int64_t, double>> elements {
     std::make_tuple(1, 2.106764f,   2ll, 2.029292l),
     std::make_tuple(0, 7.29214f,    3ll, 1.6248848l),
@@ -119,23 +117,43 @@ void test_sort() {
   std::cout << "SORT TEST\n" << std::endl;
   std::cout << sorted_indices << std::endl;
   std::cout << "================================================================================" << std::endl;
-
-  return;
 }
 
-int main() {
-  projection_test();
-  filter_test();
-  test_sort();
-
+void test_sort2() {
   std::vector<int64_t>  data1 { 106, 951, 586,  };
   std::vector<float>    data2 { 3.14, 2.71, 42.0, };
   std::vector<int32_t>  data3 { 586, 951, 106, };
 
-  auto indices = cyclone::sort_tuples(
+  const auto sorted_indices = cyclone::sort_tuples(
     3,
     std::make_tuple(1, data1.data()),
     std::make_tuple(1, data2.data()),
     std::make_tuple(1, data3.data())
   );
+
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "SORT TEST\n" << std::endl;
+  std::cout << sorted_indices << std::endl;
+  std::cout << "================================================================================" << std::endl;
+}
+
+void test_lambda() {
+  std::vector<int32_t> input { 0, 1, 2, 3, 3, 4 };
+  const auto condition = [&] (const size_t i) {
+    return input[i] % 2 == 0;
+  };
+
+  const auto *expected = new nullable_varchar_vector(std::vector<std::string> { "foobar", "baz", "foobar", "baz", "baz", "foobar" });
+  const auto *output = nullable_varchar_vector::from_binary_choice(input.size(), condition, "foobar", "baz");
+  expected->print();
+  output->print();
+}
+
+int main() {
+  // projection_test();
+  // filter_test();
+  // test_sort1();
+  // test_sort2();
+
+  test_lambda();
 }

@@ -12,7 +12,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executor.resource.ve.amount=1 \
-    --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.py \
+    --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
     --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/cyclone \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.com.nec.spark.aggregate-on-ve=true \

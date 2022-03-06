@@ -1,9 +1,9 @@
 import sbt.Def.spaceDelimited
 import sbt.Keys.envVars
 
-import scala.sys.process.Process
 import java.lang.management.ManagementFactory
 import java.nio.file.{Files, Paths}
+import scala.sys.process.Process
 import scala.xml.Properties.isWin
 
 val CMake = config("cmake") extend Test
@@ -23,7 +23,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
-  .settings(version := "0.9.2")
+  .settings(version := "0.9.3")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)

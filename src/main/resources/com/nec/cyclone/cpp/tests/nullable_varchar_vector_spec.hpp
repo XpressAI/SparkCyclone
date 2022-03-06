@@ -58,6 +58,44 @@ namespace cyclone::tests {
       CHECK(not vec1->equals(vec3));
     }
 
+    TEST_CASE("Equivalence checks work") {
+      auto *vec1 = new nullable_varchar_vector(std::vector<std::string> { "FOO", "BAR", "FOO" });
+      vec1->set_validity(1, 0);
+
+      auto *vec2 = new nullable_varchar_vector;
+      {
+        std::vector<int32_t> letters { 'F', 'O', 'O', 'B', 'A', 'R' };
+
+        vec2->count = 3;
+        vec2->dataSize = 6;
+
+        vec2->data = static_cast<int32_t *>(malloc(letters.size() * sizeof(int32_t)));
+        for (auto i = 0; i < letters.size(); i++) {
+          vec2->data[i] = letters[i];
+        }
+
+        vec2->offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * 3, 1));
+        vec2->offsets[0] = 0;
+        vec2->offsets[1] = 3;
+        vec2->offsets[2] = 0;
+
+        vec2->lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * 3, 1));
+        vec2->lengths[0] = 3;
+        vec2->lengths[1] = 3;
+        vec2->lengths[2] = 3;
+
+        size_t vcount = frovedis::ceil_div(vec2->count, int32_t(64));
+        vec2->validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
+        for (auto i = 0; i < vcount; i++) {
+          vec2->validityBuffer[i] = 0xffffffffffffffff;
+        }
+        vec2->set_validity(1, 0);
+      }
+
+      CHECK(vec1->equivalent_to(vec1));
+      CHECK(vec1->equivalent_to(vec2));
+    }
+
     TEST_CASE("Conversions between nullable_varchar_vector and frovedis::words work (ignoring the validity buffer)") {
       const auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "", "OCT", "NOV", "DEC" });
       const auto input_as_words = input->to_words();
@@ -245,6 +283,17 @@ namespace cyclone::tests {
 
       const auto output = input->date_cast();
       CHECK(output == expected);
+    }
+
+    TEST_CASE("Binary choose works") {
+      std::vector<int32_t> input { 0, 1, 2, 3, 3, 4 };
+      const auto condition = [&] (const size_t i) -> bool {
+        return input[i] % 2 == 0;
+      };
+      const auto *expected = new nullable_varchar_vector(std::vector<std::string> { "foobar", "baz", "foobar", "baz", "baz", "foobar" });
+
+      const auto *output = nullable_varchar_vector::from_binary_choice(input.size(), condition, "foobar", "baz");
+      CHECK(output->equivalent_to(expected));
     }
   }
 }

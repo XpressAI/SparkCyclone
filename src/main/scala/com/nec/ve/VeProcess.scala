@@ -230,7 +230,7 @@ object VeProcess {
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(
+      logger.debug(
         s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
       )
 
@@ -338,7 +338,7 @@ object VeProcess {
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(
+      logger.debug(
         s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
       )
 
@@ -448,7 +448,7 @@ object VeProcess {
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(
+      logger.debug(
         s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
       )
 
