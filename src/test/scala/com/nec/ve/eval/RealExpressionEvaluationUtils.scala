@@ -129,20 +129,15 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
-    val functionName = "project_f"
-
     val outputs = veRetriever.veTypes.zip(expressions.toList).zipWithIndex.collect {
       case ((veScalarType: VeScalarType, exp), idx) =>
         NamedTypedCExpression(s"output_${idx}", veScalarType, exp)
       case other => sys.error(s"Not supported/used: ${other}")
     }
-
-    val cFunction = renderProjection(
-      VeProjection(inputs = veAllocator.makeCVectors, outputs = outputs.map(out => Right(out)))
-    )
+    val cFunction = ProjectionFunction("project_f", veAllocator.makeCVectors, outputs.map(Right(_)))
 
     import OriginalCallingContext.Automatic._
-    evalFunction(cFunction, functionName)(input, outputs.map(_.cVector))
+    evalFunction(cFunction.render, cFunction.name)(input, outputs.map(_.cVector))
   }
 
   def evalFunction[Input, Output](
