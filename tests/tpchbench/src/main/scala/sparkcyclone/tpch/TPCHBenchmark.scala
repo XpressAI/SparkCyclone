@@ -435,7 +435,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val region = "EUROPE"
 
     val sql = s"""
-      select /*+ SHUFFLE_HASH(part, supplier, partsupp, nation, region) */
+      select
         s_acctbal,
         s_name,
         n_name,
@@ -459,7 +459,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         and n_regionkey = r_regionkey
         and r_name = '$region'
         and ps_supplycost = (
-          select /*+ SHUFFLE_HASH(supplier, partsupp, nation, region) */
+          select
             min(ps_supplycost)
           from
             partsupp,
