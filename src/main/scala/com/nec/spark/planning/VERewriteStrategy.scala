@@ -137,7 +137,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
       if options.aggregateOnVe && child.output.nonEmpty && aggregateExpressions.nonEmpty &&
         isSupportedAggregationExpression(aggregateExpressions) =>
-      exchangePlan(functionPrefix, groupingExpressions, aggregateExpressions, child)
+      aggregatePlan(functionPrefix, groupingExpressions, aggregateExpressions, child)
 
     case s@Sort(orders, _, child)
       if options.enableVeSorting && isSupportedSortType(child) =>
@@ -213,7 +213,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
 
 
-  private def exchangePlan(functionPrefix: String, groupingExpressions: Seq[Expression], aggregateExpressions: Seq[NamedExpression], child: LogicalPlan) = {
+  private def aggregatePlan(functionPrefix: String, groupingExpressions: Seq[Expression], aggregateExpressions: Seq[NamedExpression], child: LogicalPlan) = {
     implicit val fallback: EvalFallback = EvalFallback.noOp
 
     val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
