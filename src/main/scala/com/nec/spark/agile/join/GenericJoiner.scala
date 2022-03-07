@@ -36,10 +36,9 @@ final case class GenericJoiner(
       }.mkString(", ")});",
       s"const auto left_idx_std = left_idx.size_t_data_vec();",
       s"const auto right_idx_std = right_idx.size_t_data_vec();",
-      outputs.map {
-        case FilteredOutput(output, source) =>
-          val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
-          CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
+      outputs.map { case FilteredOutput(output, source) =>
+        val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
+        CodeLines.from(s"${output}->move_assign_from(${source.name}->select(${indicesName}));")
       }
     )
   )

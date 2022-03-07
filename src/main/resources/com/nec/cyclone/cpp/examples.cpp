@@ -66,7 +66,7 @@ nullable_varchar_vector * project_eval(const nullable_varchar_vector *input_0)  
 
 void filter_test() {
   std::vector<std::string> data { "AIR", "MAIL", "RAIL", "SHIP", "TRUCK", "REG AIR", "FOB" };
-  std::vector<size_t> matching_ids { 1, 3, 5 };
+  std::vector<size_t> selected_ids { 1, 3, 5 };
 
   auto *input = new nullable_varchar_vector(data);
   input->set_validity(3, 0);
@@ -77,7 +77,7 @@ void filter_test() {
   std::cout << "Original nullable_varchar_vector:" << std::endl;
   input->print();
 
-  const auto *output = input->filter(matching_ids);
+  const auto *output = input->select(selected_ids);
   std::cout << "Filtered nullable_varchar_vector:" << std::endl;
   output->print();
 
@@ -154,6 +154,11 @@ int main() {
   // filter_test();
   // test_sort1();
   // test_sort2();
+  // test_lambda();
 
-  test_lambda();
+  // const auto *input = new nullable_varchar_vector(std::vector<std::string> { "foo1", "bar2", "foobar3", "baz4", "buz5", "faa6" });
+  const auto *input = new nullable_int_vector(std::vector<int32_t> { 0, 1, 2, 3, 4, 5 });
+  const auto *output = input->select(std::vector<size_t> { 5, 1, 3, 2 });
+  input->print();
+  output->print();
 }

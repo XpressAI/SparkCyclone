@@ -204,12 +204,12 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
 }
 
 template <typename T>
-NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &matching_ids) const {
+NullableScalarVec<T> * NullableScalarVec<T>::select(const std::vector<size_t> &selected_ids) const {
   // Allocate
   auto *output = allocate();
 
   // Set the count
-  output->count = matching_ids.size();
+  output->count = selected_ids.size();
 
   // Allocate data
   auto dbytes = output->count * sizeof(T);
@@ -219,11 +219,11 @@ NullableScalarVec<T> * NullableScalarVec<T>::filter(const std::vector<size_t> &m
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
   output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 
-  // Preserve the validityBuffer across the filter
+  // Preserve the validityBuffer across the select
   #pragma _NEC vector
-  for (auto o = 0; o < matching_ids.size(); o++) {
+  for (auto o = 0; o < selected_ids.size(); o++) {
     // Fetch the original index
-    int i = matching_ids[o];
+    int i = selected_ids[o];
 
     // Copy the data unconditionally (allows for loop vectorization)
     output->data[o] = data[i];
@@ -244,20 +244,20 @@ NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &
   // Loop over each bucket
   for (auto b = 0; b < bucket_counts.size(); b++) {
     // Generate the list of indexes where the bucket assignment is b
-    std::vector<size_t> matching_ids(bucket_counts[b]);
+    std::vector<size_t> selected_ids(bucket_counts[b]);
     {
       // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
       size_t pos = 0;
       #pragma _NEC vector
       for (auto i = 0; i < bucket_assignments.size(); i++) {
         if (bucket_assignments[i] == b) {
-          matching_ids[pos++] = i;
+          selected_ids[pos++] = i;
         }
       }
     }
 
     // Create a filtered copy based on the list of indexes
-    output[b] = this->filter(matching_ids);
+    output[b] = this->select(selected_ids);
   }
 
   return output;
