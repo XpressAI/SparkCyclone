@@ -47,7 +47,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
-    (if (child.supportsColumnar) {
+    if (child.supportsColumnar) {
       child
         .executeColumnar()
         .mapPartitions { columnarBatches =>
@@ -89,6 +89,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
           ))
         }
       }
-    }).exchangeBetweenVEs()
+    }
   }
 }
