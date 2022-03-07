@@ -570,8 +570,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
   private def joinPlan(functionPrefix: String, leftChild: LogicalPlan, rightChild: LogicalPlan, inputsLeft: List[CVector], inputsRight: List[CVector], genericJoiner: GenericJoiner) = {
     val functionName = s"join_${functionPrefix}"
 
-    val leftExchangePlan = getJoinExchangePlan(functionPrefix, leftChild, inputsLeft, genericJoiner)
-    val rightExchangePlan = getJoinExchangePlan(functionPrefix, rightChild, inputsRight, genericJoiner)
+    val leftExchangePlan = getJoinExchangePlan(s"l_$functionPrefix", leftChild, inputsLeft, genericJoiner)
+    val rightExchangePlan = getJoinExchangePlan(s"r_$functionPrefix", rightChild, inputsRight, genericJoiner)
 
     val joinFunction = VeFunction(
         veFunctionStatus = {
@@ -620,7 +620,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
   private def getJoinExchangePlan(functionPrefix: String, child: LogicalPlan, inputs: List[CVector], genericJoiner: GenericJoiner) = {
     val exchangeFunctionL = GroupingFunction(
-      s"exchange_l_${functionPrefix}",
+      s"exchange_${functionPrefix}",
       inputs.map { vec =>
         GroupingFunction.DataDescription(
           vec.veType,
