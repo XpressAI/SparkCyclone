@@ -78,7 +78,7 @@ final case class GenericJoiner(
   private def allocateOutputPatchPointers: CodeLines = {
     CodeLines.from(
       fn_outputs.map( v =>
-        s"*${v.name} = static_cast<${v.veType.cVectorType} *>(malloc(sizeof(nullptr) * batches);"
+        s"*${v.name} = static_cast<${v.veType.cVectorType} *>(malloc(sizeof(nullptr) * batches));"
       ),
       "",
     )
