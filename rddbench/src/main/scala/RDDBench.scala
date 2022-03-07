@@ -10,7 +10,7 @@ object RDDBench {
 
     setupLocal()
 
-    val lines = sc.textFile("rdd-benchmark/data.txt")
+    val lines = sc.textFile("rdd-benchmark/data/small.csv")
     val lineLengths = lines.map(s => s.length)
     val totalLength = lineLengths.reduce((a,b) => a+b)
 
@@ -18,9 +18,13 @@ object RDDBench {
   }
 
   def setupLocal(): Unit = {
-    val conf = new SparkConf().setAppName("RDDBench").setMaster("yarn")
+    val conf = new SparkConf()
+      .setAppName("RDDBench")
+      .setMaster("yarn")
     sc = new SparkContext(conf)
   }
+
+
 
 
 }
