@@ -343,7 +343,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       partialName = s"partial_$functionPrefix"
       finalName = s"final_$functionPrefix"
 
-      exchangeFunction = GroupingFunction(s"exchange_${functionPrefix}", dataDescriptions.toList, HashExchangeBuckets)
+      inputAmplifyFn = MergerFunction(s"input_amplify_${functionPrefix}", partialCFunction.inputs.map(_.veType))
+      //exchangeFunction = GroupingFunction(s"exchange_${functionPrefix}", dataDescriptions.toList, HashExchangeBuckets)
       mergeFn = MergerFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
       amplifyFn = MergerFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
 
@@ -351,13 +352,23 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         .from(
           partialCFunction.toCodeLinesHeaderBatchPtr(partialName),
           ff.toCodeLinesNoHeaderOutPtr2(finalName),
-          exchangeFunction.toCodeLines,
+          //exchangeFunction.toCodeLines,
+          inputAmplifyFn.toCodeLines,
           mergeFn.toCodeLines,
           if (options.amplifyBatches) amplifyFn.toCodeLines else CodeLines.empty
         )
 
     } yield {
-      val exchangePlan = SparkToVectorEnginePlan(planLater(child))
+      val exchangePlan = VeAmplifyBatchesPlan(
+        amplifyFunction = VeFunction(
+          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
+          functionName = inputAmplifyFn.name,
+          namedResults = inputAmplifyFn.outputs
+        ),
+        child = SparkToVectorEnginePlan(planLater(child))
+      )
+
+
 
       val pag = VePartialAggregate(
         partialFunction = VeFunction(
