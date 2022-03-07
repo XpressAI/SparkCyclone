@@ -1,9 +1,12 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CFunction2
+import com.nec.spark.agile.CFunction2.CFunctionArgument
+import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
-import com.nec.spark.agile.join.GenericJoiner._
+import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, _}
 
 final case class GenericJoiner(
   inputsLeft: List[CVector],
@@ -14,37 +17,72 @@ final case class GenericJoiner(
 
   private val joinByEquality = JoinByEquality(inputsLeft, inputsRight, joins)
 
-  def toCombinedCodeLines(fName: String): CodeLines = {
-    val computeIndicesFunctionName: String = s"compute_indices_${fName}"
-    CodeLines.from(
-      cFunctionExtra.toCodeLinesNoHeader(computeIndicesFunctionName),
-      cFunction(computeIndicesFunctionName).toCodeLinesS(fName)
-    )
-  }
-
   def cFunctionExtra: CFunction = joinByEquality.produceIndices
 
-  def cFunction(computeIndicesFunctionName: String): CFunction = CFunction(
-    inputs = inputsLeft ++ inputsRight,
-    outputs = outputs.map(_.cVector),
+  lazy val fn_inputs: List[CVector] = {
+    (inputsLeft ++ inputsRight).map { cVector =>
+      cVector.veType.makeCVector(s"${cVector.name}_m")
+    }
+  }
+
+  lazy val fn_outputs: List[CVector] = {
+    outputs.map { filteredOutput =>
+      filteredOutput.cVector.veType.makeCVector(s"${filteredOutput.cVector.name}_mo")
+    }
+  }
+
+  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+    List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")) ++
+      fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
+  }
+
+  def cFunction(computeIndicesFunctionName: String): CFunction2 = CFunction2(
+    arguments = arguments,
     body = CodeLines.from(
-      "nullable_int_vector left_idx;",
-      "nullable_int_vector right_idx;",
-      s"${computeIndicesFunctionName}(${{
-        joinByEquality.ioWo.map(_.name) ++
-          joinByEquality.ioO.map(v => s"&${v.name}")
-      }.mkString(", ")});",
-      s"const auto left_idx_std = left_idx.size_t_data_vec();",
-      s"const auto right_idx_std = right_idx.size_t_data_vec();",
-      outputs.map {
-        case FilteredOutput(output, source) =>
-          val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
-          CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
+      allocateOutputPatchPointers,
+      CodeLines.forLoop("b", "batches") {
+        CodeLines.from(
+          (inputsLeft ++ inputsRight).map{ cVector =>
+            s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.name}_m[b];"
+          },
+          outputs.map{ filteredOutput =>
+            CodeLines.from(
+              s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
+              s"${filteredOutput.cVector.name}_mo[b] = ${filteredOutput.cVector.name};"
+            )
+          },
+          "nullable_int_vector left_idx;",
+          "nullable_int_vector right_idx;",
+          s"${computeIndicesFunctionName}(${
+            {
+              joinByEquality.ioWo.map(_.name) ++
+                joinByEquality.ioO.map(v => s"&${v.name}")
+            }.mkString(", ")
+          });",
+          s"const auto left_idx_std = left_idx.size_t_data_vec();",
+          s"const auto right_idx_std = right_idx.size_t_data_vec();",
+          outputs.map {
+            case FilteredOutput(output, source) =>
+              val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
+              CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
+          }
+        )
       }
     )
   )
 
-  def produce(fName: String): CodeLines = toCombinedCodeLines(fName)
+
+  /**
+   * Allocate output as batches and set output batch count
+   */
+  private def allocateOutputPatchPointers: CodeLines = {
+    CodeLines.from(
+      fn_outputs.map( v =>
+        s"*${v.name} = static_cast<${v.veType.cVectorType} *>(malloc(sizeof(nullptr) * batches);"
+      ),
+      "",
+    )
+  }
 }
 
 object GenericJoiner {

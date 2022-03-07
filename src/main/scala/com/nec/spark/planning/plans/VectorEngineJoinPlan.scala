@@ -1,7 +1,8 @@
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
+import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
+import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
 import com.nec.ve.{VeColBatch, VeRDD}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -23,7 +24,7 @@ case class VectorEngineJoinPlan(
   with PlanMetrics
   with PlanCallsVeFunction {
 
-  override lazy val metrics = invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics("left"
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics("left"
   ) ++ batchMetrics("right") ++ batchMetrics(OUTPUT) ++ batchMetrics("left before exchange"
   ) ++ batchMetrics("right before exchange")
 
@@ -34,36 +35,36 @@ case class VectorEngineJoinPlan(
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("right before exchange", b)),
         cleanUpInput = true
       )
-      .map { case (leftColBatch, rightColBatch) =>
+      .mapPartitions { batchIterator =>
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-        collectBatchMetrics("left", leftColBatch)
-        collectBatchMetrics("right", rightColBatch)
 
-        withInvocationMetrics(BATCH) {
+        val inputBatches = batchIterator.map { case (left, right) =>
+          collectBatchMetrics("left", left)
+          collectBatchMetrics("right", right)
+          VeColBatch(left.numRows, left.cols ++ right.cols)
+        }.toList
+        val batches = VeBatchOfBatches.fromVeColBatches(inputBatches)
+
+        withInvocationMetrics(PLAN){
           withVeLibrary { libRefJoin =>
-            logger.debug(s"Mapping ${leftColBatch} / ${rightColBatch} for join")
             import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-            val batch =
-              try {
-                withInvocationMetrics(VE){
-                  ImplicitMetrics.processMetrics.measureRunningTime {
-                    veProcess.execute(
-                      libraryReference = libRefJoin,
-                      functionName = joinFunction.functionName,
-                      cols = leftColBatch.cols ++ rightColBatch.cols,
-                      results = joinFunction.namedResults
-                    )
-                  }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
-                }
-              } finally {
-                dataCleanup.cleanup(leftColBatch)
-                dataCleanup.cleanup(rightColBatch)
+            val outputBatches = try {
+              withInvocationMetrics(VE){
+                ImplicitMetrics.processMetrics.measureRunningTime {
+                  veProcess.executeMultiInOut(
+                    libraryReference = libRefJoin,
+                    functionName = joinFunction.functionName,
+                    batches = batches,
+                    results = joinFunction.namedResults
+                  )
+                }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
               }
-            logger.debug(s"Completed ${leftColBatch} / ${rightColBatch} => ${batch}.")
-            collectBatchMetrics(OUTPUT, VeColBatch.fromList(batch))
-
+            } finally {
+              inputBatches.foreach(dataCleanup.cleanup(_))
+            }
+            outputBatches.map(VeColBatch.fromList)
           }
-        }
+        }.iterator
       }
   }
 

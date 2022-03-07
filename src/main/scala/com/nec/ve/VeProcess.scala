@@ -56,6 +56,16 @@ trait VeProcess {
     results: List[CVector]
   )(implicit context: OriginalCallingContext): List[VeColVector]
 
+  /**
+   * Takes in multiple batches and returns multiple batches
+   */
+  def executeMultiInOut(
+    libraryReference: LibraryReference,
+    functionName: String,
+    batches: VeBatchOfBatches,
+    results: List[CVector]
+  )(implicit context: OriginalCallingContext): List[List[VeColVector]]
+
 }
 
 object VeProcess {
@@ -123,6 +133,14 @@ object VeProcess {
       results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
+
+    override def executeMultiInOut(
+       libraryReference: LibraryReference,
+       functionName: String,
+       batches: VeBatchOfBatches,
+       results: List[CVector]
+     )(implicit context: OriginalCallingContext): List[List[VeColVector]] =
+      f().executeMultiInOut(libraryReference, functionName, batches, results)
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
       f().writeToStream(outStream, bufPos, bufLen)
@@ -490,6 +508,110 @@ object VeProcess {
               bytePointer.getLong(24)
             )
           ).register()
+      }
+    }
+
+    override def executeMultiInOut(
+       libraryReference: LibraryReference,
+       functionName: String,
+       batches: VeBatchOfBatches,
+       results: List[CVector]
+     )(implicit context: OriginalCallingContext): List[List[VeColVector]] = {
+
+      batches.batches.foreach(batch => validateVectors(batch.cols))
+      val our_args = veo.veo_args_alloc()
+
+      /** Total batches count for input pointers */
+      veo.veo_args_set_i32(our_args, 0, batches.batches.size)
+
+      /** Output count of rows - better to know this in advance */
+      veo.veo_args_set_i32(our_args, 1, batches.rows)
+
+      batches.groupedColumns.zipWithIndex.foreach { case (colGroup, index) =>
+        val byteSize = 8 * batches.batches.size
+        val lp = new LongPointer(batches.batches.size)
+        colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
+          lp.put(idx, col.containerLocation)
+        }
+        veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
+      }
+      val outPointers = results.map { veType =>
+        val lp = new LongPointer(1)
+        lp.put(-118)
+        lp
+      }
+      results.zipWithIndex.foreach { case (vet, reIdx) =>
+        val index = 2 + batches.cols + reIdx
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+      }
+      val fnCallResult = new LongPointer(1)
+
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
+
+      require(
+        functionAddr > 0,
+        s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
+      )
+
+      val start = System.nanoTime()
+      val callRes = veProcessMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(veProcessMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      logger.debug(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
+
+      require(
+        callRes == 0,
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $batches; returns $results"
+      )
+      require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
+
+      batches.batches.indices.toList.map { set =>
+        outPointers.zip(results).map {
+          case (outPointer, CVarChar(name)) =>
+            val outContainerLocation = outPointer.get(set)
+            require(
+              outContainerLocation > 0,
+              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
+            )
+            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
+
+            VeColVector(
+              source = source,
+              numItems = bytePointer.getInt(36),
+              name = name,
+              veType = VeString,
+              containerLocation = outContainerLocation,
+              bufferLocations = List(
+                bytePointer.getLong(0),
+                bytePointer.getLong(8),
+                bytePointer.getLong(16),
+                bytePointer.getLong(24)
+              ),
+              variableSize = Some(bytePointer.getInt(32))
+            ).register()
+          case (outPointer, CScalarVector(name, r)) =>
+            val outContainerLocation = outPointer.get(set)
+            require(
+              outContainerLocation > 0,
+              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
+            )
+            val bytePointer = readAsPointer(outContainerLocation, r.containerSize)
+
+            VeColVector(
+              source = source,
+              numItems = bytePointer.getInt(16),
+              name = name,
+              veType = r,
+              containerLocation = outContainerLocation,
+              bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
+              variableSize = None
+            ).register()
+        }
       }
     }
 
