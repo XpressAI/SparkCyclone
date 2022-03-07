@@ -542,7 +542,7 @@ object VeProcess {
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
         val index = 2 + batches.cols + reIdx
-        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8 * batches.batches.size)
       }
       val fnCallResult = new LongPointer(1)
 
