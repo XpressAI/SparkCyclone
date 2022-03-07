@@ -68,7 +68,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                 })
             }
           }
-      }.exchangeBetweenVEs()
+      }
   }
 
   override def output: Seq[Attribute] = child.output
