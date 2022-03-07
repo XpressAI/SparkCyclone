@@ -50,7 +50,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
     if (child.supportsColumnar) {
       child
         .executeColumnar()
-        .repartition(8)
         .mapPartitions { columnarBatches =>
           withInvocationMetrics(PLAN) {
             import SparkCycloneExecutorPlugin._
@@ -74,7 +73,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
           }
         }
     } else {
-      child.execute().repartition(8).mapPartitions { internalRows =>
+      child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
         import ImplicitMetrics._
 
