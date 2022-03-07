@@ -43,28 +43,33 @@ case class VectorEngineJoinPlan(
           collectBatchMetrics("right", right)
           VeColBatch(left.numRows, left.cols ++ right.cols)
         }.toList
-        val batches = VeBatchOfBatches.fromVeColBatches(inputBatches)
 
-        withInvocationMetrics(PLAN){
-          withVeLibrary { libRefJoin =>
-            import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-            val outputBatches = try {
-              withInvocationMetrics(VE){
-                ImplicitMetrics.processMetrics.measureRunningTime {
-                  veProcess.executeMultiInOut(
-                    libraryReference = libRefJoin,
-                    functionName = joinFunction.functionName,
-                    batches = batches,
-                    results = joinFunction.namedResults
-                  )
-                }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
+        inputBatches match {
+          case Nil => Iterator.empty
+          case _ =>
+            val batches = VeBatchOfBatches.fromVeColBatches(inputBatches)
+
+            withInvocationMetrics(PLAN){
+              withVeLibrary { libRefJoin =>
+                import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+                val outputBatches = try {
+                  withInvocationMetrics(VE){
+                    ImplicitMetrics.processMetrics.measureRunningTime {
+                      veProcess.executeMultiInOut(
+                        libraryReference = libRefJoin,
+                        functionName = joinFunction.functionName,
+                        batches = batches,
+                        results = joinFunction.namedResults
+                      )
+                    }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                  }
+                } finally {
+                  inputBatches.foreach(dataCleanup.cleanup(_))
+                }
+                outputBatches.map(VeColBatch.fromList)
               }
-            } finally {
-              inputBatches.foreach(dataCleanup.cleanup(_))
-            }
-            outputBatches.map(VeColBatch.fromList)
-          }
-        }.iterator
+            }.iterator
+        }
       }
   }
 
