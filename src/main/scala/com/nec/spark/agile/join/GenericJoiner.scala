@@ -48,7 +48,7 @@ final case class GenericJoiner(
           outputs.map{ filteredOutput =>
             CodeLines.from(
               s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
-              s"*${filteredOutput.cVector.name}_mo[b] = ${filteredOutput.cVector.name};"
+              s"${filteredOutput.cVector.name}_mo[b] = ${filteredOutput.cVector.name};"
             )
           },
           "nullable_int_vector left_idx;",
