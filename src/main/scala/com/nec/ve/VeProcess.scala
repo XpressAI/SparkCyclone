@@ -536,7 +536,7 @@ object VeProcess {
         veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
       }
       val outPointers = results.map { veType =>
-        val lp = new LongPointer(1)
+        val lp = new LongPointer(batches.batches.size)
         lp.put(-118)
         lp
       }
