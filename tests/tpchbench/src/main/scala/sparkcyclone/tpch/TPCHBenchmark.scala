@@ -413,7 +413,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
   def query1(sparkSession: SparkSession): (Array[_], DataFrame) = {
     val delta = 90
     val sql = s"""
-      select 
+      select /*+ SKIP_VE(true) */
         l_returnflag,
         l_linestatus,
         sum(l_quantity) as sum_qty,
@@ -820,7 +820,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val fraction = 0.0001
 
     val sql = s"""
-      select 
+      select /*+ SKIP_VE(true) */
         ps_partkey,
         sum(ps_supplycost * ps_availqty) as value
       from
@@ -1054,7 +1054,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val container = "MED BOX"
 
     val sql = s"""
-      select 
+      select /*+ SKIP_VE(true) */
         (sum(l_extendedprice) / 7.0) as avg_yearly
       from
         lineitem,
@@ -1083,7 +1083,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val quantity = 300
 
     val sql = s"""
-      select 
+      select /*+ SKIP_VE(true) */
         c_name,
         c_custkey,
         o_orderkey,
