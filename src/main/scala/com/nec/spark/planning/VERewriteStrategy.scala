@@ -26,38 +26,19 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
-import com.nec.spark.agile.groupby.{
-  ConvertNamedExpression,
-  GroupByOutline,
-  GroupByPartialGenerator,
-  GroupByPartialToFinalGenerator
-}
+import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
 import com.nec.spark.agile.join.{GenericJoiner, JoinMatcher}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VERewriteStrategy.{
-  GroupPrefix,
-  HashExchangeBuckets,
-  InputPrefix,
-  SequenceList
-}
+import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.hints._
 import com.nec.spark.planning.plans._
 import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction, ProjectionFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  HyperLogLogPlusPlus
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  Expression,
-  NamedExpression,
-  SortOrder
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Sort}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -632,7 +613,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                   .toCodeLines(functionName)
               )
           )
-        )
       },
       functionName = functionName,
       namedResults = genericJoiner.outputs.map(_.cVector)
