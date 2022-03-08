@@ -33,10 +33,10 @@ final case class GenericJoiner(
 
   lazy val arguments: List[CFunction2.CFunctionArgument] = {
     List(
-      CFunctionArgument.Raw("int leftBatches"),
-      CFunctionArgument.Raw("int rightBatches"),
-      CFunctionArgument.Raw("int leftRows"),
-      CFunctionArgument.Raw("int rightRows")
+      CFunctionArgument.Raw("size_t leftBatches"),
+      CFunctionArgument.Raw("size_t rightBatches"),
+      CFunctionArgument.Raw("size_t leftRows"),
+      CFunctionArgument.Raw("size_t rightRows")
     ) ++ fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
   }
 
@@ -49,7 +49,7 @@ final case class GenericJoiner(
       outputs.map{ filteredOutput =>
         CodeLines.from(
           s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
-          s"*${filteredOutput.cVector.name}_mo = ${filteredOutput.cVector.name};"
+          s"${filteredOutput.cVector.name}_mo[0] = ${filteredOutput.cVector.name};"
         )
       },
       CodeLines.printLabel("Before Join"),
@@ -68,9 +68,8 @@ final case class GenericJoiner(
         case FilteredOutput(output, source) =>
           val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
           CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
-      }
-
-
+      },
+      CodeLines.printLabel("After output move assign")
     )
   )
 

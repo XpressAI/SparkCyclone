@@ -533,12 +533,12 @@ object VeProcess {
       val metaParamCount = 4
 
       /** Total batches count for left & right input pointers */
-      veo.veo_args_set_i32(our_args, 0, leftBatchSize)
-      veo.veo_args_set_i32(our_args, 1, rightBatchSize)
+      veo.veo_args_set_u64(our_args, 0, leftBatchSize)
+      veo.veo_args_set_u64(our_args, 1, rightBatchSize)
 
       /** Input count of rows - better to know this in advance */
-      veo.veo_args_set_i32(our_args, 2, left.rows)
-      veo.veo_args_set_i32(our_args, 3, right.rows)
+      veo.veo_args_set_u64(our_args, 2, left.rows)
+      veo.veo_args_set_u64(our_args, 3, right.rows)
 
       // Setup input pointers, such that each input pointer points to a batch of columns
       left.batches.head.cols.indices.foreach { cIdx =>
