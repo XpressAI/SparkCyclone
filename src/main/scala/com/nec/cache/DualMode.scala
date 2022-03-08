@@ -90,7 +90,8 @@ object DualMode {
 
   def unwrapPossiblyDualToVeColBatches(
     possiblyDualModeInternalRows: Iterator[InternalRow],
-    arrowSchema: Schema
+    arrowSchema: Schema,
+    metricsFn: (() => VeColBatch) => VeColBatch
   )(implicit
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess,
@@ -102,14 +103,18 @@ object DualMode {
     DualMode.unwrapInternalRows(possiblyDualModeInternalRows) match {
       case Left(colBatches) =>
         colBatches.map(cachedColumnVectors =>
-          DualColumnarBatchContainer(vecs = cachedColumnVectors).toVEColBatch()
+          metricsFn { () =>
+            DualColumnarBatchContainer(vecs = cachedColumnVectors).toVEColBatch()
+          }
         )
       case Right(rowIterator) =>
         SparkInternalRowsToArrowColumnarBatches
           .apply(rowIterator = rowIterator, arrowSchema = arrowSchema)
           .map { columnarBatch =>
             /* cleaning up the [[columnarBatch]] is not necessary as the underlying ones does it */
-            VeColBatch.fromArrowColumnarBatch(columnarBatch)
+            metricsFn { () =>
+              VeColBatch.fromArrowColumnarBatch(columnarBatch)
+            }
           }
     }
 

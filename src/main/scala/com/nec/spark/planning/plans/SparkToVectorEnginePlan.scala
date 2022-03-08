@@ -6,7 +6,7 @@ import com.nec.spark.{SparkCycloneExecutorPlugin, planning}
 import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToColumnar
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeProcess.{OriginalCallingContext, calls}
 import com.nec.ve.VeRDD.{RichKeyedRDDL, RichRDD}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -39,6 +39,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
   override def dataCleanup: DataCleanup = DataCleanup.cleanup(this.getClass)
 
+  private def metricsFn[T](f:() => T): T = withInvocationMetrics(VE)(f.apply())
+
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
     import OriginalCallingContext.Automatic._
@@ -58,17 +60,19 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
             TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
             import OriginalCallingContext.Automatic._
             import ImplicitMetrics._
-            if (ConvertColumnarToColumnar)
+            if (ConvertColumnarToColumnar) {
               collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaCols(
                 columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true
-              ))
+                completeInSpark = true,
+                metricsFn
+              ))}
             else
               collectBatchMetrics(OUTPUT, ColumnarBatchToVeColBatch.toVeColBatchesViaRows(
                 columnarBatches = collectBatchMetrics(INPUT, columnarBatches),
                 arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
-                completeInSpark = true
+                completeInSpark = true,
+                metricsFn
               ))
           }
         }
@@ -85,7 +89,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
           collectBatchMetrics(OUTPUT, DualMode.unwrapPossiblyDualToVeColBatches(
             possiblyDualModeInternalRows = internalRows,
-            arrowSchema = CycloneCacheBase.makaArrowSchema(child.output)
+            arrowSchema = CycloneCacheBase.makaArrowSchema(child.output),
+            metricsFn
           ))
         }
       }
