@@ -35,40 +35,49 @@ case class VectorEngineJoinPlan(
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("right before exchange", b)),
         cleanUpInput = true
       )
-      .mapPartitions { batchIterator =>
+      .mapPartitions { tupleIterator =>
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 
-        val inputBatches = batchIterator.map { case (left, right) =>
-          collectBatchMetrics("left", left)
-          collectBatchMetrics("right", right)
-          VeColBatch(left.numRows, left.cols ++ right.cols)
-        }.toList
+        withInvocationMetrics(PLAN){
+          val (leftBatchesIter, rightBatchesIter) = tupleIterator.fold((Seq.empty, Seq.empty)){ case ((accLeft, accRight), (left, right)) =>
+            (accLeft ++ left, accRight ++ right)
+          }
 
-        inputBatches match {
-          case Nil => Iterator.empty
-          case _ =>
-            val batches = VeBatchOfBatches.fromVeColBatches(inputBatches)
+          val leftBatches = leftBatchesIter.toList
+          val rightBatches = rightBatchesIter.toList
 
-            withInvocationMetrics(PLAN){
+          collectBatchMetrics("left", leftBatches.iterator)
+          collectBatchMetrics("left", rightBatches.iterator)
+
+          (leftBatches, rightBatches) match {
+            case (Nil, _) => Iterator.empty
+            case (_, Nil) => Iterator.empty
+            case _ =>
+              val leftBatchesBatch = VeBatchOfBatches.fromVeColBatches(leftBatches)
+              val rightBatchesBatch = VeBatchOfBatches.fromVeColBatches(rightBatches)
+
               withVeLibrary { libRefJoin =>
                 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-                val outputBatches = try {
+                val outputBatch = try {
                   withInvocationMetrics(VE){
                     ImplicitMetrics.processMetrics.measureRunningTime {
-                      veProcess.executeMultiInOut(
+                      veProcess.executeJoin(
                         libraryReference = libRefJoin,
                         functionName = joinFunction.functionName,
-                        batches = batches,
+                        left = leftBatchesBatch,
+                        right = rightBatchesBatch,
                         results = joinFunction.namedResults
                       )
                     }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
                   }
                 } finally {
-                  inputBatches.foreach(dataCleanup.cleanup(_))
+                  leftBatches.foreach(dataCleanup.cleanup(_))
+                  rightBatches.foreach(dataCleanup.cleanup(_))
                 }
-                outputBatches.map(VeColBatch.fromList)
+
+                Iterator.single(VeColBatch.fromList(outputBatch))
               }
-            }.iterator
+          }
         }
       }
   }

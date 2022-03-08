@@ -60,7 +60,7 @@ object VeRDD extends LazyLogging {
     left: RDD[(Int, VeColBatch)],
     right: RDD[(Int, VeColBatch)],
     cleanUpInput: Boolean
-  ): RDD[(VeColBatch, VeColBatch)] = {
+  ): RDD[(Iterable[VeColBatch], Iterable[VeColBatch])] = {
 
     val cg = new CoGroupedRDD(
       Seq(
@@ -86,27 +86,24 @@ object VeRDD extends LazyLogging {
     cg.setSerializer(new VeSerializer(left.sparkContext.getConf, cleanUpInput))
     cg.mapValues { case Array(vs, w1s) =>
       (vs.asInstanceOf[Iterable[DualBatchOrBytes]], w1s.asInstanceOf[Iterable[DualBatchOrBytes]])
-    }.flatMapValues(pair =>
-      for {
-        v <- pair._1.iterator
-        w <- pair._2.iterator
-      } yield {
-        import com.nec.spark.SparkCycloneExecutorPlugin._
-        import OriginalCallingContext.Automatic._
-        (
-          v.fold(
-            bytesOnly =>
-              VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes))),
-            identity
-          ),
-          w.fold(
-            bytesOnly =>
-              VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes))),
-            identity
-          )
-        )
-      }
-    ).map { case (_, (a, b)) => (a, b) }
+    }.map{ case (_, (leftIter, rightIter)) =>
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      import OriginalCallingContext.Automatic._
+
+      val leftBatches = leftIter.map(left => left.fold(
+        bytesOnly =>
+          VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes))),
+        identity
+      ))
+
+      val rightBatches = rightIter.map(right => right.fold(
+        bytesOnly =>
+          VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes))),
+        identity
+      ))
+
+      (leftBatches, rightBatches)
+    }
   }
 
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {

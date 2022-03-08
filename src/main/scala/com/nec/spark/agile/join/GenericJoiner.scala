@@ -32,54 +32,58 @@ final case class GenericJoiner(
   }
 
   lazy val arguments: List[CFunction2.CFunctionArgument] = {
-    List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")) ++
-      fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
+    List(
+      CFunctionArgument.Raw("int leftBatches"),
+      CFunctionArgument.Raw("int leftRows"),
+      CFunctionArgument.Raw("int rightBatches"),
+      CFunctionArgument.Raw("int rightRows")
+    ) ++ fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
   }
 
   def cFunction(computeIndicesFunctionName: String): CFunction2 = CFunction2(
     arguments = arguments,
     body = CodeLines.from(
-      allocateOutputPatchPointers,
-      CodeLines.forLoop("b", "batches") {
-        CodeLines.from(
-          (inputsLeft ++ inputsRight).map{ cVector =>
-            s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.name}_m[b];"
-          },
-          outputs.map{ filteredOutput =>
-            CodeLines.from(
-              s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
-              s"${filteredOutput.cVector.name}_mo[b] = ${filteredOutput.cVector.name};"
-            )
-          },
-          "nullable_int_vector left_idx;",
-          "nullable_int_vector right_idx;",
-          s"${computeIndicesFunctionName}(${
-            {
-              joinByEquality.ioWo.map(_.name) ++
-                joinByEquality.ioO.map(v => s"&${v.name}")
-            }.mkString(", ")
-          });",
-          s"const auto left_idx_std = left_idx.size_t_data_vec();",
-          s"const auto right_idx_std = right_idx.size_t_data_vec();",
-          outputs.map {
-            case FilteredOutput(output, source) =>
-              val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
-              CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
-          }
-        )
-      }
+      mergeInputBatches,
+      CodeLines.from(
+        outputs.map{ filteredOutput =>
+          CodeLines.from(
+            s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
+            s"${filteredOutput.cVector.name}_mo[0] = ${filteredOutput.cVector.name};"
+          )
+        },
+        "nullable_int_vector left_idx;",
+        "nullable_int_vector right_idx;",
+        s"${computeIndicesFunctionName}(${
+          {
+            joinByEquality.ioWo.map(_.name) ++
+              joinByEquality.ioO.map(v => s"&${v.name}")
+          }.mkString(", ")
+        });",
+        s"const auto left_idx_std = left_idx.size_t_data_vec();",
+        s"const auto right_idx_std = right_idx.size_t_data_vec();",
+        outputs.map {
+          case FilteredOutput(output, source) =>
+            val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
+            CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
+        }
+      )
+
     )
   )
 
 
   /**
-   * Allocate output as batches and set output batch count
+   * Merge input batches into single batch
    */
-  private def allocateOutputPatchPointers: CodeLines = {
+  private def mergeInputBatches: CodeLines = {
+    def merge(prefix: String, input: CVector) = CodeLines.from(
+      // Merge inputs
+      s"${input.veType.cVectorType}* ${input.name} = ${input.veType.cVectorType}::merge(${input.name}_m, ${prefix}Batches);",
+    )
+
     CodeLines.from(
-      fn_outputs.map( v =>
-        s"*${v.name} = static_cast<${v.veType.cVectorType} *>(malloc(sizeof(nullptr) * batches));"
-      ),
+      inputsLeft.map(merge("left", _)),
+      inputsRight.map(merge("right", _)),
       "",
     )
   }

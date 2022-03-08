@@ -59,12 +59,13 @@ trait VeProcess {
   /**
    * Takes in multiple batches and returns multiple batches
    */
-  def executeMultiInOut(
+  def executeJoin(
     libraryReference: LibraryReference,
     functionName: String,
-    batches: VeBatchOfBatches,
+    left: VeBatchOfBatches,
+    right: VeBatchOfBatches,
     results: List[CVector]
-  )(implicit context: OriginalCallingContext): List[List[VeColVector]]
+  )(implicit context: OriginalCallingContext): List[VeColVector]
 
 }
 
@@ -134,13 +135,14 @@ object VeProcess {
     )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
 
-    override def executeMultiInOut(
+    override def executeJoin(
        libraryReference: LibraryReference,
        functionName: String,
-       batches: VeBatchOfBatches,
+       left: VeBatchOfBatches,
+       right: VeBatchOfBatches,
        results: List[CVector]
-     )(implicit context: OriginalCallingContext): List[List[VeColVector]] =
-      f().executeMultiInOut(libraryReference, functionName, batches, results)
+     )(implicit context: OriginalCallingContext): List[VeColVector] =
+      f().executeJoin(libraryReference, functionName, left, right, results)
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
       f().writeToStream(outStream, bufPos, bufLen)
@@ -511,43 +513,66 @@ object VeProcess {
       }
     }
 
-    override def executeMultiInOut(
+    override def executeJoin(
        libraryReference: LibraryReference,
        functionName: String,
-       batches: VeBatchOfBatches,
+       left: VeBatchOfBatches,
+       right: VeBatchOfBatches,
        results: List[CVector]
-     )(implicit context: OriginalCallingContext): List[List[VeColVector]] = {
+     )(implicit context: OriginalCallingContext): List[VeColVector] = {
+      left.batches.foreach(batch => validateVectors(batch.cols))
+      right.batches.foreach(batch => validateVectors(batch.cols))
 
-      batches.batches.foreach(batch => validateVectors(batch.cols))
       val our_args = veo.veo_args_alloc()
 
-      /** Total batches count for input pointers */
-      veo.veo_args_set_i32(our_args, 0, batches.batches.size)
+      val leftBatchSize = left.batches.size
+      val leftColCount = left.cols
+      val rightBatchSize = right.batches.size
+      val rightColCount = right.cols
 
-      /** Output count of rows - better to know this in advance */
-      veo.veo_args_set_i32(our_args, 1, batches.rows)
+      val metaParamCount = 4
+
+      /** Total batches count for left & right input pointers */
+      veo.veo_args_set_i32(our_args, 0, leftBatchSize)
+      veo.veo_args_set_i32(our_args, 1, rightBatchSize)
+
+      /** Input count of rows - better to know this in advance */
+      veo.veo_args_set_i32(our_args, 2, left.rows)
+      veo.veo_args_set_i32(our_args, 3, right.rows)
 
       // Setup input pointers, such that each input pointer points to a batch of columns
-      batches.batches.head.cols.indices.foreach { cIdx =>
-        val byteSize = 8 * batches.batches.size
-        val lp = new LongPointer(batches.batches.size)
+      left.batches.head.cols.indices.foreach { cIdx =>
+        val byteSize = 8 * leftBatchSize
+        val lp = new LongPointer(leftBatchSize)
 
-        batches.batches.zipWithIndex.foreach{ case (b, bIdx) =>
+        left.batches.zipWithIndex.foreach{ case (b, bIdx) =>
           lp.put(bIdx, b.cols(cIdx).containerLocation)
         }
 
-        veo.veo_args_set_stack(our_args, 0, 2 + cIdx, new BytePointer(lp), byteSize)
+        veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
       }
 
-      val outPointers = results.map { veType =>
-        val lp = new LongPointer(batches.batches.size)
+      right.batches.head.cols.indices.foreach { cIdx =>
+        val byteSize = 8 * rightBatchSize
+        val lp = new LongPointer(rightBatchSize)
+
+        right.batches.zipWithIndex.foreach{ case (b, bIdx) =>
+          lp.put(bIdx, b.cols(cIdx).containerLocation)
+        }
+
+        veo.veo_args_set_stack(our_args, 0, metaParamCount + leftBatchSize + cIdx, new BytePointer(lp), byteSize)
+      }
+
+      val outPointers = results.map { _ =>
+        val lp = new LongPointer(1)
         lp.put(-118)
         lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
-        val index = 2 + batches.cols + reIdx
-        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8 * batches.batches.size)
+        val index = metaParamCount + leftColCount + rightColCount + reIdx
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
       }
+
       val fnCallResult = new LongPointer(1)
 
       val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
@@ -570,52 +595,42 @@ object VeProcess {
 
       require(
         callRes == 0,
-        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); args: $batches; returns $results"
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); left: $left; right: $right; returns $results"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      batches.batches.indices.toList.map { set =>
-        outPointers.zip(results).map {
-          case (outPointer, CVarChar(name)) =>
-            val outContainerLocation = outPointer.get(set)
-            require(
-              outContainerLocation > 0,
-              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-            )
-            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
+      outPointers.zip(results).map {
+        case (outPointer, CScalarVector(name, scalar)) =>
+          val outContainerLocation = outPointer.get()
+          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
 
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(36),
-              name = name,
-              veType = VeString,
-              containerLocation = outContainerLocation,
-              bufferLocations = List(
-                bytePointer.getLong(0),
-                bytePointer.getLong(8),
-                bytePointer.getLong(16),
-                bytePointer.getLong(24)
-              ),
-              variableSize = Some(bytePointer.getInt(32))
-            ).register()
-          case (outPointer, CScalarVector(name, r)) =>
-            val outContainerLocation = outPointer.get(set)
-            require(
-              outContainerLocation > 0,
-              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-            )
-            val bytePointer = readAsPointer(outContainerLocation, r.containerSize)
+          VeColVector(
+            source = source,
+            numItems = bytePointer.getInt(16),
+            name = name,
+            veType = scalar,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
+            variableSize = None
+          ).register()
+        case (outPointer, CVarChar(name)) =>
+          val outContainerLocation = outPointer.get()
+          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
 
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(16),
-              name = name,
-              veType = r,
-              containerLocation = outContainerLocation,
-              bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-              variableSize = None
-            ).register()
-        }
+          VeColVector(
+            source = source,
+            numItems = bytePointer.getInt(36),
+            name = name,
+            variableSize = Some(bytePointer.getInt(32)),
+            veType = VeString,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(
+              bytePointer.getLong(0),
+              bytePointer.getLong(8),
+              bytePointer.getLong(16),
+              bytePointer.getLong(24)
+            )
+          ).register()
       }
     }
 
