@@ -549,7 +549,9 @@ object VeProcess {
         val lp = new LongPointer(leftBatchSize)
 
         left.batches.zipWithIndex.foreach{ case (b, bIdx) =>
-          lp.put(bIdx, b.cols(cIdx).containerLocation)
+          val col = b.cols(cIdx)
+          println(s"left col ${col.name}: ${col.containerLocation}")
+          lp.put(bIdx, col.containerLocation)
         }
 
         veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
@@ -561,7 +563,9 @@ object VeProcess {
         val lp = new LongPointer(rightBatchSize)
 
         right.batches.zipWithIndex.foreach{ case (b, bIdx) =>
-          lp.put(bIdx, b.cols(cIdx).containerLocation)
+          val col = b.cols(cIdx)
+          println(s"right col ${col.name}: ${col.containerLocation}")
+          lp.put(bIdx, col.containerLocation)
         }
 
         veo.veo_args_set_stack(our_args, 0, metaParamCount + leftBatchSize + cIdx, new BytePointer(lp), byteSize)
@@ -587,7 +591,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
-      println("Calling out to VE")
+      println(s"Calling out to VE with args: ${our_args}")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
