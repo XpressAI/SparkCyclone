@@ -524,6 +524,7 @@ object VeProcess {
       right.batches.foreach(batch => validateVectors(batch.cols))
 
       val our_args = veo.veo_args_alloc()
+      println("Allocated Args")
 
       val leftBatchSize = left.batches.size
       val leftColCount = left.cols
@@ -532,6 +533,7 @@ object VeProcess {
 
       val metaParamCount = 4
 
+      println(s"Setting meta params leftBatchSize: $leftBatchSize, rightBatchSize: $rightBatchSize, leftRows: ${left.rows}, rightRows: ${right.rows}")
       /** Total batches count for left & right input pointers */
       veo.veo_args_set_u64(our_args, 0, leftBatchSize)
       veo.veo_args_set_u64(our_args, 1, rightBatchSize)
@@ -540,6 +542,7 @@ object VeProcess {
       veo.veo_args_set_u64(our_args, 2, left.rows)
       veo.veo_args_set_u64(our_args, 3, right.rows)
 
+      println(s"Setting up ${left.batches.head.cols.size} left input pointers")
       // Setup input pointers, such that each input pointer points to a batch of columns
       left.batches.head.cols.indices.foreach { cIdx =>
         val byteSize = 8 * leftBatchSize
@@ -552,6 +555,7 @@ object VeProcess {
         veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
       }
 
+      println(s"Setting up ${right.batches.head.cols.size} right input pointers")
       right.batches.head.cols.indices.foreach { cIdx =>
         val byteSize = 8 * rightBatchSize
         val lp = new LongPointer(rightBatchSize)
@@ -563,6 +567,7 @@ object VeProcess {
         veo.veo_args_set_stack(our_args, 0, metaParamCount + leftBatchSize + cIdx, new BytePointer(lp), byteSize)
       }
 
+      println(s"Setting up ${results.size} output pointers")
       val outPointers = results.map { _ =>
         val lp = new LongPointer(1)
         lp.put(-118)
@@ -582,6 +587,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
+      println("Calling out to VE")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
