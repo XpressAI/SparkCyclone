@@ -20,6 +20,7 @@
 package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
@@ -40,9 +41,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Sort}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
-import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{SparkSession, Strategy}
@@ -60,7 +59,7 @@ object VERewriteStrategy {
   val InputPrefix: String = "input_"
   val GroupPrefix: String = "group_"
 
-  val HashExchangeBuckets: Int = 8
+  val HashExchangeBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores()
 }
 
 final case class VERewriteStrategy(options: VeRewriteStrategyOptions)

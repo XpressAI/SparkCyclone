@@ -19,6 +19,7 @@
  */
 package com.nec.spark.agile.groupby
 
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
@@ -29,7 +30,7 @@ final case class GroupByPartialGenerator(
   computedGroupingKeys: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
   computedProjections: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
   stringVectorComputations: List[StringHoleEvaluation],
-  nBuckets: Int = 8
+  nBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores()
 ) {
   import finalGenerator._
   import stagedGroupBy._
