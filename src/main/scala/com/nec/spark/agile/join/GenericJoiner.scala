@@ -49,7 +49,7 @@ final case class GenericJoiner(
       outputs.map{ filteredOutput =>
         CodeLines.from(
           s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
-          s"${filteredOutput.cVector.name}_mo[0] = ${filteredOutput.cVector.name};"
+          s"*${filteredOutput.cVector.name}_mo = ${filteredOutput.cVector.name};"
         )
       },
       CodeLines.printLabel("Before Join"),
