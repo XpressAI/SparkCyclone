@@ -71,8 +71,8 @@ case class VectorEngineJoinPlan(
                     }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
                   }
                 } finally {
-                  leftBatches.foreach(dataCleanup.cleanup(_))
-                  rightBatches.foreach(dataCleanup.cleanup(_))
+                  //leftBatches.foreach(dataCleanup.cleanup(_))
+                  //rightBatches.foreach(dataCleanup.cleanup(_))
                 }
 
                 Iterator.single(VeColBatch.fromList(outputBatch))
