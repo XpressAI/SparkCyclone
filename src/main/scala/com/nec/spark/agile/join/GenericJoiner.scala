@@ -43,16 +43,13 @@ final case class GenericJoiner(
   def cFunction(computeIndicesFunctionName: String): CFunction2 = CFunction2(
     arguments = arguments,
     body = CodeLines.from(
-      CodeLines.printLabel("Before Merge"),
       mergeInputBatches,
-      CodeLines.printLabel("Before output assign"),
       outputs.map{ filteredOutput =>
         CodeLines.from(
           s"${filteredOutput.cVector.veType.cVectorType} *${filteredOutput.cVector.name} = ${filteredOutput.cVector.veType.cVectorType}::allocate();",
           s"*${filteredOutput.cVector.name}_mo = ${filteredOutput.cVector.name};"
         )
       },
-      CodeLines.printLabel("Before Join"),
       "nullable_int_vector left_idx;",
       "nullable_int_vector right_idx;",
       s"${computeIndicesFunctionName}(${
@@ -63,13 +60,11 @@ final case class GenericJoiner(
       });",
       s"const auto left_idx_std = left_idx.size_t_data_vec();",
       s"const auto right_idx_std = right_idx.size_t_data_vec();",
-      CodeLines.printLabel("Before output move assign"),
       outputs.map {
         case FilteredOutput(output, source) =>
           val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
           CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
       },
-      CodeLines.printLabel("After output move assign")
     )
   )
 
