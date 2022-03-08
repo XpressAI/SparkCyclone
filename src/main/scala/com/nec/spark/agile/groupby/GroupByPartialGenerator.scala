@@ -75,7 +75,9 @@ final case class GroupByPartialGenerator(
     r: Either[StringReference, TypedCExpression2]
   ): CodeLines = r match {
     case Left(StringReference(sr)) =>
-      CodeLines.from(s"partial_str_${stagedProjection.name}->move_assign_from(${sr}->filter(matching_ids));")
+      CodeLines.from(
+        s"partial_str_${stagedProjection.name}->move_assign_from(${sr}->select(matching_ids));"
+      )
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
         GroupByOutline.initializeScalarVector(
@@ -150,7 +152,9 @@ final case class GroupByPartialGenerator(
         ProductionTriplet(
           init = CodeLines.empty,
           forEach = CodeLines.empty,
-          complete = CodeLines.from(s"partial_str_${groupingKey.name}->move_assign_from(${sr}->filter(matching_ids));")
+          complete = CodeLines.from(
+            s"partial_str_${groupingKey.name}->move_assign_from(${sr}->select(matching_ids));"
+          )
         )
     }
 

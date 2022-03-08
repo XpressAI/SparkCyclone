@@ -153,21 +153,35 @@ namespace cyclone::tests {
       CHECK(input->size_t_data_vec() == expected);
     }
 
-    TEST_CASE_TEMPLATE("Filter works for T=", T, int32_t, int64_t, float, double) {
+    TEST_CASE_TEMPLATE("Select works for T=", T, int32_t, int64_t, float, double) {
       auto *input = new NullableScalarVec(std::vector<T> { 586, 951, 106, 318, 538, 620, 553, 605, 822, 941 });
       input->set_validity(1, 0);
       input->set_validity(4, 0);
       input->set_validity(8, 0);
 
-      const std::vector<size_t> matching_ids { 1, 2, 4, 7 };
+      { // Subset filter
+        const std::vector<size_t> selected_ids { 1, 2, 4, 7 };
 
-      auto *expected = new NullableScalarVec(std::vector<T> { 951, 106, 538, 605 });
-      expected->set_validity(0, 0);
-      expected->set_validity(2, 0);
+        auto *expected = new NullableScalarVec(std::vector<T> { 951, 106, 538, 605 });
+        expected->set_validity(0, 0);
+        expected->set_validity(2, 0);
 
-      auto *output = input->filter(matching_ids);
-      CHECK(output != input);
-      CHECK(output->equals(expected));
+        const auto *output = input->select(selected_ids);
+        CHECK(output != input);
+        CHECK(output->equals(expected));
+      }
+
+      { // Subset filter with out of order indices
+        const std::vector<size_t> selected_ids { 7, 2, 4, 1 };
+
+        auto *expected = new NullableScalarVec(std::vector<T> { 605, 106, 538, 951 });
+        expected->set_validity(2, 0);
+        expected->set_validity(3, 0);
+
+        const auto *output = input->select(selected_ids);
+        CHECK(output != input);
+        CHECK(output->equals(expected));
+      }
     }
 
     TEST_CASE_TEMPLATE("Bucket works for T=", T, int32_t, int64_t, float, double) {
@@ -181,13 +195,13 @@ namespace cyclone::tests {
 
       auto **output = input->bucket(bucket_counts, bucket_assignments);
 
-      const std::vector<size_t> matching_ids_0 { 2, 6 };
-      const std::vector<size_t> matching_ids_1 { 0, 3, 4, };
-      const std::vector<size_t> matching_ids_2 { 1, 5, 7, 8, 9 };
+      const std::vector<size_t> selected_ids_0 { 2, 6 };
+      const std::vector<size_t> selected_ids_1 { 0, 3, 4, };
+      const std::vector<size_t> selected_ids_2 { 1, 5, 7, 8, 9 };
 
-      CHECK(output[0]->equals(input->filter(matching_ids_0)));
-      CHECK(output[1]->equals(input->filter(matching_ids_1)));
-      CHECK(output[2]->equals(input->filter(matching_ids_2)));
+      CHECK(output[0]->equals(input->select(selected_ids_0)));
+      CHECK(output[1]->equals(input->select(selected_ids_1)));
+      CHECK(output[2]->equals(input->select(selected_ids_2)));
     }
 
     TEST_CASE_TEMPLATE("Merge works for T=", T, int32_t, int64_t, float, double) {

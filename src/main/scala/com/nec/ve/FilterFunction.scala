@@ -1,7 +1,13 @@
 package com.nec.ve
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{VeFilter, CExpression, CScalarVector, CVarChar, CVector}
+import com.nec.spark.agile.CFunctionGeneration.{
+  CExpression,
+  CScalarVector,
+  CVarChar,
+  CVector,
+  VeFilter
+}
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
@@ -11,9 +17,11 @@ object FilterFunction {
   val MatchListId = "matching_ids"
 }
 
-case class FilterFunction(name: String,
-                          filter: VeFilter[CVector, CExpression],
-                          onVe: Boolean = true) {
+case class FilterFunction(
+  name: String,
+  filter: VeFilter[CVector, CExpression],
+  onVe: Boolean = true
+) {
   require(filter.data.nonEmpty, "Expected Filter to have at least one data column")
 
   lazy val inputs: List[CVector] = {
@@ -21,7 +29,9 @@ case class FilterFunction(name: String,
   }
 
   lazy val outputs: List[CVector] = {
-    filter.data.map { vec => vec.withNewName(s"${vec.name.replaceAllLiterally("input", "output")}_m") }
+    filter.data.map { vec =>
+      vec.withNewName(s"${vec.name.replaceAllLiterally("input", "output")}_m")
+    }
   }
 
   lazy val arguments: List[CFunction2.CFunctionArgument] = {
@@ -32,15 +42,17 @@ case class FilterFunction(name: String,
     }
   }
 
-  private[ve] def filterVecStmt(input: CVector): CodeLines = {
+  private[ve] def applySelectionStmt(input: CVector): CodeLines = {
     val output = input.replaceName("input", "output")
-    CodeLines.scoped(s"Populate ${output.name}[0] based on the filter applied to ${input.name}[0]") {
+    CodeLines.scoped(
+      s"Populate ${output.name}[0] based on the filter applied to ${input.name}[0]"
+    ) {
       if (onVe) {
         // Create a filtered copy of input and assign the pointer to output*
-        s"*${output.name} = ${input.name}[0]->filter(${FilterFunction.MatchListId});",
+        s"*${output.name} = ${input.name}[0]->select(${FilterFunction.MatchListId});",
       } else {
         // A memory region is already provided, so create a filtered copy of input and move to the region
-        s"${output.name}->move_assign_from(${input.name}->filter(${FilterFunction.MatchListId}));"
+        s"${output.name}->move_assign_from(${input.name}->select(${FilterFunction.MatchListId}));"
       }
     }
   }
@@ -70,7 +82,7 @@ case class FilterFunction(name: String,
               },
               "",
               "// Compute the matching_ids from the bitmask",
-              s"matching_ids = cyclone::bitmask_to_matching_ids(${FilterFunction.BitMaskId});",
+              s"matching_ids = cyclone::bitmask_to_matching_ids(${FilterFunction.BitMaskId});"
             )
           }
         )
@@ -78,7 +90,7 @@ case class FilterFunction(name: String,
     )
   }
 
-  private[ve] def ptrDeclStmts: CodeLines = {
+  private[ve] def inputPtrDeclStmts: CodeLines = {
     (filter.data, inputs).zipped.map { case (dvec, ivec) =>
       if (onVe) {
         s"${dvec.declarePointer} = ${ivec.name}[0];"
@@ -91,12 +103,12 @@ case class FilterFunction(name: String,
   def render: CFunction2 = {
     val body = CodeLines.from(
       // Declare some pointers
-      ptrDeclStmts,
+      inputPtrDeclStmts,
       "",
       // Perform the filter
       computeFilterStmt,
       // Copy elements over to the output based on the matching_ids
-      inputs.map(filterVecStmt)
+      inputs.map(applySelectionStmt)
     )
 
     CFunction2(arguments, body)
