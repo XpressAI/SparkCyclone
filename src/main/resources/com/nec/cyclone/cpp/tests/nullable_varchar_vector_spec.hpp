@@ -192,22 +192,46 @@ namespace cyclone::tests {
       CHECK(input->validity_vec() == expected);
     }
 
-    TEST_CASE("Filter works") {
+    TEST_CASE("Select works") {
       // Include empty string value
       auto *input = new nullable_varchar_vector(std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "", "SEP", "OCT", "NOV", "DEC" });
       input->set_validity(1, 0);
       input->set_validity(4, 0);
       input->set_validity(10, 0);
 
-      const std::vector<size_t> matching_ids { 1, 2, 4, 7, 11 };
+      const std::vector<size_t> selected_ids { 1, 2, 4, 7, 11 };
 
       auto *expected = new nullable_varchar_vector(std::vector<std::string> { "FEB", "MAR", "MAY", "", "DEC" });
       expected->set_validity(0, 0);
       expected->set_validity(2, 0);
 
-      auto *output = input->filter(matching_ids);
+      const auto *output = input->select(selected_ids);
       CHECK(output != input);
       CHECK(output->equals(expected));
+    }
+
+    TEST_CASE("Select works (for nullable_varchar_vector backed by a compressed data encoding)") {
+      std::vector<int32_t> input { 0, 1, 2, 3, 3, 4 };
+      const auto condition = [&] (const size_t i) -> bool {
+        return input[i] % 2 == 0;
+      };
+
+      auto *vec = nullable_varchar_vector::from_binary_choice(input.size(), condition, "YES", "NO");
+      vec->set_validity(0, 0);
+      vec->set_validity(2, 0);
+
+      auto *expected1 = new nullable_varchar_vector(std::vector<std::string> { "YES", "NO", "YES", "NO", "NO", "YES" });
+      expected1->set_validity(0, 0);
+      expected1->set_validity(2, 0);
+      CHECK(vec->equivalent_to(expected1));
+
+      const std::vector<size_t> selected_ids { 5, 2, 4, 0 };
+      const auto *output = vec->select(selected_ids);
+
+      auto *expected2 = new nullable_varchar_vector(std::vector<std::string> { "YES", "YES", "NO", "YES" });
+      expected2->set_validity(1, 0);
+      expected2->set_validity(3, 0);
+      CHECK(output->equivalent_to(expected2));
     }
 
     TEST_CASE("Bucket works") {
@@ -222,13 +246,13 @@ namespace cyclone::tests {
 
       auto **output = input->bucket(bucket_counts, bucket_assignments);
 
-      const std::vector<size_t> matching_ids_0 { 2, 6, 11 };
-      const std::vector<size_t> matching_ids_1 { 0, 3, 4, 10 };
-      const std::vector<size_t> matching_ids_2 { 1, 5, 7, 8, 9 };
+      const std::vector<size_t> selected_ids_0 { 2, 6, 11 };
+      const std::vector<size_t> selected_ids_1 { 0, 3, 4, 10 };
+      const std::vector<size_t> selected_ids_2 { 1, 5, 7, 8, 9 };
 
-      CHECK(output[0]->equals(input->filter(matching_ids_0)));
-      CHECK(output[1]->equals(input->filter(matching_ids_1)));
-      CHECK(output[2]->equals(input->filter(matching_ids_2)));
+      CHECK(output[0]->equals(input->select(selected_ids_0)));
+      CHECK(output[1]->equals(input->select(selected_ids_1)));
+      CHECK(output[2]->equals(input->select(selected_ids_2)));
     }
 
     TEST_CASE("Merge works") {

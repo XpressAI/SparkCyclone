@@ -699,40 +699,6 @@ object CFunctionGeneration {
     )
   }
 
-  def renderProjection(
-    projection: VeProjection[
-      CVector,
-      Either[NamedStringExpression, NamedTypedCExpression]
-    ]
-  ): CFunction = CFunction(
-    inputs = projection.inputs,
-    outputs = projection.outputs.map {
-      case Right(NamedTypedCExpression(outname, veType, _)) =>
-        CScalarVector(outname, veType)
-      case Left(NamedStringExpression(outname, _)) =>
-        CVarChar(outname)
-    },
-    body = projection.outputs.map {
-      case Left(NamedStringExpression(outname, producer: FrovedisStringProducer)) =>
-        producer.produce(outname, "input_0->count", "i")
-
-      case Right(NamedTypedCExpression(outname, vetype, cexpr)) =>
-        CodeLines.scoped(s"Project onto ${outname}") {
-          CodeLines.from(
-            s"${outname}->resize(input_0->count);",
-            "#pragma _NEC vector",
-            CodeLines.forLoop("i", "input_0->count") {
-              List(
-                s"bool validity = ${cexpr.isNotNullCode.getOrElse("1")};",
-                s"$outname->data[i] = ${cexpr.cCode};",
-                s"$outname->set_validity(i, validity);"
-              )
-            }
-          )
-        }
-    }
-  )
-
   def renderInnerJoin(
     veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
   ): CFunction = {

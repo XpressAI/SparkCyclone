@@ -198,7 +198,9 @@ final case class GroupByPartialGenerator(
       case (groupingKey, Left(StringReference(sr))) =>
         ProductionTriplet(
           forEach = CodeLines.empty,
-          complete = CodeLines.from(s"partial_str_${groupingKey.name}->move_assign_from(${sr}->filter(matching_ids));")
+          complete = CodeLines.from(
+            s"partial_str_${groupingKey.name}->move_assign_from(${sr}->select(matching_ids));"
+          )
         )
     }
 
@@ -211,9 +213,9 @@ final case class GroupByPartialGenerator(
   }
 
   def computeProjectionsPerGroup(
-                                  stagedProjection: StagedProjection,
-                                  r: Either[StringReference, TypedCExpression2]
-                                ): CodeLines = r match {
+    stagedProjection: StagedProjection,
+    r: Either[StringReference, TypedCExpression2]
+  ): CodeLines = r match {
     case Left(StringReference(sr)) =>
       CodeLines.from(s"partial_str_${stagedProjection.name}->move_assign_from(${sr}->filter(matching_ids));")
     case Right(TypedCExpression2(veType, cExpression)) =>
@@ -225,9 +227,9 @@ final case class GroupByPartialGenerator(
   }
 
   def computeAggregatePartialsPerGroup(
-                                        stagedAggregation: StagedAggregation,
-                                        aggregate: Aggregation
-                                      ): CodeLines = {
+    stagedAggregation: StagedAggregation,
+    aggregate: Aggregation
+  ): CodeLines = {
     val prefix = s"partial_${stagedAggregation.name}"
     CodeLines.from(
       groupingCodeGenerator.forEachGroupItem(

@@ -26,19 +26,38 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
-import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
+import com.nec.spark.agile.groupby.{
+  ConvertNamedExpression,
+  GroupByOutline,
+  GroupByPartialGenerator,
+  GroupByPartialToFinalGenerator
+}
 import com.nec.spark.agile.join.{GenericJoiner, JoinMatcher}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
+import com.nec.spark.planning.VERewriteStrategy.{
+  GroupPrefix,
+  HashExchangeBuckets,
+  InputPrefix,
+  SequenceList
+}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.hints._
 import com.nec.spark.planning.plans._
-import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction}
+import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction, ProjectionFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  HyperLogLogPlusPlus
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  AttributeReference,
+  Expression,
+  NamedExpression,
+  SortOrder
+}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Sort}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -50,7 +69,7 @@ object VERewriteStrategy {
   implicit class SequenceList[A, B](l: List[Either[A, B]]) {
     def sequence: Either[A, List[B]] = l.flatMap(_.left.toOption).headOption match {
       case Some(error) => Left(error)
-      case None => Right(l.flatMap(_.right.toOption))
+      case None        => Right(l.flatMap(_.right.toOption))
     }
   }
 
@@ -64,7 +83,7 @@ object VERewriteStrategy {
 
 final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
   extends Strategy
-    with LazyLogging {
+  with LazyLogging {
 
   import com.github.ghik.silencer.silent
 
@@ -74,7 +93,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
     if (options.rewriteEnabled) {
       log.debug(
-        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output.map(_.dataType)}; options = ${options}"
+        s"Processing input plan with VERewriteStrategy: $plan, output types were: ${plan.output
+          .map(_.dataType)}; options = ${options}"
       )
 
       if (options.failFast) {
@@ -90,8 +110,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
              InMemoryRelation is not being picked up in the translation process after a failure in plan transformation.
              Capture specific Filter+InMemory combination when such a failure happens. */
             plan match {
-              case logical.Filter(cond, imr@InMemoryRelation(_, cb, _))
-                if cb.serializer.isInstanceOf[CycloneCacheBase] =>
+              case logical.Filter(cond, imr @ InMemoryRelation(_, cb, _))
+                  if cb.serializer.isInstanceOf[CycloneCacheBase] =>
                 inMemoryFilterPlan(cond, imr)
 
               case _ => Nil
@@ -103,34 +123,37 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
   private def rewritePlan(functionPrefix: String, plan: LogicalPlan) = plan match {
     /* Apply Hints */
-    case SortOnVe(child, enabled) => rewriteWithOptions(child, options.copy(enableVeSorting = enabled))
-    case ProjectOnVe(child, enabled) => rewriteWithOptions(child, options.copy(projectOnVe = enabled))
+    case SortOnVe(child, enabled) =>
+      rewriteWithOptions(child, options.copy(enableVeSorting = enabled))
+    case ProjectOnVe(child, enabled) =>
+      rewriteWithOptions(child, options.copy(projectOnVe = enabled))
     case FilterOnVe(child, enabled) => rewriteWithOptions(child, options.copy(filterOnVe = enabled))
-    case AggregateOnVe(child, enabled) => rewriteWithOptions(child, options.copy(aggregateOnVe = enabled))
-    case ExchangeOnVe(child, enabled) => rewriteWithOptions(child, options.copy(exchangeOnVe = enabled))
+    case AggregateOnVe(child, enabled) =>
+      rewriteWithOptions(child, options.copy(aggregateOnVe = enabled))
+    case ExchangeOnVe(child, enabled) =>
+      rewriteWithOptions(child, options.copy(exchangeOnVe = enabled))
     case FailFast(child, enabled) => rewriteWithOptions(child, options.copy(failFast = enabled))
     case JoinOnVe(child, enabled) => rewriteWithOptions(child, options.copy(joinOnVe = enabled))
-    case AmplifyBatches(child, enabled) => rewriteWithOptions(child, options.copy(amplifyBatches = enabled))
+    case AmplifyBatches(child, enabled) =>
+      rewriteWithOptions(child, options.copy(amplifyBatches = enabled))
     case SkipVe(child, enabled) => rewriteWithOptions(child, options.copy(rewriteEnabled = enabled))
 
     /* Plan rewriting */
-    case imr@InMemoryRelation(_, cb, _)
-      if cb.serializer.isInstanceOf[CycloneCacheBase] =>
+    case imr @ InMemoryRelation(_, cb, _) if cb.serializer.isInstanceOf[CycloneCacheBase] =>
       fetchFromCachePlan(imr)
 
-    case logical.Filter(cond, imr@InMemoryRelation(_, cb, _))
-      if cb.serializer.isInstanceOf[CycloneCacheBase] =>
+    case logical.Filter(cond, imr @ InMemoryRelation(_, cb, _))
+        if cb.serializer.isInstanceOf[CycloneCacheBase] =>
       inMemoryFilterPlan(cond, imr)
 
     case f: logical.Filter if options.filterOnVe =>
       filterPlan(functionPrefix, f)
 
     case JoinMatcher(JoinMatcher(leftChild, rightChild, inputsLeft, inputsRight, genericJoiner))
-      if options.joinOnVe =>
+        if options.joinOnVe =>
       joinPlan(functionPrefix, leftChild, rightChild, inputsLeft, inputsRight, genericJoiner)
 
-    case logical.Project(projectList, child)
-      if projectList.nonEmpty && options.projectOnVe =>
+    case logical.Project(projectList, child) if projectList.nonEmpty && options.projectOnVe =>
       projectPlan(functionPrefix, plan, projectList, child)
 
     case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
@@ -138,8 +161,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         isSupportedAggregationExpression(aggregateExpressions) =>
       aggregatePlan(functionPrefix, groupingExpressions, aggregateExpressions, child)
 
-    case s@Sort(orders, _, child)
-      if options.enableVeSorting && isSupportedSortType(child) =>
+    case s @ Sort(orders, _, child) if options.enableVeSorting && isSupportedSortType(child) =>
       sortPlan(functionPrefix, plan, s, orders, child)
 
     case _ => Nil
@@ -148,24 +170,28 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
   /**
    * String is not supported by Sort yet
    */
-  private def isSupportedSortType(child: LogicalPlan) = !child.output.map(_.dataType).toSet.contains(StringType)
+  private def isSupportedSortType(child: LogicalPlan) =
+    !child.output.map(_.dataType).toSet.contains(StringType)
 
   private def isSupportedAggregationExpression(aggregateExpressions: Seq[NamedExpression]) = {
     !aggregateExpressions
       .collect {
-        case ae: AggregateExpression => ae
+        case ae: AggregateExpression           => ae
         case Alias(ae: AggregateExpression, _) => ae
       }
       .exists { ae =>
-
         /** HyperLogLog++ or Distinct not supported * */
         ae.aggregateFunction.isInstanceOf[HyperLogLogPlusPlus] || ae.isDistinct
       }
   }
 
-
-
-  private def sortPlan(functionPrefix: String, plan: LogicalPlan, s: Sort, orders: Seq[SortOrder], child: LogicalPlan) = {
+  private def sortPlan(
+    functionPrefix: String,
+    plan: LogicalPlan,
+    s: Sort,
+    orders: Seq[SortOrder],
+    child: LogicalPlan
+  ) = {
     val inputsList = child.output.zipWithIndex.map { case (att, id) =>
       sparkTypeToScalarVeType(att.dataType)
         .makeCVector(s"${InputPrefix}${id}")
@@ -211,7 +237,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
   }
 
 
-
   private def aggregatePlan(functionPrefix: String, groupingExpressions: Seq[Expression], aggregateExpressions: Seq[NamedExpression], child: LogicalPlan) = {
     implicit val fallback: EvalFallback = EvalFallback.noOp
 
@@ -247,7 +272,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             )
             .map(_.right.toSeq)
         }
-        .toList.sequence.map(_.flatten)
+        .toList
+        .sequence
+        .map(_.flatten)
 
       aggregates <-
         stringHoledAggregateExpressions.zipWithIndex
@@ -261,26 +288,31 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               )
               .map(_.left.toSeq)
           }
-          .toList.sequence.map(_.flatten)
+          .toList
+          .sequence
+          .map(_.flatten)
 
       validateNamedOutput = { namedExp_ : NamedExpression =>
         val namedExp = namedExp_ match {
           case Alias(child, _) => child
-          case _ => namedExp_
+          case _               => namedExp_
         }
 
         projections
           .collectFirst {
-            case (pk, `namedExp`) => Left(pk)
+            case (pk, `namedExp`)           => Left(pk)
             case (pk, Alias(`namedExp`, _)) => Left(pk)
           }
           .orElse {
             aggregates.collectFirst {
-              case (agg, `namedExp`) => Right(agg)
+              case (agg, `namedExp`)           => Right(agg)
               case (agg, Alias(`namedExp`, _)) => Right(agg)
             }
           }
-          .toRight(s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates.mkString(",")}")
+          .toRight(
+            s"Unmatched output: ${namedExp}; type ${namedExp.getClass}; Spark type ${namedExp.dataType}. Have aggregates: ${aggregates
+              .mkString(",")}"
+          )
       }
 
       finalOutputs <- stringHoledAggregateExpressions.map(validateNamedOutput).toList.sequence
@@ -290,13 +322,20 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         finalOutputs = finalOutputs
       )
 
-      computedGroupingKeys <- groupingExpressionsKeys.map { case (gk, exp) => mapGroupingExpression(exp, referenceReplacer).map(gk -> _) }.sequence
+      computedGroupingKeys <- groupingExpressionsKeys.map { case (gk, exp) =>
+        mapGroupingExpression(exp, referenceReplacer).map(gk -> _)
+      }.sequence
 
-      stringHoles = projections.flatMap { case (_, p) => StringHole.process(p.transform(referenceReplacer))
-      } ++ aggregates.flatMap { case (_, exp) => StringHole.process(exp.transform(referenceReplacer)) }
+      stringHoles = projections.flatMap { case (_, p) =>
+        StringHole.process(p.transform(referenceReplacer))
+      } ++ aggregates.flatMap { case (_, exp) =>
+        StringHole.process(exp.transform(referenceReplacer))
+      }
 
       computedProjections <- projections.map { case (sp, p) =>
-        ConvertNamedExpression.doProj(p.transform(referenceReplacer).transform(StringHole.transform)).map(sp -> _)
+        ConvertNamedExpression
+          .doProj(p.transform(referenceReplacer).transform(StringHole.transform))
+          .map(sp -> _)
       }.sequence
 
       computedAggregates <- aggregates.map { case (sa, exp) =>
@@ -367,8 +406,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         child = SparkToVectorEnginePlan(planLater(child))
       )
 
-
-
       val pag = VePartialAggregate(
         partialFunction = VeFunction(
           veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
@@ -427,7 +464,12 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     List(evaluationPlan)
   }
 
-  private def projectPlan(functionPrefix: String, plan: LogicalPlan, projectList: Seq[NamedExpression], child: LogicalPlan) = {
+  private def projectPlan(
+    functionPrefix: String,
+    plan: LogicalPlan,
+    projectList: Seq[NamedExpression],
+    child: LogicalPlan
+  ) = {
     implicit val fallback: EvalFallback = EvalFallback.noOp
     val nonIdentityProjections =
       if (options.passThroughProject)
@@ -439,9 +481,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         val referenced = replaceReferences(InputPrefix, plan.inputSet.toList, att)
         if (referenced.dataType == StringType)
           evalString(referenced).map(stringProducer =>
-            Left(
-              NamedStringExpression(name = s"output_${idx}", stringProducer = stringProducer)
-            )
+            Left(NamedStringExpression(name = s"output_${idx}", stringProducer = stringProducer))
           )
         else
           eval(referenced).map { cexp =>
@@ -455,20 +495,19 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           }
       }.sequence
     } yield {
-      val fName = s"project_${functionPrefix}"
-      val cF = renderProjection(
-        VeProjection(
-          inputs = getInputAsVeTypes(child),
-          outputs = outputs
-        )
+      val projectionFn = ProjectionFunction(
+        s"project_${functionPrefix}",
+        getInputAsVeTypes(child),
+        outputs
       )
+
       List(VectorEngineToSparkPlan(if (options.passThroughProject) {
         VeProjectEvaluationPlan(
           outputExpressions = projectList,
           veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(cF.toCodeLinesSPtr(fName)),
-            functionName = fName,
-            namedResults = cF.outputs
+            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.toCodeLines),
+            functionName = projectionFn.name,
+            namedResults = projectionFn.outputs
           ),
           child = SparkToVectorEnginePlan(planLater(child))
         )
@@ -476,9 +515,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         VeOneStageEvaluationPlan(
           outputExpressions = projectList,
           veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(cF.toCodeLinesSPtr(fName)),
-            functionName = fName,
-            namedResults = cF.outputs
+            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.toCodeLines),
+            functionName = projectionFn.name,
+            namedResults = projectionFn.outputs
           ),
           child = SparkToVectorEnginePlan(planLater(child))
         )
@@ -493,7 +532,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       .apply(imr)
       .flatMap(sp =>
         List(
-          FilterExec(cond,
+          FilterExec(
+            cond,
             VectorEngineToSparkPlan(
               VeFetchFromCachePlan(sp, imr.cacheBuilder.serializer.asInstanceOf[CycloneCacheBase])
             )
@@ -518,7 +558,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       val filterFn = FilterFunction(
         s"filter_${functionPrefix}",
         VeFilter(
-          stringVectorComputations = StringHole.process(condition.transform(replacer)).toList.flatMap(_.stringParts).distinct,
+          stringVectorComputations = StringHole
+            .process(condition.transform(replacer))
+            .toList
+            .flatMap(_.stringParts)
+            .distinct,
           data = data,
           condition = cond
         )
@@ -541,10 +585,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           if (options.amplifyBatches)
             VeAmplifyBatchesPlan(
               amplifyFunction = VeFunction(
-                veFunctionStatus = VeFunctionStatus.fromCodeLines(CodeLines.from(
-                    CFunctionGeneration.KeyHeaders,
-                    amplifyFn.toCodeLines
-                  )),
+                veFunctionStatus = VeFunctionStatus.fromCodeLines(
+                  CodeLines.from(CFunctionGeneration.KeyHeaders, amplifyFn.toCodeLines)
+                ),
                 functionName = amplifyFn.name,
                 namedResults = data
               ),
@@ -558,15 +601,21 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     planE.fold(
       e =>
         sys.error(
-          s"Could not map ${e} (${e.getClass} ${Option(e).collect { case a: AttributeReference => a.dataType }}); input is ${child.output.toList}, condition is ${condition}"
+          s"Could not map ${e} (${e.getClass} ${Option(e)
+            .collect { case a: AttributeReference => a.dataType }}); input is ${child.output.toList}, condition is ${condition}"
         ),
       identity
     )
   }
 
-
-
-  private def joinPlan(functionPrefix: String, leftChild: LogicalPlan, rightChild: LogicalPlan, inputsLeft: List[CVector], inputsRight: List[CVector], genericJoiner: GenericJoiner) = {
+  private def joinPlan(
+    functionPrefix: String,
+    leftChild: LogicalPlan,
+    rightChild: LogicalPlan,
+    inputsLeft: List[CVector],
+    inputsRight: List[CVector],
+    genericJoiner: GenericJoiner
+  ) = {
     val functionName = s"join_${functionPrefix}"
 
     val leftExchangePlan = getJoinExchangePlan(s"l_$functionPrefix", leftChild, inputsLeft, genericJoiner)
@@ -583,10 +632,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                   .toCodeLines(functionName)
               )
           )
-        },
-        functionName = functionName,
-        namedResults = genericJoiner.outputs.map(_.cVector)
-      )
+        )
+      },
+      functionName = functionName,
+      namedResults = genericJoiner.outputs.map(_.cVector)
+    )
     val joinPlan = VectorEngineJoinPlan(
       outputExpressions = leftChild.output ++ rightChild.output,
       joinFunction = joinFunction,
@@ -594,19 +644,16 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       right = rightExchangePlan
     )
 
-    val amplifyFn = MergerFunction(
-      s"amplify_${functionName}",
-      genericJoiner.outputs.map(_.cVector.veType)
-    )
+    val amplifyFn =
+      MergerFunction(s"amplify_${functionName}", genericJoiner.outputs.map(_.cVector.veType))
 
     val maybeAmplifiedJoinPlan =
       if (options.amplifyBatches)
         VeAmplifyBatchesPlan(
           amplifyFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(CodeLines.from(
-                    CFunctionGeneration.KeyHeaders,
-                    amplifyFn.toCodeLines
-            )),
+            veFunctionStatus = VeFunctionStatus.fromCodeLines(
+              CodeLines.from(CFunctionGeneration.KeyHeaders, amplifyFn.toCodeLines)
+            ),
             functionName = amplifyFn.name,
             namedResults = genericJoiner.outputs.map(_.cVector)
           ),
@@ -617,9 +664,14 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     List(VectorEngineToSparkPlan(maybeAmplifiedJoinPlan))
   }
 
-  private def getJoinExchangePlan(functionPrefix: String, child: LogicalPlan, inputs: List[CVector], genericJoiner: GenericJoiner) = {
+  private def getJoinExchangePlan(
+    fnName: String,
+    child: LogicalPlan,
+    inputs: List[CVector],
+    genericJoiner: GenericJoiner
+  ) = {
     val exchangeFunctionL = GroupingFunction(
-      s"exchange_${functionPrefix}",
+      fnName,
       inputs.map { vec =>
         GroupingFunction.DataDescription(
           vec.veType,
@@ -630,10 +682,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       HashExchangeBuckets
     )
 
-    val code = CodeLines.from(
-      CFunctionGeneration.KeyHeaders,
-      exchangeFunctionL.toCodeLines,
-    )
+    val code = CodeLines.from(CFunctionGeneration.KeyHeaders, exchangeFunctionL.toCodeLines)
 
     VeHashExchangePlan(
       exchangeFunction = VeFunction(
@@ -651,10 +700,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       .flatMap(sp =>
         List(
           VectorEngineToSparkPlan(
-            VeFetchFromCachePlan(
-              sp,
-              imr.cacheBuilder.serializer.asInstanceOf[CycloneCacheBase]
-            )
+            VeFetchFromCachePlan(sp, imr.cacheBuilder.serializer.asInstanceOf[CycloneCacheBase])
           )
         )
       )
