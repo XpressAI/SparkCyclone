@@ -34,8 +34,8 @@ final case class GenericJoiner(
   lazy val arguments: List[CFunction2.CFunctionArgument] = {
     List(
       CFunctionArgument.Raw("int leftBatches"),
-      CFunctionArgument.Raw("int leftRows"),
       CFunctionArgument.Raw("int rightBatches"),
+      CFunctionArgument.Raw("int leftRows"),
       CFunctionArgument.Raw("int rightRows")
     ) ++ fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
   }
