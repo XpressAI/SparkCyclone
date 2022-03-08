@@ -218,17 +218,13 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Data] = {
-    val functionName = "sort_f"
-
     import OriginalCallingContext.Automatic._
-    val cFunction =
-      renderSort(sort =
-        VeSort(
-          data = veAllocator.makeCVectors.map(_.asInstanceOf[CScalarVector]),
-          sorts = sorts.toList
-        )
-      )
-    evalFunction(cFunction, functionName)(input = input.toList, veRetriever.makeCVectors)
-  }
 
+    val sortFn = SortFunction(
+      "sort_f",
+      veAllocator.makeCVectors.map(_.asInstanceOf[CScalarVector]),
+      sorts.toList
+    )
+    evalFunction(sortFn.toCFunction)(input = input.toList, veRetriever.makeCVectors)
+  }
 }

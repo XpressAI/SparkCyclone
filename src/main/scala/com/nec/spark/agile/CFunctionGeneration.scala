@@ -625,80 +625,6 @@ object CFunctionGeneration {
     }
   }
 
-  def renderSort(sort: VeSort[CScalarVector, VeSortExpression]): CFunction = {
-    val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
-      CScalarVector(name.replaceAllLiterally("input", "output"), veType)
-    }
-    val sortingTypes = sort.sorts.flatMap { sortExpression =>
-      List(
-        (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
-        ("int", sortExpression.sortOrdering)
-      )
-    }
-
-    val sortingTuple = sort.sorts
-      .flatMap { veScalar =>
-        List(veScalar.typedExpression.veType.cScalarType, "int")
-      }
-      .mkString("std::tuple<", ", ", ">")
-
-    val sortOrder = sortingTypes
-      .map { case (_, order) =>
-        order match {
-          case Ascending  => 1
-          case Descending => 0
-        }
-      }
-      .mkString(s"std::array<int, ${sortingTypes.size}> {{ ", ", ", " }}")
-
-    CFunction(
-      inputs = sort.data,
-      outputs = sortOutput,
-      body = CodeLines.from(
-        sortOutput.map { case CScalarVector(outputName, outputVeType) =>
-          s"${outputName}->resize(input_0->count);"
-        },
-        "// create an array of indices, which by default are in order, but afterwards are out of order.",
-        "std::vector<size_t> idx(input_0->count);",
-        s"std::vector<${sortingTuple}> sorting_vec(input_0->count);",
-        "for (size_t i = 0; i < input_0->count; i++) {",
-        "idx[i] = i;",
-        s"sorting_vec[i] = ${sortingTuple}${sort.sorts
-          .flatMap {
-            case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, Some(notNullCode))), _) =>
-              List(cCode, notNullCode)
-            case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, None)), _) =>
-              List(cCode, 1)
-
-          }
-          .mkString("(", ",", ")")};",
-        "}",
-        s"idx = cyclone::sort_tuples(sorting_vec, ${sortOrder});",
-        "",
-        "// prevent deallocation of input vector -- it is deallocated by the caller",
-        s"for(int i = 0; i < input_0->count; i++) {",
-        sort.data.zip(sortOutput).map {
-          case (CScalarVector(inName, veType), CScalarVector(outputName, _)) =>
-            CodeLines
-              .from(
-                s"if (${inName}->get_validity(idx[i])) {",
-                CodeLines
-                  .from(
-                    s"$outputName->data[i] = $inName->data[idx[i]];",
-                    s"$outputName->set_validity(i, 1);"
-                  )
-                  .indented,
-                "} else {",
-                CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
-                "}"
-              )
-              .indented
-        },
-        "}"
-      )
-    )
-  }
-
   def renderInnerJoin(
     veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
   ): CFunction = {
@@ -787,5 +713,4 @@ object CFunctionGeneration {
   final case class StringGrouping(name: String)
 
   final case class NamedStringProducer(name: String, stringProducer: StringProducer)
-
 }

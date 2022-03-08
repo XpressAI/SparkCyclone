@@ -35,7 +35,7 @@ import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.hints._
 import com.nec.spark.planning.plans._
-import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction, ProjectionFunction}
+import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction, ProjectionFunction, SortFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
@@ -199,17 +199,22 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
     val veSort = VeSort(inputsList, orderingExpressions)
     val code = CFunctionGeneration.renderSort(veSort)
-
     val sortFName = s"sort_${functionPrefix}"
+
+    val sortFn = SortFunction(
+      s"sort_${functionPrefix}",
+      inputsList,
+      orderingExpressions
+    )
 
     List(
       VectorEngineToSparkPlan(
         VeOneStageEvaluationPlan(
           outputExpressions = s.output,
           veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(code.toCodeLinesSPtr(sortFName)),
-            functionName = sortFName,
-            namedResults = code.outputs
+            veFunctionStatus = VeFunctionStatus.fromCodeLines(sortFn.toCodeLines /* code.toCodeLinesSPtr(sortFName) */),
+            functionName = sortFn.name /* sortFName */,
+            namedResults = sortFn.outputs /* code.outputs */
           ),
           child = SparkToVectorEnginePlan(planLater(child))
         )
