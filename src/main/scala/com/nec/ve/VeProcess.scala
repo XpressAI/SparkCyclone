@@ -568,7 +568,7 @@ object VeProcess {
           lp.put(bIdx, col.containerLocation)
         }
 
-        veo.veo_args_set_stack(our_args, 0, metaParamCount + leftBatchSize + cIdx, new BytePointer(lp), byteSize)
+        veo.veo_args_set_stack(our_args, 0, metaParamCount + leftColCount + cIdx, new BytePointer(lp), byteSize)
       }
 
       println(s"Setting up ${results.size} output pointers")
