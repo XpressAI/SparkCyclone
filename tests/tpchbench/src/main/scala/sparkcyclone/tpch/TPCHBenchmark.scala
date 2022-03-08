@@ -109,7 +109,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
     val dfMap = Map[String, SparkContext => DataFrame](
       "customer" -> (sc =>
-        sc.textFile(inputDir + "/customer.tbl*")
+        sc.textFile(inputDir + "/customer.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p =>
           Customer(
@@ -125,7 +125,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         )
         .toDF()),
       "lineitem" -> (sc =>
-        sc.textFile(inputDir + "/lineitem.tbl*")
+        sc.textFile(inputDir + "/lineitem.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p =>
           Lineitem(
@@ -149,17 +149,17 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         )
         .toDF()),
       "nation" -> (sc =>
-        sc.textFile(inputDir + "/nation.tbl*")
+        sc.textFile(inputDir + "/nation.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p => Nation(p(0).trim.toLong, p(1).trim, p(2).trim.toLong, p(3).trim))
         .toDF()),
       "region" -> (sc =>
-        sc.textFile(inputDir + "/region.tbl*")
+        sc.textFile(inputDir + "/region.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p => Region(p(0).trim.toLong, p(1).trim, p(2).trim))
         .toDF()),
       "orders" -> (sc =>
-        sc.textFile(inputDir + "/orders.tbl*")
+        sc.textFile(inputDir + "/orders.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p =>
           Order(
@@ -176,7 +176,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         )
         .toDF()),
       "part" -> (sc =>
-        sc.textFile(inputDir + "/part.tbl*")
+        sc.textFile(inputDir + "/part.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p =>
           Part(
@@ -193,7 +193,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         )
         .toDF()),
       "partsupp" -> (sc =>
-        sc.textFile(inputDir + "/partsupp.tbl*")
+        sc.textFile(inputDir + "/partsupp.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p =>
           Partsupp(
@@ -206,7 +206,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
         )
         .toDF()),
       "supplier" -> (sc =>
-        sc.textFile(inputDir + "/supplier.tbl*")
+        sc.textFile(inputDir + "/supplier.tbl*", minPartitions = 8)
         .map(_.split('|'))
         .map(p =>
           Supplier(
@@ -308,18 +308,27 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       .headOption
       .getOrElse(false)
 
+    val cache = getOptions("cache")
+      .map(_.toBoolean)
+      .headOption
+      .getOrElse(true)
+
     if (toSelect.nonEmpty) {
       queries
         .filter(q => toSelect.contains(q._2))
         .filter(q => !toSkip.contains(q._2))
         .foreach { case (q, i) =>
-          cacheTables(i)
+          if (cache) {
+            cacheTables(i)
+          }
           benchmark(i, q, skipPlan)
         }
     } else
       queries.foreach { case (query, i) =>
         if (!toSkip.contains(i)) {
-          cacheTables(i)
+          if (cache) {
+            cacheTables(i)
+          }
           benchmark(i, query, skipPlan)
           //uncacheTables(i)
         }
@@ -392,6 +401,9 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     logger.info(s"Query time: ${duration}")
 
     res.take(10).foreach(println)
+
+    val usedVe = ds.queryExecution.executedPlan.toString().contains("SparkToVectorEngine")
+    println(s"Used VE: $usedVe")
 
     if (!skipPlan) {
       logPlan(ds.queryExecution.executedPlan)

@@ -64,7 +64,7 @@ case class GroupingFunction(name: String,
               // Compute the hash across all keys
               keycols.map { vec => s"hash = ${vec.name}[0]->hash_at(i, hash);" },
               // Assign the bucket based on the hash
-              s"${GroupingFunction.GroupAssignmentsId}[i] = abs(hash % ${nbuckets});"
+              s"${GroupingFunction.GroupAssignmentsId}[i] = __builtin_abs(hash % ${nbuckets});"
             )
           }
         )

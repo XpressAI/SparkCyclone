@@ -23,7 +23,6 @@ import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline._
-import com.nec.ve.GroupingFunction
 
 final case class GroupByPartialGenerator(
   finalGenerator: GroupByPartialToFinalGenerator,
@@ -134,7 +133,7 @@ final case class GroupByPartialGenerator(
                   ???
               },
               // Assign the bucket based on the hash
-              s"${BatchAssignmentsId}[g] = abs(hash % ${nBuckets});"
+              s"${BatchAssignmentsId}[g] = __builtin_abs(hash % ${nBuckets});"
             ))
         )
       },
