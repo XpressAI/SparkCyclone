@@ -111,10 +111,10 @@ case class FilterFunction(
       inputs.map(applySelectionStmt)
     )
 
-    CFunction2(arguments, body)
+    CFunction2(name, arguments, body)
   }
 
   def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+    render.toCodeLines
   }
 }

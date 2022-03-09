@@ -80,12 +80,13 @@ case class ProjectionFunction(
 
   def render: CFunction2 = {
     CFunction2(
+      name,
       arguments,
       CodeLines.from(inputPtrDeclStmts, "", outputPtrDeclStmts, "", expressions.map(projectionStmt))
     )
   }
 
   def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+    render.toCodeLines
   }
 }

@@ -40,7 +40,9 @@ final case class GenericJoiner(
     ) ++ fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
   }
 
-  def cFunction(computeIndicesFunctionName: String): CFunction2 = CFunction2(
+  def cFunction(fnName: String,
+                computeIndicesFunctionName: String): CFunction2 = CFunction2(
+    name = fnName,
     arguments = arguments,
     body = CodeLines.from(
       mergeInputBatches,

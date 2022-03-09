@@ -52,10 +52,10 @@ case class MergerFunction(name: String,
   }
 
   def render: CFunction2 = {
-    CFunction2(arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
+    CFunction2(name, arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
   }
 
   def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+    render.toCodeLines
   }
 }

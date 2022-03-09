@@ -26,8 +26,8 @@ class GenericJoinerSpec extends AnyFreeSpec {
     )
 
     val cFunction = genericJoiner
-      .cFunction("produces_indices")
-      .toCodeLines("join_function_name")
+      .cFunction("join_function_name", "produces_indices")
+      .toCodeLines
 
     println(cFunction.cCode)
 

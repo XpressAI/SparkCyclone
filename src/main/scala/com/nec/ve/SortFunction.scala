@@ -4,12 +4,10 @@ import com.nec.spark.agile.CExpressionEvaluation._
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.planning.VeFunction
+import com.nec.spark.planning.VeFunction.VeFunctionStatus
 
 object SortFunction {
-  // sealed trait SortOrdering
-  // final case object Descending extends SortOrdering
-  // final case object Ascending extends SortOrdering
-
   final val SortedIndicesId = "sorted_indices"
 }
 
@@ -52,22 +50,25 @@ case class SortFunction(
   }
 
   def prepareColumnsStmts: CodeLines = {
+    val hasNoNullCheck = sorts.exists(_.typedExpression.cExpression.isNotNullCode.isEmpty)
     CodeLines.from(
-      // Set up the default vector of 1's
-      s"std::vector<int32_t> ONES(${inputs.head.name}->count, 1);",
+      // Set up a default vector of 1's if needed
+      if (hasNoNullCheck) s"std::vector<int32_t> ONES(${inputs.head.name}->count, 1);" else "",
       sorts.zipWithIndex.map {
         case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, Some(notNullCode))), _), idx) =>
-          // If there is a non-null component, get the validity_vec as well
           CodeLines.from(
+            // Extract the pointer to the data array
             s"auto *tmp${idx}a = ${cCode.replaceAll("""\[.*\]""", "")};",
+            // Extract the pointer to the validity vec
             s"auto tmp${idx}b0 = ${notNullCode.replaceAll("->get_validity(.*)", "")}->validity_vec();",
             s"auto *tmp${idx}b = tmp${idx}b0.data();",
           )
 
         case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, None)), _), idx) =>
-          // Else just use the vector of 1's
           CodeLines.from(
+            // Extract the pointer to the data array
             s"auto *tmp${idx}a = ${cCode.replaceAll("""\[.*\]""", "")};",
+            // Extract the pointer to the default vector of 1's
             s"auto *tmp${idx}b = ONES.data();"
           )
       }
@@ -96,14 +97,19 @@ case class SortFunction(
     }
   }
 
-  def render: CFunction2 = {
+  def toCFunction: CFunction2 = {
     CFunction2(
+      name,
       arguments,
       CodeLines.from(inputPtrDeclStmts, "", outputPtrDeclStmts, "", prepareColumnsStmts, "", sortColumnsStmts, "", reorderStmts)
     )
   }
 
-  def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+  def toVeFunction: VeFunction = {
+    VeFunction(
+      VeFunctionStatus.fromCodeLines(toCFunction.toCodeLinesWithHeaders),
+      name,
+      outputs
+    )
   }
 }

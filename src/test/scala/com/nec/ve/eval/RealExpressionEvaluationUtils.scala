@@ -137,7 +137,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     val cFunction = ProjectionFunction("project_f", veAllocator.makeCVectors, outputs.map(Right(_)))
 
     import OriginalCallingContext.Automatic._
-    evalFunction(cFunction.render, cFunction.name)(input, outputs.map(_.cVector))
+    evalFunction(cFunction.render)(input, outputs.map(_.cVector))
   }
 
   def evalFunction[Input, Output](
@@ -164,8 +164,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     }
   }
   def evalFunction[Input, Output](
-    cFunction: CFunction2,
-    functionName: String
+    cFunction: CFunction2
   )(input: List[Input], outputs: List[CVector])(implicit
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
@@ -175,12 +174,12 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource
   ): List[Output] = {
     WithTestAllocator { implicit allocator =>
-      veKernelInfra.compiledWithHeaders(cFunction, functionName) { path =>
+      veKernelInfra.compiledWithHeaders(cFunction) { path =>
         val libRef = veProcess.loadLibrary(path)
         val inputVectors = veAllocator.allocate(input: _*)
         try {
           val resultingVectors =
-            veProcess.execute(libRef, functionName, inputVectors.cols, outputs)
+            veProcess.execute(libRef, cFunction.name, inputVectors.cols, outputs)
           veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
         } finally inputVectors.free()
       }
@@ -205,7 +204,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     )
 
     import OriginalCallingContext.Automatic._
-    evalFunction(filterFn.render, "filter_f")(
+    evalFunction(filterFn.render)(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
     )

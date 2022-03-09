@@ -86,7 +86,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         try rewritePlan(functionPrefix, plan)
         catch {
           case e: Throwable =>
-            logger.error(s"Could not map plan ${plan} because of: ${e}", e)
+            logger.error(s"Could not map plan (${e}):\n${plan}", e)
             /* https://github.com/XpressAI/SparkCyclone/pull/407:
              InMemoryRelation is not being picked up in the translation process after a failure in plan transformation.
              Capture specific Filter+InMemory combination when such a failure happens. */
@@ -197,10 +197,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         identity
       )
 
-    val veSort = VeSort(inputsList, orderingExpressions)
-    val code = CFunctionGeneration.renderSort(veSort)
-    val sortFName = s"sort_${functionPrefix}"
-
     val sortFn = SortFunction(
       s"sort_${functionPrefix}",
       inputsList,
@@ -211,17 +207,12 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       VectorEngineToSparkPlan(
         VeOneStageEvaluationPlan(
           outputExpressions = s.output,
-          veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(sortFn.toCodeLines /* code.toCodeLinesSPtr(sortFName) */),
-            functionName = sortFn.name /* sortFName */,
-            namedResults = sortFn.outputs /* code.outputs */
-          ),
+          veFunction = sortFn.toVeFunction,
           child = SparkToVectorEnginePlan(planLater(child))
         )
       )
     )
   }
-
 
   private def aggregatePlan(functionPrefix: String, groupingExpressions: Seq[Expression], aggregateExpressions: Seq[NamedExpression], child: LogicalPlan) = {
     implicit val fallback: EvalFallback = EvalFallback.noOp
@@ -491,7 +482,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         VeProjectEvaluationPlan(
           outputExpressions = projectList,
           veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.toCodeLines),
+            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.render.toCodeLinesWithHeaders),
             functionName = projectionFn.name,
             namedResults = projectionFn.outputs
           ),
@@ -501,7 +492,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         VeOneStageEvaluationPlan(
           outputExpressions = projectList,
           veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.toCodeLines),
+            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.render.toCodeLinesWithHeaders),
             functionName = projectionFn.name,
             namedResults = projectionFn.outputs
           ),
@@ -614,8 +605,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
                 CFunctionGeneration.KeyHeaders,
                 genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
                 genericJoiner
-                  .cFunction(produceIndicesFName)
-                  .toCodeLines(functionName)
+                  .cFunction(functionName, produceIndicesFName)
+                  .toCodeLines
               )
           )
       },

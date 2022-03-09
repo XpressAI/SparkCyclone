@@ -127,7 +127,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   }
 
   "Partition data by some means (simple Int partitioning in this case) (PIN)" in {
-    val function = GroupingFunction(
+    val groupingFn = GroupingFunction(
       "f",
       List(
         GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Key),
@@ -137,7 +137,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       2
     )
 
-    compiledWithHeaders(function.render, function.name) { path =>
+    compiledWithHeaders(groupingFn.render) { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
@@ -149,7 +149,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
               val colVecS: VeColVector = VeColVector.fromArrowVector(sv)
               val results = veProcess.executeMulti(
                 libraryReference = lib,
-                functionName = "f",
+                functionName = groupingFn.name,
                 cols = List(colVec, colVecS, colVec2),
                 results = List(
                   VeScalarType.veNullableDouble,
@@ -272,7 +272,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   "We can merge multiple VeColBatches" in {
     val mergeFn = MergerFunction("merger", List(VeNullableDouble, VeString))
 
-    compiledWithHeaders(mergeFn.render, mergeFn.name) {
+    compiledWithHeaders(mergeFn.render) {
       path =>
         val lib = veProcess.loadLibrary(path)
         WithTestAllocator { implicit alloc =>
