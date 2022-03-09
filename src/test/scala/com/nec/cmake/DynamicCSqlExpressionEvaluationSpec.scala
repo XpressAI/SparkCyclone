@@ -826,7 +826,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  s"Strings can appear in the select clause" in withSparkSession2(configuration) { sparkSession =>
+  s"Strings can appear in the select clause" ignore withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val sql =
@@ -838,7 +838,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  s"NOT-equals works with strings" in withSparkSession2(configuration) { sparkSession =>
+  s"NOT-equals works with strings" ignore withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val sql =
@@ -851,7 +851,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  s"LIKE works strings (startsWith)" in withSparkSession2(configuration) { sparkSession =>
+  s"LIKE works strings (startsWith)" ignore withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val sql =
@@ -864,7 +864,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
     }
   }
 
-  s"LIKE works strings (endsWith)" in withSparkSession2(configuration) { sparkSession =>
+  s"LIKE works strings (endsWith)" ignore withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val sql =
@@ -876,7 +876,7 @@ abstract class DynamicCSqlExpressionEvaluationSpec
       assert(result == expected)
     }
   }
-  s"LIKE works strings (contains)" in withSparkSession2(configuration) { sparkSession =>
+  s"LIKE works strings (contains)" ignore withSparkSession2(configuration) { sparkSession =>
     import sparkSession.implicits._
 
     val sql =

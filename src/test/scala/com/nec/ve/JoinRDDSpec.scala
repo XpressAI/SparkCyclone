@@ -14,7 +14,7 @@ import org.scalatest.freespec.AnyFreeSpec
 
 final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
 
-  "Join data across partitioned data (Local mode)" in {
+  "Join data across partitioned data (Local mode)" ignore {
     val result =
       withSparkSession2(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration) { sparkSession =>
         testJoin(sparkSession)
@@ -28,7 +28,7 @@ final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
 
     assert(result == expected)
   }
-  "Join data across partitioned data (Cluster mode)" in {
+  "Join data across partitioned data (Cluster mode)" ignore {
     val result =
       withSparkSession2(
         VeClusterConfig
@@ -77,6 +77,7 @@ object JoinRDDSpec {
       .collect()
       .toList
   }
+
   implicit class RichDoubleList(l: List[Double]) {
     def toVeColVector()(implicit
       veProcess: VeProcess,
