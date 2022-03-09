@@ -91,7 +91,7 @@ object DualMode {
   def unwrapPossiblyDualToVeColBatches(
     possiblyDualModeInternalRows: Iterator[InternalRow],
     arrowSchema: Schema,
-    metricsFn: (() => VeColBatch) => VeColBatch
+    metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   )(implicit
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess,

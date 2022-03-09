@@ -3,27 +3,26 @@ package com.nec.cache
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarBatchToVeColBatch {
   def toVeColBatchesViaCols(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
-    completeInSpark: Boolean,
-    metricsFn: (() => VeColBatch) => VeColBatch
-   )(implicit
+    completeInSpark: Boolean
+  )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
     originalCallingContext: OriginalCallingContext,
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
-    cycloneMetrics: VeProcessMetrics
+    cycloneMetrics: VeProcessMetrics,
+    metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   ): Iterator[VeColBatch] = {
     columnarBatches.map { columnarBatch =>
       metricsFn { () =>
@@ -60,7 +59,7 @@ object ColumnarBatchToVeColBatch {
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
     completeInSpark: Boolean,
-    metricsFn: (() => VeColBatch) => VeColBatch
+    metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
