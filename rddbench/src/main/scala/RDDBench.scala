@@ -8,20 +8,68 @@ object RDDBench {
   def main(args: Array[String]): Unit = {
     println("RDD Benchmark")
 
-    setupLocal()
+    setup()
 
-    val lines = sc.textFile("rdd-benchmark/data/small.csv")
-    val lineLengths = lines.map(s => s.length)
-    val totalLength = lineLengths.reduce((a,b) => a+b)
+    bench01cpu()
 
-    println("totalLength = " + totalLength)
+    finishUp()
   }
 
-  def setupLocal(): Unit = {
+  def bench01cpu() = {
+    val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
+    val rdd = sc.parallelize(numbers)
+
+    val mappedRdd = rdd.map( (a) => 2 * a + 12)
+
+    val result = mappedRdd.reduce( (a,b) => a + b)
+
+    println("result of bench01 is " + result)
+
+  }
+
+  def bench01ve() = {
+    val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
+
+    /*
+    val rdd = VERDD(sc.parallelize(numbers))
+
+    val mappedRdd = rdd.map( (a) => 2 * a + 12)
+
+    val result = mappedRdd.reduce( (a,b) => a + b)
+
+    println("result of bench01 is " + result)
+     */
+  }
+
+
+  def bench02() = {
+
+    // TODO: read from local file
+  /*
+    //val lines = sc.textFile("rddbench/data/small.csv")
+    val numbersDF = sc.read.csv("rddbench/data/small.csv").rdd
+
+    // map
+    val mappedNumbersRDD = numbersRDD.map((a,b) => )
+
+    val lineLengths = lines.map(s => s.length)
+    val totalLength = lineLengths.reduce((a,b) => a+b)
+    println("totalLength = " + totalLength)
+
+
+   */
+  }
+
+  def setup(): Unit = {
     val conf = new SparkConf()
       .setAppName("RDDBench")
       .setMaster("yarn")
+      .setJars(Array("rddbench/target/scala-2.12/rddbench_2.12-0.1.jar"))
     sc = new SparkContext(conf)
+  }
+
+  def finishUp() = {
+    sc.stop()
   }
 
 
