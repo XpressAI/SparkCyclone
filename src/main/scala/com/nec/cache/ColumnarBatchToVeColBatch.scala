@@ -14,7 +14,8 @@ object ColumnarBatchToVeColBatch {
   def toVeColBatchesViaCols(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
-    completeInSpark: Boolean
+    completeInSpark: Boolean,
+    metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   )(implicit
     bufferAllocator: BufferAllocator,
     arrowEncodingSettings: ArrowEncodingSettings,
@@ -22,7 +23,6 @@ object ColumnarBatchToVeColBatch {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     cycloneMetrics: VeProcessMetrics,
-    metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   ): Iterator[VeColBatch] = {
     columnarBatches.map { columnarBatch =>
       metricsFn { () =>

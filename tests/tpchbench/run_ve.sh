@@ -18,16 +18,22 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.com.nec.spark.aggregate-on-ve=true \
     --conf spark.com.nec.spark.sort-on-ve=false \
     --conf spark.com.nec.spark.project-on-ve=false \
-    --conf spark.com.nec.spark.filter-on-ve=false \
-    --conf spark.com.nec.spark.exchange-on-ve=false \
-    --conf spark.com.nec.spark.join-on-ve=false \
+    --conf spark.com.nec.spark.filter-on-ve=true \
+    --conf spark.com.nec.spark.exchange-on-ve=true \
+    --conf spark.com.nec.spark.join-on-ve=true \
     --conf spark.com.nec.spark.pass-through-project=false \
     --conf spark.com.nec.spark.fail-fast=false \
     --conf spark.com.nec.spark.amplify-batches=true \
     --conf spark.com.nec.spark.ve.columnBatchSize=128000 \
     --conf spark.com.nec.spark.ve.targetBatchSizeMb=32 \
     --conf spark.sql.inMemoryColumnarStorage.batchSize=128000 \
+    --conf spark.sql.codegen.wholeStage=false \
     --conf spark.sql.autoBroadcastJoinThreshold=-1 \
     --conf spark.shuffle.partitions=8 \
+    --conf spark.executorEnv.VE_PROGINF=YES \
     target/scala-2.12/tpchbench-assembly-0.0.1.jar \
     $*
+
+
+#    --conf spark.executorEnv.VE_ACC_IO=1 \
+#    --conf spark.executorEnv.VEO_LOG_DEBUG=1 \
