@@ -104,6 +104,9 @@ final case class GroupingCodeGenerator(
           s"size_t group_end_in_idx = ${groupsIndicesName}[g + 1];",
           "int i = 0;",
           beforeFirst,
+          "#pragma cdir nodep",
+          "#pragma _NEC ivdep",
+          "#pragma _NEC vovertake",
           s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
           CodeLines
             .from(s"i = ${sortedIdxName}[j];", perItem)

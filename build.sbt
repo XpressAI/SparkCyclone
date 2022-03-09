@@ -23,7 +23,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
-  .settings(version := "0.9.3")
+  .settings(version := "1.0.0")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
@@ -108,7 +108,7 @@ val sparkVersion = SettingKey[String]("sparkVersion")
 
 ThisBuild / sparkVersion := {
   val scalaV = scalaVersion.value
-  if (scalaV.startsWith("2.12")) "3.1.2" else "2.3.2"
+  if (scalaV.startsWith("2.12")) "3.1.3" else "2.3.2"
 }
 
 val silencerVersion = "1.6.0"
@@ -325,8 +325,8 @@ deploy := {
   logger.info(s"Assembled file: ${generatedFile}")
 
   if (targetBox == "local") {
-    logger.info(s"Copying JAR locally to /opt/cyclone/spark-cyclone-sql-plugin.jar:")
-    Seq("cp", generatedFile.toString, "/opt/cyclone/spark-cyclone-sql-plugin.jar") ! logger
+    logger.info(s"Copying JAR locally to /opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar:")
+    Seq("cp", generatedFile.toString, s"/opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar") ! logger
     logger.info(s"Copied.")
   } else {
     logger.info(s"Uploading JAR to ${targetBox}")
@@ -398,7 +398,7 @@ lazy val tpchbench = project
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
     version := "0.0.1",
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.1" % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.3" % "provided",
     libraryDependencies += "com.github.mrpowers" %% "spark-daria" % "0.38.2",
     libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",

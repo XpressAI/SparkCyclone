@@ -20,48 +20,28 @@
 package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
-import com.nec.spark.agile.groupby.{
-  ConvertNamedExpression,
-  GroupByOutline,
-  GroupByPartialGenerator,
-  GroupByPartialToFinalGenerator
-}
+import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
 import com.nec.spark.agile.join.{GenericJoiner, JoinMatcher}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
-import com.nec.spark.planning.VERewriteStrategy.{
-  GroupPrefix,
-  HashExchangeBuckets,
-  InputPrefix,
-  SequenceList
-}
+import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.hints._
 import com.nec.spark.planning.plans._
 import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction, ProjectionFunction}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  HyperLogLogPlusPlus
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  Expression,
-  NamedExpression,
-  SortOrder
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Sort}
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
-import org.apache.spark.sql.execution.exchange.{REPARTITION, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{SparkSession, Strategy}
@@ -79,7 +59,7 @@ object VERewriteStrategy {
   val InputPrefix: String = "input_"
   val GroupPrefix: String = "group_"
 
-  val HashExchangeBuckets: Int = 8
+  val HashExchangeBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores()
 }
 
 final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
@@ -100,17 +80,16 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
       if (options.failFast) {
         val x = rewritePlan(functionPrefix, plan)
-        if (x.isEmpty)
-          logger.debug(s"Didn't rewrite")
-        else
-          logger.debug(s"Rewrote it to ==> ${x}")
+        if (x.isEmpty) logger.debug(s"Didn't rewrite") else logger.debug(s"Rewrote it to ==> ${x}")
         x
       } else {
         try rewritePlan(functionPrefix, plan)
         catch {
           case e: Throwable =>
             logger.error(s"Could not map plan ${plan} because of: ${e}", e)
-            /* TODO: WHY??? */
+            /* https://github.com/XpressAI/SparkCyclone/pull/407:
+             InMemoryRelation is not being picked up in the translation process after a failure in plan transformation.
+             Capture specific Filter+InMemory combination when such a failure happens. */
             plan match {
               case logical.Filter(cond, imr @ InMemoryRelation(_, cb, _))
                   if cb.serializer.isInstanceOf[CycloneCacheBase] =>
@@ -159,9 +138,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       projectPlan(functionPrefix, plan, projectList, child)
 
     case logical.Aggregate(groupingExpressions, aggregateExpressions, child)
-        if options.aggregateOnVe && child.output.nonEmpty && aggregateExpressions.nonEmpty &&
-          isSupportedAggregationExpression(aggregateExpressions) =>
-      exchangePlan(functionPrefix, groupingExpressions, aggregateExpressions, child)
+      if options.aggregateOnVe && child.output.nonEmpty && aggregateExpressions.nonEmpty &&
+        isSupportedAggregationExpression(aggregateExpressions) =>
+      aggregatePlan(functionPrefix, groupingExpressions, aggregateExpressions, child)
 
     case s @ Sort(orders, _, child) if options.enableVeSorting && isSupportedSortType(child) =>
       sortPlan(functionPrefix, plan, s, orders, child)
@@ -238,12 +217,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     )
   }
 
-  private def exchangePlan(
-    functionPrefix: String,
-    groupingExpressions: Seq[Expression],
-    aggregateExpressions: Seq[NamedExpression],
-    child: LogicalPlan
-  ) = {
+
+  private def aggregatePlan(functionPrefix: String, groupingExpressions: Seq[Expression], aggregateExpressions: Seq[NamedExpression], child: LogicalPlan) = {
     implicit val fallback: EvalFallback = EvalFallback.noOp
 
     val groupingExpressionsKeys: List[(GroupingKey, Expression)] =
@@ -387,52 +362,30 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       partialName = s"partial_$functionPrefix"
       finalName = s"final_$functionPrefix"
 
-      exchangeFunction = GroupingFunction(
-        s"exchange_${functionPrefix}",
-        dataDescriptions.toList,
-        HashExchangeBuckets
-      )
-
+      inputAmplifyFn = MergerFunction(s"input_amplify_${functionPrefix}", partialCFunction.inputs.map(_.veType))
+      //exchangeFunction = GroupingFunction(s"exchange_${functionPrefix}", dataDescriptions.toList, HashExchangeBuckets)
       mergeFn = MergerFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
-
       amplifyFn = MergerFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
 
       code = CodeLines
         .from(
-          partialCFunction.toCodeLinesSPtr(partialName),
+          partialCFunction.toCodeLinesHeaderBatchPtr(partialName),
           ff.toCodeLinesNoHeaderOutPtr2(finalName),
-          exchangeFunction.toCodeLines,
+          //exchangeFunction.toCodeLines,
+          inputAmplifyFn.toCodeLines,
           mergeFn.toCodeLines,
           if (options.amplifyBatches) amplifyFn.toCodeLines else CodeLines.empty
         )
 
     } yield {
-      val exchangePlan =
-        /*
-                TODO: Optimize in the future so that we don't need to copy the
-                input to output vectors at all if:
-
-                  dataDescriptions.count(_.keyOrValue.isKey) <= 0
-         */
-        if (options.exchangeOnVe) {
-          VeHashExchangePlan(
-            exchangeFunction = VeFunction(
-              veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-              functionName = exchangeFunction.name,
-              namedResults = partialCFunction.inputs
-            ),
-            child = SparkToVectorEnginePlan(planLater(child))
-          )
-        } else {
-          SparkToVectorEnginePlan(
-            ShuffleExchangeExec(
-              outputPartitioning =
-                HashPartitioning(expressions = groupingExpressions, numPartitions = 8),
-              child = planLater(child),
-              shuffleOrigin = REPARTITION
-            )
-          )
-        }
+      val exchangePlan = VeAmplifyBatchesPlan(
+        amplifyFunction = VeFunction(
+          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
+          functionName = inputAmplifyFn.name,
+          namedResults = inputAmplifyFn.outputs
+        ),
+        child = SparkToVectorEnginePlan(planLater(child))
+      )
 
       val pag = VePartialAggregate(
         partialFunction = VeFunction(
@@ -646,22 +599,20 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
   ) = {
     val functionName = s"join_${functionPrefix}"
 
-    val leftExchangePlan = getJoinExchangePlan(s"exchange_l_${functionPrefix}", leftChild, inputsLeft, genericJoiner)
-    val rightExchangePlan =
-      getJoinExchangePlan(s"exchange_r_${functionPrefix}", rightChild, inputsRight, genericJoiner)
+    val leftExchangePlan = getJoinExchangePlan(s"l_$functionPrefix", leftChild, inputsLeft, genericJoiner)
+    val rightExchangePlan = getJoinExchangePlan(s"r_$functionPrefix", rightChild, inputsRight, genericJoiner)
 
     val joinFunction = VeFunction(
-      veFunctionStatus = {
-        val produceIndicesFName = s"produce_indices_${functionName}"
-        VeFunctionStatus.fromCodeLines(
-          CodeLines.from(
-            CFunctionGeneration.KeyHeaders,
-            genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
-            genericJoiner
-              .cFunction(produceIndicesFName)
-              .toCodeLinesNoHeaderOutPtr2(functionName)
+        veFunctionStatus = {
+          val produceIndicesFName = s"produce_indices_${functionName}"
+          VeFunctionStatus.fromCodeLines(CodeLines.from(
+                CFunctionGeneration.KeyHeaders,
+                genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
+                genericJoiner
+                  .cFunction(produceIndicesFName)
+                  .toCodeLines(functionName)
+              )
           )
-        )
       },
       functionName = functionName,
       namedResults = genericJoiner.outputs.map(_.cVector)

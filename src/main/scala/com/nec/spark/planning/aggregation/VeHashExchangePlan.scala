@@ -1,12 +1,7 @@
 package com.nec.spark.planning.aggregation
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, ImplicitMetrics}
-import com.nec.spark.planning.{
-  PlanCallsVeFunction,
-  SupportsKeyedVeColBatch,
-  SupportsVeColBatch,
-  VeFunction
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
+import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDD.RichKeyedRDDL
@@ -23,56 +18,56 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   with SupportsVeColBatch
   with LazyLogging
   with PlanCallsVeFunction
+  with PlanMetrics
   with SupportsKeyedVeColBatch {
 
   import OriginalCallingContext.Automatic._
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
-  )
-  override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
+  override def executeVeColumnar(): RDD[VeColBatch] = {
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
+        incrementInvocations(PLAN)
 
-        val res = withVeLibrary { libRefExchange =>
+        withVeLibrary { libRefExchange =>
           logger.info(s"Will map multiple col batches for hash exchange.")
-          veColBatches.flatMap { veColBatch =>
-            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-            try {
-              logger.debug(s"Mapping ${veColBatch} for exchange")
-              val multiBatches = ImplicitMetrics.processMetrics.measureRunningTime(
-                veProcess.executeMulti(
-                  libraryReference = libRefExchange,
-                  functionName = exchangeFunction.functionName,
-                  cols = veColBatch.cols,
-                  results = exchangeFunction.namedResults
-                )
-              )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
-              logger.debug(s"Mapped to ${multiBatches} completed.")
+          collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
+            collectBatchMetrics(INPUT, veColBatch)
+            withInvocationMetrics(BATCH){
+              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+              try {
+                logger.debug(s"Mapping ${veColBatch} for exchange")
+                val multiBatches = withInvocationMetrics(VE){
+                  ImplicitMetrics.processMetrics.measureRunningTime(
+                    veProcess.executeMulti(
+                      libraryReference = libRefExchange,
+                      functionName = exchangeFunction.functionName,
+                      cols = veColBatch.cols,
+                      results = exchangeFunction.namedResults
+                    )
+                  )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                }
+                logger.debug(s"Mapped to ${multiBatches} completed.")
 
-              multiBatches.flatMap {
-                case (n, l) if l.head.nonEmpty =>
-                  Option(n -> VeColBatch.fromList(l))
-                case (_, l) =>
-                  l.foreach(_.free())
-                  None
+                multiBatches.flatMap {
+                  case (n, l) if l.head.nonEmpty =>
+                    Option(n -> VeColBatch.fromList(l))
+                  case (_, l) =>
+                    l.foreach(_.free())
+                    None
+                }
+              } finally {
+                child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
-            } finally {
-              child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
             }
-          }
+          })
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
       }
       .exchangeBetweenVEs(cleanUpInput = true)
-
   }
 
   override def output: Seq[Attribute] = child.output
@@ -82,41 +77,49 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
 
   override def veFunction: VeFunction = exchangeFunction
 
-  override def executeVeColumnarKeyed(): RDD[(Int, VeColBatch)] = child
-    .asInstanceOf[SupportsVeColBatch]
-    .executeVeColumnar()
-    .mapPartitions { veColBatches =>
-      withVeLibrary { libRefExchange =>
-        logger.info(s"Will map multiple col batches for hash exchange.")
-        veColBatches.flatMap { veColBatch =>
-          import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-          try {
-            if (veColBatch.nonEmpty) {
-              logger.debug(s"Mapping ${veColBatch} for exchange")
-              val multiBatches = veProcess.executeMulti(
-                libraryReference = libRefExchange,
-                functionName = exchangeFunction.functionName,
-                cols = veColBatch.cols,
-                results = exchangeFunction.namedResults
-              )
-              logger.debug(s"Mapped to ${multiBatches} completed.")
+  override def executeVeColumnarKeyed(): RDD[(Int, VeColBatch)] = {
+    child
+      .asInstanceOf[SupportsVeColBatch]
+      .executeVeColumnar()
+      .mapPartitions { veColBatches =>
+        withVeLibrary { libRefExchange =>
+          logger.info(s"Will map multiple col batches for hash exchange.")
+          incrementInvocations(PLAN)
+          collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
+            import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+            collectBatchMetrics(INPUT, veColBatch)
+            withInvocationMetrics(BATCH){
+              try {
+                if (veColBatch.nonEmpty) {
+                  logger.debug(s"Mapping ${veColBatch} for exchange")
+                  val multiBatches = withInvocationMetrics(VE){
+                    veProcess.executeMulti(
+                      libraryReference = libRefExchange,
+                      functionName = exchangeFunction.functionName,
+                      cols = veColBatch.cols,
+                      results = exchangeFunction.namedResults
+                    )
+                  }
+                  logger.debug(s"Mapped to ${multiBatches} completed.")
 
-              multiBatches.flatMap {
-                case (n, l) if l.head.nonEmpty =>
-                  Option(n -> VeColBatch.fromList(l))
-                case (_, l) =>
-                  l.foreach(_.free())
-                  None
+                  multiBatches.flatMap {
+                    case (n, l) if l.head.nonEmpty =>
+                      Option(n -> VeColBatch.fromList(l))
+                    case (_, l) =>
+                      l.foreach(_.free())
+                      None
+                  }
+                } else {
+                  logger.debug(s"${veColBatch} was empty.")
+                  Nil
+                }
+              } finally {
+                child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
               }
-            } else {
-              logger.debug(s"${veColBatch} was empty.")
-              Nil
             }
-          } finally {
-            child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
-          }
+          })
         }
       }
-    }
+  }
 
 }

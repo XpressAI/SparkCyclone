@@ -20,8 +20,8 @@
 package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, ImplicitMetrics}
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -43,13 +43,12 @@ final case class VeProjectEvaluationPlan(
   with UnaryExecNode
   with LazyLogging
   with SupportsVeColBatch
+  with PlanMetrics
   with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
     copy(veFunction = f(veFunction))
@@ -63,44 +62,43 @@ final case class VeProjectEvaluationPlan(
 
   import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
+        incrementInvocations(PLAN)
         withVeLibrary { libRef =>
-          veColBatches.map { veColBatch =>
-            import OriginalCallingContext.Automatic._
-            import SparkCycloneExecutorPlugin.veProcess
-
-            val beforeExec = System.nanoTime()
-
-            val res =
+          withInvocationMetrics(BATCH){
+            veColBatches.map { veColBatch =>
+              collectBatchMetrics(INPUT, veColBatch)
+              import OriginalCallingContext.Automatic._
+              import SparkCycloneExecutorPlugin.veProcess
               try {
                 val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
 
                 val cols =
                   if (canPassThroughall) Nil
                   else {
-                    ImplicitMetrics.processMetrics.measureRunningTime(
-                      veProcess.execute(
-                        libraryReference = libRef,
-                        functionName = veFunction.functionName,
-                        cols = veColBatch.cols,
-                        results = veFunction.namedResults
+                    withInvocationMetrics(VE){
+                      ImplicitMetrics.processMetrics.measureRunningTime(
+                        veProcess.execute(
+                          libraryReference = libRef,
+                          functionName = veFunction.functionName,
+                          cols = veColBatch.cols,
+                          results = veFunction.namedResults
+                        )
+                      )(
+                        ImplicitMetrics.processMetrics
+                          .registerFunctionCallTime(_, veFunction.functionName)
                       )
-                    )(
-                      ImplicitMetrics.processMetrics
-                        .registerFunctionCallTime(_, veFunction.functionName)
-                    )
+                    }
 
                   }
                 val outBatch = createOutputBatch(cols, veColBatch)
 
                 if (veColBatch.numRows < outBatch.numRows)
                   println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
-                outBatch
+                collectBatchMetrics(OUTPUT, outBatch)
               } finally {
                 child
                   .asInstanceOf[SupportsVeColBatch]
@@ -110,8 +108,7 @@ final case class VeProjectEvaluationPlan(
                       .getBatchForPartialCleanup(columnIndicesToPass)(veColBatch)
                   )
               }
-            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-            res
+            }
           }
         }
       }

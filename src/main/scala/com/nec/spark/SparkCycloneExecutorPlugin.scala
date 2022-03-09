@@ -19,13 +19,7 @@
  */
 package com.nec.spark
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{
-  launched,
-  params,
-  pluginContext,
-  DefaultVeNodeId,
-  ImplicitMetrics
-}
+import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, launched, params, pluginContext}
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
@@ -86,6 +80,11 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   }
 
   var DefaultVeNodeId = 0
+  var NodeCount = 1
+
+  def totalVeCores(): Int = {
+    NodeCount * 8
+  }
 
   @transient private val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
     scala.collection.mutable.Set.empty
@@ -157,6 +156,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     } else {
       val veResources = resources.get("ve")
       val resourceCount = veResources.addresses.length
+      SparkCycloneExecutorPlugin.NodeCount = resourceCount
       val executorNumber = Try(ctx.executorID().toInt - 1).getOrElse(0) // Executor IDs start at 1.
       val veMultiple = executorNumber / 8
       if (veMultiple > resourceCount) {
@@ -195,7 +195,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       SparkCycloneExecutorPlugin.cleanCache()
     }
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.{closeProcAndCtx, CloseAutomatically}
+    import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx}
     Option(ImplicitMetrics.processMetrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>

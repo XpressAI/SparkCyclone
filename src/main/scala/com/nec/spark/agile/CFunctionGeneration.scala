@@ -531,6 +531,10 @@ object CFunctionGeneration {
       CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutPtr(functionName))
     }
 
+    def toCodeLinesHeaderBatchPtr(functionName: String): CodeLines = {
+      CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutBatchPtr(functionName))
+    }
+
     def toCodeLinesNoHeaderOutPtr(functionName: String): CodeLines = {
       CodeLines.from(
         s"""extern "C" long $functionName(""", {
@@ -586,6 +590,34 @@ object CFunctionGeneration {
             body
           )
           .indented,
+        "  ",
+        "  return 0;",
+        "};"
+      )
+    }
+
+    def toCodeLinesNoHeaderOutBatchPtr(functionName: String): CodeLines = {
+      CodeLines.from(
+        s"""extern "C" long $functionName(""", {
+          inputs
+            .map { cVector =>
+              s"${cVector.veType.cVectorType} **${cVector.name}_m"
+            } ++ { if (hasSets) List("int *sets") else Nil } ++
+            outputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}"
+              }
+        }
+          .mkString(",\n"),
+        ") {",
+        CodeLines.from(
+          inputs.map { cVector =>
+            CodeLines.from(
+              s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.name}_m[0];"
+            )
+          },
+          body
+        ).indented,
         "  ",
         "  return 0;",
         "};"
