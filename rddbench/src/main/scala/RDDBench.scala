@@ -1,5 +1,6 @@
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd._
+import com.nec.ve.VectorizedRDD._
 
 object RDDBench {
 
@@ -12,6 +13,7 @@ object RDDBench {
     setup()
 
     benchmark("01 - CPU",  bench01cpu)
+    benchmark("01 - VectorEnigne (wip)", bench01ve)
 
     dumpResult()
     finishUp()
@@ -49,15 +51,13 @@ object RDDBench {
   def bench01ve() = {
     val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
 
-    /*
-    val rdd = VERDD(sc.parallelize(numbers))
-
-    val mappedRdd = rdd.map( (a) => 2 * a + 12)
+    val rdd = sc.parallelize(numbers)
+    val mappedRdd = rdd.veMap( (a) => 2 * a + 12)
 
     val result = mappedRdd.reduce( (a,b) => a + b)
 
     println("result of bench01 is " + result)
-     */
+
   }
 
 
@@ -83,6 +83,7 @@ object RDDBench {
     val conf = new SparkConf()
       .setAppName("RDDBench")
       .setMaster("yarn")
+   //   .set("spark.submit.deployMode", "cluster")
       .setJars(Array("rddbench/target/scala-2.12/rddbench_2.12-0.1.jar"))
     sc = new SparkContext(conf)
   }

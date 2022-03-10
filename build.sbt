@@ -580,6 +580,7 @@ cycloneVeLibrary := {
 cycloneVeLibrary / logBuffered := false
 
 lazy val `rddbench` = project
+  .dependsOn(root)
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
