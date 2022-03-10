@@ -1,11 +1,10 @@
-package com.nec.ve
+package com.nec.spark.agile.sort
 
 import com.nec.spark.agile.CExpressionEvaluation._
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.planning.VeFunction
-import com.nec.spark.planning.VeFunction.VeFunctionStatus
+import com.nec.spark.agile.core.FunctionTemplateTrait
 
 object SortFunction {
   final val SortedIndicesId = "sorted_indices"
@@ -15,11 +14,11 @@ case class SortFunction(
   name: String,
   data: List[CScalarVector],
   sorts: List[VeSortExpression]
-) {
+) extends FunctionTemplateTrait {
   require(data.nonEmpty, "Expected Sort to have at least one data column")
   require(sorts.nonEmpty, "Expected Sort to have at least one projection expression")
 
-  lazy val inputs: List[CVector] = {
+  private[sort] lazy val inputs: List[CVector] = {
     data
   }
 
@@ -29,27 +28,27 @@ case class SortFunction(
     }
   }
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[sort] lazy val arguments: List[CFunction2.CFunctionArgument] = {
     inputs.map { vec => CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_m")) } ++
       outputs.map { vec => CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_mo")) }
   }
 
-  private[ve] def inputPtrDeclStmts: CodeLines = {
-    (data, inputs).zipped.map { case (dvec, ivec) =>
-      s"const auto *${ivec.name} = ${ivec.name}_m[0];"
+  private[sort] def inputPtrDeclStmts: CodeLines = {
+    inputs.map { input =>
+      s"const auto *${input.name} = ${input.name}_m[0];"
     }
   }
 
-  private[ve] def outputPtrDeclStmts: CodeLines = {
-    outputs.map { ovec =>
+  private[sort] def outputPtrDeclStmts: CodeLines = {
+    outputs.map { output =>
       CodeLines.from(
-        s"auto *${ovec.name} = ${ovec.veType.cVectorType}::allocate();",
-        s"*${ovec.name}_mo = ${ovec.name};"
+        s"auto *${output.name} = ${output.veType.cVectorType}::allocate();",
+        s"*${output.name}_mo = ${output.name};"
       )
     }
   }
 
-  def prepareColumnsStmts: CodeLines = {
+  private[sort] def prepareColumnsStmts: CodeLines = {
     val hasNoNullCheck = sorts.exists(_.typedExpression.cExpression.isNotNullCode.isEmpty)
     CodeLines.from(
       // Set up a default vector of 1's if needed
@@ -75,7 +74,7 @@ case class SortFunction(
     )
   }
 
-  def sortColumnsStmts: CodeLines = {
+  private[sort] def sortColumnsStmts: CodeLines = {
     val arguments = sorts.zipWithIndex.flatMap { case (expr, idx) =>
       val ordering = expr.sortOrdering match {
         case Ascending  => 1
@@ -91,7 +90,7 @@ case class SortFunction(
     s"const auto ${SortFunction.SortedIndicesId} = cyclone::sort_columns(${inputs.head.name}->count, ${arguments.mkString(", ")});"
   }
 
-  def reorderStmts: CodeLines = {
+  private[sort] def reorderStmts: CodeLines = {
     (outputs, inputs).zipped.map { case (output, input) =>
       s"${output.name}->move_assign_from(${input.name}->select(${SortFunction.SortedIndicesId}));"
     }
@@ -102,14 +101,6 @@ case class SortFunction(
       name,
       arguments,
       CodeLines.from(inputPtrDeclStmts, "", outputPtrDeclStmts, "", prepareColumnsStmts, "", sortColumnsStmts, "", reorderStmts)
-    )
-  }
-
-  def toVeFunction: VeFunction = {
-    VeFunction(
-      VeFunctionStatus.fromCodeLines(toCFunction.toCodeLinesWithHeaders),
-      name,
-      outputs
     )
   }
 }

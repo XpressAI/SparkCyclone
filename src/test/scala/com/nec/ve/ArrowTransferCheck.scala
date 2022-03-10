@@ -5,6 +5,8 @@ import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
+import com.nec.spark.agile.exchange.GroupingFunction
+import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
@@ -270,7 +272,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
    */
 
   "We can merge multiple VeColBatches" in {
-    val mergeFn = MergerFunction("merger", List(VeNullableDouble, VeString))
+    val mergeFn = MergeFunction("merger", List(VeNullableDouble, VeString))
 
     compiledWithHeaders(mergeFn.render) {
       path =>

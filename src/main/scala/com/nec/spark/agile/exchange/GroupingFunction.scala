@@ -1,4 +1,4 @@
-package com.nec.ve
+package com.nec.spark.agile.exchange
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
@@ -7,8 +7,8 @@ import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 
 object GroupingFunction {
-  val GroupAssignmentsId = "bucket_assignments"
-  val GroupCountsId = "bucket_counts"
+  final val GroupAssignmentsId = "bucket_assignments"
+  final val GroupCountsId = "bucket_counts"
 
   sealed trait KeyOrValue {
     def render: String
@@ -42,7 +42,7 @@ case class GroupingFunction(name: String,
     }
   }
 
-  private[ve] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
+  private[exchange] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
   lazy val arguments: List[CFunction2.CFunctionArgument] = {
     inputs.map(PointerPointer(_)) ++
@@ -50,7 +50,7 @@ case class GroupingFunction(name: String,
       outputs.map(PointerPointer(_))
   }
 
-  private[ve] def computeBucketAssignments: CodeLines = {
+  private[exchange] def computeBucketAssignments: CodeLines = {
     CodeLines.from(
       // Initialize the bucket_assignments table
       s"std::vector<size_t> ${GroupingFunction.GroupAssignmentsId}(${keycols.head.name}[0]->count);",
@@ -72,7 +72,7 @@ case class GroupingFunction(name: String,
     )
   }
 
-  private[ve] def computeBucketCounts: CodeLines = {
+  private[exchange] def computeBucketCounts: CodeLines = {
     CodeLines.from(
       // Iniitalize the bucket_counts table
       s"std::vector<size_t> ${GroupingFunction.GroupCountsId}(${nbuckets});",
@@ -95,7 +95,7 @@ case class GroupingFunction(name: String,
     )
   }
 
-  private[ve] def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
+  private[exchange] def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
     CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
       List(
         // Allocate the nullable_T_vector[] with size 1
@@ -106,7 +106,7 @@ case class GroupingFunction(name: String,
     }
   }
 
-  private[ve] def copyVecToBucketsStmt(output: CVector, input: CVector): CodeLines = {
+  private[exchange] def copyVecToBucketsStmt(output: CVector, input: CVector): CodeLines = {
     CodeLines.scoped(
       s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
     ) {

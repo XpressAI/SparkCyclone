@@ -23,6 +23,9 @@ import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.eval.OldUnifiedGroupByFunctionGeneration
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.filter.FilterFunction
+import com.nec.spark.agile.projection.ProjectionFunction
+import com.nec.spark.agile.sort.SortFunction
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -134,10 +137,10 @@ object RealExpressionEvaluationUtils extends LazyLogging {
         NamedTypedCExpression(s"output_${idx}", veScalarType, exp)
       case other => sys.error(s"Not supported/used: ${other}")
     }
-    val cFunction = ProjectionFunction("project_f", veAllocator.makeCVectors, outputs.map(Right(_)))
+    val projectionFn = ProjectionFunction("project_f", veAllocator.makeCVectors, outputs.map(Right(_)))
 
     import OriginalCallingContext.Automatic._
-    evalFunction(cFunction.render)(input, outputs.map(_.cVector))
+    evalFunction(projectionFn.toCFunction)(input, outputs.map(_.cVector))
   }
 
   def evalFunction[Input, Output](

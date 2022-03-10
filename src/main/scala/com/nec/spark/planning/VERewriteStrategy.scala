@@ -24,10 +24,15 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
+import com.nec.spark.agile.exchange.GroupingFunction
+import com.nec.spark.agile.filter.FilterFunction
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import com.nec.spark.agile.groupby.GroupByOutline.GroupingKey
 import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
 import com.nec.spark.agile.join.{GenericJoiner, JoinMatcher}
+import com.nec.spark.agile.merge.MergeFunction
+import com.nec.spark.agile.projection.ProjectionFunction
+import com.nec.spark.agile.sort.SortFunction
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
@@ -35,7 +40,6 @@ import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.hints._
 import com.nec.spark.planning.plans._
-import com.nec.ve.{FilterFunction, GroupingFunction, MergerFunction, ProjectionFunction, SortFunction}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
@@ -358,10 +362,10 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       partialName = s"partial_$functionPrefix"
       finalName = s"final_$functionPrefix"
 
-      inputAmplifyFn = MergerFunction(s"input_amplify_${functionPrefix}", partialCFunction.inputs.map(_.veType))
+      inputAmplifyFn = MergeFunction(s"input_amplify_${functionPrefix}", partialCFunction.inputs.map(_.veType))
       //exchangeFunction = GroupingFunction(s"exchange_${functionPrefix}", dataDescriptions.toList, HashExchangeBuckets)
-      mergeFn = MergerFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
-      amplifyFn = MergerFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
+      mergeFn = MergeFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
+      amplifyFn = MergeFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
 
       code = CodeLines
         .from(
@@ -454,7 +458,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       else projectList
 
     val planE = for {
-      outputs <- nonIdentityProjections.toList.zipWithIndex.map { case (att, idx) =>
+      projections <- nonIdentityProjections.toList.zipWithIndex.map { case (att, idx) =>
         val referenced = replaceReferences(InputPrefix, plan.inputSet.toList, att)
         if (referenced.dataType == StringType)
           evalString(referenced).map(stringProducer =>
@@ -475,27 +479,19 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       val projectionFn = ProjectionFunction(
         s"project_${functionPrefix}",
         getInputAsVeTypes(child),
-        outputs
+        projections
       )
 
       List(VectorEngineToSparkPlan(if (options.passThroughProject) {
         VeProjectEvaluationPlan(
           outputExpressions = projectList,
-          veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.render.toCodeLinesWithHeaders),
-            functionName = projectionFn.name,
-            namedResults = projectionFn.outputs
-          ),
+          veFunction = projectionFn.toVeFunction,
           child = SparkToVectorEnginePlan(planLater(child))
         )
       } else {
         VeOneStageEvaluationPlan(
           outputExpressions = projectList,
-          veFunction = VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(projectionFn.render.toCodeLinesWithHeaders),
-            functionName = projectionFn.name,
-            namedResults = projectionFn.outputs
-          ),
+          veFunction = projectionFn.toVeFunction,
           child = SparkToVectorEnginePlan(planLater(child))
         )
       }))
@@ -545,7 +541,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         )
       )
 
-      val amplifyFn = MergerFunction(s"amplify_${filterFn.name}", data.map(_.veType))
+      val amplifyFn = MergeFunction(s"amplify_${filterFn.name}", data.map(_.veType))
 
       val filterPlan = VeOneStageEvaluationPlan(
         outputExpressions = f.output,
@@ -621,7 +617,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     )
 
     val amplifyFn =
-      MergerFunction(s"amplify_${functionName}", genericJoiner.outputs.map(_.cVector.veType))
+      MergeFunction(s"amplify_${functionName}", genericJoiner.outputs.map(_.cVector.veType))
 
     val maybeAmplifiedJoinPlan =
       if (options.amplifyBatches)
@@ -646,7 +642,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     inputs: List[CVector],
     genericJoiner: GenericJoiner
   ) = {
-    val exchangeFunctionL = GroupingFunction(
+    val exchangeFn = GroupingFunction(
       fnName,
       inputs.map { vec =>
         GroupingFunction.DataDescription(
@@ -658,12 +654,12 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       HashExchangeBuckets
     )
 
-    val code = CodeLines.from(CFunctionGeneration.KeyHeaders, exchangeFunctionL.toCodeLines)
+    val code = CodeLines.from(CFunctionGeneration.KeyHeaders, exchangeFn.toCodeLines)
 
     VeHashExchangePlan(
       exchangeFunction = VeFunction(
         veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-        functionName = exchangeFunctionL.name,
+        functionName = exchangeFn.name,
         namedResults = inputs
       ),
       child = SparkToVectorEnginePlan(planLater(child))

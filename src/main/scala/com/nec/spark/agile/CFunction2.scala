@@ -69,7 +69,7 @@ final case class CFunction2(name: String,
   def toCodeLines: CodeLines = {
     CodeLines.from(
       s"""extern "C" long ${name} (""",
-      arguments.map(_.render).map(arg => s"  ${arg}").mkString(",\n"),
+      arguments.map(arg => s"  ${arg.render}").mkString(",\n"),
       ") {",
       CodeLines.from(
         body,
