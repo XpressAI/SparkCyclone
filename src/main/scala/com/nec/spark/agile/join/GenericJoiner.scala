@@ -63,7 +63,7 @@ final case class GenericJoiner(
       outputs.map {
         case FilteredOutput(output, source) =>
           val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
-          CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
+          CodeLines.from(s"${output}->move_assign_from(${source.name}->select(${indicesName}));")
       },
     )
   )
