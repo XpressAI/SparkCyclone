@@ -548,15 +548,27 @@ cycloneVeLibrary := {
         // Copy the files over to the target directory
         (copyCycloneSourcesToTarget.value: @sbtUnchecked)
 
-        // Build the library and BOM directly in the target directory to avoid cache issues
+        // Build the library directly in the target directory to avoid cache issues
         logger.info(s"Building and testing libcyclone.so, and creating the sources BOM...")
         if (
           (Process(
-            Seq("make", "cleanall", "all", "test", "bom", "clean"),
+            Seq("make", "cleanall", "all", "test", "-j"),
             cycloneCppTgtDir.value
           ) ! logger) != 0
         ) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
+        }
+
+        // Build the BOM directly in the target directory to avoid cache issues.
+        // Must run in a subsequent process or else the `clean` task will overstep
+        // earlier tasks if `make` is invoked with parallelization turned on.
+        if (
+          (Process(
+            Seq("make", "bom", "clean"),
+            cycloneCppTgtDir.value
+          ) ! logger) != 0
+        ) {
+          sys.error("Failed to create Cyclone C++ library sources BOM.")
         }
 
         // Collect the header files and generated arfifacts

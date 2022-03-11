@@ -54,6 +54,12 @@ case class SortFunction(
       // Set up a default vector of 1's if needed
       if (hasNoNullCheck) s"std::vector<int32_t> ONES(${inputs.head.name}->count, 1);" else "",
       sorts.zipWithIndex.map {
+        /*
+          Since expressions and notNullCodes will be of the form `input_x->data[i]`
+          and `input_x->get_validity(i)`, a simple string replacement is performed
+          to generate the right code.  This should be replaced by something more
+          typesafe in the future.
+        */
         case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, Some(notNullCode))), _), idx) =>
           CodeLines.from(
             // Extract the pointer to the data array

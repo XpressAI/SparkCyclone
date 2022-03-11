@@ -5,6 +5,7 @@ CPP_OPTS = -std=gnu++17 \
 	-O4 \
 	-finline-functions \
 	-pthread \
+	-fPIC \
 	-Werror=return-type
 
 # Add extra flags if we're using nc++
@@ -31,21 +32,33 @@ SOURCES = $(shell find frovedis -name \*.cc) \
 
 TEST_SOURCES = $(shell find tests -name \*.cc)
 
+OBJECTS = $(SOURCES:.cc=.o)
+
+TEST_OBJECTS = $(TEST_SOURCES:.cc=.o)
+
+# Compile the sources separately in parallel into object files
+$(OBJECTS): $(SOURCES)
+	$(CPP) $(CPP_OPTS) $(@:.o=.cc) -c -o $@
+
+$(TEST_OBJECTS): $(TEST_SOURCES)
+	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
+	$(CPP) $(CPP_OPTS) $(@:.o=.cc) -c -o $@
+
 # Create a BOM file of the source files (for use by the Spark Cyclone plugin)
 bom:
 	find frovedis -name \*.cc -o -name \*.hpp -o -name \*.incl\* | sort > sources.bom
 	find cyclone -name \*.cc -o -name \*.hpp | sort >> sources.bom
 	echo Makefile >> sources.bom
 
-# Build the library
-libcyclone.so: $(DEPS)
-	$(CPP) $(CPP_OPTS) -shared -fPIC -o libcyclone.so $(SOURCES)
+# Build the library from the object files
+libcyclone.so: $(DEPS) $(OBJECTS)
+	$(CPP) $(CPP_OPTS) $(OBJECTS) -shared -o libcyclone.so
 
 # Build and run the tests, which are defined as header files included in tests/driver.cpp
 # Remove `-fno-defer-inline-template-instantiation` because it breaks compilation of doctest
-test: libcyclone.so
+test: libcyclone.so  $(TEST_OBJECTS)
 	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
-	$(CPP) $(CPP_OPTS) ${TEST_SOURCES} -o cyclone-tests.out -L. -lcyclone
+	$(CPP) $(CPP_OPTS) $(TEST_OBJECTS) -o cyclone-tests.out -L. -lcyclone
 	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out
 
 # Build examples
@@ -55,7 +68,9 @@ examples: libcyclone.so
 	VE_LD_LIBRARY_PATH=. ./cyclone-examples.out
 
 clean:
+	find . -name "*.o" -type f -delete
 	rm -f *.s *.L *.o *.out
 
 cleanall:
+	find . -name "*.o" -type f -delete
 	rm -f *.s *.L *.o *.out *.so *.bom
