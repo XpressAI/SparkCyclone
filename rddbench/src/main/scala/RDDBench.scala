@@ -49,10 +49,13 @@ object RDDBench {
   }
 
   def bench01ve() = {
+    import scala.reflect.runtime.universe._
+
     val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
 
     val rdd = sc.parallelize(numbers)
-    val mappedRdd = rdd.veMap( (a) => 2 * a + 12)
+    val expr = reify( (a: Int) => 2 * a + 12)
+    val mappedRdd = rdd.vemap( expr )  // TODO: find a way around "reify" (macro?)
 
     val result = mappedRdd.reduce( (a,b) => a + b)
 
