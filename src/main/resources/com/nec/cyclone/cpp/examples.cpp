@@ -124,7 +124,7 @@ void test_sort2() {
   std::vector<float>    data2 { 3.14, 2.71, 42.0, };
   std::vector<int32_t>  data3 { 586, 951, 106, };
 
-  const auto sorted_indices = cyclone::sort_tuples(
+  const auto sorted_indices = cyclone::sort_columns(
     3,
     std::make_tuple(1, data1.data()),
     std::make_tuple(1, data2.data()),

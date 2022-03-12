@@ -47,7 +47,7 @@ make test
 
 Cyclone unit tests are run using [doctest](https://github.com/doctest/doctest),
 which is a modern single-header C++ testing framework.  The full and latest
-source code for doctest can be found
+source code for `doctest` can be found
 [here](https://raw.githubusercontent.com/doctest/doctest/master/doctest/doctest.h).
 
 ### Running Example Code
@@ -69,10 +69,8 @@ The steps for adding new code to the Cyclone library are generally as follows:
     reference the full path from project root (e.g. `cyclone/cyclone.hpp` instead
     of `cyclone.hpp`).
 
-1.  Add the corresponding spec as a header file to the `tests/` subdirectory
-    (e.g. `tests/example_spec.hpp`).
+1.  Add the corresponding spec as a source file to the `tests/` subdirectory
+    (e.g. `tests/example_spec.cc`).  The spec should have the header
+    `#include "tests/doctest.h"`.
 
-1.  `#include` the spec header file inside `tests/driver.cpp`
-    (e.g. `#include "tests/example_spec.hpp"`).
-
-Re-running `make test`should include the newly added tests into the tests executable.
+Re-running `make test` should include the newly added tests into the tests executable.

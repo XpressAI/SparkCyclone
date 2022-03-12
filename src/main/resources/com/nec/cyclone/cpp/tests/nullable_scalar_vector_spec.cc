@@ -17,8 +17,6 @@
  * limitations under the License.
  *
  */
-#pragma once
-
 #include "cyclone/cyclone.hpp"
 #include "tests/doctest.h"
 #include <stddef.h>

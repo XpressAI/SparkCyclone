@@ -40,7 +40,9 @@ final case class GenericJoiner(
     ) ++ fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
   }
 
-  def cFunction(computeIndicesFunctionName: String): CFunction2 = CFunction2(
+  def cFunction(fnName: String,
+                computeIndicesFunctionName: String): CFunction2 = CFunction2(
+    name = fnName,
     arguments = arguments,
     body = CodeLines.from(
       mergeInputBatches,
@@ -63,7 +65,7 @@ final case class GenericJoiner(
       outputs.map {
         case FilteredOutput(output, source) =>
           val indicesName = if (inputsLeft.contains(source)) "left_idx_std" else "right_idx_std"
-          CodeLines.from(s"${output}->move_assign_from(${source.name}->filter(${indicesName}));")
+          CodeLines.from(s"${output}->move_assign_from(${source.name}->select(${indicesName}));")
       },
     )
   )

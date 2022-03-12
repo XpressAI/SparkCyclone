@@ -1,20 +1,13 @@
-package com.nec.ve
+package com.nec.spark.agile.filter
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  CExpression,
-  CScalarVector,
-  CVarChar,
-  CVector,
-  VeFilter
-}
 import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, VeFilter}
 
 object FilterFunction {
-  val BitMaskId = "mask"
-  val MatchListId = "matching_ids"
+  final val BitMaskId = "mask"
+  final val MatchListId = "matching_ids"
 }
 
 case class FilterFunction(
@@ -34,7 +27,7 @@ case class FilterFunction(
     }
   }
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[filter] lazy val arguments: List[CFunction2.CFunctionArgument] = {
     if (onVe) {
       inputs.map(PointerPointer(_)) ++ outputs.map(PointerPointer(_))
     } else {
@@ -42,7 +35,7 @@ case class FilterFunction(
     }
   }
 
-  private[ve] def applySelectionStmt(input: CVector): CodeLines = {
+  private[filter] def applySelectionStmt(input: CVector): CodeLines = {
     val output = input.replaceName("input", "output")
     CodeLines.scoped(
       s"Populate ${output.name}[0] based on the filter applied to ${input.name}[0]"
@@ -57,7 +50,7 @@ case class FilterFunction(
     }
   }
 
-  private[ve] def computeFilterStmt: CodeLines = {
+  private[filter] def computeFilterStmt: CodeLines = {
     // Final filter condition that is the AND of individual C expressions and output of *Hole evaluations
     val filterCondition = filter.condition.isNotNullCode match {
       case Some(x) =>
@@ -90,7 +83,7 @@ case class FilterFunction(
     )
   }
 
-  private[ve] def inputPtrDeclStmts: CodeLines = {
+  private[filter] def inputPtrDeclStmts: CodeLines = {
     (filter.data, inputs).zipped.map { case (dvec, ivec) =>
       if (onVe) {
         s"${dvec.declarePointer} = ${ivec.name}[0];"
@@ -111,10 +104,10 @@ case class FilterFunction(
       inputs.map(applySelectionStmt)
     )
 
-    CFunction2(arguments, body)
+    CFunction2(name, arguments, body)
   }
 
   def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+    render.toCodeLines
   }
 }

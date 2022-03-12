@@ -217,7 +217,7 @@ final case class GroupByPartialGenerator(
     r: Either[StringReference, TypedCExpression2]
   ): CodeLines = r match {
     case Left(StringReference(sr)) =>
-      CodeLines.from(s"partial_str_${stagedProjection.name}->move_assign_from(${sr}->filter(matching_ids));")
+      CodeLines.from(s"partial_str_${stagedProjection.name}->move_assign_from(${sr}->select(matching_ids));")
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
         groupingCodeGenerator.forHeadOfEachGroup(
