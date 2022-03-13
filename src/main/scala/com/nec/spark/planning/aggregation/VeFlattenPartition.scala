@@ -1,7 +1,7 @@
 package com.nec.spark.planning.aggregation
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, ImplicitMetrics}
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -19,6 +19,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   with SupportsVeColBatch
   with Logging
   with PlanCallsVeFunction
+  with PlanMetrics
   with LazyLogging {
 
   require(
@@ -26,58 +27,54 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
     s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.results.size}"
   )
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { veColBatches =>
-        val beforeExec = System.nanoTime()
+        withVeLibrary { libRefExchange =>
+          withInvocationMetrics(PLAN){
+            collectBatchMetrics(OUTPUT, Iterator
+              .continually {
+                import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+                val inputBatches = collectBatchMetrics(INPUT, veColBatches).toList
+                //logger.debug(s"Fetched all the data: ${inputBatches}")
+                inputBatches match {
+                  case one :: Nil => withInvocationMetrics(BATCH){ Iterator(one) }
+                  case Nil        => Iterator.empty
+                  case _ =>
+                    Iterator {
+                      import OriginalCallingContext.Automatic._
 
-        val res = withVeLibrary { libRefExchange =>
-          Iterator
-            .continually {
-              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-              val inputBatches = veColBatches.toList
-              //logger.debug(s"Fetched all the data: ${inputBatches}")
-              inputBatches match {
-                case one :: Nil => Iterator(one)
-                case Nil        => Iterator.empty
-                case _ =>
-                  Iterator {
-                    import OriginalCallingContext.Automatic._
-
-                    VeColBatch.fromList(
-                      try ImplicitMetrics.processMetrics.measureRunningTime(
-                        veProcess.executeMultiIn(
-                          libraryReference = libRefExchange,
-                          functionName = flattenFunction.functionName,
-                          batches = VeBatchOfBatches.fromVeColBatches(inputBatches),
-                          results = flattenFunction.namedResults
+                      withInvocationMetrics(VE){
+                        VeColBatch.fromList(
+                          try ImplicitMetrics.processMetrics.measureRunningTime(
+                            veProcess.executeMultiIn(
+                              libraryReference = libRefExchange,
+                              functionName = flattenFunction.functionName,
+                              batches = VeBatchOfBatches.fromVeColBatches(inputBatches),
+                              results = flattenFunction.namedResults
+                            )
+                          )(
+                            ImplicitMetrics.processMetrics
+                              .registerFunctionCallTime(_, veFunction.functionName)
+                          )
+                          finally {
+                            logger.debug("Transformed input.")
+                            inputBatches
+                              .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
+                          }
                         )
-                      )(
-                        ImplicitMetrics.processMetrics
-                          .registerFunctionCallTime(_, veFunction.functionName)
-                      )
-                      finally {
-                        logger.debug("Transformed input.")
-                        inputBatches
-                          .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)
                       }
-                    )
-                  }
+                    }
+                }
               }
-            }
-            .take(1)
-            .flatten
+              .take(1)
+              .flatten)
+          }
         }
-        execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-        res
       }
   }
 

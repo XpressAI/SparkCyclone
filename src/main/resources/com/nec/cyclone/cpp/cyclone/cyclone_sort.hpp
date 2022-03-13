@@ -77,7 +77,7 @@ namespace cyclone {
 
   namespace {
     template <typename ...Ts>
-    inline std::vector<size_t> sort_tuples_reversed_args(const size_t count,
+    inline std::vector<size_t> sort_columns_reversed_args(const size_t count,
                                                          const std::tuple<int, Ts> &...columns) {
       // Construct the sorted_indices
       std::vector<size_t> sorted_indices(count);
@@ -117,13 +117,13 @@ namespace cyclone {
     template<typename ...Tn>
     struct reverse;
 
-    // Base case - Apply sort_tuples_reversed_args() to the (now-reversed) args
+    // Base case - Apply sort_columns_reversed_args() to the (now-reversed) args
     template<>
     struct reverse<> {
       template<typename ...Un>
       static inline std::vector<size_t> apply(const size_t size,
                                               const std::tuple<int, Un> &...un) {
-        return sort_tuples_reversed_args(size, un...);
+        return sort_columns_reversed_args(size, un...);
       }
     };
 
@@ -142,7 +142,7 @@ namespace cyclone {
   }
 
   template <typename ...Ts>
-  inline std::vector<size_t> sort_tuples(const size_t count, const std::tuple<int, Ts> &...columns) {
+  inline std::vector<size_t> sort_columns(const size_t count, const std::tuple<int, Ts> &...columns) {
     // The algorithm sorts starting from the N-1th column and moves down to the
     // 0th column.  A fold expressions is used to inline what would otherwise be
     // recursive function calls.  However, since fold expressions cannot be

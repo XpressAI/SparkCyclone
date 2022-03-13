@@ -1,13 +1,12 @@
-package com.nec.ve
+package com.nec.spark.agile.merge
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeScalarType, VeString, VeType}
-import com.nec.spark.agile.groupby.GroupByOutline
+import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 
-case class MergerFunction(name: String,
-                          columns: List[VeType]) {
+case class MergeFunction(name: String,
+                         columns: List[VeType]) {
   require(columns.nonEmpty, "Expected Merge to have at least one data column")
 
   lazy val inputs: List[CVector] = {
@@ -52,10 +51,10 @@ case class MergerFunction(name: String,
   }
 
   def render: CFunction2 = {
-    CFunction2(arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
+    CFunction2(name, arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
   }
 
   def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+    render.toCodeLines
   }
 }

@@ -19,8 +19,8 @@
  */
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, ImplicitMetrics}
-import com.nec.spark.planning.{PlanCallsVeFunction, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
@@ -41,21 +41,18 @@ final case class VeOneStageEvaluationPlan(
   with UnaryExecNode
   with LazyLogging
   with SupportsVeColBatch
+  with PlanMetrics
   with PlanCallsVeFunction {
 
   require(outputExpressions.nonEmpty, "Expected OutputExpressions to be non-empty")
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
@@ -63,23 +60,26 @@ final case class VeOneStageEvaluationPlan(
         withVeLibrary { libRef =>
           logger.info(s"Will map batches with function ${veFunction}")
           import OriginalCallingContext.Automatic._
-          veColBatches.map { inputBatch =>
-            val beforeExec = System.nanoTime()
 
-            val res =
+          incrementInvocations(PLAN)
+          veColBatches.map { inputBatch =>
+            collectBatchMetrics(INPUT, inputBatch)
+            collectBatchMetrics(OUTPUT, withInvocationMetrics(BATCH){
               try {
                 logger.debug(s"Mapping batch ${inputBatch}")
-                val cols = ImplicitMetrics.processMetrics.measureRunningTime(
-                  veProcess.execute(
-                    libraryReference = libRef,
-                    functionName = veFunction.functionName,
-                    cols = inputBatch.cols,
-                    results = veFunction.namedResults
+                val cols = withInvocationMetrics(VE){
+                  ImplicitMetrics.processMetrics.measureRunningTime(
+                    veProcess.execute(
+                      libraryReference = libRef,
+                      functionName = veFunction.functionName,
+                      cols = inputBatch.cols,
+                      results = veFunction.namedResults
+                    )
+                  )(
+                    ImplicitMetrics.processMetrics
+                      .registerFunctionCallTime(_, veFunction.functionName)
                   )
-                )(
-                  ImplicitMetrics.processMetrics
-                    .registerFunctionCallTime(_, veFunction.functionName)
-                )
+                }
 
                 logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
 
@@ -88,8 +88,7 @@ final case class VeOneStageEvaluationPlan(
                   logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
                 outBatch
               } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(inputBatch)
-            execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-            res
+            })
           }
         }
       }

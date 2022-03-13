@@ -1,9 +1,9 @@
 import sbt.Def.spaceDelimited
 import sbt.Keys.envVars
 
-import scala.sys.process.Process
 import java.lang.management.ManagementFactory
 import java.nio.file.{Files, Paths}
+import scala.sys.process.Process
 import scala.xml.Properties.isWin
 
 val CMake = config("cmake") extend Test
@@ -23,7 +23,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
-  .settings(version := "0.9.2")
+  .settings(version := "1.0.0")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
@@ -108,7 +108,7 @@ val sparkVersion = SettingKey[String]("sparkVersion")
 
 ThisBuild / sparkVersion := {
   val scalaV = scalaVersion.value
-  if (scalaV.startsWith("2.12")) "3.1.2" else "2.3.2"
+  if (scalaV.startsWith("2.12")) "3.1.3" else "2.3.2"
 }
 
 val silencerVersion = "1.6.0"
@@ -325,8 +325,8 @@ deploy := {
   logger.info(s"Assembled file: ${generatedFile}")
 
   if (targetBox == "local") {
-    logger.info(s"Copying JAR locally to /opt/cyclone/spark-cyclone-sql-plugin.jar:")
-    Seq("cp", generatedFile.toString, "/opt/cyclone/spark-cyclone-sql-plugin.jar") ! logger
+    logger.info(s"Copying JAR locally to /opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar:")
+    Seq("cp", generatedFile.toString, s"/opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar") ! logger
     logger.info(s"Copied.")
   } else {
     logger.info(s"Uploading JAR to ${targetBox}")
@@ -398,7 +398,7 @@ lazy val tpchbench = project
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
     version := "0.0.1",
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.1" % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.3" % "provided",
     libraryDependencies += "com.github.mrpowers" %% "spark-daria" % "0.38.2",
     libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
@@ -548,15 +548,27 @@ cycloneVeLibrary := {
         // Copy the files over to the target directory
         (copyCycloneSourcesToTarget.value: @sbtUnchecked)
 
-        // Build the library and BOM directly in the target directory to avoid cache issues
+        // Build the library directly in the target directory to avoid cache issues
         logger.info(s"Building and testing libcyclone.so, and creating the sources BOM...")
         if (
           (Process(
-            Seq("make", "cleanall", "all", "test", "bom", "clean"),
+            Seq("make", "cleanall", "all", "test", "-j"),
             cycloneCppTgtDir.value
           ) ! logger) != 0
         ) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
+        }
+
+        // Build the BOM directly in the target directory to avoid cache issues.
+        // Must run in a subsequent process or else the `clean` task will overstep
+        // earlier tasks if `make` is invoked with parallelization turned on.
+        if (
+          (Process(
+            Seq("make", "bom", "clean"),
+            cycloneCppTgtDir.value
+          ) ! logger) != 0
+        ) {
+          sys.error("Failed to create Cyclone C++ library sources BOM.")
         }
 
         // Collect the header files and generated arfifacts

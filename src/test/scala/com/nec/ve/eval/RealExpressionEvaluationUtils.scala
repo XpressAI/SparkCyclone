@@ -23,6 +23,9 @@ import com.nec.arrow.WithTestAllocator
 import com.nec.cmake.eval.OldUnifiedGroupByFunctionGeneration
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.filter.FilterFunction
+import com.nec.spark.agile.projection.ProjectionFunction
+import com.nec.spark.agile.sort.SortFunction
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -129,20 +132,15 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Output] = {
-    val functionName = "project_f"
-
     val outputs = veRetriever.veTypes.zip(expressions.toList).zipWithIndex.collect {
       case ((veScalarType: VeScalarType, exp), idx) =>
         NamedTypedCExpression(s"output_${idx}", veScalarType, exp)
       case other => sys.error(s"Not supported/used: ${other}")
     }
-
-    val cFunction = renderProjection(
-      VeProjection(inputs = veAllocator.makeCVectors, outputs = outputs.map(out => Right(out)))
-    )
+    val projectionFn = ProjectionFunction("project_f", veAllocator.makeCVectors, outputs.map(Right(_)))
 
     import OriginalCallingContext.Automatic._
-    evalFunction(cFunction, functionName)(input, outputs.map(_.cVector))
+    evalFunction(projectionFn.toCFunction)(input, outputs.map(_.cVector))
   }
 
   def evalFunction[Input, Output](
@@ -169,8 +167,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     }
   }
   def evalFunction[Input, Output](
-    cFunction: CFunction2,
-    functionName: String
+    cFunction: CFunction2
   )(input: List[Input], outputs: List[CVector])(implicit
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
@@ -180,12 +177,12 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource
   ): List[Output] = {
     WithTestAllocator { implicit allocator =>
-      veKernelInfra.compiledWithHeaders(cFunction, functionName) { path =>
+      veKernelInfra.compiledWithHeaders(cFunction) { path =>
         val libRef = veProcess.loadLibrary(path)
         val inputVectors = veAllocator.allocate(input: _*)
         try {
           val resultingVectors =
-            veProcess.execute(libRef, functionName, inputVectors.cols, outputs)
+            veProcess.execute(libRef, cFunction.name, inputVectors.cols, outputs)
           veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
         } finally inputVectors.free()
       }
@@ -210,7 +207,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     )
 
     import OriginalCallingContext.Automatic._
-    evalFunction(filterFn.render, "filter_f")(
+    evalFunction(filterFn.render)(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
     )
@@ -223,17 +220,13 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): List[Data] = {
-    val functionName = "sort_f"
-
     import OriginalCallingContext.Automatic._
-    val cFunction =
-      renderSort(sort =
-        VeSort(
-          data = veAllocator.makeCVectors.map(_.asInstanceOf[CScalarVector]),
-          sorts = sorts.toList
-        )
-      )
-    evalFunction(cFunction, functionName)(input = input.toList, veRetriever.makeCVectors)
-  }
 
+    val sortFn = SortFunction(
+      "sort_f",
+      veAllocator.makeCVectors.map(_.asInstanceOf[CScalarVector]),
+      sorts.toList
+    )
+    evalFunction(sortFn.toCFunction)(input = input.toList, veRetriever.makeCVectors)
+  }
 }

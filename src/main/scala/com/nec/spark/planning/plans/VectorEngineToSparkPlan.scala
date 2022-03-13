@@ -2,7 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
-import com.nec.spark.planning.SupportsVeColBatch
+import com.nec.spark.planning.{PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -14,16 +14,13 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.concurrent.duration.NANOSECONDS
-
 case class VectorEngineToSparkPlan(override val child: SparkPlan)
   extends UnaryExecNode
+  with PlanMetrics
   with LazyLogging {
   override def supportsColumnar: Boolean = true
 
-  override lazy val metrics = Map(
-    "execTime" -> SQLMetrics.createTimingMetric(sparkContext, "execution time")
-  )
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
 
   override def doExecute(): RDD[InternalRow] = {
@@ -33,12 +30,12 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    val execMetric = longMetric("execTime")
-
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
       .mapPartitions { iterator =>
+        incrementInvocations(PLAN)
+
         import SparkCycloneExecutorPlugin._
 
         lazy implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
@@ -46,17 +43,15 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
         iterator.map { veColBatch =>
           import OriginalCallingContext.Automatic._
-          val beforeExec = System.nanoTime()
-
-          val res = try {
-            logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
-            val res = veColBatch.toArrowColumnarBatch()
-            logger.debug(s"Finished mapping ${veColBatch}")
-            res
-          } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
-
-          execMetric += NANOSECONDS.toMillis(System.nanoTime() - beforeExec)
-          res
+          collectBatchMetrics(INPUT, veColBatch)
+          withInvocationMetrics(BATCH){
+            try {
+              logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
+              val res = veColBatch.toArrowColumnarBatch()
+              logger.debug(s"Finished mapping ${veColBatch}")
+              collectBatchMetrics(OUTPUT, res)
+            } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
+          }
         }
       }
   }

@@ -16,8 +16,9 @@ trait VeKernelInfra { this: Suite =>
     withCompiled(cCode.toCodeLinesHeaderPtr(name).cCode)(f)
   }
 
-  def compiledWithHeaders[T](cCode: CFunction2, name: String)(f: Path => T): T = {
-    withCompiled(CodeLines.from(KeyHeaders, cCode.toCodeLines(name)).cCode)(f)
+  def compiledWithHeaders[T](func: CFunction2/* , name: String */)(f: Path => T): T = {
+    // withCompiled(CodeLines.from(KeyHeaders, cCode.toCodeLines(name)).cCode)(f)
+    withCompiled(func.toCodeLinesWithHeaders.cCode)(f)
   }
 
   def withCompiled[T](cCode: String)(f: Path => T): T = {
