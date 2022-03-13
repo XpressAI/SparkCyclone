@@ -101,18 +101,50 @@ void remove_null(std::vector<size_t>& starts,
                  std::vector<size_t>& lens);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
-            size_t pos, size_t num);
+            int pos, int num);
                
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
-            size_t pos, size_t num);
+            int pos, int num);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
-            size_t pos);
+            const int* pos, int num);
                
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
-            size_t pos);
+            const std::vector<int>& pos, int num);
+
+void substr(size_t* starts, size_t* lens, size_t num_words,
+            int pos, const int* num);
+               
+void substr(std::vector<size_t>& starts,
+            std::vector<size_t>& lens,
+            int pos, const std::vector<int>& num);
+
+void substr(std::vector<size_t>& starts,
+            std::vector<size_t>& lens,
+            const std::vector<int>& pos, int num);
+
+void substr(size_t* starts, size_t* lens, size_t num_words,
+            const int* pos, const int* num);
+               
+void substr(std::vector<size_t>& starts,
+            std::vector<size_t>& lens,
+            const std::vector<int>& pos, const std::vector<int>& num);
+
+void substr(size_t* starts, size_t* lens, size_t num_words,
+            int pos);
+               
+void substr(std::vector<size_t>& starts,
+            std::vector<size_t>& lens,
+            int pos);
+
+void substr(size_t* starts, size_t* lens, size_t num_words,
+            const int* pos);
+               
+void substr(std::vector<size_t>& starts,
+            std::vector<size_t>& lens,
+            const std::vector<int>& pos);
 
 /*
   idx: index of words that contains the string
@@ -121,6 +153,11 @@ void substr(std::vector<size_t>& starts,
   e.g. words: {"abracadabra", "abra"}, to_search: "bra"
   => idx: {0,0,1}, pos: {1,8,1}
 */
+void search(const std::vector<int>& chars,
+            const std::vector<size_t>& starts,
+            const std::vector<size_t>& lens,
+            const std::vector<int>& to_search,
+            std::vector<size_t>& idx, std::vector<size_t>& pos);
 void search(const std::vector<int>& chars,
             const std::vector<size_t>& starts,
             const std::vector<size_t>& lens,
@@ -148,6 +185,27 @@ void append(const std::vector<int>& chars,
             std::vector<size_t>& ret_starts,
             std::vector<size_t>& ret_lens,
             const std::string& to_append);
+void reverse(const std::vector<int>& chars,
+             const std::vector<size_t>& starts,
+             const std::vector<size_t>& lens,
+             std::vector<int>& ret_chars,
+             std::vector<size_t>& ret_starts); // lens are the same
+void tolower(const std::vector<int>& chars,
+             std::vector<int>& ret_chars);
+void toupper(const std::vector<int>& chars,
+             std::vector<int>& ret_chars);
+void utf8_to_utf32(const std::vector<int>& chars,
+                   const std::vector<size_t>& starts,
+                   const std::vector<size_t>& lens,
+                   std::vector<int>& ret_chars,
+                   std::vector<size_t>& ret_starts,
+                   std::vector<size_t>& ret_lens);
+void utf32_to_utf8(const std::vector<int>& chars,
+                   const std::vector<size_t>& starts,
+                   const std::vector<size_t>& lens,
+                   std::vector<int>& ret_chars,
+                   std::vector<size_t>& ret_starts,
+                   std::vector<size_t>& ret_lens);
 
 // utility struct
 struct words {
@@ -176,9 +234,17 @@ struct words {
     {frovedis::trim_noalpha(chars, starts, lens);}
   void remove_null()
     {frovedis::remove_null(starts, lens);}
-  void substr(size_t pos, size_t num)
+  void substr(int pos, int num)
     {frovedis::substr(starts, lens, pos, num);}
-  void substr(size_t pos)
+  void substr(int pos)
+    {frovedis::substr(starts, lens, pos);}
+  void substr(const std::vector<int>& pos, const std::vector<int>& num)
+    {frovedis::substr(starts, lens, pos, num);}
+  void substr(int pos, const std::vector<int>& num)
+    {frovedis::substr(starts, lens, pos, num);}
+  void substr(const std::vector<int>& pos, int num)
+    {frovedis::substr(starts, lens, pos, num);}
+  void substr(const std::vector<int>& pos)
     {frovedis::substr(starts, lens, pos);}
   void replace(const std::string& from, const std::string& to) { // destructive
     std::vector<int> ret_chars;
@@ -202,7 +268,42 @@ struct words {
     std::vector<int> ret_chars;
     std::vector<size_t> ret_starts, ret_lens;
     frovedis::append(chars, starts, lens, ret_chars, ret_starts, ret_lens,
-                      to_append);
+                     to_append);
+    chars.swap(ret_chars);
+    starts.swap(ret_starts);
+    lens.swap(ret_lens);
+  }
+  void reverse() { // destructive
+    std::vector<int> ret_chars;
+    std::vector<size_t> ret_starts;
+    frovedis::reverse(chars, starts, lens, ret_chars, ret_starts);
+    chars.swap(ret_chars);
+    starts.swap(ret_starts);
+  }
+  void tolower() { // destructive
+    std::vector<int> ret_chars;
+    frovedis::tolower(chars, ret_chars);
+    chars.swap(ret_chars);
+  }
+  void toupper() { // destructive
+    std::vector<int> ret_chars;
+    frovedis::toupper(chars, ret_chars);
+    chars.swap(ret_chars);
+  }
+  void utf8_to_utf32() { // destructive
+    std::vector<int> ret_chars;
+    std::vector<size_t> ret_starts, ret_lens;
+    frovedis::utf8_to_utf32(chars, starts, lens,
+                            ret_chars, ret_starts, ret_lens);
+    chars.swap(ret_chars);
+    starts.swap(ret_starts);
+    lens.swap(ret_lens);
+  }
+  void utf32_to_utf8() { // destructive
+    std::vector<int> ret_chars;
+    std::vector<size_t> ret_starts, ret_lens;
+    frovedis::utf32_to_utf8(chars, starts, lens,
+                            ret_chars, ret_starts, ret_lens);
     chars.swap(ret_chars);
     starts.swap(ret_starts);
     lens.swap(ret_lens);
@@ -249,10 +350,17 @@ std::vector<std::string> words_to_vector_string(const words& ws);
 
 void search(const words& w, const std::string& to_search,
             std::vector<size_t>& idx, std::vector<size_t>& pos);
+void search(const words& w, const std::vector<int>& to_search,
+            std::vector<size_t>& idx, std::vector<size_t>& pos);
 words replace(const words& w, const std::string& from, const std::string& to);
 words prepend(const words& w, const std::string& to_prepend);
 words append(const words& w, const std::string& to_append);
 words horizontal_concat_words(std::vector<words>& vec_words);
-
+words reverse(const words& w);
+words tolower(const words& w);
+words toupper(const words& w);
+words utf8_to_utf32(const words& w);
+words utf32_to_utf8(const words& w);
+std::vector<int> utf8_to_utf32(const std::string& str);
 }
 #endif
