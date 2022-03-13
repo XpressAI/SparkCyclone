@@ -1,5 +1,6 @@
 package com.nec.spark.agile.exchange
 
+import com.nec.spark.agile.core.FunctionTemplateTrait
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunction2.CFunctionArgument
@@ -27,10 +28,10 @@ object GroupingFunction {
 
 case class GroupingFunction(name: String,
                             columns: List[GroupingFunction.DataDescription],
-                            nbuckets: Int) {
+                            nbuckets: Int) extends FunctionTemplateTrait {
   require(columns.nonEmpty, "Expected Grouping to have at least one data column")
 
-  lazy val inputs: List[CVector] = {
+  private[exchange] lazy val inputs: List[CVector] = {
     columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
       veType.makeCVector(s"${kvType.render}_${idx}")
     }
@@ -44,7 +45,7 @@ case class GroupingFunction(name: String,
 
   private[exchange] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[exchange] lazy val arguments: List[CFunction2.CFunctionArgument] = {
     inputs.map(PointerPointer(_)) ++
       List(CFunctionArgument.Raw("int* sets")) ++
       outputs.map(PointerPointer(_))
@@ -134,7 +135,7 @@ case class GroupingFunction(name: String,
     }
   }
 
-  def render: CFunction2 = {
+  def toCFunction: CFunction2 = {
     val body = if (keycols.isEmpty) {
       CodeLines.from(
         "// Write out the number of buckets",
@@ -155,9 +156,5 @@ case class GroupingFunction(name: String,
     }
 
     CFunction2(name, arguments, body)
-  }
-
-  def toCodeLines: CodeLines = {
-    render.toCodeLines
   }
 }

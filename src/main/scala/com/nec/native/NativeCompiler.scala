@@ -140,5 +140,4 @@ object NativeCompiler extends LazyLogging {
       )
     }
   }
-
 }

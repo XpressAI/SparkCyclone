@@ -207,7 +207,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     )
 
     import OriginalCallingContext.Automatic._
-    evalFunction(filterFn.render)(
+    evalFunction(filterFn.toCFunction)(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
     )
