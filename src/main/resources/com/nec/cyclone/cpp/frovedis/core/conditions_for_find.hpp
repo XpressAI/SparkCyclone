@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <math.h>
+
 namespace frovedis {
 
 template <class T>
@@ -194,6 +195,16 @@ struct is_inf {
 template <class T>
 struct is_neg_inf {
   int operator()(T a) const {return (a == -std::numeric_limits<T>::infinity());}
+};
+
+template <class T>
+struct is_even {
+  int operator()(T a) const {return (a % 2 == 0);}
+};
+
+template <class T>
+struct is_odd {
+  int operator()(T a) const {return (a % 2 != 0);}
 };
 
 }

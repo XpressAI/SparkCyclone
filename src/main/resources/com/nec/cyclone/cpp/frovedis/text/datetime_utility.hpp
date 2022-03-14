@@ -26,6 +26,8 @@ enum datetime_type {
 
 std::string datetime_type_to_string(datetime_type type);
 
+std::string datetime_to_string(datetime_t& src, const std::string& format);
+
 /* Following utility functions should be in header as inline,
    because they are used in loop */
 
@@ -103,7 +105,7 @@ inline int hour_from_datetime(datetime_t t) {
   datetime_t td = th / 24;
   int hour = th - td * 24;
   return hour;
-}
+}  
 
 inline int minute_from_datetime(datetime_t t) {
   datetime_t ts = t / 1000000000L;
@@ -339,6 +341,17 @@ inline datetime_t datetime_truncate_quarter(datetime_t t) {
   return makedatetime(y, (m-1)/3 * 3 + 1, 1, 0, 0, 0, 0);
 }
 
+inline datetime_t datetime_truncate_weekofyear(datetime_t t) {
+  int y, m, d, H, M, S, ns;
+  datetime_to_ymdHMSns(t, y, m, d, H, M, S, ns);
+  int thisdayofweek = ymd_to_dayofweek(y, m, d);
+  if(thisdayofweek > 1) {
+    return datetime_sub_day(makedatetime(y,m,d), thisdayofweek - 2);
+  } else {
+    return datetime_sub_day(makedatetime(y,m,d), 6);
+  }
+}
+
 /*
   same specification as Spark:
   If timestamp1 and timestamp2 are on the same day of month,
@@ -377,6 +390,20 @@ inline double datetime_months_between(datetime_t a, datetime_t b) {
   }
 }
 
+/*
+  dayofweek: Sun = 1, ..., Sat = 7
+ */
+inline datetime_t datetime_next_day(datetime_t t, int dayofweek) {
+  int y, m, d, H, M, S, ns;
+  datetime_to_ymdHMSns(t, y, m, d, H, M, S, ns);
+  int thisdayofweek = ymd_to_dayofweek(y, m, d);
+  if(dayofweek > thisdayofweek) {
+    return datetime_add_day(makedatetime(y,m,d), dayofweek - thisdayofweek);
+  } else {
+    return datetime_add_day(makedatetime(y,m,d),
+                            7 + dayofweek - thisdayofweek);
+  }
+}
 
 }
 #endif
