@@ -45,7 +45,7 @@ object CFunction2 {
 }
 
 final case class CFunction2(name: String,
-                            arguments: List[CFunction2.CFunctionArgument],
+                            arguments: Seq[CFunction2.CFunctionArgument],
                             body: CodeLines,
                             additionalHeaders: Set[CFunction2.IncludeHeader] = Set.empty) {
   def toCodeLinesWithHeaders: CodeLines = {

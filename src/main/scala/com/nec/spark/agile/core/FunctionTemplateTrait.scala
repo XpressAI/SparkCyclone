@@ -7,7 +7,7 @@ import com.nec.spark.planning.VeFunction.VeFunctionStatus
 trait FunctionTemplateTrait {
   def name: String
 
-  def outputs: List[CVector]
+  def outputs: Seq[CVector]
 
   def toCFunction: CFunction2
 
@@ -15,7 +15,7 @@ trait FunctionTemplateTrait {
     VeFunction(
       VeFunctionStatus.fromCodeLines(toCFunction.toCodeLinesWithHeaders),
       name,
-      outputs
+      outputs.toList
     )
   }
 }

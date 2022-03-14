@@ -24,6 +24,7 @@ import com.nec.cmake.eval.OldUnifiedGroupByFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core.CFunction2
 import com.nec.spark.agile.filter.FilterFunction
+import com.nec.spark.agile.join.JoinUtils._
 import com.nec.spark.agile.projection.ProjectionFunction
 import com.nec.spark.agile.sort.SortFunction
 import com.nec.ve.VeProcess.OriginalCallingContext

@@ -20,6 +20,7 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.join.JoinUtils.{JoinType, LeftOuterJoin, RightOuterJoin}
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, SortDirection, Sqrt, Year}

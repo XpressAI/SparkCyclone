@@ -19,7 +19,8 @@
  */
 package com.nec.ve.eval
 
-import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
+import com.nec.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
+import com.nec.spark.agile.join.JoinUtils.TypedJoinExpression
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.ve._
 import com.nec.ve.eval.StaticTypingTestAdditions._
