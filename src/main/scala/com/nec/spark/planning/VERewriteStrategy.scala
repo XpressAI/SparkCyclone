@@ -21,7 +21,7 @@ package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.exchange.GroupingFunction

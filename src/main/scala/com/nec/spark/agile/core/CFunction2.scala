@@ -1,6 +1,5 @@
 package com.nec.spark.agile.core
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CVector
 
 object CFunction2 {

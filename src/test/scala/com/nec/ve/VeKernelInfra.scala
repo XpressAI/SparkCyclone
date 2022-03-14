@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, KeyHeaders}
 import com.nec.spark.agile.core.CFunction2
 import org.scalatest.Suite

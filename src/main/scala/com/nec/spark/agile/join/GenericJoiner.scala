@@ -1,6 +1,6 @@
 package com.nec.spark.agile.join
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core.CFunction2
@@ -126,8 +126,8 @@ object GenericJoiner {
     CodeLines.from(
       s"std::vector<size_t> ${outMatchingIndicesLeft};",
       s"std::vector<size_t> ${outMatchingIndicesRight};",
-      CodeLines
-        .from(
+      CodeLines.scoped("Compute non-string join") {
+        CodeLines.from(
           s"std::vector<int64_t> left(${inLeft}->count);",
           s"std::vector<size_t> left_idx(${inLeft}->count);",
           CodeLines.forLoop("i", s"${inLeft}->count") {
@@ -140,7 +140,7 @@ object GenericJoiner {
           },
           s"frovedis::equi_join(right, right_idx, left, left_idx, $outMatchingIndicesRight, $outMatchingIndicesLeft);"
         )
-        .block
+      }
     )
 
   def computeStringJoin(
@@ -155,8 +155,8 @@ object GenericJoiner {
       s"std::vector<size_t> ${outMatchingIndicesLeft};",
       s"std::vector<size_t> ${outMatchingIndicesRight};",
       s"std::vector<size_t> ${leftDictIndices} = $inLeftDict.lookup(frovedis::make_compressed_words(${inLeftWords}));",
-      CodeLines
-        .from(
+      CodeLines.scoped("Compute string join") {
+        CodeLines.from(
           s"std::vector<size_t> left_idx($leftDictIndices.size());",
           s"for (int i = 0; i < $leftDictIndices.size(); i++) {",
           s"  left_idx[i] = i;",
@@ -168,7 +168,7 @@ object GenericJoiner {
           s"}",
           s"frovedis::equi_join(right, right_idx, $leftDictIndices, left_idx, ${outMatchingIndicesRight}, ${outMatchingIndicesLeft});"
         )
-        .block
+      }
     )
 
   def printVec: CodeLines = CodeLines.from(

@@ -1,7 +1,7 @@
 package com.nec.ve.eval
 
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.DateCastStringHoleEvaluation

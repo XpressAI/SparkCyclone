@@ -1,6 +1,6 @@
 package com.nec.cmake.functions
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CodeStructure
 import com.nec.spark.agile.CodeStructure.CodeSection.{Header, NonHeader}
 import org.scalatest.freespec.AnyFreeSpec

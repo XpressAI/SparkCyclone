@@ -19,7 +19,7 @@
  */
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer

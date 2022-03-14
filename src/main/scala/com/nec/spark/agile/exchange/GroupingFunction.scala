@@ -1,7 +1,7 @@
 package com.nec.spark.agile.exchange
 
 import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 

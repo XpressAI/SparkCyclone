@@ -19,7 +19,7 @@
  */
 package com.nec.cmake.eval
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
@@ -143,11 +143,11 @@ final case class OldUnifiedGroupByFunctionGeneration(
           "Declare the variables for the output of the Partial stage for the unified function"
         ),
         pf.outputs.map(cv => GroupByOutline.declare(cv)),
-        pf.body.blockCommented("Perform the Partial computation stage"),
-        ff.body.blockCommented("Perform the Final computation stage"),
+        pf.body.scoped("Perform the Partial computation stage"),
+        ff.body.scoped("Perform the Final computation stage"),
         pf.outputs
           .map(cv => GroupByOutline.dealloc(cv))
-          .blockCommented("Deallocate the partial variables")
+          .scoped("Deallocate the partial variables")
       )
     )
   }

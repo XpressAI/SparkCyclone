@@ -2,7 +2,7 @@ package com.nec.spark.agile.filter
 
 import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, VeFilter}
 
 object FilterFunction {

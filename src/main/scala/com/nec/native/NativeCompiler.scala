@@ -22,7 +22,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file.Paths
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import org.apache.spark.SparkConf
 
 import java.nio.file.Files
