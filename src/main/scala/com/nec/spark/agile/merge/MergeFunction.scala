@@ -1,15 +1,15 @@
 package com.nec.spark.agile.merge
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
+import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 
 case class MergeFunction(name: String,
-                         columns: List[VeType]) {
+                         columns: List[VeType]) extends FunctionTemplateTrait {
   require(columns.nonEmpty, "Expected Merge to have at least one data column")
 
-  lazy val inputs: List[CVector] = {
+  private[merge] lazy val inputs: List[CVector] = {
     columns.zipWithIndex.map { case (veType, idx) =>
       veType.makeCVector(s"input_${idx}_g")
     }
@@ -21,13 +21,13 @@ case class MergeFunction(name: String,
     }
   }
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[merge] lazy val arguments: List[CFunction2.CFunctionArgument] = {
     List(CFunctionArgument.Raw("int batches"), CFunctionArgument.Raw("int rows")) ++
       inputs.map(CFunctionArgument.PointerPointer(_)) ++
       outputs.map(CFunctionArgument.PointerPointer(_))
   }
 
-  def mergeCVecStmt(vetype: VeType, index: Int): CodeLines = {
+  private[merge] def mergeCVecStmt(vetype: VeType, index: Int): CodeLines = {
     val in = s"input_${index}_g"
     val out = s"output_${index}_g"
 
@@ -50,11 +50,7 @@ case class MergeFunction(name: String,
     }
   }
 
-  def render: CFunction2 = {
+  def toCFunction: CFunction2 = {
     CFunction2(name, arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
-  }
-
-  def toCodeLines: CodeLines = {
-    render.toCodeLines
   }
 }

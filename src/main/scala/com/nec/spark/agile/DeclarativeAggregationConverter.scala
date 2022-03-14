@@ -19,7 +19,7 @@
  */
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.SparkExpressionToCExpression.EvaluationAttempt._

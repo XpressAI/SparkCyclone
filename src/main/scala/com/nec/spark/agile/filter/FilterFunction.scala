@@ -1,8 +1,8 @@
 package com.nec.spark.agile.filter
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
+import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, VeFilter}
 
 object FilterFunction {
@@ -14,10 +14,10 @@ case class FilterFunction(
   name: String,
   filter: VeFilter[CVector, CExpression],
   onVe: Boolean = true
-) {
+) extends FunctionTemplateTrait {
   require(filter.data.nonEmpty, "Expected Filter to have at least one data column")
 
-  lazy val inputs: List[CVector] = {
+  private[filter] lazy val inputs: List[CVector] = {
     filter.data.map { vec => vec.withNewName(s"${vec.name}_m") }
   }
 
@@ -93,7 +93,7 @@ case class FilterFunction(
     }
   }
 
-  def render: CFunction2 = {
+  def toCFunction: CFunction2 = {
     val body = CodeLines.from(
       // Declare some pointers
       inputPtrDeclStmts,
@@ -105,9 +105,5 @@ case class FilterFunction(
     )
 
     CFunction2(name, arguments, body)
-  }
-
-  def toCodeLines: CodeLines = {
-    render.toCodeLines
   }
 }

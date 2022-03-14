@@ -19,7 +19,7 @@
  */
 package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, VeScalarType}
 import com.nec.spark.agile.groupby.GroupByOutline.StagedAggregation
 

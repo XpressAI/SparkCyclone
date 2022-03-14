@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 import com.nec.spark.planning.LibLocation.LibLocation
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
@@ -22,7 +22,7 @@ final case class VeFunction(
   functionName: String,
   namedResults: List[CVector]
 ) {
-  def results: List[VeType] = namedResults.map(_.veType)
+  def results: Seq[VeType] = namedResults.map(_.veType)
   def isCompiled: Boolean = veFunctionStatus match {
     case VeFunctionStatus.SourceCode(_) => false
     case VeFunctionStatus.Compiled(_)   => true

@@ -195,6 +195,8 @@ final case class VeKernelCompiler(
           oFile.toString
         ) ++ linkSos.toList.map(_.name).map(sourcesDir.resolve(_)).map(_.toString)
       }
+      logger.info(s"Compilation command 2 = ${command2}")
+
       ProcessRunner.runHopeOk(
         Process(command = command2, cwd = buildDir.toFile),
         doDebug = config.doDebug

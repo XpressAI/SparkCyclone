@@ -20,7 +20,7 @@
 package com.nec.spark.agile.groupby
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline._
@@ -52,11 +52,11 @@ final case class GroupByPartialGenerator(
           "Declare the variables for the output of the Partial stage for the unified function"
         ),
         partialFunction.outputs.map(cv => GroupByOutline.declare(cv)),
-        partialFunction.body.blockCommented("Perform the Partial computation stage"),
-        finalFunction.body.blockCommented("Perform the Final computation stage"),
+        partialFunction.body.scoped("Perform the Partial computation stage"),
+        finalFunction.body.scoped("Perform the Final computation stage"),
         partialFunction.outputs
           .map(cv => GroupByOutline.dealloc(cv))
-          .blockCommented("Deallocate the partial variables")
+          .scoped("Deallocate the partial variables")
       )
     )
   }

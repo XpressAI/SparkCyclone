@@ -1,40 +1,21 @@
-/*
- * Copyright (c) 2021 Xpress AI.
- *
- * This file is part of Spark Cyclone.
- * See https://github.com/XpressAI/SparkCyclone for further info.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-package com.nec.spark.agile
+package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.CExpression
+import com.nec.spark.agile.core.CodeLines
 
 final case class GroupingCodeGenerator(
-  groupingVecName: String,
-  groupsCountOutName: String,
-  groupsIndicesName: String,
-  sortedIdxName: String
-) {
+                                        groupingVecName: String,
+                                        groupsCountOutName: String,
+                                        groupsIndicesName: String,
+                                        sortedIdxName: String
+                                      ) {
 
   def identifyGroups(
-    tupleTypes: List[String],
-    tupleType: String,
-    count: String,
-    thingsToGroup: List[Either[String, CExpression]]
-  ): CodeLines = {
+                      tupleTypes: List[String],
+                      tupleType: String,
+                      count: String,
+                      thingsToGroup: List[Either[String, CExpression]]
+                    ): CodeLines = {
     val stringVecHashes: List[String] = thingsToGroup.flatMap(_.left.toSeq)
 
     val elems = thingsToGroup.flatMap {
@@ -92,10 +73,10 @@ final case class GroupingCodeGenerator(
       )
 
   def forEachGroupItem(
-    beforeFirst: => CodeLines,
-    perItem: => CodeLines,
-    afterLast: => CodeLines
-  ): CodeLines =
+                        beforeFirst: => CodeLines,
+                        perItem: => CodeLines,
+                        afterLast: => CodeLines
+                      ): CodeLines =
     CodeLines.from(
       s"for (size_t g = 0; g < ${groupsCountOutName}; g++) {",
       CodeLines

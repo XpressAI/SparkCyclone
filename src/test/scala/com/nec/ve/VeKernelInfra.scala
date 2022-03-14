@@ -1,8 +1,8 @@
 package com.nec.ve
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, KeyHeaders}
+import com.nec.spark.agile.core.CFunction2
 import org.scalatest.Suite
 
 import java.nio.file.{Path, Paths}
@@ -16,8 +16,7 @@ trait VeKernelInfra { this: Suite =>
     withCompiled(cCode.toCodeLinesHeaderPtr(name).cCode)(f)
   }
 
-  def compiledWithHeaders[T](func: CFunction2/* , name: String */)(f: Path => T): T = {
-    // withCompiled(CodeLines.from(KeyHeaders, cCode.toCodeLines(name)).cCode)(f)
+  def compiledWithHeaders[T](func: CFunction2)(f: Path => T): T = {
     withCompiled(func.toCodeLinesWithHeaders.cCode)(f)
   }
 

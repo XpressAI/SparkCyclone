@@ -24,6 +24,7 @@ import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.join.JoinUtils._
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
