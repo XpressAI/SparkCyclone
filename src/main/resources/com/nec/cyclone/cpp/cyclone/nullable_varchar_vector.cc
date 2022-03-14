@@ -47,29 +47,29 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
 
   // Initialize dataSize
   dataSize = 0;
-  for (auto i = 0; i < src.size(); i++) {
+  for (auto i = 0; i < count; i++) {
     dataSize += src[i].size();
   }
 
   // Copy strings to data
   data = static_cast<int32_t *>(malloc(sizeof(int32_t) * dataSize));
   auto p = 0;
-  for (auto i = 0; i < src.size(); i++) {
+  for (auto i = 0; i < count; i++) {
     for (auto j = 0; j < src[i].size(); j++) {
       data[p++] = static_cast<int32_t>(src[i][j]);
     }
   }
 
   // Set the lengths
-  lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
-   for (auto i = 0; i < src.size(); i++) {
+  lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
+   for (auto i = 0; i < count; i++) {
       lengths[i] = src[i].size();
    }
 
   // Set the offsets
-  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * src.size(), 1));
+  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
   offsets[0] = 0;
-  for (auto i = 1; i < src.size(); i++) {
+  for (auto i = 1; i < count; i++) {
     offsets[i] = offsets[i-1] + lengths[i-1];
   }
 
