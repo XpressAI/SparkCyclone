@@ -1,10 +1,9 @@
 package com.nec.spark.agile.sort
 
 import com.nec.spark.agile.CExpressionEvaluation._
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.core.FunctionTemplateTrait
+import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 
 object SortFunction {
   final val SortedIndicesId = "sorted_indices"
@@ -29,8 +28,8 @@ case class SortFunction(
   }
 
   private[sort] lazy val arguments: List[CFunction2.CFunctionArgument] = {
-    inputs.map { vec => CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_m")) } ++
-      outputs.map { vec => CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_mo")) }
+    inputs.map { vec => CFunction2.CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_m")) } ++
+      outputs.map { vec => CFunction2.CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_mo")) }
   }
 
   private[sort] def inputPtrDeclStmts: CodeLines = {

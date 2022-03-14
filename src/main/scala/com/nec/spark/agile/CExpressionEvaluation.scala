@@ -115,6 +115,13 @@ object CExpressionEvaluation {
     }
   }
 
+
+
+
+
+
+
+
   def shortenLines(lines: List[String]): List[String] = {
 
     @tailrec
@@ -204,6 +211,12 @@ object CExpressionEvaluation {
   implicit class RichListStr(list: List[String]) {
     def codeLines: CodeLines = CodeLines(list)
   }
+
+
+
+
+
+
 
   trait NameCleaner {
     def cleanName(input: String): String

@@ -1,6 +1,5 @@
 package com.nec.spark.agile.core
 
-import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunctionGeneration.CVector
 import com.nec.spark.planning.VeFunction
 import com.nec.spark.planning.VeFunction.VeFunctionStatus

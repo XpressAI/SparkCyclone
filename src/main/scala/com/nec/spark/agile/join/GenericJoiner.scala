@@ -1,10 +1,9 @@
 package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core.CFunction2
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, _}
 
@@ -31,13 +30,13 @@ final case class GenericJoiner(
     }
   }
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  lazy val arguments: List[CFunctionArgument] = {
     List(
       CFunctionArgument.Raw("size_t leftBatches"),
       CFunctionArgument.Raw("size_t rightBatches"),
       CFunctionArgument.Raw("size_t leftRows"),
       CFunctionArgument.Raw("size_t rightRows")
-    ) ++ fn_inputs.map(PointerPointer) ++ fn_outputs.map(PointerPointer)
+    ) ++ fn_inputs.map(CFunctionArgument.PointerPointer) ++ fn_outputs.map(CFunctionArgument.PointerPointer)
   }
 
   def cFunction(fnName: String,

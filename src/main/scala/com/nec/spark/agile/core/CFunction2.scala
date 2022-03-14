@@ -1,7 +1,6 @@
-package com.nec.spark.agile
+package com.nec.spark.agile.core
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.CVector
 
 object CFunction2 {
@@ -47,7 +46,7 @@ object CFunction2 {
 }
 
 final case class CFunction2(name: String,
-                            arguments: List[CFunctionArgument],
+                            arguments: List[CFunction2.CFunctionArgument],
                             body: CodeLines,
                             additionalHeaders: Set[CFunction2.IncludeHeader] = Set.empty) {
   def toCodeLinesWithHeaders: CodeLines = {

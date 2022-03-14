@@ -363,27 +363,18 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       finalName = s"final_$functionPrefix"
 
       inputAmplifyFn = MergeFunction(s"input_amplify_${functionPrefix}", partialCFunction.inputs.map(_.veType))
-      //exchangeFunction = GroupingFunction(s"exchange_${functionPrefix}", dataDescriptions.toList, HashExchangeBuckets)
       mergeFn = MergeFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
       amplifyFn = MergeFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
 
       code = CodeLines
         .from(
           partialCFunction.toCodeLinesHeaderBatchPtr(partialName),
-          ff.toCodeLinesNoHeaderOutPtr2(finalName),
-          //exchangeFunction.toCodeLines,
-          // inputAmplifyFn.toCodeLines,
-          // mergeFn.toCodeLines,
-          // if (options.amplifyBatches) amplifyFn.toCodeLines else CodeLines.empty
+          ff.toCodeLinesNoHeaderOutPtr2(finalName)
         )
 
     } yield {
       val exchangePlan = VeAmplifyBatchesPlan(
-        amplifyFunction = inputAmplifyFn.toVeFunction /* VeFunction(
-          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-          functionName = inputAmplifyFn.name,
-          namedResults = inputAmplifyFn.outputs
-        ) */,
+        amplifyFunction = inputAmplifyFn.toVeFunction,
         child = SparkToVectorEnginePlan(planLater(child))
       )
 
@@ -408,11 +399,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       )
 
       val flt = VeFlattenPartition(
-        flattenFunction = mergeFn.toVeFunction /* VeFunction(
-          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-          functionName = mergeFn.name,
-          namedResults = partialCFunction.outputs
-        ) */,
+        flattenFunction = mergeFn.toVeFunction,
         child = pag
       )
 
@@ -429,11 +416,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       VectorEngineToSparkPlan(
         if (options.amplifyBatches)
           VeAmplifyBatchesPlan(
-            amplifyFunction = amplifyFn.toVeFunction /* VeFunction(
-              veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-              functionName = amplifyFn.name,
-              namedResults = ff.outputs
-            ) */,
+            amplifyFunction = amplifyFn.toVeFunction,
             child = finalAggregate
           )
         else
@@ -545,27 +528,13 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
       val filterPlan = VeOneStageEvaluationPlan(
         outputExpressions = f.output,
-        veFunction = filterFn.toVeFunction/*  VeFunction(
-          veFunctionStatus = VeFunctionStatus.fromCodeLines(filterFn.toCodeLines),
-          functionName = filterFn.name,
-          namedResults = filterFn.outputs
-        ) */,
+        veFunction = filterFn.toVeFunction,
         child = SparkToVectorEnginePlan(planLater(child))
       )
 
       List(
         VectorEngineToSparkPlan(
-          if (options.amplifyBatches)
-            VeAmplifyBatchesPlan(
-              amplifyFunction = amplifyFn.toVeFunction /* VeFunction(
-                veFunctionStatus = VeFunctionStatus.fromCodeLines(
-                  CodeLines.from(CFunctionGeneration.KeyHeaders, amplifyFn.toCodeLines)
-                ),
-                functionName = amplifyFn.name,
-                namedResults = data
-              ) */,
-              child = filterPlan
-            )
+          if (options.amplifyBatches) VeAmplifyBatchesPlan(amplifyFn.toVeFunction, filterPlan)
           else filterPlan
         )
       )
@@ -620,17 +589,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       MergeFunction(s"amplify_${functionName}", genericJoiner.outputs.map(_.cVector.veType))
 
     val maybeAmplifiedJoinPlan =
-      if (options.amplifyBatches)
-        VeAmplifyBatchesPlan(
-          amplifyFunction = amplifyFn.toVeFunction /* VeFunction(
-            veFunctionStatus = VeFunctionStatus.fromCodeLines(
-              CodeLines.from(CFunctionGeneration.KeyHeaders, amplifyFn.toCodeLines)
-            ),
-            functionName = amplifyFn.name,
-            namedResults = genericJoiner.outputs.map(_.cVector)
-          ) */,
-          child = joinPlan
-        )
+      if (options.amplifyBatches) VeAmplifyBatchesPlan(amplifyFn.toVeFunction, joinPlan)
       else joinPlan
 
     List(VectorEngineToSparkPlan(maybeAmplifiedJoinPlan))
@@ -654,14 +613,8 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       HashExchangeBuckets
     )
 
-    // val code = CodeLines.from(CFunctionGeneration.KeyHeaders, exchangeFn.toCodeLines)
-
     VeHashExchangePlan(
-      exchangeFunction = exchangeFn.toVeFunction/* VeFunction(
-        veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-        functionName = exchangeFn.name,
-        namedResults = inputs
-      ) */,
+      exchangeFunction = exchangeFn.toVeFunction,
       child = SparkToVectorEnginePlan(planLater(child))
     )
   }

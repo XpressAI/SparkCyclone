@@ -1,8 +1,8 @@
 package com.nec.ve
 
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, KeyHeaders}
+import com.nec.spark.agile.core.CFunction2
 import org.scalatest.Suite
 
 import java.nio.file.{Path, Paths}

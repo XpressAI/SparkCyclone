@@ -1,10 +1,8 @@
 package com.nec.spark.agile.exchange
 
-import com.nec.spark.agile.core.FunctionTemplateTrait
+import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 
 object GroupingFunction {
@@ -46,9 +44,9 @@ case class GroupingFunction(name: String,
   private[exchange] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
   private[exchange] lazy val arguments: List[CFunction2.CFunctionArgument] = {
-    inputs.map(PointerPointer(_)) ++
+    inputs.map(CFunctionArgument.PointerPointer(_)) ++
       List(CFunctionArgument.Raw("int* sets")) ++
-      outputs.map(PointerPointer(_))
+      outputs.map(CFunctionArgument.PointerPointer(_))
   }
 
   private[exchange] def computeBucketAssignments: CodeLines = {
