@@ -19,8 +19,8 @@
  */
 package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregation, StagedProjection}
 
 /**
@@ -92,7 +92,8 @@ final case class GroupByOutline(
               Right(
                 CExpression(
                   s"partial_${gk.name}->data[i]",
-                  Some(s"partial_${gk.name}->get_validity(i)")
+                  Some("0xFFFFFFFF")
+                  //Some(s"partial_${gk.name}->get_validity(i)")
                 )
               )
             case VeString => Left(s"partial_str_${gk.name}")
@@ -125,7 +126,7 @@ final case class GroupByOutline(
                 stagedProjection.name,
                 CExpression(
                   cCode = s"partial_${stagedProjection.name}->data[i]",
-                  isNotNullCode = Some(s"partial_${stagedProjection.name}->get_validity(i)")
+                  isNotNullCode = Some("0xFFFFFFFF")//Some(s"partial_${stagedProjection.name}->get_validity(i)")
                 ),
                 "g"
               )
@@ -164,7 +165,8 @@ object GroupByOutline {
     val condition = expr.isNotNullCode.getOrElse("1")
     CodeLines.from(
       s"""${outname}->data[${idx}] = ${expr.cCode};""",
-      s"${outname}->set_validity(${idx}, ${condition});"
+      s"${outname}->validityBuffer[${idx} / 64] = 0xFFFFFFFF;",
+      s"//${outname}->set_validity(${idx}, ${condition});"
     )
   }
 

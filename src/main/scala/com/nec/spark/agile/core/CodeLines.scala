@@ -1,7 +1,8 @@
 package com.nec.spark.agile.core
 
-import scala.annotation.tailrec
 import sourcecode.{FullName, Line}
+
+import scala.annotation.tailrec
 
 object CodeLines {
   def parse(source: String): CodeLines = {
@@ -29,8 +30,9 @@ object CodeLines {
     CodeLines.from(s"if ($condition) { ", sub1.indented, "} else {", sub2.indented, "}")
   }
 
-  def forLoop(counter: String, until: String)(sub: => CodeLines): CodeLines = {
+  def forLoop(counter: String, until: String, noVector: Boolean = false)(sub: => CodeLines): CodeLines = {
     CodeLines.from(
+      //if (noVector) "#pragma _NEC novector" else "#pragma _NEC ivdep",
       s"for (auto $counter = 0; $counter < $until; $counter++) {",
       sub.indented,
       "}"

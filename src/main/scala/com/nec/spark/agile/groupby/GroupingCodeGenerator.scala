@@ -4,18 +4,18 @@ import com.nec.spark.agile.CFunctionGeneration.CExpression
 import com.nec.spark.agile.core.CodeLines
 
 final case class GroupingCodeGenerator(
-                                        groupingVecName: String,
-                                        groupsCountOutName: String,
-                                        groupsIndicesName: String,
-                                        sortedIdxName: String
-                                      ) {
+  groupingVecName: String,
+  groupsCountOutName: String,
+  groupsIndicesName: String,
+  sortedIdxName: String
+) {
 
   def identifyGroups(
-                      tupleTypes: List[String],
-                      tupleType: String,
-                      count: String,
-                      thingsToGroup: List[Either[String, CExpression]]
-                    ): CodeLines = {
+    tupleTypes: List[String],
+    tupleType: String,
+    count: String,
+    thingsToGroup: List[Either[String, CExpression]]
+  ): CodeLines = {
     val stringVecHashes: List[String] = thingsToGroup.flatMap(_.left.toSeq)
 
     val elems = thingsToGroup.flatMap {
@@ -63,24 +63,23 @@ final case class GroupingCodeGenerator(
   }
 
   def forHeadOfEachGroup(f: => CodeLines): CodeLines =
-    CodeLines
-      .from(
+    CodeLines.from(
+      "#pragma _NEC ivdep",
         s"for (size_t g = 0; g < ${groupsCountOutName}; g++) {",
-        CodeLines
-          .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", f)
+        CodeLines.from(
+          s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", f)
           .indented,
         "}"
       )
 
   def forEachGroupItem(
-                        beforeFirst: => CodeLines,
-                        perItem: => CodeLines,
-                        afterLast: => CodeLines
-                      ): CodeLines =
+    beforeFirst: => CodeLines,
+    perItem: => CodeLines,
+    afterLast: => CodeLines
+  ): CodeLines =
     CodeLines.from(
       s"for (size_t g = 0; g < ${groupsCountOutName}; g++) {",
-      CodeLines
-        .from(
+      CodeLines.from(
           s"size_t group_start_in_idx = ${groupsIndicesName}[g];",
           s"size_t group_end_in_idx = ${groupsIndicesName}[g + 1];",
           "int i = 0;",
@@ -89,8 +88,7 @@ final case class GroupingCodeGenerator(
           "#pragma _NEC ivdep",
           "#pragma _NEC vovertake",
           s"for ( size_t j = group_start_in_idx; j < group_end_in_idx; j++ ) {",
-          CodeLines
-            .from(s"i = ${sortedIdxName}[j];", perItem)
+          CodeLines.from(s"i = ${sortedIdxName}[j];", perItem)
             .indented,
           "}",
           afterLast
