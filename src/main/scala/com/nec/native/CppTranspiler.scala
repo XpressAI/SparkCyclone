@@ -96,7 +96,6 @@ object CppTranspiler {
 
   def evalIdent(ident: Ident): String = {
 
-
     ident match {
       case other => other.toString
     }

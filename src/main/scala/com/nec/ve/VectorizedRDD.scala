@@ -1,6 +1,8 @@
 package com.nec.ve
 
 import com.nec.native.CppTranspiler
+import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.CodeStructure.CodeSection
 
 import scala.reflect.ClassTag
 import scala.language.implicitConversions
@@ -25,16 +27,23 @@ class VectorizedRDD[T](rdd: RDD[T]) {
 
     // transpile f to C
     val code = transpiler.transpile(expr)
-    println("Generated code:\n" + code)
-
+    //println("Generated code:\n" + code)
 
     // TODO: Embed generated code into mapping function
+    val codeLinesFn = CodeLines.parse(code)
+    println("Codelines: " + codeLinesFn)
+
+    //
+    // val codeLinesMain = CodeLines.from()
+
+
 
     // TODO: remove dummy result
     rdd
   }
 }
 
+// implicit conversion
 object VectorizedRDD {
   implicit def rddToVectorizedRDD[T](r: RDD[T]) = new VectorizedRDD(r)
 }

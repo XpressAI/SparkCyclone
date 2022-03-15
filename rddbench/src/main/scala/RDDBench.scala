@@ -41,7 +41,6 @@ object RDDBench {
     val rdd = sc.parallelize(numbers)
 
     val mappedRdd = rdd.map( (a) => 2 * a + 12)
-
     val result = mappedRdd.reduce( (a,b) => a + b)
 
     println("result of bench01 is " + result)
@@ -54,6 +53,7 @@ object RDDBench {
     val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
 
     val rdd = sc.parallelize(numbers)
+
     val expr = reify( (a: Int) => 2 * a + 12)
     val mappedRdd = rdd.vemap( expr )  // TODO: find a way around "reify" (macro?)
 
