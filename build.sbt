@@ -584,7 +584,8 @@ lazy val `rddbench` = project
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
-      "org.apache.spark" %% "spark-yarn" % sparkVersion.value
+      "org.apache.spark" %% "spark-yarn" % sparkVersion.value,
+      "org.scalatest" %% "scalatest" % "3.2.10" % Test
     ),
     version := "0.1"
   )
