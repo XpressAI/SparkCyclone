@@ -51,7 +51,7 @@ object DateCastStringHoleEvaluationSpec {
             ),
             "return 0;"
           )
-        ).toCodeLinesG("test").cCode
+        ).toCodeLinesS("test").cCode
       )
         .mkString("\n\n")
     )

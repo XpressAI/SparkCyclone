@@ -2,6 +2,7 @@ package com.nec.spark.agile.sort
 
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, NullsFirst, NullsLast, NullOrdering, SortDirection}
 
 object SortFunction {
   final val SortedIndicesId = "sorted_indices"
@@ -46,7 +47,7 @@ case class SortFunction(
   }
 
   private[sort] def prepareColumnsStmts: CodeLines = {
-    val hasNoNullCheck = sorts.exists(_.typedExpression.cExpression.isNotNullCode.isEmpty)
+    val hasNoNullCheck = sorts.exists(_.expression.cExpression.isNotNullCode.isEmpty)
     CodeLines.from(
       // Set up a default vector of 1's if needed
       if (hasNoNullCheck) s"std::vector<int32_t> ONES(${inputs.head.name}->count, 1);" else "",
@@ -57,7 +58,7 @@ case class SortFunction(
           to generate the right code.  This should be replaced by something more
           typesafe in the future.
         */
-        case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, Some(notNullCode))), _), idx) =>
+        case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, Some(notNullCode))), _, _), idx) =>
           CodeLines.from(
             // Extract the pointer to the data array
             s"auto *tmp${idx}a = ${cCode.replaceAll("""\[.*\]""", "")};",
@@ -66,7 +67,7 @@ case class SortFunction(
             s"auto *tmp${idx}b = tmp${idx}b0.data();",
           )
 
-        case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, None)), _), idx) =>
+        case (VeSortExpression(TypedCExpression2(_, CExpression(cCode, None)), _, _), idx) =>
           CodeLines.from(
             // Extract the pointer to the data array
             s"auto *tmp${idx}a = ${cCode.replaceAll("""\[.*\]""", "")};",
@@ -78,15 +79,22 @@ case class SortFunction(
   }
 
   private[sort] def sortColumnsStmts: CodeLines = {
-    val arguments = sorts.zipWithIndex.flatMap { case (expr, idx) =>
-      val ordering = expr.sortOrdering match {
+    val arguments = sorts.zipWithIndex.flatMap { case (sort, idx) =>
+      val ordering1 = sort.direction match {
         case Ascending  => 1
         case Descending => 0
       }
 
+      val ordering2 = sort.nullOrdering match {
+        case NullsFirst => 1
+        case NullsLast  => 0
+      }
+
       List(
-        s"std::make_tuple(${ordering}, tmp${idx}a)",
-        s"std::make_tuple(${ordering}, tmp${idx}b)"
+        // Sort by the values
+        s"std::make_tuple(${ordering1}, tmp${idx}a)",
+        // Sort by the validity
+        s"std::make_tuple(${ordering2}, tmp${idx}b)"
       )
     }
 

@@ -448,6 +448,7 @@ object SparkExpressionToCExpression {
       case TimestampType => VeNullableLong
     }
   }
+
   def sparkTypeToVeType(dataType: DataType): VeType = {
     dataType match {
       case DoubleType    => VeNullableDouble
@@ -458,23 +459,6 @@ object SparkExpressionToCExpression {
       case BooleanType   => VeNullableInt
       case StringType    => VeString
       case TimestampType => VeNullableLong
-    }
-  }
-  def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
-    sortDirection match {
-      case expressions.Ascending  => Ascending
-      case expressions.Descending => Descending
-    }
-  }
-
-  def likelySparkType(veType: VeType): DataType = {
-    veType match {
-      case VeNullableDouble => DoubleType
-      case VeNullableFloat  => FloatType
-      case VeNullableInt    => IntegerType
-      case VeNullableLong   => LongType
-      case VeNullableShort  => ShortType
-      case VeString                      => StringType
     }
   }
 }

@@ -4,7 +4,6 @@ import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -38,7 +37,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   import underlying._
   def toInternalVector(): ColumnVector =
-    new VeColColumnarVector(Left(this), likelySparkType(veType))
+    new VeColColumnarVector(Left(this), veType.toSparkType)
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty

@@ -26,7 +26,7 @@ import com.nec.spark.agile.core._
 import com.nec.spark.agile.filter.FilterFunction
 import com.nec.spark.agile.join.JoinUtils._
 import com.nec.spark.agile.projection.ProjectionFunction
-import com.nec.spark.agile.sort.SortFunction
+import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource

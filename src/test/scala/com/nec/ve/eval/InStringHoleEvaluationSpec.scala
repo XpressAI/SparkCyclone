@@ -28,7 +28,7 @@ final class InStringHoleEvaluationSpec extends AnyWordSpec {
 
       val cLib = CMakeBuilder.buildCLogging(
         CFunction(List(CVector.varChar("strings")), List(CVector.int("bools")), code)
-          .toCodeLinesG("test")
+          .toCodeLinesS("test")
           .cCode
       )
 

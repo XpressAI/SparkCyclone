@@ -29,10 +29,6 @@ import org.apache.spark.sql.types._
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
-  sealed trait SortOrdering
-  final case object Descending extends SortOrdering
-  final case object Ascending extends SortOrdering
-
   final case class CExpression(cCode: String, isNotNullCode: Option[String]) {
     def storeTo(outputName: String): CodeLines = isNotNullCode match {
       case None =>
@@ -52,8 +48,8 @@ object CFunctionGeneration {
           )
           .indented
     }
-
   }
+
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
 
   final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)
@@ -65,16 +61,6 @@ object CFunctionGeneration {
     def cVector: CVector = veType.makeCVector(name)
   }
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
-
-  /**
-   * The reason to use fully generic types is so that we can map them around in future, without having an implementation
-   * that interferes with those changes. By 'manipulate' we mean optimize/find shortcuts/etc.
-   *
-   * By doing this, we flatten the code hierarchy and can now do validation of C behaviors without requiring Spark to be pulled in.
-   *
-   * This even enables us the possibility to use Frovedis behind the scenes.
-   */
-  final case class VeProjection[Input, Output](inputs: List[Input], outputs: List[Output])
 
   final case class VeGroupBy[Input, Group, Output](
     inputs: List[Input],
@@ -244,10 +230,6 @@ object CFunctionGeneration {
     condition: Condition
   )
 
-  final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
-
-  final case class VeSortExpression(typedExpression: TypedCExpression2, sortOrdering: SortOrdering)
-
   def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
     cVector.veType match {
       case VeString =>
@@ -319,36 +301,6 @@ object CFunctionGeneration {
     )
 
     def arguments: List[CVector] = inputs ++ outputs
-
-    def toCodeLinesPF(functionName: String): CodeLines = {
-      CodeLines.from(
-        """#include "cyclone/cyclone.hpp"""",
-        """#include "frovedis/text/dict.hpp"""",
-        "#include <math.h>",
-        "#include <stddef.h>",
-        "#include <bitset>",
-        "#include <iostream>",
-        "#include <string>",
-        "#include <vector>",
-        toCodeLinesNoHeader(functionName)
-      )
-    }
-
-    def toCodeLinesG(functionName: String): CodeLines = {
-      CodeLines.from(
-        """#include "cyclone/cyclone.hpp"""",
-        """#include "frovedis/text/datetime_utility.hpp"""",
-        """#include "frovedis/text/dict.hpp"""",
-        "#include <math.h>",
-        "#include <stddef.h>",
-        "#include <bitset>",
-        "#include <iostream>",
-        "#include <string>",
-        "#include <tuple>",
-        "#include <vector>",
-        toCodeLinesNoHeader(functionName)
-      )
-    }
 
     def toCodeLinesNoHeader(functionName: String): CodeLines = {
       CodeLines.from(
