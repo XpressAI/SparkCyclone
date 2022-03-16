@@ -4,7 +4,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.SparkAdditions
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.PartitioningFunction
-import com.nec.ve.VERDDSpec.{exchangeBatches, MultiFunctionName}
+import com.nec.ve.VERDDSpec.{MultiFunctionName, exchangeBatches}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -14,7 +14,7 @@ final class ExchangeOnClusterSpec
   with VeKernelInfra
   with BeforeAndAfterAll {
 
-  "Exchange data across partitions in cluster mode (ExchangeCluster)" in withSparkSession2(
+  "Exchange data across partitions in cluster mode (ExchangeCluster)" ignore withSparkSession2(
     VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
     val result =

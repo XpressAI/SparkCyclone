@@ -19,7 +19,7 @@
  */
 package com.nec.spark.agile
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
@@ -200,47 +200,6 @@ object CFunctionGeneration {
     inputs: List[Input],
     groups: List[Group],
     outputs: List[Output]
-  )
-  sealed trait JoinType
-  case object LeftOuterJoin extends JoinType
-  case object RightOuterJoin extends JoinType
-
-  final case class VeInnerJoin[Input, LeftKey, RightKey, Output](
-    inputs: List[Input],
-    leftKey: LeftKey,
-    rightKey: RightKey,
-    outputs: List[Output]
-  )
-
-  final case class OuterJoinOutput[Output](innerJoinOutputs: Output, outerJoinOutputs: Output)
-
-  final case class VeOuterJoin[Input, LeftKey, RightKey, Output](
-    inputs: List[Input],
-    leftKey: LeftKey,
-    rightKey: RightKey,
-    outputs: List[OuterJoinOutput[Output]],
-    joinType: JoinType
-  )
-  sealed trait JoinExpression {
-    def fold[T](whenProj: CExpression => T): T
-  }
-  final case class TypedJoinExpression[ScalaType](joinExpression: JoinExpression)
-
-  object JoinExpression {
-    final case class JoinProjection(cExpression: CExpression) extends JoinExpression {
-      override def fold[T](whenProj: CExpression => T): T = whenProj(cExpression)
-    }
-    //TODO: We can use that to meld join and aggregate
-//    final case class JoinAggregation(aggregation: Aggregation) extends JoinExpression {
-//      override def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T = whenAgg(
-//        aggregation
-//      )
-//    }
-  }
-  final case class NamedJoinExpression(
-    name: String,
-    veType: VeScalarType,
-    joinExpression: JoinExpression
   )
 
   sealed trait GroupByExpression {
@@ -531,6 +490,10 @@ object CFunctionGeneration {
       CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutPtr(functionName))
     }
 
+    def toCodeLinesHeaderBatchPtr(functionName: String): CodeLines = {
+      CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutBatchPtr(functionName))
+    }
+
     def toCodeLinesNoHeaderOutPtr(functionName: String): CodeLines = {
       CodeLines.from(
         s"""extern "C" long $functionName(""", {
@@ -591,226 +554,37 @@ object CFunctionGeneration {
         "};"
       )
     }
-  }
 
-  def renderSort(sort: VeSort[CScalarVector, VeSortExpression]): CFunction = {
-    val sortOutput = sort.data.map { case CScalarVector(name, veType) =>
-      CScalarVector(name.replaceAllLiterally("input", "output"), veType)
-    }
-    val sortingTypes = sort.sorts.flatMap { sortExpression =>
-      List(
-        (sortExpression.typedExpression.veType.cScalarType, sortExpression.sortOrdering),
-        ("int", sortExpression.sortOrdering)
-      )
-    }
-
-    val sortingTuple = sort.sorts
-      .flatMap { veScalar =>
-        List(veScalar.typedExpression.veType.cScalarType, "int")
-      }
-      .mkString("std::tuple<", ", ", ">")
-
-    val sortOrder = sortingTypes
-      .map { case (_, order) =>
-        order match {
-          case Ascending  => 1
-          case Descending => 0
-        }
-      }
-      .mkString(s"std::array<int, ${sortingTypes.size}> {{ ", ", ", " }}")
-
-    CFunction(
-      inputs = sort.data,
-      outputs = sortOutput,
-      body = CodeLines.from(
-        sortOutput.map { case CScalarVector(outputName, outputVeType) =>
-          s"${outputName}->resize(input_0->count);"
-        },
-        "// create an array of indices, which by default are in order, but afterwards are out of order.",
-        "std::vector<size_t> idx(input_0->count);",
-        s"std::vector<${sortingTuple}> sorting_vec(input_0->count);",
-        "for (size_t i = 0; i < input_0->count; i++) {",
-        "idx[i] = i;",
-        s"sorting_vec[i] = ${sortingTuple}${sort.sorts
-          .flatMap {
-            case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, Some(notNullCode))), _) =>
-              List(cCode, notNullCode)
-            case VeSortExpression(TypedCExpression2(dataType, CExpression(cCode, None)), _) =>
-              List(cCode, 1)
-
-          }
-          .mkString("(", ",", ")")};",
-        "}",
-        s"idx = cyclone::sort_tuples(sorting_vec, ${sortOrder});",
-        "",
-        "// prevent deallocation of input vector -- it is deallocated by the caller",
-        s"for(int i = 0; i < input_0->count; i++) {",
-        sort.data.zip(sortOutput).map {
-          case (CScalarVector(inName, veType), CScalarVector(outputName, _)) =>
-            CodeLines
-              .from(
-                s"if (${inName}->get_validity(idx[i])) {",
-                CodeLines
-                  .from(
-                    s"$outputName->data[i] = $inName->data[idx[i]];",
-                    s"$outputName->set_validity(i, 1);"
-                  )
-                  .indented,
-                "} else {",
-                CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
-                "}"
-              )
-              .indented
-        },
-        "}"
-      )
-    )
-  }
-
-  def renderProjection(
-    veDataTransformation: VeProjection[
-      CVector,
-      Either[NamedStringExpression, NamedTypedCExpression]
-    ]
-  ): CFunction = CFunction(
-    inputs = veDataTransformation.inputs,
-    outputs = veDataTransformation.outputs.zipWithIndex.map {
-      case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
-        CScalarVector(outputName, veType)
-      case (Left(NamedStringExpression(name, _)), idx) =>
-        CVarChar(name)
-    },
-    body = CodeLines.from(
-      veDataTransformation.outputs.zipWithIndex.map {
-        case (Right(NamedTypedCExpression(outputName, veType, _)), idx) =>
-          CodeLines.from(s"${outputName}->resize(input_0->count);")
-        case (Left(NamedStringExpression(name, stringProducer: FrovedisStringProducer)), idx) =>
-          StringProducer
-            .produceVarChar(
-              inputCount = "input_0->count",
-              outputName = name,
-              stringProducer = stringProducer,
-              outputCount = "input_0->count",
-              outputIdx = "i"
-            )
-            .block
-      },
-      "for ( long i = 0; i < input_0->count; i++ ) {",
-      veDataTransformation.outputs.zipWithIndex
-        .map {
-          case (Right(NamedTypedCExpression(outputName, veType, cExpr)), idx) =>
-            cExpr.isNotNullCode match {
-              case None =>
-                CodeLines.from(
-                  s"""$outputName->data[i] = ${cExpr.cCode};""",
-                  s"$outputName->set_validity(i, 1);"
-                )
-              case Some(notNullCheck) =>
-                CodeLines.from(
-                  s"if ( $notNullCheck ) {",
-                  s"""  $outputName->data[i] = ${cExpr.cCode};""",
-                  s"  $outputName->set_validity(i, 1);",
-                  "} else {",
-                  s"  $outputName->set_validity(i, 0);",
-                  "}"
-                )
-            }
-          case (Left(_), _) =>
-            // already produced for string, because produceVarChar does everything
-            CodeLines.empty
-        }
-        .map(_.indented),
-      "}"
-    )
-  )
-
-  def renderInnerJoin(
-    veInnerJoin: VeInnerJoin[CVector, TypedCExpression2, TypedCExpression2, NamedJoinExpression]
-  ): CFunction = {
-
-    CFunction(
-      inputs = veInnerJoin.inputs,
-      outputs = veInnerJoin.outputs.zipWithIndex.map {
-        case (NamedJoinExpression(outputName, veType, _), idx) =>
-          CScalarVector(outputName, veType)
-      },
-      body = CodeLines.from(
-        s"std::vector <${veInnerJoin.leftKey.veType.cScalarType}> left_vec;",
-        "std::vector<size_t> left_idx;",
-        s"std::vector <${veInnerJoin.rightKey.veType.cScalarType}> right_vec;",
-        "std::vector<size_t> right_idx;",
-        "#pragma _NEC ivdep",
-        s"for(int i = 0; i < ${veInnerJoin.leftKey.cExpression.cCode
-          .replace("data[i]", "count")}; i++) { ",
-        CodeLines
-          .from(
-            s"left_vec.push_back(${veInnerJoin.leftKey.cExpression.cCode});",
-            "left_idx.push_back(i);"
-          )
-          .indented,
-        "}",
-        s"for(int i = 0; i < ${veInnerJoin.rightKey.cExpression.cCode
-          .replace("data[i]", "count")}; i++) { ",
-        CodeLines
-          .from(
-            s"right_vec.push_back(${veInnerJoin.rightKey.cExpression.cCode});",
-            "right_idx.push_back(i);"
-          )
-          .indented,
-        "}",
-        "std::vector<size_t> right_out;",
-        "std::vector<size_t> left_out;",
-        s"frovedis::equi_join<${veInnerJoin.leftKey.veType.cScalarType}>(left_vec, left_idx, right_vec, right_idx, left_out, right_out);",
-        "long validityBuffSize = frovedis::ceil_div(size_t(left_out.size()), size_t(64));",
-        veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
-          joinExpression.fold(whenProj =
-            _ =>
-              CodeLines.from(
-                s"${outputName}->data = static_cast<${veType.cScalarType}*>(malloc(left_out.size() * sizeof(${veType.cScalarType})));",
-                s"${outputName}->validityBuffer = static_cast<uint64_t*>(calloc(validityBuffSize, sizeof(uint64_t)));"
-              )
-          )
-        },
-        "for(int i = 0; i < left_out.size(); i++) { ",
-        veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
-          joinExpression.fold(ce => ce) match {
-            case ex =>
-              ex.isNotNullCode match {
-                case None =>
-                  CodeLines
-                    .from(
-                      s"${outputName}->data[i] = ${ex.cCode};",
-                      s"$outputName->set_validity(i, 1);"
-                    )
-                    .indented
-                case Some(nullCheck) =>
-                  CodeLines
-                    .from(
-                      s"if( ${nullCheck} ) {",
-                      CodeLines
-                        .from(
-                          s"${outputName}->data[i] = ${ex.cCode};",
-                          s"$outputName->set_validity(i, 1);"
-                        )
-                        .indented,
-                      "} else {",
-                      CodeLines.from(s"$outputName->set_validity(i, 0);").indented,
-                      "}"
-                    )
-                    .indented
+    def toCodeLinesNoHeaderOutBatchPtr(functionName: String): CodeLines = {
+      CodeLines.from(
+        s"""extern "C" long $functionName(""", {
+          inputs
+            .map { cVector =>
+              s"${cVector.veType.cVectorType} **${cVector.name}_m"
+            } ++ { if (hasSets) List("int *sets") else Nil } ++
+            outputs
+              .map { cVector =>
+                s"${cVector.veType.cVectorType} **${cVector.name}"
               }
-          }
-        },
-        "}",
-        veInnerJoin.outputs.map { case NamedJoinExpression(outputName, veType, joinExpression) =>
-          CodeLines.from(s"${outputName}->count = left_out.size();")
         }
+          .mkString(",\n"),
+        ") {",
+        CodeLines.from(
+          inputs.map { cVector =>
+            CodeLines.from(
+              s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.name}_m[0];"
+            )
+          },
+          body
+        ).indented,
+        "  ",
+        "  return 0;",
+        "};"
       )
-    )
+    }
   }
 
   final case class StringGrouping(name: String)
 
   final case class NamedStringProducer(name: String, stringProducer: StringProducer)
-
 }

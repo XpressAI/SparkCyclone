@@ -1,14 +1,13 @@
-package com.nec.ve
+package com.nec.spark.agile.exchange
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
-import com.nec.spark.agile.CFunction2
-import com.nec.spark.agile.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunction2.CFunctionArgument.PointerPointer
+import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core.CodeLines
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 
 object GroupingFunction {
-  val GroupAssignmentsId = "bucket_assignments"
-  val GroupCountsId = "bucket_counts"
+  final val GroupAssignmentsId = "bucket_assignments"
+  final val GroupCountsId = "bucket_counts"
 
   sealed trait KeyOrValue {
     def render: String
@@ -27,10 +26,10 @@ object GroupingFunction {
 
 case class GroupingFunction(name: String,
                             columns: List[GroupingFunction.DataDescription],
-                            nbuckets: Int) {
+                            nbuckets: Int) extends FunctionTemplateTrait {
   require(columns.nonEmpty, "Expected Grouping to have at least one data column")
 
-  lazy val inputs: List[CVector] = {
+  private[exchange] lazy val inputs: List[CVector] = {
     columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
       veType.makeCVector(s"${kvType.render}_${idx}")
     }
@@ -42,15 +41,15 @@ case class GroupingFunction(name: String,
     }
   }
 
-  private[ve] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
+  private[exchange] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
-    inputs.map(PointerPointer(_)) ++
+  private[exchange] lazy val arguments: List[CFunction2.CFunctionArgument] = {
+    inputs.map(CFunctionArgument.PointerPointer(_)) ++
       List(CFunctionArgument.Raw("int* sets")) ++
-      outputs.map(PointerPointer(_))
+      outputs.map(CFunctionArgument.PointerPointer(_))
   }
 
-  private[ve] def computeBucketAssignments: CodeLines = {
+  private[exchange] def computeBucketAssignments: CodeLines = {
     CodeLines.from(
       // Initialize the bucket_assignments table
       s"std::vector<size_t> ${GroupingFunction.GroupAssignmentsId}(${keycols.head.name}[0]->count);",
@@ -64,7 +63,7 @@ case class GroupingFunction(name: String,
               // Compute the hash across all keys
               keycols.map { vec => s"hash = ${vec.name}[0]->hash_at(i, hash);" },
               // Assign the bucket based on the hash
-              s"${GroupingFunction.GroupAssignmentsId}[i] = abs(hash % ${nbuckets});"
+              s"${GroupingFunction.GroupAssignmentsId}[i] = __builtin_abs(hash % ${nbuckets});"
             )
           }
         )
@@ -72,7 +71,7 @@ case class GroupingFunction(name: String,
     )
   }
 
-  private[ve] def computeBucketCounts: CodeLines = {
+  private[exchange] def computeBucketCounts: CodeLines = {
     CodeLines.from(
       // Iniitalize the bucket_counts table
       s"std::vector<size_t> ${GroupingFunction.GroupCountsId}(${nbuckets});",
@@ -95,7 +94,7 @@ case class GroupingFunction(name: String,
     )
   }
 
-  private[ve] def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
+  private[exchange] def cloneCVecStmt(output: CVector, input: CVector): CodeLines = {
     CodeLines.scoped(s"Clone ${input.name}[0] over to ${output.name}[0]") {
       List(
         // Allocate the nullable_T_vector[] with size 1
@@ -106,7 +105,7 @@ case class GroupingFunction(name: String,
     }
   }
 
-  private[ve] def copyVecToBucketsStmt(output: CVector, input: CVector): CodeLines = {
+  private[exchange] def copyVecToBucketsStmt(output: CVector, input: CVector): CodeLines = {
     CodeLines.scoped(
       s"Copy elements of ${input.name}[0] to their respective buckets in ${output.name}"
     ) {
@@ -134,7 +133,7 @@ case class GroupingFunction(name: String,
     }
   }
 
-  def render: CFunction2 = {
+  def toCFunction: CFunction2 = {
     val body = if (keycols.isEmpty) {
       CodeLines.from(
         "// Write out the number of buckets",
@@ -154,10 +153,6 @@ case class GroupingFunction(name: String,
       )
     }
 
-    CFunction2(arguments, body)
-  }
-
-  def toCodeLines: CodeLines = {
-    render.toCodeLines(name)
+    CFunction2(name, arguments, body)
   }
 }

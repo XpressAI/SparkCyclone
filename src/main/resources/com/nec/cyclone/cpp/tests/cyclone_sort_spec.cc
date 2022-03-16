@@ -17,8 +17,6 @@
  * limitations under the License.
  *
  */
-#pragma once
-
 #include "cyclone/cyclone.hpp"
 #include "tests/doctest.h"
 #include <tuple>
@@ -112,7 +110,7 @@ namespace cyclone::tests {
 
       const auto expected = cyclone::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
 
-      const auto sorted_indices = cyclone::sort_tuples(
+      const auto sorted_indices = cyclone::sort_columns(
         elements.size(),
         std::make_tuple(1, column1.data()),
         std::make_tuple(1, column2.data()),

@@ -1,5 +1,6 @@
 package com.nec.spark.planning
 
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
 import com.nec.spark.planning.LibLocation.LibLocation
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
@@ -7,6 +8,8 @@ import com.nec.spark.planning.VeFunction.VeFunctionStatus
 object VeFunction {
   sealed trait VeFunctionStatus
   object VeFunctionStatus {
+    def fromCodeLines(lines: CodeLines): SourceCode = SourceCode(lines.cCode)
+
     final case class SourceCode(sourceCode: String) extends VeFunctionStatus {
       override def toString: String = super.toString.take(25)
     }
@@ -19,7 +22,7 @@ final case class VeFunction(
   functionName: String,
   namedResults: List[CVector]
 ) {
-  def results: List[VeType] = namedResults.map(_.veType)
+  def results: Seq[VeType] = namedResults.map(_.veType)
   def isCompiled: Boolean = veFunctionStatus match {
     case VeFunctionStatus.SourceCode(_) => false
     case VeFunctionStatus.Compiled(_)   => true

@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CodeStructure
 import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
 import com.nec.spark.planning.VeFunction.VeFunctionStatus

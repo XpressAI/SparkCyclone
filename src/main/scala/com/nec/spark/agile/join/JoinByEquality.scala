@@ -1,6 +1,6 @@
 package com.nec.spark.agile.join
 
-import com.nec.spark.agile.CExpressionEvaluation.CodeLines
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{
   CFunction,
   CScalarVector,

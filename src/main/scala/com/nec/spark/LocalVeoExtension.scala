@@ -49,7 +49,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
     sparkSessionExtensions.injectColumnar(compilerRule)
     sparkSessionExtensions.injectColumnar(_ => new VeColumnarRule)
 
-    class MyRule extends Rule[LogicalPlan] {
+    class VeHintResolutionRule extends Rule[LogicalPlan] {
       override def apply(plan: LogicalPlan): LogicalPlan = {
         plan.resolveOperatorsUp { case (h: UnresolvedHint) =>
           (h.name, h.parameters) match {
@@ -68,7 +68,7 @@ final class LocalVeoExtension extends (SparkSessionExtensions => Unit) with Logg
     }
 
     sparkSessionExtensions.injectPostHocResolutionRule(sparkSession => {
-      new MyRule()
+      new VeHintResolutionRule()
     })
   }
 }

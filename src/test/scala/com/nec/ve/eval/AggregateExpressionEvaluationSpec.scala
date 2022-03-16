@@ -23,7 +23,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByAggregation,
   GroupByProjection
 }
-import com.nec.spark.agile.CFunctionGeneration.JoinExpression.JoinProjection
+import com.nec.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
 import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{veNullableDouble, VeNullableDouble}
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
