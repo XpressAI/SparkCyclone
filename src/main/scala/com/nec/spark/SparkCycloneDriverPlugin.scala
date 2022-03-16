@@ -33,7 +33,7 @@ import scala.collection.JavaConverters.mapAsJavaMapConverter
 object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
-  private[spark] var currentCompiler: NativeCompiler = _
+  var currentCompiler: NativeCompiler = _
 }
 
 class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {

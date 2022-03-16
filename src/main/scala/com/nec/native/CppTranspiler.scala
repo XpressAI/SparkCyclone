@@ -20,7 +20,7 @@ object CppTranspiler {
     val fnName: String = "function" + functionNames.length.toString
     functionNames = fnName :: functionNames
 
-    var returnType =  "void"
+    var returnType =  "int" // TODO: This may not be hardcoded
     if (fun.tpe != null) {
       // TODO: map type to propper C type
       returnType = fun.tpe.toString
@@ -45,7 +45,7 @@ object CppTranspiler {
 
       val rhsStr = v.rhs.toString()
 
-      nameStr + ": " + typeStr
+      typeStr + " " + nameStr
     }).mkString(", ")
 
   }
@@ -53,7 +53,7 @@ object CppTranspiler {
   def evalType(tree: Tree): String = {
 
     tree match {
-      case ident @ Ident(_) => {
+      case ident @ Ident(_) =>
         val idStr = evalIdent(ident)
         idStr match {
           case "Byte" => "int8_t"       // TODO: Reason about mapping small values to VE
@@ -64,7 +64,7 @@ object CppTranspiler {
           case "Double" => "double"
           case unknown => "<unhandled type: " + idStr + ">"
         }
-      }
+
       case unknown => "<unknown type: " + showRaw(unknown) + ">"
     }
 

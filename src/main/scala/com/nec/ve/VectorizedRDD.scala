@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.nec.native.CppTranspiler
+import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.CExpressionEvaluation.CodeLines
 import com.nec.spark.agile.CodeStructure.CodeSection
 
@@ -26,17 +27,17 @@ class VectorizedRDD[T](rdd: RDD[T]) {
     // val expr = ...
 
     // transpile f to C
-    val code = transpiler.transpile(expr)
+    var code = transpiler.transpile(expr)
     //println("Generated code:\n" + code)
 
-    // TODO: Embed generated code into mapping function
-    val codeLinesFn = CodeLines.parse(code)
-    println("Codelines: " + codeLinesFn)
+    // TODO: Embed generated code into mapping function more elegantly
+    code = "#include <cstdint>\n\nusing namespace std;\n\n" + code
 
-    //
-    // val codeLinesMain = CodeLines.from()
+    println("code: " + code)
 
-
+    // compile
+    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(code)
+    println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
     rdd

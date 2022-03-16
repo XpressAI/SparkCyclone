@@ -23,7 +23,7 @@ final class RDDSetupTest extends AnyFreeSpec {
 
       val numbers = Array(1,2,3,4,5,6)
       val rdd = sc.parallelize(numbers)
-      val rdd2 = rdd.vemap( reify( x => 2*x ) )
+      val rdd2 = rdd.vemap( reify( (x: Int) => 2*x ) )
       val result = rdd2.collect()
       assert(result.sameElements(Array(1,2,3,4,5,6))) // Note: verdd currently returns its input
 
