@@ -19,8 +19,7 @@
  */
 package com.nec.spark.agile
 
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
 import org.apache.arrow.memory.BufferAllocator
@@ -33,41 +32,6 @@ object CFunctionGeneration {
   sealed trait SortOrdering
   final case object Descending extends SortOrdering
   final case object Ascending extends SortOrdering
-
-  sealed trait CVector {
-    def withNewName(str: String): CVector
-    def declarePointer: String = s"${veType.cVectorType} *${name}"
-    def replaceName(search: String, replacement: String): CVector
-    def name: String
-    def veType: VeType
-  }
-  object CVector {
-    def apply(name: String, veType: VeType): CVector =
-      veType match {
-        case VeString        => varChar(name)
-        case o: VeScalarType => CScalarVector(name, o)
-      }
-    def varChar(name: String): CVector = CVarChar(name)
-    def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
-    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableShort)
-    def bigInt(name: String): CVector = CScalarVector(name, VeScalarType.VeNullableLong)
-  }
-
-  final case class CVarChar(name: String) extends CVector {
-    override def veType: VeType = VeString
-
-    override def replaceName(search: String, replacement: String): CVector =
-      copy(name = name.replaceAllLiterally(search, replacement))
-
-    override def withNewName(str: String): CVector = copy(name = str)
-  }
-
-  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
-    override def replaceName(search: String, replacement: String): CVector =
-      copy(name = name.replaceAllLiterally(search, replacement))
-
-    override def withNewName(str: String): CVector = copy(name = str)
-  }
 
   final case class CExpression(cCode: String, isNotNullCode: Option[String]) {
     def storeTo(outputName: String): CodeLines = isNotNullCode match {
@@ -101,90 +65,6 @@ object CFunctionGeneration {
     def cVector: CVector = veType.makeCVector(name)
   }
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
-
-  @SQLUserDefinedType(udt = classOf[UserDefinedVeType])
-  sealed trait VeType {
-    def containerSize: Int
-    def isString: Boolean
-    def cVectorType: String
-    def makeCVector(name: String): CVector
-  }
-
-  object VeType {
-    val All: Set[VeType] = Set(VeString) ++ VeScalarType.All
-  }
-
-  case object VeString extends VeType {
-    override def cVectorType: String = "nullable_varchar_vector"
-
-    override def makeCVector(name: String): CVector = CVector.varChar(name)
-
-    override def isString: Boolean = true
-
-    override def containerSize: Int = 40
-  }
-
-  sealed trait VeScalarType extends VeType {
-    override def containerSize: Int = 20
-
-    def cScalarType: String
-
-    def cSize: Int
-
-    override def makeCVector(name: String): CVector = CScalarVector(name, this)
-
-    override def isString: Boolean = false
-  }
-
-  object VeScalarType {
-    val All: Set[VeScalarType] =
-      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong)
-    case object VeNullableDouble extends VeScalarType {
-
-      def cScalarType: String = "double"
-
-      def cVectorType: String = "nullable_double_vector"
-
-      override def cSize: Int = 8
-    }
-
-    case object VeNullableFloat extends VeScalarType {
-      def cScalarType: String = "float"
-
-      def cVectorType: String = "nullable_float_vector"
-
-      override def cSize: Int = 4
-    }
-
-    case object VeNullableShort extends VeScalarType {
-      def cScalarType: String = "int32_t"
-
-      def cVectorType: String = "nullable_short_vector"
-
-      override def cSize: Int = 4
-    }
-
-    case object VeNullableInt extends VeScalarType {
-      def cScalarType: String = "int32_t"
-
-      def cVectorType: String = "nullable_int_vector"
-
-      override def cSize: Int = 4
-    }
-
-    case object VeNullableLong extends VeScalarType {
-      def cScalarType: String = "int64_t"
-
-      def cVectorType: String = "nullable_bigint_vector"
-
-      override def cSize: Int = 8
-    }
-
-    def veNullableDouble: VeScalarType = VeNullableDouble
-    def veNullableInt: VeScalarType = VeNullableInt
-    def veNullableShort: VeScalarType = VeNullableShort
-    def veNullableLong: VeScalarType = VeNullableLong
-  }
 
   /**
    * The reason to use fully generic types is so that we can map them around in future, without having an implementation
@@ -297,7 +177,7 @@ object CFunctionGeneration {
       override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
         List(
           (
-            CScalarVector(s"${prefix}_x", VeScalarType.veNullableDouble),
+            CScalarVector(s"${prefix}_x", VeNullableDouble),
             CExpression(s"${prefix}_aggregate_sum", None)
           )
         )
@@ -341,11 +221,11 @@ object CFunctionGeneration {
 
       override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = List(
         (
-          CScalarVector(s"${prefix}_aggregate_sum_partial_output", VeScalarType.veNullableDouble),
+          CScalarVector(s"${prefix}_aggregate_sum_partial_output", VeNullableDouble),
           CExpression(s"${prefix}_aggregate_sum", None)
         ),
         (
-          CScalarVector(s"${prefix}_aggregate_count_partial_output", VeScalarType.veNullableLong),
+          CScalarVector(s"${prefix}_aggregate_count_partial_output", VeNullableLong),
           CExpression(s"${prefix}_aggregate_count", None)
         )
       )

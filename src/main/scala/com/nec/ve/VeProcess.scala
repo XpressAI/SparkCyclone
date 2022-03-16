@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.CFunctionGeneration.{CScalarVector, CVarChar, CVector, VeString}
+import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}

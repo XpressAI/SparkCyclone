@@ -1,8 +1,7 @@
 package com.nec.spark.agile.sort
 
-import com.nec.spark.agile.core.CodeLines
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
-import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
 
 object SortFunction {
   final val SortedIndicesId = "sorted_indices"

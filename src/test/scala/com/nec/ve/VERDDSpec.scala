@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.agile.CFunctionGeneration
+import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.PureVeFunctions.DoublingFunction
@@ -99,7 +99,7 @@ object VERDDSpec {
                     ref,
                     MultiFunctionName,
                     List(veColVector),
-                    List(CFunctionGeneration.VeScalarType.veNullableDouble.makeCVector("o_dbl"))
+                    List(VeNullableDouble.makeCVector("o_dbl"))
                   )
                   .map { case (k, vs) => (k, vs.head) }
               } finally veColVector.free()

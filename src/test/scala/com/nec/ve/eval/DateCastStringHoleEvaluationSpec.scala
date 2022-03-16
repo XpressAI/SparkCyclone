@@ -1,8 +1,8 @@
 package com.nec.ve.eval
 
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
+import com.nec.spark.agile.core._
+import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.DateCastStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
@@ -43,7 +43,7 @@ object DateCastStringHoleEvaluationSpec {
           body = CodeLines.from(
             stringHoleEvaluation.computeVector,
             GroupByOutline
-              .initializeScalarVector(VeScalarType.veNullableInt, "dates", "strings->count"),
+              .initializeScalarVector(VeNullableInt, "dates", "strings->count"),
             CodeLines.from(
               "for ( int i = 0; i < strings->count; i++ ) { ",
               GroupByOutline.storeTo("dates", stringHoleEvaluation.fetchResult, "i").indented,

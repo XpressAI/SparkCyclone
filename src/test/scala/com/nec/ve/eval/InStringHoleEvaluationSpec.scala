@@ -1,8 +1,9 @@
 package com.nec.ve.eval
 
 import com.nec.cmake.CMakeBuilder
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
+import com.nec.spark.agile.core.{CodeLines, VeNullableInt}
+import com.nec.spark.agile.CFunctionGeneration.CFunction
+import com.nec.spark.agile.core.{CVector, VeScalarType}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.InStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
 import org.scalatest.Ignore
@@ -18,7 +19,7 @@ final class InStringHoleEvaluationSpec extends AnyWordSpec {
       val code = CodeLines.from(
         evaluation.computeVector,
         GroupByOutline
-          .initializeScalarVector(VeScalarType.veNullableInt, "bools", "strings->count"),
+          .initializeScalarVector(VeNullableInt, "bools", "strings->count"),
         CodeLines.forLoop("i", "strings->count") {
           GroupByOutline.storeTo("bools", evaluation.fetchResult, "i")
         },

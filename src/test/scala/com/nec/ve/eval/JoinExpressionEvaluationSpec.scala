@@ -22,6 +22,7 @@ package com.nec.ve.eval
 import com.nec.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
 import com.nec.spark.agile.join.JoinUtils.TypedJoinExpression
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.ve._
 import com.nec.ve.eval.StaticTypingTestAdditions._
 import org.scalatest.Ignore
@@ -33,10 +34,10 @@ final class JoinExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
   import RealExpressionEvaluationUtils._
   "We can Inner Join" in {
     val leftKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_0->data[i]", None))
+      TypedCExpression2(VeNullableDouble, CExpression("input_0->data[i]", None))
 
     val rightKey =
-      TypedCExpression2(VeScalarType.VeNullableDouble, CExpression("input_3->data[i]", None))
+      TypedCExpression2(VeNullableDouble, CExpression("input_3->data[i]", None))
 
     val outputs = (
       TypedJoinExpression[Double](JoinProjection(CExpression("input_1->data[left_out[i]]", None))),

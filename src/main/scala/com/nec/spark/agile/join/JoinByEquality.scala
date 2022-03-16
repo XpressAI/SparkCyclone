@@ -1,13 +1,7 @@
 package com.nec.spark.agile.join
 
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{
-  CFunction,
-  CScalarVector,
-  CVarChar,
-  CVector,
-  VeScalarType
-}
+import com.nec.spark.agile.core._
+import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.groupby.GroupByOutline.initializeScalarVector
 import com.nec.spark.agile.join.GenericJoiner.{
   computeNumJoin,
@@ -91,7 +85,7 @@ final case class JoinByEquality(
               case (nme, in) =>
                 CodeLines.from(
                   initializeScalarVector(
-                    VeScalarType.veNullableInt,
+                    VeNullableInt,
                     s"${nme}_idx",
                     s"${in}.size()"
                   ),
@@ -114,7 +108,7 @@ final case class JoinByEquality(
               case (nme, in) =>
                 CodeLines.from(
                   initializeScalarVector(
-                    VeScalarType.veNullableInt,
+                    VeNullableInt,
                     s"${nme}_idx",
                     s"${in}.size()"
                   ),

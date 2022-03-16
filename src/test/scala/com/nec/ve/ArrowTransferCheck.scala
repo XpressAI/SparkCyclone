@@ -3,8 +3,7 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
+import com.nec.spark.agile.core.{VeNullableDouble, VeScalarType, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
@@ -84,7 +83,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             libraryReference = lib,
             functionName = "f",
             cols = List(colVec),
-            results = List(VeScalarType.veNullableDouble.makeCVector("outd"))
+            results = List(VeNullableDouble.makeCVector("outd"))
           )
           expect(results.size == 1)
           val vec = results.head.toArrowVector().asInstanceOf[Float8Vector]
@@ -106,7 +105,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             libraryReference = lib,
             functionName = "f",
             cols = List(colVec),
-            results = List(VeScalarType.veNullableDouble.makeCVector("outd"))
+            results = List(VeNullableDouble.makeCVector("outd"))
           )
 
           val plainResults: List[(Int, Option[Double])] = results.map { case (index, vecs) =>
@@ -132,9 +131,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     val groupingFn = GroupingFunction(
       "f",
       List(
-        GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Key),
+        GroupingFunction.DataDescription(VeNullableDouble, GroupingFunction.Key),
         GroupingFunction.DataDescription(VeString, GroupingFunction.Key),
-        GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Value)
+        GroupingFunction.DataDescription(VeNullableDouble, GroupingFunction.Value)
       ),
       2
     )
@@ -154,9 +153,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                 functionName = groupingFn.name,
                 cols = List(colVec, colVecS, colVec2),
                 results = List(
-                  VeScalarType.veNullableDouble,
+                  VeNullableDouble,
                   VeString,
-                  VeScalarType.veNullableDouble
+                  VeNullableDouble
                 ).zipWithIndex.map { case (vt, i) => vt.makeCVector(s"out_${i}") }
               )
 

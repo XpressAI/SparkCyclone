@@ -21,6 +21,7 @@ package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.ve._
 import org.scalatest.freespec.AnyFreeSpec
@@ -37,7 +38,7 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble,
+            VeNullableDouble,
             CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
           ),
           Ascending
@@ -52,7 +53,7 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble,
+            VeNullableDouble,
             CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
           ),
           Ascending
@@ -68,7 +69,7 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble,
+            VeNullableDouble,
             CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
           ),
           Descending

@@ -1,7 +1,7 @@
 package com.nec.ve.colvector
 
 import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
-import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.spark.agile.core.VeType
 import com.nec.ve
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
