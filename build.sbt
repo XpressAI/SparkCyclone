@@ -23,7 +23,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
-  .settings(version := "1.0.1")
+  .settings(version := "1.0.2-SNAPSHOT")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
@@ -305,11 +305,6 @@ lazy val deploy = inputKey[Unit]("Deploy artifacts to `deployTarget`")
 
 lazy val deployExamples = inputKey[Unit]("Deploy artifacts to `deployTarget`")
 
-addCommandAlias(
-  "deploy-all",
-  "; deploy a5 ; deployExamples a5; set assembly / test := {}; deploy a6; deployExamples a6"
-)
-
 deploy := {
   val args: Seq[String] = spaceDelimited("<arg>").parsed
   val targetBox = args.headOption.getOrElse(sys.error("Deploy target missing"))
@@ -325,8 +320,8 @@ deploy := {
   logger.info(s"Assembled file: ${generatedFile}")
 
   if (targetBox == "local") {
-    logger.info(s"Copying JAR locally to /opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar:")
-    Seq("cp", generatedFile.toString, s"/opt/cyclone/${sys.env.get("USER").get}/spark-cyclone-sql-plugin.jar") ! logger
+    logger.info(s"Copying JAR locally to /opt/cyclone/${sys.env("USER")}/spark-cyclone-sql-plugin.jar:")
+    Seq("cp", generatedFile.toString, s"/opt/cyclone/${sys.env("USER")}/spark-cyclone-sql-plugin.jar") ! logger
     logger.info(s"Copied.")
   } else {
     logger.info(s"Uploading JAR to ${targetBox}")
