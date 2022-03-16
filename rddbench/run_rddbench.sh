@@ -4,12 +4,12 @@ export SPARK_HOME=/opt/spark
 
 time $SPARK_HOME/bin/spark-submit \
     --master yarn \
-    --num-executors=8 --executor-cores=1 --executor-memory=1G \
+    --num-executors=8 --executor-cores=1 --executor-memory=4G \
     --deploy-mode cluster \
     --name RDDBench \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-0.9.3.jar \
-    --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-0.9.3.jar \
+    --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.2-SNAPSHOT.jar \
+    --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.2-SNAPSHOT.jar \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executor.resource.ve.amount=1 \

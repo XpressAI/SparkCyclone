@@ -1,44 +1,53 @@
-import org.apache.spark.{SparkConf, SparkContext}
+import com.nec.ve.VectorizedRDD
 import org.apache.spark.rdd._
-import com.nec.ve.VectorizedRDD._
+import org.apache.spark.{SparkConf, SparkContext}
 
 object RDDBench {
 
-  var sc: SparkContext = null
-  var timings: Map[String, Long] = Map()
+  var sc: SparkContext = _
+  var timings: Map[String, Double] = Map()
 
   def main(args: Array[String]): Unit = {
+    import com.nec.ve.VectorizedRDD.toVectorizedRDD
+
     println("RDD Benchmark")
 
-    setup()
+    println("setup")
+    sc = setup()
 
-    benchmark("01 - CPU",  bench01cpu)
-    benchmark("01 - VectorEnigne (wip)", bench01ve)
+    println("Making numbers")
+    val numbers = (1 to (1000000)).toArray
+    val rdd = sc.parallelize(numbers)
+
+    println("Making VeRDD")
+    val verdd = toVectorizedRDD(rdd)
+
+    println("Starting Benchmark")
+    benchmark("01 - CPU",  () => bench01cpu(rdd))
+    benchmark("01 - VE ", () => bench01ve(verdd))
 
     dumpResult()
     finishUp()
   }
 
   def benchmark(title: String, f: () => Unit) = {
-    val ts_start = System.currentTimeMillis()
+    val ts_start = System.nanoTime()
     f()
-    val ts_end = System.currentTimeMillis()
-    val diff = ts_end - ts_start
+    val ts_end = System.nanoTime()
+    val diff = (ts_end - ts_start) / 1000000.0
     timings = timings + (title -> diff)
   }
 
   def dumpResult() = {
     println("======== RESULTS ===========")
     for ( (title, duration) <- timings) {
-      println(title + "\t" + duration + "ms")
+      println(title + "\t" + duration + "seconds")
     }
     println("============================")
   }
 
 
-  def bench01cpu() = {
-    val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
-    val rdd = sc.parallelize(numbers)
+  def bench01cpu(rdd: RDD[Int]): Unit = {
 
     val mappedRdd = rdd.map( (a) => 2 * a + 12)
     val result = mappedRdd.reduce( (a,b) => a + b)
@@ -47,12 +56,8 @@ object RDDBench {
 
   }
 
-  def bench01ve() = {
+  def bench01ve(rdd: VectorizedRDD[Int]): Unit = {
     import scala.reflect.runtime.universe._
-
-    val numbers = Array(10, 17, 23, 1, 51, 23, 15, 18, 19, 22, 12, 38, 17)
-
-    val rdd = sc.parallelize(numbers)
 
     val expr = reify( (a: Int) => 2 * a + 12)
     val mappedRdd = rdd.vemap( expr )  // TODO: find a way around "reify" (macro?)
@@ -64,7 +69,7 @@ object RDDBench {
   }
 
 
-  def bench02() = {
+  def bench02(): Unit = {
 
     // TODO: read from local file
   /*
@@ -82,16 +87,14 @@ object RDDBench {
    */
   }
 
-  def setup(): Unit = {
+  def setup(): SparkContext = {
     val conf = new SparkConf()
       .setAppName("RDDBench")
-      .setMaster("yarn")
-   //   .set("spark.submit.deployMode", "cluster")
-      .setJars(Array("rddbench/target/scala-2.12/rddbench_2.12-0.1.jar"))
-    sc = new SparkContext(conf)
+
+    new SparkContext(conf)
   }
 
-  def finishUp() = {
+  def finishUp(): Unit = {
     sc.stop()
   }
 
