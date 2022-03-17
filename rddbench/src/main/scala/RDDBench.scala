@@ -1,4 +1,4 @@
-import com.nec.ve.VectorizedRDD
+import com.nec.ve.VeRDD
 import org.apache.spark.rdd._
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -8,7 +8,7 @@ object RDDBench {
   var timings: Map[String, Double] = Map()
 
   def main(args: Array[String]): Unit = {
-    import com.nec.ve.VectorizedRDD.toVectorizedRDD
+    import com.nec.ve.VeRDD.toVectorizedRDD
 
     println("RDD Benchmark")
 
@@ -56,7 +56,7 @@ object RDDBench {
 
   }
 
-  def bench01ve(rdd: VectorizedRDD[Int]): Unit = {
+  def bench01ve(rdd: VeRDD[Int]): Unit = {
     import scala.reflect.runtime.universe._
 
     val expr = reify( (a: Int) => 2 * a + 12)

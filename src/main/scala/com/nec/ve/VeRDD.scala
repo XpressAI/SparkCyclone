@@ -3,11 +3,12 @@ package com.nec.ve
 import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneDriverPlugin
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{Partition, TaskContext}
 
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
-class VectorizedRDD[T](rdd: RDD[T]) {
+class VeRDD[T](rdd: RDD[T]) extends RDD[T](rdd) {
 
   import scala.reflect.runtime.universe._
 
@@ -38,11 +39,29 @@ class VectorizedRDD[T](rdd: RDD[T]) {
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
+    //new MappedVeRDD(this)
     rdd
+  }
+
+
+  override def reduce(f: (T, T) => T): T = {
+    // TODO: Run the functions on VeProcess recursively
+    ???
+  }
+
+
+  override def collect(): Array[T] = super.collect()
+
+  override def compute(split: Partition, context: TaskContext): Iterator[T] = {
+    Iterator() // TODO
+  }
+
+  override protected def getPartitions: Array[Partition] = {
+    Array() // TODO
   }
 }
 
 // implicit conversion
-object VectorizedRDD {
-  implicit def toVectorizedRDD[T](r: RDD[T]): VectorizedRDD[T] = new VectorizedRDD(r)
+object VeRDD {
+  implicit def toVectorizedRDD[T](r: RDD[T]): VeRDD[T] = new VeRDD(r)
 }

@@ -1,5 +1,5 @@
-import org.scalatest.freespec.AnyFreeSpec
 import org.apache.spark._
+import org.scalatest.freespec.AnyFreeSpec
 
 final class RDDSetupTest extends AnyFreeSpec {
 
@@ -18,7 +18,8 @@ final class RDDSetupTest extends AnyFreeSpec {
     }
 
     "test our very own vemap function on local Spark" in {
-      import com.nec.ve.VectorizedRDD._
+      import com.nec.ve.VeRDD._
+
       import scala.reflect.runtime.universe._
 
       val numbers = Array(1,2,3,4,5,6)
