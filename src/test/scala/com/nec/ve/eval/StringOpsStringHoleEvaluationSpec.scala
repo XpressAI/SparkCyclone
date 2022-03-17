@@ -2,8 +2,8 @@ package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, CVector, VeScalarType}
+import com.nec.spark.agile.core._
+import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.StringHole
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
@@ -99,7 +99,7 @@ object StringOpsStringHoleEvaluationSpec {
       body = CodeLines.from(
         stringHoleEvaluation.computeVector,
         GroupByOutline
-          .initializeScalarVector(VeScalarType.veNullableInt, "bools", "strings->count"),
+          .initializeScalarVector(VeNullableInt, "bools", "strings->count"),
         CodeLines.from(
           "for ( int i = 0; i < strings->count; i++ ) { ",
           GroupByOutline.storeTo("bools", stringHoleEvaluation.fetchResult, "i").indented,

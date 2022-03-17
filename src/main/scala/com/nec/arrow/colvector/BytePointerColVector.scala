@@ -2,8 +2,7 @@ package com.nec.arrow.colvector
 
 import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
+import com.nec.spark.agile.core._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
@@ -84,7 +83,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     import underlying.{buffers, numItems}
     val bytePointersAddresses = buffers.flatten.map(_.address())
     underlying.veType match {
-      case VeScalarType.VeNullableShort =>
+      case VeNullableShort =>
         /** Short type is casted to int */
         val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
         if (numItems > 0) {
@@ -183,7 +182,7 @@ object BytePointerColVector {
           numItems = size,
           name = str,
           variableSize = None,
-          veType = VeScalarType.veNullableInt,
+          veType = VeNullableInt,
           container = None,
           buffers = List(Some(new BytePointer(ptr)), Some(new BytePointer(validity)))
         )

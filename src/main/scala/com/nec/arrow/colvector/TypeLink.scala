@@ -1,6 +1,6 @@
 package com.nec.arrow.colvector
 
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType
+import com.nec.spark.agile.core._
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{
   BaseFixedWidthVector,
@@ -39,7 +39,7 @@ object TypeLink {
       if (from.isNullAt(idx)) to.setNull(idx)
       else to.set(idx, from.getDouble(idx))
 
-    override def veScalarType: VeScalarType = VeScalarType.veNullableDouble
+    override def veScalarType: VeScalarType = VeNullableDouble
   }
 
   private case object LongTypeLink extends TypeLink {
@@ -52,7 +52,7 @@ object TypeLink {
       if (from.isNullAt(idx)) to.setNull(idx)
       else to.set(idx, from.getLong(idx))
 
-    override def veScalarType: VeScalarType = VeScalarType.veNullableLong
+    override def veScalarType: VeScalarType = VeNullableLong
   }
 
   private case object BooleanTypeLink extends TypeLink {
@@ -67,7 +67,7 @@ object TypeLink {
         to.set(idx, if (from.getBoolean(idx)) 1 else 0)
       }
 
-    override def veScalarType: VeScalarType = VeScalarType.veNullableInt
+    override def veScalarType: VeScalarType = VeNullableInt
   }
 
   private case object IntegerTypeLink extends TypeLink {
@@ -80,7 +80,7 @@ object TypeLink {
       if (from.isNullAt(idx)) to.setNull(idx)
       else to.set(idx, from.getInt(idx))
 
-    override def veScalarType: VeScalarType = VeScalarType.veNullableInt
+    override def veScalarType: VeScalarType = VeNullableInt
   }
 
   private case object ShortTypeLink extends TypeLink {
@@ -93,7 +93,7 @@ object TypeLink {
       if (from.isNullAt(idx)) to.setNull(idx)
       else to.set(idx, from.getShort(idx).toInt)
 
-    override def veScalarType: VeScalarType = VeScalarType.veNullableShort
+    override def veScalarType: VeScalarType = VeNullableShort
   }
 
   private case object DateTypeLink extends TypeLink {
@@ -106,7 +106,7 @@ object TypeLink {
       if (from.isNullAt(idx)) to.setNull(idx)
       else to.set(idx, from.getInt(idx))
 
-    override def veScalarType: VeScalarType = VeScalarType.veNullableInt
+    override def veScalarType: VeScalarType = VeNullableInt
   }
 
   val SparkToArrow: Map[DataType, TypeLink] = Map(
@@ -120,9 +120,9 @@ object TypeLink {
   )
 
   val VeToArrow: Map[VeScalarType, TypeLink] = Map(
-    VeScalarType.VeNullableDouble -> DoubleTypeLink,
-    VeScalarType.VeNullableInt -> IntegerTypeLink,
-    VeScalarType.VeNullableLong -> LongTypeLink
+    VeNullableDouble -> DoubleTypeLink,
+    VeNullableInt -> IntegerTypeLink,
+    VeNullableLong -> LongTypeLink
   )
 
   val ArrowToVe: Map[Class[_ <: BaseFixedWidthVector], TypeLink] = Map(

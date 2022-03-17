@@ -20,8 +20,8 @@
 package com.nec.spark.agile.groupby
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, CVector, TypedCExpression2}
+import com.nec.spark.agile.core.{CodeLines, CVector}
+import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline._
 

@@ -20,6 +20,7 @@
 package com.nec.spark.agile
 
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils.{JoinType, LeftOuterJoin, RightOuterJoin}
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
@@ -438,42 +439,26 @@ object SparkExpressionToCExpression {
 
   def sparkTypeToScalarVeType(dataType: DataType): VeScalarType = {
     dataType match {
-      case DoubleType    => VeScalarType.veNullableDouble
-      case IntegerType   => VeScalarType.veNullableInt
-      case LongType      => VeScalarType.veNullableLong
-      case ShortType     => VeScalarType.veNullableShort
-      case DateType      => VeScalarType.veNullableInt
-      case BooleanType   => VeScalarType.veNullableInt
-      case TimestampType => VeScalarType.veNullableLong
-    }
-  }
-  def sparkTypeToVeType(dataType: DataType): VeType = {
-    dataType match {
-      case DoubleType    => VeScalarType.veNullableDouble
-      case IntegerType   => VeScalarType.veNullableInt
-      case DateType      => VeScalarType.veNullableInt
-      case LongType      => VeScalarType.veNullableLong
-      case ShortType     => VeScalarType.veNullableShort
-      case BooleanType   => VeScalarType.veNullableInt
-      case StringType    => VeString
-      case TimestampType => VeScalarType.veNullableLong
-    }
-  }
-  def sparkSortDirectionToSortOrdering(sortDirection: SortDirection): SortOrdering = {
-    sortDirection match {
-      case expressions.Ascending  => Ascending
-      case expressions.Descending => Descending
+      case DoubleType    => VeNullableDouble
+      case IntegerType   => VeNullableInt
+      case LongType      => VeNullableLong
+      case ShortType     => VeNullableShort
+      case DateType      => VeNullableInt
+      case BooleanType   => VeNullableInt
+      case TimestampType => VeNullableLong
     }
   }
 
-  def likelySparkType(veType: VeType): DataType = {
-    veType match {
-      case VeScalarType.VeNullableDouble => DoubleType
-      case VeScalarType.VeNullableFloat  => FloatType
-      case VeScalarType.VeNullableInt    => IntegerType
-      case VeScalarType.VeNullableLong   => LongType
-      case VeScalarType.VeNullableShort  => ShortType
-      case VeString                      => StringType
+  def sparkTypeToVeType(dataType: DataType): VeType = {
+    dataType match {
+      case DoubleType    => VeNullableDouble
+      case IntegerType   => VeNullableInt
+      case DateType      => VeNullableInt
+      case LongType      => VeNullableLong
+      case ShortType     => VeNullableShort
+      case BooleanType   => VeNullableInt
+      case StringType    => VeString
+      case TimestampType => VeNullableLong
     }
   }
 }

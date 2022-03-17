@@ -22,8 +22,8 @@ package com.nec.ve.eval
 import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
 import com.nec.arrow.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils._
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -224,7 +224,7 @@ object StaticTypingTestAdditions {
 
   }
   trait VeRetriever[Output] {
-    final def makeCVectors: List[CFunctionGeneration.CVector] = veTypes.zipWithIndex.map {
+    final def makeCVectors: List[CVector] = veTypes.zipWithIndex.map {
       case (veType, idx) => veType.makeCVector(s"output_${idx}")
     }
     def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Output]
@@ -424,10 +424,10 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
-        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
-        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
-        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
+        NamedJoinExpression("output_1", VeNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeNullableDouble, output._4.joinExpression)
       )
 
     implicit val forQuartetDoubleOption: JoinExpressor[
@@ -439,10 +439,10 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
-        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
-        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
-        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
+        NamedJoinExpression("output_1", VeNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeNullableDouble, output._4.joinExpression)
       )
   }
 }

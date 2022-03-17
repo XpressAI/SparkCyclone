@@ -19,9 +19,9 @@
  */
  package com.nec.spark.agile.join
 
- import com.nec.spark.agile.core.CodeLines
+ import com.nec.spark.agile.core._
+ import com.nec.spark.agile.core.VeScalarType._
  import com.nec.spark.agile.CFunctionGeneration._
- import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
  import com.nec.spark.agile.StringHole.StringHoleEvaluation
  import com.nec.spark.agile.StringProducer.FrovedisStringProducer
  import org.apache.arrow.memory.BufferAllocator

@@ -1,7 +1,7 @@
 package com.nec.spark.agile.join
 
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, TypedCExpression2}
+import com.nec.spark.agile.core._
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, TypedCExpression2}
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregationAttribute, StagedProjection}
 import com.nec.spark.agile.join.GenericJoiner.{FilteredOutput, Join}
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}

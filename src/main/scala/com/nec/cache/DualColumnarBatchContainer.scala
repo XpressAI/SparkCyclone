@@ -1,7 +1,6 @@
 package com.nec.cache
 
 import com.nec.arrow.colvector.{ByteArrayColBatch, ByteArrayColVector, GenericColBatch}
-import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
@@ -61,7 +60,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
         val veColColumnarVectors = byteArrayColVectors.map(bar =>
-          new VeColColumnarVector(Right(bar), likelySparkType(bar.underlying.veType))
+          new VeColColumnarVector(Right(bar), bar.underlying.veType.toSparkType)
         )
         val columnarBatch = new ColumnarBatch(veColColumnarVectors.toArray)
         columnarBatch.setNumRows(byteArrayColVectors.head.underlying.numItems)
