@@ -34,7 +34,7 @@ object RDDBench {
     val ts_start = System.nanoTime()
     f()
     val ts_end = System.nanoTime()
-    val diff = (ts_end - ts_start) / 1000000.0
+    val diff = (ts_end - ts_start) / 1000000000.0
     timings = timings + (title -> diff)
   }
 
