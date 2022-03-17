@@ -1,16 +1,13 @@
 package com.nec.spark.planning.plans
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, veProcess}
-import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
+import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
+import com.nec.spark.planning._
 import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
-import com.nec.ve.{VeColBatch, VeRDD}
+import com.nec.ve.{VeColBatch, VeRDDOps}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{BinaryExecNode, SparkPlan}
-
-import scala.concurrent.duration.NANOSECONDS
 
 case class VectorEngineJoinPlan(
   outputExpressions: Seq[NamedExpression],
@@ -29,7 +26,7 @@ case class VectorEngineJoinPlan(
   ) ++ batchMetrics("right before exchange")
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    VeRDD
+    VeRDDOps
       .joinExchange(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("left before exchange", b)),
         right = right.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("right before exchange", b)),

@@ -57,7 +57,7 @@ object JoinRDDSpec {
     val partsR: List[(Int, List[Double])] =
       List(1 -> List(5, 6, 7), 2 -> List(8, 8, 7), 3 -> List(9, 6, 7))
     import SparkCycloneExecutorPlugin._
-    VeRDD
+    VeRDDOps
       .joinExchange(
         sparkSession.sparkContext.makeRDD(partsL).map { case (i, l) =>
           import OriginalCallingContext.Automatic._

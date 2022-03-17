@@ -9,7 +9,7 @@ import com.nec.ve.PureVeFunctions.DoublingFunction
 import com.nec.ve.VERDDSpec.{doubleBatches, longBatches}
 import com.nec.ve.VeColBatch.VeColVector
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.VeRDD.RichKeyedRDD
+import com.nec.ve.VeRDDOps.RichKeyedRDD
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, Float8Vector}
 import org.apache.spark.TaskContext
