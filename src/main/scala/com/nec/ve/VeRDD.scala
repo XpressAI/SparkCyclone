@@ -2,8 +2,11 @@ package com.nec.ve
 
 import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneDriverPlugin
+import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CVector
 import com.nec.spark.agile.core.CFunction2
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.Pointer
+import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
@@ -32,38 +35,37 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     // val expr = ...
 
     // transpile f to C
-    var code = transpiler.transpile(expr)
-    println("Generated code:\n" + code)
+    val code = transpiler.transpile(expr)
+    val funcName = s"eval_${Math.abs(code.hashCode())}"
 
-    // TODO: Embed generated code into mapping function more elegantly
-    code = "#include <cstdint>\n\nusing namespace std;\n\n" + code
+    func = new CFunction2(
+      funcName,
+      Seq(
+        Pointer(CVector("a", CFunctionGeneration.VeScalarType.veNullableInt)),
+        Pointer(CVector("out", CFunctionGeneration.VeScalarType.veNullableInt))
+      ),
+      code,
+      DefaultHeaders
+    )
 
-    println("code: " + code)
+    println(s"Generated code:\n${func.toCodeLinesWithHeaders.cCode}")
 
     // compile
-    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(code)
+    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders)
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
-    //new MappedVeRDD(this)
-    rdd
+    new MappedVeRDD(this)
   }
-
-
-  override def reduce(f: (T, T) => T): T = {
-    // TODO: Run the functions on VeProcess recursively
-    ???
-  }
-
 
   override def collect(): Array[T] = super.collect()
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    Iterator() // TODO
+    ??? // TODO
   }
 
   override protected def getPartitions: Array[Partition] = {
-    Array() // TODO
+    ??? // TODO
   }
 
   def withCompiled[U](cCode: String)(f: Path => U): U = {

@@ -1,5 +1,7 @@
 package com.nec.native
 
+import com.nec.spark.agile.core.CodeLines
+
 import scala.reflect.runtime.universe._
 
 object CppTranspiler {
@@ -8,7 +10,6 @@ object CppTranspiler {
 
   // entry point
   def transpile[T](expr: Expr[T]): String = {
-
     expr.tree match {
       case fun @ Function(vparams, body) => evalFunc(fun)
     }
@@ -16,52 +17,38 @@ object CppTranspiler {
 
   // evaluate Function type from Scala AST
   def evalFunc(fun: Function): String = {
-
-    val fnName: String = "function" + functionNames.length.toString
-    functionNames = fnName :: functionNames
-
-    var returnType =  "int" // TODO: This may not be hardcoded
-    if (fun.tpe != null) {
-      // TODO: map type to propper C type
-      returnType = fun.tpe.toString
-    }
-
-    val paramStr = evalVParams(fun.vparams)
-    val bodyStr = evalBody(fun.body)
-
-    returnType + " " + fnName + "(" + paramStr + ") { " + bodyStr + " }"
+    evalBody(fun.vparams, fun.body)
   }
 
   // evaluate vparams for Function
-  def evalVParams(defs: List[ValDef]): String = {
-
-    defs.map( (v: ValDef) => {
-
+  def evalVParams(fun: Function): String = {
+    val defs = fun.vparams
+    val inputs = defs.map { (v: ValDef) =>
       val modStr = evalModifiers(v.mods)
-
       val nameStr = v.name.toString
-
       val typeStr = evalType(v.tpt)
-
-      val rhsStr = v.rhs.toString()
-
+      val rhsStr = v.rhs.toString
       typeStr + " " + nameStr
-    }).mkString(", ")
-
+    }
+    val output = if (fun.tpe == null) {
+      List(s"${evalType(defs.head.tpt)} out")
+    } else {
+      List(s"${fun.tpe} out")
+    }
+    (inputs ++ output).mkString(", ")
   }
 
   def evalType(tree: Tree): String = {
-
     tree match {
       case ident @ Ident(_) =>
         val idStr = evalIdent(ident)
         idStr match {
-          case "Byte" => "int8_t"       // TODO: Reason about mapping small values to VE
-          case "Short" => "int16_t"
-          case "Int" => "int32_t"
-          case "Long" => "int64_t"
-          case "Float" => "float"
-          case "Double" => "double"
+          //case "Byte" => "int8_t"       // TODO: Reason about mapping small values to VE
+          //case "Short" => "int16_t"
+          case "Int" => "nullable_int_vector"
+          case "Long" => "nullable_bigint_vector"
+          case "Float" => "nullable_float_vector"
+          case "Double" => "nullable_double_vector"
           case unknown => "<unhandled type: " + idStr + ">"
         }
 
@@ -84,11 +71,20 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalBody(tree: Tree): String = {
+  def evalBody(defs: List[ValDef], body: Tree): String = {
 
-    tree match {
-      case ident @ Ident(name) => "return " + evalIdent(ident) + ";"
-      case apply @ Apply(fun, args) => "return " + evalApply(apply) + ";"
+    body match {
+      case ident @ Ident(name) => CodeLines.from(
+        s"${evalIdent(ident)};",
+      ).indented.cCode
+      case apply @ Apply(fun, args) => CodeLines.from(
+        s"size_t len = ${defs.head.name.toString}->count;",
+        "for (int i = 0; i < len; i++) {",
+        CodeLines.from(
+          s"out->data[i] = ${evalApply(apply)};",
+        ).indented,
+        "}",
+      ).indented.cCode
       case unknown => showRaw(unknown)
     }
 
@@ -97,7 +93,7 @@ object CppTranspiler {
   def evalIdent(ident: Ident): String = {
 
     ident match {
-      case other => other.toString
+      case other => s"${other}->data[i]"
     }
   }
 
