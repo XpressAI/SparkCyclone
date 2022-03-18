@@ -10,10 +10,10 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.IntVector
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partition, TaskContext}
+import org.bytedeco.javacpp.IntPointer
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
@@ -26,19 +26,28 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 
   val inputs: RDD[VeColBatch] = rdd.mapPartitions { valsIter =>
     println("Reading inputs")
+    val start = System.nanoTime()
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-    val vals = valsIter.toSeq
+    val vals = valsIter.toArray.asInstanceOf[Array[Int]]
+    val len = vals.length
+    val intVec = new IntPointer(len.asInstanceOf[Long])
+    intVec.put(vals, 0, vals.length)
 
-    val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
+    /*val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
     intVec.allocateNew()
     intVec.setValueCount(vals.length)
     vals.zipWithIndex.foreach { case (v, i) =>
       intVec.set(i, v.asInstanceOf[Int])
     }
-    Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
-  }.cache()
+    */
+    val end = System.nanoTime()
+    println(s"Took ${(end - start) / 1000000000}s to convert ${vals.length} rows.")
+    Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(intVec))))
+    //Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
+  }.persist(StorageLevel.MEMORY_ONLY)
+  val inputCount: Long = inputs.count()
 
   def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
     import scala.reflect.runtime.universe._

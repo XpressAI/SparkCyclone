@@ -15,7 +15,7 @@ import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.ColumnVector
-import org.bytedeco.javacpp.{BytePointer, IntPointer}
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 
 import java.nio.ByteBuffer
 
@@ -271,5 +271,23 @@ object BytePointerColVector {
         (varCharVector, fromVarcharVector(varCharVector))
     }
   }
+
+  def fromIntPointer(intPointer: IntPointer, validityBuffer: LongPointer)(implicit
+    source: VeColVectorSource
+  ): BytePointerColVector =
+    BytePointerColVector(
+      GenericColVector(
+        source = source,
+        numItems = intPointer.limit().toInt,
+        name = s"ip-${intPointer.address()}",
+        veType = VeScalarType.veNullableInt,
+        container = None,
+        buffers = List(
+          Option(new BytePointer(intPointer)),
+          Option(new BytePointer(validityBuffer))
+        ),
+        variableSize = None
+      )
+    )
 
 }

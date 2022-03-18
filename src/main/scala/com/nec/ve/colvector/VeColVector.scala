@@ -6,13 +6,13 @@ import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
-import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
 import sun.misc.Unsafe
 
 import java.io.OutputStream
@@ -145,7 +145,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
 //noinspection ScalaUnusedSymbol
 object VeColVector {
-
   def apply(
     source: VeColVectorSource,
     numItems: Int,
@@ -189,4 +188,18 @@ object VeColVector {
       .fromArrowVector(valueVector)
       .toVeColVector()
 
+  def fromPointer(pointer: IntPointer)(implicit
+    veProcess: VeProcess,
+    source: VeColVectorSource,
+    originalCallingContext: OriginalCallingContext,
+    cycloneMetrics: VeProcessMetrics
+  ): VeColVector = {
+    val size = Math.ceil(pointer.limit() / 64).toLong
+    val lp = new LongPointer(size.toLong)
+    for (i <- 0 until size.toInt) {
+      lp.put(i, -1)
+    }
+    BytePointerColVector.fromIntPointer(pointer, lp)
+      .toVeColVector()
+  }
 }
