@@ -38,9 +38,9 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
       intVec.set(i, v.asInstanceOf[Int])
     }
     Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
-  }
+  }.cache()
 
-  def vemap[U:ClassTag](expr: Expr[T => T]): RDD[T] = {
+  def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
     import scala.reflect.runtime.universe._
 
     // TODO: for inspection, remove when done
@@ -57,7 +57,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     val func = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a", CFunctionGeneration.VeScalarType.veNullableInt)),
+        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableInt)),
         PointerPointer(outputs.head)
       ),
       code,
@@ -71,7 +71,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
-    new MappedVeRDD(this.asInstanceOf[RDD[Int]], func, compiledPath.toAbsolutePath.toString, outputs).asInstanceOf[RDD[T]]
+    new MappedVeRDD(this.asInstanceOf[RDD[Int]], func, compiledPath.toAbsolutePath.toString, outputs)
   }
 
   override def collect(): Array[T] = super.collect()

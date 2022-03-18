@@ -2,9 +2,16 @@ package com.nec.native
 
 import com.nec.spark.agile.core.CodeLines
 
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 object CppTranspiler {
+  def transpileReduce(expr: universe.Expr[(Int, Int) => Int]): String = {
+    expr.tree match {
+      case fun @ Function(vparams, body) => evalReduce(fun)
+    }
+  }
+
 
   var functionNames: List[String] = List()
 
@@ -12,6 +19,32 @@ object CppTranspiler {
   def transpile[T](expr: Expr[T]): String = {
     expr.tree match {
       case fun @ Function(vparams, body) => evalFunc(fun)
+    }
+  }
+
+  // evaluate Function type from Scala AST
+  def evalReduce(fun: Function): String = {
+    val defs = fun.vparams
+    fun.body match {
+      case ident @ Ident(name) => CodeLines.from(
+        s"${evalIdent(ident)};",
+      ).indented.cCode
+      case apply @ Apply(fun, args) => CodeLines.from(
+        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+        s"out[0] = nullable_int_vector::allocate();",
+        s"out[0]->resize(1);",
+        s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
+        s"${evalScalarType(defs.tail.head.tpt)} ${defs.tail.head.name}{};",
+        "for (int i = 0; i < len; i++) {",
+        CodeLines.from(
+          s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
+          s"${defs.tail.head.name} = ${evalApplyScalar(apply)};",
+        ).indented,
+        "}",
+        s"out[0]->data[0] = ${defs.tail.head.name};",
+        s"out[0]->set_validity(0, 1);"
+      ).indented.cCode
+      case unknown => showRaw(unknown)
     }
   }
 
@@ -57,6 +90,25 @@ object CppTranspiler {
 
   }
 
+  def evalScalarType(tree: Tree): String = {
+    tree match {
+      case ident @ Ident(_) =>
+        val idStr = evalIdent(ident)
+        idStr match {
+          //case "Byte" => "int8_t"       // TODO: Reason about mapping small values to VE
+          //case "Short" => "int16_t"
+          case "Int" => "int32_t"
+          case "Long" => "int64_t"
+          case "Float" => "float"
+          case "Double" => "double"
+          case unknown => "<unhandled type: " + idStr + ">"
+        }
+
+      case unknown => "<unknown type: " + showRaw(unknown) + ">"
+    }
+
+  }
+
   // currently not used
   def evalModifiers(modifiers: Modifiers): String = {
 
@@ -78,11 +130,17 @@ object CppTranspiler {
         s"${evalIdent(ident)};",
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
-        s"size_t len = ${defs.head.name.toString}[0]->count;",
+        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = nullable_int_vector::allocate();",
         s"out[0]->resize(len);",
+        defs.map { d =>
+          s"${evalScalarType(d.tpt)} ${d.name}{};"
+        },
         "for (int i = 0; i < len; i++) {",
         CodeLines.from(
+          defs.map { d =>
+            s"${d.name} = ${d.name}_in[0]->data[i];"
+          },
           s"out[0]->data[i] = ${evalApply(apply)};",
           s"out[0]->set_validity(i, 1);"
         ).indented,
@@ -94,9 +152,8 @@ object CppTranspiler {
   }
 
   def evalIdent(ident: Ident): String = {
-
     ident match {
-      case other => s"${other}[0]->data[i]"
+      case other => s"${other}"
     }
   }
 
@@ -117,6 +174,23 @@ object CppTranspiler {
      "(" + funStr + argsStr + ")"
   }
 
+  def evalApplyScalar(apply: Apply): String = {
+
+    val funStr = apply.fun match {
+      case sel @ Select(tree, name) => evalSelectScalar(sel)
+      case unknown => "unknown fun in evalApply: " + showRaw(unknown)
+    }
+
+    val argsStr = apply.args.map({
+      case literal @ Literal(_) => evalLiteral(literal)
+      case ident @ Ident(_) => evalIdent(ident)
+      case apply @ Apply(_) => evalApply(apply)
+      case unknown => "<unknown args in apply: " + showRaw(unknown) + ">"
+    }).mkString(", ")
+
+    "(" + funStr + argsStr + ")"
+  }
+
   def evalLiteral(literal: Literal): String = {
     literal.value match {
       case Constant(c) => c.toString
@@ -130,7 +204,23 @@ object CppTranspiler {
 
   }
 
+  def evalSelectScalar(select: Select): String = {
+
+    evalQualScalar(select.qualifier) + evalName(select.name)
+
+  }
+
   def evalQual(tree: Tree): String = {
+
+    tree match {
+      case ident @ Ident(_) => evalIdent(ident)
+      case apply @ Apply(x) => evalApply(apply)
+      case lit @ Literal(_) => evalLiteral(lit)
+      case unknown => "<unknown qual: " + showRaw(unknown) + ">"
+    }
+
+  }
+  def evalQualScalar(tree: Tree): String = {
 
     tree match {
       case ident @ Ident(_) => evalIdent(ident)
