@@ -78,10 +78,13 @@ object CppTranspiler {
         s"${evalIdent(ident)};",
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
-        s"size_t len = ${defs.head.name.toString}->count;",
+        s"size_t len = ${defs.head.name.toString}[0]->count;",
+        s"out[0] = nullable_int_vector::allocate();",
+        s"out[0]->resize(len);",
         "for (int i = 0; i < len; i++) {",
         CodeLines.from(
-          s"out->data[i] = ${evalApply(apply)};",
+          s"out[0]->data[i] = ${evalApply(apply)};",
+          s"out[0]->set_validity(i, 1);"
         ).indented,
         "}",
       ).indented.cCode
@@ -93,7 +96,7 @@ object CppTranspiler {
   def evalIdent(ident: Ident): String = {
 
     ident match {
-      case other => s"${other}->data[i]"
+      case other => s"${other}[0]->data[i]"
     }
   }
 

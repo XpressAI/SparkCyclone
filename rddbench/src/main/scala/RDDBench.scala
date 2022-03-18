@@ -16,8 +16,8 @@ object RDDBench {
     sc = setup()
 
     println("Making numbers")
-    val numbers = (1 to (1000000)).toArray
-    val rdd = sc.parallelize(numbers)
+    val numbers = (1 to (1000000000)).toArray
+    val rdd = sc.parallelize(numbers).repartition(8)
 
     println("Making VeRDD")
     val verdd = toVectorizedRDD(rdd)
@@ -27,6 +27,10 @@ object RDDBench {
     benchmark("01 - VE ", () => bench01ve(verdd))
 
     dumpResult()
+
+
+    //Thread.sleep(300 * 1000)
+
     finishUp()
   }
 
@@ -65,7 +69,6 @@ object RDDBench {
     val result = mappedRdd.reduce( (a,b) => a + b)
 
     println("result of bench01 is " + result)
-
   }
 
 

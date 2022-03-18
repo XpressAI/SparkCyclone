@@ -2,12 +2,16 @@ package com.nec.ve
 
 import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneDriverPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CVector
 import com.nec.spark.agile.core.CFunction2
-import com.nec.spark.agile.core.CFunction2.CFunctionArgument.Pointer
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
+import com.nec.ve.colvector.VeColVector
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.IntVector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -15,15 +19,26 @@ import java.nio.file.{Path, Paths}
 import java.time.Instant
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 
 class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
-  var func: CFunction2 = _
+  @transient val transpiler: CppTranspiler.type = CppTranspiler
 
-  import scala.reflect.runtime.universe._
+  val inputs: RDD[VeColBatch] = rdd.mapPartitions { valsIter =>
+    println("Reading inputs")
+    import com.nec.spark.SparkCycloneExecutorPlugin._
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-  val transpiler: CppTranspiler.type = CppTranspiler
+    val vals = valsIter.toSeq
 
-  //def vemap[U:ClassTag](f: (T) => U ): RDD[U] = {
+    val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
+    intVec.allocateNew()
+    intVec.setValueCount(vals.length)
+    vals.zipWithIndex.foreach { case (v, i) =>
+      intVec.set(i, v.asInstanceOf[Int])
+    }
+    Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
+  }
 
   def vemap[U:ClassTag](expr: Expr[T => T]): RDD[T] = {
     import scala.reflect.runtime.universe._
@@ -38,11 +53,12 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     val code = transpiler.transpile(expr)
     val funcName = s"eval_${Math.abs(code.hashCode())}"
 
-    func = new CFunction2(
+    val outputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableInt))
+    val func = new CFunction2(
       funcName,
       Seq(
-        Pointer(CVector("a", CFunctionGeneration.VeScalarType.veNullableInt)),
-        Pointer(CVector("out", CFunctionGeneration.VeScalarType.veNullableInt))
+        PointerPointer(CVector("a", CFunctionGeneration.VeScalarType.veNullableInt)),
+        PointerPointer(outputs.head)
       ),
       code,
       DefaultHeaders
@@ -55,17 +71,22 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
-    new MappedVeRDD(this)
+    new MappedVeRDD(this.asInstanceOf[RDD[Int]], func, compiledPath.toAbsolutePath.toString, outputs).asInstanceOf[RDD[T]]
   }
 
   override def collect(): Array[T] = super.collect()
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    ??? // TODO
+    rdd.compute(split, context)
+  }
+
+  case class VePartition(idx: Int) extends Partition {
+    override def index: Int = idx
   }
 
   override protected def getPartitions: Array[Partition] = {
-    ??? // TODO
+    //(0 until 8).map(i => VePartition(i)).toArray
+    rdd.partitions
   }
 
   def withCompiled[U](cCode: String)(f: Path => U): U = {
@@ -75,17 +96,11 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     f(oPath)
   }
 
-  var inputs: VeColBatch = _
-  var outVectors: List[CVector] = _
-  var lastResult: List[VeColBatch.VeColVector] = _
 
-  def evalFunction()(implicit ctx: OriginalCallingContext): Unit = {
-    withCompiled(func.toCodeLinesWithHeaders.cCode) { path =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+  def evalFunction(func: CFunction2, libRef: LibraryReference, inputs: List[VeColVector], outVectors: List[CVector])(implicit ctx: OriginalCallingContext): VeColBatch = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
-      val libRef = veProcess.loadLibrary(path)
-      lastResult = veProcess.execute(libRef, func.name, inputs.cols, outVectors)
-    }
+    VeColBatch.fromList(veProcess.execute(libRef, func.name, inputs, outVectors))
   }
 }
 
