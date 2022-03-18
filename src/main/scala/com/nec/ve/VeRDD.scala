@@ -13,16 +13,34 @@ import com.nec.ve.colvector.VeColVector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partition, TaskContext}
-import org.bytedeco.javacpp.IntPointer
+import org.bytedeco.javacpp.{DoublePointer, IntPointer}
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
 import scala.language.implicitConversions
-import scala.reflect.ClassTag
+import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
 
 class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
+
+  private def convert[U: ClassTag](vals: Array[U]): List[VeColVector] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin._ // needed for veProcess (implicit)
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext // needed for OriginalCallingContext
+
+    vals match {
+      case values: Array[Int @unchecked] if classTag[U] == classTag[Int] => {
+        val intVec = new IntPointer(values.length.asInstanceOf[Long])
+        intVec.put(values, 0, values.length)
+        List(VeColVector.fromIntPointer(intVec))
+      }
+      case values: Array[Double @unchecked] if classTag[U] == classTag[Double] => {
+        val doubleVec = new DoublePointer(values.length.asInstanceOf[Long])
+        doubleVec.put(values, 0, values.length)
+        List(VeColVector.fromDoublePointer(doubleVec))
+      }
+    }
+  }
 
   val inputs: RDD[VeColBatch] = rdd.mapPartitions { valsIter =>
     println("Reading inputs")
@@ -30,10 +48,13 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-    val vals = valsIter.toArray.asInstanceOf[Array[Int]]
+    val vals = valsIter.toArray
     val len = vals.length
-    val intVec = new IntPointer(len.asInstanceOf[Long])
-    intVec.put(vals, 0, vals.length)
+
+    //val intVec = new IntPointer(len.asInstanceOf[Long])
+    //intVec.put(vals, 0, vals.length)
+
+    val converted = convert(vals)
 
     /*val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
     intVec.allocateNew()
@@ -44,7 +65,9 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     */
     val end = System.nanoTime()
     println(s"Took ${(end - start) / 1000000000}s to convert ${vals.length} rows.")
-    Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(intVec))))
+
+    Iterator(VeColBatch.fromList(converted))
+    //Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(intVec))))
     //Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
   }.persist(StorageLevel.MEMORY_ONLY)
   val inputCount: Long = inputs.count()

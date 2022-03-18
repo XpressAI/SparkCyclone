@@ -12,7 +12,7 @@ import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
-import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
+import org.bytedeco.javacpp.{BytePointer, DoublePointer, IntPointer, LongPointer}
 import sun.misc.Unsafe
 
 import java.io.OutputStream
@@ -188,11 +188,11 @@ object VeColVector {
       .fromArrowVector(valueVector)
       .toVeColVector()
 
-  def fromPointer(pointer: IntPointer)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
+  def fromIntPointer(pointer: IntPointer)(implicit
+                                          veProcess: VeProcess,
+                                          source: VeColVectorSource,
+                                          originalCallingContext: OriginalCallingContext,
+                                          cycloneMetrics: VeProcessMetrics
   ): VeColVector = {
     val size = Math.ceil(pointer.limit() / 64).toLong
     val lp = new LongPointer(size.toLong)
@@ -202,4 +202,20 @@ object VeColVector {
     BytePointerColVector.fromIntPointer(pointer, lp)
       .toVeColVector()
   }
+
+  def fromDoublePointer(pointer: DoublePointer)(implicit
+                                       veProcess: VeProcess,
+                                       source: VeColVectorSource,
+                                       originalCallingContext: OriginalCallingContext,
+                                       cycloneMetrics: VeProcessMetrics
+  ): VeColVector = {
+    val size = Math.ceil(pointer.limit() / 64).toLong
+    val lp = new LongPointer(size.toLong)
+    for (i <- 0 until size.toInt) {
+      lp.put(i, -1)
+    }
+    BytePointerColVector.fromDoublePointer(pointer, lp)
+      .toVeColVector()
+  }
+
 }
