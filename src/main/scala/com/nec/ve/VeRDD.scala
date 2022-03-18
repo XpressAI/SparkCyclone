@@ -10,8 +10,9 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.IntVector
+import jdk.incubator.vector.FloatVector
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.vector.{BigIntVector, Float8Vector, IntVector, ValueVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -31,7 +32,9 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 
     val vals = valsIter.toSeq
 
-    val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
+    var vec = createVector(vals)
+
+    //val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
     intVec.allocateNew()
     intVec.setValueCount(vals.length)
     vals.zipWithIndex.foreach { case (v, i) =>
@@ -39,6 +42,14 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     }
     Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
   }.cache()
+
+  private def createVector[T](seq: Seq[T]): ValueVector = seq match {
+    case s: Seq[Int] => new IntVector("Int", new RootAllocator(Int.MaxValue))
+    case s: Seq[Double] => new Float8Vector("Double", BufferAllocator)
+    case s: Seq[Long] => new BigIntVector("Long", new RootAllocator(Long.MaxValue))
+    // TODO: More types
+  }
+
 
   def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
     import scala.reflect.runtime.universe._
