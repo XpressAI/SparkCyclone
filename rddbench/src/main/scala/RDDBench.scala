@@ -17,17 +17,24 @@ object RDDBench {
 
     println("Making numbers")
     val numbers = (1 to (1000000)).toArray
+    val doubles = numbers.map( _.asInstanceOf[Double] * Math.PI)
+
     val rdd = sc.parallelize(numbers).repartition(8)
+    val drdd = sc.parallelize(doubles).repartition(8)
 
     println("Making VeRDD")
     val verdd = toVectorizedRDD(rdd)
+    val dverdd = toVectorizedRDD(drdd)
 
     println("Starting Benchmark")
     benchmark("01 - CPU",  () => bench01cpu(rdd))
     benchmark("01 - VE ", () => bench01ve(verdd))
 
-    dumpResult()
+    // doubles
+    benchmark("02 - CPU",  () => bench02cpu(drdd))
+    benchmark("02 - VE ", () => bench02ve(dverdd))
 
+    dumpResult()
 
     //Thread.sleep(300 * 1000)
 
@@ -71,22 +78,22 @@ object RDDBench {
   }
 
 
-  def bench02(): Unit = {
+  def bench02cpu(rdd: RDD[Double]): Unit = {
 
-    // TODO: read from local file
-  /*
-    //val lines = sc.textFile("rddbench/data/small.csv")
-    val numbersDF = sc.read.csv("rddbench/data/small.csv").rdd
+    val mappedRdd = rdd.map( (a) => 2.14 * a + 17.4)
+    val result = mappedRdd.reduce( (a,b) => a + b)
 
-    // map
-    val mappedNumbersRDD = numbersRDD.map((a,b) => )
+    println("result of bench02 is " + result)
+  }
 
-    val lineLengths = lines.map(s => s.length)
-    val totalLength = lineLengths.reduce((a,b) => a+b)
-    println("totalLength = " + totalLength)
+  def bench02ve(rdd: VeRDD[Double]): Unit = {
+    import scala.reflect.runtime.universe._
 
+    val expr = reify( (a: Double) => 2.14 * a + 17.4)
+    val mappedRdd = rdd.vemap(expr)
+    val result = mappedRdd.reduce( (a,b) => a + b)
 
-   */
+    println("result of bench02 is " + result)
   }
 
   def setup(): SparkContext = {

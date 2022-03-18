@@ -48,7 +48,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-    val vals = valsIter.toArray
+    val vals = valsIter.toArray[T]  // java.lang.ClassCastException: java.lang.Double cannot be cast to java.lang.Integer
     val len = vals.length
 
     //val intVec = new IntPointer(len.asInstanceOf[Long])
