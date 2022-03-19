@@ -68,16 +68,16 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
       )
     )
 
-  def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
-    import underlying._
-    buffers.flatten
-      .zip(bufferSizes)
-      .map { case (targetBuf, veBufferSize) =>
-        val dst = Array.fill[Byte](veBufferSize)(-1)
-        targetBuf.get(dst, 0, veBufferSize)
-        dst
-      }
-  }
+  // def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
+  //   import underlying._
+  //   buffers.flatten
+  //     .zip(bufferSizes)
+  //     .map { case (targetBuf, veBufferSize) =>
+  //       val dst = Array.fill[Byte](veBufferSize)(-1)
+  //       targetBuf.get(dst, 0, veBufferSize)
+  //       dst
+  //     }
+  // }
 
   def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
     import underlying.{buffers, numItems}
