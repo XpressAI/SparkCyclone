@@ -1,15 +1,15 @@
 package com.nec.arrow.colvector
 
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.arrow.colvector.ArrayTOps._
+import com.nec.arrow.colvector.ArrayTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class ArrayTOpsUnitSpec extends AnyWordSpec {
-  "ArrayTOps" should {
+class ArrayTConversionsUnitSpec extends AnyWordSpec {
+  "ArrayTConversions" should {
     def runConversionTest[T <: AnyVal : ClassTag](input: Array[T]): Unit = {
       val name = s"${UUID.randomUUID}"
       val source = VeColVectorSource(s"${UUID.randomUUID}")
@@ -18,7 +18,7 @@ class ArrayTOpsUnitSpec extends AnyWordSpec {
       // Check data
       colvec.underlying.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
       colvec.underlying.name should be (name)
-      colvec.underlying.source should be(source)
+      colvec.underlying.source should be (source)
       colvec.underlying.buffers.size should be (2)
 
       // Check validity buffer

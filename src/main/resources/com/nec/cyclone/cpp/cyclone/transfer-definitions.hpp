@@ -140,6 +140,7 @@ struct NullableScalarVec {
 typedef NullableScalarVec<int32_t> nullable_int_vector;
 
 // Explicitly instantiate struct template for short
+// int32_t is used because VE is not optimized for shorts
 typedef NullableScalarVec<int32_t> nullable_short_vector;
 
 // Explicitly instantiate struct template for int64_t

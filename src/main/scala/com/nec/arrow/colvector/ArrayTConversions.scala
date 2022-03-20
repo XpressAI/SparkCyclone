@@ -2,11 +2,10 @@ package com.nec.arrow.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import scala.reflect.ClassTag
 import org.bytedeco.javacpp._
 
-import scala.reflect.ClassTag
-
-object ArrayTOps {
+object ArrayTConversions {
   private[colvector] def constructValidityBuffer(n: Int): BytePointer = {
     val size = (n / 8.0).ceil.toLong
     val ptr = new BytePointer(size)
@@ -16,28 +15,28 @@ object ArrayTOps {
     ptr
   }
 
-  implicit class PrimitiveArrayToColVecConversions[T <: AnyVal : ClassTag](input: Array[T]) {
+  implicit class PrimitiveArrayToBPCV[T <: AnyVal : ClassTag](input: Array[T]) {
     def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
       val pointer = if (klass == classOf[Int]) {
-        val ptr = new IntPointer(input.size.asInstanceOf[Long])
+        val ptr = new IntPointer(input.size.toLong)
         ptr.put(input.asInstanceOf[Array[Int]], 0, input.size)
 
       } else if (klass == classOf[Long]) {
-        val ptr = new LongPointer(input.size.asInstanceOf[Long])
+        val ptr = new LongPointer(input.size.toLong)
         ptr.put(input.asInstanceOf[Array[Long]], 0, input.size)
 
       } else if (klass == classOf[Float]) {
-        val ptr = new FloatPointer(input.size.asInstanceOf[Long])
+        val ptr = new FloatPointer(input.size.toLong)
         ptr.put(input.asInstanceOf[Array[Float]], 0, input.size)
 
       } else if (klass == classOf[Double]) {
-        val ptr = new DoublePointer(input.size.asInstanceOf[Long])
+        val ptr = new DoublePointer(input.size.toLong)
         ptr.put(input.asInstanceOf[Array[Double]], 0, input.size)
 
       } else if (klass == classOf[Short]) {
-        val ptr = new IntPointer(input.size.asInstanceOf[Long])
+        val ptr = new IntPointer(input.size.toLong)
         input.asInstanceOf[Array[Short]].zipWithIndex.foreach { case (v, i) =>
           ptr.put(i.toLong, v.toInt)
         }
@@ -91,31 +90,31 @@ object ArrayTOps {
     }
   }
 
-  implicit class StringArrayToColVecConversions(input: Array[String]) {
+  implicit class StringArrayToBPCV(input: Array[String]) {
     private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Convert to UTF-32LE Array[Byte]'s
       val bytesAA = input.map(_.getBytes("UTF-32LE"))
 
       // Allocate the buffers
-      val dataPtr = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).asInstanceOf[Long])
-      val startsPtr = new IntPointer(bytesAA.size.asInstanceOf[Long])
-      val lensPtr = new IntPointer(bytesAA.size.asInstanceOf[Long])
+      val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)
+      val startsBuffer = new IntPointer(bytesAA.size.toLong)
+      val lensBuffer = new IntPointer(bytesAA.size.toLong)
 
       // Populate the buffers
       var pos = 0
       bytesAA.zipWithIndex.foreach { case (bytes, i) =>
-        // Write values for start and len
-        startsPtr.put(i.toLong, pos)
-        lensPtr.put(i.toLong, bytes.size)
+        // Write the starts and lens as int32_t offsets
+        startsBuffer.put(i.toLong, pos / 4)
+        lensBuffer.put(i.toLong, bytes.size / 4)
 
         bytes.foreach { b =>
           // Copy byte over - note that can't use bulk `put()` because it always assumes position 0 in the destination buffer
-          dataPtr.put(pos.toLong, b)
+          dataBuffer.put(pos.toLong, b)
           pos += 1
         }
       }
 
-      (dataPtr, new BytePointer(startsPtr), new BytePointer(lensPtr))
+      (dataBuffer, new BytePointer(startsBuffer), new BytePointer(lensBuffer))
     }
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
@@ -139,16 +138,23 @@ object ArrayTOps {
     }
   }
 
-  implicit class BytePointerColVectorToArrayTConversions(input: BytePointerColVector) {
-    private[colvector] def toStringArray: Array[String] = {
-      val dataBuffer = input.underlying.buffers(0).get
-      val startsBuffer = new IntPointer(input.underlying.buffers(1).get)
-      val lensBuffer = new IntPointer(input.underlying.buffers(2).get)
+  implicit class BPCVToArrayT(input: BytePointerColVector) {
+    private[colvector] lazy val underlying = input.underlying
+    private[colvector] lazy val numItems = underlying.numItems
+    private[colvector] lazy val veType = underlying.veType
+    private[colvector] lazy val buffers = underlying.buffers.flatten
 
-      val output = new Array[String](input.underlying.numItems)
-      for (i <- 0 until input.underlying.numItems) {
-        val start = startsBuffer.get(i)
-        val len = lensBuffer.get(i)
+    private[colvector] def toStringArray: Array[String] = {
+      val dataBuffer = buffers(0)
+      val startsBuffer = new IntPointer(buffers(1))
+      val lensBuffer = new IntPointer(buffers(2))
+
+      val output = new Array[String](numItems)
+      for (i <- 0 until numItems) {
+        // Read starts and lens as byte offsets (they are stored in BytePointerColVector as int32_t offsets)
+        val start = startsBuffer.get(i) * 4
+        val len = lensBuffer.get(i) * 4
+
         // Allocate the Array[Byte]
         val bytes = new Array[Byte](len)
 
@@ -165,35 +171,34 @@ object ArrayTOps {
 
     def toArray[T: ClassTag]: Array[T] = {
       val klass = implicitly[ClassTag[T]].runtimeClass
-      val veType = input.underlying.veType
       require(klass == veType.scalaType, s"Requested type ${klass.getName} does not match the VeType: ${veType}")
 
       val dataBuffer = input.underlying.buffers(0).get
 
       if (klass == classOf[Int]) {
-        val output = new Array[Int](input.underlying.numItems)
+        val output = new Array[Int](numItems)
         new IntPointer(dataBuffer).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Long]) {
-        val output = new Array[Long](input.underlying.numItems)
+        val output = new Array[Long](numItems)
         new LongPointer(dataBuffer).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Float]) {
-        val output = new Array[Float](input.underlying.numItems)
+        val output = new Array[Float](numItems)
         new FloatPointer(dataBuffer).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Double]) {
-        val output = new Array[Double](input.underlying.numItems)
+        val output = new Array[Double](numItems)
         new DoublePointer(dataBuffer).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Short]) {
-        val output = new Array[Short](input.underlying.numItems)
+        val output = new Array[Short](numItems)
         val buf = new IntPointer(dataBuffer)
-        for (i <- 0 until input.underlying.numItems) {
+        for (i <- 0 until numItems) {
           output(i) = buf.get(i.toLong).toShort
         }
         output.asInstanceOf[Array[T]]
@@ -202,7 +207,7 @@ object ArrayTOps {
         toStringArray.asInstanceOf[Array[T]]
 
       } else {
-        Array.empty[T]
+        throw new NotImplementedError(s"Cannot convert BytePointerColVector to Array[${klass.getName}]")
       }
     }
   }

@@ -55,6 +55,7 @@ case object VeNullableFloat extends VeScalarType {
 }
 
 case object VeNullableShort extends VeScalarType {
+  // Since VE is not optimized for shorts, we use int32_t instead
   def cScalarType: String = "int32_t"
   def cVectorType: String = "nullable_short_vector"
   def scalaType: Class[_] = classOf[Short]
