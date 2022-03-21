@@ -38,26 +38,6 @@ object ReflectionOps {
     }
   }
 
-  implicit class ExtendedClass(clazz: Class[_]) {
-    def getAllParentTypes: Set[Class[_]] = {
-      if (clazz == null) {
-        Set.empty
-
-      } else {
-        val types = Set.empty[Class[_]]
-        types += clazz
-
-        if (clazz.getCanonicalName != classOf[AnyRef].getCanonicalName) {
-          types ++= clazz.getInterfaces
-          types ++= clazz.getInterfaces.flatMap(_.getAllParentTypes)
-          types ++= clazz.getSuperclass.getAllParentTypes
-        }
-
-        types
-      }
-    }
-  }
-
   final class PrivateReader(val obj: AnyRef) extends Dynamic {
     def selectDynamic(name: String): PrivateReader = {
       val clazz = obj.getClass

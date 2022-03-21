@@ -12,23 +12,23 @@ import org.scalatest.wordspec.AnyWordSpec
 class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
   val allocator = new RootAllocator(Int.MaxValue)
 
+  def runConversionTest[T <: ValueVector](input: T): Unit = {
+    val source = VeColVectorSource(s"${UUID.randomUUID}")
+    val colvec = input.toBytePointerColVector(source)
+
+    // Check data
+    colvec.underlying.name should be (input.getName)
+    colvec.underlying.source should be (source)
+
+    // Convert back
+    val output = colvec.toArrowVector(allocator)
+
+    // Check conversion
+    input === output should be (true)
+  }
+
   "ArrowVectorConversions" should {
-     def runConversionTest[T <: ValueVector](input: T): Unit = {
-       val source = VeColVectorSource(s"${UUID.randomUUID}")
-       val colvec = input.toBytePointerColVector(source)
-
-       // Check data
-       colvec.underlying.name should be (input.getName)
-       colvec.underlying.source should be (source)
-
-       // Convert back
-       val output = colvec.toArrowVector(allocator)
-
-       // Check conversion
-       input === output should be (true)
-     }
-
-    "correctly perform equality between two ValueVectors" in {
+    "correctly perform equality checks between two ValueVectors" in {
       val raw = 0.to(Random.nextInt(100)).map(_ => Random.nextInt(10000))
       val vec1 = new IntVector(s"${UUID.randomUUID}", allocator)
       vec1.setValueCount(raw.length)
@@ -36,20 +36,28 @@ class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
         vec1.set(i, v)
       }
 
+      // ValueVectors need to have the same name for the equality check to pass
       val vec2 = new IntVector(vec1.getName, allocator)
       vec2.setValueCount(raw.length)
       raw.zipWithIndex.foreach { case (v, i) =>
         vec2.set(i, v)
       }
 
+      // ValueVectors should be equal
       vec1 === vec2 should be (true)
 
       val index = Random.nextInt(raw.size)
       val tmp = vec2.get(index)
 
+      // Set row to null
       vec2.setNull(index)
       vec1 === vec2 should be (false)
 
+      // Set row to another value
+      vec2.set(index, Random.nextInt(10000) + 1000)
+      vec1 === vec2 should be (false)
+
+      // Set row back to original value
       vec2.set(index, tmp)
       vec1 === vec2 should be (true)
     }

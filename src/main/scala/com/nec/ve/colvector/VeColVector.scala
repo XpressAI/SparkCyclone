@@ -165,12 +165,6 @@ object VeColVector {
     )
   )
 
-  def getUnsafe: Unsafe = {
-    val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
-    theUnsafe.setAccessible(true)
-    theUnsafe.get(null).asInstanceOf[Unsafe]
-  }
-
   def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
     veProcess: VeProcess,
     _source: VeColVectorSource,

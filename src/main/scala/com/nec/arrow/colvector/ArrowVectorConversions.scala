@@ -11,7 +11,7 @@ import org.bytedeco.javacpp._
 import sun.misc.Unsafe
 
 object ArrowVectorConversions {
-  implicit class ExtendedValueVector(vector: ValueVector) {
+  implicit class ValueVectorEqualityChecks(vector: ValueVector) {
     def === (other: ValueVector): Boolean = {
       VectorEqualsVisitor.vectorEquals(vector, other)
     }
