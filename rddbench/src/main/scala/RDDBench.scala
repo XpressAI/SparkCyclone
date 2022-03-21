@@ -17,7 +17,7 @@ object RDDBench {
 
     println("Making numbers")
     val numbers = (1 to (1000000)).toArray
-    val rdd = sc.parallelize(numbers).repartition(8)
+    val rdd = sc.parallelize(numbers).repartition(8).persist()
 
     println("Making VeRDD")
     val verdd = toVectorizedRDD(rdd)
