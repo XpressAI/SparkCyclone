@@ -6,7 +6,7 @@ import com.nec.spark.agile.core._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
-import com.nec.ve.colvector.VeColVector.getUnsafe
+import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -15,6 +15,7 @@ import org.apache.spark.sql.types.{IntegerType, StringType}
 import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.{BytePointer, IntPointer}
+import sun.misc.Unsafe
 
 import java.nio.ByteBuffer
 
@@ -68,17 +69,6 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
       )
     )
 
-  def extractBuffers()(implicit veProcess: VeProcess): List[Array[Byte]] = {
-    import underlying._
-    buffers.flatten
-      .zip(bufferSizes)
-      .map { case (targetBuf, veBufferSize) =>
-        val dst = Array.fill[Byte](veBufferSize)(-1)
-        targetBuf.get(dst, 0, veBufferSize)
-        dst
-      }
-  }
-
   def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
     import underlying.{buffers, numItems}
     val bytePointersAddresses = buffers.flatten.map(_.address())
@@ -91,10 +81,10 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           smallIntVector.setValueCount(numItems)
           val buff = new BytePointer(ByteBuffer.allocateDirect(dataSize))
 
-          getUnsafe.copyMemory(bytePointersAddresses(0), buff.address(), dataSize)
+          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), buff.address(), dataSize)
           val intBuff = buff.asBuffer().asIntBuffer()
           (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
-          getUnsafe.copyMemory(
+          implicitly[Unsafe].copyMemory(
             bytePointersAddresses(1),
             smallIntVector.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
@@ -107,12 +97,12 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
         if (numItems > 0) {
           val dataSize = numItems * scalarType.cSize
           vec.setValueCount(numItems)
-          getUnsafe.copyMemory(
+          implicitly[Unsafe].copyMemory(
             bytePointersAddresses(1),
             vec.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
           )
-          getUnsafe.copyMemory(bytePointersAddresses(0), vec.getDataBufferAddress, dataSize)
+          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), vec.getDataBufferAddress, dataSize)
         }
         vec
       case VeString =>
@@ -123,12 +113,12 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           val lengthTarget = new BytePointer(buffersSize)
           val startsTarget = new BytePointer(buffersSize)
           val validityTarget = new BytePointer(numItems)
-          getUnsafe.copyMemory(
+          implicitly[Unsafe].copyMemory(
             bytePointersAddresses(1),
             startsTarget.address(),
             startsTarget.capacity()
           )
-          getUnsafe.copyMemory(
+          implicitly[Unsafe].copyMemory(
             bytePointersAddresses(2),
             lengthTarget.address(),
             lengthTarget.capacity()
@@ -138,7 +128,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
           val vhTarget = new BytePointer(dataSize * 4)
 
-          getUnsafe.copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
+          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
           vcvr.allocateNew(dataSize, numItems)
           vcvr.setValueCount(numItems)
           val array = new Array[Byte](dataSize * 4)
@@ -151,7 +141,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
             val utf8bytes = str.getBytes
             vcvr.set(i, utf8bytes)
           }
-          getUnsafe.copyMemory(
+          implicitly[Unsafe].copyMemory(
             bytePointersAddresses(3),
             vcvr.getValidityBufferAddress,
             Math.ceil(numItems / 64.0).toInt * 8
