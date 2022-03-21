@@ -99,6 +99,18 @@ class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
       runConversionTest(input)
     }
 
+    "correctly convert Float4Vector to BytePointerColVector and back" in {
+      val raw = 0.to(Random.nextInt(100)).map(_ => Random.nextFloat * 1000)
+      val input = new Float4Vector(s"${UUID.randomUUID}", allocator)
+      input.setValueCount(raw.length)
+      raw.zipWithIndex.foreach { case (v, i) =>
+        input.set(i, v)
+      }
+      input.setNull(Random.nextInt(raw.length))
+
+      runConversionTest(input)
+    }
+
     "correctly convert Float8Vector to BytePointerColVector and back" in {
       val raw = 0.to(Random.nextInt(100)).map(_ => Random.nextDouble * 1000)
       val input = new Float8Vector(s"${UUID.randomUUID}", allocator)

@@ -103,7 +103,7 @@ object ArrowVectorConversions {
     def toArrowVector(implicit bufferAllocator: BufferAllocator): FieldVector = {
       underlying.veType match {
         case VeNullableShort =>
-          // Cast int values in a VeNullableShort to short in Arrow
+          // Specialize this case because Int values in VeNullableShort need to be cast to Short
           toShortArrow
 
         case typ: VeScalarType if VeToArrow.contains(typ) =>
@@ -122,12 +122,7 @@ object ArrowVectorConversions {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       vector match {
         case vec: SmallIntVector =>
-          /*
-            NOTE: This should be folded into the next case by updating the
-            ArrowToVe map, but need to check first if this affects existing
-            conversions between Arrow and
-            `org.apache.spark.sql.vectorized.ColumnVector`
-          */
+          // Specialize ths case because values need to be cast to Int first
           vec.toBytePointerColVector
         case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
           vec.toBytePointerColVector
