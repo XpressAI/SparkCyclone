@@ -176,7 +176,12 @@ object ArrowVectorConversions {
           veType = VeNullableShort,
           container = None,
           buffers = List(
-            Option(new BytePointer(buffer)),
+            /*
+              Cast to BytePointer and manually set the capacity value to account
+              for the size difference between the two pointer types (casting
+              JavaCPP pointers literally copies the capacity value over as is).
+            */
+            Option(new BytePointer(buffer).capacity(vector.getValueCount.toLong * 4)),
             Option(new BytePointer(vector.getValidityBuffer.nioBuffer))
           ),
           variableSize = None
@@ -226,7 +231,16 @@ object ArrowVectorConversions {
         }
       }
 
-      (dataBuffer, new BytePointer(startsBuffer), new BytePointer(lensBuffer))
+      (
+        dataBuffer,
+        /*
+          Cast to BytePointer and manually set the capacity value to account for
+          the size difference between the two pointer types (casting JavaCPP
+          pointers literally copies the capacity value over as is).
+        */
+        new BytePointer(startsBuffer).capacity(vector.getValueCount.toLong * 4),
+        new BytePointer(lensBuffer).capacity(vector.getValueCount.toLong * 4)
+      )
     }
 
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {

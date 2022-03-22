@@ -53,9 +53,6 @@ object ArrowBasedCacheSerializer {
               columnarBatch.column(colNo).getArrowValueVector
                 .toBytePointerColVector
                 .toByteArrayColVector
-              // BytePointerColVector
-              //   .fromArrowVector()
-              //   .toByteArrayColVector()
             )
         }.toList))
       }
@@ -104,9 +101,6 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
                 acv.toBytePointerColVector.toByteArrayColVector
-                // BytePointerColVector
-                //   .fromArrowVector(acv)
-                //   .toByteArrayColVector()
               case None =>
                 BytePointerColVector
                   .fromColumnarVectorViaArrow(

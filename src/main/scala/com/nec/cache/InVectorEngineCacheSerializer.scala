@@ -96,9 +96,6 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
               case Some(acv) =>
                 import OriginalCallingContext.Automatic._
                 acv.toBytePointerColVector.toVeColVector
-                // BytePointerColVector
-                //   .fromArrowVector(acv)
-                //   .toVeColVector()
               case None =>
                 BytePointerColVector
                   .fromColumnarVectorViaArrow(

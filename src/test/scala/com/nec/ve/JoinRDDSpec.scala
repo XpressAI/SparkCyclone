@@ -105,7 +105,7 @@ object JoinRDDSpec {
         veColVector: VeColVector
       )(implicit veProcess: VeProcess, source: VeColVectorSource): List[Double] = {
         WithTestAllocator { implicit alloc =>
-          veColVector.toBytePointerVector().toArrowVector.asInstanceOf[Float8Vector].toList
+          veColVector.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector].toList
         }
       }
     }
