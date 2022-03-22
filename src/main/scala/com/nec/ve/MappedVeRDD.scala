@@ -17,7 +17,6 @@ import scala.reflect.runtime.universe._
 //class MappedVeRDD(prev: VeRDD[Int], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[Int](prev) {
 
 class MappedVeRDD[T: ClassTag](prev: VeRDD[T], expr: Expr[T => T]) extends VeRDD[T](prev) {
-  @transient val transpiler: CppTranspiler.type = CppTranspiler
 
   @Override
   def getVectorData(): RDD[VeColBatch] = {

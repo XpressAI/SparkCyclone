@@ -5,23 +5,24 @@ import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.CVector
+import com.nec.spark.agile.CFunctionGeneration.{CVector, VeString}
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableLong, VeNullableShort}
 import com.nec.spark.agile.core.CFunction2
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.IntVector
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.vector.{BaseFixedWidthVector, BigIntVector, Float8Vector, IntVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partition, TaskContext}
-import org.bytedeco.javacpp.IntPointer
+import org.bytedeco.javacpp.{IntPointer, Pointer}
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
 import scala.language.implicitConversions
-import scala.reflect.ClassTag
+import scala.reflect.{ClassTag, classTag}
 import scala.reflect.runtime.universe._
 
 class VectorizedRDD[T: ClassTag](prev: RDD[T]) extends VeRDD[T](prev) {
@@ -32,11 +33,16 @@ class VectorizedRDD[T: ClassTag](prev: RDD[T]) extends VeRDD[T](prev) {
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-    val vals = valsIter.toArray.asInstanceOf[Array[T]]
+    val vals = valsIter.toArray
+
+    var vec = createVector(vals)
+    vec.allocateNew()
+    vec.setValueCount(vals.length)
+
+
     val len = vals.length
 
-    val intVec = new IntPointer(len.asInstanceOf[Long])
-    intVec.put(vals, 0, vals.length)
+    val result = Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(vec.asInstanceOf[Pointer]))))
 
     /*val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
     intVec.allocateNew()
@@ -45,9 +51,12 @@ class VectorizedRDD[T: ClassTag](prev: RDD[T]) extends VeRDD[T](prev) {
       intVec.set(i, v.asInstanceOf[Int])
     }
     */
+
     val end = System.nanoTime()
     println(s"Took ${(end - start) / 1000000000}s to convert ${vals.length} rows.")
-    Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(intVec))))
+    result
+    // Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(intVec))))
+
     //Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
   }.persist(StorageLevel.MEMORY_ONLY)
   val inputCount: Long = inputs.count()
@@ -55,6 +64,19 @@ class VectorizedRDD[T: ClassTag](prev: RDD[T]) extends VeRDD[T](prev) {
   @Override
   def getVectorData(): RDD[VeColBatch] = inputs
 
+  private def createVector[T: ClassTag](seq: Seq[T]): BaseFixedWidthVector = seq match {
+    case s: Seq[Int @unchecked] if classTag[T] == classTag[Int] => new IntVector("Int", new RootAllocator(Long.MaxValue))
+    case s: Seq[Double @unchecked] if classTag[T] == classTag[Double]  => new Float8Vector("Double", new RootAllocator(Long.MaxValue))
+    case s: Seq[Long @unchecked] if classTag[T] == classTag[Long] => new BigIntVector("Long", new RootAllocator(Long.MaxValue))
+    // TODO: More types
+  }
+
+  private def setValue[T: ClassTag](vec: BaseFixedWidthVector, index: Int, value: T) = value match {
+    case v: Int => vec.asInstanceOf[IntVector].set(index, v)
+    case v: Double => vec.asInstanceOf[Float8Vector].set(index, v)
+    case v: Long => vec.asInstanceOf[BigIntVector].set(index, v)
+    // TODO: More types
+  }
 }
 
 
@@ -73,46 +95,6 @@ abstract class VeRDD[T: ClassTag](prev: VeRDD[T]) extends RDD[T](prev) {
   def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD[T] = {
     new MappedVeRDD(this, expr)
   }
-
-  /*
-  def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
-    import scala.reflect.runtime.universe._
-
-    // TODO: for inspection, remove when done
-    println("vemap got expr: " + showRaw(expr.tree))
-
-    // TODO: Get AST (Expr) from symbol table, when necessary
-    // val expr = ...
-
-    // transpile f to C
-    val code = transpiler.transpile(expr)
-    val funcName = s"eval_${Math.abs(code.hashCode())}"
-
-    val outputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableInt))
-    val func = new CFunction2(
-      funcName,
-      Seq(
-        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableInt)),
-        PointerPointer(outputs.head)
-      ),
-      code,
-      DefaultHeaders
-    )
-
-    println(s"Generated code:\n${func.toCodeLinesWithHeaders.cCode}")
-
-    // compile
-    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders)
-    println("compiled path:" + compiledPath)
-
-    // TODO: remove dummy result
-    new MappedVeRDD(this.asInstanceOf[RDD[Int]], func, compiledPath.toAbsolutePath.toString, outputs)
-  }
-
-
-   */
-
-
 
   override def collect(): Array[T] = super.collect()
 
@@ -187,32 +169,49 @@ abstract class VeRDD[T: ClassTag](prev: VeRDD[T]) extends RDD[T](prev) {
     }.collect().sum
   }
 
-  override def reduce[T](f: (T, T) => T): T = {
 
-    val start2 = System.nanoTime()
+  override def reduce(f: (T, T) => T): T = {
 
-    val out2 = prev.getVectorData().mapPartitions { veColBatch =>
-      val start4 = System.nanoTime()
+    val out = prev.getVectorData().mapPartitions { veColBatchIt =>
 
-      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-
-      val batches = veColBatch.toList
-      val r = batches.flatMap(_.cols).flatMap { veColVector =>
-        val intVec = veColVector.toArrowVector().asInstanceOf[IntVector]
-        val ids = (0 until intVec.getValueCount)
-        ids.map(intVec.get).toList
+      veColBatchIt.flatMap(_.cols).flatMap { veColVector =>
+          veColVectorToList[T](veColVector).iterator
       }
-      val end4 = System.nanoTime()
-      println(s"resultsing took ${(end4 - start4) / 1000000000.0}")
-      r.toIterator
+
     }.reduce(f)
 
-    val end2 = System.nanoTime()
-
-    println(s"results.map took ${(end2 - start2) / 1000000000.0}s")
-
-    out2
+    out
   }
+
+  // convert a VeColVector to Seq[T] for the according type
+  private def veColVectorToList[U](veColVector: VeColVector): Seq[U] = veColVector.veType match {
+    case VeNullableInt => veColVectorToIntList(veColVector).asInstanceOf[Seq[U]]
+    case VeNullableLong => veColVectorToLongList(veColVector).asInstanceOf[Seq[U]]
+    case VeNullableDouble => veColVectorToDoubleList(veColVector).asInstanceOf[Seq[U]]
+    // TODO:
+    //case VeNullableFloat
+    //case VeNullableShort
+    //case VeString
+  }
+
+  private def veColVectorToIntList(veColVector: VeColVector): Seq[Int] = {
+    implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
+    val vec = veColVector.toArrowVector().asInstanceOf[IntVector]
+    (0 until vec.getValueCount).map(vec.get)
+  }
+
+  private def veColVectorToLongList(veColVector: VeColVector): Seq[Long] = {
+    implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
+    val vec = veColVector.toArrowVector().asInstanceOf[BigIntVector]
+    (0 until vec.getValueCount).map(vec.get)
+  }
+
+  private def veColVectorToDoubleList(veColVector: VeColVector): Seq[Double] = {
+    implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
+    val vec = veColVector.toArrowVector().asInstanceOf[Float8Vector]
+    (0 until vec.getValueCount).map(vec.get)
+  }
+
 }
 
 // implicit conversion

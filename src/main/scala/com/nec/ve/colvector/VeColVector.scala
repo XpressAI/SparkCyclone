@@ -12,7 +12,7 @@ import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
-import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, Pointer}
 import sun.misc.Unsafe
 
 import java.io.OutputStream
@@ -188,18 +188,19 @@ object VeColVector {
       .fromArrowVector(valueVector)
       .toVeColVector()
 
-  def fromPointer(pointer: IntPointer)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
+
+  def fromPointer(pointer: Pointer)(implicit
+                                       veProcess: VeProcess,
+                                       source: VeColVectorSource,
+                                       originalCallingContext: OriginalCallingContext,
+                                       cycloneMetrics: VeProcessMetrics
   ): VeColVector = {
     val size = Math.ceil(pointer.limit() / 64).toLong
     val lp = new LongPointer(size.toLong)
     for (i <- 0 until size.toInt) {
       lp.put(i, -1)
     }
-    BytePointerColVector.fromIntPointer(pointer, lp)
+    BytePointerColVector.fromPointer(pointer, lp)
       .toVeColVector()
   }
 }
