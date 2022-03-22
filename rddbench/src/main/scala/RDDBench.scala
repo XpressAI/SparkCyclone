@@ -19,15 +19,17 @@ object RDDBench {
     val numbers = (1 to (1000000)).toArray
     val rdd = sc.parallelize(numbers).repartition(8)
 
+    println("Making options")
+    val rdd2 = sc.parallelize(Seq(Some(1.toLong), Some(2.toLong), None))
+
     println("Making VeRDD")
-    val verdd = toVectorizedRDD(rdd)
+    val verdd = toVectorizedRDD(rdd2)
 
     println("Starting Benchmark")
-    benchmark("01 - CPU",  () => bench01cpu(rdd))
+    benchmark("01 - CPU", () => bench01cpu(rdd))
     benchmark("01 - VE ", () => bench01ve(verdd))
 
     dumpResult()
-
 
     //Thread.sleep(300 * 1000)
 
@@ -44,37 +46,35 @@ object RDDBench {
 
   def dumpResult(): Unit = {
     println("======== RESULTS ===========")
-    for ( (title, duration) <- timings) {
+    for ((title, duration) <- timings) {
       println(title + "\t" + duration + "seconds")
     }
     println("============================")
   }
 
-
   def bench01cpu(rdd: RDD[Int]): Unit = {
 
-    val mappedRdd = rdd.map( (a) => 2 * a + 12)
-    val result = mappedRdd.reduce( (a,b) => a + b)
+    val mappedRdd = rdd.map((a) => 2 * a + 12)
+    val result = mappedRdd.reduce((a, b) => a + b)
 
     println("result of bench01 is " + result)
 
   }
 
-  def bench01ve(rdd: VeRDD[Int]): Unit = {
+  def bench01ve(rdd: VeRDD[Option[Long]]): Unit = {
     import scala.reflect.runtime.universe._
 
-    val expr = reify( (a: Int) => 2 * a + 12)
+    val expr = reify((a: Option[Long]) => Some(2 * a.get + 12))
     val mappedRdd = rdd.vemap(expr)
-    val result = mappedRdd.vereduce(reify((a: Int,b: Int) => a + b))
+    val result = mappedRdd.vereduce(reify((a: Int, b: Int) => a + b))
 
     println("result of bench01 is " + result)
   }
-
 
   def bench02(): Unit = {
 
     // TODO: read from local file
-  /*
+    /*
     //val lines = sc.textFile("rddbench/data/small.csv")
     val numbersDF = sc.read.csv("rddbench/data/small.csv").rdd
 
@@ -86,7 +86,7 @@ object RDDBench {
     println("totalLength = " + totalLength)
 
 
-   */
+     */
   }
 
   def setup(): SparkContext = {
@@ -99,8 +99,5 @@ object RDDBench {
   def finishUp(): Unit = {
     sc.stop()
   }
-
-
-
 
 }
