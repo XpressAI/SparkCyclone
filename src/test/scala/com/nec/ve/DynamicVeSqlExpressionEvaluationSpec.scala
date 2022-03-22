@@ -43,4 +43,43 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
     SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
     super.beforeAll()
   }
+
+  "Use cyclone with spark streaming" ignore withSparkSession2(configuration) { (sparkSession: SparkSession) =>
+    val table = sparkSession.sqlContext.createDataFrame(sparkSession.sparkContext.parallelize(Seq(
+      (1,"111"),
+      (2,"111"),
+      (3,"222"),
+      (4,"222"),
+      (5,"222"),
+      (6,"111"),
+      (7,"333"),
+      (8,"444"),
+      (9,"555")
+    )))
+    table.createTempView("foo")
+
+
+    val df = sparkSession.readStream
+      .format("rate")
+      .option("rowsPerSecond", 3)
+      .load()
+
+
+    df.createOrReplaceTempView("foo2")
+
+    val agg = sparkSession.sql("SELECT value AS bar, COUNT(*) FROM foo2 GROUP BY value")
+
+    println("Before writeStream")
+
+    val queryLines = agg.writeStream
+      .format("console")
+      .outputMode("update")
+      .start()
+
+    println("After writeStream")
+
+    queryLines.processAllAvailable()
+
+    assert(true)
+  }
 }
