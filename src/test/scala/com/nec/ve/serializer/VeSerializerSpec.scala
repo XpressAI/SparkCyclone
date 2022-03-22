@@ -2,6 +2,7 @@ package com.nec.ve.serializer
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8VectorI
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.WithTestAllocator
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
@@ -21,8 +22,8 @@ final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKerne
             List(VeColVector.fromArrowVector(f8v), VeColVector.fromArrowVector(f8v2))
           )
           val theBatch = VeColBatch.deserialize(colVec.serialize())
-          val gotVecStr = theBatch.cols.head.toArrowVector().toString
-          val gotVecStr2 = theBatch.cols.drop(1).head.toArrowVector().toString
+          val gotVecStr = theBatch.cols.head.toBytePointerVector().toArrowVector.toString
+          val gotVecStr2 = theBatch.cols.drop(1).head.toBytePointerVector().toArrowVector.toString
           val expectedVecStr = f8v.toString
           val expectedVecStr2 = f8v2.toString
 
@@ -50,8 +51,8 @@ final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKerne
           val byteArrayInputStream = new ByteArrayInputStream(bytes)
           val dataInputStream = new DataInputStream(byteArrayInputStream)
           val theBatch = VeColBatch.fromStream(dataInputStream)
-          val gotVecStr = theBatch.cols.head.toArrowVector().toString
-          val gotVecStr2 = theBatch.cols.drop(1).head.toArrowVector().toString
+          val gotVecStr = theBatch.cols.head.toBytePointerVector().toArrowVector.toString
+          val gotVecStr2 = theBatch.cols.drop(1).head.toBytePointerVector().toArrowVector.toString
           val expectedVecStr = f8v.toString
           val expectedVecStr2 = f8v2.toString
 
@@ -82,8 +83,8 @@ final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKerne
             .fold(bytesOnly => bytesOnly, _ => sys.error(s"Got col batch, expected bytes"))
           val gotBatch =
             VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes)))
-          val gotVecStr = gotBatch.cols.head.toArrowVector().toString
-          val gotVecStr2 = gotBatch.cols.drop(1).head.toArrowVector().toString
+          val gotVecStr = gotBatch.cols.head.toBytePointerVector().toArrowVector.toString
+          val gotVecStr2 = gotBatch.cols.drop(1).head.toBytePointerVector().toArrowVector.toString
           val expectedVecStr = f8v.toString
           val expectedVecStr2 = f8v2.toString
 

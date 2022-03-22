@@ -1,6 +1,7 @@
 package com.nec.cache
 
 import com.nec.arrow.colvector.{ByteArrayColBatch, ByteArrayColVector, GenericColBatch}
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
@@ -33,7 +34,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
 
         val vecsx =
-          byteArrayColVectors.map(_.transferToBytePointers().toArrowVector())
+          byteArrayColVectors.map(_.transferToBytePointers().toArrowVector)
         val cb = new ColumnarBatch(vecsx.map(col => new ArrowColumnVector(col)).toArray)
         cb.setNumRows(vecs.head.fold(_.numItems, _.underlying.numItems))
         cb

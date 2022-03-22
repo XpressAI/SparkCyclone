@@ -2,13 +2,13 @@ package com.nec.ve.colvector
 
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
@@ -123,11 +123,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   def containerSize: Int = veType.containerSize
 
-  def toArrowVector()(implicit
-    veProcess: VeProcess,
-    bufferAllocator: BufferAllocator
-  ): FieldVector = toBytePointerVector().toArrowVector()
-
   def free()(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
@@ -177,9 +172,7 @@ object VeColVector {
     source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext,
     cycloneMetrics: VeProcessMetrics
-  ): VeColVector =
-    BytePointerColVector
-      .fromArrowVector(valueVector)
-      .toVeColVector()
-
+  ): VeColVector = {
+    valueVector.toBytePointerColVector(source).toVeColVector
+  }
 }

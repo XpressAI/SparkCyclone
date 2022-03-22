@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.nec.arrow.{ArrowEncodingSettings, WithTestAllocator}
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.cache.ColumnarBatchToVeColBatch
 import com.nec.spark.SparkAdditions
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -54,7 +55,7 @@ final class ColumnarBatchToVeColBatchTest
           arrowSchema = schema,
           completeInSpark = false
         )
-        .flatMap(_.cols.map(_.toArrowVector().toString))
+        .flatMap(_.cols.map(_.toBytePointerVector().toArrowVector.toString))
         .toList
 
       assert(expectedCols == List("[1, 34, 9]", "[2, 3]"))
@@ -69,7 +70,7 @@ final class ColumnarBatchToVeColBatchTest
           arrowSchema = schema,
           completeInSpark = false
         )
-        .flatMap(_.cols.map(_.toArrowVector().toString))
+        .flatMap(_.cols.map(_.toBytePointerVector().toArrowVector.toString))
         .toList
       assert(gotCols == List("[1, 34, 9, 2, 3]"))
     }

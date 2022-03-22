@@ -50,7 +50,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     )(cycloneMetrics.registerTransferTime)
   }
 
-  def toByteArrayColVector(): ByteArrayColVector =
+  def toByteArrayColVector(): ByteArrayColVector = {
     ByteArrayColVector(
       underlying.copy(
         container = None,
@@ -68,88 +68,6 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           .buffers
       )
     )
-
-  def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
-    import underlying.{buffers, numItems}
-    val bytePointersAddresses = buffers.flatten.map(_.address())
-    underlying.veType match {
-      case VeNullableShort =>
-        /** Short type is casted to int */
-        val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * 4
-          smallIntVector.setValueCount(numItems)
-          val buff = new BytePointer(ByteBuffer.allocateDirect(dataSize))
-
-          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), buff.address(), dataSize)
-          val intBuff = buff.asBuffer().asIntBuffer()
-          (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(1),
-            smallIntVector.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-        }
-        smallIntVector
-      case scalarType: VeScalarType if VeToArrow.contains(scalarType) =>
-        val typeLink = VeToArrow(scalarType)
-        val vec = typeLink.makeArrow(underlying.name)(bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * scalarType.cSize
-          vec.setValueCount(numItems)
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(1),
-            vec.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), vec.getDataBufferAddress, dataSize)
-        }
-        vec
-      case VeString =>
-        val vcvr = new VarCharVector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val buffersSize = numItems * 4
-          val lastOffsetIndex = (numItems - 1) * 4
-          val lengthTarget = new BytePointer(buffersSize)
-          val startsTarget = new BytePointer(buffersSize)
-          val validityTarget = new BytePointer(numItems)
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(1),
-            startsTarget.address(),
-            startsTarget.capacity()
-          )
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(2),
-            lengthTarget.address(),
-            lengthTarget.capacity()
-          )
-
-          val dataSize =
-            (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
-          val vhTarget = new BytePointer(dataSize * 4)
-
-          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
-          vcvr.allocateNew(dataSize, numItems)
-          vcvr.setValueCount(numItems)
-          val array = new Array[Byte](dataSize * 4)
-          vhTarget.get(array)
-
-          for (i <- 0 until numItems) {
-            val start = startsTarget.getInt(i * 4) * 4
-            val length = lengthTarget.getInt(i * 4) * 4
-            val str = new String(array, start, length, "UTF-32LE")
-            val utf8bytes = str.getBytes
-            vcvr.set(i, utf8bytes)
-          }
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(3),
-            vcvr.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-        }
-        vcvr
-      case other => sys.error(s"Not supported for conversion to arrow vector: $other")
-    }
   }
 }
 
@@ -180,17 +98,17 @@ object BytePointerColVector {
     }
   }
 
-  def fromArrowVector(
-    valueVector: ValueVector
-  )(implicit source: VeColVectorSource): BytePointerColVector =
-    valueVector match {
-      case smallIntVector: SmallIntVector =>
-        fromBaseFixedWidthVector(VeNullableInt, smallIntVector.toIntVector)
-      case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
-        fromBaseFixedWidthVector(ArrowToVe(vec.getClass).veScalarType, vec)
-      case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
-      case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
-    }
+  // def fromArrowVector(
+  //   valueVector: ValueVector
+  // )(implicit source: VeColVectorSource): BytePointerColVector =
+  //   valueVector match {
+  //     case smallIntVector: SmallIntVector =>
+  //       fromBaseFixedWidthVector(VeNullableInt, smallIntVector.toIntVector)
+  //     case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
+  //       fromBaseFixedWidthVector(ArrowToVe(vec.getClass).veScalarType, vec)
+  //     case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
+  //     case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
+  //   }
 
   def fromBaseFixedWidthVector(veType: VeScalarType, bigIntVector: BaseFixedWidthVector)(implicit
     source: VeColVectorSource
