@@ -1,7 +1,8 @@
 package com.nec.arrow.colvector
 
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.spark.agile.core.VeScalarType
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import scala.util.Random
 import java.util.UUID
 import org.apache.arrow.memory.RootAllocator
@@ -16,9 +17,29 @@ class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
     val source = VeColVectorSource(s"${UUID.randomUUID}")
     val colvec = input.toBytePointerColVector(source)
 
-    // Check data
+    // Check fields
     colvec.underlying.name should be (input.getName)
     colvec.underlying.source should be (source)
+    colvec.underlying.numItems should be (input.getValueCount)
+
+    // Check data buffer capacity
+    if (input.isInstanceOf[BaseFixedWidthVector]) {
+      val capacity = input.getValueCount * colvec.underlying.veType.asInstanceOf[VeScalarType].cSize
+      colvec.underlying.buffers(0).get.capacity() should be (capacity)
+    }
+
+    // Check data, starts, and lens buffer capacities
+    if (input.isInstanceOf[VarCharVector]) {
+      val input0 = input.asInstanceOf[VarCharVector]
+      val capacity = 0.until(input.getValueCount).foldLeft(0) { case (accum, i) =>
+        val size = if (input0.isNull(i)) 0 else input0.getObject(i).toString.getBytes("UTF-32LE").size
+        accum + size
+      }
+
+      colvec.underlying.buffers(0).get.capacity() should be (capacity)
+      colvec.underlying.buffers(1).get.capacity() should be (input.getValueCount * 4)
+      colvec.underlying.buffers(2).get.capacity() should be (input.getValueCount * 4)
+    }
 
     // Convert back
     val output = colvec.toArrowVector(allocator)
@@ -90,6 +111,18 @@ class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
     "correctly convert LongVector to BytePointerColVector and back" in {
       val raw = 0.to(Random.nextInt(100)).map(_ => Random.nextLong)
       val input = new BigIntVector(s"${UUID.randomUUID}", allocator)
+      input.setValueCount(raw.length)
+      raw.zipWithIndex.foreach { case (v, i) =>
+        input.set(i, v)
+      }
+      input.setNull(Random.nextInt(raw.length))
+
+      runConversionTest(input)
+    }
+
+    "correctly convert Float4Vector to BytePointerColVector and back" in {
+      val raw = 0.to(Random.nextInt(100)).map(_ => Random.nextFloat * 1000)
+      val input = new Float4Vector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
       raw.zipWithIndex.foreach { case (v, i) =>
         input.set(i, v)

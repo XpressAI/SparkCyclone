@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
@@ -51,7 +52,7 @@ final class VERDDSpec
       }.map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs))
         .map(vectors => {
           WithTestAllocator { implicit alloc =>
-            val vec = vectors.head.toArrowVector().asInstanceOf[Float8Vector]
+            val vec = vectors.head.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
             try vec.toList
             finally vec.close()
           }
@@ -115,7 +116,7 @@ object VERDDSpec {
               WithTestAllocator { implicit alloc =>
                 import SparkCycloneExecutorPlugin.source
                 try {
-                  val vec = vector.toArrowVector().asInstanceOf[Float8Vector]
+                  val vec = vector.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
                   val vl = vec.toList
                   try if (vl.isEmpty) None else Some(vl.max)
                   finally vec.close()

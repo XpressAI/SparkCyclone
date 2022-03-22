@@ -103,7 +103,7 @@ object ArrowVectorConversions {
     def toArrowVector(implicit bufferAllocator: BufferAllocator): FieldVector = {
       underlying.veType match {
         case VeNullableShort =>
-          // Cast int values in a VeNullableShort to short in Arrow
+          // Specialize this case because Int values in VeNullableShort need to be cast to Short
           toShortArrow
 
         case typ: VeScalarType if VeToArrow.contains(typ) =>
@@ -122,12 +122,7 @@ object ArrowVectorConversions {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       vector match {
         case vec: SmallIntVector =>
-          /*
-            NOTE: This should be folded into the next case by updating the
-            ArrowToVe map, but need to check first if this affects existing
-            conversions between Arrow and
-            `org.apache.spark.sql.vectorized.ColumnVector`
-          */
+          // Specialize ths case because values need to be cast to Int first
           vec.toBytePointerColVector
         case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
           vec.toBytePointerColVector
@@ -181,7 +176,12 @@ object ArrowVectorConversions {
           veType = VeNullableShort,
           container = None,
           buffers = List(
-            Option(new BytePointer(buffer)),
+            /*
+              Cast to BytePointer and manually set the capacity value to account
+              for the size difference between the two pointer types (casting
+              JavaCPP pointers literally copies the capacity value over as is).
+            */
+            Option(new BytePointer(buffer).capacity(vector.getValueCount.toLong * 4)),
             Option(new BytePointer(vector.getValidityBuffer.nioBuffer))
           ),
           variableSize = None
@@ -231,7 +231,16 @@ object ArrowVectorConversions {
         }
       }
 
-      (dataBuffer, new BytePointer(startsBuffer), new BytePointer(lensBuffer))
+      (
+        dataBuffer,
+        /*
+          Cast to BytePointer and manually set the capacity value to account for
+          the size difference between the two pointer types (casting JavaCPP
+          pointers literally copies the capacity value over as is).
+        */
+        new BytePointer(startsBuffer).capacity(vector.getValueCount.toLong * 4),
+        new BytePointer(lensBuffer).capacity(vector.getValueCount.toLong * 4)
+      )
     }
 
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {

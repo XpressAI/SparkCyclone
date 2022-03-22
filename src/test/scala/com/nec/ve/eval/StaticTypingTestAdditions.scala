@@ -21,6 +21,7 @@ package com.nec.ve.eval
 
 import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
 import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
@@ -239,7 +240,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -257,7 +258,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -279,7 +280,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Double, Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -299,7 +300,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[Option[Double]] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.flatMap { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -312,7 +313,7 @@ object StaticTypingTestAdditions {
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Int] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.flatMap { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[IntVector].toList
             finally arrow.close()
           }
@@ -325,7 +326,7 @@ object StaticTypingTestAdditions {
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Double] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.flatMap { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -341,7 +342,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Option[Double])] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -359,7 +360,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -378,7 +379,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Option[Double])] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -395,7 +396,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(String, Double)] = {
         WithTestAllocator { implicit alloc =>
-          val colA :: colB :: Nil = veColBatch.cols.map(_.toArrowVector())
+          val colA :: colB :: Nil = veColBatch.cols.map(_.toBytePointerVector.toArrowVector)
 
           try colA.asInstanceOf[VarCharVector].toList.zip(colA.asInstanceOf[Float8Vector].toList)
           finally {

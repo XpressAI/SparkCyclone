@@ -1,7 +1,7 @@
 package com.nec.arrow.colvector
 
-import com.nec.arrow.ArrowInterfaces
 import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -12,7 +12,6 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
 import org.apache.spark.sql.types.{IntegerType, StringType}
-import org.apache.spark.sql.util.ArrowUtilsExposed.RichSmallIntVector
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.{BytePointer, IntPointer}
 import sun.misc.Unsafe
@@ -50,7 +49,7 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     )(cycloneMetrics.registerTransferTime)
   }
 
-  def toByteArrayColVector(): ByteArrayColVector =
+  def toByteArrayColVector(): ByteArrayColVector = {
     ByteArrayColVector(
       underlying.copy(
         container = None,
@@ -68,88 +67,6 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
           .buffers
       )
     )
-
-  def toArrowVector()(implicit bufferAllocator: BufferAllocator): FieldVector = {
-    import underlying.{buffers, numItems}
-    val bytePointersAddresses = buffers.flatten.map(_.address())
-    underlying.veType match {
-      case VeNullableShort =>
-        /** Short type is casted to int */
-        val smallIntVector = new SmallIntVector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * 4
-          smallIntVector.setValueCount(numItems)
-          val buff = new BytePointer(ByteBuffer.allocateDirect(dataSize))
-
-          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), buff.address(), dataSize)
-          val intBuff = buff.asBuffer().asIntBuffer()
-          (0 until numItems).foreach(idx => smallIntVector.set(idx, intBuff.get(idx)))
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(1),
-            smallIntVector.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-        }
-        smallIntVector
-      case scalarType: VeScalarType if VeToArrow.contains(scalarType) =>
-        val typeLink = VeToArrow(scalarType)
-        val vec = typeLink.makeArrow(underlying.name)(bufferAllocator)
-        if (numItems > 0) {
-          val dataSize = numItems * scalarType.cSize
-          vec.setValueCount(numItems)
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(1),
-            vec.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), vec.getDataBufferAddress, dataSize)
-        }
-        vec
-      case VeString =>
-        val vcvr = new VarCharVector(underlying.name, bufferAllocator)
-        if (numItems > 0) {
-          val buffersSize = numItems * 4
-          val lastOffsetIndex = (numItems - 1) * 4
-          val lengthTarget = new BytePointer(buffersSize)
-          val startsTarget = new BytePointer(buffersSize)
-          val validityTarget = new BytePointer(numItems)
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(1),
-            startsTarget.address(),
-            startsTarget.capacity()
-          )
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(2),
-            lengthTarget.address(),
-            lengthTarget.capacity()
-          )
-
-          val dataSize =
-            (startsTarget.getInt(lastOffsetIndex) + lengthTarget.getInt(lastOffsetIndex))
-          val vhTarget = new BytePointer(dataSize * 4)
-
-          implicitly[Unsafe].copyMemory(bytePointersAddresses(0), vhTarget.address(), vhTarget.limit())
-          vcvr.allocateNew(dataSize, numItems)
-          vcvr.setValueCount(numItems)
-          val array = new Array[Byte](dataSize * 4)
-          vhTarget.get(array)
-
-          for (i <- 0 until numItems) {
-            val start = startsTarget.getInt(i * 4) * 4
-            val length = lengthTarget.getInt(i * 4) * 4
-            val str = new String(array, start, length, "UTF-32LE")
-            val utf8bytes = str.getBytes
-            vcvr.set(i, utf8bytes)
-          }
-          implicitly[Unsafe].copyMemory(
-            bytePointersAddresses(3),
-            vcvr.getValidityBufferAddress,
-            Math.ceil(numItems / 64.0).toInt * 8
-          )
-        }
-        vcvr
-      case other => sys.error(s"Not supported for conversion to arrow vector: $other")
-    }
   }
 }
 
@@ -180,60 +97,6 @@ object BytePointerColVector {
     }
   }
 
-  def fromArrowVector(
-    valueVector: ValueVector
-  )(implicit source: VeColVectorSource): BytePointerColVector =
-    valueVector match {
-      case smallIntVector: SmallIntVector =>
-        fromBaseFixedWidthVector(VeNullableInt, smallIntVector.toIntVector)
-      case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
-        fromBaseFixedWidthVector(ArrowToVe(vec.getClass).veScalarType, vec)
-      case varCharVector: VarCharVector => fromVarcharVector(varCharVector)
-      case other                        => sys.error(s"Not supported to convert from ${other.getClass}")
-    }
-
-  def fromBaseFixedWidthVector(veType: VeScalarType, bigIntVector: BaseFixedWidthVector)(implicit
-    source: VeColVectorSource
-  ): BytePointerColVector =
-    BytePointerColVector(
-      GenericColVector(
-        source = source,
-        numItems = bigIntVector.getValueCount,
-        name = bigIntVector.getName,
-        veType = veType,
-        container = None,
-        buffers = List(
-          Option(new BytePointer(bigIntVector.getDataBuffer.nioBuffer())),
-          Option(new BytePointer(bigIntVector.getValidityBuffer.nioBuffer()))
-        ),
-        variableSize = None
-      )
-    )
-
-  def fromVarcharVector(
-    varcharVector: VarCharVector
-  )(implicit source: VeColVectorSource): BytePointerColVector = {
-    val data = ArrowInterfaces.intCharsFromVarcharVector(varcharVector)
-    val starts = ArrowInterfaces.startsFromVarcharVector(varcharVector)
-    val lengths = ArrowInterfaces.lengthsFromVarcharVector(varcharVector)
-    BytePointerColVector(
-      GenericColVector(
-        source = source,
-        numItems = varcharVector.getValueCount,
-        name = varcharVector.getName,
-        veType = VeString,
-        container = None,
-        buffers = List(
-          Option(new BytePointer(data)),
-          Option(new BytePointer(starts)),
-          Option(new BytePointer(lengths)),
-          Option(new BytePointer(varcharVector.getValidityBuffer.nioBuffer()))
-        ),
-        variableSize = Some(data.limit() / 4)
-      )
-    )
-  }
-
   def fromColumnarVectorViaArrow(name: String, columnVector: ColumnVector, size: Int)(implicit
     source: VeColVectorSource,
     bufferAllocator: BufferAllocator
@@ -245,7 +108,7 @@ object BytePointerColVector {
         val theVec = tl.makeArrow(name)
         theVec.setValueCount(size)
         (0 until size).foreach { idx => tl.transfer(idx, columnVector, theVec) }
-        (theVec, fromBaseFixedWidthVector(tl.veScalarType, theVec))
+        (theVec, theVec.asInstanceOf[ValueVector].toBytePointerColVector)
       case (StringType, _) =>
         val varCharVector = new VarCharVector(name, bufferAllocator)
         varCharVector.allocateNew()
@@ -257,8 +120,7 @@ object BytePointerColVector {
             varCharVector.setSafe(idx, byteBuffer, byteBuffer.position(), utf8.numBytes())
         }
         varCharVector.setValueCount(size)
-        (varCharVector, fromVarcharVector(varCharVector))
+        (varCharVector, varCharVector.toBytePointerColVector)
     }
   }
-
 }

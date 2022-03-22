@@ -2,6 +2,7 @@ package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.{VeColBatch, VeProcessMetrics}
@@ -94,9 +95,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
                 import OriginalCallingContext.Automatic._
-                BytePointerColVector
-                  .fromArrowVector(acv)
-                  .toVeColVector()
+                acv.toBytePointerColVector.toVeColVector
               case None =>
                 BytePointerColVector
                   .fromColumnarVectorViaArrow(

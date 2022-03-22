@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.nec.arrow.ArrowVectorBuilders.withDirectFloat8Vector
 import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
@@ -104,7 +105,7 @@ object JoinRDDSpec {
         veColVector: VeColVector
       )(implicit veProcess: VeProcess, source: VeColVectorSource): List[Double] = {
         WithTestAllocator { implicit alloc =>
-          veColVector.toArrowVector().asInstanceOf[Float8Vector].toList
+          veColVector.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector].toList
         }
       }
     }

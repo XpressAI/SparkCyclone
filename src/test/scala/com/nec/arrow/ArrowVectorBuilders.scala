@@ -34,12 +34,13 @@ object ArrowVectorBuilders {
       vcv.allocateNew()
       try {
         val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
-        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
-          vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
-
-        }
-        vcv.setValueCount(stringBatch.length)
         root.setRowCount(stringBatch.length)
+
+        vcv.setValueCount(stringBatch.length)
+        stringBatch.view.zipWithIndex.foreach { case (str, idx) =>
+          vcv.setSafe(idx, str.getBytes)
+        }
+
         f(vcv)
       } finally vcv.close()
     }
@@ -54,12 +55,13 @@ object ArrowVectorBuilders {
       vcv.allocateNew()
       try {
         val root = new VectorSchemaRoot(schema, util.Arrays.asList(vcv: FieldVector), 2)
+        root.setRowCount(stringBatch.length)
+
+        vcv.setValueCount(stringBatch.length)
         stringBatch.view.zipWithIndex.foreach {
           case (Some(str), idx) => vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
           case (None, idx)      => vcv.setNull(idx)
         }
-        vcv.setValueCount(stringBatch.length)
-        root.setRowCount(stringBatch.length)
         f(vcv)
       } finally vcv.close()
     }
@@ -72,11 +74,13 @@ object ArrowVectorBuilders {
       vectorCount += 1
       vcv.allocateNew()
       try {
+        if (data.nonEmpty) {
+          vcv.setValueCount(data.size)
+        }
+
         inputColumns.flatten.zipWithIndex.foreach { case (str, idx) =>
           vcv.setSafe(idx, str)
         }
-        if (data.nonEmpty)
-          vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()
@@ -89,12 +93,12 @@ object ArrowVectorBuilders {
     vectorCount += 1
     vcv.allocateNew()
     try {
-      data.zipWithIndex.foreach { case (str, idx) =>
-        vcv.setSafe(idx, str)
-      }
-
       if (data.nonEmpty) {
         vcv.setValueCount(data.size)
+      }
+
+      data.zipWithIndex.foreach { case (str, idx) =>
+        vcv.setSafe(idx, str)
       }
 
       f(vcv)
@@ -107,10 +111,11 @@ object ArrowVectorBuilders {
       vectorCount += 1
       vcv.allocateNew()
       try {
+        vcv.setValueCount(data.size)
+
         data.zipWithIndex.foreach { case (str, idx) =>
           vcv.setSafe(idx, str)
         }
-        vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()
@@ -122,10 +127,11 @@ object ArrowVectorBuilders {
       vectorCount += 1
       vcv.allocateNew()
       try {
+        vcv.setValueCount(data.size)
+
         data.zipWithIndex.foreach { case (str, idx) =>
           vcv.setSafe(idx, str)
         }
-        vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()
@@ -138,11 +144,12 @@ object ArrowVectorBuilders {
       vectorCount += 1
       vcv.allocateNew()
       try {
+        vcv.setValueCount(data.size)
+
         data.zipWithIndex.foreach {
           case (None, idx)      => vcv.setNull(idx)
           case (Some(str), idx) => vcv.setSafe(idx, str)
         }
-        vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()
@@ -155,11 +162,12 @@ object ArrowVectorBuilders {
       vectorCount += 1
       vcv.allocateNew()
       try {
+        vcv.setValueCount(data.size)
+
         data.zipWithIndex.foreach {
           case (None, idx)      => vcv.setNull(idx)
           case (Some(str), idx) => vcv.setSafe(idx, str)
         }
-        vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()
@@ -172,10 +180,11 @@ object ArrowVectorBuilders {
       vectorCount += 1
       vcv.allocateNew()
       try {
+        vcv.setValueCount(data.size)
+
         data.zipWithIndex.foreach { case (str, idx) =>
           vcv.setSafe(idx, str)
         }
-        vcv.setValueCount(data.size)
 
         f(vcv)
       } finally vcv.close()

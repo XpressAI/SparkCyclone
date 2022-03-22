@@ -3,6 +3,7 @@ package com.nec.arrow.colvector
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import com.nec.arrow.CatsArrowVectorBuilders
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.arrow.memory.RootAllocator
 import org.apache.spark.sql.execution.vectorized.OffHeapColumnVector
@@ -51,7 +52,7 @@ final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
               )
               .map { case (originalFieldVector, bytePointerColVector) =>
                 try {
-                  val fieldVector = bytePointerColVector.toArrowVector()
+                  val fieldVector = bytePointerColVector.toArrowVector
                   try fieldVector.toString
                   finally fieldVector.close()
                 } finally originalFieldVector.close()
@@ -81,7 +82,7 @@ final class ColVectorTransformSpec extends AnyFreeSpec with BeforeAndAfterAll {
           .fromOffHeapColumnarVector(size = 3, str = "int", col = col)
           .getOrElse(fail("Could not convert"))
 
-        val fieldVector = bytePointerColVector.toArrowVector()
+        val fieldVector = bytePointerColVector.toArrowVector
         try fieldVector.toString
         finally fieldVector.close()
       } finally col.close()

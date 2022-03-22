@@ -3,20 +3,21 @@ package com.nec.arrow.colvector
 import com.nec.spark.agile.core._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
+import java.util.BitSet
 import org.bytedeco.javacpp._
 
 object ArrayTConversions {
   private[colvector] def constructValidityBuffer(n: Int): BytePointer = {
     val size = (n / 8.0).ceil.toLong
-    val ptr = new BytePointer(size)
+    val buffer = new BytePointer(size)
     for (i <- 0 until size.toInt) {
-      ptr.put(i, -1.toByte)
+      buffer.put(i, -1.toByte)
     }
-    ptr
+    buffer
   }
 
   implicit class PrimitiveArrayToBPCV[T <: AnyVal : ClassTag](input: Array[T]) {
-    def dataBuffer: BytePointer = {
+    private[colvector] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
       val pointer = if (klass == classOf[Int]) {
@@ -46,7 +47,12 @@ object ArrayTConversions {
         throw new NotImplementedError(s"Primitive type not supported: ${klass}")
       }
 
-      new BytePointer(pointer)
+        /*
+          Cast to BytePointer and manually set the capacity value to account for
+          the size difference between the two pointer types (casting JavaCPP
+          pointers literally copies the capacity value over as is).
+        */
+      new BytePointer(pointer).capacity(input.size.toLong * veType.cSize)
     }
 
     private[colvector] def veType: VeScalarType = {
@@ -91,9 +97,30 @@ object ArrayTConversions {
   }
 
   implicit class StringArrayToBPCV(input: Array[String]) {
+    private[colvector] def validityBuffer: BytePointer = {
+      // Compute the bitset
+      val bitset = new BitSet(input.size)
+      input.zipWithIndex.foreach { case (x, i) =>
+        bitset.set(i, x != null)
+      }
+
+      // Fetch the byte array representation of the bitset
+      val bytes = bitset.toByteArray
+
+      // Copy byte array over to BytePointer
+      val buffer = new BytePointer(bytes.size.toLong)
+      buffer.put(bytes, 0, bytes.size)
+    }
+
     private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Convert to UTF-32LE Array[Byte]'s
-      val bytesAA = input.map(_.getBytes("UTF-32LE"))
+      val bytesAA = input.map { x =>
+        if (x == null) {
+          Array[Byte]()
+        } else {
+          x.getBytes("UTF-32LE")
+        }
+      }
 
       // Allocate the buffers
       val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)
@@ -114,7 +141,16 @@ object ArrayTConversions {
         }
       }
 
-      (dataBuffer, new BytePointer(startsBuffer), new BytePointer(lensBuffer))
+      (
+        dataBuffer,
+        /*
+          Cast to BytePointer and manually set the capacity value to account for
+          the size difference between the two pointer types (casting JavaCPP
+          pointers literally copies the capacity value over as is).
+        */
+        new BytePointer(startsBuffer).capacity(bytesAA.size.toLong * 4),
+        new BytePointer(lensBuffer).capacity(bytesAA.size.toLong * 4),
+      )
     }
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
@@ -130,7 +166,7 @@ object ArrayTConversions {
             Option(dataBuffer),
             Option(startsBuffer),
             Option(lensBuffer),
-            Option(constructValidityBuffer(input.size))
+            Option(validityBuffer)
           ),
           variableSize = Some(dataBuffer.limit().toInt / 4)
         )
@@ -148,22 +184,28 @@ object ArrayTConversions {
       val dataBuffer = buffers(0)
       val startsBuffer = new IntPointer(buffers(1))
       val lensBuffer = new IntPointer(buffers(2))
+      val validityBuffer = buffers(3)
 
       val output = new Array[String](numItems)
       for (i <- 0 until numItems) {
-        // Read starts and lens as byte offsets (they are stored in BytePointerColVector as int32_t offsets)
-        val start = startsBuffer.get(i) * 4
-        val len = lensBuffer.get(i) * 4
+        // Get the validity bit at psition i
+        val isValid = (validityBuffer.get(i / 8) & (1 << (i % 8))) > 0
 
-        // Allocate the Array[Byte]
-        val bytes = new Array[Byte](len)
+        if (isValid) {
+          // Read starts and lens as byte offsets (they are stored in BytePointerColVector as int32_t offsets)
+          val start = startsBuffer.get(i) * 4
+          val len = lensBuffer.get(i) * 4
 
-        // Copy over the bytes
-        dataBuffer.position(start.toLong)
-        dataBuffer.get(bytes)
+          // Allocate the Array[Byte]
+          val bytes = new Array[Byte](len)
 
-        // Create the String with the encoding
-        output(i) = new String(bytes, "UTF-32LE")
+          // Copy over the bytes
+          dataBuffer.position(start.toLong)
+          dataBuffer.get(bytes)
+
+          // Create the String with the encoding
+          output(i) = new String(bytes, "UTF-32LE")
+        }
       }
 
       output
