@@ -1,4 +1,5 @@
-import com.nec.ve.VeRDD
+import com.nec.ve.{VeColBatch, VeRDD, VectorizedRDD, VectorizedRDDAdapter}
+import com.nec.ve.VectorizedRDD.toVectorizedRDD
 import org.apache.spark.rdd._
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -8,7 +9,6 @@ object RDDBench {
   var timings: Map[String, Double] = Map()
 
   def main(args: Array[String]): Unit = {
-    import com.nec.ve.VeRDD.toVectorizedRDD
 
     println("RDD Benchmark")
 
@@ -16,14 +16,17 @@ object RDDBench {
     sc = setup()
 
     println("Making numbers")
-    val numbers = (1 to (1000000)).toArray
-    val rdd = sc.parallelize(numbers).repartition(8).persist()
+    //val numbers = (1 to (1000000)).toArray
+    val numbers = (1 to (100)).toArray
+    val rdd = sc.parallelize(numbers) //.repartition(8).persist()
 
     println("Making VeRDD")
-    val verdd = toVectorizedRDD(rdd)
+    val verdd = new VectorizedRDD(rdd)
+
+    debugOut("vectorized RDD", 10, verdd)
 
     println("Starting Benchmark")
-    benchmark("01 - CPU",  () => bench01cpu(rdd))
+    //benchmark("01 - CPU",  () => bench01cpu(rdd))
     benchmark("01 - VE ", () => bench01ve(verdd))
 
     dumpResult()
@@ -50,6 +53,11 @@ object RDDBench {
     println("============================")
   }
 
+  def debugOut[T](what: String, n: Int, rdd: RDD[T]): Unit = {
+    println("=== Debug: " + what + " ===")
+    rdd.take(n).foreach( (v:T) => println("val=" + v))
+    println("\n\n")
+  }
 
   def bench01cpu(rdd: RDD[Int]): Unit = {
 
@@ -60,12 +68,21 @@ object RDDBench {
 
   }
 
-  def bench01ve(rdd: VeRDD[Int]): Unit = {
+  def bench01ve(rdd: VectorizedRDD[Int]): Unit = {
     import scala.reflect.runtime.universe._
 
+    val verdd = VectorizedRDDAdapter.toVeRDDAdapter(rdd)
+
+    debugOut("vectorizedRDDAdapter", 10, verdd)
+
     val expr = reify( (a: Int) => 2 * a + 12)
-    val mappedRdd = rdd.vemap(expr)
+    val mappedRdd = verdd.vemap(expr)
+
+    debugOut("after vemap", 10, mappedRdd)
+
     val result = mappedRdd.vereduce(reify((a: Int,b: Int) => a + b))
+
+    debugOut("mappedRdd after vereduce", 10, mappedRdd)
 
     println("result of bench01 is " + result)
   }

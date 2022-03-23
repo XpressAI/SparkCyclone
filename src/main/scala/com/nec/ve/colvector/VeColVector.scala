@@ -3,6 +3,7 @@ package com.nec.ve.colvector
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
+import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
 import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
 import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector

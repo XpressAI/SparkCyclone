@@ -73,3 +73,8 @@ class MappedVeRDD[T: ClassTag](prev: VeRDD[T], expr: Expr[T => T]) extends VeRDD
     results
   }
 }
+
+/*
+object MappedVeRDD {
+  implicit def toMappedRDD[T: ClassTag](rdd: RDD[T] with Vectorized): MappedVeRDD[T] = new MappedVeRDD[T](rdd)
+}*/
