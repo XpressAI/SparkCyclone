@@ -20,7 +20,7 @@ object ArrayTConversions {
     private[colvector] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
-      val pointer = if (klass == classOf[Int]) {
+      val buffer = if (klass == classOf[Int]) {
         val ptr = new IntPointer(input.size.toLong)
         ptr.put(input.asInstanceOf[Array[Int]], 0, input.size)
 
@@ -52,10 +52,10 @@ object ArrayTConversions {
           the size difference between the two pointer types (casting JavaCPP
           pointers literally copies the capacity value over as is).
         */
-      new BytePointer(pointer).capacity(input.size.toLong * veType.cSize)
+      new BytePointer(buffer).capacity(input.size.toLong * veScalarType.cSize)
     }
 
-    private[colvector] def veType: VeScalarType = {
+    private[colvector] def veScalarType: VeScalarType = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
       if (klass == classOf[Int]) {
@@ -84,7 +84,7 @@ object ArrayTConversions {
           source = source,
           numItems = input.size,
           name = name,
-          veType = veType,
+          veType = veScalarType,
           container = None,
           buffers = List(
             Option(dataBuffer),
@@ -92,6 +92,40 @@ object ArrayTConversions {
           ),
           variableSize = None
         )
+      )
+    }
+  }
+
+  private[colvector] implicit class ExtendedByteArrayArray(bytesAA: Array[Array[Byte]]) {
+    def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
+      // Allocate the buffers
+      val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)
+      val startsBuffer = new IntPointer(bytesAA.size.toLong)
+      val lensBuffer = new IntPointer(bytesAA.size.toLong)
+
+      // Populate the buffers
+      var pos = 0
+      bytesAA.zipWithIndex.foreach { case (bytes, i) =>
+        // Write the starts and lens as int32_t offsets
+        startsBuffer.put(i.toLong, pos / 4)
+        lensBuffer.put(i.toLong, bytes.size / 4)
+
+        bytes.foreach { b =>
+          // Copy byte over - note that can't use bulk `put()` because it always assumes position 0 in the destination buffer
+          dataBuffer.put(pos.toLong, b)
+          pos += 1
+        }
+      }
+
+      (
+        dataBuffer,
+        /*
+          Cast to BytePointer and manually set the capacity value to account for
+          the size difference between the two pointer types (casting JavaCPP
+          pointers literally copies the capacity value over as is).
+        */
+        new BytePointer(startsBuffer).capacity(bytesAA.size.toLong * 4),
+        new BytePointer(lensBuffer).capacity(bytesAA.size.toLong * 4),
       )
     }
   }
@@ -122,35 +156,7 @@ object ArrayTConversions {
         }
       }
 
-      // Allocate the buffers
-      val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)
-      val startsBuffer = new IntPointer(bytesAA.size.toLong)
-      val lensBuffer = new IntPointer(bytesAA.size.toLong)
-
-      // Populate the buffers
-      var pos = 0
-      bytesAA.zipWithIndex.foreach { case (bytes, i) =>
-        // Write the starts and lens as int32_t offsets
-        startsBuffer.put(i.toLong, pos / 4)
-        lensBuffer.put(i.toLong, bytes.size / 4)
-
-        bytes.foreach { b =>
-          // Copy byte over - note that can't use bulk `put()` because it always assumes position 0 in the destination buffer
-          dataBuffer.put(pos.toLong, b)
-          pos += 1
-        }
-      }
-
-      (
-        dataBuffer,
-        /*
-          Cast to BytePointer and manually set the capacity value to account for
-          the size difference between the two pointer types (casting JavaCPP
-          pointers literally copies the capacity value over as is).
-        */
-        new BytePointer(startsBuffer).capacity(bytesAA.size.toLong * 4),
-        new BytePointer(lensBuffer).capacity(bytesAA.size.toLong * 4),
-      )
+      bytesAA.constructBuffers
     }
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {

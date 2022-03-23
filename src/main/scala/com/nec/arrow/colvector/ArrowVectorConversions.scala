@@ -122,7 +122,7 @@ object ArrowVectorConversions {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       vector match {
         case vec: SmallIntVector =>
-          // Specialize ths case because values need to be cast to Int first
+          // Specialize this case because values need to be cast to Int first
           vec.toBytePointerColVector
         case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
           vec.toBytePointerColVector
