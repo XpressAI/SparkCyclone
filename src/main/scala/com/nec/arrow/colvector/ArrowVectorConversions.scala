@@ -4,13 +4,12 @@ import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
 import com.nec.spark.agile.core._
 import com.nec.util.ReflectionOps._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.compare.VectorEqualsVisitor
 import org.bytedeco.javacpp._
 import sun.misc.Unsafe
-
-import java.nio.charset.StandardCharsets
 
 object ArrowVectorConversions {
   implicit class ValueVectorEqualityChecks(vector: ValueVector) {
@@ -115,7 +114,7 @@ object ArrowVectorConversions {
           toVarCharArrow
 
         case other =>
-          throw new NotImplementedError(s"Cannot convert BytePointerColVector of ${other} to Arrow")
+          throw new NotImplementedError(s"Conversion of BytePointerColVector of VeType ${other} to Arrow not supported")
       }
     }
   }
@@ -134,7 +133,7 @@ object ArrowVectorConversions {
           vec.toBytePointerColVector
 
         case other =>
-          throw new NotImplementedError(s"Cannot convert ${other.getClass.getName} to BytePointerColVector")
+          throw new NotImplementedError(s"Conversion of ${other.getClass.getName} to BytePointerColVector not supported")
       }
     }
   }
@@ -143,7 +142,7 @@ object ArrowVectorConversions {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       val veType = ArrowToVe.get(vector.getClass) match {
         case Some(link) => link.veScalarType
-        case None => throw new IllegalArgumentException(s"No corresponding VeType found Arrow vector type: ${vector.getClass.getName}")
+        case None => throw new IllegalArgumentException(s"No corresponding VeType found for Arrow type '${vector.getClass.getName}'")
       }
 
       BytePointerColVector(

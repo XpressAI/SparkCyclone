@@ -1,11 +1,11 @@
 package com.nec.ve.colvector
 
 import com.nec.arrow.ArrowTransferStructures._
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -160,12 +160,14 @@ object VeColVector {
     )
   )
 
-  def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
+  def fromVectorColumn(numRows: Int, vector: ColumnVector)(implicit
     veProcess: VeProcess,
-    _source: VeColVectorSource,
+    source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext,
     cycloneMetrics: VeProcessMetrics
-  ): VeColVector = fromArrowVector(source.getArrowValueVector)
+  ): VeColVector = {
+    fromArrowVector(vector.getArrowValueVector)
+  }
 
   def fromArrowVector(valueVector: ValueVector)(implicit
     veProcess: VeProcess,

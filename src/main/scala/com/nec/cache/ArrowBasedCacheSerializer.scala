@@ -3,7 +3,7 @@ package com.nec.cache
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
 import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
@@ -102,20 +102,9 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
               case Some(acv) =>
                 acv.toBytePointerColVector.toByteArrayColVector
               case None =>
-                BytePointerColVector
-                  .fromColumnarVectorViaArrow(
-                    schema(i).name,
-                    columnarBatch.column(i),
-                    columnarBatch.numRows()
-                  ) match {
-                  case None =>
-                    throw new NotImplementedError(
-                      s"Type ${schema(i).dataType} not supported for columnar batch conversion"
-                    )
-                  case Some((fieldVector, bytePointerColVector)) =>
-                    try bytePointerColVector.toByteArrayColVector()
-                    finally fieldVector.close()
-                }
+                columnarBatch.column(i)
+                  .toBytePointerColVector(schema(i).name, columnarBatch.numRows)
+                  .toByteArrayColVector
             }
           )
           .toList

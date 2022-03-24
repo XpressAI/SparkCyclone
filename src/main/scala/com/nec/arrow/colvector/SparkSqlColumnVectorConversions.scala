@@ -1,11 +1,13 @@
 package com.nec.arrow.colvector
 
 import com.nec.spark.agile.core._
+import com.nec.util.ReflectionOps._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import org.apache.spark.sql.types._
 import java.nio.charset.StandardCharsets
 import java.util.BitSet
-import org.apache.spark.sql.vectorized.ColumnVector
+import org.apache.arrow.vector.FieldVector
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector}
 import org.bytedeco.javacpp._
 
 object SparkSqlColumnVectorConversions {
@@ -47,37 +49,38 @@ object SparkSqlColumnVectorConversions {
       val buffer = vector.dataType match {
         case IntegerType =>
           val ptr = new IntPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getInt(i)))
+          // Check for nullability first is required, or else a value fetch on a row marked as null will throw an exception
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getInt(i)))
           ptr
 
         case LongType =>
           val ptr = new LongPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getLong(i)))
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getLong(i)))
           ptr
 
         case FloatType =>
           val ptr = new FloatPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getFloat(i)))
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getFloat(i)))
           ptr
 
         case DoubleType =>
           val ptr = new DoublePointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getDouble(i)))
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getDouble(i)))
           ptr
 
         case ShortType =>
           val ptr = new IntPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getShort(i).toInt))
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getShort(i).toInt))
           ptr
 
         case TimestampType =>
           val ptr = new LongPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getLong(i)))
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getLong(i)))
           ptr
 
         case DateType =>
           val ptr = new IntPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, vector.getInt(i)))
+          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getInt(i)))
           ptr
       }
 
@@ -143,7 +146,37 @@ object SparkSqlColumnVectorConversions {
           varCharToBPCV(name, size)
 
         case other =>
-          throw new NotImplementedError(s"SparkSQL DataType not supported: ${other}")
+          throw new NotImplementedError(s"Conversion of SparkSQL DataType '${other}' to BytePointerColVector not supported")
+      }
+    }
+  }
+
+  implicit class SparkSqlColumnVectorToArrow(vector: ColumnVector) {
+    def getArrowValueVector: FieldVector = {
+      vector.asInstanceOf[ArrowColumnVector]
+        .readPrivate
+        .accessor
+        .vector
+        .obj
+        .asInstanceOf[FieldVector]
+    }
+
+    def getOptionalArrowValueVector: Option[FieldVector] = {
+      Option(vector).collect {
+        case x: ArrowColumnVector =>
+          x.readPrivate
+            .accessor
+            .vector
+            .obj
+            .asInstanceOf[FieldVector]
+      }
+    }
+  }
+
+  object HasFieldVector {
+    def unapply(vector: ColumnVector): Option[FieldVector] = {
+      PartialFunction.condOpt(vector.readPrivate.accessor.vector.obj) {
+        case x: FieldVector => x
       }
     }
   }

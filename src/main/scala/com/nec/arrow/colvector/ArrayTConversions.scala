@@ -74,7 +74,7 @@ object ArrayTConversions {
         VeNullableShort
 
       } else {
-        throw new NotImplementedError(s"No corresponding VeType for primitive type: ${klass}")
+        throw new NotImplementedError(s"No corresponding VeScalarType for primitive type: ${klass}")
       }
     }
 
@@ -258,7 +258,7 @@ object ArrayTConversions {
         toStringArray.asInstanceOf[Array[T]]
 
       } else {
-        throw new NotImplementedError(s"Cannot convert BytePointerColVector to Array[${klass.getName}]")
+        throw new NotImplementedError(s"Conversion of BytePointerColVector to Array[${klass.getName}] not supported")
       }
     }
   }
