@@ -12,6 +12,7 @@ import org.apache.spark.rdd.RDD
 
 import java.nio.file.Paths
 import scala.reflect.ClassTag
+import scala.reflect.io.Path
 import scala.reflect.runtime.universe._
 
 //class MappedVeRDD(prev: VeRDD[Int], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[Int](prev) {
@@ -49,7 +50,7 @@ class MappedVeRDD[T: ClassTag](prev: VeRDD[T], expr: Expr[T => T]) extends VeRDD
     println(s"Generated code:\n${func.toCodeLinesWithHeaders.cCode}")
 
     // compile
-    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders)
+    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders).toString
     println("compiled path:" + compiledPath)
 
     // Call compiled
@@ -57,7 +58,7 @@ class MappedVeRDD[T: ClassTag](prev: VeRDD[T], expr: Expr[T => T]) extends VeRDD
 
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-      val libRef = veProcess.loadLibrary(compiledPath)
+      val libRef = veProcess.loadLibrary(Paths.get(compiledPath))
       val batches = inputIterator.toList
       val iter = batches.map { batch =>
         evalFunction(func, libRef, batch.cols, outputs)

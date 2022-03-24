@@ -268,7 +268,7 @@ abstract class VeRDD[T: ClassTag](prev: RDD[T] with Vectorized) extends RDD[T](p
 
     val start1 = System.nanoTime()
 
-    val results = prev.getVectorData().mapPartitions { inputIterator =>
+    val results = this.getVectorData().mapPartitions { inputIterator =>
       //val start3 = System.nanoTime()
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
@@ -306,7 +306,7 @@ abstract class VeRDD[T: ClassTag](prev: RDD[T] with Vectorized) extends RDD[T](p
 
   override def reduce(f: (T, T) => T): T = {
 
-    val out = prev.getVectorData().mapPartitions { veColBatchIt =>
+    val out = this.getVectorData().mapPartitions { veColBatchIt =>
 
       veColBatchIt.flatMap(_.cols).flatMap { veColVector =>
           veColVectorToList[T](veColVector).iterator
