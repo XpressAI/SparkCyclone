@@ -19,7 +19,7 @@ import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
+class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
   val jobRdd: RDD[Int] = sparkContext.parallelize(0 until 8).repartition(8)
@@ -46,14 +46,14 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 
 
       val root = new RootAllocator(Int.MaxValue)
-      val arrowVector = typeOf[T] match {
-        case _: Int =>
+      val arrowVector = tag.tpe match {
+        case t: Type if t =:= typeOf[Int] =>
           new IntVector("", root)
-        case _: Long =>
+        case t: Type if t =:= typeOf[Long] =>
           new BigIntVector("", root)
-        case _: Option[Int] =>
+        case t: Type if t =:= typeOf[Option[Int]] =>
           new IntVector("", root)
-        case _: Option[Long] =>
+        case t: Type if t =:= typeOf[Option[Long]] =>
           new BigIntVector("", root)
       }
       arrowVector.setValueCount(valsArray.length)

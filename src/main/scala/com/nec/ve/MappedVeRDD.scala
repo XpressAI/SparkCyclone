@@ -16,9 +16,8 @@ import java.nio.file.Paths
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
-  def vereduce[U:ClassTag](expr: Expr[(T, T) => U]): U = {
-
+class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
+  def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
     println("vereduce got expr: " + showRaw(expr.tree))
 
     // transpile f to C
@@ -84,7 +83,7 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
     println(s"collect().sum took ${(end2 - start2) / 1000000000.0}s")
 
     ret.flatMap { (v: FieldVector) =>
-      typeOf[U] match {
+      tag.tpe match {
         case t: Type if t =:= typeOf[Long] || t =:= typeOf[Int] => {
           v match {
             case vec: BigIntVector =>
@@ -102,7 +101,7 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
           }
         }
       }
-    }.asInstanceOf[U]
+    }.asInstanceOf[T]
   }
 
   override def reduce(f: (T, T) => T): T = {
