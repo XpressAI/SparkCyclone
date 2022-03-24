@@ -2,11 +2,9 @@ package com.nec.ve
 
 import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.CVector
-import com.nec.spark.agile.core.CFunction2
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
+import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
@@ -62,14 +60,15 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 
       for ((v, i) <- valsArray.zipWithIndex) {
         (arrowVector, valsArray) match {
-        case (intVector: IntVector, a: Seq[Int]) =>
-          intVector.set(i, a(i).asInstanceOf[Int])
-        case (intVector: IntVector, v: Seq[Option[Int]]) =>
-          v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
-        case (intVector: BigIntVector, a: Seq[Long]) =>
-          intVector.set(i, a(i).asInstanceOf[Int])
-        case (intVector: BigIntVector, v: Seq[Option[Long]]) =>
-          v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+          case (intVector: IntVector, a: Seq[Int]) =>
+            intVector.set(i, v.asInstanceOf[Int])
+          case (intVector: IntVector, a: Seq[Option[Int]]) =>
+            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+          case (intVector: BigIntVector, a: Seq[Long]) =>
+            intVector.set(i, a(i).asInstanceOf[Int])
+          case (intVector: BigIntVector, a: Seq[Option[Long]]) =>
+            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+        }
       }
       val end = System.nanoTime()
 
@@ -86,7 +85,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
   inputs.filter(_ => false).collect()
   println("Finished collect()")
 
-  def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
+  def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD[T] = {
     import scala.reflect.runtime.universe._
 
     // TODO: for inspection, remove when done
@@ -99,11 +98,11 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     val code = transpiler.transpile(expr)
     val funcName = s"eval_${Math.abs(code.hashCode())}"
 
-    val outputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableLong))
+    val outputs = List(CVector("out", VeNullableLong))
     val func = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableLong)),
+        PointerPointer(CVector("a_in", VeNullableLong)),
         PointerPointer(outputs.head)
       ),
       code,

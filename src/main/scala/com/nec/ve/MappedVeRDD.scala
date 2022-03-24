@@ -1,14 +1,15 @@
 package com.nec.ve
 
+import com.nec.arrow.colvector.ArrowVectorConversions.BPCVToFieldVector
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.CVector
-import com.nec.spark.agile.core.CFunction2
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
+import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
+import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.BigIntVector
+import org.apache.arrow.vector.{BigIntVector, FieldVector, IntVector}
+import org.apache.spark.rdd.RDD
 import org.bytedeco.javacpp.LongPointer
 
 import java.nio.file.Paths
@@ -16,7 +17,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
-  def vereduce[U:ClassTag](expr: Expr[(T, T) => T]): T = {
+  def vereduce[U:ClassTag](expr: Expr[(T, T) => U]): U = {
 
     println("vereduce got expr: " + showRaw(expr.tree))
 
@@ -24,11 +25,11 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
     val code = transpiler.transpileReduce(expr)
     val funcName = s"reduce_${Math.abs(code.hashCode())}"
 
-    val newOutputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableLong))
+    val newOutputs = List(CVector("out", VeNullableLong))
     val newFunc = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableLong)),
+        PointerPointer(CVector("a_in", VeNullableLong)),
         PointerPointer(newOutputs.head)
       ),
       code,
@@ -67,10 +68,8 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
 
       implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
 
-      val intVecs = batch.cols.flatMap { col =>
-        val intVec = col.toArrowVector().asInstanceOf[BigIntVector]
-        val ids = (0 until intVec.getValueCount)
-        ids.map(intVec.get)
+      val intVecs = batch.cols.map { col =>
+        col.toBytePointerVector().toArrowVector(allocator)
       }
 
       val end4 = System.nanoTime()
@@ -84,10 +83,29 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
 
     println(s"collect().sum took ${(end2 - start2) / 1000000000.0}s")
 
-    ret.reduce((a, b) => a + b)
+    ret.flatMap { (v: FieldVector) =>
+      typeOf[U] match {
+        case t: Type if t =:= typeOf[Long] || t =:= typeOf[Int] => {
+          v match {
+            case vec: BigIntVector =>
+              (0 until vec.getValueCount).map(i => vec.get(i))
+            case vec: IntVector =>
+              (0 until vec.getValueCount).map(i => vec.get(i))
+          }
+        }
+        case t: Type if t =:= typeOf[Option[Long]] || t =:= typeOf[Option[Int]] => {
+          v match {
+            case vec: BigIntVector =>
+              (0 until vec.getValueCount).map(i => vec.get(i))
+            case vec: IntVector =>
+              (0 until vec.getValueCount).map(i => vec.get(i))
+          }
+        }
+      }
+    }.asInstanceOf[U]
   }
 
-  override def reduce(f: (Long, Long) => Long): Long = {
+  override def reduce(f: (T, T) => T): T = {
 
     val start1 = System.nanoTime()
 
@@ -129,7 +147,7 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
       val end4 = System.nanoTime()
       println(s"resultsing took ${(end4 - start4) / 1000000000.0}")
       r.toIterator
-    }
+    }.asInstanceOf[RDD[T]]
 
     val end2 = System.nanoTime()
 
