@@ -22,26 +22,15 @@ object RDDBench {
     val rdd2 = sc.parallelize(Seq(Some(1.toLong), Some(2.toLong), None))
 
     println("Making VeRDD")
-    <<<<<<< HEAD
     val verdd = toVectorizedRDD(rdd2)
 
     println("Starting Benchmark")
-    benchmark("01 - CPU", () => bench01cpu(rdd))
-    benchmark("01 - VE ", () => bench01ve(verdd))
-
-    dumpResult()
-
-    =======
-    val verdd = new VeRDD(rdd)
-
-    println("Starting Benchmark")
 
     benchmark("01 - VE ", () => bench01ve(verdd))
 
     dumpResult()
-    >>>>>>> eg_spark_stream_support
-      //Thread.sleep(300 * 1000)
-      finishUp()
+    //Thread.sleep(300 * 1000)
+    finishUp()
   }
 
   var lastVal: Long = 0
