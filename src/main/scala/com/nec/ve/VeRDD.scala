@@ -40,20 +40,23 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
       val root = new RootAllocator(Int.MaxValue)
 //      val intVec = new IntPointer(len.asInstanceOf[Long])
 //      intVec.put(vals, 0, vals.length)
+      //*
       val intVec = new BigIntVector("", root)
       intVec.allocateNew()
       intVec.setValueCount(valsIter.toArray.length)
 
       for ((value, i) <- valsIter.toArray.zipWithIndex) {
         if (value != None) intVec.set(i, value.asInstanceOf[Int])
+//        value.map(value => intVec.set(i, value.asInstanceOf[Int]))
       }
-
-      /*val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
-    intVec.allocateNew()
-    intVec.setValueCount(vals.length)
-    vals.zipWithIndex.foreach { case (v, i) =>
-      intVec.set(i, v.asInstanceOf[Int])
-    }
+      //*/
+      /*
+      val intVec = new BigIntVector("foo", new RootAllocator(Int.MaxValue))
+      intVec.allocateNew()
+      intVec.setValueCount(vals.length)
+      vals.zipWithIndex.foreach { case (v, i) =>
+        if (v != None) intVec.set(i, v.asInstanceOf[Int])
+      }
        */
       val end = System.nanoTime()
       println(s"Took ${(end - start) / 1000000000}s to convert ${vals.length} rows.")
