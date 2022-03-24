@@ -31,15 +31,16 @@ object SparkSqlColumnVectorConversions {
       // Compute the bitset
       val bitset = new BitSet(size)
       for (i <- 0 until size) {
-        bitset.set(i, vector.isNullAt(i))
+        bitset.set(i, !vector.isNullAt(i))
       }
 
       // Fetch the byte array representation of the bitset
       val bytes = bitset.toByteArray
 
       // Copy byte array over to BytePointer
-      val buffer = new BytePointer(bytes.size.toLong)
-      buffer.put(bytes, 0, bytes.size)
+      val bufsize = (size / 8.0).ceil.toInt
+      val buffer = new BytePointer(bufsize.toLong)
+      buffer.put(bytes, 0, bufsize)
     }
 
     private[colvector] def scalarDataBuffer(size: Int): BytePointer = {

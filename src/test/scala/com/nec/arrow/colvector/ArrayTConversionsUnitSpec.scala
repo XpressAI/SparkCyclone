@@ -11,9 +11,9 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class ArrayTConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Array[T]): Unit = {
+    implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"
-    val source = VeColVectorSource(s"${UUID.randomUUID}")
-    val colvec = input.toBytePointerColVector(name)(source)
+    val colvec = input.toBytePointerColVector(name)
 
     // Check fields
     colvec.underlying.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
@@ -38,29 +38,29 @@ class ArrayTConversionsUnitSpec extends AnyWordSpec {
 
   "ArrayTConversions" should {
     "correctly convert Array[Int] to BytePointerColVector and back" in {
-      runConversionTest(0.to(Random.nextInt(100)).map(_ => Random.nextInt(10000)).toArray)
+      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000)).toArray)
     }
 
     "correctly convert Array[Short] to BytePointerColVector and back" in {
-      runConversionTest(0.to(Random.nextInt(100)).map(_ => Random.nextInt(10000).toShort).toArray)
+      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000).toShort).toArray)
     }
 
     "correctly convert Array[Long] to BytePointerColVector and back" in {
-      runConversionTest(0.to(Random.nextInt(100)).map(_ => Random.nextLong).toArray)
+      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextLong).toArray)
     }
 
     "correctly convert Array[Float] to BytePointerColVector and back" in {
-      runConversionTest(0.to(Random.nextInt(100)).map(_ => Random.nextFloat * 1000).toArray)
+      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextFloat * 1000).toArray)
     }
 
     "correctly convert Array[Double] to BytePointerColVector and back" in {
-      runConversionTest(0.to(Random.nextInt(100)).map(_ => Random.nextDouble * 1000).toArray)
+      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextDouble * 1000).toArray)
     }
 
     "correctly convert Array[String] to BytePointerColVector and back" in {
-      val input = 0.to(Random.nextInt(100)).map(_ => Random.nextString(Random.nextInt(30))).toArray
+      val input = 0.until(Random.nextInt(100)).map(_ => Random.nextString(Random.nextInt(30))).toArray
       // Set one of the values to null
-      input(Random.nextInt(input.size)) = null
+      if (input.size > 0) input(Random.nextInt(input.size)) = null
 
       val name = s"${UUID.randomUUID}"
       val source = VeColVectorSource(s"${UUID.randomUUID}")

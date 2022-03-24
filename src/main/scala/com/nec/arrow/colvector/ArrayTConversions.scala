@@ -7,16 +7,16 @@ import java.util.BitSet
 import org.bytedeco.javacpp._
 
 object ArrayTConversions {
-  private[colvector] def constructValidityBuffer(n: Int): BytePointer = {
-    val size = (n / 8.0).ceil.toLong
-    val buffer = new BytePointer(size)
-    for (i <- 0 until size.toInt) {
-      buffer.put(i, -1.toByte)
-    }
-    buffer
-  }
-
   implicit class PrimitiveArrayToBPCV[T <: AnyVal : ClassTag](input: Array[T]) {
+    private[colvector] def constructValidityBuffer(n: Int): BytePointer = {
+      val size = (n / 8.0).ceil.toLong
+      val buffer = new BytePointer(size)
+      for (i <- 0 until size.toInt) {
+        buffer.put(i, -1.toByte)
+      }
+      buffer
+    }
+
     private[colvector] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
@@ -88,6 +88,7 @@ object ArrayTConversions {
           container = None,
           buffers = List(
             Option(dataBuffer),
+            // Since T <: AnyVal, they are non-nullable
             Option(constructValidityBuffer(input.size))
           ),
           variableSize = None
@@ -142,8 +143,10 @@ object ArrayTConversions {
       val bytes = bitset.toByteArray
 
       // Copy byte array over to BytePointer
-      val buffer = new BytePointer(bytes.size.toLong)
-      buffer.put(bytes, 0, bytes.size)
+      // Don't use bytes.size, because Array[Byte] will be empty if BitSet has only 0 bits
+      val bufsize = (input.size / 8.0).ceil.toInt
+      val buffer = new BytePointer(bufsize.toLong)
+      buffer.put(bytes, 0, bufsize)
     }
 
     private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {

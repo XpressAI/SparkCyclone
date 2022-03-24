@@ -10,6 +10,8 @@ import org.apache.arrow.vector.compare.VectorEqualsVisitor
 import org.bytedeco.javacpp._
 import sun.misc.Unsafe
 
+import java.nio.charset.StandardCharsets
+
 object ArrowVectorConversions {
   implicit class ValueVectorEqualityChecks(vector: ValueVector) {
     def === (other: ValueVector): Boolean = {
@@ -89,7 +91,7 @@ object ArrowVectorConversions {
             }
 
             // Parse it as UTF-32LE string and convert to UTF-8 bytes
-            val utf8bytes = new String(bytes,  "UTF-32LE").getBytes
+            val utf8bytes = new String(bytes,  "UTF-32LE").getBytes(StandardCharsets.UTF_8)
 
             // Write to Arrow
             vec.set(i, utf8bytes)
@@ -124,10 +126,13 @@ object ArrowVectorConversions {
         case vec: SmallIntVector =>
           // Specialize this case because values need to be cast to Int first
           vec.toBytePointerColVector
+
         case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
           vec.toBytePointerColVector
+
         case vec: VarCharVector =>
           vec.toBytePointerColVector
+
         case other =>
           throw new NotImplementedError(s"Cannot convert ${other.getClass.getName} to BytePointerColVector")
       }
