@@ -19,37 +19,12 @@
  */
 package com.nec.spark.planning
 
-import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
+import com.nec.util.ReflectionOps._
 import org.apache.arrow.vector.{FieldVector, Float8Vector}
 import org.apache.commons.lang3.reflect.FieldUtils
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector}
 
-import scala.language.dynamics
 object CEvaluationPlan {
-
-  object HasFloat8Vector {
-    final class PrivateReader(val obj: Object) extends Dynamic {
-      def selectDynamic(name: String): PrivateReader = {
-        val clz = obj.getClass
-        val field = FieldUtils.getAllFields(clz).find(_.getName == name) match {
-          case Some(f) => f
-          case None    => throw new NoSuchFieldException(s"Class $clz does not seem to have $name")
-        }
-        field.setAccessible(true)
-        new PrivateReader(field.get(obj))
-      }
-    }
-
-    implicit class RichObject(obj: Object) {
-      def readPrivate: PrivateReader = new PrivateReader(obj)
-    }
-    def unapply(arrowColumnVector: ArrowColumnVector): Option[Float8Vector] = {
-      PartialFunction.condOpt(arrowColumnVector.readPrivate.accessor.vector.obj) {
-        case fv: Float8Vector => fv
-      }
-    }
-  }
-
   object HasFieldVector {
     def unapply(columnVector: ColumnVector): Option[FieldVector] = {
       PartialFunction.condOpt(columnVector.readPrivate.accessor.vector.obj) {

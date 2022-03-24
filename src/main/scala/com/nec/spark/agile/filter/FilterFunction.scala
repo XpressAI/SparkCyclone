@@ -1,9 +1,8 @@
 package com.nec.spark.agile.filter
 
-import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, VeFilter}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, VeFilter}
 
 object FilterFunction {
   final val BitMaskId = "mask"

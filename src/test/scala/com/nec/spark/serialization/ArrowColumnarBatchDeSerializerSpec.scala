@@ -3,7 +3,6 @@ package com.nec.spark.serialization
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders.withDirectIntVector
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializer.RichFieldVector
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.ValueInfo.{
   FloatStorage,
@@ -15,6 +14,7 @@ import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.{
   genColB,
   ImmutableColBatch
 }
+import com.nec.util.ReflectionOps._
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector, IntVector, VarCharVector}

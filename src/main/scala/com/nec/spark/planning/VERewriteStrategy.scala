@@ -21,6 +21,7 @@ package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
 import com.nec.spark.agile.core.CodeLines
@@ -32,7 +33,7 @@ import com.nec.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, Grou
 import com.nec.spark.agile.join.{GenericJoiner, JoinMatcher}
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.spark.agile.projection.ProjectionFunction
-import com.nec.spark.agile.sort.SortFunction
+import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
@@ -194,12 +195,13 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
     implicit val fallback: EvalFallback = EvalFallback.noOp
     val orderingExpressions = orders
-      .map { case SortOrder(child, direction, _, _) =>
+      .map { case SortOrder(child, direction, nullOrdering, _) =>
         eval(replaceReferences(InputPrefix, plan.inputSet.toList, child))
           .map(elem =>
             VeSortExpression(
               TypedCExpression2(sparkTypeToScalarVeType(child.dataType), elem),
-              sparkSortDirectionToSortOrdering(direction)
+              direction,
+              nullOrdering
             )
           )
       }
@@ -402,7 +404,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
             // quick hack before doing something more proper
             AttributeReference(
               s"${veType}_${i}",
-              SparkExpressionToCExpression.likelySparkType(veType)
+              veType.toSparkType
             )()
           }
       )

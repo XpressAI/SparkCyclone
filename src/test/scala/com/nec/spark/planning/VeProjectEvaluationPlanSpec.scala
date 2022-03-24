@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
+import com.nec.spark.agile.core.VeNullableInt
 import com.nec.spark.planning.VeProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
 import com.nec.spark.planning.plans.VeProjectEvaluationPlan
 import com.nec.spark.planning.plans.VeProjectEvaluationPlan.ProjectionContext

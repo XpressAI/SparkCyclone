@@ -22,7 +22,7 @@ package com.nec.spark.agile.groupby
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import org.scalatest.freespec.AnyFreeSpec
 import ConvertNamedExpression._
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.groupby.GroupByOutline.StagedProjection
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,
@@ -43,7 +43,7 @@ final class ConvertNamedExpressionSpec extends AnyFreeSpec {
         idx = 9,
         childAttributes = Seq[Attribute](ar)
       )
-      assert(result.contains(StagedProjection("sp_9", VeScalarType.VeNullableDouble) -> ar))
+      assert(result.contains(StagedProjection("sp_9", VeNullableDouble) -> ar))
     }
     "Matches Alias" in {
       val ar = AttributeReference("testx", DoubleType)(exprId = ExprId(5L), qualifier = Seq.empty)
@@ -52,7 +52,7 @@ final class ConvertNamedExpressionSpec extends AnyFreeSpec {
         idx = 9,
         childAttributes = Seq[Attribute](ar)
       )
-      assert(result.contains(StagedProjection("sp_9", VeScalarType.VeNullableDouble) -> ar))
+      assert(result.contains(StagedProjection("sp_9", VeNullableDouble) -> ar))
     }
     "Fails to match when child attribute is not there for an attribute reference" in {
       val result = mapNamedStagedProjection(

@@ -1,7 +1,5 @@
 package com.nec.spark.agile.core
 
-import com.nec.spark.agile.CFunctionGeneration.CVector
-
 object CFunction2 {
   sealed trait IncludeHeader {
     def name: String

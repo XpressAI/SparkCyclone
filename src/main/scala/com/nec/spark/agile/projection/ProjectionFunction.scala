@@ -1,6 +1,6 @@
 package com.nec.spark.agile.projection
 
-import com.nec.spark.agile.core.CodeLines
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
 import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
