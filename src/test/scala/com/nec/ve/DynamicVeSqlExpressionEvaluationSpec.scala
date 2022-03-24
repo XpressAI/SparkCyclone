@@ -25,6 +25,8 @@ import com.nec.tpc.TPCHVESqlSpec
 import org.apache.spark.sql.SparkSession
 import org.bytedeco.veoffload.global.veo
 
+import java.util.{Timer, TimerTask}
+
 object DynamicVeSqlExpressionEvaluationSpec {
   def VeConfiguration: SparkSession.Builder => SparkSession.Builder =
     TPCHVESqlSpec.VeConfiguration(failFast = true)
@@ -44,19 +46,27 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
     super.beforeAll()
   }
 
-  "Use cyclone with spark streaming" ignore withSparkSession2(configuration) { (sparkSession: SparkSession) =>
-    val table = sparkSession.sqlContext.createDataFrame(sparkSession.sparkContext.parallelize(Seq(
-      (1,"111"),
-      (2,"111"),
-      (3,"222"),
-      (4,"222"),
-      (5,"222"),
-      (6,"111"),
-      (7,"333"),
-      (8,"444"),
-      (9,"555")
-    )))
+
+
+  "Use cyclone with spark streaming" in withSparkSession2(configuration) { (sparkSession: SparkSession) =>
+    import sparkSession.implicits._
+
+    val table = Seq(
+      Foo(1,"111"),
+      Foo(2,"111"),
+      Foo(3,"222"),
+      Foo(4,"222"),
+      Foo(5,"222"),
+      Foo(6,"111"),
+      Foo(7,"333"),
+      Foo(8,"444"),
+      Foo(9,"555")
+    ).toDS()
     table.createTempView("foo")
+
+    val res = sparkSession.sql("SELECT id, COUNT(*) FROM foo GROUP BY id")
+    res.explain(true)
+    res.collect().foreach(println)
 
 
     val df = sparkSession.readStream
@@ -78,8 +88,25 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
 
     println("After writeStream")
 
-    queryLines.processAllAvailable()
+    val currentThread = Thread.currentThread()
+    new Thread(() => {
+      val timer = new Timer()
+      timer.schedule(new TimerTask {
+        override def run(): Unit = {
+          currentThread.interrupt()
+        }
+      }, 10 * 1000)
+    }).start()
+
+    try {
+      queryLines.awaitTermination()
+    } catch {
+      case e: InterruptedException =>
+        // pass
+    }
 
     assert(true)
   }
 }
+
+case class Foo(id: Int, a: String)

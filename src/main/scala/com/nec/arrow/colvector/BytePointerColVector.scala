@@ -45,7 +45,9 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
   ): GenericColVector[Option[Long]] = {
     cycloneMetrics.measureRunningTime(
       underlying
-        .map(_.map(bp => veProcess.putPointer(bp)))
+        .map(_.map(bp => {
+          veProcess.putPointer(bp)
+        }))
         .copy(source = source)
     )(cycloneMetrics.registerTransferTime)
   }
@@ -165,6 +167,8 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
 }
 
 object BytePointerColVector {
+
+
   def fromOffHeapColumnarVector(size: Int, str: String, col: OffHeapColumnVector)(implicit
     source: VeColVectorSource
   ): Option[BytePointerColVector] = {
@@ -290,4 +294,21 @@ object BytePointerColVector {
       )
     )
 
+  def fromLongPointer(longPointer: LongPointer, validityBuffer: LongPointer)(implicit
+    source: VeColVectorSource
+  ): BytePointerColVector =
+    BytePointerColVector(
+      GenericColVector(
+        source = source,
+        numItems = longPointer.limit().toInt,
+        name = s"lp-${longPointer.address()}",
+        veType = VeScalarType.veNullableLong,
+        container = None,
+        buffers = List(
+          Option(new BytePointer(longPointer)),
+          Option(new BytePointer(validityBuffer))
+        ),
+        variableSize = None
+      )
+    )
 }

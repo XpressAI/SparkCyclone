@@ -8,35 +8,37 @@ object RDDBench {
   var timings: Map[String, Double] = Map()
 
   def main(args: Array[String]): Unit = {
-    import com.nec.ve.VeRDD.toVectorizedRDD
-
     println("RDD Benchmark")
 
     println("setup")
     sc = setup()
 
     println("Making numbers")
-    val numbers = (1 to (1000000)).toArray
-    val rdd = sc.parallelize(numbers).repartition(8)
+    val numbers = (1.toLong to (100 * 1000000.toLong)).toArray
+    val rdd = sc.parallelize(numbers).repartition(8).cache()
+    benchmark("01 - CPU",  () => bench01cpu(rdd))
 
     println("Making VeRDD")
-    val verdd = toVectorizedRDD(rdd)
+    val verdd = new VeRDD(rdd)
 
     println("Starting Benchmark")
-    benchmark("01 - CPU",  () => bench01cpu(rdd))
+
     benchmark("01 - VE ", () => bench01ve(verdd))
 
     dumpResult()
-
-
     //Thread.sleep(300 * 1000)
-
     finishUp()
   }
 
-  def benchmark(title: String, f: () => Unit): Unit = {
+  var lastVal: Long = 0
+  def benchmark(title: String, f: () => Long): Unit = {
     val ts_start = System.nanoTime()
-    f()
+    if (lastVal == 0) {
+      lastVal = f()
+    } else {
+      val newVal = f()
+      println(s"Values match: ${lastVal == newVal}")
+    }
     val ts_end = System.nanoTime()
     val diff = (ts_end - ts_start) / 1000000000.0
     timings = timings + (title -> diff)
@@ -51,23 +53,25 @@ object RDDBench {
   }
 
 
-  def bench01cpu(rdd: RDD[Int]): Unit = {
+  def bench01cpu(rdd: RDD[Long]): Long = {
 
+    val rdd2 = sc.parallelize(Seq(Some(10), None))
     val mappedRdd = rdd.map( (a) => 2 * a + 12)
     val result = mappedRdd.reduce( (a,b) => a + b)
 
     println("result of bench01 is " + result)
-
+    result
   }
 
-  def bench01ve(rdd: VeRDD[Int]): Unit = {
+  def bench01ve(rdd: VeRDD[Long]): Long = {
     import scala.reflect.runtime.universe._
 
-    val expr = reify( (a: Int) => 2 * a + 12)
+    val expr = reify( (a: Long) => 2 * a + 12)
     val mappedRdd = rdd.vemap(expr)
-    val result = mappedRdd.vereduce(reify((a: Int,b: Int) => a + b))
+    val result = mappedRdd.vereduce(reify((a: Long,b: Long) => a + b))
 
     println("result of bench01 is " + result)
+    result
   }
 
 

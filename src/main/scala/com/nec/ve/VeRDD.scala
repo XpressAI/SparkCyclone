@@ -1,19 +1,19 @@
 package com.nec.ve
 
 import com.nec.native.CppTranspiler
-import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration.CVector
 import com.nec.spark.agile.core.CFunction2
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
+import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.{BigIntVector, IntVector}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partition, TaskContext}
-import org.bytedeco.javacpp.IntPointer
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
@@ -24,30 +24,67 @@ import scala.reflect.runtime.universe._
 class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
-  val inputs: RDD[VeColBatch] = rdd.mapPartitions { valsIter =>
-    println("Reading inputs")
-    val start = System.nanoTime()
+  val jobRdd: RDD[Int] = sparkContext.parallelize(0 until 8).repartition(8)
+  val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-    val vals = valsIter.toArray.asInstanceOf[Array[Int]]
-    val len = vals.length
-    val intVec = new IntPointer(len.asInstanceOf[Long])
-    intVec.put(vals, 0, vals.length)
+    if (SparkCycloneExecutorPlugin.containsCachedBatch("inputs")) {
+      println(s"Using cached inputs for ${index}")
 
-    /*val intVec = new IntVector("foo", new RootAllocator(Int.MaxValue))
-    intVec.allocateNew()
-    intVec.setValueCount(vals.length)
-    vals.zipWithIndex.foreach { case (v, i) =>
-      intVec.set(i, v.asInstanceOf[Int])
+      val valsArray = valsIter.toArray.asInstanceOf[Array[Long]]
+
+      println(s"First value: ${valsArray(0)}")
+      println(s"Last value: ${valsArray(valsArray.length - 1)}")
+
+      Iterator(SparkCycloneExecutorPlugin.getCachedBatch(s"inputs"))
+    } else {
+      println(s"Reading inputs for ${index}")
+      val start = System.nanoTime()
+
+      val valsArray = valsIter.toSeq
+      println(s"First value: ${valsArray.head}")
+      println(s"Last value: ${valsArray.last}")
+
+
+      val root = new RootAllocator(Int.MaxValue)
+      val arrowVector = typeOf[T] match {
+        case _: Int =>
+          new IntVector("", root)
+        case _: Long =>
+          new BigIntVector("", root)
+        case _: Option[Int] =>
+          new IntVector("", root)
+        case _: Option[Long] =>
+          new BigIntVector("", root)
+      }
+      arrowVector.setValueCount(valsArray.length)
+
+      for ((v, i) <- valsArray.zipWithIndex) {
+        (arrowVector, valsArray) match {
+        case (intVector: IntVector, a: Seq[Int]) =>
+          intVector.set(i, a(i).asInstanceOf[Int])
+        case (intVector: IntVector, v: Seq[Option[Int]]) =>
+          v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+        case (intVector: BigIntVector, a: Seq[Long]) =>
+          intVector.set(i, a(i).asInstanceOf[Int])
+        case (intVector: BigIntVector, v: Seq[Option[Long]]) =>
+          v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+      }
+      val end = System.nanoTime()
+
+      println(s"Took ${(end - start) / 1000000000}s to convert ${arrowVector.getValueCount} rows.")
+
+      //val batch = VeColBatch.fromList(List(VeColVector.fromPointer(intVec)))
+      val batch = VeColBatch.fromList(List(VeColVector.fromArrowVector(arrowVector)))
+      SparkCycloneExecutorPlugin.registerCachedBatch("input", batch)
+      Iterator(batch)
     }
-    */
-    val end = System.nanoTime()
-    println(s"Took ${(end - start) / 1000000000}s to convert ${vals.length} rows.")
-    Iterator(VeColBatch.fromList(List(VeColVector.fromPointer(intVec))))
-    //Iterator(VeColBatch.fromList(List(VeColVector.fromArrowVector(intVec))))
-  }.persist(StorageLevel.MEMORY_ONLY)
-  val inputCount: Long = inputs.count()
+  }
+  // Trigger caching of VeColBatches
+  println("Trying to trigger VeColBatch caching.")
+  inputs.filter(_ => false).collect()
+  println("Finished collect()")
 
   def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
     import scala.reflect.runtime.universe._
@@ -62,11 +99,11 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     val code = transpiler.transpile(expr)
     val funcName = s"eval_${Math.abs(code.hashCode())}"
 
-    val outputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableInt))
+    val outputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableLong))
     val func = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableInt)),
+        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableLong)),
         PointerPointer(outputs.head)
       ),
       code,
@@ -80,7 +117,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
-    new MappedVeRDD(this.asInstanceOf[RDD[Int]], func, compiledPath.toAbsolutePath.toString, outputs)
+    new MappedVeRDD(this, func, compiledPath.toAbsolutePath.toString, outputs)
   }
 
   override def collect(): Array[T] = super.collect()
