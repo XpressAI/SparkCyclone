@@ -24,7 +24,7 @@ import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{
   GroupByProjection
 }
 import com.nec.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{veNullableDouble, VeNullableDouble}
+import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
@@ -52,7 +52,7 @@ final class AggregateExpressionEvaluationSpec
     )(
       NamedGroupByExpression(
         "exp",
-        veNullableDouble,
+        VeNullableDouble,
         GroupByAggregation(
           Aggregation.sum(CExpression("input_2->data[i] - input_0->data[i]", None))
         )
@@ -65,7 +65,7 @@ final class AggregateExpressionEvaluationSpec
     val result = evalAggregate[Double, Double](List[Double](1, 2, 3))(
       NamedGroupByExpression(
         "exp",
-        veNullableDouble,
+        VeNullableDouble,
         GroupByAggregation(Aggregation.avg(CExpression("input_0->data[i]", None)))
       )
     )
@@ -77,10 +77,10 @@ final class AggregateExpressionEvaluationSpec
       List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (3, 4, 9)),
       groups = List(
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_0->data[i]", None))
         ),
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_1->data[i]", None))
         )
       ),
       expressions = List(
@@ -125,7 +125,7 @@ final class AggregateExpressionEvaluationSpec
         (
           StringGrouping("input_0"),
           TypedCExpression2(
-            VeScalarType.veNullableDouble,
+            VeNullableDouble,
             CExpression("input_1->data[i] * input_1->data[i]", None)
           )
         )
@@ -150,10 +150,10 @@ final class AggregateExpressionEvaluationSpec
       input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
       groups = List(
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_0->data[i]", None))
         ),
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_1->data[i]", None))
         )
       ),
       expressions = List(
@@ -196,12 +196,12 @@ final class AggregateExpressionEvaluationSpec
       groups = List(
         Right(
           TypedCExpression2(
-            VeScalarType.veNullableDouble,
+            VeNullableDouble,
             CExpression("input_0->data[i]", Some("input_2->data[i] != 4.0"))
           )
         ),
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_1->data[i]", None))
         )
       ),
       expressions = List(
@@ -251,13 +251,13 @@ final class AggregateExpressionEvaluationSpec
         groups = List(
           Right(
             TypedCExpression2(
-              VeScalarType.veNullableDouble,
+              VeNullableDouble,
               CExpression("input_0->data[i]", Some("input_0->get_validity(i)"))
             )
           ),
           Right(
             TypedCExpression2(
-              VeScalarType.veNullableDouble,
+              VeNullableDouble,
               CExpression("input_1->data[i]", Some("input_1->get_validity(i)"))
             )
           )
@@ -310,10 +310,10 @@ final class AggregateExpressionEvaluationSpec
       input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0)),
       groups = List(
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_0->data[i]", None))
         ),
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_1->data[i]", None))
         )
       ),
       expressions = List(
@@ -354,10 +354,10 @@ final class AggregateExpressionEvaluationSpec
       input = List((1.0, 2.0, 3.0), (1.5, 1.2, 3.1), (1.0, 2.0, 4.0), (1.5, 1.2, 4.1)),
       groups = List(
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_0->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_0->data[i]", None))
         ),
         Right(
-          TypedCExpression2(VeScalarType.veNullableDouble, CExpression("input_1->data[i]", None))
+          TypedCExpression2(VeNullableDouble, CExpression("input_1->data[i]", None))
         )
       ),
       expressions = List(

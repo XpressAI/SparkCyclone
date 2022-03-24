@@ -21,9 +21,10 @@ package com.nec.ve.eval
 
 import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
 import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils._
 import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -224,7 +225,7 @@ object StaticTypingTestAdditions {
 
   }
   trait VeRetriever[Output] {
-    final def makeCVectors: List[CFunctionGeneration.CVector] = veTypes.zipWithIndex.map {
+    final def makeCVectors: List[CVector] = veTypes.zipWithIndex.map {
       case (veType, idx) => veType.makeCVector(s"output_${idx}")
     }
     def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Output]
@@ -239,7 +240,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -257,7 +258,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -279,7 +280,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Double, Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -299,7 +300,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[Option[Double]] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.flatMap { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -312,7 +313,7 @@ object StaticTypingTestAdditions {
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Int] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.flatMap { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[IntVector].toList
             finally arrow.close()
           }
@@ -325,7 +326,7 @@ object StaticTypingTestAdditions {
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Double] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.flatMap { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toList
             finally arrow.close()
           }
@@ -341,7 +342,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Double, Option[Double])] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -359,7 +360,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Double)] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -378,7 +379,7 @@ object StaticTypingTestAdditions {
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Option[Double])] = {
         WithTestAllocator { implicit alloc =>
           veColBatch.cols.map { col =>
-            val arrow = col.toArrowVector()
+            val arrow = col.toBytePointerVector.toArrowVector
             try arrow.asInstanceOf[Float8Vector].toListSafe
             finally arrow.close()
           }
@@ -395,7 +396,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(String, Double)] = {
         WithTestAllocator { implicit alloc =>
-          val colA :: colB :: Nil = veColBatch.cols.map(_.toArrowVector())
+          val colA :: colB :: Nil = veColBatch.cols.map(_.toBytePointerVector.toArrowVector)
 
           try colA.asInstanceOf[VarCharVector].toList.zip(colA.asInstanceOf[Float8Vector].toList)
           finally {
@@ -424,10 +425,10 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
-        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
-        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
-        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
+        NamedJoinExpression("output_1", VeNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeNullableDouble, output._4.joinExpression)
       )
 
     implicit val forQuartetDoubleOption: JoinExpressor[
@@ -439,10 +440,10 @@ object StaticTypingTestAdditions {
       )
     ] = output =>
       List(
-        NamedJoinExpression("output_1", VeScalarType.veNullableDouble, output._1.joinExpression),
-        NamedJoinExpression("output_2", VeScalarType.veNullableDouble, output._2.joinExpression),
-        NamedJoinExpression("output_3", VeScalarType.veNullableDouble, output._3.joinExpression),
-        NamedJoinExpression("output_4", VeScalarType.veNullableDouble, output._4.joinExpression)
+        NamedJoinExpression("output_1", VeNullableDouble, output._1.joinExpression),
+        NamedJoinExpression("output_2", VeNullableDouble, output._2.joinExpression),
+        NamedJoinExpression("output_3", VeNullableDouble, output._3.joinExpression),
+        NamedJoinExpression("output_4", VeNullableDouble, output._4.joinExpression)
       )
   }
 }

@@ -1,6 +1,6 @@
 package com.nec.arrow.colvector
 
-import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector

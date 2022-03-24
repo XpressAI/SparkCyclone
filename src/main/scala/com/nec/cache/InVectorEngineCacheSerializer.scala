@@ -2,10 +2,11 @@ package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.ve.{VeColBatch, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.{VeColBatch, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
@@ -43,7 +44,7 @@ object InVectorEngineCacheSerializer {
       .map { columnarBatch =>
         import SparkCycloneExecutorPlugin._
         val veColBatch = VeColBatch.fromArrowColumnarBatch(columnarBatch)
-        SparkCycloneExecutorPlugin.registerCachedBatch(veColBatch)
+        //SparkCycloneExecutorPlugin.registerCachedBatch(veColBatch)
         try CachedVeBatch(DualColumnarBatchContainer(vecs = veColBatch.cols.map(cv => Left(cv))))
         finally columnarBatch.close()
       }
@@ -85,8 +86,8 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
     TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
 
-    import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
+    import com.nec.spark.SparkCycloneExecutorPlugin._
     columnarBatches.map { columnarBatch =>
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())
@@ -94,9 +95,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
                 import OriginalCallingContext.Automatic._
-                BytePointerColVector
-                  .fromArrowVector(acv)
-                  .toVeColVector()
+                acv.toBytePointerColVector.toVeColVector
               case None =>
                 BytePointerColVector
                   .fromColumnarVectorViaArrow(

@@ -21,7 +21,10 @@ package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
+import com.nec.spark.agile.sort.VeSortExpression
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, NullsFirst, NullsLast}
 import com.nec.ve._
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -37,10 +40,11 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       evalSort[(Double, Double)]((90.0, 5.0), (1.0, 4.0), (2.0, 2.0), (19.0, 1.0), (14.0, 3.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble,
+            VeNullableDouble,
             CExpression(cCode = "input_1->data[i]", isNotNullCode = None)
           ),
-          Ascending
+          Ascending,
+          NullsLast
         )
       ) ==
         List[(Double, Double)](19.0 -> 1.0, 2.0 -> 2.0, 14.0 -> 3.0, 1.0 -> 4.0, 90.0 -> 5.0)
@@ -52,10 +56,11 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       evalSort[(Double, Double, Double)]((90.0, 5.0, 1.0), (1.0, 4.0, 3.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble,
+            VeNullableDouble,
             CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
           ),
-          Ascending
+          Ascending,
+          NullsLast
         )
       )
     val expected =
@@ -68,10 +73,11 @@ final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess 
       evalSort[(Double, Double, Double)]((1.0, 4.0, 3.0), (90.0, 5.0, 1.0), (2.0, 2.0, 0.0))(
         VeSortExpression(
           TypedCExpression2(
-            VeScalarType.VeNullableDouble,
+            VeNullableDouble,
             CExpression(cCode = "input_2->data[i]", isNotNullCode = None)
           ),
-          Descending
+          Descending,
+          NullsLast
         )
       )
     val expected =

@@ -3,7 +3,7 @@ package com.nec.spark.agile.exchange
 import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
 import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
+import com.nec.spark.agile.core.{CVector, VeType}
 
 object GroupingFunction {
   final val GroupAssignmentsId = "bucket_assignments"

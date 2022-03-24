@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
 import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
+import com.nec.spark.agile.core.{CVector, VeType}
 import com.nec.spark.planning.LibLocation.LibLocation
 import com.nec.spark.planning.VeFunction.VeFunctionStatus
 

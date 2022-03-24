@@ -6,12 +6,11 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 object CppTranspiler {
-  def transpileReduce(expr: universe.Expr[(Int, Int) => Int]): String = {
+  def transpileReduce[T](expr: universe.Expr[(T, T) => T]): String = {
     expr.tree match {
       case fun @ Function(vparams, body) => evalReduce(fun)
     }
   }
-
 
   var functionNames: List[String] = List()
 
@@ -31,7 +30,7 @@ object CppTranspiler {
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = nullable_int_vector::allocate();",
+        s"out[0] = nullable_bigint_vector::allocate();",
         s"out[0]->resize(1);",
         s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
         s"${evalScalarType(defs.tail.head.tpt)} ${defs.tail.head.name}{};",
@@ -42,7 +41,8 @@ object CppTranspiler {
         ).indented,
         "}",
         s"out[0]->data[0] = ${defs.tail.head.name};",
-        s"out[0]->set_validity(0, 1);"
+        s"out[0]->set_validity(0, 1);",
+        //s"""std::cout << "out[0]->data[0] = " << out[0]->data[0] << std::endl;""",
       ).indented.cCode
       case unknown => showRaw(unknown)
     }
@@ -131,7 +131,7 @@ object CppTranspiler {
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = nullable_int_vector::allocate();",
+        s"out[0] = nullable_bigint_vector::allocate();",
         s"out[0]->resize(len);",
         defs.map { d =>
           s"${evalScalarType(d.tpt)} ${d.name}{};"
@@ -142,6 +142,7 @@ object CppTranspiler {
             s"${d.name} = ${d.name}_in[0]->data[i];"
           },
           s"out[0]->data[i] = ${evalApply(apply)};",
+          //s"""std::cout << a_in[0]->data[i] << std::endl;""",
           s"out[0]->set_validity(i, 1);"
         ).indented,
         "}",

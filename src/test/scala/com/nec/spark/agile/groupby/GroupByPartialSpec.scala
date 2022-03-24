@@ -1,8 +1,7 @@
 package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CExpression, CVector, TypedCExpression2}
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.{VeNullableDouble, VeNullableInt}
+import com.nec.spark.agile.CFunctionGeneration.{CExpression, TypedCExpression2}
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregationAttribute, StagedProjection, StringReference}
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}

@@ -34,6 +34,8 @@ import org.bytedeco.veoffload.veo_proc_handle
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.collection.convert.ImplicitConversions.`collection asJava`
+import scala.collection.mutable
 import scala.util.Try
 
 object SparkCycloneExecutorPlugin extends LazyLogging {
@@ -73,6 +75,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
    * *
    */
   var CloseAutomatically: Boolean = true
+
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
       veo.veo_proc_destroy(_veo_proc)
@@ -86,54 +89,66 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     NodeCount * 8
   }
 
-  @transient private val cachedBatches: scala.collection.mutable.Set[VeColBatch] =
-    scala.collection.mutable.Set.empty
-
-  @transient private val cachedCols: scala.collection.mutable.Set[VeColVector] =
-    scala.collection.mutable.Set.empty
-
-  private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
-    cachedBatches.toList.foreach { colBatch =>
-      cachedBatches.remove(colBatch)
-      colBatch.cols.foreach(freeCachedCol)
-    }
-  }
-
-  def freeCachedCol(
-    col: VeColVector
-  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
-    if (cachedCols.contains(col)) {
-      cachedCols.remove(col)
-      col.free()
-    }
-  }
-
-  def registerCachedBatch(cb: VeColBatch): Unit = {
-    cachedBatches.add(cb)
-    cb.cols.foreach(cachedCols.add)
-  }
-
-  var CleanUpCache: Boolean = true
-
-  def cleanUpIfNotCached(
-    veColBatch: VeColBatch
-  )(implicit originalCallingContext: OriginalCallingContext): Unit =
-    if (cachedBatches.contains(veColBatch))
-      logger.trace(
-        s"Data at ${veColBatch.cols
-          .map(_.containerLocation)} will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
-      )
-    else {
-      val (cached, notCached) = veColBatch.cols.partition(cachedCols.contains)
-      logger.trace(s"Will clean up data for ${cached
-        .map(_.bufferLocations)}, and not clean up for ${notCached.map(_.allAllocations)}")
-      notCached.foreach(_.free())
-    }
-
   var theMetrics: ProcessExecutorMetrics = _
 
   object ImplicitMetrics {
     implicit def processMetrics: VeProcessMetrics = theMetrics
+  }
+
+  var CleanUpCache: Boolean = true
+
+  @transient private val cachedBatches: mutable.Map[String, VeColBatch] = mutable.HashMap.empty
+
+  @transient private val cachedCols: mutable.Map[String, VeColVector] = mutable.HashMap.empty
+
+  private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
+    cachedBatches.toList.foreach { colBatch =>
+      cachedBatches.remove(colBatch._1)
+      colBatch._2.cols.zipWithIndex.foreach { case (_, i) =>
+        freeCachedCol(s"${colBatch._1}-${i}")
+      }
+    }
+  }
+
+  def freeCachedCol(
+    col: String
+  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
+    if (cachedCols.contains(col)) {
+      cachedCols(col).free()
+      cachedCols.remove(col)
+    }
+  }
+
+  def containsCachedBatch(name: String): Boolean = cachedBatches.contains(name)
+  def getCachedBatch(name: String): VeColBatch = cachedBatches(name)
+
+  def registerCachedBatch(name: String, cb: VeColBatch): Unit = {
+    cachedBatches(name) = cb
+
+    cb.cols.zipWithIndex.foreach { case (col, i) =>
+      cachedCols(s"$name-$i") = col
+    }
+  }
+
+
+  def cleanUpIfNotCached(
+    veColBatch: VeColBatch
+  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
+    if (cachedBatches.values.contains(veColBatch)) {
+      logger.trace(
+        s"Data at ${
+          veColBatch.cols
+            .map(_.containerLocation)
+        } will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
+      )
+    } else {
+      val (cached, notCached) = veColBatch.cols.partition(cachedCols.values.contains)
+      logger.trace(s"Will clean up data for ${
+        cached
+          .map(_.bufferLocations)
+      }, and not clean up for ${notCached.map(_.allAllocations)}")
+      notCached.foreach(_.free())
+    }
   }
 }
 

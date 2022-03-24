@@ -2,18 +2,16 @@ package com.nec.ve.colvector
 
 import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
-import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
+import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
-import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
-import sun.misc.Unsafe
+import org.bytedeco.javacpp.{BytePointer}
 
 import java.io.OutputStream
 
@@ -38,7 +36,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   import underlying._
   def toInternalVector(): ColumnVector =
-    new VeColColumnarVector(Left(this), likelySparkType(veType))
+    new VeColColumnarVector(Left(this), veType.toSparkType)
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
@@ -124,11 +122,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   def containerSize: Int = veType.containerSize
 
-  def toArrowVector()(implicit
-    veProcess: VeProcess,
-    bufferAllocator: BufferAllocator
-  ): FieldVector = toBytePointerVector().toArrowVector()
-
   def free()(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
@@ -165,12 +158,6 @@ object VeColVector {
     )
   )
 
-  def getUnsafe: Unsafe = {
-    val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
-    theUnsafe.setAccessible(true)
-    theUnsafe.get(null).asInstanceOf[Unsafe]
-  }
-
   def fromVectorColumn(numRows: Int, source: ColumnVector)(implicit
     veProcess: VeProcess,
     _source: VeColVectorSource,
@@ -183,23 +170,7 @@ object VeColVector {
     source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext,
     cycloneMetrics: VeProcessMetrics
-  ): VeColVector =
-    BytePointerColVector
-      .fromArrowVector(valueVector)
-      .toVeColVector()
-
-  def fromPointer(pointer: IntPointer)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
   ): VeColVector = {
-    val size = Math.ceil(pointer.limit() / 64).toLong
-    val lp = new LongPointer(size.toLong)
-    for (i <- 0 until size.toInt) {
-      lp.put(i, -1)
-    }
-    BytePointerColVector.fromIntPointer(pointer, lp)
-      .toVeColVector()
+    valueVector.toBytePointerColVector(source).toVeColVector
   }
 }

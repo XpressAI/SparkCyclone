@@ -1,7 +1,6 @@
 package com.nec.arrow.colvector
 
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.agile.SparkExpressionToCExpression.likelySparkType
 import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
@@ -17,7 +16,7 @@ final case class ByteArrayColVector(underlying: GenericColVector[Option[Array[By
   import underlying._
 
   def toInternalVector(): ColumnVector =
-    new VeColColumnarVector(Right(this), likelySparkType(veType))
+    new VeColColumnarVector(Right(this), veType.toSparkType)
 
   def transferBuffersToVe()(implicit
     veProcess: VeProcess,

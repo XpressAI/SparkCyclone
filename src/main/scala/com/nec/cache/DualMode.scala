@@ -2,7 +2,7 @@ package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
-import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
+import com.nec.util.ReflectionOps._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
