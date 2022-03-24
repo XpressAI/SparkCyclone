@@ -65,16 +65,15 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
           case (intVector: IntVector, a: Seq[Option[Int]]) =>
             v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
           case (intVector: BigIntVector, a: Seq[Long]) =>
-            intVector.set(i, a(i).asInstanceOf[Int])
+            intVector.set(i, a(i).asInstanceOf[Long])
           case (intVector: BigIntVector, a: Seq[Option[Long]]) =>
-            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+            v.asInstanceOf[Option[Long]].foreach(x => intVector.set(i, x))
         }
       }
       val end = System.nanoTime()
 
       println(s"Took ${(end - start) / 1000000000}s to convert ${arrowVector.getValueCount} rows.")
 
-      //val batch = VeColBatch.fromList(List(VeColVector.fromPointer(intVec)))
       val batch = VeColBatch.fromList(List(VeColVector.fromArrowVector(arrowVector)))
       SparkCycloneExecutorPlugin.registerCachedBatch("input", batch)
       Iterator(batch)
@@ -82,7 +81,6 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
   }
   // Trigger caching of VeColBatches
   println("Trying to trigger VeColBatch caching.")
-  inputs.filter(_ => false).collect()
   println("Finished collect()")
 
   def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD[T] = {
