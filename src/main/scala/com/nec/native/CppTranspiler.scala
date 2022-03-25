@@ -301,6 +301,7 @@ object CppTranspiler {
       case TermName("$less") => " < "
       case TermName("$greater") => " > "
       case TermName("$eq$eq") => " == "
+      case TermName("$percent") => " % "
       case unknown => "<< <UNKNOWN> in evalName>>"
     }
   }

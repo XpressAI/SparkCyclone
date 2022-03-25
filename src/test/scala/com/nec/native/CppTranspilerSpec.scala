@@ -35,7 +35,10 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeEq, cppSources.testFilterEq)
   }
 
-
+  "mod filter" in {
+    val genCodeMod = CppTranspiler.transpileFilter(reify( (x: Int) => x % 2 == 0))
+    assertCodeEqualish(genCodeMod, cppSources.testFilterMod)
+  }
 
 
 }
@@ -133,4 +136,23 @@ object cppSources {
           |  out[0]->resize(actual_len);
           |  """.stripMargin
 
+
+      val testFilterMod =
+        """
+          |size_t len = x_in[0]->count;
+          |  size_t actual_len = 0;
+          |  out[0] = nullable_bigint_vector::allocate();
+          |  out[0]->resize(len);
+          |  int32_t x{};
+          |  for (int i = 0; i < len; i++) {
+          |    x = x_in[0]->data[i];
+          |    if ( ((x % 2) == 0) ) {
+          |      out[0]->data[actual_len++] = x;
+          |    }
+          |  }
+          |  for (int i=0; i < actual_len; i++) {
+          |    out[0]->set_validity(i, 1);
+          |  }
+          |  out[0]->resize(actual_len);
+          |""".stripMargin
 }
