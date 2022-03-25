@@ -70,6 +70,8 @@ object RDDBench {
     val mappedRdd = rdd.vemap(expr)
     val result = mappedRdd.vereduce(reify((a: Long,b: Long) => a + b))
 
+    val filtered = result.vefilter(reify( (x: Long) => True))
+
     println("result of bench01 is " + result)
     result
   }

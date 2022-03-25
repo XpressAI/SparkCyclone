@@ -25,8 +25,6 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(gencodeTrue, cppSources.testFilterTrivialBoolTrue)
     assertCodeEqualish(gencodeFalse, cppSources.testFilterTrivialBoolFalse)
   }
-
-
 }
 
 object cppSources {
@@ -47,25 +45,24 @@ object cppSources {
       |""".stripMargin
 
     val testFilterTrivialBoolTrue =
-    """
-        |size_t len = x_in[0]->count;
-        |out[0] = nullable_bigint_vector::allocate();
-        |out[0]->resize(len);
-        |int32_t x{};
-        |for (int i = 0; i < len; i++) {
-        |  out[0]->data[i] = 1;
-        |}
+      """
+        |  size_t len = x_in[0]->count;
+        |  out[0] = nullable_bigint_vector::allocate();
+        |  out[0]->resize(len);
+        |  int32_t x{};
+        |  for (int i = 0; i < len; i++) {
+        |    out[0]->data[i] = x_in[0]->data[i];
+        |  }
+        |  out[0]->set_validity(0, len);
         |""".stripMargin
+
 
     val testFilterTrivialBoolFalse =
       """
-        |size_t len = x_in[0]->count;
-        |out[0] = nullable_bigint_vector::allocate();
-        |out[0]->resize(len);
-        |int32_t x{};
-        |for (int i = 0; i < len; i++) {
-        |  out[0]->data[i] = 0;
-        |}
+        |  size_t len = x_in[0]->count;
+        |  out[0] = nullable_bigint_vector::allocate();
+        |  out[0]->resize(0);
+        |  out[0]->set_validity(0, 0);
         |""".stripMargin
 
 }

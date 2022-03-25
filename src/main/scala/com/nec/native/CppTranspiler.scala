@@ -15,15 +15,9 @@ object CppTranspiler {
   def transpileFilter[T](expr: universe.Expr[ T => Boolean]): String = {
     expr.tree match {
       case fun @ Function(vparams, body) => evalFilter(fun)
-      case Literal(value) => evalLiteral(value)
     }
   }
 
-  def evalLiteral(value: ): String = value match {
-    case Constant(true) => "1"
-    case Constant(false) => "0"
-    case Constant(value) => value.toString
-  }
   var functionNames: List[String] = List()
 
   // entry point
@@ -68,20 +62,41 @@ object CppTranspiler {
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+        s"size_t actual_len = 0;",
         s"out[0] = nullable_bigint_vector::allocate();",
-        s"out[0]->resize(1);",
+        s"out[0]->resize(len);",
         s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
         s"${evalScalarType(defs.tail.head.tpt)} ${defs.tail.head.name}{};",
-        "for (int i = 0; i < len; i++) {",
+        s"for (int i = 0; i < len; i++) {",
         CodeLines.from(
-          s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
-          s"${defs.tail.head.name} = ${evalApplyScalar(apply)};",
+          s"if ((${evalApply(apply)}) != 0) {",
+            s"out[0]->data[actual_len++] = ${defs.head.name}_in[0]->data[i];",
+          s"}"
         ).indented,
-        "}",
-        s"out[0]->data[0] = ${defs.tail.head.name};",
+        s"}",
+        s"out[0]->resize(actual_len);",
         s"out[0]->set_validity(0, 1);",
         //s"""std::cout << "out[0]->data[0] = " << out[0]->data[0] << std::endl;""",
       ).indented.cCode
+      case lit @ Literal(Constant(true)) => CodeLines.from(
+        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+        s"out[0] = nullable_bigint_vector::allocate();",
+        s"out[0]->resize(len);",
+        s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
+        "for (int i = 0; i < len; i++) {",
+        CodeLines.from(
+          s"out[0]->data[i] = x_in[0]->data[i];"
+        ).indented,
+        "}",
+        s"out[0]->set_validity(0, len);",
+      ).indented.cCode
+      case lit @ Literal(Constant(false)) => CodeLines.from(
+        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+        s"out[0] = nullable_bigint_vector::allocate();",
+        s"out[0]->resize(0);",
+        s"out[0]->set_validity(0, 0);",
+      ).indented.cCode
+
       case unknown => showRaw(unknown)
     }
   }
@@ -232,6 +247,8 @@ object CppTranspiler {
 
   def evalLiteral(literal: Literal): String = {
     literal.value match {
+      case Constant(true) => "1"
+      case Constant(false) => "0"
       case Constant(c) => c.toString
       case unknown => "<unknown args in Literal: " + showRaw(unknown) + ">"
     }
