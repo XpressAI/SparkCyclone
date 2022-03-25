@@ -25,6 +25,16 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(gencodeTrue, cppSources.testFilterTrivialBoolTrue)
     assertCodeEqualish(gencodeFalse, cppSources.testFilterTrivialBoolFalse)
   }
+
+  "filter by comparing" in {
+    val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
+    val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))
+    val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2))
+    assertCodeEqualish(genCodeLT, cppSources.testFilterLTConstant)
+    assertCodeEqualish(genCodeGT, cppSources.testFilterGTConstant)
+    assertCodeEqualish(genCodeEq, cppSources.testFilterEq)
+  }
+
 }
 
 object cppSources {
@@ -64,5 +74,52 @@ object cppSources {
         |  out[0]->resize(0);
         |  out[0]->set_validity(0, 0);
         |""".stripMargin
+
+     val testFilterLTConstant =
+       """
+         |  size_t len = x_in[0]->count;
+         |  size_t actual_len = 0;
+         |  out[0] = nullable_bigint_vector::allocate();
+         |  out[0]->resize(len);
+         |  int32_t x{};
+         |  for (int i = 0; i < len; i++) {
+         |    if ( (x < ((x * x) - x)) ) {
+         |    out[0]->data[actual_len++] = x_in[0]->data[i];
+         |    }
+         |  }
+         |  out[0]->resize(actual_len);
+         |  out[0]->set_validity(0, 1);
+         |
+         |""".stripMargin
+
+      val testFilterGTConstant =
+        """  size_t len = x_in[0]->count;
+          |  size_t actual_len = 0;
+          |  out[0] = nullable_bigint_vector::allocate();
+          |  out[0]->resize(len);
+          |  int32_t x{};
+          |  for (int i = 0; i < len; i++) {
+          |    if ( (x > 10) ) {
+          |    out[0]->data[actual_len++] = x_in[0]->data[i];
+          |    }
+          |  }
+          |  out[0]->resize(actual_len);
+          |  out[0]->set_validity(0, 1);
+          |  """.stripMargin
+
+      val testFilterEq =
+        """  size_t len = x_in[0]->count;
+          |  size_t actual_len = 0;
+          |  out[0] = nullable_bigint_vector::allocate();
+          |  out[0]->resize(len);
+          |  int32_t x{};
+          |  for (int i = 0; i < len; i++) {
+          |    if ( (x == ((x * x) - 2)) ) {
+          |    out[0]->data[actual_len++] = x_in[0]->data[i];
+          |    }
+          |  }
+          |  out[0]->resize(actual_len);
+          |  out[0]->set_validity(0, 1);
+          |  """.stripMargin
 
 }

@@ -66,10 +66,9 @@ object CppTranspiler {
         s"out[0] = nullable_bigint_vector::allocate();",
         s"out[0]->resize(len);",
         s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
-        s"${evalScalarType(defs.tail.head.tpt)} ${defs.tail.head.name}{};",
         s"for (int i = 0; i < len; i++) {",
         CodeLines.from(
-          s"if ((${evalApply(apply)}) != 0) {",
+          s"if ( ${evalApply(apply)} ) {",
             s"out[0]->data[actual_len++] = ${defs.head.name}_in[0]->data[i];",
           s"}"
         ).indented,
@@ -293,6 +292,9 @@ object CppTranspiler {
       case TermName("$minus") => " - "
       case TermName("$times") => " * "
       case TermName("$div") => " / "
+      case TermName("$less") => " < "
+      case TermName("$greater") => " > "
+      case TermName("$eq$eq") => " == "
       case unknown => "<< <UNKNOWN> in evalName>>"
     }
   }
