@@ -42,21 +42,27 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
 
     // compile
     val newCompiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
+    println("wee2")
     println("compiled path:" + newCompiledPath)
 
     val start1 = System.nanoTime()
 
+    println("loading2")
     val libRef = veProcess.loadLibrary(Paths.get(soPath))
 
+    println("mapPartitions")
     val results = inputs.mapPartitions { (_) =>
       val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
       Iterator(evalFunction(func, libRef, batch.cols, outputs))
     }
 
+    println("loading2")
     val newLibRef = veProcess.loadLibrary(Paths.get(newCompiledPath))
 
-    val results2 = results.map { batch =>
-      evalFunction(newFunc, newLibRef, batch.cols, newOutputs)
+    val results2 = results.mapPartitions { batches =>
+      batches.map { batch =>
+        evalFunction(newFunc, newLibRef, batch.cols, newOutputs)
+      }
     }
 
     val end1 = System.nanoTime()

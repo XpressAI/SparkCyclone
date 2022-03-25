@@ -10,6 +10,8 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.2-SNAPSHOT.jar \
     --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.2-SNAPSHOT.jar \
+    --conf spark.executorEnv.VEO_LOG_DEBUG=1 \
+    --conf spark.executorEnv.VE_LD_PRELOAD=/opt/spark/work/cyclone/sources/libcyclone.so \
     --conf spark.rpc.message.maxSize=1024 \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \

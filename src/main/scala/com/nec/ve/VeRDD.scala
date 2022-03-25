@@ -62,7 +62,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
       println(s"Took ${(end - start) / 1000000000}s to convert ${valsArray.length} rows.")
 
       val batch = VeColBatch.fromList(List(veVector))
-      SparkCycloneExecutorPlugin.registerCachedBatch("input", batch)
+      SparkCycloneExecutorPlugin.registerCachedBatch("inputs", batch)
       Iterator(batch)
     }
   }
@@ -101,6 +101,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
 
     // compile
     val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders)
+    println("wee1")
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
