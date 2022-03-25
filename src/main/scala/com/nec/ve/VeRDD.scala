@@ -20,7 +20,6 @@ import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox
 import scala.reflect.runtime.universe._
 
-
 class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
@@ -44,16 +43,20 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
 
       val klass = implicitly[ClassTag[T]].runtimeClass
       val veVector = if (klass == classOf[Int]) {
-        val intVector = valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}")
+        val intVector =
+          valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}")
         intVector.toVeColVector()
       } else if (klass == classOf[Long]) {
-        val intVector = valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}")
+        val intVector =
+          valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}")
         intVector.toVeColVector()
       } else if (klass == classOf[Float]) {
-        val intVector = valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}")
+        val intVector =
+          valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}")
         intVector.toVeColVector()
       } else {
-        val intVector = valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}")
+        val intVector =
+          valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}")
         intVector.toVeColVector()
       }
 
@@ -73,6 +76,10 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
 
   def map(f: T => T): MappedVeRDD[T] = macro vemap_impl[T]
 
+  def flatMap[U](f: T => U) = {
+    this.foreach(println)
+  }
+
   def vemap(expr: Expr[T => T]): MappedVeRDD[T] = {
     import scala.reflect.runtime.universe._
 
@@ -89,10 +96,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
     val outputs = List(CVector("out", VeNullableLong))
     val func = new CFunction2(
       funcName,
-      Seq(
-        PointerPointer(CVector("a_in", VeNullableLong)),
-        PointerPointer(outputs.head)
-      ),
+      Seq(PointerPointer(CVector("a_in", VeNullableLong)), PointerPointer(outputs.head)),
       code,
       DefaultHeaders
     )
@@ -124,13 +128,18 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
 
   def withCompiled[U](cCode: String)(f: Path => U): U = {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
-    val oPath = VeKernelCompiler(s"${getClass.getSimpleName.replaceAllLiterally("$", "")}", veBuildPath)
+    val oPath =
+      VeKernelCompiler(s"${getClass.getSimpleName.replaceAllLiterally("$", "")}", veBuildPath)
         .compile_c(cCode)
     f(oPath)
   }
 
-
-  def evalFunction(func: CFunction2, libRef: LibraryReference, inputs: List[VeColVector], outVectors: List[CVector])(implicit ctx: OriginalCallingContext): VeColBatch = {
+  def evalFunction(
+    func: CFunction2,
+    libRef: LibraryReference,
+    inputs: List[VeColVector],
+    outVectors: List[CVector]
+  )(implicit ctx: OriginalCallingContext): VeColBatch = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
     VeColBatch.fromList(veProcess.execute(libRef, func.name, inputs, outVectors))
