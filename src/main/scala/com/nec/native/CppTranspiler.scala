@@ -54,35 +54,38 @@ object CppTranspiler {
     }
   }
 
+  private def filter_code(defs: List[ValDef], predicate_code: String) = CodeLines.from(
+    s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+    s"size_t actual_len = 0;",
+    s"out[0] = nullable_bigint_vector::allocate();",
+    s"out[0]->resize(len);",
+    s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
+    s"for (int i = 0; i < len; i++) {",
+    CodeLines.from(
+      s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
+      s"if ( ${predicate_code} ) {",
+      CodeLines.from(
+        s"out[0]->data[actual_len++] = ${defs.head.name};",
+      ).indented,
+      s"}"
+    ).indented,
+    s"}",
+    s"for (int i=0; i < actual_len; i++) {",
+    CodeLines.from(
+      s"out[0]->set_validity(i, 1);"
+    ).indented,
+    s"}",
+    s"out[0]->resize(actual_len);",
+  ).indented.cCode
+
   def evalFilter(fun: Function): String = {
     val defs = fun.vparams
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => CodeLines.from(
-        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"size_t actual_len = 0;",
-        s"out[0] = nullable_bigint_vector::allocate();",
-        s"out[0]->resize(len);",
-        s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
-        s"for (int i = 0; i < len; i++) {",
-        CodeLines.from(
-          s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
-          s"if ( ${evalApply(apply)} ) {",
-          CodeLines.from(
-            s"out[0]->data[actual_len++] = ${defs.head.name};",
-          ).indented,
-          s"}"
-        ).indented,
-        s"}",
-        s"for (int i=0; i < actual_len; i++) {",
-        CodeLines.from(
-          s"out[0]->set_validity(i, 1);"
-        ).indented,
-        s"}",
-        s"out[0]->resize(actual_len);",
-      ).indented.cCode
+      case apply @ Apply(fun, args) => filter_code(defs, evalApply(apply))
+      case select @ Select(tree, name) => filter_code(defs, evalSelect(select))
       case lit @ Literal(Constant(true)) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = nullable_bigint_vector::allocate();",
@@ -101,6 +104,7 @@ object CppTranspiler {
         s"out[0]->resize(0);",
         s"out[0]->set_validity(0, 0);",
       ).indented.cCode
+
 
       case unknown => showRaw(unknown)
     }
@@ -261,7 +265,10 @@ object CppTranspiler {
 
   def evalSelect(select: Select): String = {
 
-    evalQual(select.qualifier) + evalName(select.name)
+    select.name match {
+      case TermName("unary_$bang") => " !" + evalQual(select.qualifier)
+      case _ => evalQual(select.qualifier) + evalName(select.name)
+    }
 
   }
 
@@ -301,7 +308,9 @@ object CppTranspiler {
       case TermName("$less") => " < "
       case TermName("$greater") => " > "
       case TermName("$eq$eq") => " == "
+      case TermName("$bang$eq") => " != "
       case TermName("$percent") => " % "
+      case TermName("unary_$bang") => " !"
       case unknown => "<< <UNKNOWN> in evalName>>"
     }
   }

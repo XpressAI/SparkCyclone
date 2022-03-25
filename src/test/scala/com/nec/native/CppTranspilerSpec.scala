@@ -30,6 +30,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
     val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))
     val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2))
+    val genCodeNEq = CppTranspiler.transpileFilter(reify( (x: Int) => x != x*x-2))
     assertCodeEqualish(genCodeLT, cppSources.testFilterLTConstant)
     assertCodeEqualish(genCodeGT, cppSources.testFilterGTConstant)
     assertCodeEqualish(genCodeEq, cppSources.testFilterEq)
@@ -40,6 +41,10 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeMod, cppSources.testFilterMod)
   }
 
+  "filter inverse of something" in {
+    val genCodeInverse = CppTranspiler.transpileFilter(reify( (x: Int) => !(x % 2 == 0)))
+    assertCodeEqualish(genCodeInverse, cppSources.testFilterInverse)
+  }
 
 }
 
@@ -155,4 +160,24 @@ object cppSources {
           |  }
           |  out[0]->resize(actual_len);
           |""".stripMargin
+
+
+  val testFilterInverse =
+    """
+      |  size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if (  !((x % 2) == 0) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |  """.stripMargin
 }
