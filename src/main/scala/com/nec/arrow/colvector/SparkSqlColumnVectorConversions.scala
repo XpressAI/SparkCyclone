@@ -1,10 +1,10 @@
 package com.nec.arrow.colvector
 
 import com.nec.spark.agile.core._
+import com.nec.util.FixedBitSet
 import com.nec.util.ReflectionOps._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import java.nio.charset.StandardCharsets
-import java.util.BitSet
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector}
@@ -30,19 +30,12 @@ object SparkSqlColumnVectorConversions {
     }
 
     private[colvector] def validityBuffer(size: Int): BytePointer = {
-      // Compute the bitset
-      val bitset = new BitSet(size)
+      val bitset = new FixedBitSet(size)
       for (i <- 0 until size) {
         bitset.set(i, !vector.isNullAt(i))
       }
 
-      // Fetch the byte array representation of the bitset
-      val bytes = bitset.toByteArray
-
-      // Copy byte array over to BytePointer
-      val bufsize = (size / 8.0).ceil.toInt
-      val buffer = new BytePointer(bufsize.toLong)
-      buffer.put(bytes, 0, bufsize)
+      bitset.toBytePointer
     }
 
     private[colvector] def scalarDataBuffer(size: Int): BytePointer = {

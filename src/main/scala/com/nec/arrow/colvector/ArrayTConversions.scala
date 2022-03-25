@@ -3,7 +3,7 @@ package com.nec.arrow.colvector
 import com.nec.spark.agile.core._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
-import java.util.BitSet
+import com.nec.util.FixedBitSet
 import org.bytedeco.javacpp._
 
 object ArrayTConversions {
@@ -133,20 +133,12 @@ object ArrayTConversions {
 
   implicit class StringArrayToBPCV(input: Array[String]) {
     private[colvector] def validityBuffer: BytePointer = {
-      // Compute the bitset
-      val bitset = new BitSet(input.size)
+      val bitset = new FixedBitSet(input.size)
       input.zipWithIndex.foreach { case (x, i) =>
         bitset.set(i, x != null)
       }
 
-      // Fetch the byte array representation of the bitset
-      val bytes = bitset.toByteArray
-
-      // Copy byte array over to BytePointer
-      // Don't use bytes.size, because Array[Byte] will be empty if BitSet has only 0 bits
-      val bufsize = (input.size / 8.0).ceil.toInt
-      val buffer = new BytePointer(bufsize.toLong)
-      buffer.put(bytes, 0, bufsize)
+      bitset.toBytePointer
     }
 
     private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {

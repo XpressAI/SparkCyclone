@@ -139,7 +139,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
 //noinspection ScalaUnusedSymbol
 object VeColVector {
-
   def apply(
     source: VeColVectorSource,
     numItems: Int,
@@ -159,15 +158,6 @@ object VeColVector {
       buffers = bufferLocations
     )
   )
-
-  def fromVectorColumn(numRows: Int, vector: ColumnVector)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColVector = {
-    fromArrowVector(vector.getArrowValueVector)
-  }
 
   def fromArrowVector(valueVector: ValueVector)(implicit
     veProcess: VeProcess,

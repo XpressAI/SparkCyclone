@@ -8,7 +8,7 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID
-import java.util.BitSet
+import com.nec.util.FixedBitSet
 import org.apache.spark.sql.execution.vectorized._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnVector
@@ -34,7 +34,8 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     // Check validity buffer
     val validityBuffer = colvec.underlying.buffers(1).get
     validityBuffer.capacity() should be ((input.size / 8.0).ceil.toLong)
-    val bitset = BitSet.valueOf(validityBuffer.asBuffer)
+    val bitset = FixedBitSet.from(validityBuffer)
+    // println(s"validityBuffer ${0.until(input.size).map(bitset.get(_)).toSeq}")
     0.until(input.size).foreach(i => bitset.get(i) should be (true))
 
     // Check conversion
@@ -51,7 +52,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
 
   "SparkSqlColumnVectorConversions" should {
     "correctly convert IntegerType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000))
+      val input = 0.until(Random.nextInt(10)).map(_ => Random.nextInt(10000))
       val column = newColumnVector(input.size, IntegerType)
       input.zipWithIndex.foreach { case (v, i) => column.putInt(i, v) }
 
