@@ -6,6 +6,7 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
+import com.nec.ve.MappedVeRDD.vereduce_impl
 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, IntVector}
@@ -13,7 +14,9 @@ import org.apache.spark.rdd.RDD
 import org.bytedeco.javacpp.LongPointer
 
 import java.nio.file.Paths
+import scala.language.experimental.macros
 import scala.reflect.ClassTag
+import scala.reflect.macros.whitebox
 import scala.reflect.runtime.universe._
 
 class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
@@ -81,30 +84,37 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     val end2 = System.nanoTime()
 
     println(s"collect().sum took ${(end2 - start2) / 1000000000.0}s")
+    import scala.reflect.runtime.currentMirror
+    import scala.reflect.runtime.universe._
+    import scala.tools.reflect.ToolBox
+    val toolbox = currentMirror.mkToolBox()
+    val f = toolbox.eval(expr.tree).asInstanceOf[(T, T) => T]
 
-    ret.flatMap { (v: FieldVector) =>
+    val ret2 = ret.flatMap { (v: FieldVector) =>
       tag.tpe match {
-        case t: Type if t =:= typeOf[Long] || t =:= typeOf[Int] => {
+        case t: Type if t =:= typeOf[Long] || t =:= typeOf[Int] =>
           v match {
             case vec: BigIntVector =>
               (0 until vec.getValueCount).map(i => vec.get(i))
             case vec: IntVector =>
               (0 until vec.getValueCount).map(i => vec.get(i))
           }
-        }
-        case t: Type if t =:= typeOf[Option[Long]] || t =:= typeOf[Option[Int]] => {
+        case t: Type if t =:= typeOf[Option[Long]] || t =:= typeOf[Option[Int]] =>
           v match {
             case vec: BigIntVector =>
-              (0 until vec.getValueCount).map(i => vec.get(i))
+              (0 until vec.getValueCount).map(i => if (vec.isNull(i)) None else Some(vec.get(i)))
             case vec: IntVector =>
-              (0 until vec.getValueCount).map(i => vec.get(i))
+              (0 until vec.getValueCount).map(i => if (vec.isNull(i)) None else Some(vec.get(i)))
           }
-        }
       }
-    }.asInstanceOf[T]
+    }.asInstanceOf[RDD[T]].reduce(f)
+
+    ret2
   }
 
-  override def reduce(f: (T, T) => T): T = {
+  override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
+
+  def reduceCpu(f: (T, T) => T): T = {
 
     val start1 = System.nanoTime()
 
@@ -153,5 +163,15 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     println(s"results.map took ${(end2 - start2) / 1000000000.0}s")
 
     out2.reduce(f)
+  }
+}
+
+object MappedVeRDD {
+  def vereduce_impl[T](c: whitebox.Context)(f: c.Expr[(T, T) => T]): c.Expr[T] = {
+    import c.universe._
+
+    val self = c.prefix
+    val x = q"${self}.vereduce(reify { ${f} })"
+    c.Expr[T](x)
   }
 }

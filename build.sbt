@@ -139,7 +139,8 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
   "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve",
-  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,cmake,ve"
+  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,cmake,ve",
+  "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 javaCppVersion := "1.5.7"

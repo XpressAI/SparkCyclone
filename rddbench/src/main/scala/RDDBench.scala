@@ -64,11 +64,8 @@ object RDDBench {
   }
 
   def bench01ve(rdd: VeRDD[Long]): Long = {
-    import scala.reflect.runtime.universe._
-
-    val expr = reify( (a: Long) => 2 * a + 12)
-    val mappedRdd = rdd.vemap(expr)
-    val result = mappedRdd.vereduce(reify((a: Long,b: Long) => a + b))
+    val mappedRdd = rdd.map((a) => 2 * a + 12)
+    val result = mappedRdd.reduce((a, b) => a + b)
 
     println("result of bench01 is " + result)
     result

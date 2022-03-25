@@ -7,6 +7,7 @@ import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
+import com.nec.ve.VeRDD.vemap_impl
 import com.nec.ve.colvector.VeColVector
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{BigIntVector, IntVector}
@@ -15,9 +16,12 @@ import org.apache.spark.{Partition, TaskContext}
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
+import scala.language.experimental.macros
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
+import scala.reflect.macros.whitebox
 import scala.reflect.runtime.universe._
+
 
 class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
@@ -29,12 +33,6 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
 
     if (SparkCycloneExecutorPlugin.containsCachedBatch("inputs")) {
       println(s"Using cached inputs for ${index}")
-
-      val valsArray = valsIter.toArray.asInstanceOf[Array[Long]]
-
-      println(s"First value: ${valsArray(0)}")
-      println(s"Last value: ${valsArray(valsArray.length - 1)}")
-
       Iterator(SparkCycloneExecutorPlugin.getCachedBatch(s"inputs"))
     } else {
       println(s"Reading inputs for ${index}")
@@ -83,7 +81,9 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
   println("Trying to trigger VeColBatch caching.")
   println("Finished collect()")
 
-  def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD[T] = {
+  def map(f: T => T): MappedVeRDD[T] = macro vemap_impl[T]
+
+  def vemap(expr: Expr[T => T]): MappedVeRDD[T] = {
     import scala.reflect.runtime.universe._
 
     // TODO: for inspection, remove when done
@@ -150,4 +150,12 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
 // implicit conversion
 object VeRDD {
   implicit def toVectorizedRDD[T: ClassTag](r: RDD[T]): VeRDD[T] = new VeRDD(r)
+
+  def vemap_impl[T](c: whitebox.Context)(f: c.Expr[T => T]): c.Expr[MappedVeRDD[T]] = {
+    import c.universe._
+
+    val self = c.prefix
+    val x = q"${self}.vemap(reify { ${f} })"
+    c.Expr[MappedVeRDD[T]](x)
+  }
 }
