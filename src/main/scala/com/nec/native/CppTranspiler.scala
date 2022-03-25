@@ -68,14 +68,20 @@ object CppTranspiler {
         s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
         s"for (int i = 0; i < len; i++) {",
         CodeLines.from(
+          s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
           s"if ( ${evalApply(apply)} ) {",
+          CodeLines.from(
             s"out[0]->data[actual_len++] = ${defs.head.name}_in[0]->data[i];",
+          ).indented,
           s"}"
         ).indented,
         s"}",
+        s"for (int i=0; i < actual_len; i++) {",
+        CodeLines.from(
+          s"out[0]->set_validity(i, 1);"
+        ).indented,
+        s"}",
         s"out[0]->resize(actual_len);",
-        s"out[0]->set_validity(0, 1);",
-        //s"""std::cout << "out[0]->data[0] = " << out[0]->data[0] << std::endl;""",
       ).indented.cCode
       case lit @ Literal(Constant(true)) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
