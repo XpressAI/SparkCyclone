@@ -311,6 +311,8 @@ object CppTranspiler {
       case TermName("$bang$eq") => " != "
       case TermName("$percent") => " % "
       case TermName("unary_$bang") => " !"
+      case TermName("$amp$amp") => " && "
+      case TermName("$bar$bar") => " || "
       case unknown => "<< <UNKNOWN> in evalName>>"
     }
   }

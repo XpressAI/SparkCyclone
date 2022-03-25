@@ -46,6 +46,13 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeInverse, cppSources.testFilterInverse)
   }
 
+  "filter combined with || or &&" in {
+    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)))
+    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)))
+    assertCodeEqualish(genCodeCombinedAnd, cppSources.testFilterAnd)
+    assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
+  }
+
 }
 
 object cppSources {
@@ -65,101 +72,101 @@ object cppSources {
       |}
       |""".stripMargin
 
-    val testFilterTrivialBoolTrue =
-      """
-        |  size_t len = x_in[0]->count;
-        |  out[0] = nullable_bigint_vector::allocate();
-        |  out[0]->resize(len);
-        |  int32_t x{};
-        |  for (int i = 0; i < len; i++) {
-        |    out[0]->data[i] = x_in[0]->data[i];
-        |  }
-        |  out[0]->set_validity(0, len);
-        |""".stripMargin
+  val testFilterTrivialBoolTrue =
+    """
+      |  size_t len = x_in[0]->count;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    out[0]->data[i] = x_in[0]->data[i];
+      |  }
+      |  out[0]->set_validity(0, len);
+      |""".stripMargin
 
 
-    val testFilterTrivialBoolFalse =
-      """
-        |  size_t len = x_in[0]->count;
-        |  out[0] = nullable_bigint_vector::allocate();
-        |  out[0]->resize(0);
-        |  out[0]->set_validity(0, 0);
-        |""".stripMargin
+  val testFilterTrivialBoolFalse =
+    """
+      |  size_t len = x_in[0]->count;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(0);
+      |  out[0]->set_validity(0, 0);
+      |""".stripMargin
 
-     val testFilterLTConstant =
-       """
-         |    size_t len = x_in[0]->count;
-         |  size_t actual_len = 0;
-         |  out[0] = nullable_bigint_vector::allocate();
-         |  out[0]->resize(len);
-         |  int32_t x{};
-         |  for (int i = 0; i < len; i++) {
-         |    x = x_in[0]->data[i];
-         |    if ( (x < ((x * x) - x)) ) {
-         |      out[0]->data[actual_len++] = x;
-         |    }
-         |  }
-         |  for (int i=0; i < actual_len; i++) {
-         |    out[0]->set_validity(i, 1);
-         |  }
-         |  out[0]->resize(actual_len);
-         |""".stripMargin
+ val testFilterLTConstant =
+   """
+     |    size_t len = x_in[0]->count;
+     |  size_t actual_len = 0;
+     |  out[0] = nullable_bigint_vector::allocate();
+     |  out[0]->resize(len);
+     |  int32_t x{};
+     |  for (int i = 0; i < len; i++) {
+     |    x = x_in[0]->data[i];
+     |    if ( (x < ((x * x) - x)) ) {
+     |      out[0]->data[actual_len++] = x;
+     |    }
+     |  }
+     |  for (int i=0; i < actual_len; i++) {
+     |    out[0]->set_validity(i, 1);
+     |  }
+     |  out[0]->resize(actual_len);
+     |""".stripMargin
 
-      val testFilterGTConstant =
-        """   size_t len = x_in[0]->count;
-          |  size_t actual_len = 0;
-          |  out[0] = nullable_bigint_vector::allocate();
-          |  out[0]->resize(len);
-          |  int32_t x{};
-          |  for (int i = 0; i < len; i++) {
-          |    x = x_in[0]->data[i];
-          |    if ( (x > 10) ) {
-          |      out[0]->data[actual_len++] = x;
-          |    }
-          |  }
-          |  for (int i=0; i < actual_len; i++) {
-          |    out[0]->set_validity(i, 1);
-          |  }
-          |  out[0]->resize(actual_len);
-          |  """.stripMargin
+  val testFilterGTConstant =
+    """   size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( (x > 10) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |  """.stripMargin
 
-      val testFilterEq =
-        """   size_t len = x_in[0]->count;
-          |  size_t actual_len = 0;
-          |  out[0] = nullable_bigint_vector::allocate();
-          |  out[0]->resize(len);
-          |  int32_t x{};
-          |  for (int i = 0; i < len; i++) {
-          |    x = x_in[0]->data[i];
-          |    if ( (x == ((x * x) - 2)) ) {
-          |      out[0]->data[actual_len++] = x;
-          |    }
-          |  }
-          |  for (int i=0; i < actual_len; i++) {
-          |    out[0]->set_validity(i, 1);
-          |  }
-          |  out[0]->resize(actual_len);
-          |  """.stripMargin
+  val testFilterEq =
+    """   size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( (x == ((x * x) - 2)) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |  """.stripMargin
 
 
-      val testFilterMod =
-        """
-          |size_t len = x_in[0]->count;
-          |  size_t actual_len = 0;
-          |  out[0] = nullable_bigint_vector::allocate();
-          |  out[0]->resize(len);
-          |  int32_t x{};
-          |  for (int i = 0; i < len; i++) {
-          |    x = x_in[0]->data[i];
-          |    if ( ((x % 2) == 0) ) {
-          |      out[0]->data[actual_len++] = x;
-          |    }
-          |  }
-          |  for (int i=0; i < actual_len; i++) {
-          |    out[0]->set_validity(i, 1);
-          |  }
-          |  out[0]->resize(actual_len);
-          |""".stripMargin
+  val testFilterMod =
+    """
+      |size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( ((x % 2) == 0) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |""".stripMargin
 
 
   val testFilterInverse =
@@ -180,4 +187,42 @@ object cppSources {
       |  }
       |  out[0]->resize(actual_len);
       |  """.stripMargin
+
+  val testFilterAnd =
+    """
+      |size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int64_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( ((x > 10) && (x < 15)) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |""".stripMargin
+
+  val testFilterOr =
+    """
+      |size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int64_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( ((x < 10) || (x > 15)) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |""".stripMargin
 }
