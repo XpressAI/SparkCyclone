@@ -71,7 +71,7 @@ object CppTranspiler {
           s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
           s"if ( ${evalApply(apply)} ) {",
           CodeLines.from(
-            s"out[0]->data[actual_len++] = ${defs.head.name}_in[0]->data[i];",
+            s"out[0]->data[actual_len++] = ${defs.head.name};",
           ).indented,
           s"}"
         ).indented,
