@@ -20,7 +20,7 @@ import java.time.Instant
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
-
+ /*
 class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
@@ -62,14 +62,15 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 
       for ((v, i) <- valsArray.zipWithIndex) {
         (arrowVector, valsArray) match {
-        case (intVector: IntVector, a: Seq[Int]) =>
-          intVector.set(i, a(i).asInstanceOf[Int])
-        case (intVector: IntVector, v: Seq[Option[Int]]) =>
-          v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
-        case (intVector: BigIntVector, a: Seq[Long]) =>
-          intVector.set(i, a(i).asInstanceOf[Int])
-        case (intVector: BigIntVector, v: Seq[Option[Long]]) =>
-          v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+          case (intVector: IntVector, a: Seq[Int]) =>
+            intVector.set(i, a(i).asInstanceOf[Int])
+          case (intVector: IntVector, v: Seq[Option[Int]]) =>
+            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+          case (intVector: BigIntVector, a: Seq[Long]) =>
+            intVector.set(i, a(i).asInstanceOf[Int])
+          case (intVector: BigIntVector, v: Seq[Option[Long]]) =>
+            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
+        }
       }
       val end = System.nanoTime()
 
@@ -153,4 +154,4 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 // implicit conversion
 object VeRDD {
   implicit def toVectorizedRDD[T: ClassTag](r: RDD[T]): VeRDD[T] = new VeRDD(r)
-}
+}*/

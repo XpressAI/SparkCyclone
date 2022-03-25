@@ -12,6 +12,18 @@ object CppTranspiler {
     }
   }
 
+  def transpileFilter[T](expr: universe.Expr[ T => Boolean]): String = {
+    expr.tree match {
+      case fun @ Function(vparams, body) => evalFilter(fun)
+      case Literal(value) => evalLiteral(value)
+    }
+  }
+
+  def evalLiteral(value: ): String = value match {
+    case Constant(true) => "1"
+    case Constant(false) => "0"
+    case Constant(value) => value.toString
+  }
   var functionNames: List[String] = List()
 
   // entry point
@@ -23,6 +35,32 @@ object CppTranspiler {
 
   // evaluate Function type from Scala AST
   def evalReduce(fun: Function): String = {
+    val defs = fun.vparams
+    fun.body match {
+      case ident @ Ident(name) => CodeLines.from(
+        s"${evalIdent(ident)};",
+      ).indented.cCode
+      case apply @ Apply(fun, args) => CodeLines.from(
+        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+        s"out[0] = nullable_bigint_vector::allocate();",
+        s"out[0]->resize(1);",
+        s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
+        s"${evalScalarType(defs.tail.head.tpt)} ${defs.tail.head.name}{};",
+        "for (int i = 0; i < len; i++) {",
+        CodeLines.from(
+          s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
+          s"${defs.tail.head.name} = ${evalApplyScalar(apply)};",
+        ).indented,
+        "}",
+        s"out[0]->data[0] = ${defs.tail.head.name};",
+        s"out[0]->set_validity(0, 1);",
+        //s"""std::cout << "out[0]->data[0] = " << out[0]->data[0] << std::endl;""",
+      ).indented.cCode
+      case unknown => showRaw(unknown)
+    }
+  }
+
+  def evalFilter(fun: Function): String = {
     val defs = fun.vparams
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
