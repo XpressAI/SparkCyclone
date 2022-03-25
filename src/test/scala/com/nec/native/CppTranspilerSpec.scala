@@ -35,6 +35,9 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeEq, cppSources.testFilterEq)
   }
 
+
+
+
 }
 
 object cppSources {
@@ -77,49 +80,57 @@ object cppSources {
 
      val testFilterLTConstant =
        """
-         |  size_t len = x_in[0]->count;
+         |    size_t len = x_in[0]->count;
          |  size_t actual_len = 0;
          |  out[0] = nullable_bigint_vector::allocate();
          |  out[0]->resize(len);
          |  int32_t x{};
          |  for (int i = 0; i < len; i++) {
+         |    x = x_in[0]->data[i];
          |    if ( (x < ((x * x) - x)) ) {
-         |    out[0]->data[actual_len++] = x_in[0]->data[i];
+         |      out[0]->data[actual_len++] = x;
          |    }
          |  }
+         |  for (int i=0; i < actual_len; i++) {
+         |    out[0]->set_validity(i, 1);
+         |  }
          |  out[0]->resize(actual_len);
-         |  out[0]->set_validity(0, 1);
-         |
          |""".stripMargin
 
       val testFilterGTConstant =
-        """  size_t len = x_in[0]->count;
+        """   size_t len = x_in[0]->count;
           |  size_t actual_len = 0;
           |  out[0] = nullable_bigint_vector::allocate();
           |  out[0]->resize(len);
           |  int32_t x{};
           |  for (int i = 0; i < len; i++) {
+          |    x = x_in[0]->data[i];
           |    if ( (x > 10) ) {
-          |    out[0]->data[actual_len++] = x_in[0]->data[i];
+          |      out[0]->data[actual_len++] = x;
           |    }
           |  }
+          |  for (int i=0; i < actual_len; i++) {
+          |    out[0]->set_validity(i, 1);
+          |  }
           |  out[0]->resize(actual_len);
-          |  out[0]->set_validity(0, 1);
           |  """.stripMargin
 
       val testFilterEq =
-        """  size_t len = x_in[0]->count;
+        """   size_t len = x_in[0]->count;
           |  size_t actual_len = 0;
           |  out[0] = nullable_bigint_vector::allocate();
           |  out[0]->resize(len);
           |  int32_t x{};
           |  for (int i = 0; i < len; i++) {
+          |    x = x_in[0]->data[i];
           |    if ( (x == ((x * x) - 2)) ) {
-          |    out[0]->data[actual_len++] = x_in[0]->data[i];
+          |      out[0]->data[actual_len++] = x;
           |    }
           |  }
+          |  for (int i=0; i < actual_len; i++) {
+          |    out[0]->set_validity(i, 1);
+          |  }
           |  out[0]->resize(actual_len);
-          |  out[0]->set_validity(0, 1);
           |  """.stripMargin
 
 }
