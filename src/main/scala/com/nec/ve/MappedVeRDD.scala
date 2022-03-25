@@ -112,6 +112,8 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     ret2
   }
 
+  //override def filter(f: (T) => Boolean): RDD[T] = macro vefilter_impl[T]
+
   override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
 
   def reduceCpu(f: (T, T) => T): T = {
@@ -171,7 +173,15 @@ object MappedVeRDD {
     import c.universe._
 
     val self = c.prefix
-    val x = q"${self}.vereduce(reify { ${f} })"
+    val x = q"${self}.vereduce(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[T](x)
+  }
+
+  def vefilter_impl[T](c: whitebox.Context)(f: c.Expr[(T) => Boolean]): c.Expr[RDD[T]] = {
+    import c.universe._
+
+    val self = c.prefix
+    val x = q"new FilteredVeRDD(${self}, scala.reflect.runtime.universe.reify { ${f} })"
+    c.Expr[RDD[T]](x)
   }
 }

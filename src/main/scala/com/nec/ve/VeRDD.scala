@@ -9,8 +9,6 @@ import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.VeRDD.vemap_impl
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{BigIntVector, IntVector}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -38,47 +36,39 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
       println(s"Reading inputs for ${index}")
       val start = System.nanoTime()
 
-      val valsArray = valsIter.toSeq
+      val valsArray = valsIter.toArray
       println(s"First value: ${valsArray.head}")
       println(s"Last value: ${valsArray.last}")
 
+      import com.nec.arrow.colvector.ArrayTConversions._
 
-      val root = new RootAllocator(Int.MaxValue)
-      val arrowVector = tag.tpe match {
-        case t: Type if t =:= typeOf[Int] =>
-          new IntVector("", root)
-        case t: Type if t =:= typeOf[Long] =>
-          new BigIntVector("", root)
-        case t: Type if t =:= typeOf[Option[Int]] =>
-          new IntVector("", root)
-        case t: Type if t =:= typeOf[Option[Long]] =>
-          new BigIntVector("", root)
+      val klass = implicitly[ClassTag[T]].runtimeClass
+      val veVector = if (klass == classOf[Int]) {
+        val intVector = valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
+      } else if (klass == classOf[Long]) {
+        val intVector = valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
+      } else if (klass == classOf[Float]) {
+        val intVector = valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
+      } else {
+        val intVector = valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
       }
-      arrowVector.setValueCount(valsArray.length)
 
-      for ((v, i) <- valsArray.zipWithIndex) {
-        (arrowVector, valsArray) match {
-          case (intVector: IntVector, a: Seq[Int]) =>
-            intVector.set(i, v.asInstanceOf[Int])
-          case (intVector: IntVector, a: Seq[Option[Int]]) =>
-            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
-          case (intVector: BigIntVector, a: Seq[Long]) =>
-            intVector.set(i, a(i).asInstanceOf[Long])
-          case (intVector: BigIntVector, a: Seq[Option[Long]]) =>
-            v.asInstanceOf[Option[Long]].foreach(x => intVector.set(i, x))
-        }
-      }
       val end = System.nanoTime()
 
-      println(s"Took ${(end - start) / 1000000000}s to convert ${arrowVector.getValueCount} rows.")
+      println(s"Took ${(end - start) / 1000000000}s to convert ${valsArray.length} rows.")
 
-      val batch = VeColBatch.fromList(List(VeColVector.fromArrowVector(arrowVector)))
+      val batch = VeColBatch.fromList(List(veVector))
       SparkCycloneExecutorPlugin.registerCachedBatch("input", batch)
       Iterator(batch)
     }
   }
   // Trigger caching of VeColBatches
   println("Trying to trigger VeColBatch caching.")
+  inputs.count()
   println("Finished collect()")
 
   def map(f: T => T): MappedVeRDD[T] = macro vemap_impl[T]
@@ -153,9 +143,8 @@ object VeRDD {
 
   def vemap_impl[T](c: whitebox.Context)(f: c.Expr[T => T]): c.Expr[MappedVeRDD[T]] = {
     import c.universe._
-
     val self = c.prefix
-    val x = q"${self}.vemap(reify { ${f} })"
+    val x = q"${self}.vemap(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[MappedVeRDD[T]](x)
   }
 }
