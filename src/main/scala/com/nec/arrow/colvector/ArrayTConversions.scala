@@ -3,24 +3,24 @@ package com.nec.arrow.colvector
 import com.nec.spark.agile.core._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
-import java.util.BitSet
+import com.nec.util.FixedBitSet
 import org.bytedeco.javacpp._
 
 object ArrayTConversions {
-  private[colvector] def constructValidityBuffer(n: Int): BytePointer = {
-    val size = (n / 8.0).ceil.toLong
-    val buffer = new BytePointer(size)
-    for (i <- 0 until size.toInt) {
-      buffer.put(i, -1.toByte)
-    }
-    buffer
-  }
-
   implicit class PrimitiveArrayToBPCV[T <: AnyVal : ClassTag](input: Array[T]) {
+    private[colvector] def constructValidityBuffer(n: Int): BytePointer = {
+      val size = (n / 8.0).ceil.toLong
+      val buffer = new BytePointer(size)
+      for (i <- 0 until size.toInt) {
+        buffer.put(i, -1.toByte)
+      }
+      buffer
+    }
+
     private[colvector] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
-      val pointer = if (klass == classOf[Int]) {
+      val buffer = if (klass == classOf[Int]) {
         val ptr = new IntPointer(input.size.toLong)
         ptr.put(input.asInstanceOf[Array[Int]], 0, input.size)
 
@@ -52,10 +52,10 @@ object ArrayTConversions {
           the size difference between the two pointer types (casting JavaCPP
           pointers literally copies the capacity value over as is).
         */
-      new BytePointer(pointer).capacity(input.size.toLong * veType.cSize)
+      new BytePointer(buffer).capacity(input.size.toLong * veScalarType.cSize)
     }
 
-    private[colvector] def veType: VeScalarType = {
+    private[colvector] def veScalarType: VeScalarType = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
       if (klass == classOf[Int]) {
@@ -74,7 +74,7 @@ object ArrayTConversions {
         VeNullableShort
 
       } else {
-        throw new NotImplementedError(s"No corresponding VeType for primitive type: ${klass}")
+        throw new NotImplementedError(s"No corresponding VeScalarType for primitive type: ${klass}")
       }
     }
 
@@ -84,10 +84,11 @@ object ArrayTConversions {
           source = source,
           numItems = input.size,
           name = name,
-          veType = veType,
+          veType = veScalarType,
           container = None,
           buffers = List(
             Option(dataBuffer),
+            // Since T <: AnyVal, they are non-nullable
             Option(constructValidityBuffer(input.size))
           ),
           variableSize = None
@@ -96,32 +97,8 @@ object ArrayTConversions {
     }
   }
 
-  implicit class StringArrayToBPCV(input: Array[String]) {
-    private[colvector] def validityBuffer: BytePointer = {
-      // Compute the bitset
-      val bitset = new BitSet(input.size)
-      input.zipWithIndex.foreach { case (x, i) =>
-        bitset.set(i, x != null)
-      }
-
-      // Fetch the byte array representation of the bitset
-      val bytes = bitset.toByteArray
-
-      // Copy byte array over to BytePointer
-      val buffer = new BytePointer(bytes.size.toLong)
-      buffer.put(bytes, 0, bytes.size)
-    }
-
-    private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
-      // Convert to UTF-32LE Array[Byte]'s
-      val bytesAA = input.map { x =>
-        if (x == null) {
-          Array[Byte]()
-        } else {
-          x.getBytes("UTF-32LE")
-        }
-      }
-
+  private[colvector] implicit class ExtendedByteArrayArray(bytesAA: Array[Array[Byte]]) {
+    def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Allocate the buffers
       val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)
       val startsBuffer = new IntPointer(bytesAA.size.toLong)
@@ -151,6 +128,30 @@ object ArrayTConversions {
         new BytePointer(startsBuffer).capacity(bytesAA.size.toLong * 4),
         new BytePointer(lensBuffer).capacity(bytesAA.size.toLong * 4),
       )
+    }
+  }
+
+  implicit class StringArrayToBPCV(input: Array[String]) {
+    private[colvector] def validityBuffer: BytePointer = {
+      val bitset = new FixedBitSet(input.size)
+      input.zipWithIndex.foreach { case (x, i) =>
+        bitset.set(i, x != null)
+      }
+
+      bitset.toBytePointer
+    }
+
+    private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
+      // Convert to UTF-32LE Array[Byte]'s
+      val bytesAA = input.map { x =>
+        if (x == null) {
+          Array[Byte]()
+        } else {
+          x.getBytes("UTF-32LE")
+        }
+      }
+
+      bytesAA.constructBuffers
     }
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
@@ -249,7 +250,7 @@ object ArrayTConversions {
         toStringArray.asInstanceOf[Array[T]]
 
       } else {
-        throw new NotImplementedError(s"Cannot convert BytePointerColVector to Array[${klass.getName}]")
+        throw new NotImplementedError(s"Conversion of BytePointerColVector to Array[${klass.getName}] not supported")
       }
     }
   }

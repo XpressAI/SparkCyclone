@@ -3,8 +3,8 @@ package com.nec.cache
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.ve.{VeColBatch, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.arrow.memory.BufferAllocator
@@ -91,29 +91,17 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
     columnarBatches.map { columnarBatch =>
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())
-          .map(i =>
+          .map { i =>
+            import OriginalCallingContext.Automatic._
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
-                import OriginalCallingContext.Automatic._
                 acv.toBytePointerColVector.toVeColVector
               case None =>
-                BytePointerColVector
-                  .fromColumnarVectorViaArrow(
-                    schema(i).name,
-                    columnarBatch.column(i),
-                    columnarBatch.numRows()
-                  ) match {
-                  case None =>
-                    throw new NotImplementedError(
-                      s"Type ${schema(i).dataType} not supported for columnar batch conversion"
-                    )
-                  case Some((fieldVector, bytePointerColVector)) =>
-                    import OriginalCallingContext.Automatic._
-                    try bytePointerColVector.toVeColVector()
-                    finally fieldVector.close()
-                }
+                columnarBatch.column(i)
+                  .toBytePointerColVector(schema(i).name, columnarBatch.numRows)
+                  .toVeColVector
             }
-          )
+          }
           .toList
           .map(byteArrayColVector => Left(byteArrayColVector))
       )
