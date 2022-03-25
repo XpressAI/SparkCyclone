@@ -19,6 +19,7 @@ object RDDBench {
     benchmark("01 - CPU",  () => bench01cpu(rdd))
 
     println("Making VeRDD")
+
     val verdd = new VeRDD(rdd)
 
     println("Starting Benchmark")
@@ -64,8 +65,9 @@ object RDDBench {
   }
 
   def bench01ve(rdd: VeRDD[Long]): Long = {
-    val mappedRdd = rdd.map((a) => 2 * a + 12)
-    val result = mappedRdd.reduce((a, b) => a + b)
+    val mappedRdd = rdd.map((a: Long) => 2 * a + 12)
+    //val filtered = mappedRdd.filter((a: Long) => a % 2 == 0)
+    val result = mappedRdd.reduce((a: Long, b: Long) => a + b)
 
     println("result of bench01 is " + result)
     result
