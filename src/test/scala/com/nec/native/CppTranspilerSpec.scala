@@ -29,11 +29,16 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   "filter by comparing" in {
     val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
     val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))
+    val genCodeLTE = CppTranspiler.transpileFilter(reify( (x: Int) => x <= x*x - x))
+    val genCodeGTE = CppTranspiler.transpileFilter(reify( (x: Int) => x >= 10))
     val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2))
     val genCodeNEq = CppTranspiler.transpileFilter(reify( (x: Int) => x != x*x-2))
     assertCodeEqualish(genCodeLT, cppSources.testFilterLTConstant)
+    assertCodeEqualish(genCodeLTE, cppSources.testFilterLTEConstant)
     assertCodeEqualish(genCodeGT, cppSources.testFilterGTConstant)
+    assertCodeEqualish(genCodeGTE, cppSources.testFilterGTEConstant)
     assertCodeEqualish(genCodeEq, cppSources.testFilterEq)
+    assertCodeEqualish(genCodeNEq, cppSources.testFilterNEq)
   }
 
   "mod filter" in {
@@ -112,6 +117,25 @@ object cppSources {
      |  out[0]->resize(actual_len);
      |""".stripMargin
 
+  val testFilterLTEConstant =
+    """
+      |    size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( (x <= ((x * x) - x)) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |""".stripMargin
+
   val testFilterGTConstant =
     """   size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
@@ -130,6 +154,24 @@ object cppSources {
       |  out[0]->resize(actual_len);
       |  """.stripMargin
 
+  val testFilterGTEConstant =
+    """   size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( (x >= 10) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |  """.stripMargin
+
   val testFilterEq =
     """   size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
@@ -139,6 +181,24 @@ object cppSources {
       |  for (int i = 0; i < len; i++) {
       |    x = x_in[0]->data[i];
       |    if ( (x == ((x * x) - 2)) ) {
+      |      out[0]->data[actual_len++] = x;
+      |    }
+      |  }
+      |  for (int i=0; i < actual_len; i++) {
+      |    out[0]->set_validity(i, 1);
+      |  }
+      |  out[0]->resize(actual_len);
+      |  """.stripMargin
+
+  val testFilterNEq =
+    """   size_t len = x_in[0]->count;
+      |  size_t actual_len = 0;
+      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0]->resize(len);
+      |  int32_t x{};
+      |  for (int i = 0; i < len; i++) {
+      |    x = x_in[0]->data[i];
+      |    if ( (x != ((x * x) - 2)) ) {
       |      out[0]->data[actual_len++] = x;
       |    }
       |  }
