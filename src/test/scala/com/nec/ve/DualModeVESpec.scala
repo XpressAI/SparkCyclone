@@ -1,9 +1,9 @@
 package com.nec.ve
 
 import com.nec.arrow.ArrowEncodingSettings
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.cache.CycloneCacheBase
 import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeColBatch.VeColVectorSource
 import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}

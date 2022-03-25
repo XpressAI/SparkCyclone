@@ -4,6 +4,7 @@ import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
 import com.nec.spark.agile.core._
 import com.nec.util.ReflectionOps._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.compare.VectorEqualsVisitor
@@ -89,7 +90,7 @@ object ArrowVectorConversions {
             }
 
             // Parse it as UTF-32LE string and convert to UTF-8 bytes
-            val utf8bytes = new String(bytes,  "UTF-32LE").getBytes
+            val utf8bytes = new String(bytes,  "UTF-32LE").getBytes(StandardCharsets.UTF_8)
 
             // Write to Arrow
             vec.set(i, utf8bytes)
@@ -113,7 +114,7 @@ object ArrowVectorConversions {
           toVarCharArrow
 
         case other =>
-          throw new NotImplementedError(s"Cannot convert BytePointerColVector of ${other} to Arrow")
+          throw new NotImplementedError(s"Conversion of BytePointerColVector of VeType ${other} to Arrow not supported")
       }
     }
   }
@@ -122,14 +123,17 @@ object ArrowVectorConversions {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       vector match {
         case vec: SmallIntVector =>
-          // Specialize ths case because values need to be cast to Int first
+          // Specialize this case because values need to be cast to Int first
           vec.toBytePointerColVector
+
         case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
           vec.toBytePointerColVector
+
         case vec: VarCharVector =>
           vec.toBytePointerColVector
+
         case other =>
-          throw new NotImplementedError(s"Cannot convert ${other.getClass.getName} to BytePointerColVector")
+          throw new NotImplementedError(s"Conversion of ${other.getClass.getName} to BytePointerColVector not supported")
       }
     }
   }
@@ -138,7 +142,7 @@ object ArrowVectorConversions {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       val veType = ArrowToVe.get(vector.getClass) match {
         case Some(link) => link.veScalarType
-        case None => throw new IllegalArgumentException(s"No corresponding VeType found Arrow vector type: ${vector.getClass.getName}")
+        case None => throw new IllegalArgumentException(s"No corresponding VeType found for Arrow type '${vector.getClass.getName}'")
       }
 
       BytePointerColVector(

@@ -2,7 +2,7 @@ package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
@@ -34,20 +34,9 @@ object ColumnarBatchToVeColBatch {
                   VeColVector.fromArrowVector(acv)
                 case None =>
                   val field = arrowSchema.getFields.get(i)
-                  BytePointerColVector
-                    .fromColumnarVectorViaArrow(
-                      field.getName,
-                      columnarBatch.column(i),
-                      columnarBatch.numRows()
-                    ) match {
-                    case None =>
-                      throw new NotImplementedError(
-                        s"Type ${columnarBatch.column(i).dataType()} not supported for columnar batch conversion"
-                      )
-                    case Some((fieldVector, bytePointerColVector)) =>
-                      try bytePointerColVector.toVeColVector()
-                      finally fieldVector.close()
-                  }
+                  columnarBatch.column(i)
+                    .toBytePointerColVector(field.getName, columnarBatch.numRows)
+                    .toVeColVector
               }
             ).toList
         )
