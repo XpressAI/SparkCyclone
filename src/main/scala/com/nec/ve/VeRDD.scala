@@ -20,7 +20,7 @@ import java.time.Instant
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
- /*
+
 class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
@@ -154,4 +154,4 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 // implicit conversion
 object VeRDD {
   implicit def toVectorizedRDD[T: ClassTag](r: RDD[T]): VeRDD[T] = new VeRDD(r)
-}*/
+}

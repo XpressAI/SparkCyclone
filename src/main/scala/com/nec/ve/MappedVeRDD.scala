@@ -14,7 +14,7 @@ import org.bytedeco.javacpp.LongPointer
 import java.nio.file.Paths
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
-/*
+
 class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
   def vereduce[U:ClassTag](expr: Expr[(T, T) => T]): T = {
 
@@ -138,4 +138,3 @@ class MappedVeRDD[T](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: L
     out2.reduce(f)
   }
 }
-*/
