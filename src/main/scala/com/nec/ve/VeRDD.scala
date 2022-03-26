@@ -39,8 +39,6 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
       val start = System.nanoTime()
 
       val valsArray = valsIter.toArray
-      println(s"First value: ${valsArray.head}")
-      println(s"Last value: ${valsArray.last}")
 
       import com.nec.arrow.colvector.ArrayTConversions._
 
@@ -57,6 +55,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
       } else {
         val intVector = valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}")
         intVector.toVeColVector()
+
       }
 
       val end = System.nanoTime()
