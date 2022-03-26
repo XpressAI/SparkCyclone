@@ -17,15 +17,17 @@ import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox
 import scala.reflect.runtime.universe._
 
-class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
-  import com.nec.ve.MappedVeRDD._
+class FilteredVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
+  import com.nec.ve.FilteredVeRDD._
+
+  override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
 
   def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
     val start1 = System.nanoTime()
 
-    println("mapPartitions")
+    println("filter mapPartitions")
     val mappedResults = inputs.mapPartitions { batches =>
-      println(s"loading2-1: $soPath")
+      println(s"loading3f-1: $soPath")
       val libRef = veProcess.loadLibrary(Paths.get(soPath))
 
       //val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
@@ -36,7 +38,7 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
 
     val end1 = System.nanoTime()
 
-    println(s"map evalFunction took ${(end1 - start1) / 1000000000.0}s")
+    println(s"filter evalFunction took ${(end1 - start1) / 1000000000.0}s")
 
     val start2 = System.nanoTime()
 
@@ -135,7 +137,6 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     finalReduce
   }
 
-  override def filter(f: (T) => Boolean): VeRDD[T] = macro vefilter_impl[T]
 
   def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T] = {
     val start1 = System.nanoTime()
@@ -209,7 +210,7 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     new FilteredVeRDD[T](this, newFunc, reduceSoPath, newOutputs)
   }
 
-  override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
+  override def filter(f: (T) => Boolean): VeRDD[T] = macro vefilter_impl[T]
 
   def reduceCpu(f: (T, T) => T): T = {
 
@@ -255,7 +256,7 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
   }
 }
 
-object MappedVeRDD {
+object FilteredVeRDD {
   def vereduce_impl[T](c: whitebox.Context)(f: c.Expr[(T, T) => T]): c.Expr[T] = {
     import c.universe._
 
@@ -268,7 +269,7 @@ object MappedVeRDD {
     import c.universe._
 
     val self = c.prefix
-    val x = q"{$self}.vefilter(scala.reflect.runtime.universe.reify { ${f} })"
+    val x = q"${self}.vefilter(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[VeRDD[T]](x)
   }
 }

@@ -14,8 +14,8 @@ object RDDBench {
     sc = setup()
 
     println("Making numbers")
-    val billion = 1000000000L
-    val numbers = (1L to (2L * billion))
+    val million = 1000000L
+    val numbers = (1L to (1000L * million))
     val rdd = sc.parallelize(numbers).repartition(16).cache()
 
     benchmark("01 - CPU",  () => bench01cpu(rdd))
@@ -57,9 +57,9 @@ object RDDBench {
 
 
   def bench01cpu(rdd: RDD[Long]): Long = {
-    val mappedRdd = rdd.map( (a) => 2 * a + 12)
+    val mappedRdd = rdd.map( (a: Long) => 2 * a + 12)
     val filtered = mappedRdd.filter((a: Long) => a % 2 == 0)
-    val result = filtered.reduce( (a,b) => a + b)
+    val result = filtered.reduce( (a: Long,b: Long) => a + b)
 
     println("result of bench01 is " + result)
     result
