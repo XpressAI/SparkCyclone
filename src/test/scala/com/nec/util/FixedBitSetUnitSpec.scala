@@ -63,7 +63,7 @@ class FixedBitSetUnitSpec extends AnyWordSpec {
       bitset1.toSeq should be (bitset2.toSeq)
     }
 
-    "correctly create a Array[Byte] of all 1-bits" in {
+    "correctly create an Array[Byte] of 1-bits" in {
       val size = (Random.nextInt(10) + 1)
 
       val bytes = FixedBitSet.from(FixedBitSet.ones(size)).toByteArray
