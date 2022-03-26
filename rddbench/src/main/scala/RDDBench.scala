@@ -55,8 +55,6 @@ object RDDBench {
 
 
   def bench01cpu(rdd: RDD[Long]): Long = {
-
-    val rdd2 = sc.parallelize(Seq(Some(10), None))
     val mappedRdd = rdd.map( (a) => 2 * a + 12)
     val result = mappedRdd.reduce( (a,b) => a + b)
 

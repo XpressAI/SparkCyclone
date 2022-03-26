@@ -26,7 +26,7 @@ import scala.reflect.runtime.universe._
 class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
-  val jobRdd: RDD[Int] = sparkContext.parallelize(0 until 8).repartition(8)
+  //val jobRdd: RDD[Int] = sparkContext.parallelize(0 until 8).repartition(8)
   val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext

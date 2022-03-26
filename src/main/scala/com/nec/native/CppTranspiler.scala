@@ -125,7 +125,17 @@ object CppTranspiler {
           }
         }
 
-      case unknown => "<unknown type: " + showRaw(unknown) + ">"
+      case unknown => {
+        if (klass == classOf[Int]) {
+          "int32_t"
+        } else if (klass == classOf[Long]) {
+          "int64_t"
+        } else if (klass == classOf[Float]) {
+          "float"
+        } else {
+          "double"
+        }
+      }
     }
 
   }
