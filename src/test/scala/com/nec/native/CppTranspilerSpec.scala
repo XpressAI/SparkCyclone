@@ -6,6 +6,10 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 
   import scala.reflect.runtime.universe.reify
 
+  val intKlass: Class[Int] = classOf[Int]
+
+  val longKlass: Class[Long] = classOf[Long]
+
   // ignore *all* whitespaces (do not try to compile after this)
   def supertrim(s: String) = s.filter(!_.isWhitespace)
 
@@ -14,25 +18,25 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   }
 
   "simple function Int -> Int" in {
-    val gencode = CppTranspiler.transpile(reify( (x: Int, y: Int) => x * y + 2 ))
+    val gencode = CppTranspiler.transpile(reify( (x: Int, y: Int) => x * y + 2 ), intKlass)
     assertCodeEqualish(gencode, cppSources.test01)
   }
 
   "trivial bool functions" in {
-    val gencodeTrue = CppTranspiler.transpileFilter(reify( (x: Int) => true  ))
-    val gencodeFalse = CppTranspiler.transpileFilter(reify( (x: Int) => false ))
+    val gencodeTrue = CppTranspiler.transpileFilter(reify( (x: Int) => true  ), intKlass)
+    val gencodeFalse = CppTranspiler.transpileFilter(reify( (x: Int) => false ), intKlass)
 
     assertCodeEqualish(gencodeTrue, cppSources.testFilterTrivialBoolTrue)
     assertCodeEqualish(gencodeFalse, cppSources.testFilterTrivialBoolFalse)
   }
 
   "filter by comparing" in {
-    val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
-    val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))
-    val genCodeLTE = CppTranspiler.transpileFilter(reify( (x: Int) => x <= x*x - x))
-    val genCodeGTE = CppTranspiler.transpileFilter(reify( (x: Int) => x >= 10))
-    val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2))
-    val genCodeNEq = CppTranspiler.transpileFilter(reify( (x: Int) => x != x*x-2))
+    val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x), intKlass)
+    val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10), intKlass)
+    val genCodeLTE = CppTranspiler.transpileFilter(reify( (x: Int) => x <= x*x - x), intKlass)
+    val genCodeGTE = CppTranspiler.transpileFilter(reify( (x: Int) => x >= 10), intKlass)
+    val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2), intKlass)
+    val genCodeNEq = CppTranspiler.transpileFilter(reify( (x: Int) => x != x*x-2), intKlass)
     assertCodeEqualish(genCodeLT, cppSources.testFilterLTConstant)
     assertCodeEqualish(genCodeLTE, cppSources.testFilterLTEConstant)
     assertCodeEqualish(genCodeGT, cppSources.testFilterGTConstant)
@@ -42,18 +46,18 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   }
 
   "mod filter" in {
-    val genCodeMod = CppTranspiler.transpileFilter(reify( (x: Int) => x % 2 == 0))
+    val genCodeMod = CppTranspiler.transpileFilter(reify( (x: Int) => x % 2 == 0), intKlass)
     assertCodeEqualish(genCodeMod, cppSources.testFilterMod)
   }
 
   "filter inverse of something" in {
-    val genCodeInverse = CppTranspiler.transpileFilter(reify( (x: Int) => !(x % 2 == 0)))
+    val genCodeInverse = CppTranspiler.transpileFilter(reify( (x: Int) => !(x % 2 == 0)), intKlass)
     assertCodeEqualish(genCodeInverse, cppSources.testFilterInverse)
   }
 
   "filter combined with || or &&" in {
-    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)))
-    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)))
+    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)), longKlass)
+    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)), longKlass)
     assertCodeEqualish(genCodeCombinedAnd, cppSources.testFilterAnd)
     assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
   }
@@ -65,7 +69,7 @@ object cppSources {
   val test01 =
     """
       |size_t len = x_in[0]->count;
-      |out[0] = nullable_bigint_vector::allocate();
+      |out[0] = nullable_int_vector::allocate();
       |out[0]->resize(len);
       |int32_t x{};
       |int32_t y{};
@@ -80,7 +84,7 @@ object cppSources {
   val testFilterTrivialBoolTrue =
     """
       |  size_t len = x_in[0]->count;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -93,7 +97,7 @@ object cppSources {
   val testFilterTrivialBoolFalse =
     """
       |  size_t len = x_in[0]->count;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(0);
       |  out[0]->set_validity(0, 0);
       |""".stripMargin
@@ -102,7 +106,7 @@ object cppSources {
    """
      |    size_t len = x_in[0]->count;
      |  size_t actual_len = 0;
-     |  out[0] = nullable_bigint_vector::allocate();
+     |  out[0] = nullable_int_vector::allocate();
      |  out[0]->resize(len);
      |  int32_t x{};
      |  for (int i = 0; i < len; i++) {
@@ -121,7 +125,7 @@ object cppSources {
     """
       |    size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -139,7 +143,7 @@ object cppSources {
   val testFilterGTConstant =
     """   size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -157,7 +161,7 @@ object cppSources {
   val testFilterGTEConstant =
     """   size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -175,7 +179,7 @@ object cppSources {
   val testFilterEq =
     """   size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -193,7 +197,7 @@ object cppSources {
   val testFilterNEq =
     """   size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -213,7 +217,7 @@ object cppSources {
     """
       |size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {
@@ -233,7 +237,7 @@ object cppSources {
     """
       |  size_t len = x_in[0]->count;
       |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
+      |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
       |  for (int i = 0; i < len; i++) {

@@ -70,7 +70,7 @@ object RDDBench {
     val mappedRdd = rdd.map((a: Long) => 2 * a + 12)
     //val filtered = mappedRdd.filter((a: Long) => a % 2 == 0)
     val result = mappedRdd.reduce((a: Long, b: Long) => a + b)
-    
+
     println("result of bench01 is " + result)
     result
   }
