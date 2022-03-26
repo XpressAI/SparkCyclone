@@ -4,10 +4,17 @@ import java.util.BitSet
 import org.bytedeco.javacpp.BytePointer
 
 object FixedBitSet {
+  def ones(size: Int): BytePointer = {
+    val buffer = new BytePointer((size / 8.0).ceil.toLong)
+    for (i <- 0L until buffer.capacity()) {
+      buffer.put(i, -1.toByte)
+    }
+    buffer
+  }
+
   def from(buffer: BytePointer): FixedBitSet = {
     // Initialize the FixedBitSet
-    val size = buffer.capacity().toInt * 8
-    val bitset = FixedBitSet(size)
+    val bitset = FixedBitSet(buffer.capacity().toInt * 8)
 
     // Copy the BytePointer buffer to the underlying bitset
     bitset.underlying = BitSet.valueOf(buffer.asBuffer)
