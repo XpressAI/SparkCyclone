@@ -1,5 +1,6 @@
 package com.nec.spark.agile.core
 
+import scala.reflect.ClassTag
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
 
@@ -36,6 +37,22 @@ sealed trait VeScalarType extends VeType {
 
 object VeScalarType {
   final val All: Set[VeScalarType] = Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong)
+
+  final val JvmToVeTypeMap = Map[Class[_], VeScalarType](
+    classOf[Int] -> VeNullableInt,
+    classOf[Long] -> VeNullableLong,
+    classOf[Float] -> VeNullableFloat,
+    classOf[Double] -> VeNullableDouble,
+    classOf[Short] -> VeNullableShort
+  )
+
+  def fromJvmType[T <: AnyVal : ClassTag]: VeScalarType = {
+    val klass = implicitly[ClassTag[T]].runtimeClass
+    JvmToVeTypeMap.get(klass) match {
+      case Some(typ)  => typ
+      case None       => throw new NotImplementedError(s"No corresponding VeScalarType for primitive type: ${klass}")
+    }
+  }
 }
 
 case object VeNullableDouble extends VeScalarType {
