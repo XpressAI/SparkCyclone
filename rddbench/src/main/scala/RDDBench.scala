@@ -14,8 +14,12 @@ object RDDBench {
     sc = setup()
 
     println("Making numbers")
-    val numbers = (1.toLong to (100 * 1000000).toLong).toArray
-    val rdd = sc.parallelize(numbers).repartition(8).cache()
+    val numbers = Array[Long](100 * 10000000)
+    for (i <- numbers.indices) {
+      numbers(i) = i
+    }
+
+    val rdd = sc.parallelize(numbers).repartition(16).cache()
     benchmark("01 - CPU",  () => bench01cpu(rdd))
 
     println("Making VeRDD")
