@@ -2,14 +2,16 @@ package com.nec.ve
 
 import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
+import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
-import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
+import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.VeRDD.vemap_impl
 import com.nec.ve.colvector.VeColVector
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 import org.apache.spark.{Partition, TaskContext}
 
 import java.nio.file.{Path, Paths}
@@ -82,15 +84,29 @@ class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[
     // TODO: Get AST (Expr) from symbol table, when necessary
     // val expr = ...
 
+    val klass = implicitly[ClassTag[T]].runtimeClass
+
     // transpile f to C
-    val code = transpiler.transpile(expr)
+    val code = transpiler.transpile(expr, klass)
     val funcName = s"eval_${Math.abs(code.hashCode())}"
 
-    val outputs = List(CVector("out", VeNullableLong))
+
+    val dataType = if (klass == classOf[Int]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
+    } else if (klass == classOf[Long]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Float]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else {
+      SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
+    }
+
+
+    val outputs = List(CVector("out", dataType))
     val func = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a_in", VeNullableLong)),
+        PointerPointer(CVector("a_in", dataType)),
         PointerPointer(outputs.head)
       ),
       code,

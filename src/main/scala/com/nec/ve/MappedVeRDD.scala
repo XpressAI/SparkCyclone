@@ -2,15 +2,17 @@ package com.nec.ve
 
 import com.nec.arrow.colvector.ArrowVectorConversions.BPCVToFieldVector
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
-import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
+import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.MappedVeRDD.vereduce_impl
 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, IntVector}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 import org.bytedeco.javacpp.LongPointer
 
 import java.nio.file.Paths
@@ -23,15 +25,27 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
   def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
     println("vereduce got expr: " + showRaw(expr.tree))
 
+    val klass = implicitly[ClassTag[T]].runtimeClass
+
     // transpile f to C
-    val code = transpiler.transpileReduce(expr)
+    val code = transpiler.transpileReduce(expr, klass)
     val funcName = s"reduce_${Math.abs(code.hashCode())}"
 
-    val newOutputs = List(CVector("out", VeNullableLong))
+    val dataType = if (klass == classOf[Int]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
+    } else if (klass == classOf[Long]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Float]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else {
+      SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
+    }
+
+    val newOutputs = List(CVector("out", dataType))
     val newFunc = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a_in", VeNullableLong)),
+        PointerPointer(CVector("a_in", dataType)),
         PointerPointer(newOutputs.head)
       ),
       code,
