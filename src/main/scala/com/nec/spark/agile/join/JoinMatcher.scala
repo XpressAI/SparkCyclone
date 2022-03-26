@@ -2,6 +2,7 @@ package com.nec.spark.agile.join
 
 import com.nec.spark.agile.CFunctionGeneration
 import com.nec.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
+import com.nec.spark.agile.core.CVector
 import com.nec.spark.agile.join.GenericJoiner.FilteredOutput
 import com.nec.spark.planning.VERewriteStrategy.InputPrefix
 import org.apache.spark.sql.catalyst.expressions.{
@@ -17,8 +18,8 @@ import org.apache.spark.sql.catalyst.plans.{logical, Inner}
 final case class JoinMatcher(
   leftChild: LogicalPlan,
   rightChild: LogicalPlan,
-  inputsLeft: List[CFunctionGeneration.CVector],
-  inputsRight: List[CFunctionGeneration.CVector],
+  inputsLeft: List[CVector],
+  inputsRight: List[CVector],
   genericJoiner: GenericJoiner
 )
 object JoinMatcher {
@@ -64,7 +65,7 @@ object JoinMatcher {
             ),
             _
           ) =>
-        val inputsLeft: List[CFunctionGeneration.CVector] =
+        val inputsLeft: List[CVector] =
           leftChild.output.toList.zipWithIndex.map { case (att, idx) =>
             sparkTypeToVeType(att.dataType).makeCVector(s"l_$InputPrefix$idx")
           }

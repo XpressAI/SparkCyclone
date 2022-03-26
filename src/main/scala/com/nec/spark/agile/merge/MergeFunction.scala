@@ -1,9 +1,9 @@
 package com.nec.spark.agile.merge
 
-import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CVector, VeType}
+import com.nec.spark.agile.core.{CVector, VeType}
 
 case class MergeFunction(name: String,
                          columns: List[VeType]) extends FunctionTemplateTrait {

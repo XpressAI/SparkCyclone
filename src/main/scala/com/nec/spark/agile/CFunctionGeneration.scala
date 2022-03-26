@@ -19,8 +19,7 @@
  */
 package com.nec.spark.agile
 
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
 import org.apache.arrow.memory.BufferAllocator
@@ -30,45 +29,6 @@ import org.apache.spark.sql.types._
 
 /** Spark-free function evaluation */
 object CFunctionGeneration {
-  sealed trait SortOrdering
-  final case object Descending extends SortOrdering
-  final case object Ascending extends SortOrdering
-
-  sealed trait CVector {
-    def withNewName(str: String): CVector
-    def declarePointer: String = s"${veType.cVectorType} *${name}"
-    def replaceName(search: String, replacement: String): CVector
-    def name: String
-    def veType: VeType
-  }
-  object CVector {
-    def apply(name: String, veType: VeType): CVector =
-      veType match {
-        case VeString        => varChar(name)
-        case o: VeScalarType => CScalarVector(name, o)
-      }
-    def varChar(name: String): CVector = CVarChar(name)
-    def double(name: String): CVector = CScalarVector(name, VeScalarType.veNullableDouble)
-    def int(name: String): CVector = CScalarVector(name, VeScalarType.veNullableShort)
-    def bigInt(name: String): CVector = CScalarVector(name, VeScalarType.VeNullableLong)
-  }
-
-  final case class CVarChar(name: String) extends CVector {
-    override def veType: VeType = VeString
-
-    override def replaceName(search: String, replacement: String): CVector =
-      copy(name = name.replaceAllLiterally(search, replacement))
-
-    override def withNewName(str: String): CVector = copy(name = str)
-  }
-
-  final case class CScalarVector(name: String, veType: VeScalarType) extends CVector {
-    override def replaceName(search: String, replacement: String): CVector =
-      copy(name = name.replaceAllLiterally(search, replacement))
-
-    override def withNewName(str: String): CVector = copy(name = str)
-  }
-
   final case class CExpression(cCode: String, isNotNullCode: Option[String]) {
     def storeTo(outputName: String): CodeLines = isNotNullCode match {
       case None =>
@@ -88,8 +48,8 @@ object CFunctionGeneration {
           )
           .indented
     }
-
   }
+
   final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
 
   final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)
@@ -101,100 +61,6 @@ object CFunctionGeneration {
     def cVector: CVector = veType.makeCVector(name)
   }
   final case class NamedStringExpression(name: String, stringProducer: StringProducer)
-
-  @SQLUserDefinedType(udt = classOf[UserDefinedVeType])
-  sealed trait VeType {
-    def containerSize: Int
-    def isString: Boolean
-    def cVectorType: String
-    def makeCVector(name: String): CVector
-  }
-
-  object VeType {
-    val All: Set[VeType] = Set(VeString) ++ VeScalarType.All
-  }
-
-  case object VeString extends VeType {
-    override def cVectorType: String = "nullable_varchar_vector"
-
-    override def makeCVector(name: String): CVector = CVector.varChar(name)
-
-    override def isString: Boolean = true
-
-    override def containerSize: Int = 40
-  }
-
-  sealed trait VeScalarType extends VeType {
-    override def containerSize: Int = 20
-
-    def cScalarType: String
-
-    def cSize: Int
-
-    override def makeCVector(name: String): CVector = CScalarVector(name, this)
-
-    override def isString: Boolean = false
-  }
-
-  object VeScalarType {
-    val All: Set[VeScalarType] =
-      Set(VeNullableDouble, VeNullableFloat, VeNullableInt, VeNullableShort, VeNullableLong)
-    case object VeNullableDouble extends VeScalarType {
-
-      def cScalarType: String = "double"
-
-      def cVectorType: String = "nullable_double_vector"
-
-      override def cSize: Int = 8
-    }
-
-    case object VeNullableFloat extends VeScalarType {
-      def cScalarType: String = "float"
-
-      def cVectorType: String = "nullable_float_vector"
-
-      override def cSize: Int = 4
-    }
-
-    case object VeNullableShort extends VeScalarType {
-      def cScalarType: String = "int32_t"
-
-      def cVectorType: String = "nullable_short_vector"
-
-      override def cSize: Int = 4
-    }
-
-    case object VeNullableInt extends VeScalarType {
-      def cScalarType: String = "int32_t"
-
-      def cVectorType: String = "nullable_int_vector"
-
-      override def cSize: Int = 4
-    }
-
-    case object VeNullableLong extends VeScalarType {
-      def cScalarType: String = "int64_t"
-
-      def cVectorType: String = "nullable_bigint_vector"
-
-      override def cSize: Int = 8
-    }
-
-    def veNullableDouble: VeScalarType = VeNullableDouble
-    def veNullableInt: VeScalarType = VeNullableInt
-    def veNullableShort: VeScalarType = VeNullableShort
-    def veNullableLong: VeScalarType = VeNullableLong
-  }
-
-  /**
-   * The reason to use fully generic types is so that we can map them around in future, without having an implementation
-   * that interferes with those changes. By 'manipulate' we mean optimize/find shortcuts/etc.
-   *
-   * By doing this, we flatten the code hierarchy and can now do validation of C behaviors without requiring Spark to be pulled in.
-   *
-   * This even enables us the possibility to use Frovedis behind the scenes.
-   */
-  final case class VeProjection[Input, Output](inputs: List[Input], outputs: List[Output])
 
   final case class VeGroupBy[Input, Group, Output](
     inputs: List[Input],
@@ -297,7 +163,7 @@ object CFunctionGeneration {
       override def partialValues(prefix: String): List[(CScalarVector, CExpression)] =
         List(
           (
-            CScalarVector(s"${prefix}_x", VeScalarType.veNullableDouble),
+            CScalarVector(s"${prefix}_x", VeNullableDouble),
             CExpression(s"${prefix}_aggregate_sum", None)
           )
         )
@@ -341,11 +207,11 @@ object CFunctionGeneration {
 
       override def partialValues(prefix: String): List[(CScalarVector, CExpression)] = List(
         (
-          CScalarVector(s"${prefix}_aggregate_sum_partial_output", VeScalarType.veNullableDouble),
+          CScalarVector(s"${prefix}_aggregate_sum_partial_output", VeNullableDouble),
           CExpression(s"${prefix}_aggregate_sum", None)
         ),
         (
-          CScalarVector(s"${prefix}_aggregate_count_partial_output", VeScalarType.veNullableLong),
+          CScalarVector(s"${prefix}_aggregate_count_partial_output", VeNullableLong),
           CExpression(s"${prefix}_aggregate_count", None)
         )
       )
@@ -363,10 +229,6 @@ object CFunctionGeneration {
     data: List[Data],
     condition: Condition
   )
-
-  final case class VeSort[Data, Sort](data: List[Data], sorts: List[Sort])
-
-  final case class VeSortExpression(typedExpression: TypedCExpression2, sortOrdering: SortOrdering)
 
   def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
     cVector.veType match {
@@ -439,36 +301,6 @@ object CFunctionGeneration {
     )
 
     def arguments: List[CVector] = inputs ++ outputs
-
-    def toCodeLinesPF(functionName: String): CodeLines = {
-      CodeLines.from(
-        """#include "cyclone/cyclone.hpp"""",
-        """#include "frovedis/text/dict.hpp"""",
-        "#include <math.h>",
-        "#include <stddef.h>",
-        "#include <bitset>",
-        "#include <iostream>",
-        "#include <string>",
-        "#include <vector>",
-        toCodeLinesNoHeader(functionName)
-      )
-    }
-
-    def toCodeLinesG(functionName: String): CodeLines = {
-      CodeLines.from(
-        """#include "cyclone/cyclone.hpp"""",
-        """#include "frovedis/text/datetime_utility.hpp"""",
-        """#include "frovedis/text/dict.hpp"""",
-        "#include <math.h>",
-        "#include <stddef.h>",
-        "#include <bitset>",
-        "#include <iostream>",
-        "#include <string>",
-        "#include <tuple>",
-        "#include <vector>",
-        toCodeLinesNoHeader(functionName)
-      )
-    }
 
     def toCodeLinesNoHeader(functionName: String): CodeLines = {
       CodeLines.from(

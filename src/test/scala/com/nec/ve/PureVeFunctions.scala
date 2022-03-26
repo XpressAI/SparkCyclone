@@ -1,20 +1,21 @@
 package com.nec.ve
 
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.CFunctionGeneration.{CFunction, VeScalarType}
+import com.nec.spark.agile.core._
+import com.nec.spark.agile.CFunctionGeneration.CFunction
+import com.nec.spark.agile.core.VeScalarType
 import com.nec.spark.agile.groupby.GroupByOutline
 
 object PureVeFunctions {
   val DoublingFunction: CFunction = CFunction(
-    inputs = List(VeScalarType.VeNullableDouble.makeCVector("input")),
-    outputs = List(VeScalarType.VeNullableDouble.makeCVector("o_p")),
+    inputs = List(VeNullableDouble.makeCVector("input")),
+    outputs = List(VeNullableDouble.makeCVector("o_p")),
     body = CodeLines
       .from(
         CodeLines
           .from(
             "nullable_double_vector* o = nullable_double_vector::allocate();",
             "*o_p = o;",
-            GroupByOutline.initializeScalarVector(VeScalarType.VeNullableDouble, "o", "input[0]->count"),
+            GroupByOutline.initializeScalarVector(VeNullableDouble, "o", "input[0]->count"),
             "for ( int i = 0; i < input[0]->count; i++ ) {",
             CodeLines
               .from("o->data[i] = input[0]->data[i] * 2;", "o->set_validity(i, 1);")
@@ -27,8 +28,8 @@ object PureVeFunctions {
 
   val PartitioningFunction: CFunction = CFunction(
     hasSets = true,
-    inputs = List(VeScalarType.VeNullableDouble.makeCVector("input")),
-    outputs = List(VeScalarType.VeNullableDouble.makeCVector("o_p")),
+    inputs = List(VeNullableDouble.makeCVector("input")),
+    outputs = List(VeNullableDouble.makeCVector("o_p")),
     body = CodeLines
       .from(
         "int SETS_TO_DO = 5;",
@@ -50,7 +51,7 @@ object PureVeFunctions {
               .indented,
             "}",
             GroupByOutline
-              .scalarVectorFromStdVector(VeScalarType.VeNullableDouble, "o_p[s]", "nums")
+              .scalarVectorFromStdVector(VeNullableDouble, "o_p[s]", "nums")
           )
           .indented,
         "}"

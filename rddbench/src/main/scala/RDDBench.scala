@@ -14,11 +14,16 @@ object RDDBench {
     sc = setup()
 
     println("Making numbers")
-    val numbers = (1.toLong to (100 * 1000000.toLong)).toArray
-    val rdd = sc.parallelize(numbers).repartition(8).cache()
+    val numbers = Array[Long](100 * 10000000)
+    for (i <- numbers.indices) {
+      numbers(i) = i
+    }
+
+    val rdd = sc.parallelize(numbers).repartition(16).cache()
     benchmark("01 - CPU",  () => bench01cpu(rdd))
 
     println("Making VeRDD")
+
     val verdd = new VeRDD(rdd)
 
     println("Starting Benchmark")
@@ -54,8 +59,6 @@ object RDDBench {
 
 
   def bench01cpu(rdd: RDD[Long]): Long = {
-
-    val rdd2 = sc.parallelize(Seq(Some(10), None))
     val mappedRdd = rdd.map( (a) => 2 * a + 12)
     val result = mappedRdd.reduce( (a,b) => a + b)
 
@@ -64,14 +67,10 @@ object RDDBench {
   }
 
   def bench01ve(rdd: VeRDD[Long]): Long = {
-    import scala.reflect.runtime.universe._
-
-    val expr = reify( (a: Long) => 2 * a + 12)
-    val mappedRdd = rdd.vemap(expr)
-    val result = mappedRdd.vereduce(reify((a: Long,b: Long) => a + b))
-
-    val filtered = result.vefilter(reify( (x: Long) => True))
-
+    val mappedRdd = rdd.map((a: Long) => 2 * a + 12)
+    //val filtered = mappedRdd.filter((a: Long) => a % 2 == 0)
+    val result = mappedRdd.reduce((a: Long, b: Long) => a + b)
+    
     println("result of bench01 is " + result)
     result
   }

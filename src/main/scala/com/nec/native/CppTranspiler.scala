@@ -6,29 +6,39 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 object CppTranspiler {
-  def transpileReduce[T](expr: universe.Expr[(T, T) => T]): String = {
+  def transpileReduce[T](expr: universe.Expr[(T, T) => T], klass: Class[_]): String = {
     expr.tree match {
-      case fun @ Function(vparams, body) => evalReduce(fun)
+      case fun @ Function(vparams, body) => evalReduce(fun, klass)
     }
   }
 
-  def transpileFilter[T](expr: universe.Expr[ T => Boolean]): String = {
+  def transpileFilter[T](expr: universe.Expr[ T => Boolean], klass: Class[_]): String = {
     expr.tree match {
-      case fun @ Function(vparams, body) => evalFilter(fun)
+      case fun @ Function(vparams, body) => evalFilter(fun, klass)
     }
   }
 
   var functionNames: List[String] = List()
 
   // entry point
-  def transpile[T](expr: Expr[T]): String = {
+  def transpile[T](expr: Expr[T], klass: Class[_]): String = {
     expr.tree match {
-      case fun @ Function(vparams, body) => evalFunc(fun)
+      case fun @ Function(vparams, body) => evalFunc(fun, klass)
     }
   }
 
   // evaluate Function type from Scala AST
-  def evalReduce(fun: Function): String = {
+  def evalReduce(fun: Function, klass: Class[_]): String = {
+    val resultType = if (klass == classOf[Int]) {
+      "nullable_int_vector"
+    } else if (klass == classOf[Long]) {
+      "nullable_bigint_vector"
+    } else if (klass == classOf[Float]) {
+      "nullable_float_vector"
+    } else {
+      "nullable_double_vector"
+    }
+
     val defs = fun.vparams
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
@@ -36,10 +46,10 @@ object CppTranspiler {
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = nullable_bigint_vector::allocate();",
+        s"out[0] = $resultType::allocate();",
         s"out[0]->resize(1);",
-        s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
-        s"${evalScalarType(defs.tail.head.tpt)} ${defs.tail.head.name}{};",
+        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
+        s"${evalScalarType(defs.tail.head.tpt, klass)} ${defs.tail.head.name}{};",
         "for (int i = 0; i < len; i++) {",
         CodeLines.from(
           s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
@@ -54,12 +64,12 @@ object CppTranspiler {
     }
   }
 
-  private def filter_code(defs: List[ValDef], predicate_code: String) = CodeLines.from(
+  private def filter_code(defs: List[ValDef], predicate_code: String, klass: Class[_]) = CodeLines.from(
     s"size_t len = ${defs.head.name.toString}_in[0]->count;",
     s"size_t actual_len = 0;",
     s"out[0] = nullable_bigint_vector::allocate();",
     s"out[0]->resize(len);",
-    s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
+    s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
     s"for (int i = 0; i < len; i++) {",
     CodeLines.from(
       s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
@@ -78,19 +88,19 @@ object CppTranspiler {
     s"out[0]->resize(actual_len);",
   ).indented.cCode
 
-  def evalFilter(fun: Function): String = {
+  def evalFilter(fun: Function, klass: Class[_]): String = {
     val defs = fun.vparams
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => filter_code(defs, evalApply(apply))
-      case select @ Select(tree, name) => filter_code(defs, evalSelect(select))
+      case apply @ Apply(fun, args) => filter_code(defs, evalApply(apply), klass)
+      case select @ Select(tree, name) => filter_code(defs, evalSelect(select), klass)
       case lit @ Literal(Constant(true)) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = nullable_bigint_vector::allocate();",
         s"out[0]->resize(len);",
-        s"${evalScalarType(defs.head.tpt)} ${defs.head.name}{};",
+        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
         "for (int i = 0; i < len; i++) {",
         CodeLines.from(
           s"out[0]->data[i] = x_in[0]->data[i];"
@@ -111,8 +121,8 @@ object CppTranspiler {
   }
 
   // evaluate Function type from Scala AST
-  def evalFunc(fun: Function): String = {
-    evalBody(fun.vparams, fun.body)
+  def evalFunc(fun: Function, klass: Class[_]): String = {
+    evalBody(fun.vparams, fun.body, klass)
   }
 
   // evaluate vparams for Function
@@ -152,7 +162,8 @@ object CppTranspiler {
 
   }
 
-  def evalScalarType(tree: Tree): String = {
+  def evalScalarType(tree: Tree, klass: Class[_]): String = {
+
     tree match {
       case ident @ Ident(_) =>
         val idStr = evalIdent(ident)
@@ -163,10 +174,30 @@ object CppTranspiler {
           case "Long" => "int64_t"
           case "Float" => "float"
           case "Double" => "double"
-          case unknown => "<unhandled type: " + idStr + ">"
+          case _ => {
+            if (klass == classOf[Int]) {
+              "int32_t"
+            } else if (klass == classOf[Long]) {
+              "int64_t"
+            } else if (klass == classOf[Float]) {
+              "float"
+            } else {
+              "double"
+            }
+          }
         }
 
-      case unknown => "<unknown type: " + showRaw(unknown) + ">"
+      case unknown => {
+        if (klass == classOf[Int]) {
+          "int32_t"
+        } else if (klass == classOf[Long]) {
+          "int64_t"
+        } else if (klass == classOf[Float]) {
+          "float"
+        } else {
+          "double"
+        }
+      }
     }
 
   }
@@ -185,7 +216,16 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalBody(defs: List[ValDef], body: Tree): String = {
+  def evalBody(defs: List[ValDef], body: Tree, klass: Class[_]): String = {
+    val resultType = if (klass == classOf[Int]) {
+      "nullable_int_vector"
+    } else if (klass == classOf[Long]) {
+      "nullable_bigint_vector"
+    } else if (klass == classOf[Float]) {
+      "nullable_float_vector"
+    } else {
+      "nullable_double_vector"
+    }
 
     body match {
       case ident @ Ident(name) => CodeLines.from(
@@ -193,10 +233,10 @@ object CppTranspiler {
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = nullable_bigint_vector::allocate();",
+        s"out[0] = $resultType::allocate();",
         s"out[0]->resize(len);",
         defs.map { d =>
-          s"${evalScalarType(d.tpt)} ${d.name}{};"
+          s"${evalScalarType(d.tpt, klass)} ${d.name}{};"
         },
         "for (int i = 0; i < len; i++) {",
         CodeLines.from(

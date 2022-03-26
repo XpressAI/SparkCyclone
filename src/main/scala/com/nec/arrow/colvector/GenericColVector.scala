@@ -1,6 +1,6 @@
 package com.nec.arrow.colvector
 
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeColBatch.VeColVectorSource
 
 final case class GenericColVector[Data](

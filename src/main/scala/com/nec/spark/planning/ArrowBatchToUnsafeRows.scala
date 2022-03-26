@@ -1,7 +1,7 @@
 package com.nec.spark.planning
 
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
 import org.apache.arrow.vector._
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.vectorized.ColumnarBatch

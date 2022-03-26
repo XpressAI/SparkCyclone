@@ -1,7 +1,7 @@
 package com.nec.arrow.colvector
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableInt
+import com.nec.spark.agile.core.VeNullableInt
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.scalatest.freespec.AnyFreeSpec
 

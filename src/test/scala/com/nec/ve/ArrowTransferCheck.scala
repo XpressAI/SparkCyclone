@@ -3,8 +3,8 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
-import com.nec.spark.agile.CFunctionGeneration.VeScalarType.VeNullableDouble
-import com.nec.spark.agile.CFunctionGeneration.{VeScalarType, VeString}
+import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.spark.agile.core.{VeNullableDouble, VeScalarType, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
@@ -23,7 +23,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
           val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-          val arrowVec = colVec.toArrowVector()
+          val arrowVec = colVec.toBytePointerVector.toArrowVector
 
           try {
             colVec.free()
@@ -37,7 +37,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       WithTestAllocator { implicit alloc =>
         withArrowStringVector(List("Quick", "brown", "fox", "smth smth", "lazy dog")) { f8v =>
           val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-          val arrowVec = colVec.toArrowVector()
+          val arrowVec = colVec.toBytePointerVector.toArrowVector
 
           try {
             colVec.free()
@@ -46,11 +46,12 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
         }
       }
     }
+
     "for BigInt" in {
       WithTestAllocator { implicit alloc =>
         withDirectBigIntVector(List(1, -1, 1238)) { biv =>
           val colVec: VeColVector = VeColVector.fromArrowVector(biv)
-          val arrowVec = colVec.toArrowVector()
+          val arrowVec = colVec.toBytePointerVector.toArrowVector
 
           try {
             colVec.free()
@@ -59,11 +60,12 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
         }
       }
     }
+
     "for Int" in {
       WithTestAllocator { implicit alloc =>
         withDirectIntVector(List(1, 2, 3, -5)) { dirInt =>
           val colVec: VeColVector = VeColVector.fromArrowVector(dirInt)
-          val arrowVec = colVec.toArrowVector()
+          val arrowVec = colVec.toBytePointerVector.toArrowVector
 
           try {
             colVec.free()
@@ -84,10 +86,10 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             libraryReference = lib,
             functionName = "f",
             cols = List(colVec),
-            results = List(VeScalarType.veNullableDouble.makeCVector("outd"))
+            results = List(VeNullableDouble.makeCVector("outd"))
           )
           expect(results.size == 1)
-          val vec = results.head.toArrowVector().asInstanceOf[Float8Vector]
+          val vec = results.head.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
           val result = vec.toList
           try expect(result == List[Double](2, 4, 6))
           finally vec.close()
@@ -106,13 +108,13 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             libraryReference = lib,
             functionName = "f",
             cols = List(colVec),
-            results = List(VeScalarType.veNullableDouble.makeCVector("outd"))
+            results = List(VeNullableDouble.makeCVector("outd"))
           )
 
           val plainResults: List[(Int, Option[Double])] = results.map { case (index, vecs) =>
             val vec = vecs.head
             index -> {
-              val av = vec.toArrowVector().asInstanceOf[Float8Vector]
+              val av = vec.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
               val avl = av.toList
               try if (avl.isEmpty) None else Some(avl.max)
               finally av.close()
@@ -132,9 +134,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     val groupingFn = GroupingFunction(
       "f",
       List(
-        GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Key),
+        GroupingFunction.DataDescription(VeNullableDouble, GroupingFunction.Key),
         GroupingFunction.DataDescription(VeString, GroupingFunction.Key),
-        GroupingFunction.DataDescription(VeScalarType.VeNullableDouble, GroupingFunction.Value)
+        GroupingFunction.DataDescription(VeNullableDouble, GroupingFunction.Value)
       ),
       2
     )
@@ -154,17 +156,17 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                 functionName = groupingFn.name,
                 cols = List(colVec, colVecS, colVec2),
                 results = List(
-                  VeScalarType.veNullableDouble,
+                  VeNullableDouble,
                   VeString,
-                  VeScalarType.veNullableDouble
+                  VeNullableDouble
                 ).zipWithIndex.map { case (vt, i) => vt.makeCVector(s"out_${i}") }
               )
 
               val plainResultsD: List[(Int, List[(Double, String, Double)])] = results.map {
                 case (index, vecs) =>
-                  val vecFloat = vecs(0).toArrowVector().asInstanceOf[Float8Vector]
-                  val vecStr = vecs(1).toArrowVector().asInstanceOf[VarCharVector]
-                  val vecFl2 = vecs(2).toArrowVector().asInstanceOf[Float8Vector]
+                  val vecFloat = vecs(0).toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
+                  val vecStr = vecs(1).toBytePointerVector.toArrowVector.asInstanceOf[VarCharVector]
+                  val vecFl2 = vecs(2).toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
                   try {
                     index -> vecFloat.toList.zip(vecFl2.toList).zip(vecStr.toList).map {
                       case ((a, b), c) => (a, c, b)
@@ -209,7 +211,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val newSerialized = newColVec.serialize().toList
       val newSerList = newSerialized.toList
       assert(newSerList == serList, "Serializing a deserialized one should yield the same result")
-      val newColVecArrow = newColVec.toArrowVector()
+      val newColVecArrow = newColVec.toBytePointerVector.toArrowVector
       try {
         colVec.free()
         newColVec.free()
@@ -298,7 +300,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
                     }
                   )
 
-                  val resultVecs: List[FieldVector] = r.map(_.toArrowVector())
+                  val resultVecs: List[FieldVector] = r.map(_.toBytePointerVector.toArrowVector)
 
                   try {
                     val nums = resultVecs(0).asInstanceOf[Float8Vector].toListSafe

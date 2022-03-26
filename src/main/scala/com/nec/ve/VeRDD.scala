@@ -2,92 +2,81 @@ package com.nec.ve
 
 import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration.CVector
-import com.nec.spark.agile.core.CFunction2
+import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
+import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
+import com.nec.ve.VeRDD.vemap_impl
 import com.nec.ve.colvector.VeColVector
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.{BigIntVector, IntVector}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 import org.apache.spark.{Partition, TaskContext}
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
+import scala.language.experimental.macros
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
+import scala.reflect.macros.whitebox
 import scala.reflect.runtime.universe._
 
-class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
+
+class VeRDD[T: ClassTag](rdd: RDD[T])(implicit tag: WeakTypeTag[T]) extends RDD[T](rdd) {
   @transient val transpiler: CppTranspiler.type = CppTranspiler
 
-  val jobRdd: RDD[Int] = sparkContext.parallelize(0 until 8).repartition(8)
+  //val jobRdd: RDD[Int] = sparkContext.parallelize(0 until 8).repartition(8)
   val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
     if (SparkCycloneExecutorPlugin.containsCachedBatch("inputs")) {
       println(s"Using cached inputs for ${index}")
-
-      val valsArray = valsIter.toArray.asInstanceOf[Array[Long]]
-
-      println(s"First value: ${valsArray(0)}")
-      println(s"Last value: ${valsArray(valsArray.length - 1)}")
-
       Iterator(SparkCycloneExecutorPlugin.getCachedBatch(s"inputs"))
     } else {
       println(s"Reading inputs for ${index}")
       val start = System.nanoTime()
 
-      val valsArray = valsIter.toSeq
+      val valsArray = valsIter.toArray
       println(s"First value: ${valsArray.head}")
       println(s"Last value: ${valsArray.last}")
 
+      import com.nec.arrow.colvector.ArrayTConversions._
 
-      val root = new RootAllocator(Int.MaxValue)
-      val arrowVector = typeOf[T] match {
-        case _: Int =>
-          new IntVector("", root)
-        case _: Long =>
-          new BigIntVector("", root)
-        case _: Option[Int] =>
-          new IntVector("", root)
-        case _: Option[Long] =>
-          new BigIntVector("", root)
-      }
-      arrowVector.setValueCount(valsArray.length)
+      val klass = implicitly[ClassTag[T]].runtimeClass
+      val veVector = if (klass == classOf[Int]) {
+        val intVector = valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
+      } else if (klass == classOf[Long]) {
+        val intVector = valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
+      } else if (klass == classOf[Float]) {
+        val intVector = valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
+      } else {
+        val intVector = valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}")
+        intVector.toVeColVector()
 
-      for ((v, i) <- valsArray.zipWithIndex) {
-        (arrowVector, valsArray) match {
-          case (intVector: IntVector, a: Seq[Int]) =>
-            intVector.set(i, a(i).asInstanceOf[Int])
-          case (intVector: IntVector, v: Seq[Option[Int]]) =>
-            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
-          case (intVector: BigIntVector, a: Seq[Long]) =>
-            intVector.set(i, a(i).asInstanceOf[Int])
-          case (intVector: BigIntVector, v: Seq[Option[Long]]) =>
-            v.asInstanceOf[Option[Int]].foreach(x => intVector.set(i, x))
-        }
       }
+
       val end = System.nanoTime()
 
-      println(s"Took ${(end - start) / 1000000000}s to convert ${arrowVector.getValueCount} rows.")
+      println(s"Took ${(end - start) / 1000000000}s to convert ${valsArray.length} rows.")
 
-      //val batch = VeColBatch.fromList(List(VeColVector.fromPointer(intVec)))
-      val batch = VeColBatch.fromList(List(VeColVector.fromArrowVector(arrowVector)))
-      SparkCycloneExecutorPlugin.registerCachedBatch("input", batch)
+      val batch = VeColBatch.fromList(List(veVector))
+      SparkCycloneExecutorPlugin.registerCachedBatch("inputs", batch)
       Iterator(batch)
     }
   }
   // Trigger caching of VeColBatches
   println("Trying to trigger VeColBatch caching.")
-  inputs.filter(_ => false).collect()
+  inputs.count()
   println("Finished collect()")
 
-  def vemap[U:ClassTag](expr: Expr[T => T]): MappedVeRDD = {
+  def map(f: T => T): MappedVeRDD[T] = macro vemap_impl[T]
+
+  def vemap(expr: Expr[T => T]): MappedVeRDD[T] = {
     import scala.reflect.runtime.universe._
 
     // TODO: for inspection, remove when done
@@ -96,15 +85,29 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
     // TODO: Get AST (Expr) from symbol table, when necessary
     // val expr = ...
 
+    val klass = implicitly[ClassTag[T]].runtimeClass
+
     // transpile f to C
-    val code = transpiler.transpile(expr)
+    val code = transpiler.transpile(expr, klass)
     val funcName = s"eval_${Math.abs(code.hashCode())}"
 
-    val outputs = List(CVector("out", CFunctionGeneration.VeScalarType.veNullableLong))
+
+    val dataType = if (klass == classOf[Int]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
+    } else if (klass == classOf[Long]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Float]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else {
+      SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
+    }
+
+
+    val outputs = List(CVector("out", dataType))
     val func = new CFunction2(
       funcName,
       Seq(
-        PointerPointer(CVector("a_in", CFunctionGeneration.VeScalarType.veNullableLong)),
+        PointerPointer(CVector("a_in", dataType)),
         PointerPointer(outputs.head)
       ),
       code,
@@ -115,6 +118,7 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 
     // compile
     val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders)
+    println("wee1")
     println("compiled path:" + compiledPath)
 
     // TODO: remove dummy result
@@ -154,4 +158,11 @@ class VeRDD[T: ClassTag](rdd: RDD[T]) extends RDD[T](rdd) {
 // implicit conversion
 object VeRDD {
   implicit def toVectorizedRDD[T: ClassTag](r: RDD[T]): VeRDD[T] = new VeRDD(r)
+
+  def vemap_impl[T](c: whitebox.Context)(f: c.Expr[T => T]): c.Expr[MappedVeRDD[T]] = {
+    import c.universe._
+    val self = c.prefix
+    val x = q"${self}.vemap(scala.reflect.runtime.universe.reify { ${f} })"
+    c.Expr[MappedVeRDD[T]](x)
+  }
 }

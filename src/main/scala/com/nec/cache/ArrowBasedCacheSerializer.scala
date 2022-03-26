@@ -2,10 +2,12 @@ package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
+import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.ValueVector
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
@@ -48,9 +50,9 @@ object ArrowBasedCacheSerializer {
         CachedVeBatch(DualColumnarBatchContainer(vecs = (0 until columnarBatch.numCols()).map {
           colNo =>
             Right(
-              BytePointerColVector
-                .fromArrowVector(columnarBatch.column(colNo).getArrowValueVector)
-                .toByteArrayColVector()
+              columnarBatch.column(colNo).getArrowValueVector
+                .toBytePointerColVector
+                .toByteArrayColVector
             )
         }.toList))
       }
@@ -98,24 +100,11 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
           .map(i =>
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
-                BytePointerColVector
-                  .fromArrowVector(acv)
-                  .toByteArrayColVector()
+                acv.toBytePointerColVector.toByteArrayColVector
               case None =>
-                BytePointerColVector
-                  .fromColumnarVectorViaArrow(
-                    schema(i).name,
-                    columnarBatch.column(i),
-                    columnarBatch.numRows()
-                  ) match {
-                  case None =>
-                    throw new NotImplementedError(
-                      s"Type ${schema(i).dataType} not supported for columnar batch conversion"
-                    )
-                  case Some((fieldVector, bytePointerColVector)) =>
-                    try bytePointerColVector.toByteArrayColVector()
-                    finally fieldVector.close()
-                }
+                columnarBatch.column(i)
+                  .toBytePointerColVector(schema(i).name, columnarBatch.numRows)
+                  .toByteArrayColVector
             }
           )
           .toList

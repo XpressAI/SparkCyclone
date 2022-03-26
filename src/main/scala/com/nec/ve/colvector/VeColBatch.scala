@@ -1,7 +1,9 @@
 package com.nec.ve.colvector
 
 import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
-import com.nec.spark.agile.CFunctionGeneration.VeType
+import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
+import com.nec.spark.agile.core.VeType
 import com.nec.ve
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -70,7 +72,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess
   ): ColumnarBatch = {
-    val vecs = underlying.cols.map(_.toArrowVector())
+    val vecs = underlying.cols.map(_.toBytePointerVector.toArrowVector)
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(underlying.numRows)
     cb
@@ -207,8 +209,8 @@ object VeColBatch {
       GenericColBatch(
         numRows = columnarBatch.numRows(),
         cols = (0 until columnarBatch.numCols()).map { colNo =>
-          val col = columnarBatch.column(colNo)
-          VeColVector.fromVectorColumn(numRows = columnarBatch.numRows(), source = col)
+          val column = columnarBatch.column(colNo)
+          VeColVector.fromArrowVector(column.getArrowValueVector)
         }.toList
       )
     )

@@ -1,12 +1,11 @@
 package com.nec.spark.serialization
 
-import com.nec.spark.planning.CEvaluationPlan.HasFieldVector.RichColumnVector
-import com.nec.spark.planning.CEvaluationPlan.HasFloat8Vector.RichObject
+import com.nec.util.ReflectionOps._
+import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 import org.apache.arrow.vector.{FieldVector, Float8Vector, VectorSchemaRoot}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, OutputStream}
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 
