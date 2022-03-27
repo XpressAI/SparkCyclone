@@ -13,23 +13,43 @@ import org.apache.arrow.memory.RootAllocator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{OneToOneDependency, Partition, TaskContext}
+import org.apache.spark._
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
+import scala.collection.immutable.NumericRange
 import scala.language.experimental.macros
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 object VeRDD {
+  implicit class VeRichRDD[T: ClassTag](rdd: RDD[T]) {
+    def toVeRDD: VeRDD[T] = new BasicVeRDD[T](rdd)
+  }
+
+  implicit class VeRichSparkContext(sc: SparkContext) {
+    def veParallelize(range: NumericRange.Inclusive[Long]): VeRDD[Long] = {
+      SequenceVeRDD.makeSequence(sc, range.start, range.end)
+    }
+  }
+
   def vemap_impl[U: c.WeakTypeTag, T: c.WeakTypeTag](c: whitebox.Context)(f: c.Expr[T => U]): c.Expr[VeRDD[U]] = {
     import c.universe._
     val self = c.prefix
     val x = q"${self}.vemap(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[VeRDD[U]](x)
   }
+
+  def veflatMap_impl[U: c.WeakTypeTag, T: c.WeakTypeTag](c: whitebox.Context)(f: c.Expr[T => TraversableOnce[U]]): c.Expr[VeRDD[U]] = {
+    import c.universe._
+    val self = c.prefix
+    val x = q"${self}.veflatMap(scala.reflect.runtime.universe.reify { ${f} })"
+    c.Expr[VeRDD[U]](x)
+  }
+
   def vefilter_impl[T](c: whitebox.Context)(f: c.Expr[(T) => Boolean]): c.Expr[VeRDD[T]] = {
     import c.universe._
 
@@ -37,12 +57,30 @@ object VeRDD {
     val x = q"${self}.vefilter(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[VeRDD[T]](x)
   }
+
   def vereduce_impl[T](c: whitebox.Context)(f: c.Expr[(T, T) => T]): c.Expr[T] = {
     import c.universe._
 
     val self = c.prefix
     val x = q"${self}.vereduce(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[T](x)
+  }
+
+  def vegroupBy_impl[K, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[VeRDD[(K, Iterable[T])]] = {
+    import c.universe._
+
+    val self = c.prefix
+    val x = q"${self}.vegroupBy(scala.reflect.runtime.universe.reify { ${f} })"
+    c.Expr[VeRDD[(K, Iterable[T])]](x)
+  }
+}
+
+class KeyedVeRDD[K: Ordering : ClassTag, V: ClassTag, P <: Product2[K, V] : ClassTag](self: VeRDD[P]) extends Serializable {
+  private val ordering = implicitly[Ordering[K]]
+
+  def repartitionAndSortWithinPartitions(partitioner: Partitioner): RDD[(K, V)] = {
+    // TODO: SHM shuffle
+    new ShuffledVeRDD[K, V, V](self, partitioner).setKeyOrdering(ordering)
   }
 }
 
@@ -54,8 +92,10 @@ trait VeRDD[T] extends RDD[T] {
   val inputs: RDD[VeColBatch]
 
   def map[U](f: T => U): RDD[U] = macro vemap_impl[U, T]
+  def flatMap[U](f: T => TraversableOnce[U]): VeRDD[U] = macro veflatMap_impl[U, T]
   override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
   override def filter(f: T => Boolean): VeRDD[T] = macro vefilter_impl[T]
+  def groupBy[K](f: T => K): VeRDD[(K, Iterable[T])] = macro vegroupBy_impl[K, T]
 
   def withCompiled[U](cCode: String)(f: Path => U): U = {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
@@ -65,8 +105,11 @@ trait VeRDD[T] extends RDD[T] {
   }
 
   def vemap[U: ClassTag](expr: Expr[T => U]): VeRDD[U]
+  def veflatMap[U: ClassTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U]
   def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T]
+  def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])]
   def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T
+
 
   def evalFunction(
     func: CFunction2,
@@ -336,6 +379,10 @@ abstract class ChainedVeRDD[T: ClassTag](
 
     new MappedVeRDD(this, func, compiledPath.toAbsolutePath.toString, outputs)
   }
+
+  override def veflatMap[U: ClassTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U] = ???
+
+  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
 }
 
 class BasicVeRDD[T: ClassTag](
@@ -424,6 +471,8 @@ class BasicVeRDD[T: ClassTag](
     new MappedVeRDD(this, func, compiledPath.toAbsolutePath.toString, outputs)
   }
 
+  override def veflatMap[U: ClassTag](expr: universe.Expr[T => TraversableOnce[U]]): VeRDD[U] = ???
+
   override def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T] = {
     val klass = implicitly[ClassTag[T]].runtimeClass
 
@@ -457,19 +506,6 @@ class BasicVeRDD[T: ClassTag](
     // compile
     val reduceSoPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
     println("compiled path:" + reduceSoPath)
-
-    val reduceResults = inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-
-      println(s"loading2-2: $reduceSoPath")
-      val newLibRef = veProcess.loadLibrary(Paths.get(reduceSoPath))
-
-      batches.map { batch =>
-        evalFunction(newFunc, newLibRef, batch.cols, newOutputs)
-      }
-    }
-
-    val end2 = System.nanoTime()
 
     new FilteredVeRDD[T](this, newFunc, reduceSoPath, newOutputs)
   }
@@ -550,6 +586,8 @@ class BasicVeRDD[T: ClassTag](
     val finalReduce = ret.asInstanceOf[RDD[Array[T]]].collect().flatten.reduce(f)
     finalReduce
   }
+
+  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     try { throw new Exception() } catch { case e: Throwable => e.printStackTrace() }

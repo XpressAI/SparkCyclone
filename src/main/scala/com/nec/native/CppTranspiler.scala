@@ -42,7 +42,7 @@ object CppTranspiler {
         s"out[0]->resize(1);",
         s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
         s"${evalScalarType(defs.tail.head.tpt, klass)} ${defs.tail.head.name}{};",
-        "for (int i = 0; i < len; i++) {",
+        "for (size_t i = 0; i < len; i++) {",
         CodeLines.from(
           s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
           s"${defs.tail.head.name} = ${evalApplyScalar(apply)};",
@@ -75,10 +75,11 @@ object CppTranspiler {
       s"size_t len = ${defs.head.name.toString}_in[0]->count;",
       s"std::vector<size_t> bitmask(len);",
       s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
-      s"for (int i = 0; i < len; i++) {",
+      s"for (size_t i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
-        s"bitmask[i] = ${predicate_code};",
+        s"bitmask[i] = ${predicate_code};"
+        //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
       ).indented,
       s"}",
       s"std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);",
@@ -100,7 +101,7 @@ object CppTranspiler {
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(len);",
         s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
-        "for (int i = 0; i < len; i++) {",
+        "for (size_t i = 0; i < len; i++) {",
         CodeLines.from(
           s"out[0]->data[i] = x_in[0]->data[i];"
         ).indented,
@@ -227,7 +228,7 @@ object CppTranspiler {
         defs.map { d =>
           s"${evalScalarType(d.tpt, klass)} ${d.name}{};"
         },
-        "for (int i = 0; i < len; i++) {",
+        "for (size_t i = 0; i < len; i++) {",
         CodeLines.from(
           defs.map { d =>
             s"${d.name} = ${d.name}_in[0]->data[i];"
