@@ -6,9 +6,9 @@ import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.{Partition, SparkContext, TaskContext}
 
 import java.nio.file.Paths
 import scala.language.experimental.macros
@@ -85,11 +85,4 @@ class SequenceVeRDD(orig: RDD[Long], rdd: RDD[VeColBatch]) extends BasicVeRDD[Lo
     Iterator(batch)
   }.persist(StorageLevel.MEMORY_ONLY).cache()
   sparkContext.runJob(inputs, (i: Iterator[_]) => ())
-
-  override def compute(split: Partition, context: TaskContext): Iterator[Long] = {
-    try { throw new Exception("fooo") } catch { case e: Throwable => e.printStackTrace() }
-    rdd.compute(split, context).asInstanceOf[Iterator[Long]]
-  }
-
-  override protected def getPartitions: Array[Partition] = rdd.partitions
 }

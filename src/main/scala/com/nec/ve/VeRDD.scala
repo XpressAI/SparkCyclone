@@ -10,10 +10,10 @@ import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
 import org.apache.arrow.memory.RootAllocator
+import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark._
 
 import java.nio.file.{Path, Paths}
 import java.time.Instant
@@ -121,30 +121,6 @@ trait VeRDD[T] extends RDD[T] {
 
     VeColBatch.fromList(veProcess.execute(libRef, func.name, inputs, outVectors))
   }
-}
-
-abstract class ChainedVeRDD[T: ClassTag](
-  verdd: VeRDD[_],
-  func: CFunction2,
-  soPath: String,
-  outputs: List[CVector]
-)(implicit val tag: WeakTypeTag[T]) extends RDD[T](verdd) with VeRDD[T] {
-  override val inputs: RDD[VeColBatch] = computeVe()
-
-  def computeVe(): RDD[VeColBatch] = {
-    verdd.inputs.mapPartitions { batches =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-
-      val libRef = veProcess.loadLibrary(Paths.get(soPath))
-
-      //val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
-      batches.map { batch =>
-        evalFunction(func, libRef, batch.cols, outputs)
-      }
-    }
-  }
-
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
@@ -170,6 +146,29 @@ abstract class ChainedVeRDD[T: ClassTag](
 
   override protected def getPartitions: Array[Partition] = inputs.partitions
 
+}
+
+abstract class ChainedVeRDD[T: ClassTag](
+  verdd: VeRDD[_],
+  func: CFunction2,
+  soPath: String,
+  outputs: List[CVector]
+)(implicit val tag: WeakTypeTag[T]) extends RDD[T](verdd) with VeRDD[T] {
+  override val inputs: RDD[VeColBatch] = computeVe()
+
+  def computeVe(): RDD[VeColBatch] = {
+    verdd.inputs.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+      val libRef = veProcess.loadLibrary(Paths.get(soPath))
+
+      //val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
+      batches.map { batch =>
+        evalFunction(func, libRef, batch.cols, outputs)
+      }
+    }
+  }
 
   override def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
     val start1 = System.nanoTime()
@@ -588,11 +587,6 @@ class BasicVeRDD[T: ClassTag](
   }
 
   override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
-
-  override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    try { throw new Exception() } catch { case e: Throwable => e.printStackTrace() }
-    inputs.compute(split, context).asInstanceOf[Iterator[T]]
-  }
 
   override protected def getPartitions: Array[Partition] = rdd.partitions
 
