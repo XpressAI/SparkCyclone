@@ -280,7 +280,7 @@ object VeColBatch {
         numRows = columnarBatch.numRows(),
         cols = (0 until columnarBatch.numCols()).map { colNo =>
           val column = columnarBatch.column(colNo)
-          VeColVector.fromArrowVector(column.getArrowValueVector)
+          column.getArrowValueVector.toBytePointerColVector.toVeColVector
         }.toList
       )
     )

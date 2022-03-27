@@ -154,13 +154,4 @@ object VeColVector {
       buffers = bufferLocations
     )
   )
-
-  def fromArrowVector(valueVector: ValueVector)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColVector = {
-    valueVector.toBytePointerColVector(source).toVeColVector
-  }
 }

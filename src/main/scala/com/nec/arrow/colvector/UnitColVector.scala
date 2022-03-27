@@ -40,7 +40,6 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
                                    context: OriginalCallingContext,
                                    metrics: VeProcessMetrics): VeColVector = {
     metrics.measureRunningTime {
-
       val buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
         case (bufferStart, bufferSize) =>
           ba.slice(bufferStart, bufferStart + bufferSize)
@@ -53,20 +52,6 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
         veType,
         buffers
       ).toBytePointerColVector.toVeColVector
-
-      // VeColVector(
-      //   ByteArrayColVector(
-      //     underlying.copy(
-      //       container = None,
-      //       buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
-      //         case (bufferStart, bufferSize) =>
-      //           Option(ba.slice(bufferStart, bufferStart + bufferSize))
-      //       }
-      //     )
-      //   ).transferBuffersToVe()
-      //     .map(_.getOrElse(-1))
-      // )
-        // .newContainer()
     }(metrics.registerDeserializationTime)
   }
 

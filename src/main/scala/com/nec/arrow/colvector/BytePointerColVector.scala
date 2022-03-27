@@ -60,23 +60,5 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
       veType,
       buffers
     )
-
-    // ByteArrayColVector(
-    //   underlying.copy(
-    //     container = None,
-    //     buffers = underlying
-    //       .map(_.map(bp => {
-    //         try bp.asBuffer.array()
-    //         catch {
-    //           case _: UnsupportedOperationException =>
-    //             val size = bp.limit()
-    //             val target: Array[Byte] = Array.fill(size.toInt)(-1)
-    //             bp.get(target)
-    //             target
-    //         }
-    //       }))
-    //       .buffers
-    //   )
-    // )
   }
 }
