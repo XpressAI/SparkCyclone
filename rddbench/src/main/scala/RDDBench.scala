@@ -1,6 +1,8 @@
-import com.nec.ve.SequenceVeRDD
+import com.nec.ve.{SequenceVeRDD, VeRDD}
 import org.apache.spark.rdd._
 import org.apache.spark.{SparkConf, SparkContext}
+
+import scala.reflect.runtime.universe.reify
 
 object RDDBench {
 
@@ -15,14 +17,14 @@ object RDDBench {
 
     println("Making numbers")
     val million = 1000000L
-    val numbers = (0L to (1000L * million))
-    val rdd = sc.parallelize(numbers).repartition(16).cache()
+    val numbers = (1L to (1000L * million))
+    val rdd = sc.parallelize(numbers).repartition(8).cache()
 
-    benchmark("01 - CPU",  () => bench01cpu(rdd))
+    benchmark("01 - CPU", () => bench01cpu(rdd))
 
     println("Making VeRDD")
 
-    //val verdd = new VeRDD(rdd)
+    //val verdd: VeRDD[Long] = new BasicVeRDD(rdd)
     val verdd = SequenceVeRDD.makeSequence(sc, 1L, 1000L * million)
 
     println("Starting Benchmark")
@@ -35,6 +37,7 @@ object RDDBench {
   }
 
   var lastVal: Long = 0
+
   def benchmark(title: String, f: () => Long): Unit = {
     val ts_start = System.nanoTime()
     if (lastVal == 0) {
@@ -50,7 +53,7 @@ object RDDBench {
 
   def dumpResult(): Unit = {
     println("======== RESULTS ===========")
-    for ( (title, duration) <- timings) {
+    for ((title, duration) <- timings) {
       println(title + "\t" + duration + "seconds")
     }
     println("============================")
@@ -58,16 +61,16 @@ object RDDBench {
 
 
   def bench01cpu(rdd: RDD[Long]): Long = {
-    val mappedRdd = rdd.map( (a: Long) => 2 * a + 12)
+    val mappedRdd = rdd.map((a: Long) => 2 * a + 12)
     val filtered = mappedRdd.filter((a: Long) => a % 128 == 0)
-    val result = filtered.reduce( (a: Long,b: Long) => a + b)
+    val result = filtered.reduce((a: Long, b: Long) => a + b)
 
     println("result of bench01 is " + result)
     result
   }
 
-  def bench01ve(rdd: SequenceVeRDD): Long = {
-    val mappedRdd = rdd.map((a: Long) => 2 * a + 12)
+  def bench01ve(rdd: VeRDD[Long]): Long = {
+    val mappedRdd: VeRDD[Long] = rdd.vemap(reify((a: Long) => 2 * a + 12))
     val filtered = mappedRdd.filter((a: Long) => a % 128 == 0)
     val result = filtered.reduce((a: Long, b: Long) => a + b)
 
@@ -79,7 +82,7 @@ object RDDBench {
   def bench02(): Unit = {
 
     // TODO: read from local file
-  /*
+    /*
     //val lines = sc.textFile("rddbench/data/small.csv")
     val numbersDF = sc.read.csv("rddbench/data/small.csv").rdd
 
@@ -104,8 +107,4 @@ object RDDBench {
   def finishUp(): Unit = {
     sc.stop()
   }
-
-
-
-
 }

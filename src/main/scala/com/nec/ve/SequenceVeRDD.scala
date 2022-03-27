@@ -1,15 +1,13 @@
 package com.nec.ve
 
 import com.nec.arrow.colvector.ArrayTConversions.ArrayTToBPCV
+import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
-import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
-import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource.Automatic.veColVectorSource
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 
 import java.nio.file.Paths
@@ -20,7 +18,7 @@ object SequenceVeRDD {
   def makeSequence(sc: SparkContext, start: Long, endInclusive: Long): SequenceVeRDD = {
     val resources = sc.resources.get("nec.com/ve").map(_.addresses.length).getOrElse(1)
     val cores = resources * 8L
-    val rdd = sc.parallelize(1L until cores, cores.toInt)
+    val rdd = sc.parallelize(0L until cores, cores.toInt)
 
     val code = s"""
     |  int64_t start = $start;
@@ -31,10 +29,13 @@ object SequenceVeRDD {
     |  int64_t per_partition = ceil(total / partitions);
     |  int64_t code_start = start + (partition * per_partition);
     |  int64_t code_end = code_start + per_partition;
-    |  out[0] = nullable_bigint_vector::allocate();",
-    |  out[0]->resize(per_partition + 1);",
-    |  for (int64_t i = code_start; i < code_end; i++) {
-    |    out[0]->data[i] = i;
+    |  out[0] = nullable_bigint_vector::allocate();
+    |  out[0]->resize(per_partition);
+    |  for (int64_t i = 0; i < per_partition; i++) {
+    |    out[0]->data[i] = code_start + i;
+    |    //std::cout << out[0]->data[i] << std::endl;
+    |  }
+    |  for (int64_t i = 0; i < per_partition; i++) {
     |    out[0]->set_validity(i, 1);
     |  }
     |""".stripMargin
@@ -59,6 +60,9 @@ object SequenceVeRDD {
     println("compiled path:" + compiledPath)
 
     new SequenceVeRDD(rdd, rdd.mapPartitions { iter =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
       val part = Array[Long](iter.next())
       val colVector = part.toBytePointerColVector(s"seq-${part(0)}")
       val veColVec = colVector.toVeColVector()
@@ -76,19 +80,16 @@ object SequenceVeRDD {
 
 class SequenceVeRDD(orig: RDD[Long], rdd: RDD[VeColBatch]) extends BasicVeRDD[Long](orig) {
   override val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
-    if (SparkCycloneExecutorPlugin.containsCachedBatch("seq")) {
-      println(s"Using cached seq for ${index}")
-      Iterator(SparkCycloneExecutorPlugin.getCachedBatch(s"seq"))
-    } else {
-      println(s"Reading seq for ${index}")
-      val batch = valsIter.next()
-      SparkCycloneExecutorPlugin.registerCachedBatch("seq", batch)
-      Iterator(batch)
-    }
-  }
-  inputs.count();
+    println(s"Reading seq for ${index}")
+    val batch = valsIter.next()
+    Iterator(batch)
+  }.persist(StorageLevel.MEMORY_ONLY).cache()
+  sparkContext.runJob(inputs, (i: Iterator[_]) => ())
 
-  override def compute(split: Partition, context: TaskContext): Iterator[Long] = ???
+  override def compute(split: Partition, context: TaskContext): Iterator[Long] = {
+    try { throw new Exception("fooo") } catch { case e: Throwable => e.printStackTrace() }
+    rdd.compute(split, context).asInstanceOf[Iterator[Long]]
+  }
 
   override protected def getPartitions: Array[Partition] = rdd.partitions
 }
