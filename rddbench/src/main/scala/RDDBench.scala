@@ -1,4 +1,4 @@
-import com.nec.ve.VeRDD
+import com.nec.ve.SequenceVeRDD
 import org.apache.spark.rdd._
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -15,14 +15,15 @@ object RDDBench {
 
     println("Making numbers")
     val million = 1000000L
-    val numbers = (1L to (1000L * million))
+    val numbers = (0L to (1000L * million))
     val rdd = sc.parallelize(numbers).repartition(16).cache()
 
     benchmark("01 - CPU",  () => bench01cpu(rdd))
 
     println("Making VeRDD")
 
-    val verdd = new VeRDD(rdd)
+    //val verdd = new VeRDD(rdd)
+    val verdd = SequenceVeRDD.makeSequence(sc, 1L, 1000L * million)
 
     println("Starting Benchmark")
 
@@ -58,16 +59,16 @@ object RDDBench {
 
   def bench01cpu(rdd: RDD[Long]): Long = {
     val mappedRdd = rdd.map( (a: Long) => 2 * a + 12)
-    val filtered = mappedRdd.filter((a: Long) => a % 2 == 0)
+    val filtered = mappedRdd.filter((a: Long) => a % 128 == 0)
     val result = filtered.reduce( (a: Long,b: Long) => a + b)
 
     println("result of bench01 is " + result)
     result
   }
 
-  def bench01ve(rdd: VeRDD[Long]): Long = {
+  def bench01ve(rdd: SequenceVeRDD): Long = {
     val mappedRdd = rdd.map((a: Long) => 2 * a + 12)
-    val filtered = mappedRdd.filter((a: Long) => a % 2 == 0)
+    val filtered = mappedRdd.filter((a: Long) => a % 128 == 0)
     val result = filtered.reduce((a: Long, b: Long) => a + b)
 
     println("result of bench01 is " + result)

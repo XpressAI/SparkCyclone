@@ -73,26 +73,16 @@ object CppTranspiler {
     val resultType: String = resultTypeForKlass(klass)
     CodeLines.from(
       s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-      s"size_t actual_len = 0;",
-      s"out[0] = $resultType::allocate();",
-      s"out[0]->resize(len);",
+      s"std::vector<size_t> bitmask(len);",
       s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
       s"for (int i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
-        s"if ( ${predicate_code} ) {",
-        CodeLines.from(
-          s"out[0]->data[actual_len++] = ${defs.head.name};",
-        ).indented,
-        s"}"
+        s"bitmask[i] = ${predicate_code};",
       ).indented,
       s"}",
-      s"for (int i=0; i < actual_len; i++) {",
-      CodeLines.from(
-        s"out[0]->set_validity(i, 1);"
-      ).indented,
-      s"}",
-      s"out[0]->resize(actual_len);",
+      s"std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);",
+      s"out[0] = ${defs.head.name.toString}_in[0]->select(matching_ids);",
     ).indented.cCode
   }
 

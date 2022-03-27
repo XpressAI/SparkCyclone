@@ -10,6 +10,7 @@ import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingCont
 import org.apache.arrow.memory.RootAllocator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
+import org.apache.spark.{Partition, TaskContext}
 
 import java.nio.file.Paths
 import scala.language.experimental.macros
@@ -17,8 +18,22 @@ import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox
 import scala.reflect.runtime.universe._
 
-class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, outputs: List[CVector]) extends VeRDD[T](rdd) {
+class MappedVeRDD[T: ClassTag](
+  rdd: VeRDD[T],
+  func: CFunction2,
+  soPath: String,
+  outputs: List[CVector]) extends RDD[T](rdd) with VeRDD[T] {
   import com.nec.ve.MappedVeRDD._
+
+  override val inputs: RDD[VeColBatch] = rdd.inputs.mapPartitions { batches =>
+    println(s"loading2-1: $soPath")
+    val libRef = veProcess.loadLibrary(Paths.get(soPath))
+
+    //val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
+    batches.map { batch =>
+      evalFunction(func, libRef, batch.cols, outputs)
+    }
+  }
 
   def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
     val start1 = System.nanoTime()
@@ -138,28 +153,6 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
   override def filter(f: (T) => Boolean): VeRDD[T] = macro vefilter_impl[T]
 
   def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T] = {
-    val start1 = System.nanoTime()
-
-    println("mapPartitions")
-    val mappedResults = inputs.mapPartitions { batches =>
-      println(s"loading2-1: $soPath")
-      val libRef = veProcess.loadLibrary(Paths.get(soPath))
-
-      //val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
-      batches.map { batch =>
-        evalFunction(func, libRef, batch.cols, outputs)
-      }
-    }
-
-    val end1 = System.nanoTime()
-
-    println(s"parent evalFunction took ${(end1 - start1) / 1000000000.0}s")
-
-    val start2 = System.nanoTime()
-
-    // Reduce
-    println("vefilter got expr: " + showRaw(expr.tree))
-
     val klass = implicitly[ClassTag[T]].runtimeClass
 
     // transpile f to C
@@ -193,7 +186,7 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     val reduceSoPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
     println("compiled path:" + reduceSoPath)
 
-    val reduceResults = mappedResults.mapPartitions { batches =>
+    val reduceResults = inputs.mapPartitions { batches =>
       println(s"loading2-2: $reduceSoPath")
       val newLibRef = veProcess.loadLibrary(Paths.get(reduceSoPath))
 
@@ -203,8 +196,6 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
     }
 
     val end2 = System.nanoTime()
-
-    println(s"filter evalFunction took ${(end2 - start2) / 1000000000.0}s")
 
     new FilteredVeRDD[T](this, newFunc, reduceSoPath, newOutputs)
   }
@@ -253,6 +244,10 @@ class MappedVeRDD[T: ClassTag](rdd: VeRDD[T], func: CFunction2, soPath: String, 
 
     out2.reduce(f)
   }
+
+  override def compute(split: Partition, context: TaskContext): Iterator[T] = rdd.compute(split, context)
+
+  override protected def getPartitions: Array[Partition] = rdd.partitions
 }
 
 object MappedVeRDD {

@@ -26,7 +26,7 @@ object ProcessRunner extends LazyLogging {
     if (doDebug) {
       logger.info(s"NCC output: \n${res}; \n${resErr}")
     } else {
-      logger.debug("NCC output: \n${res}; \n${resErr}")
+      println(s"NCC output: \n${res}; \n${resErr}")
     }
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }
