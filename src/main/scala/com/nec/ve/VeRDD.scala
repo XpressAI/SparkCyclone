@@ -127,15 +127,17 @@ trait VeRDD[T] extends RDD[T] {
     val batches = inputs.iterator(split, context)
 
     implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-    val klass = implicitly[ClassTag[T]].runtimeClass
+    val klass = tag.tpe
+
+    //val klass = implicitly[ClassTag[T]].runtimeClass
 
     batches.flatMap { veColBatch =>
       val arrowBatch = veColBatch.toArrowColumnarBatch()
-      val array = if (klass == classOf[Int]) {
+      val array = if (klass =:= typeOf[Int]) {
         arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-      } else if (klass == classOf[Long]) {
+      } else if (klass =:= typeOf[Long]) {
         arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-      } else if (klass == classOf[Float]) {
+      } else if (klass =:= typeOf[Float]) {
         arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
       } else {
         arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
@@ -143,7 +145,6 @@ trait VeRDD[T] extends RDD[T] {
       array.toSeq.asInstanceOf[Seq[T]]
     }
   }
-
   override protected def getPartitions: Array[Partition] = inputs.partitions
 
 }
@@ -169,6 +170,9 @@ abstract class ChainedVeRDD[T: ClassTag](
       }
     }
   }
+
+
+
 
   override def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
     val start1 = System.nanoTime()
@@ -588,6 +592,8 @@ class BasicVeRDD[T: ClassTag](
 
   override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
 
-  override protected def getPartitions: Array[Partition] = rdd.partitions
 
+
+  override protected def getPartitions: Array[Partition] = rdd.partitions
 }
+

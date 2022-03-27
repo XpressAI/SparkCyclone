@@ -26,7 +26,7 @@ object RDDBench {
     //val verdd: VeRDD[Long] = rdd.toVeRDD
     val verdd = sc.veParallelize(numbers)
 
-    println(s"verdd has ${verdd.count()} rows.")
+    println(s"rdd has ${rdd.count()}. verdd has ${verdd.count()} rows.")
 
     println("Starting Benchmark")
 

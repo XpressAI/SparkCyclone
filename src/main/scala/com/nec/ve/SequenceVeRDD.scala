@@ -23,7 +23,7 @@ object SequenceVeRDD {
     val code = s"""
     |  int64_t start = $start;
     |  int64_t end = $endInclusive;
-    |  int64_t total = end - start;
+    |  int64_t total = (end - start) + 1;
     |  int64_t partition = a_in[0]->data[0];
     |  int64_t partitions = $cores;
     |  int64_t per_partition = ceil(total / partitions);
