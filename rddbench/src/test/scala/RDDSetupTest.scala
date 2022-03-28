@@ -20,16 +20,11 @@ final class RDDSetupTest extends AnyFreeSpec {
     "test our very own vemap function on local Spark" in {
       import com.nec.ve.VeRDD._
 
-      import scala.reflect.runtime.universe._
-
-      val numbers = Array(1,2,3,4,5,6)
-      val rdd = sc.parallelize(numbers)
-      val rdd2 = rdd.vemap( reify( (x: Int) => 2*x ) )
+      val numbers = (1L to 6L)
+      val rdd = sc.veParallelize(numbers)
+      val rdd2 = rdd.map((x: Long) => 2 * x)
       val result = rdd2.collect()
-      assert(result.sameElements(Array(1,2,3,4,5,6))) // Note: verdd currently returns its input
-
+      assert(result.sameElements(Array(2L,4L,6L,8L,10L,12L)))
     }
   }
-
-
 }
