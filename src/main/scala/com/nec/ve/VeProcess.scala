@@ -6,13 +6,14 @@ import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer}
+import org.bytedeco.javacpp._
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.veo_proc_handle
 
 import java.io.{InputStream, OutputStream}
 import java.nio.channels.Channels
 import java.nio.file.Path
+import scala.reflect.runtime.universe.typeOf
 
 trait VeProcess {
   def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
@@ -67,6 +68,12 @@ trait VeProcess {
     results: List[CVector]
   )(implicit context: OriginalCallingContext): List[VeColVector]
 
+  def executeGrouping[K](
+    libraryReference: LibraryReference,
+    functionName: String,
+    inputs: VeBatchOfBatches,
+    results: List[CVector]
+  )(implicit context: OriginalCallingContext): List[(K, List[VeColVector])]
 }
 
 object VeProcess {
@@ -143,6 +150,14 @@ object VeProcess {
        results: List[CVector]
      )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeJoin(libraryReference, functionName, left, right, results)
+
+    override def executeGrouping[K](
+      libraryReference: LibraryReference,
+      functionName: String,
+      inputs: VeBatchOfBatches,
+      results: List[CVector]
+    )(implicit context: OriginalCallingContext):  List[(K, List[VeColVector])] =
+      f().executeGrouping(libraryReference, functionName, inputs, results)
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
       f().writeToStream(outStream, bufPos, bufLen)
@@ -634,6 +649,132 @@ object VeProcess {
             )
           ).register()
       }
+    }
+
+    override def executeGrouping[K](
+      libraryReference: LibraryReference,
+      functionName: String,
+      inputs: VeBatchOfBatches,
+      results: List[CVector]
+    )(implicit context: OriginalCallingContext): List[(K, List[VeColVector])] = {
+      inputs.batches.foreach(batch => validateVectors(batch.cols))
+
+      val our_args = veo.veo_args_alloc()
+
+      val inputsBatchSize = inputs.batches.size
+      val inputsColCount = inputs.cols
+
+      val groupKeyPointer = new LongPointer(1)
+      val groupsCountPointer = new LongPointer(1)
+
+      val metaParamCount = 4
+
+      /** Total batches count for left & right input pointers */
+      veo.veo_args_set_u64(our_args, 0, inputsBatchSize)
+
+      /** Input count of rows - better to know this in advance */
+      veo.veo_args_set_u64(our_args, 1, inputs.rows)
+
+      veo.veo_args_set_stack(our_args, 1, 2, new BytePointer(groupKeyPointer), 8)
+      veo.veo_args_set_stack(our_args, 1, 3, new BytePointer(groupsCountPointer), 8)
+
+      // Setup input pointers, such that each input pointer points to a batch of columns
+      inputs.batches.head.cols.indices.foreach { cIdx =>
+        val byteSize = 8 * inputsBatchSize
+        val lp = new LongPointer(inputsBatchSize)
+
+        inputs.batches.zipWithIndex.foreach{ case (b, bIdx) =>
+          val col = b.cols(cIdx)
+          lp.put(bIdx, col.containerLocation)
+        }
+
+        veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
+      }
+
+
+      val outPointers = results.map { veType =>
+        val lp = new LongPointer(1)
+        lp.put(-118)
+        lp
+      }
+
+      results.zipWithIndex.foreach { case (vet, reIdx) =>
+        val index = metaParamCount + inputsColCount + reIdx
+        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+      }
+
+      val fnCallResult = new LongPointer(1)
+
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, functionName)
+
+      require(
+        functionAddr > 0,
+        s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
+      )
+
+      val start = System.nanoTime()
+      val callRes = veProcessMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(veProcessMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      logger.debug(
+        s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
+
+      require(
+        callRes == 0,
+        s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); inputs: $inputs; returns $results"
+      )
+      require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
+
+      val numGroups = groupsCountPointer.get()
+      (0 until numGroups).map { (i) =>
+        val k: K = (if (typeOf[K] =:= typeOf[Int]) {
+          new IntPointer(groupKeyPointer).get(i)
+        } else if (typeOf[K] =:= typeOf[Long]) {
+          groupKeyPointer.get(i)
+        } else if (typeOf[K] =:= typeOf[Float]) {
+          new FloatPointer(groupKeyPointer).get(i)
+        } else {
+          new DoublePointer(groupKeyPointer).get(i)
+        }).asInstanceOf[K]
+
+        k -> outPointers.zip(results).map {
+          case (outPointer, CScalarVector(name, scalar)) =>
+            val outContainerLocation = outPointer.get(i)
+            val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
+
+            VeColVector(
+              source = source,
+              numItems = bytePointer.getInt(16),
+              name = name,
+              veType = scalar,
+              containerLocation = outContainerLocation,
+              bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
+              variableSize = None
+            ).register()
+          case (outPointer, CVarChar(name)) =>
+            val outContainerLocation = outPointer.get(i)
+            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
+
+            VeColVector(
+              source = source,
+              numItems = bytePointer.getInt(36),
+              name = name,
+              variableSize = Some(bytePointer.getInt(32)),
+              veType = VeString,
+              containerLocation = outContainerLocation,
+              bufferLocations = List(
+                bytePointer.getLong(0),
+                bytePointer.getLong(8),
+                bytePointer.getLong(16),
+                bytePointer.getLong(24)
+              )
+            ).register()
+        }
+      }.toList
     }
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {

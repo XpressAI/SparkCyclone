@@ -23,8 +23,47 @@
 #include <iostream>
 #include <tuple>
 #include <vector>
+#include "frovedis/core/radix_sort.hpp"
+#include "frovedis/core/set_operations.hpp"
 
 namespace cyclone {
+  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids) {
+    std::vector<size_t> groups = ids;
+    frovedis::radix_sort(groups);
+    std::vector<size_t> unique_groups = frovedis::set_unique(groups);
+    std::vector<size_t> group_counts(unique_groups.size());
+
+    // Count the number of groups
+    for (size_t g = 0; g < unique_groups.size(); g++) {
+      size_t current_count = 0;
+      #pragma _NEC vector
+      for (size_t i = 0; i < groups.size(); i++) {
+        if (groups[i] == g) {
+          current_count++;
+        }
+      }
+      group_counts[g] = current_count;
+    }
+
+    std::vector<std::vector<size_t>> ret(unique_groups.size());
+    for (size_t i = 0; i < ret.size(); i++) {
+      ret[i].resize(group_counts[i]);
+    }
+
+    for (size_t g = 0; g < unique_groups.size(); g++) {
+      size_t group_pos = 0;
+      size_t group = unique_groups[g];
+      #pragma _NEC vector
+      for (size_t i = 0; i < ids.size(); i++) {
+        if (ids[i] == group) {
+          ret[g][group_pos++] = i;
+        }
+      }
+    }
+
+    return ret;
+  }
+
   inline const std::vector<size_t> bitmask_to_matching_ids(const std::vector<size_t> &mask) {
     // Count the number of 1-bits
     size_t m_count = 0;

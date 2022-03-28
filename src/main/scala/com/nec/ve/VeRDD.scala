@@ -385,7 +385,42 @@ abstract class ChainedVeRDD[T: ClassTag](
 
   override def veflatMap[U: ClassTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U] = ???
 
-  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
+  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
+    val klass = implicitly[ClassTag[T]].runtimeClass
+
+    // transpile f to C
+    val code = transpiler.transpileGroupBy(expr, klass)
+    val funcName = s"groupby_${Math.abs(code.hashCode())}"
+
+    val dataType = if (klass == classOf[Int]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
+    } else if (klass == classOf[Long]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Float]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else {
+      SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
+    }
+
+    val newOutputs = List(CVector("out", dataType))
+    val newFunc = new CFunction2(
+      funcName,
+      Seq(
+        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(newOutputs.head)
+      ),
+      code,
+      DefaultHeaders
+    )
+
+    println(s"Generated code:\n${newFunc.toCodeLinesWithHeaders.cCode}")
+
+    // compile
+    val reduceSoPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
+    println("compiled path:" + reduceSoPath)
+
+    new VeGroupByRDD(this, func, reduceSoPath, newOutputs)
+  }
 }
 
 class BasicVeRDD[T: ClassTag](
@@ -590,9 +625,42 @@ class BasicVeRDD[T: ClassTag](
     finalReduce
   }
 
-  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
+  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
+    val klass = implicitly[ClassTag[T]].runtimeClass
 
+    // transpile f to C
+    val code = transpiler.transpileGroupBy(expr, klass)
+    val funcName = s"groupby_${Math.abs(code.hashCode())}"
 
+    val dataType = if (klass == classOf[Int]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
+    } else if (klass == classOf[Long]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Float]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else {
+      SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
+    }
+
+    val newOutputs = List(CVector("out", dataType))
+    val newFunc = new CFunction2(
+      funcName,
+      Seq(
+        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(newOutputs.head)
+      ),
+      code,
+      DefaultHeaders
+    )
+
+    println(s"Generated code:\n${newFunc.toCodeLinesWithHeaders.cCode}")
+
+    // compile
+    val reduceSoPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
+    println("compiled path:" + reduceSoPath)
+
+    ???
+  }
 
   override protected def getPartitions: Array[Partition] = rdd.partitions
 }

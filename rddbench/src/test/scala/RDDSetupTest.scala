@@ -1,5 +1,8 @@
+import com.nec.native.CppTranspiler
 import org.apache.spark._
 import org.scalatest.freespec.AnyFreeSpec
+
+import scala.reflect.runtime.universe.reify
 
 final class RDDSetupTest extends AnyFreeSpec {
 
@@ -18,13 +21,22 @@ final class RDDSetupTest extends AnyFreeSpec {
     }
 
     "test our very own vemap function on local Spark" in {
-      import com.nec.ve.VeRDD._
+      /*import com.nec.ve.VeRDD._
 
       val numbers = (1L to 6L)
       val rdd = sc.veParallelize(numbers)
       val rdd2 = rdd.map((x: Long) => 2 * x)
       val result = rdd2.collect()
       assert(result.sameElements(Array(2L,4L,6L,8L,10L,12L)))
+
+       */
+    }
+
+    "eval groupBy" in {
+      val code = CppTranspiler.transpileGroupBy(reify { (a: Long) => a % 2 }, classOf[Long])
+      println(code)
+
+      assert(code != null)
     }
   }
 }

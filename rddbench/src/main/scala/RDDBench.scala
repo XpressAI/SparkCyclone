@@ -64,6 +64,8 @@ object RDDBench {
   def bench01cpu(rdd: RDD[Long]): Long = {
     val result = rdd.map((a: Long) => 2 * a + 12)
       .filter((a: Long) => a % 128 == 0)
+      .groupBy((a: Long) => a % 2)
+      .flatMap { case (k: Long, values: Iterable[Long]) => values }
       .reduce((a: Long, b: Long) => a + b)
 
     println("result of bench01 is " + result)
@@ -74,6 +76,8 @@ object RDDBench {
     val result = rdd
       .map((a: Long) => 2 * a + 12)
       .filter((a: Long) => a % 128 == 0)
+      .groupBy((a: Long) => a % 2)
+      .flatMap((a: (Long, Iterable[Long])) => a._2)
       .reduce((a: Long, b: Long) => a + b)
 
     println("result of bench01 is " + result)

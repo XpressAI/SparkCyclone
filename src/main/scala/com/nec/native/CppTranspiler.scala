@@ -6,6 +6,27 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 
 object CppTranspiler {
+
+  def evalGroupBy(fun: Function, klass: Class[_]): String = {
+    val resultType: String = resultTypeForKlass(klass)
+    val defs = fun.vparams
+
+    fun.body match {
+      case ident @ Ident(name) => CodeLines.from(
+        s"${evalIdent(ident)};",
+      ).indented.cCode
+      case apply @ Apply(fun, args) => groupByCode(defs, evalApply(apply), klass)
+      case select @ Select(tree, name) => groupByCode(defs, evalSelect(select), klass)
+      case unknown => showRaw(unknown)
+    }
+  }
+
+  def transpileGroupBy[T, K](expr: universe.Expr[T => K], klass: Class[_]): String = {
+    expr.tree match {
+      case fun @ Function(vparams, body) => evalGroupBy(fun, klass)
+    }
+  }
+
   def transpileReduce[T](expr: universe.Expr[(T, T) => T], klass: Class[_]): String = {
     expr.tree match {
       case fun @ Function(vparams, body) => evalReduce(fun, klass)
@@ -67,6 +88,30 @@ object CppTranspiler {
       "nullable_double_vector"
     }
     resultType
+  }
+
+  private def groupByCode(defs: List[ValDef], predicate_code: String, klass: Class[_]) = {
+    val resultType: String = resultTypeForKlass(klass)
+
+    CodeLines.from(
+      s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+      s"std::vector<size_t> grouping(len);",
+      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
+      s"for (size_t i = 0; i < len; i++) {",
+      CodeLines.from(
+        s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
+        s"grouping[i] = ${predicate_code};"
+        //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
+      ).indented,
+      s"}",
+      s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping);",
+      s"out = (${resultType} *)malloc(groups.size() * sizeof($resultType *));",
+      s"for (size_t i = 0; i < groups.size(); i++) {",
+      CodeLines.from(
+        s"out[i] = ${defs.head.name.toString}_in[0]->select(groups[i]);"
+      ).indented,
+      s"}",
+    ).indented.cCode
   }
 
   private def filter_code(defs: List[ValDef], predicate_code: String, klass: Class[_]) = {

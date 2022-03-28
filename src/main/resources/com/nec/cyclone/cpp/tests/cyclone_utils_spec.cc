@@ -37,4 +37,13 @@ namespace cyclone::tests {
     auto tup = std::make_tuple(5, "Hello", -0.1);
     std::cout << tup << std::endl;
   }
+
+  TEST_CASE("separate_to_groups() works") {
+      std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
+      std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
+      std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
+      std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(bitmask);
+      CHECK(groups[0] == expected_0);
+      CHECK(groups[1] == expected_1);
+  }
 }
