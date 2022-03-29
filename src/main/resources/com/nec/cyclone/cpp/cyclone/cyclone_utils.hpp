@@ -27,7 +27,7 @@
 #include "frovedis/core/set_operations.hpp"
 
 namespace cyclone {
-  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids) {
+  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
     std::vector<size_t> groups = ids;
     frovedis::radix_sort(groups);
     std::vector<size_t> unique_groups = frovedis::set_unique(groups);
@@ -61,6 +61,7 @@ namespace cyclone {
       }
     }
 
+    group_keys = unique_groups;
     return ret;
   }
 

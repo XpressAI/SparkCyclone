@@ -6,6 +6,8 @@ package object serializer {
   val CbTag: Int = 91
   val IntTag: Int = 92
   val MixedCbTagColBatch: Int = 93
+  val LongTag: Int = 94
+  val DoubleTag: Int = 95
 
   sealed trait DualBatchOrBytes {
     def fold[T](a: BytesOnly => T, b: VeColBatch => T): T = this match {

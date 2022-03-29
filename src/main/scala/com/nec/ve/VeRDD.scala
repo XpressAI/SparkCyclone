@@ -4,14 +4,15 @@ import com.nec.native.CppTranspiler
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.SparkExpressionToCExpression
-import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Raw}
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
+import com.nec.ve.serializer.VeSerializer
 import org.apache.arrow.memory.RootAllocator
 import org.apache.spark._
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 import org.apache.spark.storage.StorageLevel
 
@@ -66,36 +67,63 @@ object VeRDD {
     c.Expr[T](x)
   }
 
-  def vegroupBy_impl[K, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[VeRDD[(K, Iterable[T])]] = {
+  /*def vegroupBy_impl[K: Ordering: ClassTag, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[KeyedVeRDD[K, T, (K, T)]] = {
     import c.universe._
 
     val self = c.prefix
     val x = q"${self}.vegroupBy(scala.reflect.runtime.universe.reify { ${f} })"
-    c.Expr[VeRDD[(K, Iterable[T])]](x)
-  }
+    c.Expr[KeyedVeRDD[K, T, (K, T)]](x)
+  }*/
 }
 
-class KeyedVeRDD[K: Ordering : ClassTag, V: ClassTag, P <: Product2[K, V] : ClassTag](self: VeRDD[P]) extends Serializable {
+/*abstract class KeyedVeRDD[K: Ordering : ClassTag, V: ClassTag, P <: Product2[K, V] : ClassTag](
+  prev: VeRDD[P]
+) extends Serializable {
   private val ordering = implicitly[Ordering[K]]
 
   def repartitionAndSortWithinPartitions(partitioner: Partitioner): RDD[(K, V)] = {
     // TODO: SHM shuffle
-    new ShuffledVeRDD[K, V, V](self, partitioner).setKeyOrdering(ordering)
+    //new ShuffledVeRDD[K, V, V](this, partitioner).setKeyOrdering(ordering)
+    ???
   }
-}
+
+  /* inputs are not defined in a KeyedVeRDD */
+  val inputs: RDD[VeColBatch] = ???
+
+  val keyedInputs: RDD[(K, Iterable[VeColBatch])] = computeKeyedVe()
+
+  def computeKeyedVe(): RDD[(K, Iterable[VeColBatch])]
+
+  def vemap[U: ClassTag](expr: universe.Expr[P => U]): VeRDD[U] = ???
+
+  def veflatMap[U: ClassTag](expr: universe.Expr[P => TraversableOnce[U]]): VeRDD[U] = {
+    null
+  }
+
+  def vefilter(expr: universe.Expr[P => Boolean]): VeRDD[P] = ???
+
+  def vegroupBy[K2: Ordering](expr: universe.Expr[P => K2]): KeyedVeRDD[K2, P, (K2, P)] = ???
+
+  def vereduce(expr: universe.Expr[(P, P) => P]): P = ???
+}*/
 
 trait VeRDD[T] extends RDD[T] {
+
   import VeRDD._
+
   @transient val transpiler: CppTranspiler.type = CppTranspiler
-  implicit val tag: WeakTypeTag[T]
+  implicit val tag: ClassTag[T]
 
   val inputs: RDD[VeColBatch]
 
   def map[U](f: T => U): RDD[U] = macro vemap_impl[U, T]
+
   def flatMap[U](f: T => TraversableOnce[U]): VeRDD[U] = macro veflatMap_impl[U, T]
+
   override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
+
   override def filter(f: T => Boolean): VeRDD[T] = macro vefilter_impl[T]
-  def groupBy[K](f: T => K): VeRDD[(K, Iterable[T])] = macro vegroupBy_impl[K, T]
+  //def groupBy[K: Ordering: ClassTag](f: T => K): KeyedVeRDD[K, T, (K, T)] = macro vegroupBy_impl[K, T]
 
   def withCompiled[U](cCode: String)(f: Path => U): U = {
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
@@ -105,11 +133,16 @@ trait VeRDD[T] extends RDD[T] {
   }
 
   def vemap[U: ClassTag](expr: Expr[T => U]): VeRDD[U]
-  def veflatMap[U: ClassTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U]
-  def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T]
-  def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])]
-  def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T
 
+  def veflatMap[U: ClassTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U]
+
+  def vefilter(expr: Expr[T => Boolean]): VeRDD[T]
+
+  def vegroupBy[K: Ordering : ClassTag](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = ???
+
+  def vereduce(expr: Expr[(T, T) => T]): T
+
+  def toRDD: RDD[T]
 
   def evalFunction(
     func: CFunction2,
@@ -127,34 +160,35 @@ trait VeRDD[T] extends RDD[T] {
     val batches = inputs.iterator(split, context)
 
     implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-    val klass = tag.tpe
+    val klass = implicitly[ClassTag[T]].runtimeClass
 
     //val klass = implicitly[ClassTag[T]].runtimeClass
 
     batches.flatMap { veColBatch =>
       val arrowBatch = veColBatch.toArrowColumnarBatch()
-      val array = if (klass =:= typeOf[Int]) {
+      val array = if (klass == classOf[Int]) {
         arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-      } else if (klass =:= typeOf[Long]) {
+      } else if (klass == classOf[Long]) {
         arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-      } else if (klass =:= typeOf[Float]) {
+      } else if (klass == classOf[Float]) {
         arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
       } else {
+        println(s"klass = $klass")
         arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
       }
       array.toSeq.asInstanceOf[Seq[T]]
     }
   }
-  override protected def getPartitions: Array[Partition] = inputs.partitions
 
+  override protected def getPartitions: Array[Partition] = inputs.partitions
 }
 
-abstract class ChainedVeRDD[T: ClassTag](
+abstract class ChainedVeRDD[T](
   verdd: VeRDD[_],
   func: CFunction2,
   soPath: String,
   outputs: List[CVector]
-)(implicit val tag: WeakTypeTag[T]) extends RDD[T](verdd) with VeRDD[T] {
+)(implicit val tag: ClassTag[T]) extends RDD[T](verdd) with VeRDD[T] {
   override val inputs: RDD[VeColBatch] = computeVe()
 
   def computeVe(): RDD[VeColBatch] = {
@@ -171,10 +205,33 @@ abstract class ChainedVeRDD[T: ClassTag](
     }
   }
 
+  override def toRDD : RDD[T] = {
+    inputs.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+
+      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
+      val klass = tag.runtimeClass
+
+      //val klass = implicitly[ClassTag[T]].runtimeClass
+
+      batches.flatMap { veColBatch =>
+        val arrowBatch = veColBatch.toArrowColumnarBatch()
+        val array = if (klass == classOf[Int]) {
+          arrowBatch.column(0).getInts(0, arrowBatch.numRows())
+        } else if (klass == classOf[Long]) {
+          arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
+        } else if (klass == classOf[Float]) {
+          arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
+        } else {
+          arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        }
+        array.toSeq.asInstanceOf[Seq[T]]
+      }
+    }
+  }
 
 
-
-  override def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
+  def vereduce(expr: Expr[(T, T) => T]): T = {
     val start1 = System.nanoTime()
 
     println("mapPartitions")
@@ -199,7 +256,7 @@ abstract class ChainedVeRDD[T: ClassTag](
     // Reduce
     println("vereduce got expr: " + showRaw(expr.tree))
 
-    val klass = implicitly[ClassTag[T]].runtimeClass
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpileReduce(expr, klass)
@@ -294,8 +351,8 @@ abstract class ChainedVeRDD[T: ClassTag](
   }
 
 
-  override def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T] = {
-    val klass = implicitly[ClassTag[T]].runtimeClass
+  override def vefilter(expr: Expr[T => Boolean]): VeRDD[T] = {
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpileFilter(expr, klass)
@@ -345,7 +402,7 @@ abstract class ChainedVeRDD[T: ClassTag](
   }
 
   override def vemap[U: ClassTag](expr: Expr[T => U]): VeRDD[U] = {
-    val klass = implicitly[ClassTag[U]].runtimeClass
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpile(expr, klass)
@@ -385,8 +442,8 @@ abstract class ChainedVeRDD[T: ClassTag](
 
   override def veflatMap[U: ClassTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U] = ???
 
-  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
-    val klass = implicitly[ClassTag[T]].runtimeClass
+  override def vegroupBy[K: Ordering: ClassTag](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpileGroupBy(expr, klass)
@@ -406,6 +463,9 @@ abstract class ChainedVeRDD[T: ClassTag](
     val newFunc = new CFunction2(
       funcName,
       Seq(
+        Raw("size_t input_batch_count"),
+        Raw(s"size_t **group_key_pointer"),
+        Raw(s"size_t *group_count_pointer"),
         PointerPointer(CVector("a_in", dataType)),
         PointerPointer(newOutputs.head)
       ),
@@ -419,13 +479,16 @@ abstract class ChainedVeRDD[T: ClassTag](
     val reduceSoPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
     println("compiled path:" + reduceSoPath)
 
-    new VeGroupByRDD(this, func, reduceSoPath, newOutputs)
+    val mapped = new VeGroupByRDD(this, newFunc, reduceSoPath, newOutputs)
+    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
+    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    new VeConcatGroups(out)
   }
 }
 
-class BasicVeRDD[T: ClassTag](
+class BasicVeRDD[T](
   rdd: RDD[T]
-)(implicit val tag: WeakTypeTag[T])  extends RDD[T](rdd.sparkContext, List(new OneToOneDependency(rdd))) with VeRDD[T] {
+)(implicit val tag: ClassTag[T])  extends RDD[T](rdd.sparkContext, List(new OneToOneDependency(rdd))) with VeRDD[T] {
   val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
     import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
     import com.nec.spark.SparkCycloneExecutorPlugin._
@@ -470,8 +533,8 @@ class BasicVeRDD[T: ClassTag](
   }
 
 
-  override def vemap[U: ClassTag](expr: Expr[T => U]): VeRDD[U] = {
-    val klass = implicitly[ClassTag[U]].runtimeClass
+  def vemap[U: ClassTag](expr: Expr[T => U]): VeRDD[U] = {
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpile(expr, klass)
@@ -509,10 +572,10 @@ class BasicVeRDD[T: ClassTag](
     new MappedVeRDD(this, func, compiledPath.toAbsolutePath.toString, outputs)
   }
 
-  override def veflatMap[U: ClassTag](expr: universe.Expr[T => TraversableOnce[U]]): VeRDD[U] = ???
+  def veflatMap[U: ClassTag](expr: universe.Expr[T => TraversableOnce[U]]): VeRDD[U] = ???
 
-  override def vefilter(expr: Expr[T => Boolean])(implicit tag: WeakTypeTag[T]): VeRDD[T] = {
-    val klass = implicitly[ClassTag[T]].runtimeClass
+  def vefilter(expr: Expr[T => Boolean]): VeRDD[T] = {
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpileFilter(expr, klass)
@@ -548,8 +611,8 @@ class BasicVeRDD[T: ClassTag](
     new FilteredVeRDD[T](this, newFunc, reduceSoPath, newOutputs)
   }
 
-  override def vereduce(expr: Expr[(T, T) => T])(implicit tag: WeakTypeTag[T]): T = {
-    val klass = implicitly[ClassTag[T]].runtimeClass
+  def vereduce(expr: Expr[(T, T) => T]): T = {
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpileReduce(expr, klass)
@@ -625,8 +688,8 @@ class BasicVeRDD[T: ClassTag](
     finalReduce
   }
 
-  override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
-    val klass = implicitly[ClassTag[T]].runtimeClass
+  override def vegroupBy[K: Ordering: ClassTag](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
+    val klass = tag.runtimeClass
 
     // transpile f to C
     val code = transpiler.transpileGroupBy(expr, klass)
@@ -659,7 +722,35 @@ class BasicVeRDD[T: ClassTag](
     val reduceSoPath = SparkCycloneDriverPlugin.currentCompiler.forCode(newFunc.toCodeLinesWithHeaders).toAbsolutePath.toString
     println("compiled path:" + reduceSoPath)
 
-    ???
+    val mapped = new VeGroupByRDD(this, newFunc, reduceSoPath, newOutputs)
+    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
+    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    new VeConcatGroups(out)
+  }
+
+  override def toRDD : RDD[T] = {
+    inputs.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+
+      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
+      val klass = tag.runtimeClass
+
+      //val klass = implicitly[ClassTag[T]].runtimeClass
+
+      batches.flatMap { veColBatch =>
+        val arrowBatch = veColBatch.toArrowColumnarBatch()
+        val array = if (klass == classOf[Int]) {
+          arrowBatch.column(0).getInts(0, arrowBatch.numRows())
+        } else if (klass == classOf[Long]) {
+          arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
+        } else if (klass == classOf[Float]) {
+          arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
+        } else {
+          arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        }
+        array.toSeq.asInstanceOf[Seq[T]]
+      }
+    }
   }
 
   override protected def getPartitions: Array[Partition] = rdd.partitions

@@ -94,23 +94,29 @@ object CppTranspiler {
     val resultType: String = resultTypeForKlass(klass)
 
     CodeLines.from(
-      s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+      // Merge inputs and assign output to pointer
+      s"${evalType(defs.head.tpt)} *tmp = ${evalType(defs.head.tpt)}::merge(${defs.head.name.toString}_in, input_batch_count);",
+      s"size_t len = tmp->count;",
       s"std::vector<size_t> grouping(len);",
+      s"std::vector<size_t> grouping_keys;",
       s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
       s"for (size_t i = 0; i < len; i++) {",
       CodeLines.from(
-        s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
+        s"${defs.head.name} = tmp->data[i];",
         s"grouping[i] = ${predicate_code};"
         //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
       ).indented,
       s"}",
-      s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping);",
-      s"out = (${resultType} *)malloc(groups.size() * sizeof($resultType *));",
+      s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, grouping_keys);",
+      s"*group_key_pointer = grouping_keys.data();",
+      "*group_count_pointer = grouping_keys.size();",
+      s"*out = (${resultType} *)malloc(groups.size() * sizeof($resultType *));",
       s"for (size_t i = 0; i < groups.size(); i++) {",
       CodeLines.from(
-        s"out[i] = ${defs.head.name.toString}_in[0]->select(groups[i]);"
+        s"out[i] = tmp->select(groups[i]);"
       ).indented,
       s"}",
+      s"free(tmp);"
     ).indented.cCode
   }
 

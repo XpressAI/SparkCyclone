@@ -3,6 +3,8 @@ import com.nec.ve.VeRDD.VeRichSparkContext
 import org.apache.spark.rdd._
 import org.apache.spark.{SparkConf, SparkContext}
 
+import scala.reflect.runtime.universe.reify
+
 object RDDBench {
 
   var sc: SparkContext = _
@@ -14,25 +16,30 @@ object RDDBench {
     println("setup")
     sc = setup()
 
-    println("Making numbers")
-    val numbers = (1L to (1000 * 1000000))
-    val rdd = sc.parallelize(numbers).repartition(8).cache()
-
-    benchmark("01 - CPU", () => bench01cpu(rdd))
-
-    println("Making VeRDD")
-
-
-    //val verdd: VeRDD[Long] = rdd.toVeRDD
-    val verdd = sc.veParallelize(numbers)
-
-    println(s"rdd has ${rdd.count()}. verdd has ${verdd.count()} rows.")
-
     println("Starting Benchmark")
 
+    println("Making numbers")
+    val numbers = (1L to (1 * 1000000))
+
+    val start1 = System.nanoTime()
+    val rdd = sc.parallelize(numbers).repartition(8).cache()
+    benchmark("01 - CPU", () => bench01cpu(rdd))
+    val rddCount = rdd.count()
+    val end1 = System.nanoTime()
+
+
+    println("Making VeRDD")
+    val start2 = System.nanoTime()
+    //val verdd: VeRDD[Long] = rdd.toVeRDD
+    val verdd = sc.veParallelize(numbers)
     benchmark("01 - VE ", () => bench01ve(verdd))
+    val verddCount = verdd.count()
+    val end2 = System.nanoTime()
 
     dumpResult()
+    println(s"vhrdd has ${rddCount} rows. (took ${(end1 - start1) / 1000000000} s total)")
+    println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
+
     //Thread.sleep(300 * 1000)
     finishUp()
   }
@@ -68,17 +75,23 @@ object RDDBench {
       .flatMap { case (k: Long, values: Iterable[Long]) => values }
       .reduce((a: Long, b: Long) => a + b)
 
+    //.groupBy((a: Long) => a % 2)
+    //.flatMap { case (k: Long, values: Iterable[Long]) => values }
+
     println("result of bench01 is " + result)
     result
   }
 
   def bench01ve(rdd: VeRDD[Long]): Long = {
     val result = rdd
-      .map((a: Long) => 2 * a + 12)
-      .filter((a: Long) => a % 128 == 0)
-      .groupBy((a: Long) => a % 2)
+      .vemap(reify { (a: Long) => 2 * a + 12 } )
+      .vefilter(reify { (a: Long) => a % 128 == 0 })
+      .vegroupBy(reify { (a: Long) => a % 2 })
+      .toRDD
       .flatMap((a: (Long, Iterable[Long])) => a._2)
       .reduce((a: Long, b: Long) => a + b)
+
+    //.toRDD      //.vereduce(reify { (a: Long, b: Long) => a + b })
 
     println("result of bench01 is " + result)
     result

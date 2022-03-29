@@ -42,8 +42,11 @@ namespace cyclone::tests {
       std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
       std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
       std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
-      std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(bitmask);
+      std::vector<size_t> expected_keys = {0, 1};
+      std::vector<size_t> keys;
+      std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(bitmask, keys);
       CHECK(groups[0] == expected_0);
       CHECK(groups[1] == expected_1);
+      CHECK(keys == expected_keys);
   }
 }

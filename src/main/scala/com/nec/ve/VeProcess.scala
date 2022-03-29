@@ -13,7 +13,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 import java.io.{InputStream, OutputStream}
 import java.nio.channels.Channels
 import java.nio.file.Path
-import scala.reflect.runtime.universe.typeOf
+import scala.reflect.ClassTag
 
 trait VeProcess {
   def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
@@ -68,7 +68,7 @@ trait VeProcess {
     results: List[CVector]
   )(implicit context: OriginalCallingContext): List[VeColVector]
 
-  def executeGrouping[K](
+  def executeGrouping[K: ClassTag](
     libraryReference: LibraryReference,
     functionName: String,
     inputs: VeBatchOfBatches,
@@ -151,7 +151,7 @@ object VeProcess {
      )(implicit context: OriginalCallingContext): List[VeColVector] =
       f().executeJoin(libraryReference, functionName, left, right, results)
 
-    override def executeGrouping[K](
+    override def executeGrouping[K: ClassTag](
       libraryReference: LibraryReference,
       functionName: String,
       inputs: VeBatchOfBatches,
@@ -651,7 +651,7 @@ object VeProcess {
       }
     }
 
-    override def executeGrouping[K](
+    override def executeGrouping[K: ClassTag](
       libraryReference: LibraryReference,
       functionName: String,
       inputs: VeBatchOfBatches,
@@ -667,16 +667,11 @@ object VeProcess {
       val groupKeyPointer = new LongPointer(1)
       val groupsCountPointer = new LongPointer(1)
 
-      val metaParamCount = 4
+      val metaParamCount = 3
 
-      /** Total batches count for left & right input pointers */
       veo.veo_args_set_u64(our_args, 0, inputsBatchSize)
-
-      /** Input count of rows - better to know this in advance */
-      veo.veo_args_set_u64(our_args, 1, inputs.rows)
-
-      veo.veo_args_set_stack(our_args, 1, 2, new BytePointer(groupKeyPointer), 8)
-      veo.veo_args_set_stack(our_args, 1, 3, new BytePointer(groupsCountPointer), 8)
+      veo.veo_args_set_stack(our_args, 1, 1, new BytePointer(groupKeyPointer), 8)
+      veo.veo_args_set_stack(our_args, 1, 2, new BytePointer(groupsCountPointer), 8)
 
       // Setup input pointers, such that each input pointer points to a batch of columns
       inputs.batches.head.cols.indices.foreach { cIdx =>
@@ -728,14 +723,15 @@ object VeProcess {
         s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); inputs: $inputs; returns $results"
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
+      val klass = implicitly[ClassTag[K]].runtimeClass
 
       val numGroups = groupsCountPointer.get()
-      (0 until numGroups).map { (i) =>
-        val k: K = (if (typeOf[K] =:= typeOf[Int]) {
+      (0 until numGroups.toInt).map { (i) =>
+        val k: K = (if (klass == classOf[Int]) {
           new IntPointer(groupKeyPointer).get(i)
-        } else if (typeOf[K] =:= typeOf[Long]) {
+        } else if (klass == classOf[Long]) {
           groupKeyPointer.get(i)
-        } else if (typeOf[K] =:= typeOf[Float]) {
+        } else if (klass == classOf[Float]) {
           new FloatPointer(groupKeyPointer).get(i)
         } else {
           new DoublePointer(groupKeyPointer).get(i)
