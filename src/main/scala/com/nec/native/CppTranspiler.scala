@@ -1,11 +1,15 @@
 package com.nec.native
 
 import com.nec.spark.agile.core.CodeLines
-
+import com.nec.util.DateTimeOps._
+import scala.tools.reflect.ToolBox
+import scala.reflect.runtime.{currentMirror => cm}
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
+import java.time.Instant
 
 object CppTranspiler {
+  val toolbox = cm.mkToolBox()
 
   def evalGroupBy(fun: Function, klass: Class[_]): String = {
     val resultType: String = resultTypeForKlass(klass)
@@ -61,9 +65,9 @@ object CppTranspiler {
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(1);",
-        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
-        s"${evalScalarType(defs.tail.head.tpt, klass)} ${defs.tail.head.name}{};",
-        "for (size_t i = 0; i < len; i++) {",
+        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+        s"${evalScalarType(defs.tail.head.tpt, klass)} ${defs.tail.head.name} {};",
+        "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
           s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
           s"${defs.tail.head.name} = ${evalApplyScalar(apply)};",
@@ -84,6 +88,8 @@ object CppTranspiler {
       "nullable_bigint_vector"
     } else if (klass == classOf[Float]) {
       "nullable_float_vector"
+    } else if (klass == classOf[Instant]) {
+      "nullable_bigint_vector"
     } else {
       "nullable_double_vector"
     }
@@ -99,8 +105,8 @@ object CppTranspiler {
       s"size_t len = tmp->count;",
       s"std::vector<size_t> grouping(len);",
       s"std::vector<size_t> grouping_keys;",
-      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
-      s"for (size_t i = 0; i < len; i++) {",
+      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+      s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = tmp->data[i];",
         s"grouping[i] = ${predicate_code};"
@@ -111,7 +117,7 @@ object CppTranspiler {
       s"*group_key_pointer = grouping_keys.data();",
       "*group_count_pointer = grouping_keys.size();",
       s"*out = (${resultType} *)malloc(groups.size() * sizeof($resultType *));",
-      s"for (size_t i = 0; i < groups.size(); i++) {",
+      s"for (auto i = 0; i < groups.size(); i++) {",
       CodeLines.from(
         s"out[i] = tmp->select(groups[i]);"
       ).indented,
@@ -125,8 +131,8 @@ object CppTranspiler {
     CodeLines.from(
       s"size_t len = ${defs.head.name.toString}_in[0]->count;",
       s"std::vector<size_t> bitmask(len);",
-      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
-      s"for (size_t i = 0; i < len; i++) {",
+      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+      s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
         s"bitmask[i] = ${predicate_code};"
@@ -151,8 +157,8 @@ object CppTranspiler {
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(len);",
-        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name}{};",
-        "for (size_t i = 0; i < len; i++) {",
+        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+        "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
           s"out[0]->data[i] = x_in[0]->data[i];"
         ).indented,
@@ -203,6 +209,7 @@ object CppTranspiler {
           case "Long" => "nullable_bigint_vector"
           case "Float" => "nullable_float_vector"
           case "Double" => "nullable_double_vector"
+          case "Instant" => "nullable_bigint_vector"
           case unknown => "<unhandled type: " + idStr + ">"
         }
 
@@ -223,6 +230,7 @@ object CppTranspiler {
           case "Long" => "int64_t"
           case "Float" => "float"
           case "Double" => "double"
+          case "Instant" => "int64_t"
           case _ => {
             if (klass == classOf[Int]) {
               "int32_t"
@@ -230,6 +238,8 @@ object CppTranspiler {
               "int64_t"
             } else if (klass == classOf[Float]) {
               "float"
+            } else if (klass == classOf[Instant]) {
+              "int64_t"
             } else {
               "double"
             }
@@ -277,9 +287,9 @@ object CppTranspiler {
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(len);",
         defs.map { d =>
-          s"${evalScalarType(d.tpt, klass)} ${d.name}{};"
+          s"${evalScalarType(d.tpt, klass)} ${d.name} {};"
         },
-        "for (size_t i = 0; i < len; i++) {",
+        "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
           defs.map { d =>
             s"${d.name} = ${d.name}_in[0]->data[i];"
@@ -301,21 +311,55 @@ object CppTranspiler {
     }
   }
 
-  def evalApply(apply: Apply): String = {
-
-    val funStr = apply.fun match {
-      case sel @ Select(tree, name) => evalSelect(sel)
-      case unknown => "unknown fun in evalApply: " + showRaw(unknown)
-    }
-
-    val argsStr = apply.args.map({
+  def evalArg(arg: Tree): String = {
+    arg match {
       case literal @ Literal(_) => evalLiteral(literal)
       case ident @ Ident(_) => evalIdent(ident)
       case apply @ Apply(_) => evalApply(apply)
       case unknown => "<unknown args in apply: " + showRaw(unknown) + ">"
-    }).mkString(", ")
+    }
+  }
 
-     "(" + funStr + argsStr + ")"
+  def evalApply(apply: Apply): String = {
+    PartialFunction.condOpt(apply.fun) {
+      /*
+        Handle the case of calling static methods of `java.time.Instant` to
+        instantiate a timestamp by evaluating them in real-time, e.g. `Instant.now`
+      */
+      case Select(y, _) if Option(y.symbol).map(_.fullName) == Some(classOf[java.time.Instant].getName) =>
+        toolbox.eval(apply)
+          .asInstanceOf[Instant]
+          .toFrovedisDateTime
+          .toString
+    }
+    .orElse {
+      /*
+        Handle the case of calling `Comparable.comareTo`, which will translate
+        into a sequenced ternary operator instead of binary arithmetic operator
+        in C++
+      */
+      (apply.fun, apply.args) match {
+        case (Select(tree, TermName("compareTo")), arg :: Nil) =>
+          val left = evalArg(tree)
+          val right = evalArg(arg)
+          Some(s"((${left} == ${right}) ? 0 : (${left} < ${right}) ? -1 : 1)")
+
+        case _ =>
+          None
+      }
+    }
+    .getOrElse {
+      /*
+        Handle the default case
+      */
+      val funStr = apply.fun match {
+        case sel @ Select(tree, name) => evalSelect(sel)
+        case unknown => "unknown fun in evalApply: " + showRaw(unknown)
+      }
+      val argsStr = apply.args.map(evalArg).mkString(", ")
+
+      "(" + funStr + argsStr + ")"
+    }
   }
 
   def evalApplyScalar(apply: Apply): String = {
@@ -345,7 +389,6 @@ object CppTranspiler {
   }
 
   def evalSelect(select: Select): String = {
-
     select.name match {
       case TermName("unary_$bang") => " !" + evalQual(select.qualifier)
       case _ => evalQual(select.qualifier) + evalName(select.name)
@@ -354,13 +397,10 @@ object CppTranspiler {
   }
 
   def evalSelectScalar(select: Select): String = {
-
     evalQualScalar(select.qualifier) + evalName(select.name)
-
   }
 
   def evalQual(tree: Tree): String = {
-
     tree match {
       case ident @ Ident(_) => evalIdent(ident)
       case apply @ Apply(x) => evalApply(apply)
@@ -370,7 +410,6 @@ object CppTranspiler {
 
   }
   def evalQualScalar(tree: Tree): String = {
-
     tree match {
       case ident @ Ident(_) => evalIdent(ident)
       case apply @ Apply(x) => evalApply(apply)
@@ -399,6 +438,5 @@ object CppTranspiler {
       case unknown => "<< <UNKNOWN> in evalName>>"
     }
   }
-
 }
 

@@ -1,5 +1,6 @@
 package com.nec.native
 
+import java.time.Instant
 import org.scalatest.freespec.AnyFreeSpec
 
 final class CppTranspilerSpec extends AnyFreeSpec {
@@ -62,6 +63,57 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
   }
 
+  "map java.time.Instant -> Int" in {
+    val output1 =
+      """
+        | size_t len = x_in[0]->count;
+        | out[0] = nullable_bigint_vector::allocate();
+        | out[0]->resize(len);
+        | int64_t x {};
+        | for (auto i = 0; i < len; i++) {
+        |   x = x_in[0]->data[i];
+        |   out[0]->data[i] = (((123456789000000000 == x) ? 0 : (123456789000000000 < x) ? -1 : 1) + 13);
+        |   out[0]->set_validity(i, 1);
+        | }
+      """.stripMargin
+
+    val genCode1 = CppTranspiler.transpile(reify { x: Instant => Instant.ofEpochSecond(123456789L).compareTo(x) + 13 }, classOf[Instant])
+    assertCodeEqualish(genCode1, output1)
+  }
+
+  "filter java.time.Instants" in {
+    val output1 =
+      """
+        | size_t len = x_in[0]->count;
+        | std::vector<size_t> bitmask(len);
+        | int64_t x{};
+        | for (auto i = 0; i < len; i++) {
+        |   x = x_in[0]->data[i];
+        |   bitmask[i] = (((x == 1648428244277340000) ? 0 : (x < 1648428244277340000) ? -1 : 1) < 0);
+        | }
+        | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+        | out[0] = x_in[0]->select(matching_ids);
+        """.stripMargin
+
+    val output2 =
+      """
+        | size_t len = x_in[0]->count;
+        | std::vector<size_t> bitmask(len);
+        | int64_t x{};
+        | for (auto i = 0; i < len; i++) {
+        |   x = x_in[0]->data[i];
+        |   bitmask[i] = (((1648428244277340000 == x) ? 0 : (1648428244277340000 < x) ? -1 : 1) != 0);
+        | }
+        | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+        | out[0] = x_in[0]->select(matching_ids);
+        """.stripMargin
+
+    val genCode1 = CppTranspiler.transpileFilter(reify { x: Instant => x.compareTo(Instant.parse("2022-03-28T00:44:04.277340Z")) < 0 }, classOf[Boolean])
+    val genCode2 = CppTranspiler.transpileFilter(reify { x: Instant => Instant.parse("2022-03-28T00:44:04.277340Z").compareTo(x) != 0 }, classOf[Boolean])
+
+    assertCodeEqualish(genCode1, output1)
+    assertCodeEqualish(genCode2, output2)
+  }
 }
 
 object cppSources {
@@ -73,7 +125,7 @@ object cppSources {
       |out[0]->resize(len);
       |int32_t x{};
       |int32_t y{};
-      |for (int i = 0; i < len; i++) {
+      |for (auto i = 0; i < len; i++) {
       |  x = x_in[0]->data[i];
       |  y = y_in[0]->data[i];
       |  out[0]->data[i] = ((x * y) + 2);
@@ -87,7 +139,7 @@ object cppSources {
       |  out[0] = nullable_int_vector::allocate();
       |  out[0]->resize(len);
       |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
+      |  for (auto i = 0; i < len; i++) {
       |    out[0]->data[i] = x_in[0]->data[i];
       |  }
       |  out[0]->set_validity(0, len);
@@ -103,190 +155,133 @@ object cppSources {
       |""".stripMargin
 
  val testFilterLTConstant =
-   """
-     |    size_t len = x_in[0]->count;
-     |  size_t actual_len = 0;
-     |  out[0] = nullable_int_vector::allocate();
-     |  out[0]->resize(len);
-     |  int32_t x{};
-     |  for (int i = 0; i < len; i++) {
-     |    x = x_in[0]->data[i];
-     |    if ( (x < ((x * x) - x)) ) {
-     |      out[0]->data[actual_len++] = x;
-     |    }
-     |  }
-     |  for (int i=0; i < actual_len; i++) {
-     |    out[0]->set_validity(i, 1);
-     |  }
-     |  out[0]->resize(actual_len);
-     |""".stripMargin
+  """
+    | size_t len = x_in[0]->count;
+    | std::vector<size_t> bitmask(len);
+    | int32_t x{};
+    | for (auto i = 0; i < len; i++) {
+    |   x = x_in[0]->data[i];
+    |   bitmask[i] = (x < ((x * x) - x));
+    | }
+    | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+    | out[0] = x_in[0]->select(matching_ids);
+  """.stripMargin
+
 
   val testFilterLTEConstant =
     """
-      |    size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( (x <= ((x * x) - x)) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |""".stripMargin
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = (x <= ((x * x) - x));
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterGTConstant =
-    """   size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( (x > 10) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |  """.stripMargin
+    """
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = (x > 10);
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterGTEConstant =
-    """   size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( (x >= 10) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |  """.stripMargin
+    """
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = (x >= 10);
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterEq =
-    """   size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( (x == ((x * x) - 2)) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |  """.stripMargin
+    """
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = (x == ((x * x) - 2));
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterNEq =
-    """   size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( (x != ((x * x) - 2)) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |  """.stripMargin
-
+    """
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = (x != ((x * x) - 2));
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterMod =
     """
-      |size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( ((x % 2) == 0) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |""".stripMargin
-
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = ((x % 2) == 0);
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterInverse =
     """
-      |  size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if (  !((x % 2) == 0) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |  """.stripMargin
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int32_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = !((x % 2) == 0);
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterAnd =
     """
-      |size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
-      |  out[0]->resize(len);
-      |  int64_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( ((x > 10) && (x < 15)) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |""".stripMargin
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int64_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = ((x > 10) && (x < 15));
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 
   val testFilterOr =
     """
-      |size_t len = x_in[0]->count;
-      |  size_t actual_len = 0;
-      |  out[0] = nullable_bigint_vector::allocate();
-      |  out[0]->resize(len);
-      |  int64_t x{};
-      |  for (int i = 0; i < len; i++) {
-      |    x = x_in[0]->data[i];
-      |    if ( ((x < 10) || (x > 15)) ) {
-      |      out[0]->data[actual_len++] = x;
-      |    }
-      |  }
-      |  for (int i=0; i < actual_len; i++) {
-      |    out[0]->set_validity(i, 1);
-      |  }
-      |  out[0]->resize(actual_len);
-      |""".stripMargin
+      | size_t len = x_in[0]->count;
+      | std::vector<size_t> bitmask(len);
+      | int64_t x{};
+      | for (auto i = 0; i < len; i++) {
+      |   x = x_in[0]->data[i];
+      |   bitmask[i] = ((x < 10) || (x > 15));
+      | }
+      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | out[0] = x_in[0]->select(matching_ids);
+      """.stripMargin
 }
