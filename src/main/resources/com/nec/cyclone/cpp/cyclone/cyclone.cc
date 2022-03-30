@@ -39,7 +39,8 @@
 #include "cyclone/cyclone.hpp"
 #include "cyclone/transfer-definitions.hpp"
 
-std::string utcnanotime() {
+std::string utcnanotime()
+{
     auto now = std::chrono::system_clock::now();
     auto seconds = std::chrono::system_clock::to_time_t(now);
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count() % 1000000000;
@@ -49,21 +50,24 @@ std::string utcnanotime() {
     return utc;
 }
 
-void debug_words(frovedis::words &in) {
+void debug_words(frovedis::words &in)
+{
     std::cout << "words char count: " << in.chars.size() << std::endl;
     std::cout << "words starts count: " << in.starts.size() << std::endl;
     std::cout << "words lens count: " << in.lens.size() << std::endl;
     std::cout << "First word starts at: " << in.starts[0] << " length: " << in.lens[0] << " '";
 
     size_t start = in.starts[0];
-    for (int i = 0; i < std::min((long)in.lens[0], 64L); i++) {
+    for (int i = 0; i < std::min((long)in.lens[0], 64L); ++i)
+    {
         std::cout << (char)in.chars[start + i];
     }
     std::cout << "'" << std::endl;
 
-    std::cout << "Last word " << in.starts.size() - 1 << " starts at: " << in.starts[in.starts.size() -1] << " length[" << in.lens.size() - 1 << "]: " << in.lens[in.lens.size() - 1] << " '";
+    std::cout << "Last word " << in.starts.size() - 1 << " starts at: " << in.starts[in.starts.size() - 1] << " length[" << in.lens.size() - 1 << "]: " << in.lens[in.lens.size() - 1] << " '";
     start = in.starts[in.starts.size() - 1];
-    for (int i = 0; i < std::min((long)in.lens[in.lens.size() - 1], 64L); i++) {
+    for (int i = 0; i < std::min((long)in.lens[in.lens.size() - 1], 64L); ++i)
+    {
         std::cout << (char)in.chars[start + i];
     }
     std::cout << "'" << std::endl;
