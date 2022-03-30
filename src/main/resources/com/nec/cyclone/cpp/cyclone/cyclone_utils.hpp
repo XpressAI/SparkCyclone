@@ -26,37 +26,46 @@
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
 
-namespace cyclone {
-  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
+namespace cyclone
+{
+  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys)
+  {
     std::vector<size_t> groups = ids;
     frovedis::radix_sort(groups);
     std::vector<size_t> unique_groups = frovedis::set_unique(groups);
     std::vector<size_t> group_counts(unique_groups.size());
 
     // Count the number of groups
-    for (size_t g = 0; g < unique_groups.size(); g++) {
-      size_t current_count = 0;
-      #pragma _NEC vector
-      for (size_t i = 0; i < groups.size(); i++) {
-        if (groups[i] == g) {
-          current_count++;
+    for (size_t g = 0; g < unique_groups.size(); ++g)
+    {
+      size_t current_count = -1;
+#pragma _NEC vector
+      for (size_t i = 0; i < groups.size(); ++i)
+      {
+        if (groups[i] == g)
+        {
+          ++current_count;
         }
       }
       group_counts[g] = current_count;
     }
 
     std::vector<std::vector<size_t>> ret(unique_groups.size());
-    for (size_t i = 0; i < ret.size(); i++) {
+    for (size_t i = 0; i < ret.size(); ++i)
+    {
       ret[i].resize(group_counts[i]);
     }
 
-    for (size_t g = 0; g < unique_groups.size(); g++) {
-      size_t group_pos = 0;
+    for (size_t g = 0; g < unique_groups.size(); ++g)
+    {
+      size_t group_pos = -1;
       size_t group = unique_groups[g];
-      #pragma _NEC vector
-      for (size_t i = 0; i < ids.size(); i++) {
-        if (ids[i] == group) {
-          ret[g][group_pos++] = i;
+#pragma _NEC vector
+      for (size_t i = 0; i < ids.size(); ++i)
+      {
+        if (ids[i] == group)
+        {
+          ret[g][++group_pos] = i;
         }
       }
     }
@@ -65,11 +74,13 @@ namespace cyclone {
     return ret;
   }
 
-  inline const std::vector<size_t> bitmask_to_matching_ids(const std::vector<size_t> &mask) {
+  inline const std::vector<size_t> bitmask_to_matching_ids(const std::vector<size_t> &mask)
+  {
     // Count the number of 1-bits
     size_t m_count = 0;
-    #pragma _NEC vector
-    for (int i = 0; i < mask.size(); i++) {
+#pragma _NEC vector
+    for (int i = 0; i < mask.size(); ++i)
+    {
       m_count += mask[i];
     }
 
@@ -78,11 +89,13 @@ namespace cyclone {
 
     // Append the positions for which the bit is 1
     // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
-    size_t pos = 0;
-    #pragma _NEC vector
-    for (int i = 0; i < mask.size(); i++) {
-      if (mask[i]) {
-        output[pos++] = i;
+    size_t pos = -1;
+#pragma _NEC vector
+    for (int i = 0; i < mask.size(); ++i)
+    {
+      if (mask[i])
+      {
+        output[++pos] = i;
       }
     }
 
@@ -90,16 +103,17 @@ namespace cyclone {
   }
 
   // Print out a std::tuple to ostream
-  template<typename Ch, typename Tr, typename... Ts>
-  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
-                   std::tuple<Ts...> const &tup) {
+  template <typename Ch, typename Tr, typename... Ts>
+  auto &operator<<(std::basic_ostream<Ch, Tr> &stream,
+                   std::tuple<Ts...> const &tup)
+  {
     std::basic_stringstream<Ch, Tr> tmp;
     tmp << "(";
     // Based on: https://stackoverflow.com/questions/6245735/pretty-print-stdtuple
     std::apply(
-      [&tmp] (auto&&... args) { ((tmp << args << ", "), ...); },
-      tup
-    );
+        [&tmp](auto &&...args)
+        { ((tmp << args << ", "), ...); },
+        tup);
     tmp.seekp(-2, tmp.cur);
     tmp << ")";
     return stream << tmp.str();
@@ -108,12 +122,14 @@ namespace cyclone {
   // Print out a std::vector to ostream
   // Define this AFTER defining operator<< for std::tuple
   // so that we can print std::vector<std::tuple<Ts...>>
-  template<typename Ch, typename Tr, typename T>
-  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
-                   std::vector<T> const &vec) {
+  template <typename Ch, typename Tr, typename T>
+  auto &operator<<(std::basic_ostream<Ch, Tr> &stream,
+                   std::vector<T> const &vec)
+  {
     std::basic_stringstream<Ch, Tr> tmp;
     tmp << "[ ";
-    for (const auto &elem : vec) {
+    for (const auto &elem : vec)
+    {
       tmp << elem << ", ";
     }
     tmp.seekp(-2, tmp.cur);
