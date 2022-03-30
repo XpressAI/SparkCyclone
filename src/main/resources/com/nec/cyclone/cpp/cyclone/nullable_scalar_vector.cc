@@ -23,7 +23,8 @@
 #include <iostream>
 
 template <typename T>
-NullableScalarVec<T> * NullableScalarVec<T>::allocate() {
+NullableScalarVec<T> *NullableScalarVec<T>::allocate()
+{
   // Allocate
   auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
   // Initialize
@@ -31,38 +32,43 @@ NullableScalarVec<T> * NullableScalarVec<T>::allocate() {
 }
 
 template <typename T>
-NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
+NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src)
+{
   // Initialize count
   count = src.size();
 
   // Copy the data
   data = static_cast<T *>(malloc(sizeof(T) * src.size()));
-  for (auto i = 0; i < src.size(); i++) {
+  for (auto i = 0; i < src.size(); ++i)
+  {
     data[i] = src[i];
   }
 
   // Set the validityBuffer
   size_t vcount = ceil(src.size() / 64.0);
   validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
-  for (auto i = 0; i < vcount; i++) {
+  for (auto i = 0; i < vcount; ++i)
+  {
     validityBuffer[i] = 0xffffffffffffffff;
   }
 }
 
 template <typename T>
-void NullableScalarVec<T>::reset() {
+void NullableScalarVec<T>::reset()
+{
   // Free the owned memory
   free(data);
   free(validityBuffer);
 
   // Reset the pointers and values
-  data            = nullptr;
-  validityBuffer  = nullptr;
-  count           = 0;
+  data = nullptr;
+  validityBuffer = nullptr;
+  count = 0;
 }
 
 template <typename T>
-void NullableScalarVec<T>::resize(const size_t size) {
+void NullableScalarVec<T>::resize(const size_t size)
+{
   // Reset the pointers and values
   reset();
 
@@ -78,53 +84,63 @@ void NullableScalarVec<T>::resize(const size_t size) {
 }
 
 template <typename T>
-void NullableScalarVec<T>::move_assign_from(NullableScalarVec<T> * other) {
+void NullableScalarVec<T>::move_assign_from(NullableScalarVec<T> *other)
+{
   // Reset the pointers and values
   reset();
 
   // Assign the pointers and values from other
-  data            = other->data;
-  validityBuffer  = other->validityBuffer;
-  count           = other->count;
+  data = other->data;
+  validityBuffer = other->validityBuffer;
+  count = other->count;
 
   // Free the other (struct only)
   free(other);
 }
 
 template <typename T>
-bool NullableScalarVec<T>::is_default() const {
+bool NullableScalarVec<T>::is_default() const
+{
   return data == nullptr &&
-    validityBuffer  == nullptr &&
-    count == 0;
+         validityBuffer == nullptr &&
+         count == 0;
 }
 
-
 template <typename T>
-void NullableScalarVec<T>::print() const {
+void NullableScalarVec<T>::print() const
+{
   std::stringstream stream;
   stream << "NullableScalarVec<T> @ " << this << " {\n";
 
   // Print count
   stream << "  COUNT: " << count << "\n";
 
-  if (count <= 0) {
+  if (count <= 0)
+  {
     stream << "  DATA: [ ]\n"
            << "  VALIDITY: [ ]\n";
-  } else {
+  }
+  else
+  {
     // Print data
     stream << "  DATA: [ ";
-    for (auto i = 0; i < count; i++) {
-      if (get_validity(i)) {
+    for (auto i = 0; i < count; ++i)
+    {
+      if (get_validity(i))
+      {
         stream << data[i] << ", ";
-      } else {
+      }
+      else
+      {
         stream << "#, ";
       }
     }
 
     // Print validityBuffer
     stream << "]\n  VALIDITY: [";
-    for (auto i = 0; i < count; i++) {
-        stream << get_validity(i) << ", ";
+    for (auto i = 0; i < count; ++i)
+    {
+      stream << get_validity(i) << ", ";
     }
     stream << "]\n";
   }
@@ -134,11 +150,13 @@ void NullableScalarVec<T>::print() const {
 }
 
 template <typename T>
-const std::vector<int32_t> NullableScalarVec<T>::validity_vec() const {
+const std::vector<int32_t> NullableScalarVec<T>::validity_vec() const
+{
   std::vector<int32_t> bitmask(count);
 
-  #pragma _NEC vector
-  for (auto i = 0; i < count; i++) {
+#pragma _NEC vector
+  for (auto i = 0; i < count; ++i)
+  {
     bitmask[i] = get_validity(i);
   }
 
@@ -146,11 +164,13 @@ const std::vector<int32_t> NullableScalarVec<T>::validity_vec() const {
 }
 
 template <typename T>
-const std::vector<size_t> NullableScalarVec<T>::size_t_data_vec() const {
+const std::vector<size_t> NullableScalarVec<T>::size_t_data_vec() const
+{
   std::vector<size_t> output(count);
 
-  #pragma _NEC vector
-  for (auto i = 0; i < count; i++) {
+#pragma _NEC vector
+  for (auto i = 0; i < count; ++i)
+  {
     // Note: No explicit sign checking is performed here in order to keep the loop fast.
     output[i] = data[i];
   }
@@ -159,23 +179,27 @@ const std::vector<size_t> NullableScalarVec<T>::size_t_data_vec() const {
 }
 
 template <typename T>
-bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) const {
-  if (is_default() && other->is_default()) {
+bool NullableScalarVec<T>::equals(const NullableScalarVec<T> *const other) const
+{
+  if (is_default() && other->is_default())
+  {
     return true;
   }
 
   // Compare count
   auto output = (count == other->count);
 
-  // Compare data
-  #pragma _NEC ivdep
-  for (auto i = 0; i < count; i++) {
+// Compare data
+#pragma _NEC ivdep
+  for (auto i = 0; i < count; ++i)
+  {
     output = output && (data[i] == other->data[i]);
   }
 
-  // Compare validityBuffer
-  #pragma _NEC ivdep
-  for (auto i = 0; i < count; i++) {
+// Compare validityBuffer
+#pragma _NEC ivdep
+  for (auto i = 0; i < count; ++i)
+  {
     output = output && (get_validity(i) == other->get_validity(i));
   }
 
@@ -183,7 +207,8 @@ bool NullableScalarVec<T>::equals(const NullableScalarVec<T> * const other) cons
 }
 
 template <typename T>
-NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
+NullableScalarVec<T> *NullableScalarVec<T>::clone() const
+{
   // Allocate
   auto *output = allocate();
 
@@ -204,7 +229,8 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
 }
 
 template <typename T>
-NullableScalarVec<T> * NullableScalarVec<T>::select(const std::vector<size_t> &selected_ids) const {
+NullableScalarVec<T> *NullableScalarVec<T>::select(const std::vector<size_t> &selected_ids) const
+{
   // Allocate
   auto *output = allocate();
 
@@ -219,9 +245,10 @@ NullableScalarVec<T> * NullableScalarVec<T>::select(const std::vector<size_t> &s
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
   output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 
-  // Preserve the validityBuffer across the select
-  #pragma _NEC vector
-  for (auto o = 0; o < selected_ids.size(); o++) {
+// Preserve the validityBuffer across the select
+#pragma _NEC vector
+  for (auto o = 0; o < selected_ids.size(); ++o)
+  {
     // Fetch the original index
     int i = selected_ids[o];
 
@@ -236,22 +263,26 @@ NullableScalarVec<T> * NullableScalarVec<T>::select(const std::vector<size_t> &s
 }
 
 template <typename T>
-NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &bucket_counts,
-                                                     const std::vector<size_t> &bucket_assignments) const {
+NullableScalarVec<T> **NullableScalarVec<T>::bucket(const std::vector<size_t> &bucket_counts,
+                                                    const std::vector<size_t> &bucket_assignments) const
+{
   // Allocate array of NullableScalarVec<T> pointers
   auto **output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
 
   // Loop over each bucket
-  for (auto b = 0; b < bucket_counts.size(); b++) {
+  for (auto b = 0; b < bucket_counts.size(); ++b)
+  {
     // Generate the list of indexes where the bucket assignment is b
     std::vector<size_t> selected_ids(bucket_counts[b]);
     {
       // This loop will be vectorized on the VE as vector compress instruction (`vcp`)
-      size_t pos = 0;
-      #pragma _NEC vector
-      for (auto i = 0; i < bucket_assignments.size(); i++) {
-        if (bucket_assignments[i] == b) {
-          selected_ids[pos++] = i;
+      size_t pos = -1;
+#pragma _NEC vector
+      for (auto i = 0; i < bucket_assignments.size(); ++i)
+      {
+        if (bucket_assignments[i] == b)
+        {
+          selected_ids[++pos] = i;
         }
       }
     }
@@ -264,12 +295,14 @@ NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &
 }
 
 template <typename T>
-NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * const * const inputs,
-                                                   const size_t batches) {
+NullableScalarVec<T> *NullableScalarVec<T>::merge(const NullableScalarVec<T> *const *const inputs,
+                                                  const size_t batches)
+{
   // Count the total number of elements
   size_t rows = 0;
-  #pragma _NEC vector
-  for (auto b = 0; b < batches; b++) {
+#pragma _NEC vector
+  for (auto b = 0; b < batches; ++b)
+  {
     rows += inputs[b]->count;
   }
 
@@ -282,12 +315,14 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   output->validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * frovedis::ceil_div(rows, size_t(64)), 1));
 
   // Copy the data and preserve the validityBuffer across the merge
-  auto o = 0;
-  #pragma _NEC ivdep
-  for (auto b = 0; b < batches; b++) {
-    for (auto i = 0; i < inputs[b]->count; i++) {
+  auto o = -1;
+#pragma _NEC ivdep
+  for (auto b = 0; b < batches; ++b)
+  {
+    for (auto i = 0; i < inputs[b]->count; ++i)
+    {
       output->data[o] = inputs[b]->data[i];
-      output->set_validity(o++, inputs[b]->get_validity(i));
+      output->set_validity(++o, inputs[b]->get_validity(i));
     }
   }
 
@@ -295,14 +330,17 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
 }
 
 template <typename T>
-const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &elements) const {
+const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &elements) const
+{
   std::vector<size_t> bitmask(count);
 
-  // Loop over the IN elements first (makes the code more vectorizable)
-  #pragma _NEC ivdep
-  for (auto j = 0; j < elements.size(); j++) {
+// Loop over the IN elements first (makes the code more vectorizable)
+#pragma _NEC ivdep
+  for (auto j = 0; j < elements.size(); ++j)
+  {
     // Loop over column values
-    for (auto i = 0; i < bitmask.size(); i++) {
+    for (auto i = 0; i < bitmask.size(); ++i)
+    {
       // Apply ||= to `(element value == column value)`
       bitmask[i] = (bitmask[i] || data[i] == elements[j]);
     }
