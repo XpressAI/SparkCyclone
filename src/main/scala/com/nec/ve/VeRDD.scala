@@ -419,12 +419,13 @@ abstract class ChainedVeRDD[T](
       SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
     } else if (klass == classOf[Long]) {
       SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Instant]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else if (klass == classOf[Float]) {
       SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
     } else {
       SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
     }
-
 
     val outputs = List(CVector("out", dataType))
     val func = new CFunction2(
