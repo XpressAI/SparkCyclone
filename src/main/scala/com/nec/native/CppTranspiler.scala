@@ -1,60 +1,135 @@
 package com.nec.native
 
-import com.nec.spark.agile.core.CodeLines
+import com.nec.spark.agile.SparkExpressionToCExpression
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Raw}
+import com.nec.spark.agile.core.CFunction2.DefaultHeaders
+import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines, VeType}
 import com.nec.util.DateTimeOps._
-import scala.tools.reflect.ToolBox
-import scala.reflect.runtime.{currentMirror => cm}
-import scala.reflect.runtime.universe
-import scala.reflect.runtime.universe._
+import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
+
 import java.time.Instant
+import scala.reflect.runtime.universe._
+import scala.reflect.runtime.{universe, currentMirror => cm}
+import scala.tools.reflect.ToolBox
 
 object CppTranspiler {
-  val toolbox = cm.mkToolBox()
+  private val toolbox = cm.mkToolBox()
 
-  def evalGroupBy(fun: Function, klass: Class[_]): String = {
-    val resultType: String = resultTypeForKlass(klass)
+  def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
+    val resultType = expr.staticType.typeArgs.last
+
+    val code = expr.tree match {
+      case fun @ Function(vparams, body) => evalGroupBy(fun, resultType)
+    }
+
+    val funcName = s"groupby_${Math.abs(code.hashCode())}"
+    val dataType = sparkTypeToVeType(resultType)
+    val newOutputs = List(CVector("out", dataType))
+
+    CompiledVeFunction(new CFunction2(
+      funcName,
+      Seq(
+        Raw("size_t input_batch_count"),
+        Raw(s"size_t **group_key_pointer"),
+        Raw(s"size_t *group_count_pointer"),
+        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(newOutputs.head)
+      ),
+      code,
+      DefaultHeaders
+    ), newOutputs)
+  }
+
+  def transpileReduce[T](expr: universe.Expr[(T, T) => T]): CompiledVeFunction = {
+    val resultType = expr.staticType.typeArgs.last
+    val code = expr.tree match {
+      case fun @ Function(vparams, body) => evalReduce(fun, resultType)
+    }
+
+    val funcName = s"reduce_${Math.abs(code.hashCode())}"
+    val dataType = sparkTypeToVeType(resultType)
+    val newOutputs = List(CVector("out", dataType))
+
+    CompiledVeFunction(new CFunction2(
+      funcName,
+      Seq(
+        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(newOutputs.head)
+      ),
+      code,
+      DefaultHeaders
+    ), newOutputs)
+  }
+
+  def transpileFilter[T](expr: universe.Expr[ T => Boolean]): CompiledVeFunction = {
+    val resultType = expr.staticType.typeArgs.head
+
+    val code = expr.tree match {
+      case fun @ Function(vparams, body) => evalFilter(fun, resultType)
+    }
+
+    val funcName = s"filter_${Math.abs(code.hashCode())}"
+    val dataType = sparkTypeToVeType(resultType)
+    val newOutputs = List(CVector("out", dataType))
+
+    CompiledVeFunction(new CFunction2(
+      funcName,
+      Seq(
+        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(newOutputs.head)
+      ),
+      code,
+      DefaultHeaders
+    ), newOutputs)
+  }
+
+  def transpileMap[T](expr: Expr[T]): CompiledVeFunction = {
+    val resultType = expr.staticType.typeArgs.last
+
+    val code = expr.tree match {
+      case fun @ Function(vparams, body) => evalFunc(fun, resultType)
+    }
+
+    val funcName = s"eval_${Math.abs(code.hashCode())}"
+    val dataType = sparkTypeToVeType(resultType)
+    val newOutputs = List(CVector("out", dataType))
+
+    CompiledVeFunction(new CFunction2(
+      funcName,
+      Seq(
+        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(newOutputs.head)
+      ),
+      code,
+      DefaultHeaders
+    ), newOutputs)
+  }
+
+  def sparkTypeToVeType(t: Type): VeType = Map(
+    typeOf[Int] -> SparkExpressionToCExpression.sparkTypeToVeType(IntegerType),
+    typeOf[Long] -> SparkExpressionToCExpression.sparkTypeToVeType(LongType),
+    typeOf[Float] -> SparkExpressionToCExpression.sparkTypeToVeType(FloatType),
+    typeOf[Double] -> SparkExpressionToCExpression.sparkTypeToVeType(DoubleType),
+    typeOf[Instant] -> SparkExpressionToCExpression.sparkTypeToVeType(LongType),
+  )(t)
+
+  def evalGroupBy(fun: Function, t: Type): String = {
+    val resultType: String = resultTypeForType(t)
     val defs = fun.vparams
 
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => groupByCode(defs, evalApply(apply), klass)
-      case select @ Select(tree, name) => groupByCode(defs, evalSelect(select), klass)
+      case apply @ Apply(fun, args) => groupByCode(defs, evalApply(apply), t)
+      case select @ Select(tree, name) => groupByCode(defs, evalSelect(select), t)
       case unknown => showRaw(unknown)
     }
   }
 
-  def transpileGroupBy[T, K](expr: universe.Expr[T => K], klass: Class[_]): String = {
-    expr.tree match {
-      case fun @ Function(vparams, body) => evalGroupBy(fun, klass)
-    }
-  }
-
-  def transpileReduce[T](expr: universe.Expr[(T, T) => T], klass: Class[_]): String = {
-    expr.tree match {
-      case fun @ Function(vparams, body) => evalReduce(fun, klass)
-    }
-  }
-
-  def transpileFilter[T](expr: universe.Expr[ T => Boolean], klass: Class[_]): String = {
-    expr.tree match {
-      case fun @ Function(vparams, body) => evalFilter(fun, klass)
-    }
-  }
-
-  var functionNames: List[String] = List()
-
-  // entry point
-  def transpile[T](expr: Expr[T], klass: Class[_]): String = {
-    expr.tree match {
-      case fun @ Function(vparams, body) => evalFunc(fun, klass)
-    }
-  }
-
   // evaluate Function type from Scala AST
-  def evalReduce(fun: Function, klass: Class[_]): String = {
-    val resultType: String = resultTypeForKlass(klass)
+  def evalReduce(fun: Function, t: Type): String = {
+    val resultType: String = resultTypeForType(t)
 
     val defs = fun.vparams
     fun.body match {
@@ -65,8 +140,8 @@ object CppTranspiler {
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(1);",
-        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
-        s"${evalScalarType(defs.tail.head.tpt, klass)} ${defs.tail.head.name} {};",
+        s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
+        s"${evalScalarType(defs.tail.head.tpt, t)} ${defs.tail.head.name} {};",
         "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
           s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
@@ -81,23 +156,22 @@ object CppTranspiler {
     }
   }
 
-  private def resultTypeForKlass(klass: Class[_]) = {
-    val resultType = if (klass == classOf[Int]) {
+  private def resultTypeForType(t: Type): String = {
+    if (t =:= typeOf[Int]) {
       "nullable_int_vector"
-    } else if (klass == classOf[Long]) {
+    } else if (t =:= typeOf[Long]) {
       "nullable_bigint_vector"
-    } else if (klass == classOf[Float]) {
+    } else if (t =:= typeOf[Float]) {
       "nullable_float_vector"
-    } else if (klass == classOf[Instant]) {
+    } else if (t =:= typeOf[Instant]) {
       "nullable_bigint_vector"
     } else {
       "nullable_double_vector"
     }
-    resultType
   }
 
-  private def groupByCode(defs: List[ValDef], predicate_code: String, klass: Class[_]) = {
-    val resultType: String = resultTypeForKlass(klass)
+  private def groupByCode(defs: List[ValDef], predicate_code: String, t: Type) = {
+    val resultType: String = resultTypeForType(t)
 
     CodeLines.from(
       // Merge inputs and assign output to pointer
@@ -105,7 +179,7 @@ object CppTranspiler {
       s"size_t len = tmp->count;",
       s"std::vector<size_t> grouping(len);",
       s"std::vector<size_t> grouping_keys;",
-      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+      s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = tmp->data[i];",
@@ -126,12 +200,12 @@ object CppTranspiler {
     ).indented.cCode
   }
 
-  private def filter_code(defs: List[ValDef], predicate_code: String, klass: Class[_]) = {
-    val resultType: String = resultTypeForKlass(klass)
+  private def filterCode(defs: List[ValDef], predicate_code: String, t: Type) = {
+    val resultType: String = resultTypeForType(t)
     CodeLines.from(
       s"size_t len = ${defs.head.name.toString}_in[0]->count;",
       s"std::vector<size_t> bitmask(len);",
-      s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+      s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
@@ -144,20 +218,20 @@ object CppTranspiler {
     ).indented.cCode
   }
 
-  def evalFilter(fun: Function, klass: Class[_]): String = {
-    val resultType: String = resultTypeForKlass(klass)
+  def evalFilter(fun: Function, t: Type): String = {
+    val resultType: String = resultTypeForType(t)
     val defs = fun.vparams
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => filter_code(defs, evalApply(apply), klass)
-      case select @ Select(tree, name) => filter_code(defs, evalSelect(select), klass)
+      case apply @ Apply(fun, args) => filterCode(defs, evalApply(apply), t)
+      case select @ Select(tree, name) => filterCode(defs, evalSelect(select), t)
       case lit @ Literal(Constant(true)) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(len);",
-        s"${evalScalarType(defs.head.tpt, klass)} ${defs.head.name} {};",
+        s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
         "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
           s"out[0]->data[i] = x_in[0]->data[i];"
@@ -176,8 +250,8 @@ object CppTranspiler {
   }
 
   // evaluate Function type from Scala AST
-  def evalFunc(fun: Function, klass: Class[_]): String = {
-    evalBody(fun.vparams, fun.body, klass)
+  def evalFunc(fun: Function, t: Type): String = {
+    evalBody(fun.vparams, fun.body, t)
   }
 
   // evaluate vparams for Function
@@ -218,7 +292,7 @@ object CppTranspiler {
 
   }
 
-  def evalScalarType(tree: Tree, klass: Class[_]): String = {
+  def evalScalarType(tree: Tree, t: Type): String = {
 
     tree match {
       case ident @ Ident(_) =>
@@ -232,13 +306,13 @@ object CppTranspiler {
           case "Double" => "double"
           case "Instant" => "int64_t"
           case _ => {
-            if (klass == classOf[Int]) {
+            if (t =:= typeOf[Int]) {
               "int32_t"
-            } else if (klass == classOf[Long]) {
+            } else if (t =:= typeOf[Long]) {
               "int64_t"
-            } else if (klass == classOf[Float]) {
+            } else if (t =:= typeOf[Float]) {
               "float"
-            } else if (klass == classOf[Instant]) {
+            } else if (t =:= typeOf[Instant]) {
               "int64_t"
             } else {
               "double"
@@ -247,11 +321,11 @@ object CppTranspiler {
         }
 
       case unknown => {
-        if (klass == classOf[Int]) {
+        if (t =:= typeOf[Int]) {
           "int32_t"
-        } else if (klass == classOf[Long]) {
+        } else if (t =:= typeOf[Long]) {
           "int64_t"
-        } else if (klass == classOf[Float]) {
+        } else if (t =:= typeOf[Float]) {
           "float"
         } else {
           "double"
@@ -275,8 +349,8 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalBody(defs: List[ValDef], body: Tree, klass: Class[_]): String = {
-    val resultType: String = resultTypeForKlass(klass)
+  def evalBody(defs: List[ValDef], body: Tree, t: Type): String = {
+    val resultType: String = resultTypeForType(t)
 
     body match {
       case ident @ Ident(name) => CodeLines.from(
@@ -287,7 +361,7 @@ object CppTranspiler {
         s"out[0] = $resultType::allocate();",
         s"out[0]->resize(len);",
         defs.map { d =>
-          s"${evalScalarType(d.tpt, klass)} ${d.name} {};"
+          s"${evalScalarType(d.tpt, t)} ${d.name} {};"
         },
         "for (auto i = 0; i < len; i++) {",
         CodeLines.from(

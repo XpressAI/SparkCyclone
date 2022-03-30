@@ -1,7 +1,8 @@
 package com.nec.native
 
-import java.time.Instant
 import org.scalatest.freespec.AnyFreeSpec
+
+import java.time.Instant
 
 final class CppTranspilerSpec extends AnyFreeSpec {
 
@@ -19,7 +20,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   }
 
   "simple function Int -> Int" in {
-    val gencode = CppTranspiler.transpile(reify( (x: Int, y: Int) => x * y + 2 ), intKlass)
+    val gencode = CppTranspiler.transpileMap(reify( (x: Int, y: Int) => x * y + 2 ), intKlass)
     assertCodeEqualish(gencode, cppSources.test01)
   }
 
@@ -63,6 +64,21 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
   }
 
+  "filter combined with || or &&" in {
+    class Foo[T] {
+      def map[U](f: universe.Expr[T => U]): U = ???
+    }
+
+
+    val f = new Foo[Int]
+    f.map(reify { a => a.toString } )
+
+    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)), longKlass)
+    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)), longKlass)
+    assertCodeEqualish(genCodeCombinedAnd, cppSources.testFilterAnd)
+    assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
+  }
+
   "map java.time.Instant -> Int" in {
     val output1 =
       """
@@ -77,7 +93,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
         | }
       """.stripMargin
 
-    val genCode1 = CppTranspiler.transpile(reify { x: Instant => Instant.ofEpochSecond(123456789L).compareTo(x) + 13 }, classOf[Instant])
+    val genCode1 = CppTranspiler.transpileMap(reify { x: Instant => Instant.ofEpochSecond(123456789L).compareTo(x) + 13 }, classOf[Instant])
     assertCodeEqualish(genCode1, output1)
   }
 

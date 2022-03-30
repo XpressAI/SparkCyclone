@@ -39,11 +39,7 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
     val code = MergeFunction.apply(funcName, List(dataType))
     val func = code.toCFunction
     val veFunc = code.toVeFunction
-    println(s"Generated code:\n${func.toCodeLinesWithHeaders.cCode}")
-
-    // compile
     val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders).toString
-    println("compiled path:" + compiledPath)
 
     shuffled.mapPartitions { batchIter =>
       import com.nec.spark.SparkCycloneExecutorPlugin.veProcess

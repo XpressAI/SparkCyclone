@@ -1,11 +1,11 @@
 package com.nec.ve
 
 import com.nec.arrow.colvector.ArrayTConversions.ArrayTToBPCV
-import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
+import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -80,9 +80,17 @@ object SequenceVeRDD {
 
 class SequenceVeRDD(orig: RDD[Long], rdd: RDD[VeColBatch]) extends BasicVeRDD[Long](orig) {
   override val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
-    println(s"Reading seq for ${index}")
-    val batch = valsIter.next()
-    Iterator(batch)
+    println(s"${this.getClass} RDD(${this.id})")
+
+    if (SparkCycloneExecutorPlugin.containsCachedBatch("seq")) {
+      Iterator(SparkCycloneExecutorPlugin.getCachedBatch("seq"))
+    } else {
+      println(s"Reading seq for ${index}")
+      val batch = valsIter.next()
+      SparkCycloneExecutorPlugin.registerCachedBatch("seq", batch)
+
+      Iterator(batch)
+    }
   }.persist(StorageLevel.MEMORY_ONLY).cache()
   sparkContext.runJob(inputs, (i: Iterator[_]) => ())
 }

@@ -1,12 +1,9 @@
-import com.nec.ve.VeRDD
-import com.nec.ve.VeRDD._
-import com.nec.ve.VeRDD.VeRichSparkContext
-import com.nec.util.DateTimeOps._
+import com.nec.ve.VeRDD.{VeRichSparkContext, _}
+import org.apache.spark.{SparkConf, SparkContext}
+
+import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.runtime.universe.reify
-import java.time.Instant
-import org.apache.spark.rdd._
-import org.apache.spark.{SparkConf, SparkContext}
 
 object RDDBench {
   val timings = MMap.empty[String, Double]
@@ -34,6 +31,7 @@ object RDDBench {
     println("Making VeRDD[Long]")
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
+    //val verdd = rdd.toVeRDD
     val result2 = benchmark("01 - VE ") {
       verdd
         .vemap(reify { (a: Long) => 2 * a + 12 } )
