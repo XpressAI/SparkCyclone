@@ -7,6 +7,7 @@ import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Raw}
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector}
+import com.nec.util.DateTimeOps._
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.nec.ve.colvector.VeColVector
 import com.nec.ve.serializer.VeSerializer
@@ -162,8 +163,6 @@ trait VeRDD[T] extends RDD[T] {
     implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
     val klass = implicitly[ClassTag[T]].runtimeClass
 
-    //val klass = implicitly[ClassTag[T]].runtimeClass
-
     batches.flatMap { veColBatch =>
       val arrowBatch = veColBatch.toArrowColumnarBatch()
       val array = if (klass == classOf[Int]) {
@@ -172,9 +171,12 @@ trait VeRDD[T] extends RDD[T] {
         arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
       } else if (klass == classOf[Float]) {
         arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-      } else {
-        println(s"klass = $klass")
+      } else if (klass == classOf[Double]) {
         arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+      } else if (klass == classOf[Instant]) {
+        arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime(_))
+      } else {
+        throw new NotImplementedError(s"Cannot extract Array[T] from ColumnarBatch for T = ${klass}")
       }
       array.toSeq.asInstanceOf[Seq[T]]
     }
@@ -320,6 +322,8 @@ abstract class ChainedVeRDD[T](
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
+
+
         } else {
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
         }
@@ -361,6 +365,8 @@ abstract class ChainedVeRDD[T](
     val dataType = if (klass == classOf[Int]) {
       SparkExpressionToCExpression.sparkTypeToVeType(IntegerType)
     } else if (klass == classOf[Long]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
+    } else if (klass == classOf[Instant]) {
       SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else if (klass == classOf[Float]) {
       SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
@@ -503,18 +509,25 @@ class BasicVeRDD[T](
 
     val klass = implicitly[ClassTag[T]].runtimeClass
     val veVector = if (klass == classOf[Int]) {
-      val intVector = valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}")
-      intVector.toVeColVector()
-    } else if (klass == classOf[Long]) {
-      val intVector = valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}")
-      intVector.toVeColVector()
-    } else if (klass == classOf[Float]) {
-      val intVector = valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}")
-      intVector.toVeColVector()
-    } else {
-      val intVector = valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}")
-      intVector.toVeColVector()
+      valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
 
+    } else if (klass == classOf[Long]) {
+      valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
+
+    } else if (klass == classOf[Float]) {
+      valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
+
+    } else if (klass == classOf[Double]) {
+      valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
+
+    } else if (klass == classOf[Instant]) {
+      valsArray.asInstanceOf[Array[Instant]]
+        .map(_.toFrovedisDateTime)
+        .toBytePointerColVector(s"inputs-${index}")
+        .toVeColVector()
+
+    } else {
+      throw new NotImplementedError(s"Cannot convert Array[T] to VeColVector for T = ${klass}")
     }
 
     val end = System.nanoTime()
@@ -547,6 +560,8 @@ class BasicVeRDD[T](
       SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else if (klass == classOf[Float]) {
       SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else if (klass == classOf[Instant]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else {
       SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
     }
@@ -587,6 +602,8 @@ class BasicVeRDD[T](
       SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else if (klass == classOf[Float]) {
       SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
+    } else if (klass == classOf[Instant]) {
+      SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else {
       SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
     }
@@ -743,6 +760,8 @@ class BasicVeRDD[T](
           arrowBatch.column(0).getInts(0, arrowBatch.numRows())
         } else if (klass == classOf[Long]) {
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
+        } else if (klass == classOf[Instant]) {
+          arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime(_))
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
         } else {
