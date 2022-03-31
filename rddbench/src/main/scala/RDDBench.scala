@@ -12,12 +12,13 @@ object RDDBench {
     println("Basic RDD Benchmark")
 
     println("Making RDD[Long]")
-    val numbers = (1L to (1 * 1000000))
+    val numbers = (1L to (500 * 1000000))
 
     val start1 = System.nanoTime()
     val rdd = sc.parallelize(numbers).repartition(8).cache()
     val result1 = benchmark("01 - CPU") {
-      rdd.map((a: Long) => 2 * a + 12)
+      rdd.map((a: Long) => (a, 2 * a + 12))
+        .map((tup) => tup._2)
         .filter((a: Long) => a % 128 == 0)
         .groupBy((a: Long) => a % 2)
         .flatMap { case (k: Long, values: Iterable[Long]) => values }
@@ -34,7 +35,8 @@ object RDDBench {
     //val verdd = rdd.toVeRDD
     val result2 = benchmark("01 - VE ") {
       verdd
-        .vemap(reify { (a: Long) => 2 * a + 12 } )
+        .vemap(reify { (a: Long) => (a, 2 * a + 12) } )
+        .vemap(reify { (tup) => tup._2 })
         .vefilter(reify { (a: Long) => a % 128 == 0 })
         .vegroupBy(reify { (a: Long) => a % 2 })
         .toRDD
