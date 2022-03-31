@@ -5,6 +5,7 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Ra
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines, VeType}
 import com.nec.util.DateTimeOps._
+import com.nec.util.SyntaxTreeOps._
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 
 import java.time.Instant
@@ -61,7 +62,7 @@ object CppTranspiler {
     ), newOutputs)
   }
 
-  def transpileFilter[T](expr: universe.Expr[ T => Boolean]): CompiledVeFunction = {
+  def transpileFilter[T](expr: universe.Expr[T => Boolean]): CompiledVeFunction = {
     val resultType = expr.staticType.typeArgs.head
 
     val code = expr.tree match {
@@ -83,26 +84,30 @@ object CppTranspiler {
     ), newOutputs)
   }
 
-  def transpileMap[T](expr: Expr[T]): CompiledVeFunction = {
-    val resultType = expr.staticType.typeArgs.last
+  def transpileMap[T, U](expr: Expr[T => U]): CompiledVeFunction = {
+    // Convert into a tree with type annotations
+    toolbox.typecheck(expr.tree) match {
+      case func @ Function(vparams, body) =>
+        // Generate the body code
+        val code = evalFuncBody(func)
 
-    val code = expr.tree match {
-      case fun @ Function(vparams, body) => evalFunc(fun, resultType)
+        // Get the outvec
+        val outvec = CVector("out", func.returnType.toVeType)
+
+        // Assemble and compile the function
+        CompiledVeFunction(
+          new CFunction2(
+            s"map_${Math.abs(code.hashCode)}",
+            Seq(
+              PointerPointer(CVector("a_in", func.argTypes.head.toVeType)),
+              PointerPointer(outvec)
+            ),
+            code,
+            DefaultHeaders
+          ),
+          List(outvec)
+        )
     }
-
-    val funcName = s"eval_${Math.abs(code.hashCode())}"
-    val dataType = sparkTypeToVeType(resultType)
-    val newOutputs = List(CVector("out", dataType))
-
-    CompiledVeFunction(new CFunction2(
-      funcName,
-      Seq(
-        PointerPointer(CVector("a_in", dataType)),
-        PointerPointer(newOutputs.head)
-      ),
-      code,
-      DefaultHeaders
-    ), newOutputs)
   }
 
   def sparkTypeToVeType(t: Type): VeType = Map(
@@ -249,11 +254,6 @@ object CppTranspiler {
     }
   }
 
-  // evaluate Function type from Scala AST
-  def evalFunc(fun: Function, t: Type): String = {
-    evalBody(fun.vparams, fun.body, t)
-  }
-
   // evaluate vparams for Function
   def evalVParams(fun: Function): String = {
     val defs = fun.vparams
@@ -293,7 +293,6 @@ object CppTranspiler {
   }
 
   def evalScalarType(tree: Tree, t: Type): String = {
-
     tree match {
       case ident @ Ident(_) =>
         val idStr = evalIdent(ident)
@@ -349,8 +348,9 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalBody(defs: List[ValDef], body: Tree, t: Type): String = {
-    val resultType: String = resultTypeForType(t)
+  def evalFuncBody(func: Function): String = {
+    val defs = func.vparams
+    val body = func.body
 
     body match {
       case ident @ Ident(name) => CodeLines.from(
@@ -358,10 +358,10 @@ object CppTranspiler {
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = $resultType::allocate();",
+        s"out[0] = ${func.returnType.toVeType.cVectorType}::allocate();",
         s"out[0]->resize(len);",
         defs.map { d =>
-          s"${evalScalarType(d.tpt, t)} ${d.name} {};"
+          s"${evalScalarType(d.tpt, func.returnType)} ${d.name} {};"
         },
         "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
@@ -401,7 +401,7 @@ object CppTranspiler {
         instantiate a timestamp by evaluating them in real-time, e.g. `Instant.now`
       */
       case Select(y, _) if Option(y.symbol).map(_.fullName) == Some(classOf[java.time.Instant].getName) =>
-        toolbox.eval(apply)
+        toolbox.eval(toolbox.untypecheck(apply))
           .asInstanceOf[Instant]
           .toFrovedisDateTime
           .toString
