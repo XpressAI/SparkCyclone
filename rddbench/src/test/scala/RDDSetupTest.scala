@@ -33,7 +33,7 @@ final class RDDSetupTest extends AnyFreeSpec {
     }
 
     "eval groupBy" in {
-      val code = CppTranspiler.transpileGroupBy(reify { (a: Long) => a % 2 }, classOf[Long])
+      val code = CppTranspiler.transpileGroupBy(reify { (a: Long) => a % 2 })
       println(code)
 
       assert(code != null)

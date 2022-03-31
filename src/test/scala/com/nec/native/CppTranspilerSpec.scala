@@ -1,44 +1,41 @@
 package com.nec.native
 
+import org.scalatest.Assertion
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.time.Instant
 
+//noinspection ScalaUnusedSymbol
 final class CppTranspilerSpec extends AnyFreeSpec {
-
-  import scala.reflect.runtime.universe.reify
-
-  val intKlass: Class[Int] = classOf[Int]
-
-  val longKlass: Class[Long] = classOf[Long]
+  import scala.reflect.runtime.universe._
 
   // ignore *all* whitespaces (do not try to compile after this)
-  def supertrim(s: String) = s.filter(!_.isWhitespace)
+  def supertrim(s: String): String = s.filter(!_.isWhitespace)
 
-  def assertCodeEqualish(code1: String, code2: String) = {
-    assert(supertrim(code1) == supertrim(code2))
+  def assertCodeEqualish(code1: CompiledVeFunction, code2: String): Assertion = {
+    assert(supertrim(code1.func.body.cCode) == supertrim(code2))
   }
 
   "simple function Int -> Int" in {
-    val gencode = CppTranspiler.transpileMap(reify( (x: Int, y: Int) => x * y + 2 ), intKlass)
-    assertCodeEqualish(gencode, cppSources.test01)
+    val gencode = CppTranspiler.transpileMap(reify( (x: Int) => x * 2 ))
+    assert(supertrim(gencode.func.body.cCode).contains("x*2"))
   }
 
   "trivial bool functions" in {
-    val gencodeTrue = CppTranspiler.transpileFilter(reify( (x: Int) => true  ), intKlass)
-    val gencodeFalse = CppTranspiler.transpileFilter(reify( (x: Int) => false ), intKlass)
+    val gencodeTrue = CppTranspiler.transpileFilter(reify( (x: Int) => true  ))
+    val gencodeFalse = CppTranspiler.transpileFilter(reify( (x: Int) => false ))
 
     assertCodeEqualish(gencodeTrue, cppSources.testFilterTrivialBoolTrue)
     assertCodeEqualish(gencodeFalse, cppSources.testFilterTrivialBoolFalse)
   }
 
   "filter by comparing" in {
-    val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x), intKlass)
-    val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10), intKlass)
-    val genCodeLTE = CppTranspiler.transpileFilter(reify( (x: Int) => x <= x*x - x), intKlass)
-    val genCodeGTE = CppTranspiler.transpileFilter(reify( (x: Int) => x >= 10), intKlass)
-    val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2), intKlass)
-    val genCodeNEq = CppTranspiler.transpileFilter(reify( (x: Int) => x != x*x-2), intKlass)
+    val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
+    val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))
+    val genCodeLTE = CppTranspiler.transpileFilter(reify( (x: Int) => x <= x*x - x))
+    val genCodeGTE = CppTranspiler.transpileFilter(reify( (x: Int) => x >= 10))
+    val genCodeEq = CppTranspiler.transpileFilter(reify( (x: Int) => x == x*x-2))
+    val genCodeNEq = CppTranspiler.transpileFilter(reify( (x: Int) => x != x*x-2))
     assertCodeEqualish(genCodeLT, cppSources.testFilterLTConstant)
     assertCodeEqualish(genCodeLTE, cppSources.testFilterLTEConstant)
     assertCodeEqualish(genCodeGT, cppSources.testFilterGTConstant)
@@ -48,33 +45,18 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   }
 
   "mod filter" in {
-    val genCodeMod = CppTranspiler.transpileFilter(reify( (x: Int) => x % 2 == 0), intKlass)
+    val genCodeMod = CppTranspiler.transpileFilter(reify( (x: Int) => x % 2 == 0))
     assertCodeEqualish(genCodeMod, cppSources.testFilterMod)
   }
 
   "filter inverse of something" in {
-    val genCodeInverse = CppTranspiler.transpileFilter(reify( (x: Int) => !(x % 2 == 0)), intKlass)
+    val genCodeInverse = CppTranspiler.transpileFilter(reify( (x: Int) => !(x % 2 == 0)))
     assertCodeEqualish(genCodeInverse, cppSources.testFilterInverse)
   }
 
   "filter combined with || or &&" in {
-    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)), longKlass)
-    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)), longKlass)
-    assertCodeEqualish(genCodeCombinedAnd, cppSources.testFilterAnd)
-    assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
-  }
-
-  "filter combined with || or &&" in {
-    class Foo[T] {
-      def map[U](f: universe.Expr[T => U]): U = ???
-    }
-
-
-    val f = new Foo[Int]
-    f.map(reify { a => a.toString } )
-
-    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)), longKlass)
-    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)), longKlass)
+    val genCodeCombinedAnd = CppTranspiler.transpileFilter(reify( (x: Long) => (x > 10) && (x < 15)))
+    val genCodeCombinedOr =  CppTranspiler.transpileFilter(reify( (x: Long) => (x < 10) || (x > 15)))
     assertCodeEqualish(genCodeCombinedAnd, cppSources.testFilterAnd)
     assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
   }
@@ -83,9 +65,9 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     val output1 =
       """
         | size_t len = x_in[0]->count;
-        | out[0] = nullable_bigint_vector::allocate();
+        | out[0] = nullable_int_vector::allocate();
         | out[0]->resize(len);
-        | int64_t x {};
+        | int32_t x {};
         | for (auto i = 0; i < len; i++) {
         |   x = x_in[0]->data[i];
         |   out[0]->data[i] = (((123456789000000000 == x) ? 0 : (123456789000000000 < x) ? -1 : 1) + 13);
@@ -93,7 +75,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
         | }
       """.stripMargin
 
-    val genCode1 = CppTranspiler.transpileMap(reify { x: Instant => Instant.ofEpochSecond(123456789L).compareTo(x) + 13 }, classOf[Instant])
+    val genCode1 = CppTranspiler.transpileMap(reify { x: Instant => Instant.ofEpochSecond(123456789L).compareTo(x) + 13 })
     assertCodeEqualish(genCode1, output1)
   }
 
@@ -124,8 +106,8 @@ final class CppTranspilerSpec extends AnyFreeSpec {
         | out[0] = x_in[0]->select(matching_ids);
         """.stripMargin
 
-    val genCode1 = CppTranspiler.transpileFilter(reify { x: Instant => x.compareTo(Instant.parse("2022-03-28T00:44:04.277340Z")) < 0 }, classOf[Boolean])
-    val genCode2 = CppTranspiler.transpileFilter(reify { x: Instant => Instant.parse("2022-03-28T00:44:04.277340Z").compareTo(x) != 0 }, classOf[Boolean])
+    val genCode1 = CppTranspiler.transpileFilter(reify { x: Instant => x.compareTo(Instant.parse("2022-03-28T00:44:04.277340Z")) < 0 })
+    val genCode2 = CppTranspiler.transpileFilter(reify { x: Instant => Instant.parse("2022-03-28T00:44:04.277340Z").compareTo(x) != 0 })
 
     assertCodeEqualish(genCode1, output1)
     assertCodeEqualish(genCode2, output2)
@@ -133,23 +115,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 }
 
 object cppSources {
-
-  val test01 =
-    """
-      |size_t len = x_in[0]->count;
-      |out[0] = nullable_int_vector::allocate();
-      |out[0]->resize(len);
-      |int32_t x{};
-      |int32_t y{};
-      |for (auto i = 0; i < len; i++) {
-      |  x = x_in[0]->data[i];
-      |  y = y_in[0]->data[i];
-      |  out[0]->data[i] = ((x * y) + 2);
-      |  out[0]->set_validity(i, 1);
-      |}
-      |""".stripMargin
-
-  val testFilterTrivialBoolTrue =
+  val testFilterTrivialBoolTrue: String =
     """
       |  size_t len = x_in[0]->count;
       |  out[0] = nullable_int_vector::allocate();
@@ -162,7 +128,7 @@ object cppSources {
       |""".stripMargin
 
 
-  val testFilterTrivialBoolFalse =
+  val testFilterTrivialBoolFalse: String =
     """
       |  size_t len = x_in[0]->count;
       |  out[0] = nullable_int_vector::allocate();
@@ -170,7 +136,7 @@ object cppSources {
       |  out[0]->set_validity(0, 0);
       |""".stripMargin
 
- val testFilterLTConstant =
+ val testFilterLTConstant: String =
   """
     | size_t len = x_in[0]->count;
     | std::vector<size_t> bitmask(len);
@@ -184,7 +150,7 @@ object cppSources {
   """.stripMargin
 
 
-  val testFilterLTEConstant =
+  val testFilterLTEConstant: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -197,7 +163,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterGTConstant =
+  val testFilterGTConstant: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -210,7 +176,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterGTEConstant =
+  val testFilterGTEConstant: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -223,7 +189,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterEq =
+  val testFilterEq: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -236,7 +202,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterNEq =
+  val testFilterNEq: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -249,7 +215,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterMod =
+  val testFilterMod: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -262,7 +228,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterInverse =
+  val testFilterInverse: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -275,7 +241,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterAnd =
+  val testFilterAnd: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);
@@ -288,7 +254,7 @@ object cppSources {
       | out[0] = x_in[0]->select(matching_ids);
       """.stripMargin
 
-  val testFilterOr =
+  val testFilterOr: String =
     """
       | size_t len = x_in[0]->count;
       | std::vector<size_t> bitmask(len);

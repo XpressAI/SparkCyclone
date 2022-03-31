@@ -11,11 +11,17 @@ import java.nio.file.Paths
 import scala.reflect.ClassTag
 
 case class CompiledVeFunction(func: CFunction2, outputs: List[CVector]) {
-  val libraryPath: String = SparkCycloneDriverPlugin
-    .currentCompiler
-    .forCode(func.toCodeLinesWithHeaders)
-    .toAbsolutePath
-    .toString
+  val libraryPath: String = {
+    if (SparkCycloneDriverPlugin.currentCompiler != null) {
+      SparkCycloneDriverPlugin
+        .currentCompiler
+        .forCode(func.toCodeLinesWithHeaders)
+        .toAbsolutePath
+        .toString
+    } else {
+      "no compiler defined"
+    }
+  }
 
   def evalFunction(cols: List[VeColVector])(implicit ctx: OriginalCallingContext): VeColBatch = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
