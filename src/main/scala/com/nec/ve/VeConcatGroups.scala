@@ -1,15 +1,14 @@
 package com.nec.ve
 
-import com.nec.spark.SparkCycloneDriverPlugin
+import com.nec.native.CompiledVeFunction
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.merge.MergeFunction
-import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.ve.colvector.VeColBatch.{VeBatchOfBatches, VeColVector}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.spark.Partition
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 
-import java.nio.file.Paths
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
@@ -35,11 +34,9 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
       SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
     }
 
-    val funcName = s"merge_${Math.abs(hashCode())}"
-    val code = MergeFunction.apply(funcName, List(dataType))
-    val func = code.toCFunction
-    val veFunc = code.toVeFunction
-    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders).toString
+    val funcName = s"merge_${dataType.toString}"
+    val code = MergeFunction(funcName, List(dataType))
+    val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults)
 
     shuffled.mapPartitions { batchIter =>
       import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
@@ -48,9 +45,8 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
       val batches = batchIter.toList
       if (batches.nonEmpty) {
         batches.groupBy(_._1).map { case (key, grouped) =>
-          val libRef = veProcess.loadLibrary(Paths.get(compiledPath))
           val batchOfBatches = VeBatchOfBatches.fromVeColBatches(grouped.map(_._2))
-          val merged = veProcess.executeMultiIn(libRef, funcName, batchOfBatches, veFunc.namedResults)
+          val merged: List[VeColVector] = func.evalMultiInFunction(batchOfBatches)
           (key, VeColBatch.fromList(merged))
         }.toIterator
       } else {

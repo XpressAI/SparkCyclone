@@ -38,4 +38,11 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector]) {
     println(s"[evalGrouping] ${func.name}")
     veProcess.executeGrouping[K](libRef, func.name, batchOfBatches, outputs)
   }
+
+  def evalMultiInFunction(
+    batchOfBatches: VeColBatch.VeBatchOfBatches
+  )(implicit ctx: OriginalCallingContext): List[VeColVector] = {
+    val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
+    veProcess.executeMultiIn(libRef, func.name, batchOfBatches, outputs)
+  }
 }

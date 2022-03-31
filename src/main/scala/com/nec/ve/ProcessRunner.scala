@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.sys.process.{ProcessBuilder, ProcessIO}
 
 object ProcessRunner extends LazyLogging {
-  def runHopeOk(process: ProcessBuilder, doDebug: Boolean): Unit = {
+  def runHopeOk(cmd: Seq[String], process: ProcessBuilder, doDebug: Boolean): Unit = {
     var res = ""
     var resErr = ""
     val io = new ProcessIO(
@@ -26,6 +26,8 @@ object ProcessRunner extends LazyLogging {
     if (doDebug) {
       logger.info(s"NCC output: \n${res}; \n${resErr}")
     } else {
+      try { throw new Exception("e") } catch { case e: Exception => e.printStackTrace(System.out) }
+      println(s"Command: ${cmd.mkString(" ")}")
       println(s"NCC output: \n${res}; \n${resErr}")
     }
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")

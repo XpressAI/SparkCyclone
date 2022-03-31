@@ -1,16 +1,15 @@
 package com.nec.ve
 
 import com.nec.arrow.colvector.ArrayTConversions.ArrayTToBPCV
+import com.nec.native.CompiledVeFunction
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, VeNullableLong}
-import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
 
-import java.nio.file.Paths
 import scala.language.experimental.macros
 import scala.language.implicitConversions
 
@@ -41,9 +40,9 @@ object SequenceVeRDD {
     |""".stripMargin
 
     val funcName = s"sequence_${Math.abs(code.hashCode())}"
-
     val outputs = List(CVector("out", VeNullableLong))
-    val func = new CFunction2(
+
+    val func = CompiledVeFunction(new CFunction2(
       funcName,
       Seq(
         PointerPointer(CVector("a_in", VeNullableLong)),
@@ -51,13 +50,7 @@ object SequenceVeRDD {
       ),
       code,
       DefaultHeaders
-    )
-
-    println(s"Generated code:\n${func.toCodeLinesWithHeaders.cCode}")
-
-    // compile
-    val compiledPath = SparkCycloneDriverPlugin.currentCompiler.forCode(func.toCodeLinesWithHeaders).toString
-    println("compiled path:" + compiledPath)
+    ), outputs)
 
     new SequenceVeRDD(rdd, rdd.mapPartitions { iter =>
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
@@ -67,13 +60,8 @@ object SequenceVeRDD {
       val colVector = part.toBytePointerColVector(s"seq-${part(0)}")
       val veColVec = colVector.toVeColVector()
       val batch = VeColBatch.fromList(List(veColVec))
-      val outVectors = List(CVector("out", VeNullableLong))
 
-
-      val libRef = veProcess.loadLibrary(Paths.get(compiledPath))
-
-      //val batch = SparkCycloneExecutorPlugin.getCachedBatch("inputs")
-      Iterator(VeColBatch.fromList(veProcess.execute(libRef, func.name, batch.cols, outVectors)))
+      Iterator(func.evalFunction(batch.cols))
     })
   }
 }
@@ -91,6 +79,6 @@ class SequenceVeRDD(orig: RDD[Long], rdd: RDD[VeColBatch]) extends BasicVeRDD[Lo
 
       Iterator(batch)
     }
-  }.persist(StorageLevel.MEMORY_ONLY).cache()
-  sparkContext.runJob(inputs, (i: Iterator[_]) => ())
+  }//.persist(StorageLevel.MEMORY_ONLY).cache()
+  //sparkContext.runJob(inputs, (i: Iterator[_]) => ())
 }
