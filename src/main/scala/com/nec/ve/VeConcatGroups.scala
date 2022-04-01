@@ -118,4 +118,6 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
   override def vereduce(expr: universe.Expr[((K, Iterable[T]), (K, Iterable[T])) => (K, Iterable[T])]): (K, Iterable[T]) = ???
 
   override def vegroupBy[G](expr: universe.Expr[((K, Iterable[T])) => G]): VeRDD[(G, Iterable[(K, Iterable[T])])] = ???
+
+  override def vesortBy[G](expr: universe.Expr[((K, Iterable[T])) => G], ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[G], ctag: ClassTag[G]): VeRDD[(K, Iterable[T])] = ???
 }

@@ -85,7 +85,7 @@ trait VeRDD[T] extends RDD[T] {
 
   //def groupBy[K](f: T => K): VeRDD[(K, Iterable[T])] = macro vegroupBy_impl[K, T]
 
-  //override def sortBy[K](f: T => K, ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T] =  macro vesortBy_impl[K]
+  //def sortBy[K](f: T => K, ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T] =  macro vesortBy_impl[K]
 
   def vemap[U: ClassTag](expr: Expr[T => U]): VeRDD[U]
 
@@ -95,7 +95,7 @@ trait VeRDD[T] extends RDD[T] {
 
   def vereduce(expr: Expr[(T, T) => T]): T
 
-  //def vesortBy[K](f: T => K, ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T]
+  def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T]
 
   def toRDD: RDD[T]
 
@@ -129,6 +129,7 @@ trait VeRDD[T] extends RDD[T] {
   }
 
   override protected def getPartitions: Array[Partition] = inputs.partitions
+
 }
 
 abstract class ChainedVeRDD[T](
@@ -233,6 +234,18 @@ abstract class ChainedVeRDD[T](
     out.setSerializer(new VeSerializer(sparkContext.getConf, true))
     new VeConcatGroups(out)(ktag, tag, gttag)
   }
+
+  override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T] = {
+    val newFunc = CppTranspiler.transpileSort(expr)
+    val ktag: ClassTag[K] = ClassTag(classOf[Long])
+    val gttag: ClassTag[(K, Iterable[T])] = ClassTag(classOf[(Long, Iterable[Long])])
+
+    val keyed = new MappedVeRDD[(K, VeColBatch), T](this, newFunc)
+    val part = new RangePartitioner(numPartitions, keyed, ascending)
+    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](keyed, part).setKeyOrdering(if (ascending) ord else ord.reverse)
+    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    new VeConcatGroups(out)(ktag, tag, gttag).vemap[T](reify { (tup: (K, Iterable[_])) => tup._2.head.asInstanceOf[T] })(tag)
+  }
 }
 
 class BasicVeRDD[T](
@@ -331,7 +344,7 @@ class BasicVeRDD[T](
     new VeConcatGroups(out)(ktag, tag, gttag)
   }
 
-  def vesortBy[K](expr: Expr[T => K], ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T] = {
+  override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T] = {
     val newFunc = CppTranspiler.transpileSort(expr)
     val ktag: ClassTag[K] = ClassTag(classOf[Long])
     val gttag: ClassTag[(K, Iterable[T])] = ClassTag(classOf[(Long, Iterable[Long])])

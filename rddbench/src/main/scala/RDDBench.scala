@@ -18,6 +18,7 @@ object RDDBench {
     val rdd = sc.parallelize(numbers).repartition(8).cache()
     val result1 = benchmark("Basic - CPU") {
       rdd.map((a: Long) => (a, 2 * a + 12))
+        .sortBy((tup) => (tup._1), ascending = false)
         .map((tup) => (tup._2))
         .filter((a: Long) => a % 128 == 0)
         .groupBy((a: Long) => a % 2)
@@ -35,7 +36,7 @@ object RDDBench {
     val result2 = benchmark("Basic - VE ") {
       verdd
         .vemap(reify { (a: Long) => (a, 2 * a + 12) })
-        //.sortBy((tup: (Long, Long)) => tup._1)
+        .vesortBy(reify { (tup: (Long, Long)) => tup._1 }, ascending = false)
         .vemap(reify { (tup: (Long, Long)) => (tup._2) })
         .vefilter(reify { (a: Long) => a % 128 == 0 })
         .vegroupBy(reify { (a: Long) => a % 2 })

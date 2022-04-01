@@ -8,41 +8,40 @@ import org.apache.spark.{Partition, TaskContext}
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
-class VeGroupByRDD[K, T](
+class VeGroupByRDD[G, T](
   verdd: VeRDD[T],
   func: CompiledVeFunction
-)(override implicit val tag: ClassTag[(K, VeColBatch)], implicit val ktag: ClassTag[K], implicit val ttag: ClassTag[T])
-  extends RDD[(K, VeColBatch)](verdd)
-    with VeRDD[(K, VeColBatch)] {
+)(override implicit val tag: ClassTag[(G, VeColBatch)], implicit val ktag: ClassTag[G], implicit val ttag: ClassTag[T])
+  extends RDD[(G, VeColBatch)](verdd)
+    with VeRDD[(G, VeColBatch)] {
 
   override val inputs: RDD[VeColBatch] = null
-  val keyedInputs: RDD[(K, VeColBatch)] = computeKeyedVe()
+  val keyedInputs: RDD[(G, VeColBatch)] = computeKeyedVe()
 
   override protected def getPartitions: Array[Partition] = keyedInputs.partitions
-  override def compute(split: Partition, context: TaskContext): Iterator[(K, VeColBatch)] = keyedInputs.iterator(split, context)
+  override def compute(split: Partition, context: TaskContext): Iterator[(G, VeColBatch)] = keyedInputs.iterator(split, context)
 
-  def computeKeyedVe(): RDD[(K, VeColBatch)] = {
+  def computeKeyedVe(): RDD[(G, VeColBatch)] = {
     verdd.inputs.mapPartitions { batches =>
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       val batchOfBatches = VeBatchOfBatches.fromVeColBatches(batches.toList)
 
-      func.evalGrouping[K](batchOfBatches).map { case (key, colVectors) =>
+      func.evalGrouping[G](batchOfBatches).map { case (key, colVectors) =>
         (key, VeColBatch.fromList(colVectors))
       }.iterator
     }
   }
 
-  override def vemap[U: ClassTag](expr: universe.Expr[((K, VeColBatch)) => U]): VeRDD[U] = ???
+  override def vemap[U: ClassTag](expr: universe.Expr[((G, VeColBatch)) => U]): VeRDD[U] = ???
 
-  override def vefilter(expr: universe.Expr[((K, VeColBatch)) => Boolean]): VeRDD[(K, VeColBatch)] = ???
+  override def vefilter(expr: universe.Expr[((G, VeColBatch)) => Boolean]): VeRDD[(G, VeColBatch)] = ???
 
-  override def vereduce(expr: universe.Expr[((K, VeColBatch), (K, VeColBatch)) => (K, VeColBatch)]): (K, VeColBatch) = ???
+  override def vereduce(expr: universe.Expr[((G, VeColBatch), (G, VeColBatch)) => (G, VeColBatch)]): (G, VeColBatch) = ???
 
-  override def toRDD: RDD[(K, VeColBatch)] = keyedInputs
+  override def toRDD: RDD[(G, VeColBatch)] = keyedInputs
 
-  override def vegroupBy[G](expr: universe.Expr[((K, VeColBatch)) => G]): VeRDD[(G, Iterable[(K, VeColBatch)])] = ???
+  override def vegroupBy[K](expr: universe.Expr[((G, VeColBatch)) => K]): VeRDD[(K, Iterable[(G, VeColBatch)])] = ???
 
-  def vesortBy[K](f: T => K, ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T] = ???
-
+  override def vesortBy[K](expr: universe.Expr[((G, VeColBatch)) => K], ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): com.nec.ve.VeRDD[(G, VeColBatch)] = ???
 }
