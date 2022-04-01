@@ -1,9 +1,8 @@
 import com.nec.ve.VeRDD.{VeRichSparkContext, _}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
-import scala.reflect.runtime.universe.reify
 
 object RDDBench {
   val timings = MMap.empty[String, Double]
@@ -12,19 +11,18 @@ object RDDBench {
     println("Basic RDD Benchmark")
 
     println("Making RDD[Long]")
-    val numbers = (1L to (500 * 1000000))
+    val numbers = (1L to (400 * 1000000))
 
     val start1 = System.nanoTime()
     val rdd = sc.parallelize(numbers).repartition(8).cache()
-    val result1 = benchmark("01 - CPU") {
+    val result1 = benchmark("Basic - CPU") {
       rdd.map((a: Long) => (a, 2 * a + 12))
-        .map((tup) => tup._2)
+        .map((tup) => (tup._2))
         .filter((a: Long) => a % 128 == 0)
         .groupBy((a: Long) => a % 2)
+        .repartitionAndSortWithinPartitions(new HashPartitioner(8))
         .flatMap { case (k: Long, values: Iterable[Long]) => values }
         .reduce((a: Long, b: Long) => a + b)
-        // .groupBy((a: Long) => a % 2)
-        // .flatMap { case (k: Long, values: Iterable[Long]) => values }
     }
     val rddCount = rdd.count()
     val end1 = System.nanoTime()
@@ -33,16 +31,16 @@ object RDDBench {
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
     //val verdd = rdd.toVeRDD
-    val result2 = benchmark("01 - VE ") {
+    val result2 = benchmark("Basic - VE ") {
       verdd
-        .vemap(reify { (a: Long) => (a, 2 * a + 12) } )
-        .vemap(reify { (tup) => tup._2 })
-        .vefilter(reify { (a: Long) => a % 128 == 0 })
-        .vegroupBy(reify { (a: Long) => a % 2 })
-        .toRDD
+        .map((a: Long) => (a, 2 * a + 12))
+        .sortBy((tup: (Long, Long)) => tup._1)
+        .map((tup: (Long, Long)) => (tup._2))
+        .filter((a: Long) => a % 128 == 0)
+        .groupBy((a: Long) => a % 2 )
+        .repartitionAndSortWithinPartitions(new HashPartitioner(8))
         .flatMap((a: (Long, Iterable[Long])) => a._2)
         .reduce((a: Long, b: Long) => a + b)
-        // .toRDD      //.vereduce(reify { (a: Long, b: Long) => a + b })
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()
@@ -61,7 +59,7 @@ object RDDBench {
       .map(offset => Instant.parse("2022-02-28T08:18:50.957303Z").plusSeconds(offset - 5000))
       .repartition(8)
       .cache()
-    val result1 = benchmark("02 - CPU") {
+    val result1 = benchmark("Instant - CPU") {
       rdd
         .filter((a: Instant) => a.compareTo(Instant.parse("2022-02-28T08:18:50.957303Z")) < 0)
         .map((a: Instant) => Instant.parse("2022-02-28T08:18:50.957303Z").compareTo(a) + 1L)
@@ -74,7 +72,7 @@ object RDDBench {
     println("Making VeRDD[Instant]")
     val start2 = System.nanoTime()
     val verdd = rdd.toVeRDD
-    val result2 = benchmark("02 - VE ") {
+    val result2 = benchmark("Instant - VE ") {
       verdd
         .filter((a: Instant) => a.compareTo(Instant.parse("2022-02-28T08:18:50.957303Z")) < 0)
         .map((a: Instant) => Instant.parse("2022-02-28T08:18:50.957303Z").compareTo(a) + 1L)
@@ -101,7 +99,7 @@ object RDDBench {
 
   def dumpResult(): Unit = {
     println("======== RESULTS ===========")
-    for ((title, duration) <- timings) {
+    for ((title, duration) <- timings.toList.sortBy(_._1)) {
       println(title + "\t" + duration + "seconds")
     }
     println("============================")
