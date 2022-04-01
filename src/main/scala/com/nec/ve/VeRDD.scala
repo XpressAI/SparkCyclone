@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.nec.native.{CompiledVeFunction, CppTranspiler}
+import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.DateTimeOps._
 import com.nec.ve.serializer.VeSerializer
 import org.apache.arrow.memory.RootAllocator
@@ -95,7 +96,7 @@ trait VeRDD[T] extends RDD[T] {
 
   def vereduce(expr: Expr[(T, T) => T]): T
 
-  def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T]
+  def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T]
 
   def toRDD: RDD[T]
 
@@ -223,28 +224,42 @@ abstract class ChainedVeRDD[T](
 
   override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
     val newFunc = CppTranspiler.transpileGroupBy(expr)
-    val ktag: ClassTag[K] = ClassTag(classOf[Long])
-    val gtag: ClassTag[(K, VeColBatch)] = ClassTag(classOf[(Long, VeColBatch)])
-    val vtag: ClassTag[VeColBatch] = ClassTag(classOf[VeColBatch])
-    val gttag: ClassTag[(K, Iterable[T])] = ClassTag(classOf[(Long, Iterable[Long])])
+    implicit val ord: Ordering[K] = newFunc.types.output.ordering.asInstanceOf[Ordering[K]]
+    implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
 
 
-    val mapped = new VeGroupByRDD(this, newFunc)(gtag, ktag, tag)
-    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))(ktag, vtag, vtag)
+    val mapped = new VeGroupByRDD(this, newFunc)
+    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
     out.setSerializer(new VeSerializer(sparkContext.getConf, true))
-    new VeConcatGroups(out)(ktag, tag, gttag)
+    new VeConcatGroups(out)
   }
 
-  override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T] = {
-    val newFunc = CppTranspiler.transpileSort(expr)
-    val ktag: ClassTag[K] = ClassTag(classOf[Long])
-    val gttag: ClassTag[(K, Iterable[T])] = ClassTag(classOf[(Long, Iterable[Long])])
+  override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T] = {
+    val newFunc = CppTranspiler.transpileGroupBy(expr)
+    implicit val ord: Ordering[K] = newFunc.types.output.ordering.asInstanceOf[Ordering[K]]
+    implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
 
-    val keyed = new MappedVeRDD[(K, VeColBatch), T](this, newFunc)
-    val part = new RangePartitioner(numPartitions, keyed, ascending)
-    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](keyed, part).setKeyOrdering(if (ascending) ord else ord.reverse)
-    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
-    new VeConcatGroups(out)(ktag, tag, gttag).vemap[T](reify { (tup: (K, Iterable[_])) => tup._2.head.asInstanceOf[T] })(tag)
+    val mapped = new VeGroupByRDD(this, newFunc)
+    val shuffle = new ShuffledRDD[K, VeColBatch, VeColBatch](
+      mapped,
+      new RangePartitioner(this.partitions.length, mapped, ascending)
+    ).setKeyOrdering(ord)
+    shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    val values = shuffle.map(_._2)
+
+    import com.nec.util.SyntaxTreeOps._
+
+    val dataType = newFunc.types.output.tpe.toVeType
+
+    val funcName = s"merge_${dataType.toString}"
+    val code = MergeFunction(funcName, List(dataType))
+    val func = CompiledVeFunction(
+      code.toCFunction,
+      code.toVeFunction.namedResults,
+      newFunc.types.copy(input = newFunc.types.output)
+    )
+
+    new MappedVeRDD[T, VeColBatch](new RawVeRDD[T](values), func)
   }
 }
 
@@ -333,27 +348,17 @@ class BasicVeRDD[T](
 
   override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
     val newFunc = CppTranspiler.transpileGroupBy(expr)
-    val ktag: ClassTag[K] = ClassTag(classOf[Long])
-    val gtag: ClassTag[(K, VeColBatch)] = ClassTag(classOf[(Long, VeColBatch)])
-    val vtag: ClassTag[VeColBatch] = ClassTag(classOf[VeColBatch])
-    val gttag: ClassTag[(K, Iterable[T])] = ClassTag(classOf[(Long, Iterable[Long])])
+    implicit val ord: Ordering[K] = newFunc.types.output.ordering.asInstanceOf[Ordering[K]]
+    implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
 
-    val mapped = new VeGroupByRDD(this, newFunc)(gtag, ktag, tag)
-    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))(ktag, vtag, vtag)
+    val mapped = new VeGroupByRDD(this, newFunc)
+    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
     out.setSerializer(new VeSerializer(sparkContext.getConf, true))
-    new VeConcatGroups(out)(ktag, tag, gttag)
+    new VeConcatGroups(out)
   }
 
-  override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length)(implicit ord: Ordering[K], ctag: ClassTag[K]): VeRDD[T] = {
-    val newFunc = CppTranspiler.transpileSort(expr)
-    val ktag: ClassTag[K] = ClassTag(classOf[Long])
-    val gttag: ClassTag[(K, Iterable[T])] = ClassTag(classOf[(Long, Iterable[Long])])
-
-    val keyed = new MappedVeRDD[(K, VeColBatch), T](this, newFunc)
-    val part = new RangePartitioner(numPartitions, keyed, ascending)
-    val out = new ShuffledRDD[K, VeColBatch, VeColBatch](keyed, part).setKeyOrdering(if (ascending) ord else ord.reverse)
-    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
-    new VeConcatGroups(out)(ktag, tag, gttag).vemap[T](reify { (tup: (K, Iterable[_])) => tup._2.head.asInstanceOf[T] })(tag)
+  override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T] = {
+    ???
   }
 
 
@@ -387,3 +392,20 @@ class BasicVeRDD[T](
   override protected def getPartitions: Array[Partition] = rdd.partitions
 }
 
+class RawVeRDD[T](
+  rdd: RDD[VeColBatch]
+)(implicit val tag: ClassTag[VeColBatch])  extends RDD[VeColBatch](rdd.sparkContext, List(new OneToOneDependency(rdd))) with VeRDD[VeColBatch] {
+  override val inputs: RDD[VeColBatch] = rdd
+
+  override def vemap[U: ClassTag](expr: universe.Expr[VeColBatch => U]): VeRDD[U] = ???
+
+  override def vefilter(expr: universe.Expr[VeColBatch => Boolean]): VeRDD[VeColBatch] = ???
+
+  override def vegroupBy[K](expr: universe.Expr[VeColBatch => K]): VeRDD[(K, Iterable[VeColBatch])] = ???
+
+  override def vereduce(expr: universe.Expr[(VeColBatch, VeColBatch) => VeColBatch]): VeColBatch = ???
+
+  override def vesortBy[K](expr: universe.Expr[VeColBatch => K], ascending: Boolean, numPartitions: Int): VeRDD[VeColBatch] = ???
+
+  override def toRDD: RDD[VeColBatch] = rdd
+}

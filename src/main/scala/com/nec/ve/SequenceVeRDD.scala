@@ -51,7 +51,7 @@ object SequenceVeRDD {
       ),
       code,
       DefaultHeaders
-    ), outputs)
+    ), outputs, null)
 
     new SequenceVeRDD(rdd, rdd.mapPartitions { iter =>
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}

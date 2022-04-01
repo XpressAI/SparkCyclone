@@ -9,7 +9,7 @@ import com.nec.ve.colvector.VeColVector
 import java.nio.file.Paths
 import scala.reflect.ClassTag
 
-case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], types: FunctionTyping[_, _]) {
+case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transient types: FunctionTyping[_, _]) {
   val libraryPath: String = {
     if (SparkCycloneDriverPlugin.currentCompiler != null) {
       SparkCycloneDriverPlugin

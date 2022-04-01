@@ -67,7 +67,7 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
 
     val funcName = s"merge_${dataType.toString}"
     val code = MergeFunction(funcName, List(dataType))
-    val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults)
+    val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults, null)
 
     shuffled.mapPartitions { batchIter =>
       import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
@@ -119,5 +119,5 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
 
   override def vegroupBy[G](expr: universe.Expr[((K, Iterable[T])) => G]): VeRDD[(G, Iterable[(K, Iterable[T])])] = ???
 
-  override def vesortBy[G](expr: universe.Expr[((K, Iterable[T])) => G], ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[G], ctag: ClassTag[G]): VeRDD[(K, Iterable[T])] = ???
+  override def vesortBy[G](expr: universe.Expr[((K, Iterable[T])) => G], ascending: Boolean, numPartitions: Int): VeRDD[(K, Iterable[T])] = ???
 }

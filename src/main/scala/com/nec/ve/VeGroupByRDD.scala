@@ -11,7 +11,7 @@ import scala.reflect.runtime.universe
 class VeGroupByRDD[G, T](
   verdd: VeRDD[T],
   func: CompiledVeFunction
-)(override implicit val tag: ClassTag[(G, VeColBatch)], implicit val ktag: ClassTag[G], implicit val ttag: ClassTag[T])
+)(override implicit val tag: ClassTag[(G, VeColBatch)])
   extends RDD[(G, VeColBatch)](verdd)
     with VeRDD[(G, VeColBatch)] {
 
@@ -22,9 +22,9 @@ class VeGroupByRDD[G, T](
   override def compute(split: Partition, context: TaskContext): Iterator[(G, VeColBatch)] = keyedInputs.iterator(split, context)
 
   def computeKeyedVe(): RDD[(G, VeColBatch)] = {
+    implicit val g: ClassTag[G] = func.types.output.tag.asInstanceOf[ClassTag[G]]
     verdd.inputs.mapPartitions { batches =>
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-
       val batchOfBatches = VeBatchOfBatches.fromVeColBatches(batches.toList)
 
       func.evalGrouping[G](batchOfBatches).map { case (key, colVectors) =>
@@ -43,5 +43,5 @@ class VeGroupByRDD[G, T](
 
   override def vegroupBy[K](expr: universe.Expr[((G, VeColBatch)) => K]): VeRDD[(K, Iterable[(G, VeColBatch)])] = ???
 
-  override def vesortBy[K](expr: universe.Expr[((G, VeColBatch)) => K], ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): com.nec.ve.VeRDD[(G, VeColBatch)] = ???
+  override def vesortBy[K](expr: universe.Expr[((G, VeColBatch)) => K], ascending: Boolean, numPartitions: Int): VeRDD[(G, VeColBatch)] = ???
 }

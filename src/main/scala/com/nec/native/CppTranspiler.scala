@@ -16,9 +16,6 @@ import scala.tools.reflect.ToolBox
 object CppTranspiler {
   private val toolbox = cm.mkToolBox()
 
-  def transpileSort[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = ???
-
-
   def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
     val resultType = expr.staticType.typeArgs.last
 
@@ -36,7 +33,7 @@ object CppTranspiler {
         Raw("size_t input_batch_count"),
         Raw(s"size_t **group_key_pointer"),
         Raw(s"size_t *group_count_pointer"),
-        PointerPointer(CVector("a_in", dataType)),
+        PointerPointer(CVector(s"${expr.tree.asInstanceOf[Function].vparams.head.name.toString}_in", dataType)),
         PointerPointer(newOutputs.head)
       ),
       code,
