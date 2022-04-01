@@ -41,7 +41,7 @@ object CppTranspiler {
       ),
       code,
       DefaultHeaders
-    ), newOutputs)
+    ), newOutputs, FunctionTyping.fromExpression(expr))
   }
 
   def transpileReduce[T](expr: universe.Expr[(T, T) => T]): CompiledVeFunction = {
@@ -62,7 +62,7 @@ object CppTranspiler {
       ),
       code,
       DefaultHeaders
-    ), newOutputs)
+    ), newOutputs, FunctionTyping.fromExpression(expr))
   }
 
   def transpileFilter[T](expr: universe.Expr[T => Boolean]): CompiledVeFunction = {
@@ -84,7 +84,7 @@ object CppTranspiler {
       ),
       code,
       DefaultHeaders
-    ), newOutputs)
+    ), newOutputs, FunctionTyping.fromExpression(expr))
   }
 
   case class VeSignature(inputs: List[CVector], outputs: List[CVector])
@@ -137,7 +137,8 @@ object CppTranspiler {
             code,
             DefaultHeaders
           ),
-          signature.outputs
+          signature.outputs,
+          FunctionTyping.fromExpression(expr)
         )
     }
   }
