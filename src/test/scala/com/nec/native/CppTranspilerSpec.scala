@@ -18,7 +18,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 
   "simple function Int -> Int" in {
     val gencode = CppTranspiler.transpileMap(reify( (x: Int) => x * 2 ))
-    assert(supertrim(gencode.func.body.cCode).contains("x*2"))
+    assert(supertrim(gencode.func.body.cCode).contains("in_1_val*2"))
   }
 
   "trivial bool functions" in {
@@ -64,14 +64,14 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   "map java.time.Instant -> Int" in {
     val output1 =
       """
-        | size_t len = x_in[0]->count;
-        | out[0] = nullable_int_vector::allocate();
-        | out[0]->resize(len);
-        | int32_t x {};
+        | size_t len = in_1[0]->count;
+        | out_0[0] = nullable_int_vector::allocate();
+        | out_0[0]->resize(len);
+        | int64_t in_1_val {};
         | for (auto i = 0; i < len; i++) {
-        |   x = x_in[0]->data[i];
-        |   out[0]->data[i] = (((123456789000000000 == x) ? 0 : (123456789000000000 < x) ? -1 : 1) + 13);
-        |   out[0]->set_validity(i, 1);
+        |   in_1_val = in_1[0]->data[i];
+        |   out_0[0]->data[i] = (((123456789000000000 == in_1_val) ? 0 : (123456789000000000 < in_1_val) ? -1 : 1) + 13);
+        |   out_0[0]->set_validity(i, 1);
         | }
       """.stripMargin
 
@@ -111,6 +111,16 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 
     assertCodeEqualish(genCode1, output1)
     assertCodeEqualish(genCode2, output2)
+  }
+
+  "map Long -> (Long, Long)" in {
+    val genCode0 = CppTranspiler.transpileMap(reify { x: Long => x })
+    val genCode1 = CppTranspiler.transpileMap(reify { x: Long => (x, x * 2) })
+    val genCode2 = CppTranspiler.transpileMap(reify { x: (Long, Long) => x._2 })
+    println(genCode0.func.toCodeLinesWithHeaders.cCode)
+    println(genCode1.func.toCodeLinesWithHeaders.cCode)
+    println(genCode2.func.toCodeLinesWithHeaders.cCode)
+    //assert(!supertrim(genCode2.func.body.cCode).contains(""))
   }
 }
 

@@ -16,6 +16,9 @@ import scala.tools.reflect.ToolBox
 object CppTranspiler {
   private val toolbox = cm.mkToolBox()
 
+  def transpileSort[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = ???
+
+
   def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
     val resultType = expr.staticType.typeArgs.last
 
@@ -84,28 +87,57 @@ object CppTranspiler {
     ), newOutputs)
   }
 
+  case class VeSignature(inputs: List[CVector], outputs: List[CVector])
+
+  def extractMapSignature(func: Function): VeSignature = {
+    val argVeTypes = toVeTypes(func.vparams.head.tpt.tpe)
+    val retVeTypes = toVeTypes(func.returnType)
+
+    VeSignature(
+      argVeTypes.zipWithIndex.map { case (veType, i) =>
+        CVector(s"in_${i + 1}", veType)
+      },
+      retVeTypes.zipWithIndex.map { case (veType, i) =>
+        CVector(s"out_$i", veType)
+      }
+    )
+  }
+
+  def toVeTypes(tpe: Type): List[VeType] = {
+    tpe.typeArgs match {
+      case Nil => List(tpe.toVeType)
+      case args => args.map(_.toVeType)
+    }
+  }
+
   def transpileMap[T, U](expr: Expr[T => U]): CompiledVeFunction = {
     // Convert into a tree with type annotations
     toolbox.typecheck(expr.tree) match {
       case func @ Function(vparams, body) =>
         // Generate the body code
-        val code = evalFuncBody(func)
+        val signature = extractMapSignature(func)
+        val newBody = new Transformer {
+          override def transform(tree: universe.Tree): universe.Tree = {
+            tree match {
+              case Select((Ident(i)), TermName(term)) if i == vparams.head.name && term.matches("_\\d?\\d$") =>
+                Ident(TermName(s"in${term}_val"))
+              case i: Ident if (i.name == vparams.head.name) => Ident(TermName("in_1_val"))
+              case _ => super.transform(tree)
+            }
+          }
+        }.transform(body)
 
-        // Get the outvec
-        val outvec = CVector("out", func.returnType.toVeType)
+        val code = evalFuncBody(newBody, signature)
 
         // Assemble and compile the function
         CompiledVeFunction(
           new CFunction2(
             s"map_${Math.abs(code.hashCode)}",
-            Seq(
-              PointerPointer(CVector("a_in", func.argTypes.head.toVeType)),
-              PointerPointer(outvec)
-            ),
+            signature.inputs.map(PointerPointer) ++ signature.outputs.map(PointerPointer),
             code,
             DefaultHeaders
           ),
-          List(outvec)
+          signature.outputs
         )
     }
   }
@@ -126,7 +158,7 @@ object CppTranspiler {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => groupByCode(defs, evalApply(apply), t)
+      case apply @ Apply(fun, args) => groupByCode(defs, evalApply(apply, null), t)
       case select @ Select(tree, name) => groupByCode(defs, evalSelect(select), t)
       case unknown => showRaw(unknown)
     }
@@ -230,7 +262,7 @@ object CppTranspiler {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => filterCode(defs, evalApply(apply), t)
+      case apply @ Apply(fun, args) => filterCode(defs, evalApply(apply, null), t)
       case select @ Select(tree, name) => filterCode(defs, evalSelect(select), t)
       case lit @ Literal(Constant(true)) => CodeLines.from(
         s"size_t len = ${defs.head.name.toString}_in[0]->count;",
@@ -348,29 +380,39 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalFuncBody(func: Function): String = {
-    val defs = func.vparams
-    val body = func.body
-
+  def evalFuncBody(body: Tree, signature: VeSignature): String = {
     body match {
       case ident @ Ident(name) => CodeLines.from(
-        s"${evalIdent(ident)};",
+        s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();",
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
-        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = ${func.returnType.toVeType.cVectorType}::allocate();",
-        s"out[0]->resize(len);",
-        defs.map { d =>
-          s"${evalScalarType(d.tpt, func.returnType)} ${d.name} {};"
+        s"size_t len = ${signature.inputs.head.name}[0]->count;",
+        signature.outputs.map { (output: CVector) => CodeLines.from(
+          s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+          s"${output.name}[0]->resize(len);"
+          )},
+        signature.inputs.map { d =>
+          s"${d.veType.cScalarType} ${d.name}_val {};"
         },
         "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
-          defs.map { d =>
-            s"${d.name} = ${d.name}_in[0]->data[i];"
+          signature.inputs.map { d =>
+            s"${d.name}_val = ${d.name}[0]->data[i];"
           },
-          s"out[0]->data[i] = ${evalApply(apply)};",
+          (apply.fun, apply.args) match {
+            case (TypeApply(Select(Ident(ident), TermName("apply")), _), args2) if ident.toString.startsWith("Tuple") =>
+              CodeLines.from(args2.zip(signature.outputs).map { case (tupleArg, outputArg) =>
+                s"${outputArg.name}[0]->data[i] = ${evalArg(tupleArg)};"
+              })
+
+            case _ => s"out_0[0]->data[i] = ${evalApply(apply, signature)};"
+          },
+
           //s"""std::cout << a_in[0]->data[i] << std::endl;""",
-          s"out[0]->set_validity(i, 1);"
+
+          signature.outputs.map { d =>
+            s"${d.name}[0]->set_validity(i, 1);"
+          }
         ).indented,
         "}",
       ).indented.cCode
@@ -389,18 +431,18 @@ object CppTranspiler {
     arg match {
       case literal @ Literal(_) => evalLiteral(literal)
       case ident @ Ident(_) => evalIdent(ident)
-      case apply @ Apply(_) => evalApply(apply)
+      case apply @ Apply(_) => evalApply(apply, null)
       case unknown => "<unknown args in apply: " + showRaw(unknown) + ">"
     }
   }
 
-  def evalApply(apply: Apply): String = {
+  def evalApply(apply: Apply, veSignature: VeSignature): String = {
     PartialFunction.condOpt(apply.fun) {
       /*
         Handle the case of calling static methods of `java.time.Instant` to
         instantiate a timestamp by evaluating them in real-time, e.g. `Instant.now`
       */
-      case Select(y, _) if Option(y.symbol).map(_.fullName) == Some(classOf[java.time.Instant].getName) =>
+      case Select(y, _) if Option(y.symbol).map(_.fullName).contains(classOf[java.time.Instant].getName) =>
         toolbox.eval(toolbox.untypecheck(apply))
           .asInstanceOf[Instant]
           .toFrovedisDateTime
@@ -417,7 +459,6 @@ object CppTranspiler {
           val left = evalArg(tree)
           val right = evalArg(arg)
           Some(s"((${left} == ${right}) ? 0 : (${left} < ${right}) ? -1 : 1)")
-
         case _ =>
           None
       }
@@ -446,7 +487,7 @@ object CppTranspiler {
     val argsStr = apply.args.map({
       case literal @ Literal(_) => evalLiteral(literal)
       case ident @ Ident(_) => evalIdent(ident)
-      case apply @ Apply(_) => evalApply(apply)
+      case apply @ Apply(_) => evalApply(apply, null)
       case unknown => "<unknown args in apply: " + showRaw(unknown) + ">"
     }).mkString(", ")
 
@@ -477,7 +518,7 @@ object CppTranspiler {
   def evalQual(tree: Tree): String = {
     tree match {
       case ident @ Ident(_) => evalIdent(ident)
-      case apply @ Apply(x) => evalApply(apply)
+      case apply @ Apply(x) => evalApply(apply, null)
       case lit @ Literal(_) => evalLiteral(lit)
       case unknown => "<unknown qual: " + showRaw(unknown) + ">"
     }
@@ -486,7 +527,7 @@ object CppTranspiler {
   def evalQualScalar(tree: Tree): String = {
     tree match {
       case ident @ Ident(_) => evalIdent(ident)
-      case apply @ Apply(x) => evalApply(apply)
+      case apply @ Apply(x) => evalApply(apply, null)
       case lit @ Literal(_) => evalLiteral(lit)
       case unknown => "<unknown qual: " + showRaw(unknown) + ">"
     }

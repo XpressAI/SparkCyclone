@@ -62,15 +62,13 @@ object SequenceVeRDD {
       val veColVec = colVector.toVeColVector()
       val batch = VeColBatch.fromList(List(veColVec))
 
-      Iterator(func.evalFunction(batch.cols))
+      Iterator(func.evalFunction(batch))
     })
   }
 }
 
 class SequenceVeRDD(orig: RDD[Long], rdd: RDD[VeColBatch]) extends BasicVeRDD[Long](orig) {
   override val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
-    println(s"${this.getClass} RDD(${this.id})")
-    println(s"Reading seq for ${index}")
     val batch = valsIter.next()
     Iterator(batch)
   }.cache()
