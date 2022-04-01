@@ -106,8 +106,7 @@ trait VeRDD[T] extends RDD[T] {
     val klass = implicitly[ClassTag[T]].runtimeClass
 
     batches.flatMap { veColBatch =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
       val arrowBatch = veColBatch.toArrowColumnarBatch()
       val array = if (klass == classOf[Int]) {
@@ -124,7 +123,7 @@ trait VeRDD[T] extends RDD[T] {
         throw new NotImplementedError(s"Cannot extract Array[T] from ColumnarBatch for T = ${klass}")
       }
 
-      veColBatch.free()
+      //veColBatch.free()
       array.toSeq.asInstanceOf[Seq[T]]
     }
   }
@@ -151,8 +150,7 @@ abstract class ChainedVeRDD[T](
       implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
       val klass = tag.runtimeClass
       batches.flatMap { veColBatch =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
         val arrowBatch = veColBatch.toArrowColumnarBatch()
         val array = if (klass == classOf[Int]) {
@@ -165,7 +163,7 @@ abstract class ChainedVeRDD[T](
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
         }
 
-        veColBatch.free()
+        //veColBatch.free()
         array.toSeq.asInstanceOf[Seq[T]]
       }
     }
@@ -352,8 +350,7 @@ class BasicVeRDD[T](
       val klass = tag.runtimeClass
 
       batches.flatMap { veColBatch =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
         val arrowBatch = veColBatch.toArrowColumnarBatch()
         val array = if (klass == classOf[Int]) {
@@ -368,7 +365,7 @@ class BasicVeRDD[T](
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
         }
 
-        veColBatch.free()
+        //veColBatch.free()
         array.toSeq.asInstanceOf[Seq[T]]
       }
     }

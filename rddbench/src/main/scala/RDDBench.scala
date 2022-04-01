@@ -3,6 +3,7 @@ import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
+import scala.reflect.runtime.universe.reify
 
 object RDDBench {
   val timings = MMap.empty[String, Double]
@@ -33,14 +34,15 @@ object RDDBench {
     //val verdd = rdd.toVeRDD
     val result2 = benchmark("Basic - VE ") {
       verdd
-        .map((a: Long) => (a, 2 * a + 12))
-        .sortBy((tup: (Long, Long)) => tup._1)
-        .map((tup: (Long, Long)) => (tup._2))
-        .filter((a: Long) => a % 128 == 0)
-        .groupBy((a: Long) => a % 2 )
+        .vemap(reify { (a: Long) => (a, 2 * a + 12) })
+        //.sortBy((tup: (Long, Long)) => tup._1)
+        .vemap(reify { (tup: (Long, Long)) => (tup._2) })
+        .vefilter(reify { (a: Long) => a % 128 == 0 })
+        .vegroupBy(reify { (a: Long) => a % 2 })
         .repartitionAndSortWithinPartitions(new HashPartitioner(8))
         .flatMap((a: (Long, Iterable[Long])) => a._2)
-        .reduce((a: Long, b: Long) => a + b)
+        .toVeRDD
+        .vereduce(reify { (a: Long, b: Long) => a + b })
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()
@@ -74,9 +76,9 @@ object RDDBench {
     val verdd = rdd.toVeRDD
     val result2 = benchmark("Instant - VE ") {
       verdd
-        .filter((a: Instant) => a.compareTo(Instant.parse("2022-02-28T08:18:50.957303Z")) < 0)
-        .map((a: Instant) => Instant.parse("2022-02-28T08:18:50.957303Z").compareTo(a) + 1L)
-        .reduce((a: Long, b: Long) => a + b)
+        .vefilter(reify { (a: Instant) => a.compareTo(Instant.parse("2022-02-28T08:18:50.957303Z")) < 0 })
+        .vemap(reify { (a: Instant) => Instant.parse("2022-02-28T08:18:50.957303Z").compareTo(a) + 1L })
+        .vereduce(reify { (a: Long, b: Long) => a + b } )
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()

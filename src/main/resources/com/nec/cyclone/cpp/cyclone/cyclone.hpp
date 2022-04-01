@@ -35,3 +35,12 @@
 std::string utcnanotime();
 
 void debug_words(frovedis::words &in);
+
+/*
+#ifdef __ve__
+
+extern "C" int attach_vh_shm(char *path, int32_t id, size_t size_mb, void **out_p, uint64_t *out_data_vehva);
+extern "C" int dettach_vh_shm(void *p, uint64_t data_vehva);
+
+#endif
+*/
