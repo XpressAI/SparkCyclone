@@ -1,7 +1,7 @@
 package com.nec.native
 
 import com.nec.spark.agile.SparkExpressionToCExpression
-import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Raw}
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, PointerPointerPointer, Raw}
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines, VeType}
 import com.nec.util.DateTimeOps._
@@ -31,10 +31,9 @@ object CppTranspiler {
       funcName,
       Seq(
         Raw("size_t input_batch_count"),
-        Raw(s"size_t **group_key_pointer"),
-        Raw(s"size_t *group_count_pointer"),
+        PointerPointer(CVector("groups_out", dataType)),
         PointerPointer(CVector(s"${expr.tree.asInstanceOf[Function].vparams.head.name.toString}_in", dataType)),
-        PointerPointer(newOutputs.head)
+        PointerPointerPointer(newOutputs.head)
       ),
       code,
       DefaultHeaders
@@ -210,43 +209,56 @@ object CppTranspiler {
   private def groupByCode(defs: List[ValDef], predicate_code: String, t: Type) = {
     val resultType: String = resultTypeForType(t)
 
+    val inputVectorType = evalType(defs.head.tpt)
+    val inputScalarType = evalScalarType(defs.head.tpt, t)
+
+    val debug = false
+    val mark = (m: String) => debugPrint(m,debug)
+    val sout = (m: String, v: String) => debugPrint(m,v,debug)
+    val soutv = (v: String) => sout(s"$v = ", v)
+
     CodeLines.from(
       // Merge inputs and assign output to pointer
-      s"${evalType(defs.head.tpt)} *tmp = ${evalType(defs.head.tpt)}::merge(${defs.head.name.toString}_in, input_batch_count);",
+      s"$inputVectorType *tmp = $inputVectorType::merge(${defs.head.name.toString}_in, input_batch_count);",
       s"size_t len = tmp->count;",
-      s"""//std::cout << "len" << len << std::endl;""",
+      soutv("len"),
       s"std::vector<size_t> grouping(len);",
       s"std::vector<size_t> grouping_keys;",
-      s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
-      s"""//std::cout << "grouping" << std::endl;""",
+      s"$inputScalarType ${defs.head.name} {};",
+      mark("grouping"),
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = tmp->data[i];",
-        s"grouping[i] = ${predicate_code};"
-        //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
+        s"grouping[i] = ${predicate_code};",
+        //soutv("bitmask[i]"),
       ).indented,
       s"}",
-      s"""//std::cout << "separate_to_groups" << std::endl;""",
+      debugPrint("separate_to_groups", debug),
       s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, grouping_keys);",
+      s"""auto group_count = grouping_keys.size();""",
+      s"""*groups_out = ${resultType}::allocate();""",
+      s"""groups_out[0]->resize(group_count);""",
+      CodeLines.forLoop("i", "group_count"){
+        CodeLines.from(
+          "groups_out[0]->data[i] = grouping_keys[i];",
+          "groups_out[0]->set_validity(i, 1);"
+        )
+      },
       s"""//cyclone::print_vec("grouping_keys", grouping_keys);""",
-      s"""//std::cout << "grouping_keys.data()" << std::endl;""",
-      s"//*group_key_pointer = (size_t *)malloc(grouping_keys.size() * sizeof(size_t));",
-      s"for (size_t i = 0; i < grouping_keys.size(); i++) {",
-      s"  *(group_key_pointer)[i] = grouping_keys[i];",
-      s"}",
-      "*group_count_pointer = grouping_keys.size();",
-      s"""//std::cout << "malloc(groups.size())" << std::endl;""",
-      s"*out = (${resultType} *)malloc(groups.size() * sizeof($resultType *));",
-      s"""//std::cout << "*out = " << *out << std::endl;""",
-      s"""//std::cout << "out = " << out << std::endl;""",
-      s"for (auto i = 0; i < groups.size(); i++) {",
-      CodeLines.from(
-        s"""//std::cout << "tmp->select(groups[i]) (" << i << ")" << std::endl;""",
-        s"out[i] = tmp->select(groups[i]);"
-      ).indented,
-      s"}",
+      mark("malloc(group_count)"),
+      // This is fishy
+      s"*out = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
+      soutv("out"),
+      soutv("*out"),
+      soutv("**out"),
+      CodeLines.forLoop("i", "group_count"){
+          CodeLines.from(
+            //s"""std::cout << "tmp->select(groups[i]) (" << i << ")" << std::endl;""",
+            s"out[0][i] = tmp->select(groups[i]);"
+          )
+      },
       s"free(tmp);",
-      s"""//std::cout << "done" << std::endl;"""
+      mark("done")
     ).indented.cCode
   }
 
@@ -570,5 +582,20 @@ object CppTranspiler {
       case unknown => "<< <UNKNOWN> in evalName>>"
     }
   }
-}
 
+  private def debugPrint(marker: String, expr: String, enabled: Boolean): CodeLines = {
+    if(enabled){
+      s"""std::cout << "${marker.replaceAllLiterally("\"", "\\\"")}" << $expr << std::endl;"""
+    }else{
+      ""
+    }
+  }
+
+  private def debugPrint(marker: String, enabled: Boolean): CodeLines = {
+    if(enabled){
+      s"""std::cout << "${marker.replaceAllLiterally("\"", "\\\"")}" << std::endl;"""
+    }else{
+      ""
+    }
+  }
+}

@@ -4,18 +4,44 @@ import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeType
+import com.nec.util.DateTimeOps
+import com.nec.util.DateTimeOps.ExtendedInstant
 import com.nec.ve
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
 import java.io._
+import java.time.Instant
+import scala.reflect.ClassTag
 import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+  def toArray[T: ClassTag](colIdx: Int): Array[T] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+    implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
+
+    val klass = implicitly[ClassTag[T]].runtimeClass
+
+    val arrowBatch = toArrowColumnarBatch()
+    (if (klass == classOf[Int]) {
+      arrowBatch.column(colIdx).getInts(0, arrowBatch.numRows())
+    } else if (klass == classOf[Long]) {
+      arrowBatch.column(colIdx).getLongs(0, arrowBatch.numRows())
+    } else if (klass == classOf[Float]) {
+      arrowBatch.column(colIdx).getFloats(0, arrowBatch.numRows())
+    } else if (klass == classOf[Double]) {
+      arrowBatch.column(colIdx).getDoubles(0, arrowBatch.numRows())
+    } else if (klass == classOf[Instant]) {
+      arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime)
+    } else {
+      throw new NotImplementedError(s"Cannot extract Array[T] from ColumnarBatch for T = ${klass}")
+    }).asInstanceOf[Array[T]]
+  }
+
   def serializeToStreamSize: Int = {
     List(4, 4) ++ cols.flatMap { col =>
       List(4, 4, 4, col.underlying.toUnit.streamedSize, 4, 4, 4, col.serializedSize)

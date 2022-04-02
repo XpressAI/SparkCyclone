@@ -107,6 +107,11 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     println(genCode2.func.toCodeLinesWithHeaders.cCode)
     //assert(!supertrim(genCode2.func.body.cCode).contains(""))
   }
+
+  "groupBy Long -> Long" in {
+    val groupByCode = CppTranspiler.transpileGroupBy(reify({ x: Long => x * 2 }))
+    println(groupByCode.func.toCodeLinesWithHeaders.cCode)
+  }
 }
 
 object cppSources {

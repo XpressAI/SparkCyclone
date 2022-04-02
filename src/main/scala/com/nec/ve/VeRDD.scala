@@ -1,12 +1,15 @@
 package com.nec.ve
 
 import com.nec.native.{CompiledVeFunction, CppTranspiler}
+import com.nec.spark.agile.SparkExpressionToCExpression
+import com.nec.spark.agile.core.VeType
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.DateTimeOps._
 import com.nec.ve.serializer.VeSerializer
 import org.apache.arrow.memory.RootAllocator
 import org.apache.spark._
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
+import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType, TimestampType}
 import org.apache.spark.storage.StorageLevel
 
 import java.time.Instant
@@ -103,34 +106,26 @@ trait VeRDD[T] extends RDD[T] {
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val batches = inputs.iterator(split, context)
-
-    implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-    val klass = implicitly[ClassTag[T]].runtimeClass
-
     batches.flatMap { veColBatch =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-
-      val arrowBatch = veColBatch.toArrowColumnarBatch()
-      val array = if (klass == classOf[Int]) {
-        arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-      } else if (klass == classOf[Long]) {
-        arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-      } else if (klass == classOf[Float]) {
-        arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-      } else if (klass == classOf[Double]) {
-        arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
-      } else if (klass == classOf[Instant]) {
-        arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime)
-      } else {
-        throw new NotImplementedError(s"Cannot extract Array[T] from ColumnarBatch for T = ${klass}")
-      }
-
-      //veColBatch.free()
-      array.toSeq.asInstanceOf[Seq[T]]
+      val array = veColBatch.toArray[T](0)
+      array.toSeq
     }
   }
 
   override protected def getPartitions: Array[Partition] = inputs.partitions
+
+  def veType[U](classTag: ClassTag[U]): VeType = {
+    val klass = classTag.runtimeClass
+    SparkExpressionToCExpression.sparkTypeToVeType(
+    if (klass == classOf[Int]) { IntegerType }
+    else if (klass == classOf[Long]) { LongType }
+    else if (klass == classOf[Double]) { DoubleType }
+    else if (klass == classOf[Float]) { FloatType }
+      //TODO: Take care of `Instant` support here
+    else {
+      throw new IllegalArgumentException(s"computeMergeVe klass $klass")
+    })
+  }
 
 }
 
@@ -150,26 +145,10 @@ abstract class ChainedVeRDD[T](
 
   override def toRDD : RDD[T] = {
     inputs.mapPartitions { batches =>
-      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-      val klass = tag.runtimeClass
       batches.flatMap { veColBatch =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-
-        val arrowBatch = veColBatch.toArrowColumnarBatch()
-        val array = if (klass == classOf[Int]) {
-          arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-        } else if (klass == classOf[Long]) {
-          arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-        } else if (klass == classOf[Float]) {
-          arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else if (klass == classOf[Double]) {
-          arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
-        } else {
-          throw new IllegalArgumentException(s"ChainedVeRDD::toRdd klass $klass")
-        }
-
+        val array = veColBatch.toArray(0)(tag)
         //veColBatch.free()
-        array.toSeq.asInstanceOf[Seq[T]]
+        array.toSeq
       }
     }
   }

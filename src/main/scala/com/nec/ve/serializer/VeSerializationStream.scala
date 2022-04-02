@@ -49,7 +49,7 @@ class VeSerializationStream(out: OutputStream)(implicit
         this
       case v: BytesOnly =>
         dataOutputStream.writeInt(MixedCbTagColBatch)
-        println(s"Will write ${v.size} (${v.bytes.length} as MixedBatch")
+        logDebug(s"Will write ${v.size} (${v.bytes.length} as MixedBatch")
         dataOutputStream.writeInt(v.size)
         dataOutputStream.write(v.bytes)
         this
