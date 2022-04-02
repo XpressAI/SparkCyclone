@@ -64,24 +64,6 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCodeCombinedOr, cppSources.testFilterOr)
   }
 
-  "map java.time.Instant -> Int" in {
-    val output1 =
-      """
-        | size_t len = in_1[0]->count;
-        | out_0[0] = nullable_int_vector::allocate();
-        | out_0[0]->resize(len);
-        | int64_t in_1_val {};
-        | for (auto i = 0; i < len; i++) {
-        |   in_1_val = in_1[0]->data[i];
-        |   out_0[0]->data[i] = (((123456789000000000 == in_1_val) ? 0 : (123456789000000000 < in_1_val) ? -1 : 1) + 13);
-        |   out_0[0]->set_validity(i, 1);
-        | }
-      """.stripMargin
-
-    val genCode1 = CppTranspiler.transpileMap(reify { x: Instant => Instant.ofEpochSecond(123456789L).compareTo(x) + 13 })
-    assertCodeEqualish(genCode1, output1)
-  }
-
   "filter java.time.Instants" in {
     val output1 =
       """
