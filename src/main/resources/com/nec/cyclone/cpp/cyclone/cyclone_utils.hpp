@@ -36,9 +36,11 @@ namespace cyclone {
     // Count the number of groups
     for (size_t g = 0; g < unique_groups.size(); g++) {
       size_t current_count = 0;
+      size_t the_group = unique_groups[g];
+
       #pragma _NEC vector
       for (size_t i = 0; i < groups.size(); i++) {
-        if (groups[i] == g) {
+        if (groups[i] == the_group) {
           current_count++;
         }
       }
@@ -119,6 +121,17 @@ namespace cyclone {
     tmp.seekp(-2, tmp.cur);
     tmp << " ]";
     return stream << tmp.str();
+  }
+  
+  template<typename T>
+  void print_vec(char *name, std::vector<T> a) {
+    std::cout << name << " = [";
+    char *comma = "";
+    for (int i = 0; i < a.size(); i++) {
+      std::cout << comma << a[i];
+      comma = ",";
+    }
+    std::cout << "]" << std::endl;
   }
 }
 

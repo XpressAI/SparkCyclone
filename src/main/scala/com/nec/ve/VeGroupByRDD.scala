@@ -25,11 +25,16 @@ class VeGroupByRDD[G, T](
     implicit val g: ClassTag[G] = func.types.output.tag.asInstanceOf[ClassTag[G]]
     verdd.inputs.mapPartitions { batches =>
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-      val batchOfBatches = VeBatchOfBatches.fromVeColBatches(batches.toList)
+      val batchesList = batches.toList
+      if (batchesList.isEmpty) {
+        Nil.toIterator
+      } else {
+        val batchOfBatches = VeBatchOfBatches.fromVeColBatches(batchesList)
 
-      func.evalGrouping[G](batchOfBatches).map { case (key, colVectors) =>
-        (key, VeColBatch.fromList(colVectors))
-      }.iterator
+        func.evalGrouping[G](batchOfBatches).map { case (key, colVectors) =>
+          (key, VeColBatch.fromList(colVectors))
+        }.iterator
+      }
     }
   }
 

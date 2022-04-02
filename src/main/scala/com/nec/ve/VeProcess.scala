@@ -733,7 +733,7 @@ object VeProcess {
           groupKeyPointer.get(i)
         } else if (klass == classOf[Float]) {
           new FloatPointer(groupKeyPointer).get(i)
-        } else {
+        } else if (klass == classOf[Double]) {
           new DoublePointer(groupKeyPointer).get(i)
         }).asInstanceOf[K]
 

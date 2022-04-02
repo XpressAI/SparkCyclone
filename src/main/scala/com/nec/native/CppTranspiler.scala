@@ -200,8 +200,10 @@ object CppTranspiler {
       "nullable_float_vector"
     } else if (t =:= typeOf[Instant]) {
       "nullable_bigint_vector"
-    } else {
+    } else if (t =:= typeOf[Double]) {
       "nullable_double_vector"
+    } else {
+      throw new IllegalArgumentException(s"Invalid resultTypeForType $t")
     }
   }
 
@@ -212,9 +214,11 @@ object CppTranspiler {
       // Merge inputs and assign output to pointer
       s"${evalType(defs.head.tpt)} *tmp = ${evalType(defs.head.tpt)}::merge(${defs.head.name.toString}_in, input_batch_count);",
       s"size_t len = tmp->count;",
+      s"""//std::cout << "len" << len << std::endl;""",
       s"std::vector<size_t> grouping(len);",
       s"std::vector<size_t> grouping_keys;",
       s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
+      s"""//std::cout << "grouping" << std::endl;""",
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
         s"${defs.head.name} = tmp->data[i];",
@@ -222,16 +226,27 @@ object CppTranspiler {
         //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
       ).indented,
       s"}",
+      s"""//std::cout << "separate_to_groups" << std::endl;""",
       s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, grouping_keys);",
-      s"*group_key_pointer = grouping_keys.data();",
+      s"""//cyclone::print_vec("grouping_keys", grouping_keys);""",
+      s"""//std::cout << "grouping_keys.data()" << std::endl;""",
+      s"//*group_key_pointer = (size_t *)malloc(grouping_keys.size() * sizeof(size_t));",
+      s"for (size_t i = 0; i < grouping_keys.size(); i++) {",
+      s"  group_key_pointer[i] = grouping_keys[i];",
+      s"}",
       "*group_count_pointer = grouping_keys.size();",
+      s"""//std::cout << "malloc(groups.size())" << std::endl;""",
       s"*out = (${resultType} *)malloc(groups.size() * sizeof($resultType *));",
+      s"""//std::cout << "*out = " << *out << std::endl;""",
+      s"""//std::cout << "out = " << out << std::endl;""",
       s"for (auto i = 0; i < groups.size(); i++) {",
       CodeLines.from(
+        s"""//std::cout << "tmp->select(groups[i]) (" << i << ")" << std::endl;""",
         s"out[i] = tmp->select(groups[i]);"
       ).indented,
       s"}",
-      s"free(tmp);"
+      s"free(tmp);",
+      s"""//std::cout << "done" << std::endl;"""
     ).indented.cCode
   }
 
@@ -343,8 +358,10 @@ object CppTranspiler {
               "float"
             } else if (t =:= typeOf[Instant]) {
               "int64_t"
-            } else {
+            } else if (t =:= typeOf[Double]) {
               "double"
+            } else {
+              throw new IllegalArgumentException(s"Invalid evalScalarType $t")
             }
           }
         }
@@ -356,8 +373,10 @@ object CppTranspiler {
           "int64_t"
         } else if (t =:= typeOf[Float]) {
           "float"
-        } else {
+        } else if (t =:= typeOf[Double]) {
           "double"
+        } else {
+          throw new IllegalArgumentException(s"Invalid evalScalarType $t")
         }
       }
     }

@@ -26,9 +26,8 @@ object ProcessRunner extends LazyLogging {
     if (doDebug) {
       logger.info(s"NCC output: \n${res}; \n${resErr}")
     } else {
-      try { throw new Exception("e") } catch { case e: Exception => e.printStackTrace(System.out) }
-      println(s"Command: ${cmd.mkString(" ")}")
-      println(s"NCC output: \n${res}; \n${resErr}")
+      logger.debug(s"Command: ${cmd.mkString(" ")}")
+      logger.debug(s"NCC output: \n${res}; \n${resErr}")
     }
     assert(ev == 0, s"Failed; data was: $res; process was ${process}; $resErr")
   }

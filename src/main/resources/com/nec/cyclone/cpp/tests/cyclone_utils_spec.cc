@@ -39,12 +39,12 @@ namespace cyclone::tests {
   }
 
   TEST_CASE("separate_to_groups() works") {
-      std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
+      std::vector<size_t> grouping = { 12, 12, 23, 12, 12, 12, 12, 23, 23, 23, 23, 12, 12, 23, 23 };
       std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
       std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
-      std::vector<size_t> expected_keys = {0, 1};
+      std::vector<size_t> expected_keys = {12, 23};
       std::vector<size_t> keys;
-      std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(bitmask, keys);
+      std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, keys);
       CHECK(groups[0] == expected_0);
       CHECK(groups[1] == expected_1);
       CHECK(keys == expected_keys);

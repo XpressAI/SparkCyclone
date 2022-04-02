@@ -27,8 +27,7 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
     val klass = implicitly[ClassTag[T]].runtimeClass
 
     batches.map { case (key, veColBatch) =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
       val arrowBatch = veColBatch.toArrowColumnarBatch()
       val array = if (klass == classOf[Int]) {
@@ -45,7 +44,6 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
         throw new NotImplementedError(s"Cannot extract Array[T] from ColumnarBatch for T = ${klass}")
       }
 
-      veColBatch.free()
       (key, array.toSeq.asInstanceOf[Seq[T]])
     }
   }
@@ -61,11 +59,13 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
       SparkExpressionToCExpression.sparkTypeToVeType(LongType)
     } else if (klass == classOf[Float]) {
       SparkExpressionToCExpression.sparkTypeToVeType(FloatType)
-    } else {
+    } else if (klass == classOf[Double]) {
       SparkExpressionToCExpression.sparkTypeToVeType(DoubleType)
+    } else {
+      throw new IllegalArgumentException(s"computeMergeVe klass $klass")
     }
 
-    val funcName = s"merge_${dataType.toString}"
+    val funcName = s"merge_${dataType.toString}_2"
     val code = MergeFunction(funcName, List(dataType))
     val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults, null)
 
@@ -101,9 +101,12 @@ class VeConcatGroups[K: ClassTag, T: ClassTag](
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else {
+        } else if (klass == classOf[Double]) {
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        } else {
+          throw new IllegalArgumentException("VeConcatGroups::toRDD")
         }
+
         (key, array.toSeq.asInstanceOf[Seq[T]])
       }
     }

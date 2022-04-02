@@ -12,16 +12,15 @@ object RDDBench {
     println("Basic RDD Benchmark")
 
     println("Making RDD[Long]")
-    val numbers = (1L to (1 * 1000000))
+    val numbers = (1L to (320 /* 1000000*/))
 
     val start1 = System.nanoTime()
     val rdd = sc.parallelize(numbers).repartition(8).cache()
     val result1 = benchmark("Basic - CPU") {
-      rdd.map((a: Long) => (a, 2 * a + 12))
-        .map((tup) => (tup._2))
-        .sortBy((tup) => (tup * 2), ascending = false)
+      rdd.map((a: Long) => 3 * a + 12)
+        //.sortBy((a: Long) => a % 32)
         .filter((a: Long) => a % 128 == 0)
-        .groupBy((a: Long) => a % 2)
+        .groupBy((a: Long) => a % 16)
         .repartitionAndSortWithinPartitions(new HashPartitioner(8))
         .flatMap { case (k: Long, values: Iterable[Long]) => values }
         .reduce((a: Long, b: Long) => a + b)
@@ -35,15 +34,13 @@ object RDDBench {
     //val verdd = rdd.toVeRDD
     val result2 = benchmark("Basic - VE ") {
       verdd
-        .vemap(reify { (a: Long) => (a, 2 * a + 12) })
-        .vemap(reify { (tup: (Long, Long)) => (tup._2) })
-        .vesortBy(reify { (tup: Long) => tup * 2 }, ascending = false)
+        .vemap(reify { (a: Long) => (3 * a + 12) })
+        //.vesortBy(reify { (a: Long) => a % 32 })
         .vefilter(reify { (a: Long) => a % 128 == 0 })
-        .vegroupBy(reify { (a: Long) => a % 2 })
+        .vegroupBy(reify { (a: Long) => a % 16 })
         .repartitionAndSortWithinPartitions(new HashPartitioner(8))
         .flatMap((a: (Long, Iterable[Long])) => a._2)
-        .toVeRDD
-        .vereduce(reify { (a: Long, b: Long) => a + b })
+        .reduce((a: Long, b: Long) => a + b)
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()

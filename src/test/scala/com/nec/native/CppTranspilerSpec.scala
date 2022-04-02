@@ -122,6 +122,12 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     println(genCode2.func.toCodeLinesWithHeaders.cCode)
     //assert(!supertrim(genCode2.func.body.cCode).contains(""))
   }
+
+  "support transpiling PartialFunctions" in {
+    val genCode0 = CppTranspiler.transpileMap[(Long, Long), (Long, Long)](reify { case (a: Long, b: Long) => (b, a) })
+    println(genCode0)
+    assert(genCode0 != null)
+  }
 }
 
 object cppSources {

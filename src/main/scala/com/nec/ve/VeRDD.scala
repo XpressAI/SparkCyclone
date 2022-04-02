@@ -161,8 +161,10 @@ abstract class ChainedVeRDD[T](
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else {
+        } else if (klass == classOf[Double]) {
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        } else {
+          throw new IllegalArgumentException(s"ChainedVeRDD::toRdd klass $klass")
         }
 
         //veColBatch.free()
@@ -200,8 +202,10 @@ abstract class ChainedVeRDD[T](
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else {
+        } else if (klass == classOf[Double]) {
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        } else {
+          throw new IllegalArgumentException(s"ChainedVeRDD::vereduce klass $klass")
         }
         array
       }
@@ -251,7 +255,7 @@ abstract class ChainedVeRDD[T](
 
     val dataType = newFunc.types.output.tpe.toVeType
 
-    val funcName = s"merge_${dataType.toString}"
+    val funcName = s"merge_${dataType.toString}_1"
     val code = MergeFunction(funcName, List(dataType))
     val func = CompiledVeFunction(
       code.toCFunction,
@@ -259,7 +263,7 @@ abstract class ChainedVeRDD[T](
       newFunc.types.copy(input = newFunc.types.output)
     )
 
-    new MappedVeRDD[T, VeColBatch](new RawVeRDD[T](values), func)
+    new VeConcatRDD[T, VeColBatch](new RawVeRDD[T](values), func)
   }
 }
 
@@ -334,8 +338,10 @@ class BasicVeRDD[T](
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else {
+        } else if (klass == classOf[Double]) {
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        } else {
+          throw new IllegalArgumentException(s"vereduce klass $klass")
         }
         array
       }
@@ -379,8 +385,10 @@ class BasicVeRDD[T](
           arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime)
         } else if (klass == classOf[Float]) {
           arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else {
+        } else if (klass == classOf[Double]) {
           arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
+        } else {
+          throw new IllegalArgumentException(s"toRDD klass $klass")
         }
 
         //veColBatch.free()
