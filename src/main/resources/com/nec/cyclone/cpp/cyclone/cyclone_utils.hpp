@@ -126,7 +126,7 @@ namespace cyclone {
   template<typename T>
   void print_vec(char *name, std::vector<T> a) {
     std::cout << name << " = [";
-    char *comma = "";
+    std::string comma = "";
     for (int i = 0; i < a.size(); i++) {
       std::cout << comma << a[i];
       comma = ",";
