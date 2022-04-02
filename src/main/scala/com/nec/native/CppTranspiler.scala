@@ -232,7 +232,7 @@ object CppTranspiler {
       s"""//std::cout << "grouping_keys.data()" << std::endl;""",
       s"//*group_key_pointer = (size_t *)malloc(grouping_keys.size() * sizeof(size_t));",
       s"for (size_t i = 0; i < grouping_keys.size(); i++) {",
-      s"  group_key_pointer[i] = grouping_keys[i];",
+      s"  *(group_key_pointer)[i] = grouping_keys[i];",
       s"}",
       "*group_count_pointer = grouping_keys.size();",
       s"""//std::cout << "malloc(groups.size())" << std::endl;""",
