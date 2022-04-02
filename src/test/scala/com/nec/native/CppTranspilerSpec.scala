@@ -21,7 +21,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assert(supertrim(gencode.func.body.cCode).contains("in_1_val*2"))
   }
 
-  "trivial bool functions" in {
+  "trivial bool functions" ignore {
     val gencodeTrue = CppTranspiler.transpileFilter(reify( (x: Int) => true  ))
     val gencodeFalse = CppTranspiler.transpileFilter(reify( (x: Int) => false ))
 
