@@ -30,7 +30,7 @@ object VeRDD {
     }
   }
 
-  def vemap_impl[U: c.WeakTypeTag, T: c.WeakTypeTag](c: whitebox.Context)(f: c.Expr[T => U]): c.Expr[VeRDD[U]] = {
+  def vemap_impl[U, T](c: whitebox.Context)(f: c.Expr[T => U]): c.Expr[VeRDD[U]] = {
     import c.universe._
     val self = c.prefix
     val x = q"${self}.vemap(scala.reflect.runtime.universe.reify { ${f} })"
@@ -53,7 +53,7 @@ object VeRDD {
     c.Expr[T](x)
   }
 
-  def vegroupBy_impl[K, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[VeRDD[(K, Iterable[T])]] = {
+  /*def vegroupBy_impl[K, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[VeRDD[(K, Iterable[T])]] = {
     import c.universe._
 
     val self = c.prefix
@@ -67,10 +67,11 @@ object VeRDD {
     val self = c.prefix
     val x = q"${self}.vesortBy(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[VeRDD[T]](x)
-  }
+  }*/
 }
 
 trait VeRDD[T] extends RDD[T] {
+  import VeRDD._
 
   @transient protected val toolbox: ToolBox[universe.type] = currentMirror.mkToolBox()
 
@@ -78,11 +79,11 @@ trait VeRDD[T] extends RDD[T] {
 
   val inputs: RDD[VeColBatch]
 
-  //def map[U](f: T => U): RDD[U] = macro vemap_impl[U, T]
+  def map[U](f: T => U): VeRDD[U] = macro vemap_impl[U, T]
 
-  //override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
+  override def reduce(f: (T, T) => T): T = macro vereduce_impl[T]
 
-  //override def filter(f: T => Boolean): VeRDD[T] = macro vefilter_impl[T]
+  override def filter(f: T => Boolean): VeRDD[T] = macro vefilter_impl[T]
 
   //def groupBy[K](f: T => K): VeRDD[(K, Iterable[T])] = macro vegroupBy_impl[K, T]
 
