@@ -21,14 +21,6 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assert(supertrim(gencode.func.body.cCode).contains("in_1_val*2"))
   }
 
-  "trivial bool functions" ignore {
-    val gencodeTrue = CppTranspiler.transpileFilter(reify( (x: Int) => true  ))
-    val gencodeFalse = CppTranspiler.transpileFilter(reify( (x: Int) => false ))
-
-    assertCodeEqualish(gencodeTrue, cppSources.testFilterTrivialBoolTrue)
-    assertCodeEqualish(gencodeFalse, cppSources.testFilterTrivialBoolFalse)
-  }
-
   "filter by comparing" in {
     val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
     val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))
@@ -121,12 +113,6 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     println(genCode1.func.toCodeLinesWithHeaders.cCode)
     println(genCode2.func.toCodeLinesWithHeaders.cCode)
     //assert(!supertrim(genCode2.func.body.cCode).contains(""))
-  }
-
-  "support transpiling PartialFunctions" in {
-    val genCode0 = CppTranspiler.transpileMap[(Long, Long), (Long, Long)](reify { case (a: Long, b: Long) => (b, a) })
-    println(genCode0)
-    assert(genCode0 != null)
   }
 }
 
