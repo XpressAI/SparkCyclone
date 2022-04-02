@@ -248,7 +248,7 @@ abstract class ChainedVeRDD[T](
     shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
     val values = shuffle.map(_._2)
 
-    import com.nec.util.SyntaxTreeOps._
+    import com.nec.native.SyntaxTreeOps._
 
     val dataType = newFunc.types.output.tpe.toVeType
 

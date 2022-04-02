@@ -1,14 +1,14 @@
-package com.nec.util
+package com.nec.native
 
 import com.nec.spark.agile.core._
-
-import java.time.Instant
+import com.nec.native.CppTranspiler.VeSignature
 import scala.reflect.runtime.universe._
+import java.time.Instant
 
 object SyntaxTreeOps {
   /*
-    Extension tree functions require the Tree to have been type-annotated with
-    `toolbox.typecheck()`
+    NOTE: These extension methods to Function assume that the tree has been
+    reformatted and type-annotated with `FunctionReformatter`!
   */
 
   implicit class ExtendedTreeFunction(func: Function) {
@@ -17,7 +17,21 @@ object SyntaxTreeOps {
     }
 
     def returnType: Type = {
-      func.body.tpe
+      func.body match {
+        case Literal(constant) => constant.tpe
+        case _ => func.body.tpe
+      }
+    }
+
+    def veSignature: VeSignature = {
+      VeSignature(
+        argTypes.toList.zipWithIndex.map { case (tpe, i) =>
+          CVector(s"in_${i + 1}", tpe.toVeType)
+        },
+        List(returnType).zipWithIndex.map { case (tpe, i) =>
+          CVector(s"out_$i", tpe.toVeType)
+        }
+      )
     }
   }
 
