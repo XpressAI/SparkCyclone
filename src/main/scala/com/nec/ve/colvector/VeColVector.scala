@@ -1,18 +1,16 @@
 package com.nec.ve.colvector
 
 import com.nec.arrow.ArrowTransferStructures._
-import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
-import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
-import sun.misc.Unsafe
 
 import java.io.OutputStream
 

@@ -22,9 +22,8 @@ package com.nec.spark.agile
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils.{JoinType, LeftOuterJoin, RightOuterJoin}
-import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, SortDirection, Sqrt, Year}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, Sqrt, Year}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -440,6 +439,7 @@ object SparkExpressionToCExpression {
   def sparkTypeToScalarVeType(dataType: DataType): VeScalarType = {
     dataType match {
       case DoubleType    => VeNullableDouble
+      case FloatType     => VeNullableFloat
       case IntegerType   => VeNullableInt
       case LongType      => VeNullableLong
       case ShortType     => VeNullableShort
@@ -452,6 +452,7 @@ object SparkExpressionToCExpression {
   def sparkTypeToVeType(dataType: DataType): VeType = {
     dataType match {
       case DoubleType    => VeNullableDouble
+      case FloatType    => VeNullableFloat
       case IntegerType   => VeNullableInt
       case DateType      => VeNullableInt
       case LongType      => VeNullableLong

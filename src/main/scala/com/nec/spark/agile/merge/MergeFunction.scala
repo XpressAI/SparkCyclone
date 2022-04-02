@@ -1,9 +1,7 @@
 package com.nec.spark.agile.merge
 
-import com.nec.spark.agile.core._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
-import com.nec.spark.agile.core.CodeLines
-import com.nec.spark.agile.core.{CVector, VeType}
+import com.nec.spark.agile.core._
 
 case class MergeFunction(name: String,
                          columns: List[VeType]) extends FunctionTemplateTrait {
@@ -42,8 +40,11 @@ case class MergeFunction(name: String,
           error in how we define function call from the Spark side.  Will need
           to investigate and fix this in the future.
         */
+        //s"""std::cout << "${in} address" << ${in} << std::endl;""",
         s"// Allocate T*[] but cast to T* (incorrect but required to work correctly until a fix lands)",
         s"*${out} = static_cast<${vetype.cVectorType}*>(malloc(sizeof(nullptr)));",
+        //s"""std::cout << "${out} address" << ${out} << std::endl;""",
+        //s"""std::cout << "batches: " << batches << std::endl;""",
         // Merge inputs and assign output to pointer
         s"${out}[0] = ${vetype.cVectorType}::merge(${in}, batches);",
       )

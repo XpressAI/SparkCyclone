@@ -1,6 +1,5 @@
 package com.nec.ve.serializer
 
-import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
 import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
@@ -48,6 +47,10 @@ class VeDeserializationStream(in: InputStream)(implicit
       dataInputStream.readInt() match {
         case IntTag =>
           dataInputStream.readInt()
+        case LongTag =>
+          dataInputStream.readLong()
+        case DoubleTag =>
+          dataInputStream.readDouble()
         case CbTag =>
           import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
           VeColBatch.fromStream(dataInputStream)

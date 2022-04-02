@@ -1,10 +1,9 @@
 package com.nec.ve.serializer
 
-import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.colvector.VeColBatch
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializationStream
 
@@ -36,6 +35,14 @@ class VeSerializationStream(out: OutputStream)(implicit
         dataOutputStream.writeInt(IntTag)
         dataOutputStream.writeInt(i)
         this
+      case i: java.lang.Long =>
+        dataOutputStream.writeInt(LongTag)
+        dataOutputStream.writeLong(i)
+        this
+      case i: java.lang.Double =>
+        dataOutputStream.writeInt(DoubleTag)
+        dataOutputStream.writeDouble(i)
+        this
       case v: VeColBatch =>
         dataOutputStream.writeInt(CbTag)
         v.serializeToStream(dataOutputStream)
@@ -65,7 +72,7 @@ class VeSerializationStream(out: OutputStream)(implicit
         }(cycloneMetrics.registerSerializationTime)
         this
       case other =>
-        sys.error(s"Not supported here to write item of type ${other.getClass.getCanonicalName}")
+        sys.error(s"Not supported here to write item of type ${other.getClass.getCanonicalName} ($other)")
     }
   }
 

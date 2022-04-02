@@ -1,17 +1,14 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
-import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsKeyedVeColBatch, SupportsVeColBatch, VeFunction}
+import com.nec.spark.planning._
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.VeRDD.RichKeyedRDDL
+import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-
-import scala.concurrent.duration.NANOSECONDS
 
 case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode

@@ -20,21 +20,12 @@
 package com.nec.ve
 
 import com.nec.spark.agile.CppResource.CppResources
-import com.nec.ve.VeKernelCompiler.{FileAttributes, PlatformLibrarySoName, VeCompilerConfig}
+import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
 import com.typesafe.scalalogging.LazyLogging
-
-import java.nio.file._
 import org.apache.spark.SparkConf
 
-import java.nio.file.attribute.PosixFilePermission.{
-  GROUP_EXECUTE,
-  GROUP_READ,
-  OTHERS_EXECUTE,
-  OTHERS_READ,
-  OWNER_EXECUTE,
-  OWNER_READ,
-  OWNER_WRITE
-}
+import java.nio.file._
+import java.nio.file.attribute.PosixFilePermission._
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util
 
@@ -164,8 +155,9 @@ final case class VeKernelCompiler(
     try {
       val oFile = buildDir.resolve(s"${compilationPrefix}.o")
       val soFile = buildDir.resolve(s"${compilationPrefix}.so")
-      import scala.sys.process._
       import config._
+
+      import scala.sys.process._
       val includesArgs = includes.map(i => s"-I${i}")
       val command: Seq[String] =
         Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
@@ -179,11 +171,13 @@ final case class VeKernelCompiler(
       logger.info(s"Compilation command = ${command}")
 
       ProcessRunner.runHopeOk(
+        command,
         Process(command = command, cwd = buildDir.toFile),
         doDebug = config.doDebug
       )
       // make sure everyone can read this
       ProcessRunner.runHopeOk(
+        List("chmod", "777", oFile.toString),
         Process(command = List("chmod", "777", oFile.toString), cwd = buildDir.toFile),
         doDebug = config.doDebug
       )
@@ -198,6 +192,7 @@ final case class VeKernelCompiler(
       logger.info(s"Compilation command 2 = ${command2}")
 
       ProcessRunner.runHopeOk(
+        command2,
         Process(command = command2, cwd = buildDir.toFile),
         doDebug = config.doDebug
       )

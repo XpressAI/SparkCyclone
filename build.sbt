@@ -23,7 +23,7 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(VectorEngine)
   .configs(TPC)
   .configs(CMake)
-  .settings(version := "1.0.2-SNAPSHOT")
+  .settings(version := "1.0.2")
 
 lazy val tracing = project
   .enablePlugins(JavaServerAppPackaging)
@@ -139,7 +139,8 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
   "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve",
-  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,cmake,ve"
+  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,cmake,ve",
+  "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
 javaCppVersion := "1.5.7"
@@ -585,3 +586,14 @@ cycloneVeLibrary := {
   cachedFun(cycloneVeLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
 }
 cycloneVeLibrary / logBuffered := false
+
+lazy val `rddbench` = project
+  .dependsOn(root)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+      "org.apache.spark" %% "spark-yarn" % sparkVersion.value,
+      "org.scalatest" %% "scalatest" % "3.2.10" % Test
+    ),
+    version := "0.1"
+  )

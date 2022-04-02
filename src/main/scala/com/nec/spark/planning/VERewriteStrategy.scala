@@ -24,6 +24,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
+import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.filter.FilterFunction
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
@@ -46,6 +47,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Exp
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Sort}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
+import org.apache.spark.sql.execution.datasources.v2.WriteToDataSourceV2
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{SparkSession, Strategy}
@@ -106,7 +108,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     } else Nil
   }
 
-  private def rewritePlan(functionPrefix: String, plan: LogicalPlan) = plan match {
+  private def rewritePlan(functionPrefix: String, plan: LogicalPlan): Seq[SparkPlan] = plan match {
     /* Apply Hints */
     case SortOnVe(child, enabled) =>
       rewriteWithOptions(child, options.copy(enableVeSorting = enabled))
@@ -126,6 +128,14 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     /* Plan rewriting */
     case imr @ InMemoryRelation(_, cb, _) if cb.serializer.isInstanceOf[CycloneCacheBase] =>
       fetchFromCachePlan(imr)
+
+    case WriteToDataSourceV2(_, query) =>
+      query match {
+        case logical.Aggregate(ge, ae, child)
+          if options.aggregateOnVe && child.output.nonEmpty && ae.nonEmpty && isSupportedAggregationExpression(ae) =>
+            aggregatePlan(functionPrefix, ge, ae, child)
+        case _ => Nil
+      }
 
     case logical.Filter(cond, imr @ InMemoryRelation(_, cb, _))
         if cb.serializer.isInstanceOf[CycloneCacheBase] =>

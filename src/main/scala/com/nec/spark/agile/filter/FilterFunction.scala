@@ -1,8 +1,8 @@
 package com.nec.spark.agile.filter
 
-import com.nec.spark.agile.core._
-import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
 import com.nec.spark.agile.CFunctionGeneration.{CExpression, VeFilter}
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
+import com.nec.spark.agile.core._
 
 object FilterFunction {
   final val BitMaskId = "mask"
@@ -41,7 +41,7 @@ case class FilterFunction(
     ) {
       if (onVe) {
         // Create a filtered copy of input and assign the pointer to output*
-        s"*${output.name} = ${input.name}[0]->select(${FilterFunction.MatchListId});",
+        s"*${output.name} = ${input.name}[0]->select(${FilterFunction.MatchListId});"
       } else {
         // A memory region is already provided, so create a filtered copy of input and move to the region
         s"${output.name}->move_assign_from(${input.name}->select(${FilterFunction.MatchListId}));"

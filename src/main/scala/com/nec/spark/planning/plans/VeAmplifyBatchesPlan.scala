@@ -6,14 +6,10 @@ import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBa
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.VeRDD.RichRDD
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-
-import scala.concurrent.duration.NANOSECONDS
 
 case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
@@ -32,7 +28,6 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    import OriginalCallingContext.Automatic._
 
     child
       .asInstanceOf[SupportsVeColBatch]

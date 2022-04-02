@@ -26,6 +26,10 @@ template <typename T>
 NullableScalarVec<T> * NullableScalarVec<T>::allocate() {
   // Allocate
   auto *output = static_cast<NullableScalarVec<T> *>(malloc(sizeof(NullableScalarVec<T>)));
+  if (output == nullptr) {
+    std::cout << "NullableScalarVec<T>::allocate() failed." << std::endl;
+  }
+
   // Initialize
   return new (output) NullableScalarVec<T>;
 }
@@ -37,6 +41,9 @@ NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
 
   // Copy the data
   data = static_cast<T *>(malloc(sizeof(T) * src.size()));
+  if (data == nullptr) {
+    std::cout << "NullableScalarVec<T>::__ctor() (data) failed." << std::endl;
+  }
   for (auto i = 0; i < src.size(); i++) {
     data[i] = src[i];
   }
@@ -44,6 +51,9 @@ NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
   // Set the validityBuffer
   size_t vcount = ceil(src.size() / 64.0);
   validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
+  if (validityBuffer == nullptr) {
+    std::cout << "NullableScalarVec<T>::__ctor() (validity) failed." << std::endl;
+  }
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -71,10 +81,16 @@ void NullableScalarVec<T>::resize(const size_t size) {
 
   // Set data to new buffer
   data = static_cast<T *>(malloc(sizeof(T) * count));
+  if (data == nullptr) {
+    std::cout << "NullableScalarVec<T>::resize() (data) failed." << std::endl;
+  }
 
   // Set validityBuffer to new buffer
   auto vbytes = frovedis::ceil_div(count, int32_t(64)) * sizeof(uint64_t);
   validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
+  if (validityBuffer == nullptr) {
+    std::cout << "NullableScalarVec<T>::__ctor() (validity) failed." << std::endl;
+  }
 }
 
 template <typename T>
@@ -193,11 +209,17 @@ NullableScalarVec<T> * NullableScalarVec<T>::clone() const {
   // Copy the data
   auto dbytes = output->count * sizeof(T);
   output->data = static_cast<T *>(malloc(dbytes));
+  if (output->data == nullptr) {
+    std::cout << "NullableScalarVec<T>::clone() (data) failed." << std::endl;
+  }
   memcpy(output->data, data, dbytes);
 
   // Copy the validity buffer
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
   output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
+  if (output->data == nullptr) {
+    std::cout << "NullableScalarVec<T>::clone() (validity) failed." << std::endl;
+  }
   memcpy(output->validityBuffer, validityBuffer, vbytes);
 
   return output;
@@ -214,10 +236,16 @@ NullableScalarVec<T> * NullableScalarVec<T>::select(const std::vector<size_t> &s
   // Allocate data
   auto dbytes = output->count * sizeof(T);
   output->data = static_cast<T *>(malloc(dbytes));
+  if (output->data == nullptr) {
+    std::cout << "NullableScalarVec<T>::select() (data) failed." << std::endl;
+  }
 
   // Allocate validityBuffer
   auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
   output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
+  if (output->validityBuffer == nullptr) {
+    std::cout << "NullableScalarVec<T>::select() (validity) failed." << std::endl;
+  }
 
   // Preserve the validityBuffer across the select
   #pragma _NEC vector
@@ -240,6 +268,9 @@ NullableScalarVec<T> ** NullableScalarVec<T>::bucket(const std::vector<size_t> &
                                                      const std::vector<size_t> &bucket_assignments) const {
   // Allocate array of NullableScalarVec<T> pointers
   auto **output = static_cast<NullableScalarVec<T> **>(malloc(sizeof(T *) * bucket_counts.size()));
+  if (output == nullptr) {
+    std::cout << "NullableScalarVec<T>::bucket() (output) failed." << std::endl;
+  }
 
   // Loop over each bucket
   for (auto b = 0; b < bucket_counts.size(); b++) {
@@ -279,7 +310,13 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   // Set the total count, and allocate data and validityBuffer
   output->count = rows;
   output->data = static_cast<T *>(malloc(sizeof(T) * rows));
+  if (output->data == nullptr) {
+    std::cout << "NullableScalarVec<T>::merge() (output) failed." << std::endl;
+  }
   output->validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * frovedis::ceil_div(rows, size_t(64)), 1));
+  if (output->validityBuffer == nullptr) {
+    std::cout << "NullableScalarVec<T>::merge() (validity) failed." << std::endl;
+  }
 
   // Copy the data and preserve the validityBuffer across the merge
   auto o = 0;

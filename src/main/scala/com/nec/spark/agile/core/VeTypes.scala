@@ -4,12 +4,15 @@ import scala.reflect.ClassTag
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
 
+import scala.reflect.ClassTag
+
 @SQLUserDefinedType(udt = classOf[UserDefinedVeType])
 sealed trait VeType {
   def makeCVector(name: String): CVector
   def containerSize: Int
   def isString: Boolean
   def cVectorType: String
+  def cScalarType: String
   def scalaType: Class[_]
   def toSparkType: DataType
 }
@@ -25,6 +28,8 @@ case object VeString extends VeType {
   def scalaType: Class[_] = classOf[String]
   def toSparkType: DataType = StringType
   final def isString: Boolean = true
+
+  override def cScalarType: String = "int32_t"
 }
 
 sealed trait VeScalarType extends VeType {

@@ -31,7 +31,9 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
   ): GenericColVector[Option[Long]] = {
     cycloneMetrics.measureRunningTime(
       underlying
-        .map(_.map(bp => veProcess.putPointer(bp)))
+        .map(_.map(bp => {
+          veProcess.putPointer(bp)
+        }))
         .copy(source = source)
     )(cycloneMetrics.registerTransferTime)
   }

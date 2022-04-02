@@ -4,14 +4,11 @@ import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProc
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import com.nec.ve.VeRDD.RichKeyedRDDL
-
-import scala.concurrent.duration.NANOSECONDS
 
 case class VePartialAggregate(
   expectedOutputs: Seq[NamedExpression],
