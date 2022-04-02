@@ -21,6 +21,17 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assert(supertrim(gencode.func.body.cCode).contains("in_1_val*2"))
   }
 
+  "Ensure proper operation order" in {
+    val gencode = CppTranspiler.transpileMap(reify( (x: Int) => ((2 * x) + 12) - (x % 15)))
+    println(gencode)
+    assert(supertrim(gencode.func.body.cCode).contains("(((2*in_1_val)+12)-(in_1_val%15))"))
+  }
+
+  "Ensure filter has correct operation order" in {
+    val gencode = CppTranspiler.transpileFilter(reify( (a: Int) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0))
+    println(gencode.func.toCodeLinesWithHeaders.cCode)
+    assert(supertrim(gencode.func.body.cCode).contains(supertrim("((((a % 3) == 0) && ((a % 5) == 0)) && ((a % 15) == 0))")))
+  }
   "filter by comparing" in {
     val genCodeLT = CppTranspiler.transpileFilter(reify( (x: Int) => x < x*x - x))
     val genCodeGT = CppTranspiler.transpileFilter(reify( (x: Int) => x > 10))

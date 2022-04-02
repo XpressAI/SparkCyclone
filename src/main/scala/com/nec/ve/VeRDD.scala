@@ -176,15 +176,11 @@ abstract class ChainedVeRDD[T](
 
 
   def vereduce(expr: Expr[(T, T) => T]): T = {
-    val mappedResults = inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-      func.evalFunctionOnBatch(batches)
-    }
     val klass = tag.runtimeClass
 
     val newFunc = CppTranspiler.transpileReduce(expr)
 
-    val reduceResults = mappedResults.mapPartitions { batches =>
+    val reduceResults = inputs.mapPartitions { batches =>
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       newFunc.evalFunctionOnBatch(batches)

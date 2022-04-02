@@ -18,7 +18,7 @@ object RDDBench {
     val result1 = benchmark("Basic - CPU") {
       rdd
         .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
-        .map((a: Long) => 2 * a + 12 - (a % 5))
+        .map((a: Long) => ((2 * a) + 12) - (a % 15))
         .reduce((a: Long, b: Long) => a + b)
     }
     val rddCount = rdd.count()
@@ -31,7 +31,7 @@ object RDDBench {
     val result2 = benchmark("Basic - VE ") {
       verdd
         .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
-        .map((a: Long) => 2 * a + 12 - (a % 5))
+        .map((a: Long) => ((2 * a) + 12) - (a % 15))
         .reduce((a: Long, b: Long) => a + b)
     }
     val verddCount = verdd.count()
