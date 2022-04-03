@@ -5,9 +5,9 @@ import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
 import org.apache.spark.rdd.RDD
 
 import scala.language.experimental.macros
-import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.TypeTag
 
-class VeConcatRDD[U: ClassTag, T: ClassTag](
+class VeConcatRDD[U: TypeTag, T: TypeTag](
   rdd: VeRDD[T],
   func: CompiledVeFunction,
 ) extends MappedVeRDD[U, T](rdd, func) {
