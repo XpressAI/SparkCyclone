@@ -10,16 +10,16 @@ object RDDBench {
 
   def checkRuns(sc: SparkContext): Unit = {
     println("Making VeRDD[Long]")
-    val numbers = (1L to (5 * 1000000))
+    val numbers = (1L to (1 * 1000))
 
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
     benchmark("checkRuns - VE ") {
       verdd
-        .vemap(reify {(a: Long) => (3 * a)})
-        .vegroupBy(reify {(a: Long) => a % 8})
+        .vemap(reify {(a: Long) => (3 * a, a * 2)})
         .toRDD
-        .count()
+        .collect()
+        .mkString(", ")
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()
