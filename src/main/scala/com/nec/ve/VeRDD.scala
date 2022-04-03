@@ -161,35 +161,17 @@ abstract class ChainedVeRDD[T](
 
     val reduceResults = inputs.mapPartitions { batches =>
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
-
       newFunc.evalFunctionOnBatch(batches)
     }
 
     val ret = reduceResults.mapPartitions { batches =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-
-      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-
-      val r = batches.map { veColBatch =>
-        val arrowBatch = veColBatch.toArrowColumnarBatch()
-        val array = if (klass == classOf[Int]) {
-          arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-        } else if (klass == classOf[Long]) {
-          arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-        } else if (klass == classOf[Float]) {
-          arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else if (klass == classOf[Double]) {
-          arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
-        } else {
-          throw new IllegalArgumentException(s"ChainedVeRDD::vereduce klass $klass")
-        }
-        array
+      batches.map { veColBatch =>
+        veColBatch.toArray[T](0)
       }
-      r
     }
 
     val f = toolbox.eval(expr.tree).asInstanceOf[(T, T) => T]
-    ret.asInstanceOf[RDD[Array[T]]].collect().flatten.reduce(f)
+    ret.collect().flatten.reduce(f)
   }
 
   override def vefilter(expr: Expr[T => Boolean]): VeRDD[T] = {
@@ -302,30 +284,13 @@ class BasicVeRDD[T](
     }
 
     val ret = reduceResults.mapPartitions { batches =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-
-      val klass = tag.runtimeClass
-      val r = batches.map { veColBatch =>
-        val arrowBatch = veColBatch.toArrowColumnarBatch()
-        val array = if (klass == classOf[Int]) {
-          arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-        } else if (klass == classOf[Long]) {
-          arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-        } else if (klass == classOf[Float]) {
-          arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else if (klass == classOf[Double]) {
-          arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
-        } else {
-          throw new IllegalArgumentException(s"vereduce klass $klass")
-        }
-        array
+      batches.map { veColBatch =>
+        veColBatch.toArray[T](0)
       }
-      r
     }
 
     val f = toolbox.eval(expr.tree).asInstanceOf[(T, T) => T]
-    ret.asInstanceOf[RDD[Array[T]]].collect().flatten.reduce(f)
+    ret.collect().flatten.reduce(f)
   }
 
   override def vegroupBy[K](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
@@ -346,29 +311,8 @@ class BasicVeRDD[T](
 
   override def toRDD : RDD[T] = {
     inputs.mapPartitions { batches =>
-      implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-      val klass = tag.runtimeClass
-
       batches.flatMap { veColBatch =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-
-        val arrowBatch = veColBatch.toArrowColumnarBatch()
-        val array = if (klass == classOf[Int]) {
-          arrowBatch.column(0).getInts(0, arrowBatch.numRows())
-        } else if (klass == classOf[Long]) {
-          arrowBatch.column(0).getLongs(0, arrowBatch.numRows())
-        } else if (klass == classOf[Instant]) {
-          arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime)
-        } else if (klass == classOf[Float]) {
-          arrowBatch.column(0).getFloats(0, arrowBatch.numRows())
-        } else if (klass == classOf[Double]) {
-          arrowBatch.column(0).getDoubles(0, arrowBatch.numRows())
-        } else {
-          throw new IllegalArgumentException(s"toRDD klass $klass")
-        }
-
-        //veColBatch.free()
-        array.toSeq.asInstanceOf[Seq[T]]
+        veColBatch.toArray[T](0).toSeq
       }
     }
   }
