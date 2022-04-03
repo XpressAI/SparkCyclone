@@ -1,20 +1,19 @@
 package com.nec.native
 
+import com.nec.native.SyntaxTreeOps._
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Raw}
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines, VeType}
 import com.nec.util.DateTimeOps._
-import com.nec.native.SyntaxTreeOps._
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 
 import java.time.Instant
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
-import scala.reflect.runtime.{universe, currentMirror => cm}
-import scala.tools.reflect.ToolBox
 
 object CppTranspiler {
-  private val toolbox = cm.mkToolBox()
+  private val toolbox = CompilerToolBox.get
 
   def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
     val resultType = expr.staticType.typeArgs.last
@@ -549,4 +548,3 @@ object CppTranspiler {
     }
   }
 }
-

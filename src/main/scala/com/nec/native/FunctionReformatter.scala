@@ -1,8 +1,8 @@
 package com.nec.native
 
 import com.nec.native.SyntaxTreeOps._
+
 import scala.reflect.runtime.universe._
-import scala.tools.reflect.ToolBox
 
 object FunctionReformatter {
   def flattenParams(func: Function): List[ValDef] = {
@@ -47,7 +47,7 @@ object FunctionReformatter {
   }
 
   def reformatFunction[T, U](expr: Expr[T => U]): Function = {
-    val toolbox = expr.mirror.mkToolBox()
+    val toolbox = CompilerToolBox.get
 
     toolbox.typecheck(expr.tree) match {
       // NOTE: For now, this is always the case bc the method is type-constrained with T and U
