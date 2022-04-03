@@ -14,10 +14,10 @@ object RDDBench {
 
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
-    val result2 = benchmark("checkRuns - VE ") {
+    benchmark("checkRuns - VE ") {
       verdd
         .vemap(reify {(a: Long) => (3 * a)})
-        .vegroupBy(reify {(a: Long) => a * 2})
+        .vegroupBy(reify {(a: Long) => a % 8})
         .toRDD
         .count()
     }

@@ -315,10 +315,8 @@ object CppTranspiler {
   def evalVParams(fun: Function): String = {
     val defs = fun.vparams
     val inputs = defs.map { (v: ValDef) =>
-      val modStr = evalModifiers(v.mods)
       val nameStr = v.name.toString
       val typeStr = evalType(v.tpt)
-      val rhsStr = v.rhs.toString
       typeStr + " " + nameStr
     }
     val output = if (fun.tpe == null) {

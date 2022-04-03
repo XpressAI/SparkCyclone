@@ -121,7 +121,7 @@ trait VeRDD[T] extends RDD[T] {
     else if (klass == classOf[Long]) { LongType }
     else if (klass == classOf[Double]) { DoubleType }
     else if (klass == classOf[Float]) { FloatType }
-      //TODO: Take care of `Instant` support here
+    else if (klass == classOf[Instant]) { LongType }
     else {
       throw new IllegalArgumentException(s"computeMergeVe klass $klass")
     })
@@ -155,8 +155,6 @@ abstract class ChainedVeRDD[T](
 
 
   def vereduce(expr: Expr[(T, T) => T]): T = {
-    val klass = tag.runtimeClass
-
     val newFunc = CppTranspiler.transpileReduce(expr)
 
     val reduceResults = inputs.mapPartitions { batches =>
