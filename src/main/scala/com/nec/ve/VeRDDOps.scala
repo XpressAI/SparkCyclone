@@ -56,9 +56,9 @@ object VeRDDOps extends LazyLogging {
       .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)), partitions)
       .map { case (_, vb) => vb }
 
-  def joinExchange(
-    left: RDD[(Int, VeColBatch)],
-    right: RDD[(Int, VeColBatch)],
+  def joinExchange[K: ClassTag](
+    left: RDD[(K, VeColBatch)],
+    right: RDD[(K, VeColBatch)],
     cleanUpInput: Boolean
   ): RDD[(Iterable[VeColBatch], Iterable[VeColBatch])] = {
 

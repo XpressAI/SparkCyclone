@@ -334,3 +334,8 @@ class RawVeRDD[T](
 
   override def toRDD: RDD[VeColBatch] = rdd
 }
+
+
+class PairVeRDDFunctions[K: TypeTag, V: TypeTag](self: VeRDD[(K, V)]){
+  def join[W: TypeTag](other: VeRDD[(K, W)]): VeRDD[(K, V, W)] = VeJoinRDD(self, other)
+}
