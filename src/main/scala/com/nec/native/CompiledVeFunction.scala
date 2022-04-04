@@ -40,7 +40,6 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
     val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
-    println(s"[evalGrouping] ${func.name}")
     veProcess.executeGrouping[K](libRef, func.name, batchOfBatches, outputs)
   }
 

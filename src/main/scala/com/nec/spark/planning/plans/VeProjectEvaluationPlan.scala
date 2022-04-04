@@ -97,7 +97,7 @@ final case class VeProjectEvaluationPlan(
                 val outBatch = createOutputBatch(cols, veColBatch)
 
                 if (veColBatch.numRows < outBatch.numRows)
-                  println(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
+                  logger.debug(s"Input rows = ${veColBatch.numRows}, output = ${outBatch}")
                 collectBatchMetrics(OUTPUT, outBatch)
               } finally {
                 child

@@ -39,6 +39,10 @@ object CFunction2 {
     final case class PointerPointer(vec: CVector) extends CFunctionArgument {
       override def render: String = s"${vec.veType.cVectorType}** ${vec.name}"
     }
+
+    final case class PointerPointerPointer(vec: CVector) extends CFunctionArgument {
+      override def render: String = s"${vec.veType.cVectorType}*** ${vec.name}"
+    }
   }
 }
 

@@ -258,6 +258,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
+      logger.debug(s"[execute] Calling $functionName")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
@@ -265,7 +266,7 @@ object VeProcess {
       val end = System.nanoTime()
       VeProcess.veSeconds += (end - start) / 1e9
       VeProcess.calls += 1
-      println(
+      logger.debug(
         s"Finished $functionName Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
       )
 
@@ -366,6 +367,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
+      logger.debug(s"[executeMulti] Calling $functionName")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
@@ -476,6 +478,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
+      logger.debug(s"[executeMultiIn] Calling $functionName")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
@@ -599,6 +602,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
+      logger.debug(s"[executeJoin] Calling $functionName")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
@@ -664,14 +668,12 @@ object VeProcess {
       val inputsBatchSize = inputs.batches.size
       val inputsColCount = inputs.cols
 
-      val groupKeyPointer = new LongPointer(1)
-      val groupsCountPointer = new LongPointer(1)
-
-      val metaParamCount = 3
+      val metaParamCount = 2
 
       veo.veo_args_set_u64(our_args, 0, inputsBatchSize)
-      veo.veo_args_set_stack(our_args, 1, 1, new BytePointer(groupKeyPointer), 8)
-      veo.veo_args_set_stack(our_args, 1, 2, new BytePointer(groupsCountPointer), 8)
+
+      val groupsOutPointer = new LongPointer(1)
+      veo.veo_args_set_stack(our_args, veo.VEO_INTENT_OUT, 1, new BytePointer(groupsOutPointer), groupsOutPointer.sizeof())
 
       // Setup input pointers, such that each input pointer points to a batch of columns
       inputs.batches.head.cols.indices.foreach { cIdx =>
@@ -683,9 +685,8 @@ object VeProcess {
           lp.put(bIdx, col.containerLocation)
         }
 
-        veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
+        veo.veo_args_set_stack(our_args, veo.VEO_INTENT_IN, metaParamCount + cIdx, new BytePointer(lp), byteSize)
       }
-
 
       val outPointers = results.map { veType =>
         val lp = new LongPointer(1)
@@ -695,7 +696,7 @@ object VeProcess {
 
       results.zipWithIndex.foreach { case (vet, reIdx) =>
         val index = metaParamCount + inputsColCount + reIdx
-        veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
+        veo.veo_args_set_stack(our_args, veo.VEO_INTENT_OUT, index, new BytePointer(outPointers(reIdx)), 8)
       }
 
       val fnCallResult = new LongPointer(1)
@@ -707,6 +708,7 @@ object VeProcess {
         s"Expected > 0, but got ${functionAddr} when looking up function '${functionName}' in $libraryReference"
       )
 
+      logger.debug(s"[executeGrouping] Calling $functionName")
       val start = System.nanoTime()
       val callRes = veProcessMetrics.measureRunningTime(
         veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
@@ -722,55 +724,32 @@ object VeProcess {
         callRes == 0,
         s"Expected 0, got $callRes; means VE call failed for function $functionAddr ($functionName); inputs: $inputs; returns $results"
       )
+
+
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
-      val klass = implicitly[ClassTag[K]].runtimeClass
 
-      val numGroups = groupsCountPointer.get()
-      (0 until numGroups.toInt).map { (i) =>
-        val k: K = (if (klass == classOf[Int]) {
-          new IntPointer(groupKeyPointer).get(i)
-        } else if (klass == classOf[Long]) {
-          groupKeyPointer.get(i)
-        } else if (klass == classOf[Float]) {
-          new FloatPointer(groupKeyPointer).get(i)
-        } else if (klass == classOf[Double]) {
-          new DoublePointer(groupKeyPointer).get(i)
-        }).asInstanceOf[K]
+      val groups = VeColBatch.fromList(List(readVeColVector(groupsOutPointer.get(), results.head)))
+      val numGroups = groups.numRows
+      val groupKeys = groups.toArray[K](0)
 
-        k -> outPointers.zip(results).map {
-          case (outPointer, CScalarVector(name, scalar)) =>
-            val outContainerLocation = outPointer.get(i)
-            val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
+      val scope = new PointerScope()
 
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(16),
-              name = name,
-              veType = scalar,
-              containerLocation = outContainerLocation,
-              bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-              variableSize = None
-            ).register()
-          case (outPointer, CVarChar(name)) =>
-            val outContainerLocation = outPointer.get(i)
-            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
+      val actualOutPointers = outPointers.map(p => new LongPointer(readAsPointer(p.get(), 8 * numGroups)))
 
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(36),
-              name = name,
-              variableSize = Some(bytePointer.getInt(32)),
-              veType = VeString,
-              containerLocation = outContainerLocation,
-              bufferLocations = List(
-                bytePointer.getLong(0),
-                bytePointer.getLong(8),
-                bytePointer.getLong(16),
-                bytePointer.getLong(24)
-              )
-            ).register()
+      val o = (0 until numGroups).map { (i) =>
+        val k: K = groupKeys(i)
+
+        k -> actualOutPointers.zip(results).map { case (outPointer, vector) =>
+          val outContainerLocation = outPointer.get(i)
+          val r = readVeColVector(outContainerLocation, vector)
+          r
         }
       }.toList
+
+      outPointers.foreach(p => veo.veo_free_mem(veo_proc_handle, p.get()))
+
+      scope.close()
+      o
     }
 
     override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
@@ -799,6 +778,40 @@ object VeProcess {
         s"Trying to write to memory location ${memoryLocation}; ${veProcessMetrics.checkTotalUsage()}"
       )
       memoryLocation
+    }
+
+    private def readVeColVector(outContainerLocation: Long, cVector: CVector)(implicit originalCallingContext: OriginalCallingContext): VeColVector = {
+      cVector match {
+        case CScalarVector(name, scalar) =>
+          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
+
+          VeColVector(
+            source = source,
+            numItems = bytePointer.getInt(16),
+            name = name,
+            veType = scalar,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
+            variableSize = None
+          ).register()
+        case CVarChar(name) =>
+          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
+
+          VeColVector(
+            source = source,
+            numItems = bytePointer.getInt(36),
+            name = name,
+            variableSize = Some(bytePointer.getInt(32)),
+            veType = VeString,
+            containerLocation = outContainerLocation,
+            bufferLocations = List(
+              bytePointer.getLong(0),
+              bytePointer.getLong(8),
+              bytePointer.getLong(16),
+              bytePointer.getLong(24)
+            )
+          ).register()
+      }
     }
 
   }

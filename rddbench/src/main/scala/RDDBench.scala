@@ -3,9 +3,29 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
+import scala.reflect.runtime.universe.reify
 
 object RDDBench {
   val timings: MMap[String, Double] = MMap.empty
+
+  def checkRuns(sc: SparkContext): Unit = {
+    println("Making VeRDD[Long]")
+    val numbers = (1L to (1 * 1000))
+
+    val start2 = System.nanoTime()
+    val verdd = sc.veParallelize(numbers)
+    benchmark("checkRuns - VE ") {
+      verdd
+        .vemap(reify {(a: Long) => (3 * a, a * 2)})
+        .toRDD
+        .collect()
+        .mkString(", ")
+    }
+    val verddCount = verdd.count()
+    val end2 = System.nanoTime()
+
+    println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
+  }
 
   def basicBenchmark(sc: SparkContext): Unit = {
     println("Basic RDD Benchmark")
@@ -100,6 +120,7 @@ object RDDBench {
     val conf = new SparkConf().setAppName("RDDBench")
     val sc = new SparkContext(conf)
 
+    checkRuns(sc)
     basicBenchmark(sc)
     timestampsBenchmark(sc)
 
