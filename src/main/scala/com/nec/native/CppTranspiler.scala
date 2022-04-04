@@ -17,11 +17,11 @@ object CppTranspiler {
 
   def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
     val func = FunctionReformatter.reformatFunction(expr)
-    val signature = func.veSignature
-    require(signature.outputs.size == 1, s"Can not group by anything other than simple types! Got: ${signature.outputs}")
+    val mapSignature = func.veMapSignature
+    val signature = func.veInOutSignature
+    require(mapSignature.outputs.size == 1, s"Can not group by anything other than simple types! Got: ${signature.outputs}")
 
-    val keyType = signature.outputs.head
-    val outputs = signature.inputs.zipWithIndex.map {case (in, idx) => in.withNewName(s"out_$idx")}
+    val keyType = mapSignature.outputs.head
 
     val code = func match {
       case fun @ Function(vparams, body) => evalGroupBy(fun, signature)
@@ -34,45 +34,30 @@ object CppTranspiler {
       Seq(
         Raw("size_t input_batch_count"),
         PointerPointer(CVector("groups_out", keyType.veType)),
-      ) ++ signature.inputs.map(PointerPointer) ++ outputs.map(PointerPointerPointer),
+      ) ++ signature.inputs.map(PointerPointer) ++ signature.outputs.map(PointerPointerPointer),
       code,
       DefaultHeaders
     ),
       // Outputs are for the groups
-      outputs,
+      signature.outputs,
       // Typing is for the Keying function
       FunctionTyping.fromExpression(expr))
   }
 
   def transpileReduce[T](expr: universe.Expr[(T, T) => T]): CompiledVeFunction = {
-    val resultType = expr.staticType.typeArgs.last
-    val code = expr.tree match {
-      case fun @ Function(vparams, body) => evalReduce(fun, resultType)
-    }
+    // TODO: The cast is technically wrong, but it shuts up the compiler.
+    val func = FunctionReformatter.reformatFunction(expr.asInstanceOf[universe.Expr[T => T]])
+    val inParamCount = func.vparams.size / 2
+    val inOut = func.argTypes.take(inParamCount)
+    val agg = func.vparams.drop(inParamCount)
+    val signature = VeSignature(
+      inOut.zipWithIndex.map{ case (t, i) => CVector(s"in_${i + 1}", t.toVeType)}.toList,
+      inOut.zipWithIndex.map{ case (t, i) => CVector(s"out_$i", t.toVeType)}.toList
+    )
+    val code = evalReduce(func, signature, agg)
 
     val funcName = s"reduce_${Math.abs(code.hashCode())}"
-    val dataType = sparkTypeToVeType(resultType)
-    val newOutputs = List(CVector("out", dataType))
-
-    CompiledVeFunction(new CFunction2(
-      funcName,
-      Seq(
-        PointerPointer(CVector("a_in", dataType)),
-        PointerPointer(newOutputs.head)
-      ),
-      code,
-      DefaultHeaders
-    ), newOutputs, FunctionTyping.fromExpression(expr))
-  }
-
-  def transpileFilter[T](expr: universe.Expr[T => Boolean]): CompiledVeFunction = {
-    val func = FunctionReformatter.reformatFunction(expr)
-    val signature = func.veSignature
-    val outputs = signature.inputs.zipWithIndex.map {case (in, idx) => in.withNewName(s"out_$idx")}
-
-    val code = evalFilter(func, signature)
-
-    val funcName = s"filter_${Math.abs(code.hashCode())}"
+    val outputs = signature.outputs
 
     CompiledVeFunction(new CFunction2(
       funcName,
@@ -82,13 +67,29 @@ object CppTranspiler {
     ), outputs, FunctionTyping.fromExpression(expr))
   }
 
+  def transpileFilter[T](expr: universe.Expr[T => Boolean]): CompiledVeFunction = {
+    val func = FunctionReformatter.reformatFunction(expr)
+    val signature = func.veInOutSignature
+
+    val code = evalFilter(func, signature)
+
+    val funcName = s"filter_${Math.abs(code.hashCode())}"
+
+    CompiledVeFunction(new CFunction2(
+      funcName,
+      signature.inputs.map(PointerPointer) ++ signature.outputs.map(PointerPointer),
+      code,
+      DefaultHeaders
+    ), signature.outputs, FunctionTyping.fromExpression(expr))
+  }
+
   case class VeSignature(inputs: List[CVector], outputs: List[CVector])
 
   def transpileMap[T, U](expr: Expr[T => U]): CompiledVeFunction = {
     // Reformat and type-annotate the tree
     val func = FunctionReformatter.reformatFunction(expr)
-    val signature = func.veSignature
-    val code = evalMapFunc(func)
+    val signature = func.veMapSignature
+    val code = evalMapFunc(func, signature)
 
     // Assemble and compile the function
     CompiledVeFunction(
@@ -123,28 +124,44 @@ object CppTranspiler {
   }
 
   // evaluate Function type from Scala AST
-  def evalReduce(fun: Function, t: Type): String = {
-    val resultType: String = resultTypeForType(t)
-
-    val defs = fun.vparams
+  def evalReduce(fun: Function, signature: VeSignature, aggs: List[ValDef]): String = {
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
       case apply @ Apply(fun, args) => CodeLines.from(
-        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = $resultType::allocate();",
-        s"out[0]->resize(1);",
-        s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
-        s"${evalScalarType(defs.tail.head.tpt, t)} ${defs.tail.head.name} {};",
+        s"size_t len = ${signature.inputs.head.name}[0]->count;",
+        signature.outputs.map{ out => CodeLines.from(
+          s"${out.name}[0] = ${out.veType.cVectorType}::allocate();",
+          s"${out.name}[0]->resize(1);",
+        )},
+        signature.inputs.map{ input => CodeLines.from(
+          s"${input.veType.cScalarType} ${input.name}_val {};",
+        )},
+        aggs.map{ case ValDef(_, TermName(name), tree, _) => CodeLines.from(
+          s"${evalScalarType(tree, tree.tpe)} ${name} {};"
+        )},
         "for (auto i = 0; i < len; i++) {",
         CodeLines.from(
-          s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
-          s"${defs.tail.head.name} = ${evalApplyScalar(apply)};",
+          // Fetch input values
+          signature.inputs.map{ input => CodeLines.from(
+              s"${input.name}_val = ${input.name}[0]->data[i];"
+          )},
+          // Actually do the reduction
+          (apply.fun, apply.args) match {
+            case (TypeApply(Select(Ident(ident), TermName("apply")), _), args2) if ident.toString.startsWith("Tuple") =>
+              CodeLines.from(args2.zip(aggs).map { case (tupleArg, agg) =>
+                s"${agg.name} = ${evalArg(tupleArg)};"
+              })
+            case _ =>
+              s"${aggs.head.name} = ${evalApply(apply, signature)};"
+          },
         ).indented,
         "}",
-        s"out[0]->data[0] = ${defs.tail.head.name};",
-        s"out[0]->set_validity(0, 1);",
+        signature.outputs.zip(aggs).map{ case (out, agg) => CodeLines.from(
+          s"${out.name}[0]->data[0] = ${agg.name};",
+          s"${out.name}[0]->set_validity(0, 1);",
+        )},
         //s"""std::cout << "out[0]->data[0] = " << out[0]->data[0] << std::endl;""",
       ).indented.cCode
       case unknown => showRaw(unknown)
@@ -175,24 +192,23 @@ object CppTranspiler {
     val sout = (m: String, v: String) => debugPrint(m,v,debug)
     val soutv = (v: String) => sout(s"$v = ", v)
 
-    val inputsWithIdx = signature.inputs.zipWithIndex
     CodeLines.from(
       // Merge inputs and assign output to pointer
-      inputsWithIdx.map{case (input, idx) => CodeLines.from(
-        s"${input.veType.cVectorType} *tmp_$idx = ${input.veType.cVectorType}::merge(${input.name}, input_batch_count);",
+      signature.inputs.map{ input => CodeLines.from(
+        s"${input.veType.cVectorType} *tmp_${input.name} = ${input.veType.cVectorType}::merge(${input.name}, input_batch_count);",
       )},
-      s"size_t len = tmp_0->count;",
+      s"size_t len = tmp_${signature.inputs.head.name}->count;",
       soutv("len"),
       s"std::vector<size_t> grouping(len);",
       s"std::vector<size_t> grouping_keys;",
-      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+      signature.inputs.map{ input => CodeLines.from(
         s"${input.veType.cScalarType} ${input.name}_val {};",
       )},
       mark("grouping"),
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
-        inputsWithIdx.map{case (input, idx) => CodeLines.from(
-            s"${input.name}_val = tmp_$idx->data[i];",
+        signature.inputs.map{ input => CodeLines.from(
+            s"${input.name}_val = tmp_${input.name}->data[i];",
         )},
         s"grouping[i] = ${predicate_code};",
         //soutv("bitmask[i]"),
@@ -211,35 +227,33 @@ object CppTranspiler {
       },
       s"""//cyclone::print_vec("grouping_keys", grouping_keys);""",
       mark("malloc(group_count)"),
-      inputsWithIdx.map{case (input, idx) => CodeLines.from(
-        s"*out_$idx = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
+      signature.outputs.map{ output => CodeLines.from(
+        s"*${output.name} = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
       )},
-      inputsWithIdx.map{case (input, idx) => CodeLines.forLoop("i", "group_count"){
+      signature.outputs.zip(signature.inputs).map{case (out, in) => CodeLines.forLoop("i", "group_count"){
           CodeLines.from(
             //s"""std::cout << "tmp->select(groups[i]) (" << i << ")" << std::endl;""",
-            s"out_$idx[0][i] = tmp_$idx->select(groups[i]);"
+            s"${out.name}[0][i] = tmp_${in.name}->select(groups[i]);"
           )
         }
       },
-      inputsWithIdx.map{case (input, idx) => CodeLines.from(
-        s"free(tmp_$idx);",
+      signature.inputs.map{ input => CodeLines.from(
+        s"free(tmp_${input.name});",
       )},
       mark("done")
     ).indented.cCode
   }
 
   private def filterCode(signature: VeSignature, predicate_code: String) = {
-    val inputsWithIdx = signature.inputs.zipWithIndex
-
     CodeLines.from(
       s"size_t len = ${signature.inputs.head.name}[0]->count;",
       s"std::vector<size_t> bitmask(len);",
-      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+      signature.inputs.map{ input => CodeLines.from(
         s"${input.veType.cScalarType} ${input.name}_val {};",
       )},
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
-        inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        signature.inputs.map{ input => CodeLines.from(
           s"${input.name}_val = ${input.name}[0]->data[i];",
         )},
         s"bitmask[i] = ${predicate_code};"
@@ -247,8 +261,8 @@ object CppTranspiler {
       ).indented,
       s"}",
       s"std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);",
-      inputsWithIdx.map{case (input, idx) => CodeLines.from(
-        s"out_$idx[0] = ${input.name}[0]->select(matching_ids);",
+      signature.outputs.zip(signature.inputs).map{case (out, in) => CodeLines.from(
+        s"${out.name}[0] = ${in.name}[0]->select(matching_ids);",
       )}
     ).indented.cCode
   }
@@ -261,14 +275,14 @@ object CppTranspiler {
       case apply @ Apply(fun, args) => filterCode(signature, evalApply(apply, signature))
       case select @ Select(tree, name) => filterCode(signature, evalSelect(select))
       case lit @ Literal(Constant(true)) => CodeLines.from(
-        signature.inputs.zipWithIndex.map{case (input, idx) => CodeLines.from(
-          s"out_$idx[0] = ${input.name}->clone();"
+        signature.inputs.zip(signature.outputs).map{case (input, output) => CodeLines.from(
+          s"${output.name}[0] = ${input.name}->clone();"
         )}
       ).indented.cCode
       case lit @ Literal(Constant(false)) => CodeLines.from(
-        signature.inputs.zipWithIndex.map{case (input, idx) => CodeLines.from(
-          s"out_$idx[0] = ${input.veType.cVectorType}::allocate();",
-          s"out_$idx[0]->resize(0);",
+        signature.outputs.map{output => CodeLines.from(
+          s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+          s"${output.name}[0]->resize(0);",
         )}
         ).indented.cCode
       case unknown => showRaw(unknown)
@@ -354,9 +368,7 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalMapFunc(func: Function): String = {
-    val signature = func.veSignature
-
+  def evalMapFunc(func: Function, signature: VeSignature): String = {
     val codelines = func.body match {
       case ident @ Ident(name) =>
         CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")

@@ -12,6 +12,8 @@ object SyntaxTreeOps {
     reformatted and type-annotated with `FunctionReformatter`!
   */
 
+  def paramNameGenerator: String => String = (i: String) => s"in${i}_val"
+
   implicit class ExtendedTreeFunction(func: Function) {
     def argTypes: Seq[Type] = {
       func.vparams.map(_.tpt.asInstanceOf[TypeTree].tpe)
@@ -24,13 +26,24 @@ object SyntaxTreeOps {
       }
     }
 
-    def veSignature: VeSignature = {
+    def veMapSignature: VeSignature = {
       VeSignature(
         argTypes.toList.zipWithIndex.map { case (tpe, i) =>
           CVector(s"in_${i + 1}", tpe.toVeType)
         },
         returnType.toVeTypes.zipWithIndex.map { case (veType, i) =>
           CVector(s"out_$i", veType)
+        }
+      )
+    }
+
+    def veInOutSignature: VeSignature = {
+      VeSignature(
+        argTypes.toList.zipWithIndex.map { case (tpe, i) =>
+          CVector(s"in_${i + 1}", tpe.toVeType)
+        },
+        argTypes.toList.zipWithIndex.map { case (veType, i) =>
+          CVector(s"out_$i", veType.toVeType)
         }
       )
     }

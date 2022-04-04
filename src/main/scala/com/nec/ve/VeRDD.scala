@@ -106,8 +106,7 @@ trait VeRDD[T] extends RDD[T] {
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val batches = inputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      val array = veColBatch.toArray[T](0)
-      array.toSeq
+      veColBatch.toCPUSeq[T]()
     }
   }
 
@@ -161,7 +160,7 @@ abstract class ChainedVeRDD[T](
 
     val ret = reduceResults.mapPartitions { batches =>
       batches.map { veColBatch =>
-        veColBatch.toArray[T](0)
+        veColBatch.toCPUSeq[T]()
       }
     }
 
@@ -268,7 +267,7 @@ class BasicVeRDD[T](
 
     val ret = reduceResults.mapPartitions { batches =>
       batches.map { veColBatch =>
-        veColBatch.toArray[T](0)
+        veColBatch.toCPUSeq[T]()
       }
     }
 

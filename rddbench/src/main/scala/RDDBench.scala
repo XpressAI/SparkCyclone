@@ -17,10 +17,7 @@ object RDDBench {
     benchmark("checkRuns - VE ") {
       verdd
         .vemap(reify {(a: Long) => (3 * a, a * 2)})
-        .vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
-        .toRDD
-        .collect()
-        .mkString(", ")
+        .vereduce(reify {(a: (Long, Long), b: (Long, Long)) => (a._1 + b._2, b._1 + a._2)})
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()
