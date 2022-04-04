@@ -54,17 +54,18 @@ object FunctionReformatter {
                          mapNameGenerator: String => String,
                          aggNameGenerator: String => String
                         ): Tree = {
+    val tupleSuffix = "_\\d?\\d$"
     val transformer = new Transformer {
       override def transform(tree: Tree): Tree = {
         tree match {
           // Handle input names
-          case Select((Ident(i)), TermName(term)) if i == func.vparams.head.name && term.matches("_\\d?\\d$") =>
+          case Select((Ident(i)), TermName(term)) if i == func.vparams.head.name && term.matches(tupleSuffix) =>
             Ident(TermName(mapNameGenerator.apply(term)))
           case i: Ident if (i.name == func.vparams.head.name) =>
             Ident(TermName(mapNameGenerator.apply("_1")))
 
           // Handle agg Names
-          case Select((Ident(i)), TermName(term)) if i == func.vparams(1).name && term.matches("_\\d?\\d$") =>
+          case Select((Ident(i)), TermName(term)) if i == func.vparams(1).name && term.matches(tupleSuffix) =>
             Ident(TermName(aggNameGenerator.apply(term)))
           case i: Ident if (i.name == func.vparams(1).name) =>
             Ident(TermName(aggNameGenerator.apply("_1")))
@@ -78,7 +79,7 @@ object FunctionReformatter {
     transformer.transform(func.body)
   }
 
-  def reformatFunction[T, U](expr: Expr[T => U]): Function = {
+  def reformatFunction(expr: Expr[_]): Function = {
     val toolbox = CompilerToolBox.get
 
     toolbox.typecheck(expr.tree) match {

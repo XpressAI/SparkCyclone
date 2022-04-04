@@ -45,8 +45,7 @@ object CppTranspiler {
   }
 
   def transpileReduce[T](expr: universe.Expr[(T, T) => T]): CompiledVeFunction = {
-    // TODO: The cast is technically wrong, but it shuts up the compiler.
-    val func = FunctionReformatter.reformatFunction(expr.asInstanceOf[universe.Expr[T => T]])
+    val func = FunctionReformatter.reformatFunction(expr)
     val inParamCount = func.vparams.size / 2
     val inOut = func.argTypes.take(inParamCount)
     val agg = func.vparams.drop(inParamCount)
@@ -184,7 +183,7 @@ object CppTranspiler {
     }
   }
 
-  private def groupByCode(signature: VeSignature, predicate_code: String) = {
+  private def groupByCode(signature: VeSignature, predicateCode: String) = {
     val resultType: String = signature.outputs.head.veType.cVectorType
 
     val debug = false
@@ -210,7 +209,7 @@ object CppTranspiler {
         signature.inputs.map{ input => CodeLines.from(
             s"${input.name}_val = tmp_${input.name}->data[i];",
         )},
-        s"grouping[i] = ${predicate_code};",
+        s"grouping[i] = ${predicateCode};",
         //soutv("bitmask[i]"),
       ).indented,
       s"}",
@@ -244,7 +243,7 @@ object CppTranspiler {
     ).indented.cCode
   }
 
-  private def filterCode(signature: VeSignature, predicate_code: String) = {
+  private def filterCode(signature: VeSignature, predicateCode: String) = {
     CodeLines.from(
       s"size_t len = ${signature.inputs.head.name}[0]->count;",
       s"std::vector<size_t> bitmask(len);",
@@ -256,7 +255,7 @@ object CppTranspiler {
         signature.inputs.map{ input => CodeLines.from(
           s"${input.name}_val = ${input.name}[0]->data[i];",
         )},
-        s"bitmask[i] = ${predicate_code};"
+        s"bitmask[i] = ${predicateCode};"
         //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
       ).indented,
       s"}",
