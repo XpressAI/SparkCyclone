@@ -16,27 +16,31 @@ object CppTranspiler {
   private val toolbox = CompilerToolBox.get
 
   def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
-    val resultType = expr.staticType.typeArgs.last
+    val func = FunctionReformatter.reformatFunction(expr)
+    val signature = func.veSignature
+    require(signature.outputs.size == 1, s"Can not group by anything other than simple types! Got: ${signature.outputs}")
 
-    val code = expr.tree match {
-      case fun @ Function(vparams, body) => evalGroupBy(fun, resultType)
+    val resultType = signature.outputs.head
+
+    val code = func match {
+      case fun @ Function(vparams, body) => evalGroupBy(fun, signature)
     }
 
     val funcName = s"groupby_${Math.abs(code.hashCode())}"
-    val dataType = sparkTypeToVeType(resultType)
-    val newOutputs = List(CVector("out", dataType))
 
     CompiledVeFunction(new CFunction2(
       funcName,
       Seq(
         Raw("size_t input_batch_count"),
-        PointerPointer(CVector("groups_out", dataType)),
-        PointerPointer(CVector(s"${expr.tree.asInstanceOf[Function].vparams.head.name.toString}_in", dataType)),
-        PointerPointerPointer(newOutputs.head)
-      ),
+        PointerPointer(CVector("groups_out", resultType.veType)),
+      ) ++ signature.inputs.map(PointerPointer) ++ signature.inputs.zipWithIndex.map{case (i, idx) => PointerPointerPointer(i.withNewName(s"out_$idx"))},
       code,
       DefaultHeaders
-    ), newOutputs, FunctionTyping.fromExpression(expr))
+    ),
+      // Outputs are for the groups
+      signature.inputs,
+      // Typing is for the Keying function
+      FunctionTyping.fromExpression(expr))
   }
 
   def transpileReduce[T](expr: universe.Expr[(T, T) => T]): CompiledVeFunction = {
@@ -111,16 +115,13 @@ object CppTranspiler {
     typeOf[Instant] -> SparkExpressionToCExpression.sparkTypeToVeType(LongType),
   )(t)
 
-  def evalGroupBy(fun: Function, t: Type): String = {
-    val resultType: String = resultTypeForType(t)
-    val defs = fun.vparams
-
+  def evalGroupBy(fun: Function, signature: VeSignature): String = {
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => groupByCode(defs, evalApply(apply, null), t)
-      case select @ Select(tree, name) => groupByCode(defs, evalSelect(select), t)
+      case apply @ Apply(fun, args) => groupByCode(signature, evalApply(apply, signature))
+      case select @ Select(tree, name) => groupByCode(signature, evalSelect(select))
       case unknown => showRaw(unknown)
     }
   }
@@ -170,29 +171,33 @@ object CppTranspiler {
     }
   }
 
-  private def groupByCode(defs: List[ValDef], predicate_code: String, t: Type) = {
-    val resultType: String = resultTypeForType(t)
-
-    val inputVectorType = evalType(defs.head.tpt)
-    val inputScalarType = evalScalarType(defs.head.tpt, t)
+  private def groupByCode(signature: VeSignature, predicate_code: String) = {
+    val resultType: String = signature.outputs.head.veType.cVectorType
 
     val debug = false
     val mark = (m: String) => debugPrint(m,debug)
     val sout = (m: String, v: String) => debugPrint(m,v,debug)
     val soutv = (v: String) => sout(s"$v = ", v)
 
+    val inputsWithIdx = signature.inputs.zipWithIndex
     CodeLines.from(
       // Merge inputs and assign output to pointer
-      s"$inputVectorType *tmp = $inputVectorType::merge(${defs.head.name.toString}_in, input_batch_count);",
-      s"size_t len = tmp->count;",
+      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        s"${input.veType.cVectorType} *tmp_$idx = ${input.veType.cVectorType}::merge(${input.name}, input_batch_count);",
+      )},
+      s"size_t len = tmp_0->count;",
       soutv("len"),
       s"std::vector<size_t> grouping(len);",
       s"std::vector<size_t> grouping_keys;",
-      s"$inputScalarType ${defs.head.name} {};",
+      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        s"${input.veType.cScalarType} ${input.name}_val {};",
+      )},
       mark("grouping"),
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
-        s"${defs.head.name} = tmp->data[i];",
+        inputsWithIdx.map{case (input, idx) => CodeLines.from(
+            s"${input.name}_val = tmp_$idx->data[i];",
+        )},
         s"grouping[i] = ${predicate_code};",
         //soutv("bitmask[i]"),
       ).indented,
@@ -210,18 +215,19 @@ object CppTranspiler {
       },
       s"""//cyclone::print_vec("grouping_keys", grouping_keys);""",
       mark("malloc(group_count)"),
-      // This is fishy
-      s"*out = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
-      soutv("out"),
-      soutv("*out"),
-      soutv("**out"),
-      CodeLines.forLoop("i", "group_count"){
+      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        s"*out_$idx = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
+      )},
+      inputsWithIdx.map{case (input, idx) => CodeLines.forLoop("i", "group_count"){
           CodeLines.from(
             //s"""std::cout << "tmp->select(groups[i]) (" << i << ")" << std::endl;""",
-            s"out[0][i] = tmp->select(groups[i]);"
+            s"out_$idx[0][i] = tmp_$idx->select(groups[i]);"
           )
+        }
       },
-      s"free(tmp);",
+      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        s"free(tmp_$idx);",
+      )},
       mark("done")
     ).indented.cCode
   }

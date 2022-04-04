@@ -204,7 +204,7 @@ abstract class ChainedVeRDD[T](
     shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
     val values = shuffle.map(_._2)
 
-    VeConcatRDD(values, newFunc.types.copy(input = newFunc.types.output))
+    VeConcatRDD(values, newFunc.types.copy(output = newFunc.types.input))
   }
 }
 

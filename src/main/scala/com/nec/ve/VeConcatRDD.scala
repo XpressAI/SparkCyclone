@@ -28,13 +28,13 @@ class VeConcatRDD[U: TypeTag, T: TypeTag](
 }
 
 object VeConcatRDD {
-  def apply[U: TypeTag, T: TypeTag](rdd: RDD[VeColBatch], funcTypes: FunctionTyping[T, T]): VeConcatRDD[U, VeColBatch] = {
+  def apply[U: TypeTag, T: TypeTag](rdd: RDD[VeColBatch], funcTypes: FunctionTyping[_, _]): VeConcatRDD[U, VeColBatch] = {
     import com.nec.native.SyntaxTreeOps._
 
-    val dataType = funcTypes.output.tpe.toVeType
+    val outputTypes = funcTypes.input.tpe.toVeTypes
 
-    val funcName = s"merge_${dataType.toString}_1"
-    val code = MergeFunction(funcName, List(dataType))
+    val funcName = s"merge_${outputTypes.mkString("_")}_1"
+    val code = MergeFunction(funcName, outputTypes)
     val func = CompiledVeFunction(
       code.toCFunction,
       code.toVeFunction.namedResults,

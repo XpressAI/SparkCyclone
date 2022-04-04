@@ -1,9 +1,10 @@
 package com.nec.native
 
-import com.nec.spark.agile.core._
 import com.nec.native.CppTranspiler.VeSignature
-import scala.reflect.runtime.universe._
+import com.nec.spark.agile.core._
+
 import java.time.Instant
+import scala.reflect.runtime.universe._
 
 object SyntaxTreeOps {
   /*
@@ -28,14 +29,21 @@ object SyntaxTreeOps {
         argTypes.toList.zipWithIndex.map { case (tpe, i) =>
           CVector(s"in_${i + 1}", tpe.toVeType)
         },
-        List(returnType).zipWithIndex.map { case (tpe, i) =>
-          CVector(s"out_$i", tpe.toVeType)
+        returnType.toVeTypes.zipWithIndex.map { case (veType, i) =>
+          CVector(s"out_$i", veType)
         }
       )
     }
   }
 
   implicit class ExtendedTreeType(tpe: Type) {
+    def toVeTypes: List[VeType] = {
+      tpe.asInstanceOf[TypeRef].args match {
+        case Nil => List(toVeType)
+        case args => args.map(a => a.toVeType)
+      }
+    }
+
     def toVeType: VeType = {
       if (tpe =:= typeOf[Int]) {
         VeNullableInt

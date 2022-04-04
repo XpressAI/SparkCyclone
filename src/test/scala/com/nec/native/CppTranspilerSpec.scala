@@ -97,7 +97,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     assertCodeEqualish(genCode2, output2)
   }
 
-  "map Long -> (Long, Long)" ignore {
+  "map Long -> (Long, Long)" in {
     val genCode0 = CppTranspiler.transpileMap(reify { x: Long => x })
     val genCode1 = CppTranspiler.transpileMap(reify { x: Long => (x, x * 2) })
     val genCode2 = CppTranspiler.transpileMap(reify { x: (Long, Long) => x._2 })
@@ -109,6 +109,11 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 
   "groupBy Long -> Long" in {
     val groupByCode = CppTranspiler.transpileGroupBy(reify({ x: Long => x * 2 }))
+    println(groupByCode.func.toCodeLinesWithHeaders.cCode)
+  }
+
+  "groupBy (Long, Long) -> Long" in {
+    val groupByCode = CppTranspiler.transpileGroupBy(reify({ x: (Long, Long) => x._1 % 2 + x._2 % 3 }))
     println(groupByCode.func.toCodeLinesWithHeaders.cCode)
   }
 }
