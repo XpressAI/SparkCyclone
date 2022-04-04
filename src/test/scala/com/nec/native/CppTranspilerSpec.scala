@@ -28,7 +28,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 
   "Ensure filter has correct operation order" in {
     val gencode = CppTranspiler.transpileFilter(reify( (a: Int) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0))
-    assert(supertrim(gencode.func.body.cCode).contains(supertrim("((((a % 3) == 0) && ((a % 5) == 0)) && ((a % 15) == 0))")))
+    assert(supertrim(gencode.func.body.cCode).contains(supertrim("((((in_1_val % 3) == 0) && ((in_1_val % 5) == 0)) && ((in_1_val % 15) == 0))")))
   }
 
   "filter by comparing" in {
@@ -66,28 +66,28 @@ final class CppTranspilerSpec extends AnyFreeSpec {
   "filter java.time.Instants" in {
     val output1 =
       """
-        | size_t len = x_in[0]->count;
+        | size_t len = in_1[0]->count;
         | std::vector<size_t> bitmask(len);
-        | int64_t x{};
+        | int64_t in_1_val{};
         | for (auto i = 0; i < len; i++) {
-        |   x = x_in[0]->data[i];
-        |   bitmask[i] = (((x == 1648428244277340000) ? 0 : (x < 1648428244277340000) ? -1 : 1) < 0);
+        |   in_1_val = in_1[0]->data[i];
+        |   bitmask[i] = (((in_1_val == 1648428244277340000) ? 0 : (in_1_val < 1648428244277340000) ? -1 : 1) < 0);
         | }
         | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-        | out[0] = x_in[0]->select(matching_ids);
+        | out_0[0] = in_1[0]->select(matching_ids);
         """.stripMargin
 
     val output2 =
       """
-        | size_t len = x_in[0]->count;
+        | size_t len = in_1[0]->count;
         | std::vector<size_t> bitmask(len);
-        | int64_t x{};
+        | int64_t in_1_val{};
         | for (auto i = 0; i < len; i++) {
-        |   x = x_in[0]->data[i];
-        |   bitmask[i] = (((1648428244277340000 == x) ? 0 : (1648428244277340000 < x) ? -1 : 1) != 0);
+        |   in_1_val = in_1[0]->data[i];
+        |   bitmask[i] = (((1648428244277340000 == in_1_val) ? 0 : (1648428244277340000 < in_1_val) ? -1 : 1) != 0);
         | }
         | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-        | out[0] = x_in[0]->select(matching_ids);
+        | out_0[0] = in_1[0]->select(matching_ids);
         """.stripMargin
 
     val genCode1 = CppTranspiler.transpileFilter(reify { x: Instant => x.compareTo(Instant.parse("2022-03-28T00:44:04.277340Z")) < 0 })
@@ -136,153 +136,153 @@ final class CppTranspilerSpec extends AnyFreeSpec {
 object cppSources {
   val testFilterTrivialBoolTrue: String =
     """
-      |  size_t len = x_in[0]->count;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(len);
-      |  int32_t x{};
+      |  size_t len = in_1[0]->count;
+      |  out_0[0] = nullable_int_vector::allocate();
+      |  out_0[0]->resize(len);
+      |  int32_t in_1_val{};
       |  for (auto i = 0; i < len; i++) {
-      |    out[0]->data[i] = x_in[0]->data[i];
+      |    out_0[0]->data[i] = in_1[0]->data[i];
       |  }
-      |  out[0]->set_validity(0, len);
+      |  out_0[0]->set_validity(0, len);
       |""".stripMargin
 
 
   val testFilterTrivialBoolFalse: String =
     """
-      |  size_t len = x_in[0]->count;
-      |  out[0] = nullable_int_vector::allocate();
-      |  out[0]->resize(0);
-      |  out[0]->set_validity(0, 0);
+      |  size_t len = in_1[0]->count;
+      |  out_0[0] = nullable_int_vector::allocate();
+      |  out_0[0]->resize(0);
+      |  out_0[0]->set_validity(0, 0);
       |""".stripMargin
 
  val testFilterLTConstant: String =
   """
-    | size_t len = x_in[0]->count;
+    | size_t len = in_1[0]->count;
     | std::vector<size_t> bitmask(len);
-    | int32_t x{};
+    | int32_t in_1_val{};
     | for (auto i = 0; i < len; i++) {
-    |   x = x_in[0]->data[i];
-    |   bitmask[i] = (x < ((x * x) - x));
+    |   in_1_val = in_1[0]->data[i];
+    |   bitmask[i] = (in_1_val < ((in_1_val * in_1_val) - in_1_val));
     | }
     | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-    | out[0] = x_in[0]->select(matching_ids);
+    | out_0[0] = in_1[0]->select(matching_ids);
   """.stripMargin
 
 
   val testFilterLTEConstant: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = (x <= ((x * x) - x));
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = (in_1_val <= ((in_1_val * in_1_val) - in_1_val));
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterGTConstant: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = (x > 10);
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = (in_1_val > 10);
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterGTEConstant: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = (x >= 10);
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = (in_1_val >= 10);
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterEq: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = (x == ((x * x) - 2));
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = (in_1_val == ((in_1_val * in_1_val) - 2));
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterNEq: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = (x != ((x * x) - 2));
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = (in_1_val != ((in_1_val * in_1_val) - 2));
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterMod: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = ((x % 2) == 0);
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = ((in_1_val % 2) == 0);
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterInverse: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int32_t x{};
+      | int32_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = !((x % 2) == 0);
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = !((in_1_val % 2) == 0);
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterAnd: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int64_t x{};
+      | int64_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = ((x > 10) && (x < 15));
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = ((in_1_val > 10) && (in_1_val < 15));
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
   val testFilterOr: String =
     """
-      | size_t len = x_in[0]->count;
+      | size_t len = in_1[0]->count;
       | std::vector<size_t> bitmask(len);
-      | int64_t x{};
+      | int64_t in_1_val{};
       | for (auto i = 0; i < len; i++) {
-      |   x = x_in[0]->data[i];
-      |   bitmask[i] = ((x < 10) || (x > 15));
+      |   in_1_val = in_1[0]->data[i];
+      |   bitmask[i] = ((in_1_val < 10) || (in_1_val > 15));
       | }
       | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
-      | out[0] = x_in[0]->select(matching_ids);
+      | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 }
