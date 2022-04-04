@@ -82,4 +82,48 @@ namespace cyclone::tests {
     CHECK(groups.size() == 0);
     CHECK(keys == empty_keys);
   }
+
+  TEST_CASE("joining works on fully matched pairs") {
+    std::vector<size_t> left = {1, 2, 3, 4, 5, 6};
+    std::vector<size_t> right = {6, 3, 2, 4, 5, 1};
+    std::vector<size_t> out_left;
+    std::vector<size_t> out_right;
+
+    std::vector<size_t> expected_left = {0, 1, 2, 3, 4, 5};
+    std::vector<size_t> expected_right = {5, 2, 1, 3, 4, 0};
+
+    cyclone::equi_join_indices(left, right, out_left, out_right);
+
+    //cyclone::print_vec("out_left", out_left);
+    //cyclone::print_vec("exp_left", expected_left);
+    //cyclone::print_vec("out_right", out_right);
+    //cyclone::print_vec("exp_right", expected_right);
+
+    CHECK(out_left.size() == left.size());
+    CHECK(out_right.size() == right.size());
+    CHECK(out_left == expected_left);
+    CHECK(out_right == expected_right);
+  }
+
+  TEST_CASE("joining works on partially unmatched pairs") {
+    std::vector<size_t> left = {1, 2, 3, 4, 5, 6};
+    std::vector<size_t> right = {12, 3, 1, 69, 0};
+    std::vector<size_t> out_left;
+    std::vector<size_t> out_right;
+
+    std::vector<size_t> expected_left = {0, 2};
+    std::vector<size_t> expected_right = {2, 1};
+
+    cyclone::equi_join_indices(left, right, out_left, out_right);
+
+    cyclone::print_vec("out_left", out_left);
+    cyclone::print_vec("exp_left", expected_left);
+    cyclone::print_vec("out_right", out_right);
+    cyclone::print_vec("exp_right", expected_right);
+
+    CHECK(out_left.size() == 2);
+    CHECK(out_right.size() == 2);
+    CHECK(out_left == expected_left);
+    CHECK(out_right == expected_right);
+  }
 }
