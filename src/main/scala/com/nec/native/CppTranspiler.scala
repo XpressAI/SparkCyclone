@@ -20,7 +20,8 @@ object CppTranspiler {
     val signature = func.veSignature
     require(signature.outputs.size == 1, s"Can not group by anything other than simple types! Got: ${signature.outputs}")
 
-    val resultType = signature.outputs.head
+    val keyType = signature.outputs.head
+    val outputs = signature.inputs.zipWithIndex.map {case (in, idx) => in.withNewName(s"out_$idx")}
 
     val code = func match {
       case fun @ Function(vparams, body) => evalGroupBy(fun, signature)
@@ -32,13 +33,13 @@ object CppTranspiler {
       funcName,
       Seq(
         Raw("size_t input_batch_count"),
-        PointerPointer(CVector("groups_out", resultType.veType)),
-      ) ++ signature.inputs.map(PointerPointer) ++ signature.inputs.zipWithIndex.map{case (i, idx) => PointerPointerPointer(i.withNewName(s"out_$idx"))},
+        PointerPointer(CVector("groups_out", keyType.veType)),
+      ) ++ signature.inputs.map(PointerPointer) ++ outputs.map(PointerPointerPointer),
       code,
       DefaultHeaders
     ),
       // Outputs are for the groups
-      signature.inputs,
+      outputs,
       // Typing is for the Keying function
       FunctionTyping.fromExpression(expr))
   }
@@ -65,25 +66,20 @@ object CppTranspiler {
   }
 
   def transpileFilter[T](expr: universe.Expr[T => Boolean]): CompiledVeFunction = {
-    val resultType = expr.staticType.typeArgs.head
+    val func = FunctionReformatter.reformatFunction(expr)
+    val signature = func.veSignature
+    val outputs = signature.inputs.zipWithIndex.map {case (in, idx) => in.withNewName(s"out_$idx")}
 
-    val code = expr.tree match {
-      case fun @ Function(vparams, body) => evalFilter(fun, resultType)
-    }
+    val code = evalFilter(func, signature)
 
     val funcName = s"filter_${Math.abs(code.hashCode())}"
-    val dataType = sparkTypeToVeType(resultType)
-    val newOutputs = List(CVector("out", dataType))
 
     CompiledVeFunction(new CFunction2(
       funcName,
-      Seq(
-        PointerPointer(CVector("a_in", dataType)),
-        PointerPointer(newOutputs.head)
-      ),
+      signature.inputs.map(PointerPointer) ++ outputs.map(PointerPointer),
       code,
       DefaultHeaders
-    ), newOutputs, FunctionTyping.fromExpression(expr))
+    ), outputs, FunctionTyping.fromExpression(expr))
   }
 
   case class VeSignature(inputs: List[CVector], outputs: List[CVector])
@@ -232,50 +228,48 @@ object CppTranspiler {
     ).indented.cCode
   }
 
-  private def filterCode(defs: List[ValDef], predicate_code: String, t: Type) = {
-    val resultType: String = resultTypeForType(t)
+  private def filterCode(signature: VeSignature, predicate_code: String) = {
+    val inputsWithIdx = signature.inputs.zipWithIndex
+
     CodeLines.from(
-      s"size_t len = ${defs.head.name.toString}_in[0]->count;",
+      s"size_t len = ${signature.inputs.head.name}[0]->count;",
       s"std::vector<size_t> bitmask(len);",
-      s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
+      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        s"${input.veType.cScalarType} ${input.name}_val {};",
+      )},
       s"for (auto i = 0; i < len; i++) {",
       CodeLines.from(
-        s"${defs.head.name} = ${defs.head.name}_in[0]->data[i];",
+        inputsWithIdx.map{case (input, idx) => CodeLines.from(
+          s"${input.name}_val = ${input.name}[0]->data[i];",
+        )},
         s"bitmask[i] = ${predicate_code};"
         //s"""std::cout << "bitmask[" << i << "] = " << bitmask[i] << std::endl;"""
       ).indented,
       s"}",
       s"std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);",
-      s"out[0] = ${defs.head.name.toString}_in[0]->select(matching_ids);",
+      inputsWithIdx.map{case (input, idx) => CodeLines.from(
+        s"out_$idx[0] = ${input.name}[0]->select(matching_ids);",
+      )}
     ).indented.cCode
   }
 
-  def evalFilter(fun: Function, t: Type): String = {
-    val resultType: String = resultTypeForType(t)
-    val defs = fun.vparams
+  def evalFilter(fun: Function, signature: VeSignature): String = {
     fun.body match {
       case ident @ Ident(name) => CodeLines.from(
         s"${evalIdent(ident)};",
       ).indented.cCode
-      case apply @ Apply(fun, args) => filterCode(defs, evalApply(apply, null), t)
-      case select @ Select(tree, name) => filterCode(defs, evalSelect(select), t)
+      case apply @ Apply(fun, args) => filterCode(signature, evalApply(apply, signature))
+      case select @ Select(tree, name) => filterCode(signature, evalSelect(select))
       case lit @ Literal(Constant(true)) => CodeLines.from(
-        s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-        s"out[0] = $resultType::allocate();",
-        s"out[0]->resize(len);",
-        s"${evalScalarType(defs.head.tpt, t)} ${defs.head.name} {};",
-        "for (auto i = 0; i < len; i++) {",
-        CodeLines.from(
-          s"out[0]->data[i] = x_in[0]->data[i];"
-        ).indented,
-        "}",
-        s"out[0]->set_validity(0, len);",
+        signature.inputs.zipWithIndex.map{case (input, idx) => CodeLines.from(
+          s"out_$idx[0] = ${input.name}->clone();"
+        )}
       ).indented.cCode
       case lit @ Literal(Constant(false)) => CodeLines.from(
-          s"size_t len = ${defs.head.name.toString}_in[0]->count;",
-          s"out[0] = $resultType::allocate();",
-          s"out[0]->resize(0);",
-          s"out[0]->set_validity(0, 0);",
+        signature.inputs.zipWithIndex.map{case (input, idx) => CodeLines.from(
+          s"out_$idx[0] = ${input.veType.cVectorType}::allocate();",
+          s"out_$idx[0]->resize(0);",
+        )}
         ).indented.cCode
       case unknown => showRaw(unknown)
     }

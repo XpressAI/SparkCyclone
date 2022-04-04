@@ -17,7 +17,7 @@ object RDDBench {
     benchmark("checkRuns - VE ") {
       verdd
         .vemap(reify {(a: Long) => (3 * a, a * 2)})
-        .vesortBy(reify{(a: (Long, Long)) => a._1 % 16})
+        .vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
         .toRDD
         .collect()
         .mkString(", ")

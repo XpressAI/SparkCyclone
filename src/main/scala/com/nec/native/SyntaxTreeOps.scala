@@ -55,6 +55,8 @@ object SyntaxTreeOps {
         VeNullableDouble
       } else if (tpe =:= typeOf[Instant]) {
         VeNullableLong
+      } else if (tpe =:= typeOf[Boolean]) {
+        VeNullableInt // Should we have a boolean type instead?
       } else {
         throw new NotImplementedError(s"No corresponding VeType found for type ${tpe}")
       }

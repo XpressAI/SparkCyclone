@@ -116,6 +116,11 @@ final class CppTranspilerSpec extends AnyFreeSpec {
     val groupByCode = CppTranspiler.transpileGroupBy(reify({ x: (Long, Long) => x._1 % 2 + x._2 % 3 }))
     println(groupByCode.func.toCodeLinesWithHeaders.cCode)
   }
+
+  "filter (Long, Long) -> Boolean" in {
+    val groupByCode = CppTranspiler.transpileFilter(reify({ x: (Long, Long) => (x._1 % 2 + x._2 % 3) == 0 }))
+    println(groupByCode.func.toCodeLinesWithHeaders.cCode)
+  }
 }
 
 object cppSources {
