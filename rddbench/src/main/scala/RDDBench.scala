@@ -14,10 +14,22 @@ object RDDBench {
 
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
-    benchmark("checkRuns - VE ") {
+    benchmark("checkRuns - reduce - VE ") {
       verdd
         .vemap(reify {(a: Long) => (3 * a, a * 2)})
+        .vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
+        .vesortBy(reify{(a: (Long, Long)) => a._1 % 4 })
         .vereduce(reify {(a: (Long, Long), b: (Long, Long)) => (a._1 + b._2, b._1 + a._2)})
+    }
+    benchmark("checkRuns - groupBy - VE ") {
+      verdd
+        .vemap(reify {(a: Long) => (3 * a, a * 2)})
+        .vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
+        .vesortBy(reify{(a: (Long, Long)) => a._1 % 4 })
+        .vegroupBy(reify{(a: (Long, Long)) => a._2 % 7 })
+        .toRDD
+        .collect()
+        .mkString(", ")
     }
     val verddCount = verdd.count()
     val end2 = System.nanoTime()
