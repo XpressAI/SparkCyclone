@@ -3,7 +3,6 @@ package com.nec.ve
 import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.VeType
-import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.DateTimeOps._
 import com.nec.ve.serializer.VeSerializer
 import org.apache.spark._
@@ -205,19 +204,7 @@ abstract class ChainedVeRDD[T](
     shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
     val values = shuffle.map(_._2)
 
-    import com.nec.native.SyntaxTreeOps._
-
-    val dataType = newFunc.types.output.tpe.toVeType
-
-    val funcName = s"merge_${dataType.toString}_1"
-    val code = MergeFunction(funcName, List(dataType))
-    val func = CompiledVeFunction(
-      code.toCFunction,
-      code.toVeFunction.namedResults,
-      newFunc.types.copy(input = newFunc.types.output)
-    )
-
-    new VeConcatRDD[T, VeColBatch](new RawVeRDD[T](values), func)
+    VeConcatRDD(values, newFunc.types.copy(input = newFunc.types.output))
   }
 }
 
