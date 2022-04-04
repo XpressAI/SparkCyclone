@@ -1,6 +1,6 @@
 package com.nec.native
 
-import com.nec.util.SyntaxTreeOps._
+import com.nec.native.SyntaxTreeOps._
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
@@ -12,7 +12,7 @@ case class FunctionTyping[I, O](input: TypeContainer[I], output: TypeContainer[O
 
 object FunctionTyping {
   def fromExpression[I, O](expr: Expr[_]): FunctionTyping[I, O] = {
-    val toolbox = expr.mirror.mkToolBox()
+    val toolbox = CompilerToolBox.get
     toolbox.typecheck(expr.tree) match {
       case f: Function => {
         val input = extractTypes[I](f.vparams.head.tpt.tpe, toolbox)

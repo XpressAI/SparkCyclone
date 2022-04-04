@@ -41,7 +41,7 @@ class FixedBitSetUnitSpec extends AnyWordSpec {
       }
 
       val bytes = bitset1.toByteArray
-      bytes.size should be ((size / 8.8).ceil.toInt)
+      bytes.size should be ((size / 8.0).ceil.toInt)
 
       val bitset2 = BitSet.valueOf(bytes)
       for (i <- 0 until size) {

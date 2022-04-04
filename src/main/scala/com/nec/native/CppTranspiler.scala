@@ -1,20 +1,19 @@
 package com.nec.native
 
+import com.nec.native.SyntaxTreeOps._
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, PointerPointerPointer, Raw}
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines, VeType}
 import com.nec.util.DateTimeOps._
-import com.nec.util.SyntaxTreeOps._
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
 
 import java.time.Instant
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
-import scala.reflect.runtime.{universe, currentMirror => cm}
-import scala.tools.reflect.ToolBox
 
 object CppTranspiler {
-  private val toolbox = cm.mkToolBox()
+  private val toolbox = CompilerToolBox.get
 
   def transpileGroupBy[T, K](expr: universe.Expr[T => K]): CompiledVeFunction = {
     val resultType = expr.staticType.typeArgs.last
@@ -85,58 +84,23 @@ object CppTranspiler {
 
   case class VeSignature(inputs: List[CVector], outputs: List[CVector])
 
-  def extractMapSignature(func: Function): VeSignature = {
-    val argVeTypes = toVeTypes(func.vparams.head.tpt.tpe)
-    val retVeTypes = toVeTypes(func.returnType)
-
-    VeSignature(
-      argVeTypes.zipWithIndex.map { case (veType, i) =>
-        CVector(s"in_${i + 1}", veType)
-      },
-      retVeTypes.zipWithIndex.map { case (veType, i) =>
-        CVector(s"out_$i", veType)
-      }
-    )
-  }
-
-  def toVeTypes(tpe: Type): List[VeType] = {
-    tpe.typeArgs match {
-      case Nil => List(tpe.toVeType)
-      case args => args.map(_.toVeType)
-    }
-  }
-
   def transpileMap[T, U](expr: Expr[T => U]): CompiledVeFunction = {
-    // Convert into a tree with type annotations
-    toolbox.typecheck(expr.tree) match {
-      case func @ Function(vparams, body) =>
-        // Generate the body code
-        val signature = extractMapSignature(func)
-        val newBody = new Transformer {
-          override def transform(tree: universe.Tree): universe.Tree = {
-            tree match {
-              case Select((Ident(i)), TermName(term)) if i == vparams.head.name && term.matches("_\\d?\\d$") =>
-                Ident(TermName(s"in${term}_val"))
-              case i: Ident if (i.name == vparams.head.name) => Ident(TermName("in_1_val"))
-              case _ => super.transform(tree)
-            }
-          }
-        }.transform(body)
+    // Reformat and type-annotate the tree
+    val func = FunctionReformatter.reformatFunction(expr)
+    val signature = func.veSignature
+    val code = evalMapFunc(func)
 
-        val code = evalFuncBody(newBody, signature)
-
-        // Assemble and compile the function
-        CompiledVeFunction(
-          new CFunction2(
-            s"map_${Math.abs(code.hashCode)}",
-            signature.inputs.map(PointerPointer) ++ signature.outputs.map(PointerPointer),
-            code,
-            DefaultHeaders
-          ),
-          signature.outputs,
-          FunctionTyping.fromExpression(expr)
-        )
-    }
+    // Assemble and compile the function
+    CompiledVeFunction(
+      new CFunction2(
+        s"map_${Math.abs(code.hashCode)}",
+        signature.inputs.map(PointerPointer) ++ signature.outputs.map(PointerPointer),
+        code,
+        DefaultHeaders
+      ),
+      signature.outputs,
+      FunctionTyping.fromExpression(expr)
+    )
   }
 
   def sparkTypeToVeType(t: Type): VeType = Map(
@@ -311,22 +275,6 @@ object CppTranspiler {
     }
   }
 
-  // evaluate vparams for Function
-  def evalVParams(fun: Function): String = {
-    val defs = fun.vparams
-    val inputs = defs.map { (v: ValDef) =>
-      val nameStr = v.name.toString
-      val typeStr = evalType(v.tpt)
-      typeStr + " " + nameStr
-    }
-    val output = if (fun.tpe == null) {
-      List(s"${evalType(defs.head.tpt)} out")
-    } else {
-      List(s"${fun.tpe} out")
-    }
-    (inputs ++ output).mkString(", ")
-  }
-
   def evalType(tree: Tree): String = {
     tree match {
       case ident @ Ident(_) =>
@@ -344,7 +292,6 @@ object CppTranspiler {
 
       case unknown => "<unknown type: " + showRaw(unknown) + ">"
     }
-
   }
 
   def evalScalarType(tree: Tree, t: Type): String = {
@@ -407,45 +354,77 @@ object CppTranspiler {
   }
 
   // evaluate the body of a function
-  def evalFuncBody(body: Tree, signature: VeSignature): String = {
-    body match {
-      case ident @ Ident(name) => CodeLines.from(
-        s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();",
-      ).indented.cCode
-      case apply @ Apply(fun, args) => CodeLines.from(
-        s"size_t len = ${signature.inputs.head.name}[0]->count;",
-        signature.outputs.map { (output: CVector) => CodeLines.from(
-          s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
-          s"${output.name}[0]->resize(len);"
-          )},
-        signature.inputs.map { d =>
-          s"${d.veType.cScalarType} ${d.name}_val {};"
-        },
-        "for (auto i = 0; i < len; i++) {",
+  def evalMapFunc(func: Function): String = {
+    val signature = func.veSignature
+
+    val codelines = func.body match {
+      case ident @ Ident(name) =>
+        CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
+
+      case apply @ Apply(fun, args) =>
         CodeLines.from(
+          // Get len
+          s"size_t len = ${signature.inputs.head.name}[0]->count;",
+          "",
+          // Allocate outvecs
+          signature.outputs.map { (output: CVector) => CodeLines.from(
+            s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+            s"${output.name}[0]->resize(len);"
+          )},
+          "",
+          // Declare tmp vars
           signature.inputs.map { d =>
-            s"${d.name}_val = ${d.name}[0]->data[i];"
+            s"${d.veType.cScalarType} ${d.name}_val {};"
           },
-          (apply.fun, apply.args) match {
-            case (TypeApply(Select(Ident(ident), TermName("apply")), _), args2) if ident.toString.startsWith("Tuple") =>
-              CodeLines.from(args2.zip(signature.outputs).map { case (tupleArg, outputArg) =>
-                s"${outputArg.name}[0]->data[i] = ${evalArg(tupleArg)};"
-              })
+          "",
+          // Loop over all rows
+          CodeLines.forLoop("i", "len") {
+            CodeLines.from(
+              // Fetch values
+              signature.inputs.map { d => s"${d.name}_val = ${d.name}[0]->data[i];" },
+              "",
+              // Perform map operation
+              (apply.fun, apply.args) match {
+                case (TypeApply(Select(Ident(ident), TermName("apply")), _), args2) if ident.toString.startsWith("Tuple") =>
+                  CodeLines.from(args2.zip(signature.outputs).map { case (tupleArg, outputArg) =>
+                    s"${outputArg.name}[0]->data[i] = ${evalArg(tupleArg)};"
+                  })
 
-            case _ => s"out_0[0]->data[i] = ${evalApply(apply, signature)};"
-          },
-
-          //s"""std::cout << a_in[0]->data[i] << std::endl;""",
-
-          signature.outputs.map { d =>
-            s"${d.name}[0]->set_validity(i, 1);"
+                case _ =>
+                  s"out_0[0]->data[i] = ${evalApply(apply, signature)};"
+              },
+              "",
+              // Set validity
+              signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
+            )
           }
-        ).indented,
-        "}",
-      ).indented.cCode
-      case unknown => showRaw(unknown)
+        )
+
+      case Literal(Constant(value)) =>
+        CodeLines.from(
+          // Get len
+          s"size_t len = ${signature.inputs.head.name}[0]->count;",
+          "",
+          // Allocate outvecs
+          signature.outputs.map { (output: CVector) => CodeLines.from(
+            s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+            s"${output.name}[0]->resize(len);"
+          )},
+          "",
+          CodeLines.forLoop("i", "len") {
+            // Set value and validity
+            CodeLines.from(
+              signature.outputs.map { d => s"${d.name}[0]->data(i] = ${value};" },
+              signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
+            )
+          }
+        )
+
+      case unknown =>
+        CodeLines.from(showRaw(unknown))
     }
 
+    codelines.indented.cCode
   }
 
   def evalIdent(ident: Ident): String = {
