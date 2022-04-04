@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.native.{CompiledVeFunction, CppTranspiler}
+import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.DateTimeOps._
 import com.nec.ve.serializer.VeSerializer
@@ -15,8 +15,8 @@ import scala.language.experimental.macros
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.reflect.macros.whitebox
+import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
-import scala.reflect.runtime.{currentMirror, universe}
 import scala.tools.reflect.ToolBox
 
 object VeRDD {
@@ -73,7 +73,7 @@ object VeRDD {
 trait VeRDD[T] extends RDD[T] {
   import VeRDD._
 
-  @transient protected val toolbox: ToolBox[universe.type] = currentMirror.mkToolBox()
+  @transient protected val toolbox: ToolBox[universe.type] = CompilerToolBox.get
 
   implicit val tag: ClassTag[T]
 
@@ -248,7 +248,7 @@ abstract class ChainedVeRDD[T](
     shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
     val values = shuffle.map(_._2)
 
-    import com.nec.util.SyntaxTreeOps._
+    import com.nec.native.SyntaxTreeOps._
 
     val dataType = newFunc.types.output.tpe.toVeType
 
