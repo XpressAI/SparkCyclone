@@ -1,14 +1,14 @@
 package com.nec.native
 
-import com.nec.native.CppTranspiler.VeSignature
 import com.nec.spark.agile.core._
-
-import java.time.Instant
 import scala.reflect.runtime.universe._
+import java.time.Instant
+
+case class VeSignature(inputs: List[CVector], outputs: List[CVector])
 
 object SyntaxTreeOps {
   /*
-    NOTE: These extension methods to Function assume that the tree has been
+    NOTE: All extension methods to Function assume that the tree has been
     reformatted and type-annotated with `FunctionReformatter`!
   */
 
@@ -46,6 +46,20 @@ object SyntaxTreeOps {
           CVector(s"out_$i", veType.toVeType)
         }
       )
+    }
+
+    def veReduceSignature: VeSignature = {
+      val inParamCount = func.vparams.size / 2
+      val inOut = func.argTypes.take(inParamCount)
+      VeSignature(
+        inOut.zipWithIndex.map{ case (t, i) => CVector(s"in_${i + 1}", t.toVeType)}.toList,
+        inOut.zipWithIndex.map{ case (t, i) => CVector(s"out_$i", t.toVeType)}.toList
+      )
+    }
+
+    def aggregateParams: List[ValDef] = {
+      val inParamCount = func.vparams.size / 2
+      func.vparams.drop(inParamCount)
     }
   }
 

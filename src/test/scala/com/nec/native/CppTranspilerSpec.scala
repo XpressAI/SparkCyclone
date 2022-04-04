@@ -73,7 +73,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
         |   in_1_val = in_1[0]->data[i];
         |   bitmask[i] = (((in_1_val == 1648428244277340000) ? 0 : (in_1_val < 1648428244277340000) ? -1 : 1) < 0);
         | }
-        | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+        | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
         | out_0[0] = in_1[0]->select(matching_ids);
         """.stripMargin
 
@@ -86,7 +86,7 @@ final class CppTranspilerSpec extends AnyFreeSpec {
         |   in_1_val = in_1[0]->data[i];
         |   bitmask[i] = (((1648428244277340000 == in_1_val) ? 0 : (1648428244277340000 < in_1_val) ? -1 : 1) != 0);
         | }
-        | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+        | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
         | out_0[0] = in_1[0]->select(matching_ids);
         """.stripMargin
 
@@ -164,7 +164,7 @@ object cppSources {
     |   in_1_val = in_1[0]->data[i];
     |   bitmask[i] = (in_1_val < ((in_1_val * in_1_val) - in_1_val));
     | }
-    | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+    | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
     | out_0[0] = in_1[0]->select(matching_ids);
   """.stripMargin
 
@@ -178,7 +178,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = (in_1_val <= ((in_1_val * in_1_val) - in_1_val));
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -191,7 +191,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = (in_1_val > 10);
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -204,7 +204,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = (in_1_val >= 10);
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -217,7 +217,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = (in_1_val == ((in_1_val * in_1_val) - 2));
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -230,7 +230,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = (in_1_val != ((in_1_val * in_1_val) - 2));
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -243,7 +243,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = ((in_1_val % 2) == 0);
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -256,7 +256,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = !((in_1_val % 2) == 0);
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -269,7 +269,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = ((in_1_val > 10) && (in_1_val < 15));
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 
@@ -282,7 +282,7 @@ object cppSources {
       |   in_1_val = in_1[0]->data[i];
       |   bitmask[i] = ((in_1_val < 10) || (in_1_val > 15));
       | }
-      | std::vector<size_t> matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+      | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
       | out_0[0] = in_1[0]->select(matching_ids);
       """.stripMargin
 }
