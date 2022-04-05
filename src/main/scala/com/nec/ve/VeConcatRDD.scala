@@ -1,6 +1,7 @@
 package com.nec.ve
 
-import com.nec.native.CompiledVeFunction
+import com.nec.native.{CompiledVeFunction, FunctionTyping}
+import com.nec.spark.agile.merge.MergeFunction
 import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
 import org.apache.spark.rdd.RDD
 
@@ -23,5 +24,23 @@ class VeConcatRDD[U: TypeTag, T: TypeTag](
         Iterator(VeColBatch.fromList(res))
       }
     }
+  }
+}
+
+object VeConcatRDD {
+  def apply[U: TypeTag, T: TypeTag](rdd: RDD[VeColBatch], funcTypes: FunctionTyping[_, _]): VeConcatRDD[U, VeColBatch] = {
+    import com.nec.native.SyntaxTreeOps._
+
+    val outputTypes = funcTypes.input.tpe.toVeTypes
+
+    val funcName = s"merge_${outputTypes.mkString("_")}_1"
+    val code = MergeFunction(funcName, outputTypes)
+    val func = CompiledVeFunction(
+      code.toCFunction,
+      code.toVeFunction.namedResults,
+      funcTypes
+    )
+
+    new VeConcatRDD[U, VeColBatch](new RawVeRDD[T](rdd), func)
   }
 }

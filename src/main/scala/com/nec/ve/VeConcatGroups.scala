@@ -25,10 +25,12 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
   override protected def getPartitions: Array[Partition] = concatInputs.partitions
 
   def computeMergeVe(): RDD[(K, VeColBatch)] = {
-    val dataType = veType(ClassTag(typeTag.mirror.runtimeClass(typeTag.tpe)))
+    import com.nec.native.SyntaxTreeOps._
 
-    val funcName = s"merge_${dataType.toString}_2"
-    val code = MergeFunction(funcName, List(dataType))
+    val outputTypes = implicitly[universe.TypeTag[T]].tpe.toVeTypes
+
+    val funcName = s"merge_${outputTypes.mkString("_")}_2"
+    val code = MergeFunction(funcName, outputTypes)
     val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults, null)
 
     shuffled.mapPartitions { batchIter =>

@@ -12,12 +12,16 @@ final class FunctionReformatterUnitSpec extends AnyWordSpec {
       val expr1 = reify { (x: (Int, Float, Long, Double)) => (x._1 + x._4) / x._2 }
 
       // Reformatting should produce a function that takes 4 arguments
-      val func = FunctionReformatter.reformatFunction(expr1)
-      func.argTypes should be (List(typeOf[Int], typeOf[Float], typeOf[Long], typeOf[Double]))
+      val func1 = FunctionReformatter.reformatFunction(expr1)
+      func1.argTypes should be (List(typeOf[Int], typeOf[Float], typeOf[Long], typeOf[Double]))
+
+      // Manually create the equivalent generated function
+      val expr2 = reify { (in_1_val: Int, in_2_val: Float, in_3_val: Long, in_4_val: Double) => (in_1_val + in_4_val) / in_2_val }
+      val func2 = CompilerToolBox.get.typecheck(expr2.tree).asInstanceOf[Function]
 
       // The new Function should be tree-equivalent to its tuple expansion
-      val expr2 = reify { (a: Int, b: Float, c: Long, d: Double) => (a + d) / b }
-      func.canEqual(expr2.tree) should be (true)
+      func1.canEqual(func2) should be (true)
+      CppTranspiler.evalMapFunc(func1) should be (CppTranspiler.evalMapFunc(func2))
     }
   }
 }

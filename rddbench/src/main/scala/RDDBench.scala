@@ -14,9 +14,19 @@ object RDDBench {
 
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
-    benchmark("checkRuns - VE ") {
+    benchmark("checkRuns - reduce - VE ") {
       verdd
         .vemap(reify {(a: Long) => (3 * a, a * 2)})
+        .vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
+        .vesortBy(reify{(a: (Long, Long)) => a._1 % 4 })
+        .vereduce(reify {(a: (Long, Long), b: (Long, Long)) => (a._1 + b._2, b._1 + a._2)})
+    }
+    benchmark("checkRuns - groupBy - VE ") {
+      verdd
+        .vemap(reify {(a: Long) => (3 * a, a * 2)})
+        .vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
+        .vesortBy(reify{(a: (Long, Long)) => a._1 % 4 })
+        .vegroupBy(reify{(a: (Long, Long)) => a._2 % 7 })
         .toRDD
         .collect()
         .mkString(", ")
@@ -38,7 +48,7 @@ object RDDBench {
     val result1 = benchmark("Basic - CPU") {
       rdd
         .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
-        .map((a: Long) => ((2 * a) + 12) - (a % 15))
+        .map((a: Long) => ((a.toFloat / 2.0).toLong + 12) - (a % 15))
         .reduce((a: Long, b: Long) => a + b)
     }
     val rddCount = rdd.count()
@@ -51,7 +61,7 @@ object RDDBench {
     val result2 = benchmark("Basic - VE ") {
       verdd
         .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
-        .map((a: Long) => ((2 * a) + 12) - (a % 15))
+        .map((a: Long) => ((a.toFloat / 2.0).toLong + 12) - (a % 15))
         .reduce((a: Long, b: Long) => a + b)
     }
     val verddCount = verdd.count()

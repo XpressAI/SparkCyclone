@@ -3,7 +3,6 @@ package com.nec.ve
 import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.VeType
-import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.DateTimeOps._
 import com.nec.ve.serializer.VeSerializer
 import org.apache.spark._
@@ -107,8 +106,7 @@ trait VeRDD[T] extends RDD[T] {
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val batches = inputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      val array = veColBatch.toArray[T](0)
-      array.toSeq
+      veColBatch.toCPUSeq[T]()
     }
   }
 
@@ -162,7 +160,7 @@ abstract class ChainedVeRDD[T](
 
     val ret = reduceResults.mapPartitions { batches =>
       batches.map { veColBatch =>
-        veColBatch.toArray[T](0)
+        veColBatch.toCPUSeq[T]()
       }
     }
 
@@ -205,19 +203,7 @@ abstract class ChainedVeRDD[T](
     shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
     val values = shuffle.map(_._2)
 
-    import com.nec.native.SyntaxTreeOps._
-
-    val dataType = newFunc.types.output.tpe.toVeType
-
-    val funcName = s"merge_${dataType.toString}_1"
-    val code = MergeFunction(funcName, List(dataType))
-    val func = CompiledVeFunction(
-      code.toCFunction,
-      code.toVeFunction.namedResults,
-      newFunc.types.copy(input = newFunc.types.output)
-    )
-
-    new VeConcatRDD[T, VeColBatch](new RawVeRDD[T](values), func)
+    VeConcatRDD(values, newFunc.types.copy(output = newFunc.types.input))
   }
 }
 
@@ -281,7 +267,7 @@ class BasicVeRDD[T](
 
     val ret = reduceResults.mapPartitions { batches =>
       batches.map { veColBatch =>
-        veColBatch.toArray[T](0)
+        veColBatch.toCPUSeq[T]()
       }
     }
 

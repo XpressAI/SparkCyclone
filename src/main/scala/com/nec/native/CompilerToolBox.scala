@@ -14,8 +14,7 @@ import scala.tools.reflect.ToolBox
  */
 object CompilerToolBox {
   private val toolbox = cm.mkToolBox()
-  toolbox.typecheck(reify{a: Long => a}.tree)
+  toolbox.typecheck(reify { (a: Long) => a }.tree)
 
   def get: ToolBox[universe.type] = toolbox
-
 }
