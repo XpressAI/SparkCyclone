@@ -197,7 +197,7 @@ object CppTranspiler {
           "groups_out[0]->set_validity(i, 1);"
         )
       },
-      s"""//cyclone::print_vec("grouping_keys", grouping_keys);""",
+      s"""// cyclone::print_vec("grouping_keys", grouping_keys);""",
       mark("malloc(group_count)"),
       signature.outputs.map{ output => CodeLines.from(
         s"*${output.name} = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
@@ -250,12 +250,12 @@ object CppTranspiler {
       case select @ Select(_, _) =>
         filterCode(signature, evalSelect(select))
 
-      case lit @ Literal(Constant(true)) =>
+      case Literal(Constant(true)) =>
         CodeLines.from(signature.inputs.zip(signature.outputs).map { case (input, output) =>
           s"${output.name}[0] = ${input.name}->clone();"
         })
 
-      case lit @ Literal(Constant(false)) =>
+      case Literal(Constant(false)) =>
         CodeLines.from(signature.outputs.map { output => CodeLines.from(
           s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
           s"${output.name}[0]->resize(0);",
@@ -266,19 +266,6 @@ object CppTranspiler {
     }
 
     codelines.indented.cCode
-  }
-
-  // currently not used
-  def evalModifiers(modifiers: Modifiers): String = {
-
-    // TODO: Annotations
-
-    // TODO: Flags (should contain PARAM for parameters)
-    modifiers.flags
-
-    // TODO: Visibility scope
-
-    ""
   }
 
   private def mapCode(signature: VeSignature, mapOperation: CodeLines): CodeLines = {
@@ -301,87 +288,13 @@ object CppTranspiler {
           // Fetch values
           signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
           "",
-          // Perform map operation
+          // Perform map operation and set validity
           mapOperation,
-          "",
-          // Set validity
           signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
         )
       }
     )
   }
-
-  // def evalMapFunc(func: Function): String = {
-  //   val signature = func.veMapSignature
-  //   val codelines = func.body match {
-  //     case ident @ Ident(name) =>
-  //       CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
-
-  //     case apply @ Apply(_, _) =>
-  //       CodeLines.from(
-  //         // Get len
-  //         s"size_t len = ${signature.inputs.head.name}[0]->count;",
-  //         "",
-  //         // Allocate outvecs
-  //         signature.outputs.map { (output: CVector) => CodeLines.from(
-  //           s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
-  //           s"${output.name}[0]->resize(len);"
-  //         )},
-  //         "",
-  //         // Declare tmp vars
-  //         signature.inputs.map { in => s"${in.veType.cScalarType} ${in.name}_val {};" },
-  //         "",
-  //         // Loop over all rows
-  //         CodeLines.forLoop("i", "len") {
-  //           CodeLines.from(
-  //             // Fetch values
-  //             signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
-  //             "",
-  //             // Perform map operation
-  //             (apply.fun, apply.args) match {
-  //               case (TypeApply(Select(Ident(ident), TermName("apply")), _), args) if ident.toString.startsWith("Tuple") =>
-  //                 CodeLines.from(args.zip(signature.outputs).map { case (tupleArg, outputArg) =>
-  //                   s"${outputArg.name}[0]->data[i] = ${evalArg(tupleArg)};"
-  //                 })
-
-  //               case _ =>
-  //                 s"out_0[0]->data[i] = ${evalApply(apply)};"
-  //             },
-  //             "",
-  //             // Set validity
-  //             signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
-  //           )
-  //         }
-  //       )
-
-  //     case Literal(Constant(value)) =>
-  //       CodeLines.from(
-  //         // Get len
-  //         s"size_t len = ${signature.inputs.head.name}[0]->count;",
-  //         "",
-  //         // Allocate outvecs
-  //         signature.outputs.map { (output: CVector) => CodeLines.from(
-  //           s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
-  //           s"${output.name}[0]->resize(len);"
-  //         )},
-  //         "",
-  //         CodeLines.forLoop("i", "len") {
-  //           // Set value and validity
-  //           CodeLines.from(
-  //             signature.outputs.map { d => s"${d.name}[0]->data(i] = ${value};" },
-  //             signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
-  //           )
-  //         }
-  //       )
-
-  //     case unknown =>
-  //       CodeLines.from(showRaw(unknown))
-  //   }
-
-  //   codelines.indented.cCode
-  // }
-
-
 
   def evalMapFunc(func: Function): String = {
     val signature = func.veMapSignature
@@ -433,8 +346,6 @@ object CppTranspiler {
 
     codelines.indented.cCode
   }
-
-
 
   def evalIdent(ident: Ident): String = {
     ident match {
