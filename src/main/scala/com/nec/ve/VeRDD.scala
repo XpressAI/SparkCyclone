@@ -54,7 +54,7 @@ object VeRDD {
     c.Expr[T](x)
   }
 
-  /*def vegroupBy_impl[K, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[VeRDD[(K, Iterable[T])]] = {
+  def vegroupBy_impl[K, T](c: whitebox.Context)(f: c.Expr[T => K]): c.Expr[VeRDD[(K, Iterable[T])]] = {
     import c.universe._
 
     val self = c.prefix
@@ -68,7 +68,7 @@ object VeRDD {
     val self = c.prefix
     val x = q"${self}.vesortBy(scala.reflect.runtime.universe.reify { ${f} })"
     c.Expr[VeRDD[T]](x)
-  }*/
+  }
 }
 
 trait VeRDD[T] extends RDD[T] {
@@ -87,7 +87,7 @@ trait VeRDD[T] extends RDD[T] {
 
   override def filter(f: T => Boolean): VeRDD[T] = macro vefilter_impl[T]
 
-  //def groupBy[K](f: T => K): VeRDD[(K, Iterable[T])] = macro vegroupBy_impl[K, T]
+  def groupBy[K](f: T => K): VeRDD[(K, Iterable[T])] = macro vegroupBy_impl[K, T]
 
   //def sortBy[K](f: T => K, ascending: Boolean, numPartitions: Int)(implicit ord: Ordering[K], ctag: ClassTag[K]): RDD[T] =  macro vesortBy_impl[K]
 
@@ -102,6 +102,21 @@ trait VeRDD[T] extends RDD[T] {
   def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T]
 
   def toRDD: RDD[T]
+
+  def flatMap[U](f: T => TraversableOnce[U])(implicit uTag: TypeTag[U]): VeRDD[U] = {
+    val mirror = runtimeMirror(getClass.getClassLoader)
+    implicit val cTag: ClassTag[U] =  ClassTag[U](mirror.runtimeClass(uTag.tpe))
+
+    val rdd = toRDD
+    val flatMapped = rdd.flatMap(f)
+
+    new BasicVeRDD(flatMapped)
+  }
+
+  def veflatMap[U: TypeTag](expr: Expr[T => TraversableOnce[U]]): VeRDD[U] = {
+    val f = toolbox.eval(expr.tree).asInstanceOf[T => TraversableOnce[U]]
+    flatMap(f)
+  }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val batches = inputs.iterator(split, context)

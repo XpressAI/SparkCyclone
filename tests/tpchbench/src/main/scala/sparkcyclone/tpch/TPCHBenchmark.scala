@@ -25,6 +25,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.LocalDate
+import scala.language.existentials
 
 // TPC-H table schemas
 case class Customer(

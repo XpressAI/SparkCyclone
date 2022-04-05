@@ -49,6 +49,8 @@ object RDDBench {
       rdd
         .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
         .map((a: Long) => ((a.toFloat / 2.0).toLong + 12) - (a % 15))
+        .groupBy((a: Long) => a % 2)
+        .flatMap((tup: (Long, Iterable[Long])) => tup._2.map(x => x * tup._1))
         .reduce((a: Long, b: Long) => a + b)
     }
     val rddCount = rdd.count()
@@ -62,6 +64,8 @@ object RDDBench {
       verdd
         .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
         .map((a: Long) => ((a.toFloat / 2.0).toLong + 12) - (a % 15))
+        .groupBy((a: Long) => a % 2)
+        .flatMap((tup: (Long, Iterable[Long])) => tup._2.map(x => x * tup._1))
         .reduce((a: Long, b: Long) => a + b)
     }
     val verddCount = verdd.count()
@@ -99,6 +103,8 @@ object RDDBench {
         .map((a: Instant) => Instant.parse("2022-02-28T08:18:50.957303Z").compareTo(a) + 1L)
         .reduce((a: Long, b: Long) => a + b)
     }
+
+
     val verddCount = verdd.count()
     val end2 = System.nanoTime()
 
