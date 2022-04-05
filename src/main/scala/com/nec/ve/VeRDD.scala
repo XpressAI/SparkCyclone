@@ -25,6 +25,10 @@ object VeRDD {
     def toVeRDD: VeRDD[T] = new BasicVeRDD[T](rdd)
   }
 
+  implicit class PairVeRDDFunctions[K: TypeTag, V: TypeTag](self: VeRDD[(K, V)]){
+    def vejoin[W: TypeTag](other: VeRDD[(K, W)]): VeRDD[(K, V, W)] = VeJoinRDD(self, other)
+  }
+
   implicit class VeRichSparkContext(sc: SparkContext) {
     def veParallelize(range: NumericRange.Inclusive[Long]): VeRDD[Long] = {
       SequenceVeRDD.makeSequence(sc, range.start, range.end)
@@ -333,9 +337,4 @@ class RawVeRDD[T](
   override def vesortBy[K](expr: universe.Expr[VeColBatch => K], ascending: Boolean, numPartitions: Int): VeRDD[VeColBatch] = ???
 
   override def toRDD: RDD[VeColBatch] = rdd
-}
-
-
-class PairVeRDDFunctions[K: TypeTag, V: TypeTag](self: VeRDD[(K, V)]){
-  def join[W: TypeTag](other: VeRDD[(K, W)]): VeRDD[(K, V, W)] = VeJoinRDD(self, other)
 }
