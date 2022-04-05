@@ -281,48 +281,131 @@ object CppTranspiler {
     ""
   }
 
+  private def mapCode(signature: VeSignature, mapOperation: CodeLines): CodeLines = {
+    CodeLines.from(
+      // Get len
+      s"size_t len = ${signature.inputs.head.name}[0]->count;",
+      "",
+      // Allocate outvecs
+      signature.outputs.map { (output: CVector) => CodeLines.from(
+        s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+        s"${output.name}[0]->resize(len);"
+      )},
+      "",
+      // Declare tmp vars
+      signature.inputs.map { in => s"${in.veType.cScalarType} ${in.name}_val {};" },
+      "",
+      // Loop over all rows
+      CodeLines.forLoop("i", "len") {
+        CodeLines.from(
+          // Fetch values
+          signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
+          "",
+          // Perform map operation
+          mapOperation,
+          "",
+          // Set validity
+          signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
+        )
+      }
+    )
+  }
+
+  // def evalMapFunc(func: Function): String = {
+  //   val signature = func.veMapSignature
+  //   val codelines = func.body match {
+  //     case ident @ Ident(name) =>
+  //       CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
+
+  //     case apply @ Apply(_, _) =>
+  //       CodeLines.from(
+  //         // Get len
+  //         s"size_t len = ${signature.inputs.head.name}[0]->count;",
+  //         "",
+  //         // Allocate outvecs
+  //         signature.outputs.map { (output: CVector) => CodeLines.from(
+  //           s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+  //           s"${output.name}[0]->resize(len);"
+  //         )},
+  //         "",
+  //         // Declare tmp vars
+  //         signature.inputs.map { in => s"${in.veType.cScalarType} ${in.name}_val {};" },
+  //         "",
+  //         // Loop over all rows
+  //         CodeLines.forLoop("i", "len") {
+  //           CodeLines.from(
+  //             // Fetch values
+  //             signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
+  //             "",
+  //             // Perform map operation
+  //             (apply.fun, apply.args) match {
+  //               case (TypeApply(Select(Ident(ident), TermName("apply")), _), args) if ident.toString.startsWith("Tuple") =>
+  //                 CodeLines.from(args.zip(signature.outputs).map { case (tupleArg, outputArg) =>
+  //                   s"${outputArg.name}[0]->data[i] = ${evalArg(tupleArg)};"
+  //                 })
+
+  //               case _ =>
+  //                 s"out_0[0]->data[i] = ${evalApply(apply)};"
+  //             },
+  //             "",
+  //             // Set validity
+  //             signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
+  //           )
+  //         }
+  //       )
+
+  //     case Literal(Constant(value)) =>
+  //       CodeLines.from(
+  //         // Get len
+  //         s"size_t len = ${signature.inputs.head.name}[0]->count;",
+  //         "",
+  //         // Allocate outvecs
+  //         signature.outputs.map { (output: CVector) => CodeLines.from(
+  //           s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
+  //           s"${output.name}[0]->resize(len);"
+  //         )},
+  //         "",
+  //         CodeLines.forLoop("i", "len") {
+  //           // Set value and validity
+  //           CodeLines.from(
+  //             signature.outputs.map { d => s"${d.name}[0]->data(i] = ${value};" },
+  //             signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
+  //           )
+  //         }
+  //       )
+
+  //     case unknown =>
+  //       CodeLines.from(showRaw(unknown))
+  //   }
+
+  //   codelines.indented.cCode
+  // }
+
+
+
   def evalMapFunc(func: Function): String = {
     val signature = func.veMapSignature
     val codelines = func.body match {
       case ident @ Ident(name) =>
         CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
 
-      case apply @ Apply(fun, args) =>
-        CodeLines.from(
-          // Get len
-          s"size_t len = ${signature.inputs.head.name}[0]->count;",
-          "",
-          // Allocate outvecs
-          signature.outputs.map { (output: CVector) => CodeLines.from(
-            s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
-            s"${output.name}[0]->resize(len);"
-          )},
-          "",
-          // Declare tmp vars
-          signature.inputs.map { in => s"${in.veType.cScalarType} ${in.name}_val {};" },
-          "",
-          // Loop over all rows
-          CodeLines.forLoop("i", "len") {
-            CodeLines.from(
-              // Fetch values
-              signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
-              "",
-              // Perform map operation
-              (apply.fun, apply.args) match {
-                case (TypeApply(Select(Ident(ident), TermName("apply")), _), args2) if ident.toString.startsWith("Tuple") =>
-                  CodeLines.from(args2.zip(signature.outputs).map { case (tupleArg, outputArg) =>
-                    s"${outputArg.name}[0]->data[i] = ${evalArg(tupleArg)};"
-                  })
+      case apply @ Apply(_, _) =>
+        val mapOperation = CodeLines.from {
+          (apply.fun, apply.args) match {
+            case (TypeApply(Select(Ident(ident), TermName("apply")), _), args) if ident.toString.startsWith("Tuple") =>
+              args.zip(signature.outputs).map { case (tupleArg, out) =>
+                s"${out.name}[0]->data[i] = ${evalArg(tupleArg)};"
+              }
 
-                case _ =>
-                  s"out_0[0]->data[i] = ${evalApply(apply)};"
-              },
-              "",
-              // Set validity
-              signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
-            )
+            case _ =>
+              List(s"out_0[0]->data[i] = ${evalApply(apply)};")
           }
-        )
+        }
+        mapCode(signature, mapOperation)
+
+      case select @ Select(_, _) =>
+        val mapOperation = CodeLines.from(s"out_0[0]->data[i] = ${evalSelect(select)};")
+        mapCode(signature, mapOperation)
 
       case Literal(Constant(value)) =>
         CodeLines.from(
@@ -351,6 +434,8 @@ object CppTranspiler {
     codelines.indented.cCode
   }
 
+
+
   def evalIdent(ident: Ident): String = {
     ident match {
       case other => s"${other}"
@@ -362,6 +447,7 @@ object CppTranspiler {
       case literal @ Literal(_) => evalLiteral(literal)
       case ident @ Ident(_) => evalIdent(ident)
       case apply @ Apply(_) => evalApply(apply)
+      case select @ Select(_) => evalSelect(select)
       case unknown => "<unknown args in apply: " + showRaw(unknown) + ">"
     }
   }
@@ -407,23 +493,6 @@ object CppTranspiler {
     }
   }
 
-  def evalApplyScalar(apply: Apply): String = {
-
-    val funStr = apply.fun match {
-      case sel @ Select(tree, name) => evalSelectScalar(sel)
-      case unknown => "unknown fun in evalApply: " + showRaw(unknown)
-    }
-
-    val argsStr = apply.args.map({
-      case literal @ Literal(_) => evalLiteral(literal)
-      case ident @ Ident(_) => evalIdent(ident)
-      case apply @ Apply(_) => evalApply(apply)
-      case unknown => "<unknown args in apply: " + showRaw(unknown) + ">"
-    }).mkString(", ")
-
-    "(" + funStr + argsStr + ")"
-  }
-
   def evalLiteral(literal: Literal): String = {
     literal.value match {
       case Constant(true) => "1"
@@ -435,14 +504,34 @@ object CppTranspiler {
 
   def evalSelect(select: Select): String = {
     select.name match {
-      case TermName("unary_$bang") => " !" + evalQual(select.qualifier)
-      case _ => evalQual(select.qualifier) + evalName(select.name)
+      case TermName("unary_$bang") if select.tpe =:= typeOf[Boolean] =>
+        s" !${evalQual(select.qualifier)}"
+
+      case TermName("toInt") if select.tpe =:= typeOf[Int] =>
+        s"int32_t( ${evalQual(select.qualifier)} )"
+
+      case TermName("toShort") if select.tpe =:= typeOf[Short] =>
+        // Cast to int16_t first before fitting it back to int32_t
+        s"int32_t(int16_t( ${evalQual(select.qualifier)} ))"
+
+      case TermName("toLong") if select.tpe =:= typeOf[Long] =>
+        s"int64_t( ${evalQual(select.qualifier)} )"
+
+      case TermName("toFloat") if select.tpe =:= typeOf[Float] =>
+        s"float( ${evalQual(select.qualifier)} )"
+
+      case TermName("toDouble") if select.tpe =:= typeOf[Double] =>
+        s"double( ${evalQual(select.qualifier)} )"
+
+      case TermName("toByte") if select.tpe =:= typeOf[Byte] =>
+        s"int8_t( ${evalQual(select.qualifier)} )"
+
+      case TermName("toChar") if select.tpe =:= typeOf[Char] =>
+        s"char16_t( ${evalQual(select.qualifier)} )"
+
+      case _ =>
+        s"${evalQual(select.qualifier)}${evalName(select.name)}"
     }
-
-  }
-
-  def evalSelectScalar(select: Select): String = {
-    evalQualScalar(select.qualifier) + evalName(select.name)
   }
 
   def evalQual(tree: Tree): String = {
@@ -450,18 +539,9 @@ object CppTranspiler {
       case ident @ Ident(_) => evalIdent(ident)
       case apply @ Apply(x) => evalApply(apply)
       case lit @ Literal(_) => evalLiteral(lit)
+      case select @ Select(_) => evalSelect(select)
       case unknown => "<unknown qual: " + showRaw(unknown) + ">"
     }
-
-  }
-  def evalQualScalar(tree: Tree): String = {
-    tree match {
-      case ident @ Ident(_) => evalIdent(ident)
-      case apply @ Apply(x) => evalApply(apply)
-      case lit @ Literal(_) => evalLiteral(lit)
-      case unknown => "<unknown qual: " + showRaw(unknown) + ">"
-    }
-
   }
 
   def evalName(name: Name): String = {
@@ -480,7 +560,7 @@ object CppTranspiler {
       case TermName("unary_$bang") => " !"
       case TermName("$amp$amp") => " && "
       case TermName("$bar$bar") => " || "
-      case unknown => "<< <UNKNOWN> in evalName>>"
+      case unknown => s"[[ <UNKNOWN> in evalName: ${unknown} ]]"
     }
   }
 

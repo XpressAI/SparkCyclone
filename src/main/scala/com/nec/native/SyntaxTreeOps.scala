@@ -74,6 +74,9 @@ object SyntaxTreeOps {
     def toVeType: VeType = {
       if (tpe =:= typeOf[Int]) {
         VeNullableInt
+      } else if (tpe =:= typeOf[Short]) {
+        // Shorts are represented as Ints on the VE to enable vectorization
+        VeNullableInt
       } else if (tpe =:= typeOf[Long]) {
         VeNullableLong
       } else if (tpe =:= typeOf[Float]) {
