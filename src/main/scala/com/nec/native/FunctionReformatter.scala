@@ -1,7 +1,6 @@
 package com.nec.native
 
 import com.nec.native.SyntaxTreeOps._
-
 import scala.reflect.runtime.universe._
 
 object FunctionReformatter {
@@ -34,7 +33,7 @@ object FunctionReformatter {
     val transformer = new Transformer {
       override def transform(tree: Tree): Tree = {
         tree match {
-          // NOTE: May need to update this to handle multi-parameter functions
+          // There is only one input in the original function
           case Select((Ident(i)), TermName(term)) if i == func.vparams.head.name && term.matches("_\\d?\\d$") =>
             Ident(TermName(nameGenerator.apply(term)))
 
@@ -112,8 +111,10 @@ object FunctionReformatter {
             toolbox.untypecheck(reformatReduceBody(func, paramNameGenerator, aggNameGenerator))
           )
         ).asInstanceOf[Function]
+
       case func @ Function(vparams, _) =>
         throw new IllegalArgumentException(s"Unsupported function arity (${vparams.size})")
+
       case _ =>
         throw new NotImplementedError(s"Function reformatting only works with Function")
     }
