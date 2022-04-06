@@ -4,6 +4,21 @@ import scala.reflect.runtime.universe._
 
 final class TranspileReduceUnitSpec extends CppTranspilerSpec {
   "CppTranspiler for Reduce Functions" should {
+    "correctly transpile a reduction of Long, Long => Long (identity)" in {
+      val expected =
+        """
+          | size_t len = in_1[0]->count;
+          | out_0[0] = nullable_bigint_vector::allocate();
+          | out_0[0]->resize(1);
+          |
+          | out_0[0]->data[0] = in_1[0]->data[len - 1];
+          | out_0[0]->set_validity(0, 1);
+        """.stripMargin
+
+      val groupByCode = CppTranspiler.transpileReduce(reify({ (x: Long, y: Long) => x }))
+      assertCodeEqualish(groupByCode, expected)
+    }
+
     "correctly transpile a reduction of Long, Long => Long" in {
       val expected =
         """

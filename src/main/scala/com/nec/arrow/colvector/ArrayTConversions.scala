@@ -1,13 +1,14 @@
 package com.nec.arrow.colvector
 
 import com.nec.spark.agile.core._
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import scala.reflect.ClassTag
 import com.nec.util.FixedBitSet
+import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.bytedeco.javacpp._
 
+import scala.reflect.ClassTag
+
 object ArrayTConversions {
-  implicit class ArrayTToBPCV[T <: AnyVal : ClassTag](input: Array[T]) {
+  implicit class ArrayTToBPCV[T : ClassTag](input: Array[T]) {
     private[colvector] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 

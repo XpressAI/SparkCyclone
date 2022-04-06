@@ -25,6 +25,7 @@
 #include <vector>
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
+#include "frovedis/dataframe/join.hpp"
 
 namespace cyclone {
   inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
@@ -89,6 +90,20 @@ namespace cyclone {
     }
 
     return output;
+  }
+
+  inline void equi_join_indices(std::vector<size_t> &left, std::vector<size_t> &right, std::vector<size_t> &matchingLeft, std::vector<size_t> &matchingRight) {
+      size_t left_len = left.size();
+      size_t right_len = right.size();
+      std::vector<size_t> left_idxs(left_len);
+      std::vector<size_t> right_idxs(right_len);
+      for(auto i = 0; i < left_len; i++){
+          left_idxs[i] = i;
+      }
+      for(auto i = 0; i < right_len; i++){
+          right_idxs[i] = i;
+      }
+      frovedis::equi_join(left, left_idxs, right, right_idxs, matchingLeft, matchingRight);
   }
 
   // Print out a std::tuple to ostream

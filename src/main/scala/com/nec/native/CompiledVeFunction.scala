@@ -51,4 +51,14 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
     val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
     veProcess.executeMultiIn(libRef, func.name, batchOfBatches, outputs)
   }
+
+  def evalJoinFunction(
+    leftBatchOfBatches: VeColBatch.VeBatchOfBatches,
+    rightBatchOfBatches: VeColBatch.VeBatchOfBatches
+  )(implicit ctx: OriginalCallingContext): List[VeColVector] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+
+    val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
+    veProcess.executeJoin(libRef, func.name, leftBatchOfBatches, rightBatchOfBatches, outputs)
+  }
 }

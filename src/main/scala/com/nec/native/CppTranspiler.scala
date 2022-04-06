@@ -5,6 +5,7 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Po
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines}
 import com.nec.util.DateTimeOps._
+
 import java.time.Instant
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
@@ -97,9 +98,7 @@ object CppTranspiler {
 
   def evalGroupBy(fun: Function, signature: VeSignature): String = {
     fun.body match {
-      case ident @ Ident(name) => CodeLines.from(
-        s"${evalIdent(ident)};",
-      ).indented.cCode
+      case ident @ Ident(TermName(name)) => groupByCode(signature, name)
       case apply @ Apply(fun, args) => groupByCode(signature, evalApply(apply))
       case select @ Select(tree, name) => groupByCode(signature, evalSelect(select))
       case unknown => showRaw(unknown)
@@ -111,7 +110,20 @@ object CppTranspiler {
     val aggs = func.aggregateParams
     val codelines = func.body match {
       case ident @ Ident(name) =>
-        CodeLines.from(s"${evalIdent(ident)};")
+        CodeLines.from(
+          s"size_t len = ${signature.inputs.head.name}[0]->count;",
+          // Allocate output
+          signature.outputs.map { out => CodeLines.from(
+            s"${out.name}[0] = ${out.veType.cVectorType}::allocate();",
+            s"${out.name}[0]->resize(1);",
+          )},
+          // Set last element of inputs
+          "",
+          signature.outputs.zip(signature.inputs).map { case (out, in) => CodeLines.from(
+            s"${out.name}[0]->data[0] = ${in.name}[0]->data[len - 1];",
+            s"${out.name}[0]->set_validity(0, 1);",
+          )}
+        )
 
       case apply @ Apply(_, _) =>
         CodeLines.from(
@@ -242,7 +254,7 @@ object CppTranspiler {
     val signature = func.veInOutSignature
     val codelines = func.body match {
       case ident @ Ident(name) =>
-        CodeLines.from(s"${evalIdent(ident)};")
+        throw new IllegalArgumentException("Identity filter is not supported (no Boolean vector support)")
 
       case apply @ Apply(_, _) =>
         filterCode(signature, evalApply(apply))

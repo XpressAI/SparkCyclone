@@ -4,6 +4,7 @@ import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.VeType
 import com.nec.util.DateTimeOps._
+import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.nec.ve.serializer.VeSerializer
 import org.apache.spark._
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
@@ -23,6 +24,10 @@ import scala.tools.reflect.ToolBox
 object VeRDD {
   implicit class VeRichRDD[T: ClassTag: TypeTag](rdd: RDD[T]) {
     def toVeRDD: VeRDD[T] = new BasicVeRDD[T](rdd)
+  }
+
+  implicit class PairVeRDDFunctions[K: TypeTag, V: TypeTag](self: VeRDD[(K, V)]){
+    def vejoin[W: TypeTag](other: VeRDD[(K, W)]): VeRDD[(K, V, W)] = VeJoinRDD(self, other)
   }
 
   implicit class VeRichSparkContext(sc: SparkContext) {
@@ -226,31 +231,17 @@ class BasicVeRDD[T](
   rdd: RDD[T]
 )(implicit val typeTag: TypeTag[T])  extends RDD[T](rdd.sparkContext, List(new OneToOneDependency(rdd)))(ClassTag(typeTag.mirror.runtimeClass(typeTag.tpe))) with VeRDD[T] {
   val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
-    import com.nec.arrow.colvector.ArrayTConversions._
-    import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
-    import com.nec.spark.SparkCycloneExecutorPlugin._
-    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+    val batch = typeTag.tpe.asInstanceOf[TypeRef].args match {
+      case Nil => VeColBatch.fromList(List(convertToVeVector(valsIter, index, 0, typeTag.tpe)))
+      case args =>
+        val inputList = valsIter.toList
+        val columns = args.zipWithIndex.map { case (tpe, idx) =>
+          val column = inputList.map(el => el.asInstanceOf[Product].productElement(idx))
+          convertToVeVector(column.iterator, index, idx, tpe)
+        }
 
-    val valsArray = valsIter.toArray
-    val klass = implicitly[ClassTag[T]].runtimeClass
-    val veVector = if (klass == classOf[Int]) {
-      valsArray.asInstanceOf[Array[Int]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
-    } else if (klass == classOf[Long]) {
-      valsArray.asInstanceOf[Array[Long]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
-    } else if (klass == classOf[Float]) {
-      valsArray.asInstanceOf[Array[Float]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
-    } else if (klass == classOf[Double]) {
-      valsArray.asInstanceOf[Array[Double]].toBytePointerColVector(s"inputs-${index}").toVeColVector()
-    } else if (klass == classOf[Instant]) {
-      valsArray.asInstanceOf[Array[Instant]]
-        .map(_.toFrovedisDateTime)
-        .toBytePointerColVector(s"inputs-${index}")
-        .toVeColVector()
-    } else {
-      throw new NotImplementedError(s"Cannot convert Array[T] to VeColVector for T = ${klass}")
+        VeColBatch.fromList(columns)
     }
-
-    val batch = VeColBatch.fromList(List(veVector))
     Iterator(batch)
   }
 
@@ -259,6 +250,21 @@ class BasicVeRDD[T](
     sparkContext.runJob(inputs.persist(StorageLevel.MEMORY_ONLY).cache(), (i: Iterator[_]) => ())
   }
 
+  def convertToVeVector(valsIter: Iterator[_], index: Int, seriesIndex: Int, tpe: Type): VeColVector = {
+    import com.nec.arrow.colvector.ArrayTConversions._
+    import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
+    import com.nec.spark.SparkCycloneExecutorPlugin._
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+    val klass = typeTag.mirror.runtimeClass(tpe)
+    val klassTag = ClassTag[Any](klass)
+    val veVector = if(tpe =:= typeOf[Instant]){
+      valsIter.map(_.asInstanceOf[Instant].toFrovedisDateTime).toArray.toBytePointerColVector(s"inputs-${index}-${seriesIndex}").toVeColVector()
+    }else{
+      ArrayTToBPCV(valsIter.toArray(klassTag))(klassTag).toBytePointerColVector(s"inputs-${index}-${seriesIndex}").toVeColVector()
+    }
+    veVector
+  }
 
   def vemap[U: TypeTag](expr: Expr[T => U]): VeRDD[U] = {
     val newFunc = CppTranspiler.transpileMap(expr)
