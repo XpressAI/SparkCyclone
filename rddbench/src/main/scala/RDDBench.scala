@@ -183,9 +183,9 @@ object RDDBench {
     val verdd = rdd.toVeRDD
     val result2 = benchmark("Stress Test on HDFS Data - VE") {
       verdd
-        .filter((a: Data) => a._1 % 2 == 0)
-        .map((a: Data) => (a._1, a._2 * a._4, a._3 / 2.0f, a._5 * a._3))
-        .reduce((tupA: Res, tupB: Res) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
+        .filter((a: (Long, Int, Float, Long, Double)) => a._1 % 2 == 0)
+        .map((a: (Long, Int, Float, Long, Double)) => (a._1, a._2 * a._4, a._3 / 2.0f, a._5 * a._3))
+        .reduce((tupA: (Long, Long, Float, Double), tupB: (Long, Long, Float, Double)) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
     }
     println(s"Values ${result1}, ${result2}.  Match: ${result1 == result2}")
   }
