@@ -5,7 +5,6 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, Po
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines}
 import com.nec.util.DateTimeOps._
-
 import java.time.Instant
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
