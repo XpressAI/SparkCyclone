@@ -94,6 +94,7 @@ object RDDBench {
     println(s"Values match: ${result1 == result2}")
     println(s"vhrdd has ${rddCount} rows. (took ${(end1 - start1) / 1000000000} s total)")
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
+    rdd.unpersist(true)
   }
 
   def timestampsBenchmark(spark: SparkSession): Unit = {
@@ -132,6 +133,7 @@ object RDDBench {
     println(s"Values match: ${result1 == result2}")
     println(s"vhrdd has ${rddCount} rows. (took ${(end1 - start1) / 1000000000} s total)")
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
+    rdd.unpersist(true)
   }
 
 
@@ -185,6 +187,7 @@ object RDDBench {
         .reduce((tupA: (Long, Long, Float, Double), tupB: (Long, Long, Float, Double)) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
     }
     println(s"Values ${result1}, ${result2}.  Match: ${result1 == result2}")
+    rdd.unpersist(true)
   }
 
   def main(args: Array[String]): Unit = {
