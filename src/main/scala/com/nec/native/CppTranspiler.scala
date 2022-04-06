@@ -228,7 +228,8 @@ object CppTranspiler {
     ).indented.cCode
   }
 
-  private def filterCode(signature: VeSignature, predicateCode: String): CodeLines = {
+  private def filterCode(signature: VeSignature, template: (CodeLines, String)): CodeLines = {
+    val (blockLines, predicateCode) = template
     CodeLines.from(
       s"size_t len = ${signature.inputs.head.name}[0]->count;",
       s"std::vector<size_t> bitmask(len);",
@@ -238,6 +239,8 @@ object CppTranspiler {
       CodeLines.forLoop("i", "len") {
         CodeLines.from(
           signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
+          "",
+          blockLines,
           "",
           s"bitmask[i] = ${predicateCode};"
         )
@@ -250,28 +253,68 @@ object CppTranspiler {
     )
   }
 
+  private def filterOperation(block: Block): (CodeLines, String) = {
+    /*
+      The last line of the code block is the only line that is transpiled
+      differently because its return value(s) need to be written into the output
+      vecs.
+    */
+    val lastline = block.children.last match {
+      case apply: Apply =>
+        evalApply(apply)
+
+      case select: Select =>
+        evalSelect(select)
+
+      case ifblock: If =>
+        evalIf(ifblock)
+    }
+
+    (
+      CodeLines.from(
+        // Only the first N-1 lines of the block are straightforwardly transpiled
+        block.children.dropRight(1)
+          .map(evalQual)
+          .filter(_.nonEmpty)
+          .map(l => s"${l};"),
+      ),
+      lastline
+    )
+  }
+
   def evalFilterFunc(func: Function): String = {
     val signature = func.veInOutSignature
     val codelines = func.body match {
-      case ident @ Ident(name) =>
-        throw new IllegalArgumentException("Identity filter is not supported (no Boolean vector support)")
+      case ident: Ident =>
+        CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
 
-      case apply @ Apply(_, _) =>
-        filterCode(signature, evalApply(apply))
+      case apply: Apply =>
+        // To reduce code duplication, shove the Apply into a Block and eval as a block
+        filterCode(signature, filterOperation(Block(q"()", apply)))
 
-      case select @ Select(_, _) =>
-        filterCode(signature, evalSelect(select))
+      case select: Select =>
+        // To reduce code duplication, shove the Select into a Block and eval as a block
+        filterCode(signature, filterOperation(Block(q"()", select)))
 
-      case Literal(Constant(true)) =>
+      case ifblock: If =>
+        // To reduce code duplication, shove the If into a Block and eval as a block
+        filterCode(signature, filterOperation(Block(q"()", ifblock)))
+
+      case Literal(Constant(true)) | Block(_, Literal(Constant(true))) =>
+        // If the body is a singular `true` value or a block with a constant `true` return value, ignore all other computations inside the block and clone
         CodeLines.from(signature.inputs.zip(signature.outputs).map { case (input, output) =>
           s"${output.name}[0] = ${input.name}->clone();"
         })
 
-      case Literal(Constant(false)) =>
+      case Literal(Constant(false)) | Block(_, Literal(Constant(false))) =>
+        // If the body is a singular `false` value or a block with a constant `false` return value, ignore all other computations inside the block and allocate empty vec
         CodeLines.from(signature.outputs.map { output => CodeLines.from(
           s"${output.name}[0] = ${output.veType.cVectorType}::allocate();",
           s"${output.name}[0]->resize(0);",
         )})
+
+      case block: Block =>
+        filterCode(signature, filterOperation(block))
 
       case unknown =>
         CodeLines.from(showRaw(unknown))
@@ -309,11 +352,16 @@ object CppTranspiler {
   }
 
   private def mapOperation(block: Block, signature: VeSignature): CodeLines = {
+    /*
+      The last line of the code block is the only line that is transpiled
+      differently because its return value(s) need to be written into the output
+      vecs.
+    */
     val lastline = block.children.last match {
       case ident @ Ident(name) =>
         CodeLines.from(s"${signature.outputs.head.name}[0]->data[i] = ${evalIdent(ident)};")
 
-      case apply @ Apply(_, _) =>
+      case apply: Apply =>
         CodeLines.from {
           (apply.fun, apply.args) match {
             case (TypeApply(Select(Ident(ident), TermName("apply")), _), args) if ident.toString.startsWith("Tuple") =>
@@ -326,7 +374,10 @@ object CppTranspiler {
           }
         }
 
-      case select @ Select(_, _) =>
+      case ifblock: If =>
+        CodeLines.from(s"out_0[0]->data[i] = ${evalIf(ifblock)};")
+
+      case select: Select =>
         CodeLines.from(s"out_0[0]->data[i] = ${evalSelect(select)};")
 
       case Literal(Constant(value)) =>
@@ -334,7 +385,11 @@ object CppTranspiler {
     }
 
     CodeLines.from(
-      block.children.dropRight(1).map(evalQual),
+      // Only the first N-1 lines of the block are straightforwardly transpiled
+      block.children.dropRight(1)
+        .map(evalQual)
+        .filter(_.nonEmpty)
+        .map(l => s"${l};"),
       "",
       lastline
     )
@@ -353,22 +408,30 @@ object CppTranspiler {
   def evalMapFunc(func: Function): String = {
     val signature = func.veMapSignature
     val codelines = func.body match {
-      case ident @ Ident(name) =>
+      case ident: Ident =>
         CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
 
-      case apply @ Apply(_, _) =>
+      case apply: Apply =>
+        // To reduce code duplication, shove the Apply into a Block and eval as a block
         mapCode(signature, mapOperation(Block(q"()", apply), signature))
 
-      case select @ Select(_, _) =>
+      case select: Select =>
+        // To reduce code duplication, shove the Select into a Block and eval as a block
         mapCode(signature, mapOperation(Block(q"()", select), signature))
 
+      case ifblock: If =>
+        // To reduce code duplication, shove the If into a Block and eval as a block
+        mapCode(signature, mapOperation(Block(q"()", ifblock), signature))
+
       case Literal(Constant(value)) =>
+        // If the body is a constant value, just create a constant vec
         mapCodeForConstant(signature, value)
 
       case Block(_, Literal(Constant(value))) =>
+        // If the body is a block with a constant return value, ignore all other computations inside the block and create a constant vec
         mapCodeForConstant(signature, value)
 
-      case block @ Block(_) =>
+      case block: Block =>
         mapCode(signature, mapOperation(block, signature))
 
       case unknown =>
@@ -469,14 +532,33 @@ object CppTranspiler {
 
   def evalQual(tree: Tree): String = {
     tree match {
-      case x @ Ident(_) => evalIdent(x)
-      case x @ Apply(_) => evalApply(x)
-      case x @ Literal(_) => evalLiteral(x)
-      case x @ Select(_) => evalSelect(x)
-      case x @ ValDef(_) => evalValDef(x)
-      case x @ Assign(_) => evalAssign(x)
+      case x: Ident   => evalIdent(x)
+      case x: Apply   => evalApply(x)
+      case x: Literal => evalLiteral(x)
+      case x: Select  => evalSelect(x)
+      case x: ValDef  => evalValDef(x)
+      case x: Assign  => evalAssign(x)
+      case x: Block   => evalBlock(x)
+      case x: If      => evalIf(x)
       case unknown => "<unknown qual: " + showRaw(unknown) + ">"
     }
+  }
+
+  def evalBlock(block: Block): String = {
+    val lines = block.children
+      .map(evalQual)
+      .filter(_.nonEmpty)
+      .map(l => s"${l};")
+
+    CodeLines.from(
+      "({",
+      CodeLines.from(lines).indented,
+      "})"
+    ).cCode
+  }
+
+  def evalIf(ifblock: If): String = {
+    s"( ${evalQual(ifblock.cond)} ) ? ( ${evalQual(ifblock.thenp)} ) : ( ${evalQual(ifblock.elsep)} )"
   }
 
   def evalName(name: Name): String = {
@@ -501,11 +583,11 @@ object CppTranspiler {
 
   def evalValDef(vdef: ValDef): String = {
     val modifier = if (vdef.mods.hasFlag(Flag.MUTABLE)) "" else "const ";
-    s"${modifier}${vdef.tpt.tpe.toVeType.cScalarType} ${vdef.name} = ${evalQual(vdef.rhs)};"
+    s"${modifier}${vdef.tpt.tpe.toVeType.cScalarType} ${vdef.name} = ${evalQual(vdef.rhs)}"
   }
 
   def evalAssign(assign: Assign): String = {
-    s"${evalQual(assign.lhs)} = ${evalQual(assign.rhs)};"
+    s"${evalQual(assign.lhs)} = ${evalQual(assign.rhs)}"
   }
 
   private def debugPrint(marker: String, expr: String, enabled: Boolean): CodeLines = {

@@ -157,11 +157,26 @@ void test_statement_expressions() {
 
   ({
     std::cout << "Did this get executed?" << std::endl;
+    21;
+  });
+
+  auto tmp = 10;
+
+  auto y = ({
+    std::cout << "Testing the case" << std::endl;
+    tmp < 20;
+  }) ? (({
+    std::cout << "Reached the true case" << std::endl;
     33;
+  })) : ({
+    std::cout << "Reached the false case" << std::endl;
+    66;
   });
 
   std::cout << "================================================================================" << std::endl;
-  std::cout << "STATEMENT EXPRESSIONS TEST: " << x << std::endl;
+  std::cout << "STATEMENT EXPRESSIONS TEST\n" << std::endl;
+  std::cout << "Basic test output: " << x << std::endl;
+  std::cout << "If statement test output: " << y << std::endl;
   std::cout << "================================================================================" << std::endl;
 }
 
