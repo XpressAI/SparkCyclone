@@ -15,6 +15,14 @@ object RDDBench {
 
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
+
+    benchmark("checkRuns - tuple input - VE") {
+      sc.parallelize(numbers.zip(numbers))
+        .toVeRDD
+        .vemap(reify{(a: (Long, Long)) => a._1 + a._2})
+        .vereduce(reify {(a: Long, b: Long) => a + b})
+    }
+
     benchmark("checkRuns - join - VE") {
       val rdd1: VeRDD[(Long, Long)] = verdd.vemap(reify { (a: Long) => (3 * a, a * 2) }).vefilter(reify{(a: (Long, Long)) => a._1 % 16 == 0})
       val rdd2: VeRDD[(Long, Long)] = verdd.vemap(reify { (a: Long) => (3 * a, a * 7)}).vefilter(reify{(a: (Long, Long)) => a._1 % 8 == 0})

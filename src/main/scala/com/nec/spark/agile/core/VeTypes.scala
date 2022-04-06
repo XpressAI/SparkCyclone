@@ -1,6 +1,5 @@
 package com.nec.spark.agile.core
 
-import scala.reflect.ClassTag
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
 
@@ -51,7 +50,7 @@ object VeScalarType {
     classOf[Short] -> VeNullableShort
   )
 
-  def fromJvmType[T <: AnyVal : ClassTag]: VeScalarType = {
+  def fromJvmType[T : ClassTag]: VeScalarType = {
     val klass = implicitly[ClassTag[T]].runtimeClass
     JvmToVeTypeMap.get(klass) match {
       case Some(typ)  => typ
