@@ -9,7 +9,6 @@ import com.nec.ve.serializer.VeSerializer
 import org.apache.spark._
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}
-import org.apache.spark.storage.StorageLevel
 
 import java.time.Instant
 import scala.collection.immutable.NumericRange
@@ -108,8 +107,7 @@ trait VeRDD[T] extends RDD[T] {
 
   def toRDD : RDD[T] = {
     inputs.mapPartitions { batches =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-      import com.nec.spark.SparkCycloneExecutorPlugin.source
+      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       batches.flatMap { veColBatch =>
@@ -208,7 +206,19 @@ abstract class ChainedVeRDD[T](
     val typeK = implicitly[TypeTag[K]]
     implicit val kClassTag: ClassTag[K] = ClassTag(typeK.mirror.runtimeClass(typeK.tpe))
 
-    val mapped = new VeGroupByRDD[K, T](this, newFunc)
+    val mapped = new VeGroupByRDD[K, T](this, newFunc).map { case (idx, veColBatch) =>
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+      require(
+        veColBatch.nonEmpty,
+        s"Expected ${veColBatch} to be non-empty (redundant transfers)"
+      )
+      TaskContext.get().addTaskCompletionListener[Unit](_ => veColBatch.free())
+
+      (idx, veColBatch)
+    }
+
     val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
     out.setSerializer(new VeSerializer(sparkContext.getConf, true))
     new VeConcatGroups[K, T](out)
@@ -219,7 +229,18 @@ abstract class ChainedVeRDD[T](
     implicit val ord: Ordering[K] = newFunc.types.output.ordering.asInstanceOf[Ordering[K]]
     implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
 
-    val mapped = new VeGroupByRDD(this, newFunc)
+    val mapped = new VeGroupByRDD(this, newFunc).map { case (idx, veColBatch) =>
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+      require(
+        veColBatch.nonEmpty,
+        s"Expected ${veColBatch} to be non-empty (redundant transfers)"
+      )
+      TaskContext.get().addTaskCompletionListener[Unit](_ => veColBatch.free())
+
+      (idx, veColBatch)
+    }
     val shuffle = new ShuffledRDD[K, VeColBatch, VeColBatch](
       mapped,
       new RangePartitioner(this.partitions.length, mapped, ascending)
@@ -303,16 +324,52 @@ class BasicVeRDD[T](
   override def vegroupBy[K: TypeTag](expr: Expr[T => K]): VeRDD[(K, Iterable[T])] = {
     val newFunc = CppTranspiler.transpileGroupBy(expr)
     implicit val ord: Ordering[K] = newFunc.types.output.ordering.asInstanceOf[Ordering[K]]
-    implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
+    val typeK = implicitly[TypeTag[K]]
+    implicit val kClassTag: ClassTag[K] = ClassTag(typeK.mirror.runtimeClass(typeK.tpe))
 
-    val mapped = new VeGroupByRDD(this, newFunc)
+    val mapped = new VeGroupByRDD[K, T](this, newFunc).map { case (idx, veColBatch) =>
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+      require(
+        veColBatch.nonEmpty,
+        s"Expected ${veColBatch} to be non-empty (redundant transfers)"
+      )
+      TaskContext.get().addTaskCompletionListener[Unit](_ => veColBatch.free())
+
+      (idx, veColBatch)
+    }
+
     val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
     out.setSerializer(new VeSerializer(sparkContext.getConf, true))
-    new VeConcatGroups(out)
+    new VeConcatGroups[K, T](out)
   }
 
   override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T] = {
-    ???
+    val newFunc = CppTranspiler.transpileGroupBy(expr)
+    implicit val ord: Ordering[K] = newFunc.types.output.ordering.asInstanceOf[Ordering[K]]
+    implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
+
+    val mapped = new VeGroupByRDD(this, newFunc).map { case (idx, veColBatch) =>
+      import com.nec.spark.SparkCycloneExecutorPlugin._
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+      require(
+        veColBatch.nonEmpty,
+        s"Expected ${veColBatch} to be non-empty (redundant transfers)"
+      )
+      TaskContext.get().addTaskCompletionListener[Unit](_ => veColBatch.free())
+
+      (idx, veColBatch)
+    }
+    val shuffle = new ShuffledRDD[K, VeColBatch, VeColBatch](
+      mapped,
+      new RangePartitioner(this.partitions.length, mapped, ascending)
+    ).setKeyOrdering(ord)
+    shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    val values = shuffle.map(_._2)
+
+    VeConcatRDD(values, newFunc.types.copy(output = newFunc.types.input))
   }
 
   override protected def getPartitions: Array[Partition] = rdd.partitions
