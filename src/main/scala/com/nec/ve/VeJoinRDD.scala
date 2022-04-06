@@ -73,10 +73,16 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
     }
   }
 
-  def toRDD: RDD[T] = {
+  override def toRDD: RDD[T] = {
     joinedInputs.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+      import com.nec.spark.SparkCycloneExecutorPlugin.source
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
       batches.flatMap { veColBatch =>
-        veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+        res
       }
     }
   }

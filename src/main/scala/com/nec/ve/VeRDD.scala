@@ -106,7 +106,20 @@ trait VeRDD[T] extends RDD[T] {
 
   def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T]
 
-  def toRDD: RDD[T]
+  def toRDD : RDD[T] = {
+    inputs.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+      import com.nec.spark.SparkCycloneExecutorPlugin.source
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
+      batches.flatMap { veColBatch =>
+        val res = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+        res
+      }
+    }
+  }
+
 
   def flatMap[U](f: T => TraversableOnce[U])(implicit uTag: TypeTag[U]): VeRDD[U] = {
     val mirror = runtimeMirror(getClass.getClassLoader)
@@ -160,15 +173,6 @@ abstract class ChainedVeRDD[T](
       res
     }
   }
-
-  override def toRDD : RDD[T] = {
-    inputs.mapPartitions { batches =>
-      batches.flatMap { veColBatch =>
-        veColBatch.toCPUSeq[T]()
-      }
-    }
-  }
-
 
   def vereduce(expr: Expr[(T, T) => T]): T = {
     val newFunc = CppTranspiler.transpileReduce(expr)
@@ -246,9 +250,9 @@ class BasicVeRDD[T](
   }
 
   // Trigger caching of VeColBatches
-  if (inputs != null) {
-    sparkContext.runJob(inputs.persist(StorageLevel.MEMORY_ONLY).cache(), (i: Iterator[_]) => ())
-  }
+  //if (inputs != null) {
+  //  sparkContext.runJob(inputs.persist(StorageLevel.MEMORY_ONLY).cache(), (i: Iterator[_]) => ())
+  //}
 
   def convertToVeVector(valsIter: Iterator[_], index: Int, seriesIndex: Int, tpe: Type): VeColVector = {
     import com.nec.arrow.colvector.ArrayTConversions._
@@ -309,15 +313,6 @@ class BasicVeRDD[T](
 
   override def vesortBy[K](expr: Expr[T => K], ascending: Boolean = true, numPartitions: Int = this.partitions.length): VeRDD[T] = {
     ???
-  }
-
-
-  override def toRDD : RDD[T] = {
-    inputs.mapPartitions { batches =>
-      batches.flatMap { veColBatch =>
-        veColBatch.toCPUSeq[T]()
-      }
-    }
   }
 
   override protected def getPartitions: Array[Partition] = rdd.partitions

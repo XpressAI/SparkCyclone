@@ -71,6 +71,6 @@ class SequenceVeRDD(orig: RDD[Long], rdd: RDD[VeColBatch]) extends BasicVeRDD[Lo
   override val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
     val batch = valsIter.next()
     Iterator(batch)
-  }.cache()
-  sparkContext.runJob(inputs, (i: Iterator[_]) => ())
+  }
+  //sparkContext.runJob(inputs, (i: Iterator[_]) => ())
 }

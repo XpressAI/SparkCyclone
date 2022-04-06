@@ -48,10 +48,16 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
     }
   }
 
-  def toRDD: RDD[(K, Iterable[T])] = {
+  override def toRDD: RDD[(K, Iterable[T])] = {
     concatInputs.mapPartitions { batches =>
       batches.map { case (key, veColBatch) =>
+        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        import com.nec.spark.SparkCycloneExecutorPlugin.source
+        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
         val array = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+
         (key, array)
       }
     }

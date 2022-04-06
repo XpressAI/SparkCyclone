@@ -5,11 +5,13 @@ import org.apache.spark.{SparkConf, SparkContext}
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.runtime.universe.reify
+import org.apache.spark.sql.SparkSession
 
 object RDDBench {
   val timings: MMap[String, Double] = MMap.empty
 
-  def checkRuns(sc: SparkContext): Unit = {
+  def checkRuns(spark: SparkSession): Unit = {
+    val sc = spark.sparkContext
     println("Making VeRDD[Long]")
     val numbers = (1L to (1 * 1000))
 
@@ -52,7 +54,9 @@ object RDDBench {
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
   }
 
-  def basicBenchmark(sc: SparkContext): Unit = {
+  def basicBenchmark(spark: SparkSession): Unit = {
+    val sc = spark.sparkContext
+
     println("Basic RDD Benchmark")
 
     println("Making RDD[Long]")
@@ -91,7 +95,8 @@ object RDDBench {
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
   }
 
-  def timestampsBenchmark(sc: SparkContext): Unit = {
+  def timestampsBenchmark(spark: SparkSession): Unit = {
+    val sc = spark.sparkContext
     println("Timestamps RDD Benchmark")
 
     println("Making RDD[Instant]")
@@ -148,12 +153,16 @@ object RDDBench {
   }
 
   def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("RDDBench")
-    val sc = new SparkContext(conf)
+    val spark = SparkSession
+      .builder()
+      .appName("RDDBench")
+      .getOrCreate()
 
-    checkRuns(sc)
-    basicBenchmark(sc)
-    timestampsBenchmark(sc)
+    val sc = spark.sparkContext
+
+    checkRuns(spark)
+    basicBenchmark(spark)
+    timestampsBenchmark(spark)
 
     dumpResult()
     sc.stop
