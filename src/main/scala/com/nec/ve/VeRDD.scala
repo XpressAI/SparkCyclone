@@ -135,9 +135,14 @@ trait VeRDD[T] extends RDD[T] {
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
     val batches = inputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      veColBatch.toCPUSeq[T]()
+      val res = veColBatch.toCPUSeq[T]()
+      veColBatch.free()
+      res
     }
   }
 
@@ -181,8 +186,13 @@ abstract class ChainedVeRDD[T](
     }
 
     val ret = reduceResults.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
       batches.map { veColBatch =>
-        veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+        res
       }
     }
 
@@ -312,8 +322,13 @@ class BasicVeRDD[T](
     }
 
     val ret = reduceResults.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
       batches.map { veColBatch =>
-        veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+        res
       }
     }
 

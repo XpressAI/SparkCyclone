@@ -30,9 +30,14 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
   val joinedInputs: RDD[VeColBatch] = computeJoinVe()
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
     val batches = joinedInputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      veColBatch.toCPUSeq[T]()
+      val res = veColBatch.toCPUSeq[T]()
+      veColBatch.free()
+      res
     }
   }
 
@@ -75,8 +80,7 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
 
   override def toRDD: RDD[T] = {
     joinedInputs.mapPartitions { batches =>
-      import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-      import com.nec.spark.SparkCycloneExecutorPlugin.source
+      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       batches.flatMap { veColBatch =>
