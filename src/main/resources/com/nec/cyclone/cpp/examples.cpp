@@ -149,16 +149,27 @@ void test_lambda() {
   output->print();
 }
 
+void test_statement_expressions() {
+  auto x = ({
+    int y = 10;
+    y + 32;
+  });
+
+  ({
+    std::cout << "Did this get executed?" << std::endl;
+    33;
+  });
+
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "STATEMENT EXPRESSIONS TEST: " << x << std::endl;
+  std::cout << "================================================================================" << std::endl;
+}
+
 int main() {
   // projection_test();
   // filter_test();
   // test_sort1();
   // test_sort2();
   // test_lambda();
-
-  // const auto *input = new nullable_varchar_vector(std::vector<std::string> { "foo1", "bar2", "foobar3", "baz4", "buz5", "faa6" });
-  const auto *input = new nullable_int_vector(std::vector<int32_t> { 0, 1, 2, 3, 4, 5 });
-  const auto *output = input->select(std::vector<size_t> { 5, 1, 3, 2 });
-  input->print();
-  output->print();
+  test_statement_expressions();
 }

@@ -32,6 +32,13 @@ nullable_varchar_vector * nullable_varchar_vector::allocate() {
   return new (output) nullable_varchar_vector;
 }
 
+nullable_varchar_vector * nullable_varchar_vector::constant(const size_t size, const std::string &value) {
+  // Allocate
+  auto *output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
+  // Initialize
+  return new (output) nullable_varchar_vector(size, value);
+}
+
 nullable_varchar_vector * nullable_varchar_vector::from_words(const frovedis::words &src) {
   // Allocate
   auto *output = allocate();
@@ -51,7 +58,7 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
     dataSize += src[i].size();
   }
 
-  // Copy strings to data
+  // Initialize data and copy strings to data
   data = static_cast<int32_t *>(malloc(sizeof(int32_t) * dataSize));
   auto p = 0;
   for (auto i = 0; i < count; i++) {
@@ -60,18 +67,48 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
     }
   }
 
-  // Set the lengths
+  // Initialize and set the lengths
   lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
-   for (auto i = 0; i < count; i++) {
-      lengths[i] = src[i].size();
-   }
+  for (auto i = 0; i < count; i++) {
+    lengths[i] = src[i].size();
+  }
 
-  // Set the offsets
+  // Initialize and set the offsets
   offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
   offsets[0] = 0;
   for (auto i = 1; i < count; i++) {
     offsets[i] = offsets[i-1] + lengths[i-1];
   }
+
+  // Set the validityBuffer
+  const size_t vcount = frovedis::ceil_div(count, int32_t(64));
+  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
+  for (auto i = 0; i < vcount; i++) {
+    validityBuffer[i] = 0xffffffffffffffff;
+  }
+}
+
+nullable_varchar_vector::nullable_varchar_vector(const size_t size, const std::string &value) {
+  // Initialize count
+  count = size;
+
+  // Initialize dataSize
+  dataSize = value.size();
+
+  // Initialize data and copy string to data
+  data = static_cast<int32_t *>(malloc(sizeof(int32_t) * dataSize));
+  for (auto i = 0; i < value.size(); i++) {
+    data[i] = static_cast<int32_t>(value[i]);
+  }
+
+  // Initialize and set the lengths
+  lengths = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
+  for (auto i = 0; i < count; i++) {
+    lengths[i] = value.size();
+  }
+
+  // Initialize and set the offsets to zero
+  offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
 
   // Set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
@@ -102,7 +139,7 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
   }
 
   // Set the validityBuffer
-  size_t vcount = frovedis::ceil_div(count, int32_t(64));
+  const size_t vcount = frovedis::ceil_div(count, int32_t(64));
   validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
@@ -344,7 +381,7 @@ nullable_varchar_vector * nullable_varchar_vector::select(const std::vector<size
   #pragma _NEC vector
   for (auto g = 0; g < selected_ids.size(); g++) {
     // Fetch the original index
-    auto i = selected_ids[g];
+    const auto i = selected_ids[g];
 
     // Copy the start and len values
     starts[g] = input_words.starts[i];
@@ -372,7 +409,7 @@ nullable_varchar_vector * nullable_varchar_vector::select(const std::vector<size
   #pragma _NEC vector
   for (auto g = 0; g < selected_ids.size(); g++) {
     // Fetch the original index
-    int i = selected_ids[g];
+    const int i = selected_ids[g];
 
     // Copy the validity buffer
     output->set_validity(g, get_validity(i));
@@ -461,7 +498,7 @@ const std::vector<int32_t> nullable_varchar_vector::date_cast() const {
   static const auto epoch = frovedis::makedatetime(1970, 1, 1, 0, 0, 0, 0);
 
   const auto words = to_words();
-  auto datetimes = frovedis::parsedatetime(words, std::string("%Y-%m-%d"));
+  const auto datetimes = frovedis::parsedatetime(words, std::string("%Y-%m-%d"));
 
   std::vector<int32_t> dates(count);
   #pragma _NEC vector
@@ -513,10 +550,10 @@ nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size
   std::vector<int32_t> false_chars = frovedis::char_to_int(falseval);
 
   // Set the positions and lengths
-  int32_t true_pos = 0;
-  int32_t true_len = output_chars.size();
-  int32_t false_pos = output_chars.size();
-  int32_t false_len = false_chars.size();
+  const int32_t true_pos = 0;
+  const int32_t true_len = output_chars.size();
+  const int32_t false_pos = output_chars.size();
+  const int32_t false_len = false_chars.size();
 
   // Combine to single vector
   output_chars.insert(output_chars.end(), false_chars.begin(), false_chars.end());
