@@ -1,5 +1,7 @@
 import com.nec.ve.VeRDD
 import com.nec.ve.VeRDD.{VeRichSparkContext, _}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.SparkSession
 
 import java.time.Instant
@@ -151,6 +153,43 @@ object RDDBench {
     println("============================")
   }
 
+  def generateData(spark: SparkSession): String = {
+    val sc = spark.sparkContext
+    val data = sc.veParallelize(1L to (10L * 1000000L))
+    val rows = data.map((a: Long) => (a, (a * 2).toInt, (a * 3).toFloat, (a * 4), (a * 5).toDouble))
+    val reversed = rows.sortBy((tup) => tup._1, ascending = false)
+    val path = s"sampledata-${Instant.now().toEpochMilli}"
+    reversed.saveAsObjectFile(path)
+    path
+  }
+
+  type Data = (Long, Int, Float, Long, Double)
+  type Res = (Long, Long, Float, Double)
+
+  def fileBenchmark(spark: SparkSession, path: String): Unit = {
+    val sc = spark.sparkContext
+    println("File RDD Benchmark CPU")
+
+    val rdd = sc.objectFile[Data](path, 8).cache()
+
+    val result1 = benchmark("Stress Test on HDFS Data - CPU") {
+      rdd
+        .filter((a: Data) => a._1 % 2 == 0)
+        .map((a: Data) => (a._1, a._2 * a._4, a._3 / 2.0f, a._5 * a._3))
+        .reduce((tupA: Res, tupB: Res) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
+    }
+
+    println("File RDD Benchmark VE")
+    val verdd = rdd.toVeRDD
+    val result2 = benchmark("Stress Test on HDFS Data - VE") {
+      verdd
+        .filter((a: Data) => a._1 % 2 == 0)
+        .map((a: Data) => (a._1, a._2 * a._4, a._3 / 2.0f, a._5 * a._3))
+        .reduce((tupA: Res, tupB: Res) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
+    }
+    println(s"Values ${result1}, ${result2}.  Match: ${result1 == result2}")
+  }
+
   def main(args: Array[String]): Unit = {
     val spark = SparkSession
       .builder()
@@ -162,6 +201,13 @@ object RDDBench {
     checkRuns(spark)
     basicBenchmark(spark)
     timestampsBenchmark(spark)
+    val path = generateData(spark)
+    fileBenchmark(spark, path)
+
+    println(s"Cleaning up ${path}")
+    val hadoopConf = new Configuration()
+    val hdfs = FileSystem.get(hadoopConf)
+    try { hdfs.delete(new Path(path), true) } catch { case _ : Throwable => { } }
 
     dumpResult()
     sc.stop
