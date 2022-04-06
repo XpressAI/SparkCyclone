@@ -155,7 +155,7 @@ object RDDBench {
 
   def generateData(spark: SparkSession): String = {
     val sc = spark.sparkContext
-    val data = sc.veParallelize(1L to (500L * 1000000L))
+    val data = sc.veParallelize(1L to (100L * 1000000L))
     val rows = data.map((a: Long) => (a, (a * 2).toInt, (a * 3).toFloat, (a * 4), (a * 5).toDouble))
     val reversed = rows.sortBy((tup) => tup._1, ascending = false)
     val path = s"sampledata-${Instant.now().toEpochMilli}"
