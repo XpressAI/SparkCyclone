@@ -1,11 +1,10 @@
 import com.nec.ve.VeRDD
 import com.nec.ve.VeRDD.{VeRichSparkContext, _}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SparkSession
 
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.runtime.universe.reify
-import org.apache.spark.sql.SparkSession
 
 object RDDBench {
   val timings: MMap[String, Double] = MMap.empty
@@ -60,7 +59,7 @@ object RDDBench {
     println("Basic RDD Benchmark")
 
     println("Making RDD[Long]")
-    val numbers = (1L to (500 * 1000000))
+    val numbers = (1L to (1000 * 1000000))
 
     val start1 = System.nanoTime()
     val rdd = sc.parallelize(numbers).repartition(8).cache()
