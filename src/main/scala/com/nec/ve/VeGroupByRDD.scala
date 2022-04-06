@@ -48,5 +48,5 @@ class VeGroupByRDD[G, T](
 
   override def vegroupBy[K: universe.TypeTag](expr: universe.Expr[((G, VeColBatch)) => K]): VeRDD[(K, Iterable[(G, VeColBatch)])] = ???
 
-  override def vesortBy[K](expr: universe.Expr[((G, VeColBatch)) => K], ascending: Boolean, numPartitions: Int): VeRDD[(G, VeColBatch)] = ???
+  override def vesortBy[K: universe.TypeTag](expr: universe.Expr[((G, VeColBatch)) => K], ascending: Boolean, numPartitions: Int): VeRDD[(G, VeColBatch)] = ???
 }

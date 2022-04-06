@@ -101,5 +101,5 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
 
   override def vegroupBy[G: universe.TypeTag](expr: universe.Expr[T => G]): VeRDD[(G, Iterable[T])] = ???
 
-  override def vesortBy[G](expr: universe.Expr[T => G], ascending: Boolean, numPartitions: Int): VeRDD[T] = ???
+  override def vesortBy[G: universe.TypeTag](expr: universe.Expr[T => G], ascending: Boolean, numPartitions: Int): VeRDD[T] = ???
 }
