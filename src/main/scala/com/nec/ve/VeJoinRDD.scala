@@ -30,9 +30,14 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
   val joinedInputs: RDD[VeColBatch] = computeJoinVe()
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
     val batches = joinedInputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      veColBatch.toCPUSeq[T]()
+      val res = veColBatch.toCPUSeq[T]()
+      veColBatch.free()
+      res
     }
   }
 
@@ -73,10 +78,15 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
     }
   }
 
-  def toRDD: RDD[T] = {
+  override def toRDD: RDD[T] = {
     joinedInputs.mapPartitions { batches =>
+      import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
       batches.flatMap { veColBatch =>
-        veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+        res
       }
     }
   }
@@ -91,5 +101,5 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
 
   override def vegroupBy[G: universe.TypeTag](expr: universe.Expr[T => G]): VeRDD[(G, Iterable[T])] = ???
 
-  override def vesortBy[G](expr: universe.Expr[T => G], ascending: Boolean, numPartitions: Int): VeRDD[T] = ???
+  override def vesortBy[G: universe.TypeTag](expr: universe.Expr[T => G], ascending: Boolean, numPartitions: Int): VeRDD[T] = ???
 }

@@ -19,6 +19,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.yarn.maxAppAttempts=1 \
     --conf spark.task.maxFailures=1 \
+    --conf spark.executorEnv.VE_MALLOC_MMAP_THRESHOLD_=1048576 \
     target/scala-2.12/rddbench_2.12-0.1.jar \
     $*
 

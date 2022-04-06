@@ -16,9 +16,14 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
   val concatInputs: RDD[(K, VeColBatch)] = computeMergeVe()
 
   override def compute(split: Partition, context: TaskContext): Iterator[(K, Iterable[T])] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
     val batches = concatInputs.iterator(split, context)
     batches.map { case (key, veColBatch) =>
-      (key, veColBatch.toCPUSeq[T]())
+      val res = (key, veColBatch.toCPUSeq[T]())
+      veColBatch.free()
+      res
     }
   }
 
@@ -48,10 +53,15 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
     }
   }
 
-  def toRDD: RDD[(K, Iterable[T])] = {
+  override def toRDD: RDD[(K, Iterable[T])] = {
     concatInputs.mapPartitions { batches =>
       batches.map { case (key, veColBatch) =>
+        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+
         val array = veColBatch.toCPUSeq[T]()
+        veColBatch.free()
+
         (key, array)
       }
     }
@@ -67,5 +77,5 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
 
   override def vegroupBy[G: universe.TypeTag](expr: universe.Expr[((K, Iterable[T])) => G]): VeRDD[(G, Iterable[(K, Iterable[T])])] = ???
 
-  override def vesortBy[G](expr: universe.Expr[((K, Iterable[T])) => G], ascending: Boolean, numPartitions: Int): VeRDD[(K, Iterable[T])] = ???
+  override def vesortBy[G: universe.TypeTag](expr: universe.Expr[((K, Iterable[T])) => G], ascending: Boolean, numPartitions: Int): VeRDD[(K, Iterable[T])] = ???
 }

@@ -1,6 +1,8 @@
 import com.nec.ve.VeRDD
 import com.nec.ve.VeRDD.{VeRichSparkContext, _}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.sql.SparkSession
 
 import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
@@ -9,7 +11,8 @@ import scala.reflect.runtime.universe.reify
 object RDDBench {
   val timings: MMap[String, Double] = MMap.empty
 
-  def checkRuns(sc: SparkContext): Unit = {
+  def checkRuns(spark: SparkSession): Unit = {
+    val sc = spark.sparkContext
     println("Making VeRDD[Long]")
     val numbers = (1L to (1 * 1000))
 
@@ -52,11 +55,13 @@ object RDDBench {
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
   }
 
-  def basicBenchmark(sc: SparkContext): Unit = {
+  def basicBenchmark(spark: SparkSession): Unit = {
+    val sc = spark.sparkContext
+
     println("Basic RDD Benchmark")
 
     println("Making RDD[Long]")
-    val numbers = (1L to (500 * 1000000))
+    val numbers = (1L to (1000 * 1000000))
 
     val start1 = System.nanoTime()
     val rdd = sc.parallelize(numbers).repartition(8).cache()
@@ -89,9 +94,11 @@ object RDDBench {
     println(s"Values match: ${result1 == result2}")
     println(s"vhrdd has ${rddCount} rows. (took ${(end1 - start1) / 1000000000} s total)")
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
+    rdd.unpersist(true)
   }
 
-  def timestampsBenchmark(sc: SparkContext): Unit = {
+  def timestampsBenchmark(spark: SparkSession): Unit = {
+    val sc = spark.sparkContext
     println("Timestamps RDD Benchmark")
 
     println("Making RDD[Instant]")
@@ -126,6 +133,7 @@ object RDDBench {
     println(s"Values match: ${result1 == result2}")
     println(s"vhrdd has ${rddCount} rows. (took ${(end1 - start1) / 1000000000} s total)")
     println(s"verdd has ${verddCount} rows. (took ${(end2 - start2) / 1000000000} s total)")
+    rdd.unpersist(true)
   }
 
 
@@ -147,13 +155,59 @@ object RDDBench {
     println("============================")
   }
 
-  def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("RDDBench")
-    val sc = new SparkContext(conf)
+  def generateData(spark: SparkSession): String = {
+    val sc = spark.sparkContext
+    val data = sc.veParallelize(1L to (100L * 1000000L))
+    val rows = data.map((a: Long) => (a, (a * 2).toInt, (a * 3).toFloat, (a * 4), (a * 5).toDouble))
+    val reversed = rows.sortBy((tup) => tup._1, ascending = false)
+    val path = s"sampledata-${Instant.now().toEpochMilli}"
+    reversed.saveAsObjectFile(path)
+    path
+  }
 
-    checkRuns(sc)
-    basicBenchmark(sc)
-    timestampsBenchmark(sc)
+  def fileBenchmark(spark: SparkSession, path: String): Unit = {
+    val sc = spark.sparkContext
+    println("File RDD Benchmark CPU")
+
+    val rdd = sc.objectFile[(Long, Int, Float, Long, Double)](path, 8).cache()
+
+    val result1 = benchmark("Stress Test on HDFS Data - CPU") {
+      rdd
+        .filter((a: (Long, Int, Float, Long, Double)) => a._1 % 2 == 0)
+        .map((a: (Long, Int, Float, Long, Double)) => (a._1, a._2 * a._4, a._3 / 2.0f, a._5 * a._3))
+        .reduce((tupA: (Long, Long, Float, Double), tupB: (Long, Long, Float, Double)) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
+    }
+
+    println("File RDD Benchmark VE")
+    val verdd = rdd.toVeRDD
+    val result2 = benchmark("Stress Test on HDFS Data - VE") {
+      verdd
+        .filter((a: (Long, Int, Float, Long, Double)) => a._1 % 2 == 0)
+        .map((a: (Long, Int, Float, Long, Double)) => (a._1, a._2 * a._4, a._3 / 2.0f, a._5 * a._3))
+        .reduce((tupA: (Long, Long, Float, Double), tupB: (Long, Long, Float, Double)) => (tupA._1 + tupB._1, tupA._2 + tupB._2, tupA._3 + tupB._3, tupA._4 + tupB._4))
+    }
+    println(s"Values ${result1}, ${result2}.  Match: ${result1 == result2}")
+    rdd.unpersist(true)
+  }
+
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession
+      .builder()
+      .appName("RDDBench")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+
+    checkRuns(spark)
+    basicBenchmark(spark)
+    timestampsBenchmark(spark)
+    val path = generateData(spark)
+    fileBenchmark(spark, path)
+
+    println(s"Cleaning up ${path}")
+    val hadoopConf = new Configuration()
+    val hdfs = FileSystem.get(hadoopConf)
+    try { hdfs.delete(new Path(path), true) } catch { case _ : Throwable => { } }
 
     dumpResult()
     sc.stop
