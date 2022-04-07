@@ -68,8 +68,42 @@ final class TranspileFilterUnitSpec extends CppTranspilerSpec {
     }
 
     "correctly transpile an Ident Body for both the non-Tuple and Tuple input cases" in {
-      val output1 = "out_0[0] = in_1[0]->clone();"
-      val output2 = "out_0[0] = in_2[0]->clone();"
+      val output1 =
+        """
+          | size_t len = in_1[0]->count;
+          | std::vector<size_t> bitmask(len);
+          |
+          | int32_t in_1_val {};
+          |
+          | for (auto i = 0; i < len; i++) {
+          |   in_1_val = in_1[0]->data[i];
+          |
+          |   bitmask[i] = in_1_val;
+          | }
+          |
+          | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+          | out_0[0] = in_1[0]->select(matching_ids);
+        """.stripMargin
+
+      val output2 =
+        """
+          | size_t len = in_1[0]->count;
+          | std::vector<size_t> bitmask(len);
+          |
+          | float in_1_val {};
+          | int32_t in_2_val {};
+          |
+          | for (auto i = 0; i < len; i++) {
+          |   in_1_val = in_1[0]->data[i];
+          |   in_2_val = in_2[0]->data[i];
+          |
+          |   bitmask[i] = in_2_val;
+          | }
+          |
+          | auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);
+          | out_0[0] = in_1[0]->select(matching_ids);
+          | out_1[0] = in_2[0]->select(matching_ids);
+        """.stripMargin
 
       val genCode1 = CppTranspiler.transpileFilter(reify { (x: Boolean) => x })
       val genCode2 = CppTranspiler.transpileFilter(reify { (x: (Float, Boolean)) => x._2 })
@@ -195,7 +229,7 @@ final class TranspileFilterUnitSpec extends CppTranspilerSpec {
           |
           |   int32_t x = (int32_t( in_1_val ) % 3);
           |
-          |   const int32_t y =  ({
+          |   const int32_t y = ({
           |     const int32_t z = 66;
           |     (
           |       ({

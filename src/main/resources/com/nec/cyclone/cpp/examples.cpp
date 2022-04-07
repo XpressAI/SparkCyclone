@@ -163,7 +163,7 @@ void test_statement_expressions() {
   auto tmp = 10;
 
   auto y = ({
-    std::cout << "Testing the case" << std::endl;
+    std::cout << "Testing the condition" << std::endl;
     tmp < 20;
   }) ? (({
     std::cout << "Reached the true case" << std::endl;
@@ -173,10 +173,15 @@ void test_statement_expressions() {
     66;
   });
 
+  auto t = 1;
+  auto z = 2;
+  z = t = 5;
+
   std::cout << "================================================================================" << std::endl;
   std::cout << "STATEMENT EXPRESSIONS TEST\n" << std::endl;
   std::cout << "Basic test output: " << x << std::endl;
   std::cout << "If statement test output: " << y << std::endl;
+  std::cout << "Multiple assignment test output: " << z << " " << t << std::endl;
   std::cout << "================================================================================" << std::endl;
 }
 

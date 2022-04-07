@@ -259,6 +259,9 @@ object CppTranspiler {
       vecs.
     */
     val lastline = block.children.last match {
+      case ident: Ident =>
+        evalIdent(ident)
+
       case apply: Apply =>
         evalApply(apply)
 
@@ -285,7 +288,8 @@ object CppTranspiler {
     val signature = func.veInOutSignature
     val codelines = func.body match {
       case ident: Ident =>
-        CodeLines.from(s"${signature.outputs.head.name}[0] = ${evalIdent(ident).replace("_val", "")}[0]->clone();")
+        // To reduce code duplication, shove the Ident into a Block and eval as a block
+        filterCode(signature, filterOperation(Block(q"()", ident)))
 
       case apply: Apply =>
         // To reduce code duplication, shove the Apply into a Block and eval as a block
@@ -342,7 +346,7 @@ object CppTranspiler {
           // Fetch values
           signature.inputs.map { in => s"${in.name}_val = ${in.name}[0]->data[i];" },
           "",
-          // Perform map operation and set validity
+          // Perform the map operation and set validity
           mapOperation,
           signature.outputs.map { d => s"${d.name}[0]->set_validity(i, 1);" }
         )
@@ -369,18 +373,18 @@ object CppTranspiler {
               }
 
             case _ =>
-              List(s"out_0[0]->data[i] = ${evalApply(apply)};")
+              List(s"${signature.outputs.head.name}[0]->data[i] = ${evalApply(apply)};")
           }
         }
 
       case ifblock: If =>
-        CodeLines.from(s"out_0[0]->data[i] = ${evalIf(ifblock)};")
+        CodeLines.from(s"${signature.outputs.head.name}[0]->data[i] = ${evalIf(ifblock)};")
 
       case select: Select =>
-        CodeLines.from(s"out_0[0]->data[i] = ${evalSelect(select)};")
+        CodeLines.from(s"${signature.outputs.head.name}[0]->data[i] = ${evalSelect(select)};")
 
       case Literal(Constant(value)) =>
-        CodeLines.from(s"out_0[0]->data[i] = ${value};")
+        CodeLines.from(s"${signature.outputs.head.name}[0]->data[i] = ${value};")
     }
 
     CodeLines.from(

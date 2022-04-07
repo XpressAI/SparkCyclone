@@ -67,8 +67,31 @@ object RDDBench {
     val rdd = sc.parallelize(numbers).repartition(8).cache()
     val result1 = benchmark("Basic - CPU") {
       rdd
-        .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
-        .map((a: Long) => ((a.toFloat / 2.0).toLong + 12) - (a % 15))
+        .filter { (a: Long) =>
+          var tmp = {
+            val x = if (a % 2 == 0) a % 3 else a % 10
+            x == 0
+          }
+          tmp &&= a % 5 == 0
+          tmp && a % 15 == 0
+        }
+        .map { (a: Long) =>
+          var x = {
+            val z = {
+              val zz = 15.0
+              zz / 5
+            }
+            z + 0.14
+          }
+
+          val y: Float = if ({ x += 2; a.toDouble / x > 42 }) {
+            2.0f
+          } else {
+            4.0f
+          }
+
+          ((a.toFloat / y).toLong + 12) - (a % 15)
+        }
         .groupBy((a: Long) => a % 2)
         .flatMap((tup: (Long, Iterable[Long])) => tup._2.map(x => x * tup._1))
         .reduce((a: Long, b: Long) => a + b)
@@ -79,11 +102,33 @@ object RDDBench {
     println("Making VeRDD[Long]")
     val start2 = System.nanoTime()
     val verdd = sc.veParallelize(numbers)
-    //val verdd = rdd.toVeRDD
     val result2 = benchmark("Basic - VE ") {
       verdd
-        .filter((a: Long) => a % 3 == 0 && a % 5 == 0 && a % 15 == 0)
-        .map((a: Long) => ((a.toFloat / 2.0).toLong + 12) - (a % 15))
+        .filter { (a: Long) =>
+          var tmp = {
+            val x = if (a % 2 == 0) a % 3 else a % 10
+            x == 0
+          }
+          tmp &&= a % 5 == 0
+          tmp && a % 15 == 0
+        }
+        .map { (a: Long) =>
+          var x = {
+            val z = {
+              val zz = 15.0
+              zz / 5
+            }
+            z + 0.14
+          }
+
+          val y: Float = if ({ x += 2; a.toDouble / x > 42 }) {
+            2.0f
+          } else {
+            4.0f
+          }
+
+          ((a.toFloat / y).toLong + 12) - (a % 15)
+        }
         .groupBy((a: Long) => a % 2)
         .flatMap((tup: (Long, Iterable[Long])) => tup._2.map(x => x * tup._1))
         .reduce((a: Long, b: Long) => a + b)

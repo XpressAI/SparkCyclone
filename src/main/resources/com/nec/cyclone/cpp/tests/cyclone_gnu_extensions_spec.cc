@@ -38,7 +38,7 @@ namespace cyclone::tests {
     });
 
     auto result2 = ({
-      std::cout << "Testing the case" << std::endl;
+      std::cout << "Testing the condition" << std::endl;
       tmp < 20;
     }) ? (({
       std::cout << "Reached the true case" << std::endl;
