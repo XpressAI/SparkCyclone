@@ -63,6 +63,9 @@ struct NullableScalarVec {
   // malloc() a NullableScalarVec<T> with C++ initialization
   static NullableScalarVec<T> * allocate();
 
+  // Construct a C-allocated NullableScalarVec<T> to represent a vector of N copies of the same value
+  static NullableScalarVec<T> * constant(const size_t size, const T value);
+
   // Merge N NullableScalarVec<T>s into 1 NullableScalarVec<T> (order is preserved)
   static NullableScalarVec<T> * merge(const NullableScalarVec<T> * const * const inputs,
                                       const size_t batches);
@@ -72,6 +75,9 @@ struct NullableScalarVec {
 
   // Construct from a given std::vector<T>
   NullableScalarVec(const std::vector<T> &src);
+
+  // Construct a vector of N copies of the same value
+  NullableScalarVec(const size_t size, const T value);
 
   // C++ destructor (to be called for object instances created by `new`)
   ~NullableScalarVec() {
@@ -166,6 +172,9 @@ struct nullable_varchar_vector {
   // malloc() a nullable_varchar_vector with C++ initialization
   static nullable_varchar_vector * allocate();
 
+  // Construct a C-allocated nullable_varchar_vector to represent a vector of N copies of the same value
+  static nullable_varchar_vector * constant(const size_t size, const std::string &value);
+
   // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);
 
@@ -183,6 +192,9 @@ struct nullable_varchar_vector {
 
   // Construct from a given std::vector<std::string>
   nullable_varchar_vector(const std::vector<std::string> &src);
+
+  // Construct a vector of N copies of the same value
+  nullable_varchar_vector(const size_t size, const std::string &value);
 
   // Construct from a given frovedis::words
   nullable_varchar_vector(const frovedis::words &src);

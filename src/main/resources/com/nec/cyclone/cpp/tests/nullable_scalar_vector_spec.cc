@@ -31,6 +31,15 @@ namespace cyclone::tests {
       CHECK(vec1->is_default());
     }
 
+    TEST_CASE_TEMPLATE("Creating a vector of N copies of the same value works for T=", T, int32_t, int64_t, float, double) {
+      const auto size = 6;
+      const auto value = raw<T>[3];
+
+      auto *vec1 = NullableScalarVec<T>::constant(size, value);
+      auto *vec2 = new NullableScalarVec(std::vector<T> { value, value, value, value, value, value });
+      CHECK(vec1->equals(vec2));
+    }
+
     TEST_CASE_TEMPLATE("Print works for T=", T, int32_t, int64_t, float, double) {
       auto *vec1 = new NullableScalarVec(raw<T>);
       vec1->set_validity(1, 0);

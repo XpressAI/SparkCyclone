@@ -27,6 +27,15 @@ namespace cyclone::tests {
       CHECK(vec1->is_default());
     }
 
+    TEST_CASE("Creating a vector of N copies of the same value works") {
+      const auto size = 6;
+      const auto value = "FOOBAR";
+
+      auto *vec1 = nullable_varchar_vector::constant(size, value);
+      auto *vec2 = new nullable_varchar_vector(std::vector<std::string> { value, value, value, value, value, value });
+      CHECK(vec1->equivalent_to(vec2));
+    }
+
     TEST_CASE("Print works") {
       std::vector<std::string> raw { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
       auto *vec1 = new nullable_varchar_vector(raw);
