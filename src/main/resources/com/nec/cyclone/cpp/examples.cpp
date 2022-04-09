@@ -177,6 +177,8 @@ void test_statement_expressions() {
   auto z = 2;
   z = t = 5;
 
+  ( (x < 10) ) ? (({ x = (x * 3); })) : ({ x = 5; });
+
   std::cout << "================================================================================" << std::endl;
   std::cout << "STATEMENT EXPRESSIONS TEST\n" << std::endl;
   std::cout << "Basic test output: " << x << std::endl;

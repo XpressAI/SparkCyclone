@@ -144,6 +144,45 @@ final class TranspileMapUnitSpec extends CppTranspilerSpec {
       assertCodeEqualish(genCode1, output1)
     }
 
+    "correctly transpile an If Only Statement" in {
+      val output1 =
+        """
+          | size_t len = in_1[0]->count;
+          |
+          | out_0[0] = nullable_int_vector::allocate();
+          | out_0[0]->resize(len);
+          |
+          | int32_t in_1_val {};
+          |
+          | for (auto i = 0; i < len; i++) {
+          |   in_1_val = in_1[0]->data[i];
+          |
+          |   int32_t x = -1;
+          |
+          |   if ((x < 10)) {
+          |     ({
+          |       x = (x * 3);
+          |       in_1_val;
+          |     });
+          |   };
+          |
+          |   out_0[0]->data[i] = x;
+          |   out_0[0]->set_validity(i, 1);
+          | }
+        """.stripMargin
+
+      val expr = reify { (y: Int) =>
+        var x = -1
+        if (x < 10) {
+          x *= 3
+          y
+        }
+        x
+      }
+      val genCode1 = CppTranspiler.transpileMap(expr)
+      assertCodeEqualish(genCode1, output1)
+    }
+
     "correctly transpile a Block Body with ValDefs, Assigns, and Ifs" in {
       val output1 =
         """
@@ -267,6 +306,90 @@ final class TranspileMapUnitSpec extends CppTranspilerSpec {
         var y = if (x) a + 43 else a - 92612
         y /= 10
         3.14
+      }
+      val genCode1 = CppTranspiler.transpileMap(expr)
+      assertCodeEqualish(genCode1, output1)
+    }
+
+    "correctly transpile While loops" in {
+      val output1 =
+        """
+          | size_t len = in_1[0]->count;
+          |
+          | out_0[0] = nullable_int_vector::allocate();
+          | out_0[0]->resize(len);
+          |
+          | int32_t in_1_val {};
+          |
+          | for (auto i = 0; i < len; i++) {
+          |   in_1_val = in_1[0]->data[i];
+          |
+          |   int32_t x = -1;
+          |   int32_t z = 1;
+          |
+          |   while (({
+          |     x = (x + 1);
+          |     (x < 10);
+          |   })) {
+          |     z = (z * 3);
+          |   };
+          |
+          |   out_0[0]->data[i] = z;
+          |   out_0[0]->set_validity(i, 1);
+          | }
+        """.stripMargin
+
+      val expr = reify { (y: Int) =>
+        var x = -1
+        var z = 1
+        while ({ x += 1; x < 10 }) {
+          z *= 3
+        }
+        z
+      }
+      val genCode1 = CppTranspiler.transpileMap(expr)
+      assertCodeEqualish(genCode1, output1)
+    }
+
+    "correctly transpile Do While loops" in {
+      val output1 =
+        """
+          | size_t len = in_1[0]->count;
+          |
+          | out_0[0] = nullable_int_vector::allocate();
+          | out_0[0]->resize(len);
+          |
+          | int32_t in_1_val {};
+          |
+          | for (auto i = 0; i < len; i++) {
+          |   in_1_val = in_1[0]->data[i];
+          |
+          |   int32_t x = -1;
+          |   int32_t z = 1;
+          |
+          |   do {
+          |     ({
+          |       z = (z - 1);
+          |       z = (z + in_1_val);
+          |     });
+          |   } while (({
+          |     x = (x + 1);
+          |     ((x < 10) && ((z % in_1_val) != 0));
+          |   }));
+          |
+          |   out_0[0]->data[i] = (x + z);
+          |   out_0[0]->set_validity(i, 1);
+          | }
+        """.stripMargin
+
+      val expr = reify { (y: Int) =>
+        var x = -1
+        var z = 1
+        do {
+          z -= 1
+          z += y
+        } while ({ x += 1; x < 10 && z % y != 0 })
+        x + z
       }
       val genCode1 = CppTranspiler.transpileMap(expr)
       assertCodeEqualish(genCode1, output1)
