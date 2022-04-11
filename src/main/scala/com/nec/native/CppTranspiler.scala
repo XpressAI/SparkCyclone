@@ -535,6 +535,9 @@ object CppTranspiler {
 
   def evalQual(tree: Tree): String = {
     tree match {
+      case WhileLoop(x)       => evalWhileLoop(x)
+      case DoWhileLoop(x)     => evalDoWhileLoop(x)
+      case IfOnlyStatement(x) => evalIfOnlyStatement(x)
       case x: Ident   => evalIdent(x)
       case x: Apply   => evalApply(x)
       case x: Literal => evalLiteral(x)
@@ -545,6 +548,36 @@ object CppTranspiler {
       case x: If      => evalIf(x)
       case unknown => "<unknown qual: " + showRaw(unknown) + ">"
     }
+  }
+
+  def evalWhileLoop(loop: WhileLoop): String = {
+    val lines = loop.body
+      .map(CppTranspiler.evalQual)
+      .filter(_.nonEmpty)
+      .map(l => s"${l};")
+
+    CodeLines.from(
+      s"while (${evalQual(loop.condition)}) {",
+      CodeLines.from(lines).indented,
+      "}"
+    ).cCode
+  }
+
+  def evalDoWhileLoop(loop: DoWhileLoop): String = {
+    val lines = loop.body
+      .map(evalQual)
+      .filter(_.nonEmpty)
+      .map(l => s"${l};")
+
+    CodeLines.from(
+      s"do {",
+      CodeLines.from(lines).indented,
+      s"} while ( ${CppTranspiler.evalQual(loop.condition)} )"
+    ).cCode
+  }
+
+  def evalIfOnlyStatement(ifblock: IfOnlyStatement): String = {
+    CodeLines.ifStatement(evalQual(ifblock.cond))(s"${evalQual(ifblock.thenp)};").cCode
   }
 
   def evalBlock(block: Block): String = {
