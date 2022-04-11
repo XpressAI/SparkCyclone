@@ -35,27 +35,40 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
    * The parent ColVector is a description of the original source vector from another VE that
    * could be on an entirely separate machine. Here, by deserializing, we allocate one on our specific VE process.
    */
-  def deserialize(ba: Array[Byte])(implicit
-    source: VeColVectorSource,
-    veProcess: VeProcess,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColVector =
-    cycloneMetrics.measureRunningTime {
-      VeColVector(
-        ByteArrayColVector(
-          underlying.copy(
-            container = None,
-            buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
-              case (bufferStart, bufferSize) =>
-                Option(ba.slice(bufferStart, bufferStart + bufferSize))
-            }
-          )
-        ).transferBuffersToVe()
-          .map(_.getOrElse(-1))
-      )
-        .newContainer()
-    }(cycloneMetrics.registerDeserializationTime)
+  def deserialize(ba: Array[Byte])(implicit source: VeColVectorSource,
+                                   process: VeProcess,
+                                   context: OriginalCallingContext,
+                                   metrics: VeProcessMetrics): VeColVector = {
+    metrics.measureRunningTime {
+
+      val buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
+        case (bufferStart, bufferSize) =>
+          ba.slice(bufferStart, bufferStart + bufferSize)
+      }
+
+      ByteArrayColVector(
+        source,
+        numItems,
+        name,
+        veType,
+        buffers
+      ).toBytePointerColVector.toVeColVector
+
+      // VeColVector(
+      //   ByteArrayColVector(
+      //     underlying.copy(
+      //       container = None,
+      //       buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
+      //         case (bufferStart, bufferSize) =>
+      //           Option(ba.slice(bufferStart, bufferStart + bufferSize))
+      //       }
+      //     )
+      //   ).transferBuffersToVe()
+      //     .map(_.getOrElse(-1))
+      // )
+        // .newContainer()
+    }(metrics.registerDeserializationTime)
+  }
 
   def toStreamFast(dataOutputStream: DataOutputStream): Unit = {
     dataOutputStream.writeInt(underlying.source.identifier.length)

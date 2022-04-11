@@ -226,6 +226,11 @@ object VeColBatch {
     VeColBatch(GenericColBatch(numRows = lv.head.underlying.numItems, lv))
   }
 
+  def from(vecs: VeColVector*): VeColBatch = {
+    assert(vecs.nonEmpty)
+    VeColBatch(GenericColBatch(numRows = vecs.head.underlying.numItems, vecs.toList))
+  }
+
   def empty: VeColBatch = {
     VeColBatch(GenericColBatch(0, List.empty))
   }

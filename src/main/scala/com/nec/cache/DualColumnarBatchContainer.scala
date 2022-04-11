@@ -19,7 +19,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case None =>
         val cols = vecs.flatMap(_.right.toSeq)
         Right(
-          ByteArrayColBatch(GenericColBatch(numRows = cols.head.underlying.numItems, cols = cols))
+          ByteArrayColBatch(GenericColBatch(numRows = cols.head.numItems, cols = cols))
         )
     }
   }
@@ -34,9 +34,9 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
 
         val vecsx =
-          byteArrayColVectors.map(_.transferToBytePointers().toArrowVector)
+          byteArrayColVectors.map(_.toBytePointerColVector.toArrowVector)
         val cb = new ColumnarBatch(vecsx.map(col => new ArrowColumnVector(col)).toArray)
-        cb.setNumRows(vecs.head.fold(_.numItems, _.underlying.numItems))
+        cb.setNumRows(vecs.head.fold(_.numItems, _.numItems))
         cb
     }
   }
@@ -51,7 +51,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case Some(vecs) => VeColBatch.fromList(vecs)
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
-        VeColBatch.fromList(byteArrayColVectors.map(_.transferToBytePointers().toVeColVector()))
+        VeColBatch.fromList(byteArrayColVectors.map(_.toBytePointerColVector.toVeColVector()))
     }
   }
 
@@ -61,17 +61,19 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
         val veColColumnarVectors = byteArrayColVectors.map(bar =>
-          new VeColColumnarVector(Right(bar), bar.underlying.veType.toSparkType)
+          new VeColColumnarVector(Right(bar), bar.veType.toSparkType)
         )
         val columnarBatch = new ColumnarBatch(veColColumnarVectors.toArray)
-        columnarBatch.setNumRows(byteArrayColVectors.head.underlying.numItems)
+        columnarBatch.setNumRows(byteArrayColVectors.head.numItems)
         columnarBatch
     }
   }
 
-  def numRows: Int = vecs.head.fold(_.numItems, _.underlying.numItems)
-  def onCpuSize: Option[Long] = Option(vecs.flatMap(_.right.toSeq))
-    .filter(_.nonEmpty)
-    .map(_.map(_.underlying.bufferSizes.sum).sum.toLong)
+  def numRows: Int = vecs.head.fold(_.numItems, _.numItems)
 
+  def onCpuSize: Option[Long] = {
+    Option(vecs.flatMap(_.right.toSeq))
+    .filter(_.nonEmpty)
+    .map(_.map(_.buffers.map(_.size).sum).sum.toLong)
+  }
 }
