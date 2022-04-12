@@ -54,12 +54,19 @@ bom:
 libcyclone.so: $(DEPS) $(OBJECTS)
 	$(CPP) $(CPP_OPTS) $(OBJECTS) -shared -o libcyclone.so
 
-# Build and run the tests, which are defined as header files included in tests/driver.cpp
+# Build the test executable linked by tests/driver.cpp
 # Remove `-fno-defer-inline-template-instantiation` because it breaks compilation of doctest
-test: libcyclone.so  $(TEST_OBJECTS)
+test.out: libcyclone.so  $(TEST_OBJECTS)
 	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
 	$(CPP) $(CPP_OPTS) $(TEST_OBJECTS) -o cyclone-tests.out -L. -lcyclone
-	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out
+
+# Run all tests EXCEPT for those tagged with '[benchmark]' in the test case name
+test: test.out
+	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out --test-case-exclude='*[benchmark]*'
+
+# Run ONLY tests that are tagged with '[benchmark]' in the test case name
+benchmark: test.out
+	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out --test-case='*[benchmark]*'
 
 # Build examples
 examples: libcyclone.so

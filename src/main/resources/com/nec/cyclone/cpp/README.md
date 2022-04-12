@@ -32,7 +32,7 @@ requires `make` and a `c++` compiler that is visible in the `PATH` and supports
 **C++17** (with GNU extensions):
 
 ```sh
-make
+make -j
 ```
 
 On a machine with `nc++` installed, the script will look for `/opt/nec/ve/bin/nc++`.
@@ -42,13 +42,27 @@ On a machine with `nc++` installed, the script will look for `/opt/nec/ve/bin/nc
 To run unit tests:
 
 ```sh
-make test
+make test -j
 ```
 
 Cyclone unit tests are run using [doctest](https://github.com/doctest/doctest),
 which is a modern single-header C++ testing framework.  The full and latest
 source code for `doctest` can be found
 [here](https://raw.githubusercontent.com/doctest/doctest/master/doctest/doctest.h).
+
+### Running Benchmarks
+
+To run benchmarks:
+
+```sh
+make benchmark -j
+```
+
+Cyclone benchmarks are run as [doctest](https://github.com/doctest/doctest) test
+cases and are powered by the [nanobench](https://github.com/martinus/nanobench)
+library, which is a modern single-header C++ obenchmarking framework.
+The full and latest source code for `doctest` can be found
+[here](https://github.com/martinus/nanobench/blob/master/src/include/nanobench.h).
 
 ### Running Example Code
 

@@ -18,17 +18,19 @@
  *
  */
 #define DOCTEST_CONFIG_IMPLEMENT
+#define ANKERL_NANOBENCH_IMPLEMENT
 #include "tests/doctest.h"
+#include "tests/nanobench.h"
 
 int main(int argc, char** argv) {
   // Based on: https://github.com/doctest/doctest/blob/master/doc/markdown/main.md
   doctest::Context context;
 
   // Apply defaults
-  context.setOption("abort-after", 5);    // Stop test execution after 5 failed assertions
-  context.setOption("duration", true);    // Prints the time duration of each test
-  context.setOption("order-by", "name");  // Sort the test cases by their name
-  context.setOption("success", true);     // Include successful assertions in output
+  context.setOption("abort-after", 5);                      // Stop test execution after 5 failed assertions
+  context.setOption("duration", true);                      // Prints the time duration of each test
+  context.setOption("order-by", "name");                    // Sort the test cases by their name
+  context.setOption("success", true);                       // Include successful assertions in output
 
   // Apply CLI flags
   context.applyCommandLine(argc, argv);
