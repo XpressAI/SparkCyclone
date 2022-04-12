@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.PureVeFunctions.PartitioningFunction
@@ -8,6 +9,7 @@ import com.nec.ve.VERDDSpec.{MultiFunctionName, exchangeBatches}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
+@VectorEngineTest
 final class ExchangeOnClusterSpec
   extends AnyFreeSpec
   with SparkAdditions

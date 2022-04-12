@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.tpc.TPCHVESqlSpec
 import com.nec.ve.CachingSpec.SampleStructure
@@ -14,6 +15,8 @@ object CachingSpec {
     SampleStructure(str = "cd", num = 5)
   )
 }
+
+@VectorEngineTest
 final class CachingSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   "We can retrieve cached items back out" ignore withSparkSession2(
     TPCHVESqlSpec.VeConfiguration(failFast = true)

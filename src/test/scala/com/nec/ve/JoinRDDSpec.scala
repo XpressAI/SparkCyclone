@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.nec.arrow.colvector.ArrayTConversions._
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
@@ -11,6 +12,7 @@ import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 
+@VectorEngineTest
 final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInfra {
   def testJoin(sparkSession: SparkSession): Seq[(Seq[Double], Seq[Double])] = {
     val partsL: Seq[(Int, Seq[Double])] =

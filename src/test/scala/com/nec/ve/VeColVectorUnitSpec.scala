@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.arrow.colvector.SeqOptTConversions._
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -9,6 +10,7 @@ import java.util.UUID
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers._
 
+@VectorEngineTest
 final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
   import OriginalCallingContext.Automatic._
 

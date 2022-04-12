@@ -19,6 +19,7 @@
  */
 package com.nec.ve
 
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.BenchTestingPossibilities
 import org.scalatest.freespec.AnyFreeSpec
 import com.nec.spark.SparkCycloneExecutorPlugin
@@ -29,6 +30,7 @@ import org.apache.log4j.Level
 import org.apache.log4j.Logger
 import org.bytedeco.veoffload.global.veo
 
+@VectorEngineTest
 final class DynamicBenchmarkVeCheck
   extends AnyFreeSpec
   with BeforeAndAfterAll

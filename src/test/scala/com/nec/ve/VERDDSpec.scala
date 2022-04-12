@@ -3,6 +3,7 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
@@ -20,6 +21,7 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
+@VectorEngineTest
 final class VERDDSpec
   extends AnyFreeSpec
   with SparkAdditions

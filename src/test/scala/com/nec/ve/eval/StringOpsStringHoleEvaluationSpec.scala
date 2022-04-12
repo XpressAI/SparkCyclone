@@ -2,6 +2,7 @@ package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.StringHole
@@ -16,6 +17,7 @@ import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
 @Ignore
+@VectorEngineTest
 final class StringOpsStringHoleEvaluationSpec
   extends AnyFreeSpec
   with WithVeProcess

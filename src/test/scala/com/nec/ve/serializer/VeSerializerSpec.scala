@@ -4,6 +4,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8VectorI
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.WithTestAllocator
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.{VeColBatch, VeKernelInfra, WithVeProcess}
@@ -11,6 +12,7 @@ import org.scalatest.freespec.AnyFreeSpec
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
+@VectorEngineTest
 final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
   import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
 

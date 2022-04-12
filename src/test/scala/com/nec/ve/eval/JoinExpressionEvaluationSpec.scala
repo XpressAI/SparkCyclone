@@ -19,6 +19,7 @@
  */
 package com.nec.ve.eval
 
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
 import com.nec.spark.agile.join.JoinUtils.TypedJoinExpression
 import com.nec.spark.agile.CFunctionGeneration._
@@ -29,6 +30,7 @@ import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
 @Ignore
+@VectorEngineTest
 final class JoinExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
 
   import RealExpressionEvaluationUtils._

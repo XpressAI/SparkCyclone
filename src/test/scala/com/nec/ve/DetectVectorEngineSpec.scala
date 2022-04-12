@@ -20,6 +20,7 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{AuroraSqlPlugin, SparkAdditions}
 import com.nec.ve.DetectVectorEngineSpec.{ExpectedClassPathItems, ExtraClassPath, VeClusterConfig}
 import org.apache.log4j.Level
@@ -68,6 +69,7 @@ object DetectVectorEngineSpec {
   final case class SampleClass(a: Int, b: Double)
 }
 
+@VectorEngineTest
 final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with SparkAdditions {
   "It works" in {
     import scala.collection.JavaConverters._

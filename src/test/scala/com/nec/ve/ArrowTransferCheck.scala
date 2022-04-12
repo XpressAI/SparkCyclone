@@ -4,6 +4,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableDouble, VeScalarType, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
@@ -15,6 +16,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector, ValueVector, VarCharVector}
 import org.scalatest.wordspec.AnyWordSpec
 
+@VectorEngineTest
 final class ArrowTransferCheck extends AnyWordSpec with WithVeProcess with VeKernelInfra {
   import OriginalCallingContext.Automatic._
 

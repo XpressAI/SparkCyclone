@@ -5,7 +5,6 @@ import org.bytedeco.veoffload.global.veo
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
-
   implicit def noOpMetrics = VeProcessMetrics.noOp
   implicit def source: VeColVectorSource = VeColVectorSource(s"VE Tests")
   implicit def veProcess: VeProcess = VeProcess.WrappingVeo(proc, source, VeProcessMetrics.noOp)
