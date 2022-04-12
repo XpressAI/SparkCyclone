@@ -1315,6 +1315,12 @@ inline double d(Clock::duration duration) noexcept {
     return std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
 }
 
+#ifdef __NEC__
+inline double d(std::chrono::nanoseconds duration) noexcept {
+    return std::chrono::duration_cast<std::chrono::duration<double>>(duration).count();
+}
+#endif
+
 // Calculates clock resolution once, and remembers the result
 inline Clock::duration clockResolution() noexcept;
 
@@ -2146,7 +2152,13 @@ struct IterationLogic::Impl {
                 mState = State::measuring;
                 mTotalElapsed += elapsed;
                 mTotalNumIters += mNumIters;
+
+                #ifdef __NEC__
+                mResult.add(std::chrono::duration_cast<std::chrono::microseconds>(elapsed), mNumIters, pc);
+                #else
                 mResult.add(elapsed, mNumIters, pc);
+                #endif
+
                 mNumIters = calcBestNumIters(mTotalElapsed, mTotalNumIters);
             } else {
                 upscale(elapsed);
@@ -2158,7 +2170,13 @@ struct IterationLogic::Impl {
             // that fluctuation, or else we would bias the result
             mTotalElapsed += elapsed;
             mTotalNumIters += mNumIters;
+
+            #ifdef __NEC__
+            mResult.add(std::chrono::duration_cast<std::chrono::microseconds>(elapsed), mNumIters, pc);
+            #else
             mResult.add(elapsed, mNumIters, pc);
+            #endif
+
             if (0 != mBench.epochIterations()) {
                 mNumIters = mBench.epochIterations();
             } else {

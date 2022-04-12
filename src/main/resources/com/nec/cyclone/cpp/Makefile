@@ -32,15 +32,23 @@ SOURCES = $(shell find frovedis -name \*.cc) \
 
 TEST_SOURCES = $(shell find tests -name \*.cc)
 
+BENCHMARK_SOURCES = $(shell find benchmarks -name \*.cc)
+
 OBJECTS = $(SOURCES:.cc=.o)
 
 TEST_OBJECTS = $(TEST_SOURCES:.cc=.o)
+
+BENCHMARK_OBJECTS = $(BENCHMARK_SOURCES:.cc=.o)
 
 # Compile the sources separately in parallel into object files
 $(OBJECTS): $(SOURCES)
 	$(CPP) $(CPP_OPTS) $(@:.o=.cc) -c -o $@
 
 $(TEST_OBJECTS): $(TEST_SOURCES)
+	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
+	$(CPP) $(CPP_OPTS) $(@:.o=.cc) -c -o $@
+
+$(BENCHMARK_OBJECTS): $(BENCHMARK_SOURCES)
 	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
 	$(CPP) $(CPP_OPTS) $(@:.o=.cc) -c -o $@
 
@@ -54,19 +62,19 @@ bom:
 libcyclone.so: $(DEPS) $(OBJECTS)
 	$(CPP) $(CPP_OPTS) $(OBJECTS) -shared -o libcyclone.so
 
-# Build the test executable linked by tests/driver.cpp
+# Build the tests executable linked by tests/driver.cpp
 # Remove `-fno-defer-inline-template-instantiation` because it breaks compilation of doctest
-test.out: libcyclone.so  $(TEST_OBJECTS)
+test: libcyclone.so  $(TEST_OBJECTS)
 	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
 	$(CPP) $(CPP_OPTS) $(TEST_OBJECTS) -o cyclone-tests.out -L. -lcyclone
+	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out
 
-# Run all tests EXCEPT for those tagged with '[benchmark]' in the test case name
-test: test.out
-	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out --test-case-exclude='*[benchmark]*'
-
-# Run ONLY tests that are tagged with '[benchmark]' in the test case name
-benchmark: test.out
-	VE_LD_LIBRARY_PATH=. ./cyclone-tests.out --test-case='*[benchmark]*'
+# Build the benchmarks executable linked by benchmarks/driver.cpp
+# Remove `-fno-defer-inline-template-instantiation` because it breaks compilation of doctest
+benchmark: libcyclone.so  $(BENCHMARK_OBJECTS)
+	$(eval CPP_OPTS:=$(filter-out -fno-defer-inline-template-instantiation,$(CPP_OPTS)))
+	$(CPP) $(CPP_OPTS) $(BENCHMARK_OBJECTS) -o cyclone-benchmarks.out -L. -lcyclone
+	VE_LD_LIBRARY_PATH=. ./cyclone-benchmarks.out
 
 # Build examples
 examples: libcyclone.so

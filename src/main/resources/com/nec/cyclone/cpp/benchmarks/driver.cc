@@ -18,6 +18,8 @@
  *
  */
 #define DOCTEST_CONFIG_IMPLEMENT
+#define ANKERL_NANOBENCH_IMPLEMENT
+#include "benchmarks/nanobench.h"
 #include "tests/doctest.h"
 
 int main(int argc, char** argv) {
