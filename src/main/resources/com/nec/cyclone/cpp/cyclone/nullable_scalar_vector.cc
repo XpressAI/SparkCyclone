@@ -187,6 +187,18 @@ const std::vector<int32_t> NullableScalarVec<T>::validity_vec() const {
 }
 
 template <typename T>
+const std::vector<size_t> NullableScalarVec<T>::size_t_validity_vec() const {
+  std::vector<size_t> bitmask(count);
+
+#pragma _NEC vector
+  for (auto i = 0; i < count; i++) {
+    bitmask[i] = get_validity(i);
+  }
+
+  return bitmask;
+}
+
+template <typename T>
 const std::vector<size_t> NullableScalarVec<T>::size_t_data_vec() const {
   std::vector<size_t> output(count);
 

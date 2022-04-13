@@ -119,6 +119,9 @@ struct NullableScalarVec {
   // Return the validity buffer as a std::vector
   const std::vector<int32_t> validity_vec() const;
 
+  // Return the validity buffer as a std::vector<size_t>
+  const std::vector<size_t> size_t_validity_vec() const;
+
   // Return the data buffer as a std::vector<size_t> (values will be casted to size_t)
   const std::vector<size_t> size_t_data_vec() const;
 
