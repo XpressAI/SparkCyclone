@@ -18,8 +18,15 @@ final case class ByteArrayColVector private[colvector] (
     buffers.size == (if (veType == VeString) 4 else 2),
     s"${getClass.getName} Number of Array[Byte]'s does not match the requirement for ${veType}"
   )
+
   require(
-    buffers.filter(_.size <= 0).isEmpty,
+    if (numItems <= 0) {
+      // If there are no elements, then all buffers should be zero
+      (buffers.filter(_.size <= 0).size == buffers.size)
+    } else {
+      // Else there should be no empty buffer
+      buffers.filter(_.size <= 0).isEmpty
+    },
     s"${getClass.getName} should not contain empty Array[Byte]'s"
   )
 

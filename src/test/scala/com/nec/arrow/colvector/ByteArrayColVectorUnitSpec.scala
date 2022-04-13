@@ -100,6 +100,18 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
       }
     }
 
+    "be constructable from empty column vectors" in {
+      implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
+      val name = s"${UUID.randomUUID}"
+
+      noException should be thrownBy { Seq.empty[Option[Int]].toBytePointerColVector(name).toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Short]].toBytePointerColVector(name).toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Long]].toBytePointerColVector(name).toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Float]].toBytePointerColVector(name).toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Double]].toBytePointerColVector(name).toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[String]].toBytePointerColVector(name).toByteArrayColVector }
+    }
+
     "correctly serialize to Array[Byte]" in {
       val buffers = Seq(
         Random.nextString(Random.nextInt(100) + 1).getBytes,
