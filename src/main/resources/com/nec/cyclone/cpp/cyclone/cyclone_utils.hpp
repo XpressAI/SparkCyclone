@@ -93,6 +93,13 @@ namespace cyclone {
 
       // Split given key columns into first and rest
       std::vector<size_t> first_keys = multiple_ids[0];
+
+      // Short-circuit single element keys
+      if(first_keys.size() == 1){
+        group_keys = {0};
+        return {{0}};
+      }
+
       std::vector<std::vector<size_t>> rest_keys = std::vector<std::vector<size_t>>(multiple_ids.begin() + 1, multiple_ids.end());
       auto rest_keys_count = rest_keys.size();
 
