@@ -21,17 +21,13 @@ package com.nec.ve.eval
 
 import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
 import com.nec.arrow.WithTestAllocator
+import com.nec.arrow.colvector.SeqOptTConversions._
 import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.spark.agile.CFunctionGeneration
-import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils._
-import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.colvector.VeColVector
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
-import org.apache.arrow.vector.{Float8Vector, IntVector, VarCharVector}
 
 /**
  * Boilerplate to deal with making the tests nice and tight.
@@ -244,12 +240,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double)] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.map { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toList
-            finally arrow.close()
-          }
+        veColBatch.cols.map { col =>
+          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
         } match {
           case colA :: colB :: Nil => colA.zip(colB)
         }
@@ -262,12 +254,9 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double, Double)] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.map { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toList
-            finally arrow.close()
-          }
+        veColBatch.cols.map { col =>
+          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
+
         } match {
           case colA :: colB :: colC :: Nil =>
             colA.zip(colB).zip(colC).map { case ((a, b), c) =>
@@ -284,12 +273,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double, Double, Double)] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.map { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toList
-            finally arrow.close()
-          }
+        veColBatch.cols.map { col =>
+          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
         } match {
           case colA :: colB :: colC :: colD :: Nil =>
             colA.zip(colB).zip(colC).zip(colD).map { case (((a, b), c), d) =>
@@ -304,12 +289,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[Option[Double]] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.flatMap { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toListSafe
-            finally arrow.close()
-          }
+        veColBatch.cols.flatMap { col =>
+          col.toBytePointerVector.toSeqOpt[Double].toList
         }
       }
     }
@@ -317,12 +298,8 @@ object StaticTypingTestAdditions {
       override def veTypes: List[VeType] = List(VeNullableInt)
 
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Int] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.flatMap { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[IntVector].toList
-            finally arrow.close()
-          }
+        veColBatch.cols.flatMap { col =>
+          col.toBytePointerVector.toSeqOpt[Int].flatten.toList
         }
       }
     }
@@ -330,12 +307,8 @@ object StaticTypingTestAdditions {
       override def veTypes: List[VeType] = List(VeNullableDouble)
 
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Double] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.flatMap { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toList
-            finally arrow.close()
-          }
+        veColBatch.cols.flatMap { col =>
+          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
         }
       }
     }
@@ -346,12 +319,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Option[Double])] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.map { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toListSafe
-            finally arrow.close()
-          }
+        veColBatch.cols.map { col =>
+          col.toBytePointerVector.toSeqOpt[Double].toList
         } match {
           case colA :: colB :: Nil => colA.flatten.zip(colB)
         }
@@ -364,12 +333,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Double)] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.map { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toListSafe
-            finally arrow.close()
-          }
+        veColBatch.cols.map { col =>
+          col.toBytePointerVector.toSeqOpt[Double].toList
         } match {
           case colA :: colB :: colC :: Nil =>
             colA.zip(colB.flatten).zip(colC.flatten).map { case ((a, b), c) => (a, b, c) }
@@ -383,12 +348,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Option[Double])] = {
-        WithTestAllocator { implicit alloc =>
-          veColBatch.cols.map { col =>
-            val arrow = col.toBytePointerVector.toArrowVector
-            try arrow.asInstanceOf[Float8Vector].toListSafe
-            finally arrow.close()
-          }
+        veColBatch.cols.map { col =>
+          col.toBytePointerVector.toSeqOpt[Double].toList
         } match {
           case colA :: colB :: colC :: Nil =>
             colA.zip(colB.flatten).zip(colC).map { case ((a, b), c) => (a, b, c) }
@@ -401,15 +362,8 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(String, Double)] = {
-        WithTestAllocator { implicit alloc =>
-          val colA :: colB :: Nil = veColBatch.cols.map(_.toBytePointerVector.toArrowVector)
-
-          try colA.asInstanceOf[VarCharVector].toList.zip(colA.asInstanceOf[Float8Vector].toList)
-          finally {
-            colA.close()
-            colB.close()
-          }
-        }
+        val colA :: colB :: Nil = veColBatch.cols.map(_.toBytePointerVector)
+        colA.toSeqOpt[String].flatten.toList.zip(colB.toSeqOpt[Double].flatten.toList)
       }
     }
   }

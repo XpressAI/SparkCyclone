@@ -18,14 +18,18 @@
  *
  */
 package com.nec.arrow
-import com.nec.arrow.CountArrowStringsSpec.schema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
+import org.apache.arrow.vector.types.pojo.Schema
 
 import java.util
 
 object ArrowVectorBuilders {
   var vectorCount = 0
+
+  val schema = Schema.fromJSON(
+    """{"fields": [{"name": "value", "nullable" : true, "type": {"name": "utf8"}, "children": []}]}"""
+  )
 
   def withArrowStringVector[T](stringBatch: Seq[String])(f: VarCharVector => T): T = {
     import org.apache.arrow.vector.VectorSchemaRoot

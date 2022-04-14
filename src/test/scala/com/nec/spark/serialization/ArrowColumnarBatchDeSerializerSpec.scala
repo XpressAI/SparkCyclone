@@ -15,7 +15,6 @@ import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.{
   ImmutableColBatch
 }
 import com.nec.util.ReflectionOps._
-import com.nec.util.RichVectors.{RichFloat8, RichIntVector, RichVarCharVector}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
@@ -47,7 +46,11 @@ object ArrowColumnarBatchDeSerializerSpec {
         }
         iv
       }
-      override def parse(vector: IntVector): List[Option[Int]] = vector.toListSafe
+      override def parse(vector: IntVector): List[Option[Int]] = {
+        (0 until vector.getValueCount)
+          .map(i => if (vector.isNull(i)) None else Some(vector.get(i)))
+          .toList
+      }
 
       override def values: List[Option[Int]] = ints.toList
 
@@ -70,7 +73,11 @@ object ArrowColumnarBatchDeSerializerSpec {
         }
         iv
       }
-      override def parse(vector: VarCharVector): List[Option[String]] = vector.toListSafe
+      override def parse(vector: VarCharVector): List[Option[String]] = {
+        (0 until vector.getValueCount)
+          .map(i => if (vector.isNull(i)) None else Option(new String(vector.get(i))))
+          .toList
+      }
 
       override def values: List[Option[String]] = strings.toList
     }
@@ -87,7 +94,11 @@ object ArrowColumnarBatchDeSerializerSpec {
         }
         iv
       }
-      override def parse(vector: Float8Vector): List[Option[Double]] = vector.toListSafe
+      override def parse(vector: Float8Vector): List[Option[Double]] = {
+        (0 until vector.getValueCount)
+          .map(i => if (vector.isNull(i)) None else Some(vector.get(i)))
+          .toList
+      }
 
       override def values: List[Option[Double]] = ints.toList
     }
@@ -160,7 +171,11 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
       withDirectIntVector(Seq(1, 2, 3)) { iv =>
         withDirectIntVector(Seq(4, 5, 6)) { iv2 =>
           iv.append(iv2)
-          expect(iv.toList == List(1, 2, 3, 4, 5, 6))
+          val output = (0 until iv.getValueCount)
+            .map(i => if (iv.isNull(i)) None else Some(iv.get(i)))
+            .flatten
+            .toList
+          expect(output == List(1, 2, 3, 4, 5, 6))
         }
       }
     }
