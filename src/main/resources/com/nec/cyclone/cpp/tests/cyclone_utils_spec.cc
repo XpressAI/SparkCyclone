@@ -184,6 +184,5 @@ namespace cyclone::tests {
     CHECK(groups[7] == expected_7);
     CHECK(groups[8] == expected_8);
     CHECK(groups[9] == expected_9);
-
   }
 }

@@ -80,6 +80,12 @@ namespace cyclone::benchmarks {
     return groups.size();
   }
 
+
+  size_t vector_group(NullableScalarVec<int64_t> *input){
+    std::vector<std::vector<size_t>> groups = input->group_indexes();
+    return groups.size();
+  }
+
   TEST_CASE("Benchmarking group by implementations") {
     NullableScalarVec<int64_t>* input = create_input(3500000, 150);
     
@@ -93,6 +99,10 @@ namespace cyclone::benchmarks {
 
     ankerl::nanobench::Bench().run("vector_group_by(no validity)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_group_by_no_validity(input));
+    });
+
+    ankerl::nanobench::Bench().run("vector_group(with validity)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group(input));
     });
   }
 }

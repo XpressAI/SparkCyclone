@@ -143,6 +143,9 @@ struct NullableScalarVec {
 
   // Return a bitmask that is the value of evaluating an IN expression
   const std::vector<size_t> eval_in(const std::vector<T> &elements) const;
+
+  // Return groups of indexes for elements of the same value
+  const std::vector<std::vector<size_t>> group_indexes() const;
 };
 
 // Explicitly instantiate struct template for int32_t

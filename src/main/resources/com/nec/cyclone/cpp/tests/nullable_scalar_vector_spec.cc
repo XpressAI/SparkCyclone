@@ -244,4 +244,44 @@ namespace cyclone::tests {
       CHECK(input->eval_in(std::vector<T> { 106, 538 }) == expected2);
     }
   }
+
+  TEST_CASE_TEMPLATE("group_indexes works with all valid values", T, int32_t, int64_t, float, double){
+    std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+    std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
+    std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
+
+    const auto *input = new NullableScalarVec(grouping);
+    auto grouped = input->group_indexes();
+    CHECK(grouped[0] == expected_0);
+    CHECK(grouped[1] == expected_1);
+  }
+
+  TEST_CASE_TEMPLATE("group_indexes works with all valid values (3 groups)", T, int32_t, int64_t, float, double){
+    std::vector<T> grouping = { 10, 10, 11, 12, 10, 10, 10, 11, 11, 11, 12, 10, 10, 11, 11 };
+    std::vector<size_t> expected_0 = { 0, 1, 4, 5, 6, 11, 12 };
+    std::vector<size_t> expected_1 = { 2, 7, 8, 9, 13, 14 };
+    std::vector<size_t> expected_2 = { 3, 10 };
+
+    const auto *input = new NullableScalarVec(grouping);
+    auto grouped = input->group_indexes();
+    CHECK(grouped[0] == expected_0);
+    CHECK(grouped[1] == expected_1);
+    CHECK(grouped[2] == expected_2);
+  }
+
+  TEST_CASE_TEMPLATE("group_indexes works with some invalid values", T, int32_t, int64_t, float, double){
+    std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+    std::vector<size_t> expected_0 = { 1, 3, 4, 5, 6, 11, 12 };
+    std::vector<size_t> expected_1 = { 7, 8, 9, 10, 13, 14 };
+    std::vector<size_t> expected_2 = { 0, 2 };
+
+    auto *input = new NullableScalarVec(grouping);
+    input->set_validity(0, 0);
+    input->set_validity(2, 0);
+
+    auto grouped = input->group_indexes();
+    CHECK(grouped[0] == expected_0);
+    CHECK(grouped[1] == expected_1);
+    CHECK(grouped[2] == expected_2);
+  }
 }
